@@ -337,3 +337,249 @@ mod tests {
         }
     }
 }
+
+// eval_context.rs 模块的单元测试
+#[cfg(test)]
+mod eval_context_tests {
+    use crate::expressions::{
+        SimpleExpressionContext, SimpleExpressionEvaluator,
+        Expression, EvaluationError, UnaryOp, BinaryOp
+    };
+    use crate::core::Value;
+
+    #[test]
+    fn test_simple_expression_context_new() {
+        let context = SimpleExpressionContext::new();
+        assert!(context.variable_names().is_empty());
+    }
+
+    #[test]
+    fn test_simple_expression_context_set_and_get_variable() {
+        let mut context = SimpleExpressionContext::new();
+        
+        // 设置变量
+        context.set_variable("x".to_string(), Value::Int(42));
+        
+        // 获取变量
+        let result = context.get_variable_direct("x").unwrap();
+        assert_eq!(result, Value::Int(42));
+    }
+
+    #[test]
+    fn test_simple_expression_context_get_undefined_variable() {
+        let context = SimpleExpressionContext::new();
+        
+        // 获取未定义的变量应该返回错误
+        let result = context.get_variable_direct("undefined");
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), EvaluationError::UndefinedVariable(_)));
+    }
+
+    #[test]
+    fn test_simple_expression_context_has_variable() {
+        let mut context = SimpleExpressionContext::new();
+        
+        // 初始时变量不存在
+        assert!(!context.has_variable("x"));
+        
+        // 设置变量后应该存在
+        context.set_variable("x".to_string(), Value::Int(42));
+        assert!(context.has_variable("x"));
+    }
+
+    #[test]
+    fn test_simple_expression_context_variable_names() {
+        let mut context = SimpleExpressionContext::new();
+        
+        // 设置多个变量
+        context.set_variable("x".to_string(), Value::Int(42));
+        context.set_variable("y".to_string(), Value::String("hello".to_string()));
+        context.set_variable("z".to_string(), Value::Bool(true));
+        
+        // 获取所有变量名
+        let names = context.variable_names();
+        assert_eq!(names.len(), 3);
+        assert!(names.contains(&"x".to_string()));
+        assert!(names.contains(&"y".to_string()));
+        assert!(names.contains(&"z".to_string()));
+    }
+
+    #[test]
+    fn test_simple_expression_context_set_variables() {
+        let mut context = SimpleExpressionContext::new();
+        
+        // 批量设置变量
+        let mut vars = std::collections::HashMap::new();
+        vars.insert("a".to_string(), Value::Int(1));
+        vars.insert("b".to_string(), Value::Int(2));
+        context.set_variables(vars);
+        
+        // 验证变量已设置
+        assert_eq!(context.get_variable_direct("a").unwrap(), Value::Int(1));
+        assert_eq!(context.get_variable_direct("b").unwrap(), Value::Int(2));
+        assert_eq!(context.variable_names().len(), 2);
+    }
+
+    #[test]
+    fn test_simple_expression_context_clear() {
+        let mut context = SimpleExpressionContext::new();
+        
+        // 设置变量
+        context.set_variable("x".to_string(), Value::Int(42));
+        assert!(context.has_variable("x"));
+        
+        // 清除所有变量
+        context.clear();
+        assert!(!context.has_variable("x"));
+        assert!(context.variable_names().is_empty());
+    }
+
+    #[test]
+    fn test_simple_expression_evaluator_new() {
+        let evaluator = SimpleExpressionEvaluator::new();
+        assert!(evaluator.context().variable_names().is_empty());
+    }
+
+    #[test]
+    fn test_simple_expression_evaluator_with_context() {
+        let mut context = SimpleExpressionContext::new();
+        context.set_variable("x".to_string(), Value::Int(42));
+        
+        let evaluator = SimpleExpressionEvaluator::with_context(context);
+        assert_eq!(evaluator.context().variable_names().len(), 1);
+        assert!(evaluator.context().has_variable("x"));
+    }
+
+    #[test]
+    fn test_simple_expression_evaluator_set_variable() {
+        let mut evaluator = SimpleExpressionEvaluator::new();
+        
+        // 设置变量
+        evaluator.set_variable("x".to_string(), Value::Int(42));
+        
+        // 验证变量已设置
+        assert!(evaluator.context().has_variable("x"));
+        assert_eq!(evaluator.context().get_variable_direct("x").unwrap(), Value::Int(42));
+    }
+
+    #[test]
+    fn test_simple_expression_evaluator_evaluate_constant() {
+        let evaluator = SimpleExpressionEvaluator::new();
+        let expr = Expression::Constant(Value::Int(42));
+        
+        let result = evaluator.evaluate(&expr).unwrap();
+        assert_eq!(result, Value::Int(42));
+    }
+
+    #[test]
+    fn test_simple_expression_evaluator_evaluate_variable() {
+        let mut evaluator = SimpleExpressionEvaluator::new();
+        evaluator.set_variable("x".to_string(), Value::Int(42));
+        
+        let expr = Expression::Variable {
+            name: "x".to_string(),
+        };
+        
+        let result = evaluator.evaluate(&expr).unwrap();
+        assert_eq!(result, Value::Int(42));
+    }
+
+    #[test]
+    fn test_simple_expression_evaluator_evaluate_unary() {
+        let evaluator = SimpleExpressionEvaluator::new();
+        let expr = Expression::Unary {
+            op: UnaryOp::Minus,
+            operand: Box::new(Expression::Constant(Value::Int(42))),
+        };
+        
+        let result = evaluator.evaluate(&expr).unwrap();
+        assert_eq!(result, Value::Int(-42));
+    }
+
+    #[test]
+    fn test_simple_expression_evaluator_evaluate_binary() {
+        let evaluator = SimpleExpressionEvaluator::new();
+        let expr = Expression::Binary {
+            op: BinaryOp::Add,
+            left: Box::new(Expression::Constant(Value::Int(10))),
+            right: Box::new(Expression::Constant(Value::Int(32))),
+        };
+        
+        let result = evaluator.evaluate(&expr).unwrap();
+        assert_eq!(result, Value::Int(42));
+    }
+
+    #[test]
+    fn test_simple_expression_evaluator_evaluate_complex() {
+        let mut evaluator = SimpleExpressionEvaluator::new();
+        evaluator.set_variable("x".to_string(), Value::Int(10));
+        evaluator.set_variable("y".to_string(), Value::Int(5));
+        
+        // 表达式: (x + y) * 2
+        let expr = Expression::Binary {
+            op: BinaryOp::Mul,
+            left: Box::new(Expression::Binary {
+                op: BinaryOp::Add,
+                left: Box::new(Expression::Variable { name: "x".to_string() }),
+                right: Box::new(Expression::Variable { name: "y".to_string() }),
+            }),
+            right: Box::new(Expression::Constant(Value::Int(2))),
+        };
+        
+        let result = evaluator.evaluate(&expr).unwrap();
+        assert_eq!(result, Value::Int(30)); // (10 + 5) * 2 = 30
+    }
+
+    #[test]
+    fn test_simple_expression_evaluator_context_mut() {
+        let mut evaluator = SimpleExpressionEvaluator::new();
+        
+        // 通过可变引用设置变量
+        evaluator.context_mut().set_variable("x".to_string(), Value::Int(42));
+        
+        // 验证变量已设置
+        assert!(evaluator.context().has_variable("x"));
+        assert_eq!(evaluator.context().get_variable_direct("x").unwrap(), Value::Int(42));
+    }
+
+    #[test]
+    fn test_simple_expression_context_default() {
+        let context = SimpleExpressionContext::default();
+        assert!(context.variable_names().is_empty());
+    }
+
+    #[test]
+    fn test_simple_expression_evaluator_default() {
+        let evaluator = SimpleExpressionEvaluator::default();
+        assert!(evaluator.context().variable_names().is_empty());
+    }
+
+    #[test]
+    fn test_simple_expression_context_clone() {
+        let mut context = SimpleExpressionContext::new();
+        context.set_variable("x".to_string(), Value::Int(42));
+        
+        let cloned = context.clone();
+        assert!(cloned.has_variable("x"));
+        assert_eq!(cloned.get_variable_direct("x").unwrap(), Value::Int(42));
+        
+        // 修改原始上下文不应影响克隆
+        context.set_variable("y".to_string(), Value::Int(100));
+        assert!(!cloned.has_variable("y"));
+    }
+
+    #[test]
+    fn test_simple_expression_context_graph_operations_not_supported() {
+        use crate::expressions::ExpressionContext;
+        
+        let context = SimpleExpressionContext::new();
+        
+        // 所有图数据库特定操作都应该返回错误
+        assert!(context.get_tag_property("person", "name").is_err());
+        assert!(context.get_edge_property("friend", "since").is_err());
+        assert!(context.get_src_vertex().is_err());
+        assert!(context.get_dst_vertex().is_err());
+        assert!(context.get_current_vertex().is_err());
+        assert!(context.get_current_edge().is_err());
+    }
+}
