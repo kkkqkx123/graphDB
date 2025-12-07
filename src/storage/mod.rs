@@ -74,13 +74,14 @@ impl NativeStorage {
     }
 
     fn value_to_bytes(&self, value: &Value) -> Result<Vec<u8>, StorageError> {
-        bincode::serialize(value)
+        bincode::encode_to_vec(value, bincode::config::standard())
             .map_err(|e| StorageError::SerializationError(e.to_string()))
     }
 
     fn value_from_bytes(&self, bytes: &[u8]) -> Result<Value, StorageError> {
-        bincode::deserialize(bytes)
-            .map_err(|e| StorageError::SerializationError(e.to_string()))
+        let (value, _len) = bincode::decode_from_slice(bytes, bincode::config::standard())
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        Ok(value)
     }
 }
 
@@ -90,7 +91,7 @@ impl StorageEngine for NativeStorage {
         // We create a new vertex with the generated id
         let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
 
-        let vertex_bytes = bincode::serialize(&vertex_with_id)
+        let vertex_bytes = bincode::encode_to_vec(&vertex_with_id, bincode::config::standard())
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         let id_bytes = self.value_to_bytes(&id)?;
@@ -104,7 +105,7 @@ impl StorageEngine for NativeStorage {
         let id_bytes = self.value_to_bytes(id)?;
         match self.nodes_tree.get(id_bytes)? {
             Some(vertex_bytes) => {
-                let vertex: Vertex = bincode::deserialize(&vertex_bytes)
+                let (vertex, _len): (Vertex, usize) = bincode::decode_from_slice(&vertex_bytes, bincode::config::standard())
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 Ok(Some(vertex))
             }
@@ -118,7 +119,7 @@ impl StorageEngine for NativeStorage {
             return Err(StorageError::NodeNotFound(Value::Null(Default::default())));
         }
 
-        let vertex_bytes = bincode::serialize(&vertex)
+        let vertex_bytes = bincode::encode_to_vec(&vertex, bincode::config::standard())
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         let id_bytes = self.value_to_bytes(&vertex.vid)?;
@@ -151,7 +152,7 @@ impl StorageEngine for NativeStorage {
         let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
-        let edge_bytes = bincode::serialize(&edge)
+        let edge_bytes = bincode::encode_to_vec(&edge, bincode::config::standard())
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         // Store the edge
@@ -172,7 +173,7 @@ impl StorageEngine for NativeStorage {
 
         match self.edges_tree.get(&edge_key_bytes)? {
             Some(edge_bytes) => {
-                let edge: Edge = bincode::deserialize(&edge_bytes)
+                let (edge, _len): (Edge, usize) = bincode::decode_from_slice(&edge_bytes, bincode::config::standard())
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 Ok(Some(edge))
             }
@@ -186,7 +187,7 @@ impl StorageEngine for NativeStorage {
 
         for edge_key_bytes in edge_keys {
             if let Some(edge_bytes) = self.edges_tree.get(&edge_key_bytes)? {
-                let edge: Edge = bincode::deserialize(&edge_bytes)
+                let (edge, _len): (Edge, usize) = bincode::decode_from_slice(&edge_bytes, bincode::config::standard())
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
                 match direction {
@@ -246,8 +247,11 @@ impl NativeStorage {
     fn update_node_edge_index(&self, node_id: &Value, edge_key: &[u8], add: bool) -> Result<(), StorageError> {
         let node_id_bytes = self.value_to_bytes(node_id)?;
         let mut edge_list = match self.node_edge_index.get(&node_id_bytes)? {
-            Some(list_bytes) => bincode::deserialize::<Vec<Vec<u8>>>(&list_bytes)
-                .map_err(|e| StorageError::SerializationError(e.to_string()))?,
+            Some(list_bytes) => {
+                let (result, _len): (Vec<Vec<u8>>, usize) = bincode::decode_from_slice(&list_bytes, bincode::config::standard())
+                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                result
+            },
             None => Vec::new(),
         };
 
@@ -259,7 +263,7 @@ impl NativeStorage {
             edge_list.retain(|key| key != edge_key);
         }
 
-        let list_bytes = bincode::serialize(&edge_list)
+        let list_bytes = bincode::encode_to_vec(&edge_list, bincode::config::standard())
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         self.node_edge_index.insert(&node_id_bytes, list_bytes)?;
@@ -271,7 +275,7 @@ impl NativeStorage {
         let node_id_bytes = self.value_to_bytes(node_id)?;
         match self.node_edge_index.get(&node_id_bytes)? {
             Some(list_bytes) => {
-                let edge_key_list: Vec<Vec<u8>> = bincode::deserialize(&list_bytes)
+                let (edge_key_list, _len): (Vec<Vec<u8>>, usize) = bincode::decode_from_slice(&list_bytes, bincode::config::standard())
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 Ok(edge_key_list)
             }

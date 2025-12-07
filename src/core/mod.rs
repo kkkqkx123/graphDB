@@ -5,6 +5,13 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering as CmpOrdering;
 
 pub mod error;
+pub mod allocator;
+pub mod lru_cache;
+pub mod cord;
+pub mod murmur;
+pub mod signal_handler;
+pub mod collect_n_succeeded;
+pub mod either;
 
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<CmpOrdering> {
