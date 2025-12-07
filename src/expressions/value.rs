@@ -53,4 +53,33 @@ pub enum Expression {
         conditions: Vec<(Expression, Expression)>, // (condition, result)
         default: Option<Box<Expression>>,
     },
+
+    /// Graph-specific expressions
+    /// Represents a vertex expression
+    Vertex {
+        name: String,  // Default: "VERTEX", "$^" for source vertex, "$$" for destination
+    },
+
+    /// Represents an edge expression
+    Edge,
+
+    /// Path building expression
+    PathBuild {
+        items: Vec<Expression>,
+    },
+
+    /// Aggregate expression (for functions like COUNT, SUM, AVG, etc.)
+    Aggregate {
+        name: String,      // Function name like "COUNT", "SUM", "AVG", etc.
+        arg: Option<Box<Expression>>,  // Argument to the aggregation function
+        distinct: bool,    // Whether to apply DISTINCT to the argument
+    },
+
+    /// List comprehension expression [expr FOR var IN collection IF condition]
+    ListComprehension {
+        inner_var: String,        // The variable name in the comprehension
+        collection: Box<Expression>,  // The collection to iterate over
+        filter: Option<Box<Expression>>,  // Optional filter condition
+        mapping: Option<Box<Expression>>,  // Optional mapping expression
+    },
 }

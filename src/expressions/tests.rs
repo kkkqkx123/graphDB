@@ -203,4 +203,137 @@ mod tests {
         let result = case_expr.eval(&context).unwrap();
         assert_eq!(result, Value::String("equal".to_string()));
     }
+
+    #[test]
+    fn test_vertex_expression() {
+        let vertex = Vertex::new(Value::Int(1), vec![]);
+        let value = Value::Vertex(Box::new(vertex.clone()));
+        let mut context = DefaultExpressionContext::new();
+        context.set_current_vertex(vertex);
+
+        let vertex_expr = Expression::Vertex {
+            name: "VERTEX".to_string(),
+        };
+
+        let result = vertex_expr.eval(&context).unwrap();
+        if let Value::Vertex(result_vertex) = result {
+            assert_eq!(result_vertex.vid, Box::new(Value::Int(1)));
+        } else {
+            panic!("Expected Vertex value");
+        }
+    }
+
+    #[test]
+    fn test_edge_expression() {
+        let edge = Edge::new(
+            Value::Int(1), // src
+            Value::Int(2), // dst
+            "friend".to_string(), // type_name
+            0, // rank
+            std::collections::HashMap::new(), // props
+        );
+        let value = Value::Edge(edge.clone());
+        let mut context = DefaultExpressionContext::new();
+        context.set_current_edge(edge);
+
+        let edge_expr = Expression::Edge;
+
+        let result = edge_expr.eval(&context).unwrap();
+        if let Value::Edge(result_edge) = result {
+            assert_eq!(result_edge.src, Box::new(Value::Int(1)));
+            assert_eq!(result_edge.dst, Box::new(Value::Int(2)));
+        } else {
+            panic!("Expected Edge value");
+        }
+    }
+
+    #[test]
+    fn test_path_build_expression() {
+        use std::collections::HashMap;
+
+        // Create vertices for the path
+        let v1 = Vertex::new(Value::Int(1), vec![]);
+        let v2 = Vertex::new(Value::Int(2), vec![]);
+
+        // Create an edge between them
+        let mut props = HashMap::new();
+        props.insert("type".to_string(), Value::String("friend".to_string()));
+        let edge = Edge::new(
+            Value::Int(1), // src
+            Value::Int(2), // dst
+            "friend".to_string(), // type_name
+            0, // rank
+            props, // props
+        );
+
+        let v1_expr = Expression::Constant(Value::Vertex(Box::new(v1.clone())));
+        let v2_expr = Expression::Constant(Value::Vertex(Box::new(v2.clone())));
+        let edge_expr = Expression::Constant(Value::Edge(edge.clone()));
+
+        let path_expr = Expression::PathBuild {
+            items: vec![v1_expr, edge_expr, v2_expr],
+        };
+
+        let context = DefaultExpressionContext::new();
+        let result = path_expr.eval(&context).unwrap();
+
+        if let Value::Path(path) = result {
+            assert_eq!(path.src.vid, Box::new(Value::Int(1)));
+            assert_eq!(path.steps.len(), 1);
+            assert_eq!(path.steps[0].dst.vid, Box::new(Value::Int(2)));
+        } else {
+            panic!("Expected Path value");
+        }
+    }
+
+    #[test]
+    fn test_aggregate_expression() {
+        let arg_expr = Box::new(Expression::Constant(Value::Int(42)));
+        let agg_expr = Expression::Aggregate {
+            name: "COUNT".to_string(),
+            arg: Some(arg_expr),
+            distinct: false,
+        };
+
+        let context = DefaultExpressionContext::new();
+        let result = agg_expr.eval(&context).unwrap();
+
+        // This test might need adjustment based on the actual aggregation behavior
+        // For now, it just checks that the evaluation doesn't panic
+        assert!(matches!(result, Value::Int(_)));
+    }
+
+    #[test]
+    fn test_list_comprehension_expression() {
+        let list_expr = Expression::Constant(Value::List(vec![
+            Value::Int(1),
+            Value::Int(2),
+            Value::Int(3),
+            Value::Int(4),
+            Value::Int(5),
+        ]));
+
+        let list_comp_expr = Expression::ListComprehension {
+            inner_var: "x".to_string(),
+            collection: Box::new(list_expr),
+            filter: None, // No filter
+            mapping: None, // No mapping, just return the items as-is
+        };
+
+        let context = DefaultExpressionContext::new();
+        let result = list_comp_expr.eval(&context).unwrap();
+
+        if let Value::List(items) = result {
+            assert_eq!(items.len(), 5);
+            for (i, item) in items.iter().enumerate() {
+                if let Value::Int(n) = item {
+                    assert_eq!(*n, (i + 1) as i64);
+                } else {
+                    panic!("Expected Int value at index {}", i);
+                }
+            }
+        } else {
+            panic!("Expected List value");
+        }
+    }
 }

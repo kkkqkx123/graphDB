@@ -115,6 +115,15 @@ impl Vertex {
     }
 }
 
+impl Default for Vertex {
+    fn default() -> Self {
+        Self {
+            vid: Box::new(Value::Null(NullType::NaN)),
+            tags: Vec::new(),
+        }
+    }
+}
+
 /// Represents an edge in the graph, similar to Nebula's Edge structure
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Edge {
@@ -167,6 +176,15 @@ pub struct Step {
 pub struct Path {
     pub src: Box<Vertex>,
     pub steps: Vec<Step>,
+}
+
+impl Default for Path {
+    fn default() -> Self {
+        Self {
+            src: Box::new(Vertex::default()),
+            steps: Vec::new(),
+        }
+    }
 }
 
 use std::hash::Hash;
