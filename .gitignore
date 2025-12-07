@@ -1,2 +1,5 @@
-nebula-3.8.0
 target
+data
+
+nebula-3.8.0/tests
+nebula-3.8.0/scripts

@@ -11,6 +11,10 @@ pub mod index;
 pub mod api;
 pub mod utils;
 pub mod config;
+pub mod expression;
+pub mod graph;
+pub mod context;
+pub mod network;
 
 // Re-export common types at the crate root for convenience
 pub use crate::core::{Vertex, Edge, Value, Direction, Tag, Path, Step, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, error::{GraphDBError, GraphDBResult}};

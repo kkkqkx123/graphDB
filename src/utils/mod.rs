@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::{SystemTime, UNIX_EPOCH};
+use crate::core::Value;
 
 /// A simple object pool for reusing objects to reduce allocation overhead
 pub struct ObjectPool<T> {
@@ -121,6 +122,161 @@ impl Logger {
     }
 }
 
+/// Key-Value building utilities
+pub mod kv_builder {
+    use std::collections::HashMap;
+    use crate::core::Value;
+
+    /// Builds a key-value map from a list of key-value pairs
+    pub fn build_key_value_map(pairs: Vec<(&str, Value)>) -> HashMap<String, Value> {
+        pairs.into_iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect()
+    }
+
+    /// Merges two key-value maps, with values from the second map overwriting values in the first
+    pub fn merge_key_value_maps(
+        mut base: HashMap<String, Value>,
+        additional: HashMap<String, Value>
+    ) -> HashMap<String, Value> {
+        for (key, value) in additional {
+            base.insert(key, value);
+        }
+        base
+    }
+
+    /// Converts a key-value map to a vector of (key, value) pairs
+    pub fn to_pairs(map: &HashMap<String, Value>) -> Vec<(String, Value)> {
+        map.iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
+    }
+
+    /// Creates a map from a slice of string keys and a slice of Value objects
+    pub fn from_keys_and_values(keys: &[&str], values: &[Value]) -> Result<HashMap<String, Value>, String> {
+        if keys.len() != values.len() {
+            return Err("Keys and values must have the same length".to_string());
+        }
+
+        let mut map = HashMap::new();
+        for (key, value) in keys.iter().zip(values.iter()) {
+            map.insert(key.to_string(), value.clone());
+        }
+
+        Ok(map)
+    }
+}
+
+/// String utilities for database operations
+pub mod string_utils {
+    use std::collections::HashMap;
+
+    /// Escapes special characters in a string for use in queries
+    pub fn escape_for_query(s: &str) -> String {
+        s.replace('\\', "\\\\")
+         .replace('\'', "\\'")
+         .replace('\"', "\\\"")
+         .replace('\n', "\\n")
+         .replace('\r', "\\r")
+         .replace('\t', "\\t")
+    }
+
+    /// Unescapes special characters in a string
+    pub fn unescape_for_query(s: &str) -> String {
+        s.replace("\\t", "\t")
+         .replace("\\r", "\r")
+         .replace("\\n", "\n")
+         .replace("\\\"", "\"")
+         .replace("\\'", "'")
+         .replace("\\\\", "\\")
+    }
+
+    /// Normalizes identifier names (table names, column names, etc.)
+    pub fn normalize_identifier(name: &str) -> String {
+        // Replace spaces with underscores and convert to lowercase
+        name.trim()
+           .replace(' ', "_")
+           .replace('-', "_")
+           .to_lowercase()
+    }
+
+    /// Sanitizes input to prevent injection attacks
+    pub fn sanitize_input(input: &str) -> String {
+        // Remove potentially dangerous characters/sequences
+        input.replace(";", "")
+             .replace("--", "")
+             .replace("/*", "")
+             .replace("*/", "")
+             .replace("xp_", "")  // Prevent calls to extended procedures
+             .replace("sp_", "")  // Prevent calls to stored procedures
+    }
+}
+
+/// Type conversion utilities
+pub mod type_utils {
+    use crate::core::Value;
+
+    /// Attempts to convert a Value to a boolean
+    pub fn value_to_bool(value: &Value) -> Option<bool> {
+        match value {
+            Value::Bool(b) => Some(*b),
+            Value::Int(i) => Some(*i != 0),
+            Value::Float(f) => Some(*f != 0.0 && !f.is_nan()),
+            Value::String(s) => {
+                if s.to_lowercase() == "true" {
+                    Some(true)
+                } else if s.to_lowercase() == "false" {
+                    Some(false)
+                } else {
+                    None  // Cannot convert string to bool without more context
+                }
+            }
+            Value::Empty => Some(false),
+            Value::Null(_) => None,
+            _ => None,
+        }
+    }
+
+    /// Attempts to convert a Value to an integer
+    pub fn value_to_i64(value: &Value) -> Option<i64> {
+        match value {
+            Value::Int(i) => Some(*i),
+            Value::Float(f) => Some(*f as i64),
+            Value::String(s) => s.parse::<i64>().ok(),
+            Value::Bool(b) => Some(if *b { 1 } else { 0 }),
+            Value::Empty => Some(0),
+            Value::Null(_) => None,
+            _ => None,
+        }
+    }
+
+    /// Attempts to convert a Value to a float
+    pub fn value_to_f64(value: &Value) -> Option<f64> {
+        match value {
+            Value::Float(f) => Some(*f),
+            Value::Int(i) => Some(*i as f64),
+            Value::String(s) => s.parse::<f64>().ok(),
+            Value::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+            Value::Empty => Some(0.0),
+            Value::Null(_) => None,
+            _ => None,
+        }
+    }
+
+    /// Attempts to convert a Value to a string
+    pub fn value_to_string(value: &Value) -> Option<String> {
+        match value {
+            Value::String(s) => Some(s.clone()),
+            Value::Int(i) => Some(i.to_string()),
+            Value::Float(f) => Some(f.to_string()),
+            Value::Bool(b) => Some(b.to_string()),
+            Value::Empty => Some(String::new()),
+            Value::Null(_) => None,
+            _ => None,  // Other types may require more complex conversion
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -128,30 +284,74 @@ mod tests {
     #[test]
     fn test_lru_cache() {
         let mut cache = LruCache::new(2);
-        
+
         cache.put(1, "one");
         cache.put(2, "two");
-        
+
         assert_eq!(cache.get(&1), Some(&"one")); // Access 1
         cache.put(3, "three"); // This should evict 2
-        
+
         assert_eq!(cache.get(&2), None);
         assert_eq!(cache.get(&1), Some(&"one"));
         assert_eq!(cache.get(&3), Some(&"three"));
     }
-    
+
     #[test]
     fn test_object_pool() {
         let mut pool: ObjectPool<Vec<i32>> = ObjectPool::new(10);
-        
+
         let mut obj = pool.get();
         obj.push(42);
-        
+
         assert_eq!(obj, vec![42]);
-        
+
         pool.put(obj);
-        
+
         let obj2 = pool.get();
         assert_eq!(obj2, vec![42]); // Should reuse the same object
+    }
+
+    #[test]
+    fn test_kv_builder() {
+        use crate::core::{Value, NullType};
+
+        let pairs = vec![
+            ("name", Value::String("Alice".to_string())),
+            ("age", Value::Int(30)),
+            ("active", Value::Bool(true)),
+        ];
+
+        let map = kv_builder::build_key_value_map(pairs);
+        assert_eq!(map.get("name"), Some(&Value::String("Alice".to_string())));
+        assert_eq!(map.get("age"), Some(&Value::Int(30)));
+        assert_eq!(map.get("active"), Some(&Value::Bool(true)));
+    }
+
+    #[test]
+    fn test_string_utils() {
+        let original = "Hello\nWorld\t\"Test\"";
+        let escaped = string_utils::escape_for_query(original);
+        assert_eq!(escaped, "Hello\\nWorld\\t\\\"Test\\\"");
+
+        let unescaped = string_utils::unescape_for_query(&escaped);
+        assert_eq!(unescaped, original);
+    }
+
+    #[test]
+    fn test_type_utils() {
+        use crate::core::Value;
+
+        let int_val = Value::Int(42);
+        assert_eq!(type_utils::value_to_i64(&int_val), Some(42));
+        assert_eq!(type_utils::value_to_f64(&int_val), Some(42.0));
+        assert_eq!(type_utils::value_to_bool(&int_val), Some(true));
+        assert_eq!(type_utils::value_to_string(&int_val), Some("42".to_string()));
+
+        let str_val = Value::String("123".to_string());
+        assert_eq!(type_utils::value_to_i64(&str_val), Some(123));
+
+        let float_val = Value::Float(12.3);
+        assert_eq!(type_utils::value_to_f64(&float_val), Some(12.3));
+        assert_eq!(type_utils::value_to_i64(&float_val), Some(12));
     }
 }
