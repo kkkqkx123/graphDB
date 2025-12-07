@@ -32,15 +32,15 @@ root path: `nebula-3.8.0`
 ## Architecture-GraphDB
 
 The new codebase is organized into several main components:
-- `graphDB/src` - Rust graphDB src director
-- `graphDB/src/core` - core data structure and type definition
-- `graphDB/src/storage` - storage engine
-- `graphDB/src/query` - query engine and parser
-- `graphDB/src/transaction` - transaction management
-- `graphDB/src/index` - index system
-- `graphDB/src/api` - API interfaces layer
-- `graphDB/src/utils` - Utility functions and helpers
-- `graphDB/src/config` - Configuration management
+- `src` - Rust graphDB src director
+- `src/core` - core data structure and type definition
+- `src/storage` - storage engine
+- `src/query` - query engine and parser
+- `src/transaction` - transaction management
+- `src/index` - index system
+- `src/api` - API interfaces layer
+- `src/utils` - Utility functions and helpers
+- `src/config` - Configuration management
 
 ## Building and Running
 
