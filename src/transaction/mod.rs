@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::collections::HashMap;
-use crate::core::{Node, Edge};
+use crate::core::{Vertex, Edge, Value};
 use crate::storage::TransactionId;
 use thiserror::Error;
 
@@ -17,11 +17,11 @@ pub enum TransactionError {
 }
 
 pub enum Operation {
-    InsertNode(Node),
-    UpdateNode(Node),
-    DeleteNode(u64),
+    InsertNode(Vertex),
+    UpdateNode(Vertex),
+    DeleteNode(Value),
     InsertEdge(Edge),
-    DeleteEdge(u64),
+    DeleteEdge(Value, Value, String),  // Changed to match the new Edge structure
 }
 
 pub struct Transaction {

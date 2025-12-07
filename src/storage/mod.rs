@@ -1,4 +1,4 @@
-use crate::core::{Node, Edge, Value, Direction};
+use crate::core::{Vertex, Edge, Value, Direction, Tag};
 use thiserror::Error;
 use sled::{Db, Tree};
 use std::collections::HashMap;
@@ -9,25 +9,25 @@ pub enum StorageError {
     DbError(#[from] sled::Error),
     #[error("Serialization error: {0}")]
     SerializationError(String),
-    #[error("Node not found: {0}")]
-    NodeNotFound(u64),
-    #[error("Edge not found: {0}")]
-    EdgeNotFound(u64),
+    #[error("Node not found: {0:?}")]
+    NodeNotFound(Value),
+    #[error("Edge not found: {0:?}")]
+    EdgeNotFound(Value),
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
 }
 
 /// Storage engine trait defining the interface for graph storage
 pub trait StorageEngine {
-    fn insert_node(&mut self, node: Node) -> Result<u64, StorageError>;
-    fn get_node(&self, id: u64) -> Result<Option<Node>, StorageError>;
-    fn update_node(&mut self, node: Node) -> Result<(), StorageError>;
-    fn delete_node(&mut self, id: u64) -> Result<(), StorageError>;
-    
-    fn insert_edge(&mut self, edge: Edge) -> Result<u64, StorageError>;
-    fn get_edge(&self, id: u64) -> Result<Option<Edge>, StorageError>;
-    fn get_node_edges(&self, node_id: u64, direction: Direction) -> Result<Vec<Edge>, StorageError>;
-    fn delete_edge(&mut self, id: u64) -> Result<(), StorageError>;
+    fn insert_node(&mut self, vertex: Vertex) -> Result<Value, StorageError>;
+    fn get_node(&self, id: &Value) -> Result<Option<Vertex>, StorageError>;
+    fn update_node(&mut self, vertex: Vertex) -> Result<(), StorageError>;
+    fn delete_node(&mut self, id: &Value) -> Result<(), StorageError>;
+
+    fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError>;
+    fn get_edge(&self, src: &Value, dst: &Value, edge_type: &str) -> Result<Option<Edge>, StorageError>;
+    fn get_node_edges(&self, node_id: &Value, direction: Direction) -> Result<Vec<Edge>, StorageError>;
+    fn delete_edge(&mut self, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError>;
 
     fn begin_transaction(&mut self) -> Result<TransactionId, StorageError>;
     fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError>;
@@ -62,94 +62,115 @@ impl NativeStorage {
             node_edge_index,
         })
     }
-    
-    fn generate_id(&self) -> u64 {
+
+    fn generate_id(&self) -> Value {
         // Simple ID generation - in production, this should be more robust
         use std::time::{SystemTime, UNIX_EPOCH};
-        SystemTime::now()
+        let id = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
-            .as_nanos() as u64
+            .as_nanos() as u64;
+        Value::Int(id as i64)
+    }
+
+    fn value_to_bytes(&self, value: &Value) -> Result<Vec<u8>, StorageError> {
+        bincode::serialize(value)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))
+    }
+
+    fn value_from_bytes(&self, bytes: &[u8]) -> Result<Value, StorageError> {
+        bincode::deserialize(bytes)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))
     }
 }
 
 impl StorageEngine for NativeStorage {
-    fn insert_node(&mut self, mut node: Node) -> Result<u64, StorageError> {
+    fn insert_node(&mut self, vertex: Vertex) -> Result<Value, StorageError> {
         let id = self.generate_id();
-        node.id = id;
-        
-        let node_bytes = bincode::serialize(&node)
+        // We create a new vertex with the generated id
+        let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
+
+        let vertex_bytes = bincode::serialize(&vertex_with_id)
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-        
-        self.nodes_tree.insert(id.to_be_bytes(), node_bytes)?;
+
+        let id_bytes = self.value_to_bytes(&id)?;
+        self.nodes_tree.insert(id_bytes, vertex_bytes)?;
         self.db.flush()?;
-        
+
         Ok(id)
     }
-    
-    fn get_node(&self, id: u64) -> Result<Option<Node>, StorageError> {
-        match self.nodes_tree.get(id.to_be_bytes())? {
-            Some(node_bytes) => {
-                let node: Node = bincode::deserialize(&node_bytes)
+
+    fn get_node(&self, id: &Value) -> Result<Option<Vertex>, StorageError> {
+        let id_bytes = self.value_to_bytes(id)?;
+        match self.nodes_tree.get(id_bytes)? {
+            Some(vertex_bytes) => {
+                let vertex: Vertex = bincode::deserialize(&vertex_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-                Ok(Some(node))
+                Ok(Some(vertex))
             }
             None => Ok(None),
         }
     }
-    
-    fn update_node(&mut self, node: Node) -> Result<(), StorageError> {
-        if node.id == 0 {
-            return Err(StorageError::NodeNotFound(0));
+
+    fn update_node(&mut self, vertex: Vertex) -> Result<(), StorageError> {
+        // Check if vertex id is null
+        if matches!(*vertex.vid, Value::Null(_)) {
+            return Err(StorageError::NodeNotFound(Value::Null(Default::default())));
         }
-        
-        let node_bytes = bincode::serialize(&node)
+
+        let vertex_bytes = bincode::serialize(&vertex)
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-        
-        self.nodes_tree.insert(node.id.to_be_bytes(), node_bytes)?;
+
+        let id_bytes = self.value_to_bytes(&vertex.vid)?;
+        self.nodes_tree.insert(id_bytes, vertex_bytes)?;
         self.db.flush()?;
-        
+
         Ok(())
     }
-    
-    fn delete_node(&mut self, id: u64) -> Result<(), StorageError> {
-        // First, delete all edges associated with this node
+
+    fn delete_node(&mut self, id: &Value) -> Result<(), StorageError> {
+        // First, delete all edges associated with this vertex
         let edges_to_delete = self.get_node_edges(id, Direction::Both)?;
         for edge in edges_to_delete {
-            self.delete_edge(edge.id)?;
+            self.delete_edge(&edge.src, &edge.dst, &edge.edge_type)?;
         }
 
-        // Then delete the node
-        self.nodes_tree.remove(id.to_be_bytes())?;
+        // Then delete the vertex
+        let id_bytes = self.value_to_bytes(id)?;
+        self.nodes_tree.remove(&id_bytes)?;
 
         // Remove from node-edge index
-        self.node_edge_index.remove(id.to_be_bytes())?;
+        self.node_edge_index.remove(&id_bytes)?;
 
         self.db.flush()?;
         Ok(())
     }
-    
-    fn insert_edge(&mut self, mut edge: Edge) -> Result<u64, StorageError> {
-        let id = self.generate_id();
-        edge.id = id;
-        
+
+    fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError> {
+        // For edge key, we'll use a combination of src, dst, and edge_type to make it unique
+        let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
+        let edge_key_bytes = edge_key.as_bytes().to_vec();
+
         let edge_bytes = bincode::serialize(&edge)
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-        
+
         // Store the edge
-        self.edges_tree.insert(id.to_be_bytes(), edge_bytes)?;
-        
+        self.edges_tree.insert(&edge_key_bytes, edge_bytes)?;
+
         // Update indices
-        self.update_node_edge_index(edge.from_node, id, true)?;
-        self.update_node_edge_index(edge.to_node, id, true)?;
-        
+        self.update_node_edge_index(&edge.src, &edge_key_bytes, true)?;
+        self.update_node_edge_index(&edge.dst, &edge_key_bytes, true)?;
+
         self.db.flush()?;
-        
-        Ok(id)
+
+        Ok(())
     }
-    
-    fn get_edge(&self, id: u64) -> Result<Option<Edge>, StorageError> {
-        match self.edges_tree.get(id.to_be_bytes())? {
+
+    fn get_edge(&self, src: &Value, dst: &Value, edge_type: &str) -> Result<Option<Edge>, StorageError> {
+        let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
+        let edge_key_bytes = edge_key.as_bytes().to_vec();
+
+        match self.edges_tree.get(&edge_key_bytes)? {
             Some(edge_bytes) => {
                 let edge: Edge = bincode::deserialize(&edge_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
@@ -158,44 +179,55 @@ impl StorageEngine for NativeStorage {
             None => Ok(None),
         }
     }
-    
-    fn get_node_edges(&self, node_id: u64, direction: Direction) -> Result<Vec<Edge>, StorageError> {
-        let edge_ids = self.get_node_edge_ids(node_id, &direction)?;
+
+    fn get_node_edges(&self, node_id: &Value, direction: Direction) -> Result<Vec<Edge>, StorageError> {
+        let edge_keys = self.get_node_edge_keys(node_id)?;
         let mut edges = Vec::new();
-        
-        for edge_id in edge_ids {
-            if let Some(edge) = self.get_edge(edge_id)? {
+
+        for edge_key_bytes in edge_keys {
+            if let Some(edge_bytes) = self.edges_tree.get(&edge_key_bytes)? {
+                let edge: Edge = bincode::deserialize(&edge_bytes)
+                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+
                 match direction {
-                    Direction::Out if edge.from_node == node_id => edges.push(edge),
-                    Direction::In if edge.to_node == node_id => edges.push(edge),
+                    Direction::Out if *edge.src == *node_id => edges.push(edge),
+                    Direction::In if *edge.dst == *node_id => edges.push(edge),
                     Direction::Both => edges.push(edge),
                     _ => continue,
                 }
             }
         }
-        
+
         Ok(edges)
     }
 
-    fn delete_edge(&mut self, id: u64) -> Result<(), StorageError> {
-        if let Some(edge) = self.get_edge(id)? {
+    fn delete_edge(&mut self, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
+        let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
+        let edge_key_bytes = edge_key.as_bytes().to_vec();
+
+        if self.edges_tree.get(&edge_key_bytes)?.is_some() {
             // Remove from edge storage
-            self.edges_tree.remove(id.to_be_bytes())?;
+            self.edges_tree.remove(&edge_key_bytes)?;
 
             // Update node-edge indices
-            self.update_node_edge_index(edge.from_node, id, false)?;
-            self.update_node_edge_index(edge.to_node, id, false)?;
+            self.update_node_edge_index(src, &edge_key_bytes, false)?;
+            self.update_node_edge_index(dst, &edge_key_bytes, false)?;
 
             self.db.flush()?;
             Ok(())
         } else {
-            Err(StorageError::EdgeNotFound(id))
+            Err(StorageError::EdgeNotFound(Value::String(edge_key)))
         }
     }
 
     fn begin_transaction(&mut self) -> Result<TransactionId, StorageError> {
         // TODO: Implement actual transaction support
-        Ok(self.generate_id())
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let id = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_nanos() as u64;
+        Ok(id)
     }
 
     fn commit_transaction(&mut self, _tx_id: TransactionId) -> Result<(), StorageError> {
@@ -211,35 +243,37 @@ impl StorageEngine for NativeStorage {
 }
 
 impl NativeStorage {
-    fn update_node_edge_index(&self, node_id: u64, edge_id: u64, add: bool) -> Result<(), StorageError> {
-        let key = node_id.to_be_bytes();
-        let mut edge_list = match self.node_edge_index.get(&key)? {
-            Some(list_bytes) => bincode::deserialize::<Vec<u64>>(&list_bytes)
+    fn update_node_edge_index(&self, node_id: &Value, edge_key: &[u8], add: bool) -> Result<(), StorageError> {
+        let node_id_bytes = self.value_to_bytes(node_id)?;
+        let mut edge_list = match self.node_edge_index.get(&node_id_bytes)? {
+            Some(list_bytes) => bincode::deserialize::<Vec<Vec<u8>>>(&list_bytes)
                 .map_err(|e| StorageError::SerializationError(e.to_string()))?,
             None => Vec::new(),
         };
-        
+
         if add {
-            edge_list.push(edge_id);
+            if !edge_list.contains(&edge_key.to_vec()) {
+                edge_list.push(edge_key.to_vec());
+            }
         } else {
-            edge_list.retain(|&id| id != edge_id);
+            edge_list.retain(|key| key != edge_key);
         }
-        
+
         let list_bytes = bincode::serialize(&edge_list)
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-        
-        self.node_edge_index.insert(&key, list_bytes)?;
-        
+
+        self.node_edge_index.insert(&node_id_bytes, list_bytes)?;
+
         Ok(())
     }
-    
-    fn get_node_edge_ids(&self, node_id: u64, _direction: &Direction) -> Result<Vec<u64>, StorageError> {
-        let key = node_id.to_be_bytes();
-        match self.node_edge_index.get(&key)? {
+
+    fn get_node_edge_keys(&self, node_id: &Value) -> Result<Vec<Vec<u8>>, StorageError> {
+        let node_id_bytes = self.value_to_bytes(node_id)?;
+        match self.node_edge_index.get(&node_id_bytes)? {
             Some(list_bytes) => {
-                let edge_list: Vec<u64> = bincode::deserialize(&list_bytes)
+                let edge_key_list: Vec<Vec<u8>> = bincode::deserialize(&list_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-                Ok(edge_list)
+                Ok(edge_key_list)
             }
             None => Ok(Vec::new()),
         }

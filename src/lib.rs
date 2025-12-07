@@ -13,7 +13,7 @@ pub mod utils;
 pub mod config;
 
 // Re-export common types at the crate root for convenience
-pub use crate::core::{Node, Edge, Value, Direction};
+pub use crate::core::{Vertex, Edge, Value, Direction, Tag, Path, Step, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, error::{GraphDBError, GraphDBResult}};
 pub use crate::storage::{StorageEngine, NativeStorage, StorageError};
 pub use crate::query::{Query, QueryResult, QueryExecutor, QueryError};
 pub use crate::config::Config;
