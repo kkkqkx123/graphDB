@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::RwLock;
 use tokio::time::{timeout, Duration};
-use tokio::net::{TcpListener, TcpStream};
-use serde::{Deserialize, Serialize};
-use crate::core::Value;
 
 /// Represents a client connection
 #[derive(Debug, Clone)]
@@ -39,7 +37,7 @@ impl Default for NetworkConfig {
             port: 9669,
             max_connections: 1000,
             connection_timeout: Duration::from_secs(30),
-            idle_timeout: Duration::from_secs(300),  // 5 minutes
+            idle_timeout: Duration::from_secs(300), // 5 minutes
             request_timeout: Duration::from_secs(60),
             tls_enabled: false,
             tls_cert_path: None,
@@ -81,7 +79,8 @@ impl<T> NetworkServer<T> {
                     let config = self.config.clone();
 
                     tokio::spawn(async move {
-                        if let Err(e) = Self::handle_client(stream, addr, connections, config).await {
+                        if let Err(e) = Self::handle_client(stream, addr, connections, config).await
+                        {
                             eprintln!("Error handling client: {:?}", e);
                         }
                     });
@@ -105,18 +104,25 @@ impl<T> NetworkServer<T> {
         // Register connection
         {
             let mut conn_map = connections.write().await;
-            conn_map.insert(client_id.clone(), ClientConnection {
-                id: client_id.clone(),
-                address: addr,
-                connected_at: std::time::SystemTime::now(),
-                last_activity: std::time::SystemTime::now(),
-                authenticated: false,
-                session_data: HashMap::new(),
-            });
+            conn_map.insert(
+                client_id.clone(),
+                ClientConnection {
+                    id: client_id.clone(),
+                    address: addr,
+                    connected_at: std::time::SystemTime::now(),
+                    last_activity: std::time::SystemTime::now(),
+                    authenticated: false,
+                    session_data: HashMap::new(),
+                },
+            );
         }
 
         // Set connection timeout
-        let _result = timeout(config.connection_timeout, Self::serve_client(stream, client_id.clone())).await??;
+        let _result = timeout(
+            config.connection_timeout,
+            Self::serve_client(stream, client_id.clone()),
+        )
+        .await??;
 
         // Remove connection when done
         {
@@ -157,7 +163,9 @@ impl<T> NetworkServer<T> {
     }
 
     /// Closes all connections
-    pub async fn close_all_connections(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn close_all_connections(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // In a real implementation, we would close all active connections
         Ok(())
     }
@@ -165,8 +173,8 @@ impl<T> NetworkServer<T> {
 
 /// Represents the network protocol
 pub mod protocol {
-    use serde::{Deserialize, Serialize};
     use crate::core::Value;
+    use serde::{Deserialize, Serialize};
 
     /// Request types
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -177,10 +185,7 @@ pub mod protocol {
             parameters: std::collections::HashMap<String, Value>,
         },
         /// Authenticate a client
-        Authenticate {
-            username: String,
-            password: String,
-        },
+        Authenticate { username: String, password: String },
         /// Ping request
         Ping,
         /// Get server status
@@ -199,10 +204,7 @@ pub mod protocol {
             error: Option<String>,
         },
         /// Authentication result
-        AuthResult {
-            success: bool,
-            message: String,
-        },
+        AuthResult { success: bool, message: String },
         /// Pong response
         Pong,
         /// Server status

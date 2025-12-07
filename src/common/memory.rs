@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::alloc::Layout;
 use std::collections::HashMap;
-use std::alloc::{GlobalAlloc, Layout, System};
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 /// Memory tracker to monitor allocations
 #[derive(Debug)]
@@ -26,7 +26,7 @@ impl MemoryTracker {
     pub fn record_allocation(&self, size: usize) {
         let old_current = self.current_allocated.fetch_add(size, Ordering::SeqCst);
         self.total_allocated.fetch_add(size, Ordering::SeqCst);
-        
+
         // Update peak if current is greater than previous peak
         let mut current_peak = self.peak_usage.load(Ordering::SeqCst);
         loop {
@@ -76,7 +76,8 @@ impl MemoryTracker {
 }
 
 /// Global memory tracker
-static MEMORY_TRACKER: once_cell::sync::Lazy<MemoryTracker> = once_cell::sync::Lazy::new(MemoryTracker::new);
+static MEMORY_TRACKER: once_cell::sync::Lazy<MemoryTracker> =
+    once_cell::sync::Lazy::new(MemoryTracker::new);
 
 /// Get a reference to the global memory tracker
 pub fn memory_tracker() -> &'static MemoryTracker {
@@ -87,7 +88,7 @@ pub fn memory_tracker() -> &'static MemoryTracker {
 pub struct MemoryPool {
     pool: Arc<Mutex<Vec<u8>>>,
     available_chunks: Arc<Mutex<HashMap<usize, Vec<usize>>>>, // size -> list of start indices
-    chunk_size_map: Arc<Mutex<HashMap<usize, usize>>>, // start index -> size
+    chunk_size_map: Arc<Mutex<HashMap<usize, usize>>>,        // start index -> size
     total_size: usize,
     used_size: Arc<AtomicUsize>,
 }
@@ -144,7 +145,10 @@ impl MemoryPool {
 
             if let Some((original_chunk_size, start_idx)) = suitable_chunk {
                 // Remove the chunk from available list
-                available_chunks.get_mut(&original_chunk_size).unwrap().retain(|&x| x != start_idx);
+                available_chunks
+                    .get_mut(&original_chunk_size)
+                    .unwrap()
+                    .retain(|&x| x != start_idx);
                 if available_chunks[&original_chunk_size].is_empty() {
                     available_chunks.remove(&original_chunk_size);
                 }
@@ -153,7 +157,10 @@ impl MemoryPool {
                 if original_chunk_size > size {
                     let remaining_size = original_chunk_size - size;
                     let remaining_start_idx = start_idx + size;
-                    available_chunks.entry(remaining_size).or_insert_with(Vec::new).push(remaining_start_idx);
+                    available_chunks
+                        .entry(remaining_size)
+                        .or_insert_with(Vec::new)
+                        .push(remaining_start_idx);
                 }
 
                 // Mark the allocated portion as used
@@ -177,26 +184,29 @@ impl MemoryPool {
         if ptr.is_null() {
             return;
         }
-        
+
         // Calculate the index in our pool
         let pool_ptr = self.pool.lock().unwrap().as_ptr() as *mut u8;
         let start_idx = unsafe { ptr.offset_from(pool_ptr) as usize };
-        
+
         // Verify this is a valid pointer from our pool
         let mut chunk_size_map = self.chunk_size_map.lock().unwrap();
         if chunk_size_map.get(&start_idx) != Some(&size) {
             // This pointer doesn't belong to our pool or size doesn't match
             return;
         }
-        
+
         // Remove from used map
         chunk_size_map.remove(&start_idx);
         drop(chunk_size_map);
-        
+
         // Add to available chunks
         let mut available_chunks = self.available_chunks.lock().unwrap();
-        available_chunks.entry(size).or_insert_with(Vec::new).push(start_idx);
-        
+        available_chunks
+            .entry(size)
+            .or_insert_with(Vec::new)
+            .push(start_idx);
+
         self.used_size.fetch_sub(size, Ordering::SeqCst);
     }
 
@@ -359,7 +369,8 @@ impl MemoryLeakDetector {
     }
 }
 
-static LEAK_DETECTOR: once_cell::sync::Lazy<MemoryLeakDetector> = once_cell::sync::Lazy::new(MemoryLeakDetector::new);
+static LEAK_DETECTOR: once_cell::sync::Lazy<MemoryLeakDetector> =
+    once_cell::sync::Lazy::new(MemoryLeakDetector::new);
 
 pub fn leak_detector() -> &'static MemoryLeakDetector {
     &LEAK_DETECTOR
@@ -393,7 +404,7 @@ pub fn init_memory_management(config: &MemoryConfig) {
     if config.enable_tracking {
         MEMORY_TRACKER.reset();
     }
-    
+
     // Print initial stats if needed
     if config.enable_tracking {
         let stats = get_memory_stats(None);
@@ -408,19 +419,19 @@ mod tests {
     #[test]
     fn test_memory_tracker() {
         let tracker = MemoryTracker::new();
-        
+
         tracker.record_allocation(100);
         assert_eq!(tracker.total_allocated(), 100);
         assert_eq!(tracker.current_allocated(), 100);
-        
+
         tracker.record_allocation(50);
         assert_eq!(tracker.total_allocated(), 150);
         assert_eq!(tracker.current_allocated(), 150);
-        
+
         tracker.record_deallocation(30);
         assert_eq!(tracker.total_deallocated(), 30);
         assert_eq!(tracker.current_allocated(), 120);
-        
+
         tracker.reset();
         assert_eq!(tracker.total_allocated(), 0);
         assert_eq!(tracker.current_allocated(), 0);
@@ -429,23 +440,23 @@ mod tests {
     #[test]
     fn test_memory_pool() {
         let pool = MemoryPool::new(1024); // 1KB pool
-        
+
         assert_eq!(pool.total_size(), 1024);
         assert_eq!(pool.available_size(), 1024);
         assert_eq!(pool.used_size(), 0);
-        
+
         // Allocate 100 bytes
         let ptr1 = pool.allocate(100);
         assert!(ptr1.is_some());
         assert_eq!(pool.available_size(), 924); // 1024 - 100
         assert_eq!(pool.used_size(), 100);
-        
+
         // Allocate another 50 bytes
         let ptr2 = pool.allocate(50);
         assert!(ptr2.is_some());
         assert_eq!(pool.available_size(), 874); // 1024 - 100 - 50
         assert_eq!(pool.used_size(), 150);
-        
+
         // Deallocate first chunk
         if let Some(p) = ptr1 {
             pool.deallocate(p, 100);
@@ -458,19 +469,19 @@ mod tests {
     fn test_object_pool() {
         let factory = Box::new(|| 0i32);
         let pool = ObjectPool::new(factory, 10);
-        
+
         assert!(pool.is_empty());
-        
+
         // Get an object
         let obj = pool.get();
         assert_eq!(obj, 0);
         assert!(pool.is_empty());
-        
+
         // Return the object
         pool.return_obj(obj);
         assert!(!pool.is_empty());
         assert_eq!(pool.len(), 1);
-        
+
         // Get it again
         let obj2 = pool.get();
         assert_eq!(obj2, 0);
@@ -482,15 +493,15 @@ mod tests {
         // Test size_of
         assert_eq!(memory_utils::size_of::<i32>(), 4);
         assert_eq!(memory_utils::size_of::<u64>(), 8);
-        
+
         // Test align_of
         assert_eq!(memory_utils::align_of::<i32>(), std::mem::align_of::<i32>());
-        
+
         // Test buffer operations
         let mut buffer = [0u8; 10];
         memory_utils::fill_buffer(&mut buffer, 5);
         assert_eq!(buffer, [5u8; 10]);
-        
+
         assert!(memory_utils::compare_buffers(&[1, 2, 3], &[1, 2, 3]));
         assert!(!memory_utils::compare_buffers(&[1, 2, 3], &[1, 2, 4]));
     }
@@ -498,16 +509,16 @@ mod tests {
     #[test]
     fn test_leak_detector() {
         let detector = MemoryLeakDetector::new();
-        
+
         assert!(!detector.has_leaks());
-        
+
         let layout = Layout::from_size_align(100, 8).unwrap();
         detector.record_allocation(0x1000, layout, "test_location".to_string());
-        
+
         assert!(detector.has_leaks());
-        
+
         detector.record_deallocation(0x1000);
-        
+
         assert!(!detector.has_leaks());
     }
 }

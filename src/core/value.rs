@@ -1,7 +1,8 @@
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
-use std::cmp::Ordering as CmpOrdering;
+use crate::core::vertex_edge_path::{Edge, Path, Vertex};
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering as CmpOrdering;
+use std::collections::HashMap;
+use std::hash::Hash;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum NullType {
@@ -53,8 +54,8 @@ pub struct DateTimeValue {
 /// Simple Geography representation similar to Nebula
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GeographyValue {
-    pub point: Option<(f64, f64)>, // latitude, longitude
-    pub linestring: Option<Vec<(f64, f64)>>, // list of coordinates
+    pub point: Option<(f64, f64)>,             // latitude, longitude
+    pub linestring: Option<Vec<(f64, f64)>>,   // list of coordinates
     pub polygon: Option<Vec<Vec<(f64, f64)>>>, // list of rings (outer and holes)
 }
 
@@ -172,15 +173,15 @@ impl Hash for Value {
             Value::Null(n) => {
                 1u8.hash(state);
                 n.hash(state);
-            },
+            }
             Value::Bool(b) => {
                 2u8.hash(state);
                 b.hash(state);
-            },
+            }
             Value::Int(i) => {
                 3u8.hash(state);
                 i.hash(state);
-            },
+            }
             Value::Float(f) => {
                 4u8.hash(state);
                 // Create a hash from the bit representation of the float
@@ -193,61 +194,61 @@ impl Hash for Value {
                 } else {
                     f.to_bits().hash(state);
                 }
-            },
+            }
             Value::String(s) => {
                 5u8.hash(state);
                 s.hash(state);
-            },
+            }
             Value::Date(d) => {
                 6u8.hash(state);
                 d.hash(state);
-            },
+            }
             Value::Time(t) => {
                 7u8.hash(state);
                 t.hash(state);
-            },
+            }
             Value::DateTime(dt) => {
                 8u8.hash(state);
                 dt.hash(state);
-            },
+            }
             Value::Vertex(v) => {
                 9u8.hash(state);
                 v.hash(state);
-            },
+            }
             Value::Edge(e) => {
                 10u8.hash(state);
                 e.hash(state);
-            },
+            }
             Value::Path(p) => {
                 11u8.hash(state);
                 p.hash(state);
-            },
+            }
             Value::List(l) => {
                 12u8.hash(state);
                 l.hash(state);
-            },
+            }
             Value::Map(m) => {
                 13u8.hash(state);
                 // Hash a map by hashing key-value pairs in sorted order
                 let mut pairs: Vec<_> = m.iter().collect();
                 pairs.sort_by_key(|&(k, _)| k);
                 pairs.hash(state);
-            },
+            }
             Value::Set(s) => {
                 14u8.hash(state);
                 // For set, we'll hash all values in sorted order to ensure consistency
                 let mut values: Vec<_> = s.iter().collect();
                 values.sort();
                 values.hash(state);
-            },
+            }
             Value::Geography(g) => {
                 15u8.hash(state);
                 g.hash(state);
-            },
+            }
             Value::Duration(d) => {
                 16u8.hash(state);
                 d.hash(state);
-            },
+            }
         }
     }
 }
@@ -267,41 +268,46 @@ impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::Empty => write!(f, "Empty"),
-            Value::Null(null_type) => write!(f, "Null({})", match null_type {
-                NullType::Null => "Null",
-                NullType::NaN => "NaN",
-                NullType::BadData => "BadData",
-                NullType::BadType => "BadType",
-                NullType::Overflow => "Overflow",
-                NullType::UnknownProp => "UnknownProp",
-                NullType::DivByZero => "DivByZero",
-                NullType::OutOfRange => "OutOfRange",
-            }),
+            Value::Null(null_type) => write!(
+                f,
+                "Null({})",
+                match null_type {
+                    NullType::Null => "Null",
+                    NullType::NaN => "NaN",
+                    NullType::BadData => "BadData",
+                    NullType::BadType => "BadType",
+                    NullType::Overflow => "Overflow",
+                    NullType::UnknownProp => "UnknownProp",
+                    NullType::DivByZero => "DivByZero",
+                    NullType::OutOfRange => "OutOfRange",
+                }
+            ),
             Value::Bool(b) => write!(f, "{}", b),
             Value::Int(i) => write!(f, "{}", i),
             Value::Float(fl) => write!(f, "{}", fl),
             Value::String(s) => write!(f, "{}", s),
             Value::Date(d) => write!(f, "Date({}-{}-{})", d.year, d.month, d.day),
             Value::Time(t) => write!(f, "Time({}:{})", t.hour, t.minute),
-            Value::DateTime(dt) => write!(f, "DateTime({}-{}-{} {}:{})",
-                dt.year, dt.month, dt.day, dt.hour, dt.minute),
+            Value::DateTime(dt) => write!(
+                f,
+                "DateTime({}-{}-{} {}:{})",
+                dt.year, dt.month, dt.day, dt.hour, dt.minute
+            ),
             Value::Vertex(v) => write!(f, "Vertex({:?})", v.vid),
             Value::Edge(e) => write!(f, "Edge({:?} -> {:?})", e.src, e.dst),
             Value::Path(p) => write!(f, "Path({:?})", p.src),
             Value::List(l) => {
                 let items: Vec<String> = l.iter().map(|v| format!("{}", v)).collect();
                 write!(f, "[{}]", items.join(", "))
-            },
+            }
             Value::Map(m) => {
-                let pairs: Vec<String> = m.iter()
-                    .map(|(k, v)| format!("{}: {}", k, v))
-                    .collect();
+                let pairs: Vec<String> = m.iter().map(|(k, v)| format!("{}: {}", k, v)).collect();
                 write!(f, "{{{}}}", pairs.join(", "))
-            },
+            }
             Value::Set(s) => {
                 let items: Vec<String> = s.iter().map(|v| format!("{}", v)).collect();
                 write!(f, "{{{}}}", items.join(", "))
-            },
+            }
             Value::Geography(g) => write!(f, "Geography({:?})", g.point),
             Value::Duration(d) => write!(f, "Duration({})", d.seconds),
         }
