@@ -1,0 +1,9 @@
+[database]
+host = "127.0.0.1"
+port = 9758
+storage_path = "data/graphdb"
+cache_size = 1000
+enable_cache = true
+max_connections = 10
+transaction_timeout = 30
+log_level = "info"
