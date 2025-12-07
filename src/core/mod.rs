@@ -12,7 +12,6 @@ pub mod murmur;
 pub mod signal_handler;
 pub mod collect_n_succeeded;
 pub mod either;
-pub mod expressions;
 
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<CmpOrdering> {

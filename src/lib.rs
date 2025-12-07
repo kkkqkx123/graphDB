@@ -11,6 +11,7 @@ pub mod utils;
 pub mod config;
 pub mod common;
 pub mod graph;
+pub mod expressions;
 pub mod services;
 
 // Re-export common types at the crate root for convenience
@@ -22,4 +23,5 @@ pub use crate::config::Config;
 // Re-export commonly used types from submodules
 pub use crate::common::{base::id::*, time::*, memory::*, thread::*, process::*, network::*, fs::*, log::*, charset::*};
 pub use crate::graph::{transaction::*, index::*, expression::*};
+pub use crate::expressions::{Expression, EvaluationError, ExpressionContext, DefaultExpressionContext, eval_unary_op, eval_binary_op, eval_function_call, eval_property_access, eval_list, eval_map, eval_set, UnaryOp, BinaryOp};
 pub use crate::services::{session::*, stats::*, function::*, algorithm::*, context::*};
