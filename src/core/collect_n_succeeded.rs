@@ -6,8 +6,6 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use futures::future::BoxFuture;
-use futures::FutureExt;
 
 /// Result of a collect operation
 pub enum CollectResult<T> {
@@ -55,47 +53,56 @@ where
 {
     type Output = CollectResult<Output>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = self.get_mut();
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // 使用安全的方式获取可变引用
+        let this = self.as_mut().get_mut();
 
-        // Poll each future that hasn't completed yet
+        // 收集需要处理的索引列表，以避免借用冲突
+        let mut completed_indices = Vec::new();
+        
+        // Poll 每个未完成的future
         for (idx, future_option) in this.futures.iter_mut().enumerate() {
             if let Some(fut) = future_option {
-                let fut = unsafe { Pin::new_unchecked(fut) };
-                if let Poll::Ready(output) = fut.poll(cx) {
-                    // Remove the future from the list as it's completed
-                    let _ = this.futures[idx].take();
-                    this.completed_count += 1;
-
-                    // Check if the output is considered successful based on the evaluator
-                    if (this.evaluator)(&output) {
-                        this.results.push((idx, output));
-
-                        // Check if we've reached the target success count
-                        if this.results.len() >= this.target_success_count {
-                            return Poll::Ready(CollectResult::Success(
-                                this.results.iter().map(|(_, output)| output.clone()).collect()
-                            ));
-                        }
-                    }
+                // 使用安全的Pin::new方式而不是unsafe版本
+                let mut pinned_fut = Pin::new(fut);
+                if let Poll::Ready(output) = pinned_fut.as_mut().poll(cx) {
+                    completed_indices.push((idx, output));
                 }
             }
         }
 
-        // If all futures are completed but we still don't have enough successes
+        // 处理已完成的futures
+        for (idx, output) in completed_indices {
+            let _ = this.futures[idx].take();
+            this.completed_count += 1;
+
+            // 根据评估器检查输出是否被认为成功
+            if (this.evaluator)(&output) {
+                this.results.push((idx, output));
+
+                // 检查是否达到目标成功数
+                if this.results.len() >= this.target_success_count {
+                    return Poll::Ready(CollectResult::Success(
+                        this.results.iter().map(|(_, output)| output.clone()).collect()
+                    ));
+                }
+            }
+        }
+
+        // 如果所有futures已完成但仍未获得足够的成功
         if this.completed_count == this.futures.len() {
             return Poll::Ready(CollectResult::Partial(
                 this.results.iter().map(|(_, output)| output.clone()).collect()
             ));
         }
 
-        // Still waiting for more results
+        // 仍在等待更多结果
         Poll::Pending
     }
 }
 
 /// Alternative implementation using futures crate utilities
-pub async fn collect_n_succeeded<T, Fut, Evaluator, Output>(
+pub async fn collect_n_succeeded<Fut, Evaluator, Output>(
     futures: Vec<Fut>,
     target_success_count: usize,
     evaluator: Evaluator,
@@ -155,17 +162,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_collect_n_succeeded() {
-        // Create some futures that return different values
+        // 使用futures创建统一类型的async blocks
+        async fn make_value(v: i32) -> i32 { v }
+        
         let futures = vec![
-            async { 1 },
-            async { 2 },
-            async { 3 },
-            async { 4 },
-            async { 5 },
+            make_value(1),
+            make_value(2),
+            make_value(3),
+            make_value(4),
+            make_value(5),
         ];
 
-        // Evaluator that considers all values successful
-        let evaluator = |_| true;
+        // 评估器认为所有值都成功
+        let evaluator = |_: &i32| true;
         
         let result = collect_n_succeeded(futures, 3, evaluator).await;
         
@@ -174,22 +183,24 @@ mod tests {
                 assert_eq!(values.len(), 3);
                 assert!(values.contains(&1));
             }
-            CollectResult::Partial(_) => panic!("Expected Success"),
+            CollectResult::Partial(_) => panic!("期望 Success"),
         }
     }
 
     #[tokio::test]
     async fn test_collect_n_with_evaluator() {
-        // Create futures with different success values
+        // 使用统一函数创建async futures
+        async fn make_pair(v: i32, b: bool) -> (i32, bool) { (v, b) }
+        
         let futures = vec![
-            async { (1, true) },   // success
-            async { (2, false) },  // failure
-            async { (3, true) },   // success
-            async { (4, false) },  // failure
-            async { (5, true) },   // success
+            make_pair(1, true),   // 成功
+            make_pair(2, false),  // 失败
+            make_pair(3, true),   // 成功
+            make_pair(4, false),  // 失败
+            make_pair(5, true),   // 成功
         ];
 
-        // Evaluator that only considers second element being true as successful
+        // 评估器只认为第二个元素为true时成功
         let evaluator = |value: &(i32, bool)| value.1;
         
         let result = collect_n_succeeded(futures, 2, evaluator).await;
@@ -198,22 +209,26 @@ mod tests {
             CollectResult::Success(values) => {
                 assert_eq!(values.len(), 2);
                 for val in &values {
-                    assert!(val.1);  // Second element should be true
+                    assert!(val.1);  // 第二个元素应该为true
                 }
             }
-            CollectResult::Partial(_) => panic!("Expected Success"),
+            CollectResult::Partial(_) => panic!("期望 Success"),
         }
     }
 
     #[tokio::test]
     async fn test_collect_n_ok() {
-        // Test with Result futures
+        // 使用统一函数创建async futures
+        async fn make_result(v: i32, ok: bool) -> Result<i32, ()> {
+            if ok { Ok(v) } else { Err(()) }
+        }
+        
         let futures = vec![
-            async { Ok::<i32, ()>(1) },
-            async { Err::<i32, ()>(()) },  // This will be ignored
-            async { Ok::<i32, ()>(3) },
-            async { Err::<i32, ()>(()) },  // This will be ignored
-            async { Ok::<i32, ()>(5) },
+            make_result(1, true),   // ok
+            make_result(2, false),  // err - 这个会被忽略
+            make_result(3, true),   // ok
+            make_result(4, false),  // err - 这个会被忽略
+            make_result(5, true),   // ok
         ];
 
         let result = collect_n_ok(futures, 2).await;
@@ -224,29 +239,31 @@ mod tests {
                 assert!(values.contains(&1));
                 assert!(values.contains(&3) || values.contains(&5));
             }
-            CollectResult::Partial(_) => panic!("Expected Success"),
+            CollectResult::Partial(_) => panic!("期望 Success"),
         }
     }
 
     #[tokio::test]
     async fn test_collect_n_partial() {
-        // Create futures where we can't get enough successes
+        // 使用统一函数创建async futures
+        async fn make_pair(v: i32, b: bool) -> (i32, bool) { (v, b) }
+        
         let futures = vec![
-            async { (1, false) },  // failure
-            async { (2, false) },  // failure
-            async { (3, false) },  // failure
+            make_pair(1, false),  // 失败
+            make_pair(2, false),  // 失败
+            make_pair(3, false),  // 失败
         ];
 
-        // Evaluator that only considers true values as successful
+        // 评估器只认为true值成功
         let evaluator = |value: &(i32, bool)| value.1;
         
         let result = collect_n_succeeded(futures, 3, evaluator).await;
         
         match result {
             CollectResult::Partial(values) => {
-                assert_eq!(values.len(), 0);  // No successful values
+                assert_eq!(values.len(), 0);  // 没有成功的值
             }
-            CollectResult::Success(_) => panic!("Expected Partial"),
+            CollectResult::Success(_) => panic!("期望 Partial"),
         }
     }
 }

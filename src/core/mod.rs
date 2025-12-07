@@ -169,8 +169,7 @@ pub struct Path {
     pub steps: Vec<Step>,
 }
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 /// Represents a value that can be stored in node/edge properties
 /// This follows the design pattern of Nebula's Value type
@@ -302,9 +301,55 @@ impl PartialEq for Value {
 // Implement Eq manually since f64 doesn't implement Eq
 impl Eq for Value {}
 
-// Implement Hash manually to handle f64 hashing
+// Implement Display for Value enum
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Empty => write!(f, "Empty"),
+            Value::Null(null_type) => write!(f, "Null({})", match null_type {
+                NullType::Null => "Null",
+                NullType::NaN => "NaN",
+                NullType::BadData => "BadData",
+                NullType::BadType => "BadType",
+                NullType::Overflow => "Overflow",
+                NullType::UnknownProp => "UnknownProp",
+                NullType::DivByZero => "DivByZero",
+                NullType::OutOfRange => "OutOfRange",
+            }),
+            Value::Bool(b) => write!(f, "{}", b),
+            Value::Int(i) => write!(f, "{}", i),
+            Value::Float(fl) => write!(f, "{}", fl),
+            Value::String(s) => write!(f, "{}", s),
+            Value::Date(d) => write!(f, "Date({}-{}-{})", d.year, d.month, d.day),
+            Value::Time(t) => write!(f, "Time({}:{})", t.hour, t.minute),
+            Value::DateTime(dt) => write!(f, "DateTime({}-{}-{} {}:{})",
+                dt.year, dt.month, dt.day, dt.hour, dt.minute),
+            Value::Vertex(v) => write!(f, "Vertex({:?})", v.vid),
+            Value::Edge(e) => write!(f, "Edge({:?} -> {:?})", e.src, e.dst),
+            Value::Path(p) => write!(f, "Path({:?})", p.src),
+            Value::List(l) => {
+                let items: Vec<String> = l.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", items.join(", "))
+            },
+            Value::Map(m) => {
+                let pairs: Vec<String> = m.iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect();
+                write!(f, "{{{}}}", pairs.join(", "))
+            },
+            Value::Set(s) => {
+                let items: Vec<String> = s.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "{{{}}}", items.join(", "))
+            },
+            Value::Geography(g) => write!(f, "Geography({:?})", g.point),
+            Value::Duration(d) => write!(f, "Duration({})", d.seconds),
+        }
+    }
+}
+
+// 手动实现Hash以处理f64哈希
 impl Hash for Value {
-    fn hash<H: Hasher>(&self, state: &mut H) {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
             Value::Empty => 0u8.hash(state),
             Value::Null(n) => {

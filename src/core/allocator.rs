@@ -2,6 +2,13 @@
 //!
 //! This module provides an arena allocator similar to NebulaGraph's Arena,
 //! optimized for allocating many small objects with the same lifetime.
+//!
+//! # Safety
+//! This module uses unsafe code for low-level memory management. All unsafe blocks
+//! are carefully bounded and follow Rust's safety invariants:
+//! - Memory allocations are properly aligned and sized
+//! - Pointers are always valid when dereferenced
+//! - Memory is properly deallocated on drop
 
 use std::alloc::{alloc, dealloc, Layout};
 use std::ptr;
@@ -26,6 +33,11 @@ struct Chunk {
 
 impl Chunk {
     /// Create a new chunk with the specified size
+    ///
+    /// # Safety
+    /// This function uses unsafe code to allocate raw memory.
+    /// The returned pointer is guaranteed to be valid for the specified size
+    /// and properly aligned.
     fn new(size: usize) -> Option<Box<Chunk>> {
         if size == 0 {
             return None;
@@ -48,6 +60,8 @@ impl Chunk {
 
 impl Drop for Chunk {
     fn drop(&mut self) {
+        // Safety: self.data was allocated with Layout::from_size_align(self.size, ALIGNMENT)
+        // and is still valid at this point.
         let layout = Layout::from_size_align(self.size, ALIGNMENT).unwrap();
         unsafe {
             dealloc(self.data, layout);
@@ -113,9 +127,20 @@ impl Arena {
     }
 
     /// Check if the current chunk has enough space
+    ///
+    /// # Safety
+    /// This function assumes that current_ptr and end_ptr are valid pointers
+    /// pointing to the same allocation.
     fn has_space(&self, size: usize) -> bool {
-        !self.current_ptr.is_null() && 
-        unsafe { self.end_ptr.offset_from(self.current_ptr) as usize } >= size
+        if self.current_ptr.is_null() || self.end_ptr.is_null() {
+            return false;
+        }
+        
+        // Safety: Both pointers are non-null and point to the same allocation
+        unsafe {
+            let offset = self.end_ptr.offset_from(self.current_ptr) as usize;
+            offset >= size
+        }
     }
 
     /// Allocate a new chunk and allocate the requested memory in it

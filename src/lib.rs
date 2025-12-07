@@ -15,6 +15,18 @@ pub mod expression;
 pub mod graph;
 pub mod context;
 pub mod network;
+pub mod function;
+pub mod time;
+pub mod stats;
+pub mod thread;
+pub mod process;
+pub mod session;
+pub mod log;
+pub mod memory;
+pub mod id;
+pub mod charset;
+pub mod fs;
+pub mod algorithm;
 
 // Re-export common types at the crate root for convenience
 pub use crate::core::{Vertex, Edge, Value, Direction, Tag, Path, Step, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, error::{Status, StatusOr}};

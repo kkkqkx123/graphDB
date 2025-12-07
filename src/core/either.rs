@@ -200,8 +200,8 @@ mod tests {
 
     #[test]
     fn test_either_creation() {
-        let left = Either::left(42);
-        let right = Either::right("hello");
+        let left: Either<i32, &str> = Either::left(42);
+        let right: Either<i32, &str> = Either::right("hello");
 
         assert!(left.is_left());
         assert!(right.is_right());
@@ -243,9 +243,9 @@ mod tests {
         assert!(is_ok(&success));
         assert_eq!(result(&success), Some(&123));
         
-        let error: MyErrorOr<i32> = Either::left("error occurred");
-        assert!(is_error(&error));
-        assert_eq!(error(&error), Some(&"error occurred"));
+        let error_value: MyErrorOr<i32> = Either::left("error occurred");
+        assert!(is_error(&error_value));
+        assert_eq!(error(&error_value), Some(&"error occurred"));
     }
 
     #[test]

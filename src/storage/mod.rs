@@ -1,7 +1,7 @@
-use crate::core::{Vertex, Edge, Value, Direction, Tag};
+use crate::core::{Vertex, Edge, Value, Direction};
 use thiserror::Error;
 use sled::{Db, Tree};
-use std::collections::HashMap;
+use serde_json;
 
 #[derive(Error, Debug)]
 pub enum StorageError {
@@ -74,24 +74,23 @@ impl NativeStorage {
     }
 
     fn value_to_bytes(&self, value: &Value) -> Result<Vec<u8>, StorageError> {
-        bincode::encode_to_vec(value, bincode::config::standard())
+        serde_json::to_vec(value)
             .map_err(|e| StorageError::SerializationError(e.to_string()))
     }
 
     fn value_from_bytes(&self, bytes: &[u8]) -> Result<Value, StorageError> {
-        let (value, _len) = bincode::decode_from_slice(bytes, bincode::config::standard())
-            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-        Ok(value)
+        serde_json::from_slice(bytes)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))
     }
 }
 
 impl StorageEngine for NativeStorage {
     fn insert_node(&mut self, vertex: Vertex) -> Result<Value, StorageError> {
         let id = self.generate_id();
-        // We create a new vertex with the generated id
+        // 使用生成的id创建新顶点
         let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
 
-        let vertex_bytes = bincode::encode_to_vec(&vertex_with_id, bincode::config::standard())
+        let vertex_bytes = serde_json::to_vec(&vertex_with_id)
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         let id_bytes = self.value_to_bytes(&id)?;
@@ -105,7 +104,7 @@ impl StorageEngine for NativeStorage {
         let id_bytes = self.value_to_bytes(id)?;
         match self.nodes_tree.get(id_bytes)? {
             Some(vertex_bytes) => {
-                let (vertex, _len): (Vertex, usize) = bincode::decode_from_slice(&vertex_bytes, bincode::config::standard())
+                let vertex: Vertex = serde_json::from_slice(&vertex_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 Ok(Some(vertex))
             }
@@ -114,12 +113,12 @@ impl StorageEngine for NativeStorage {
     }
 
     fn update_node(&mut self, vertex: Vertex) -> Result<(), StorageError> {
-        // Check if vertex id is null
+        // 检查顶点id是否为null
         if matches!(*vertex.vid, Value::Null(_)) {
             return Err(StorageError::NodeNotFound(Value::Null(Default::default())));
         }
 
-        let vertex_bytes = bincode::encode_to_vec(&vertex, bincode::config::standard())
+        let vertex_bytes = serde_json::to_vec(&vertex)
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         let id_bytes = self.value_to_bytes(&vertex.vid)?;
@@ -130,17 +129,17 @@ impl StorageEngine for NativeStorage {
     }
 
     fn delete_node(&mut self, id: &Value) -> Result<(), StorageError> {
-        // First, delete all edges associated with this vertex
+        // 首先删除与此顶点关联的所有边
         let edges_to_delete = self.get_node_edges(id, Direction::Both)?;
         for edge in edges_to_delete {
             self.delete_edge(&edge.src, &edge.dst, &edge.edge_type)?;
         }
 
-        // Then delete the vertex
+        // 然后删除顶点
         let id_bytes = self.value_to_bytes(id)?;
         self.nodes_tree.remove(&id_bytes)?;
 
-        // Remove from node-edge index
+        // 从节点边索引中删除
         self.node_edge_index.remove(&id_bytes)?;
 
         self.db.flush()?;
@@ -148,17 +147,17 @@ impl StorageEngine for NativeStorage {
     }
 
     fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError> {
-        // For edge key, we'll use a combination of src, dst, and edge_type to make it unique
+        // 为边键使用src、dst和edge_type的组合以使其唯一
         let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
-        let edge_bytes = bincode::encode_to_vec(&edge, bincode::config::standard())
+        let edge_bytes = serde_json::to_vec(&edge)
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
-        // Store the edge
+        // 存储边
         self.edges_tree.insert(&edge_key_bytes, edge_bytes)?;
 
-        // Update indices
+        // 更新索引
         self.update_node_edge_index(&edge.src, &edge_key_bytes, true)?;
         self.update_node_edge_index(&edge.dst, &edge_key_bytes, true)?;
 
@@ -173,7 +172,7 @@ impl StorageEngine for NativeStorage {
 
         match self.edges_tree.get(&edge_key_bytes)? {
             Some(edge_bytes) => {
-                let (edge, _len): (Edge, usize) = bincode::decode_from_slice(&edge_bytes, bincode::config::standard())
+                let edge: Edge = serde_json::from_slice(&edge_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 Ok(Some(edge))
             }
@@ -187,7 +186,7 @@ impl StorageEngine for NativeStorage {
 
         for edge_key_bytes in edge_keys {
             if let Some(edge_bytes) = self.edges_tree.get(&edge_key_bytes)? {
-                let (edge, _len): (Edge, usize) = bincode::decode_from_slice(&edge_bytes, bincode::config::standard())
+                let edge: Edge = serde_json::from_slice(&edge_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
                 match direction {
@@ -207,10 +206,10 @@ impl StorageEngine for NativeStorage {
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
         if self.edges_tree.get(&edge_key_bytes)?.is_some() {
-            // Remove from edge storage
+            // 从边存储中删除
             self.edges_tree.remove(&edge_key_bytes)?;
 
-            // Update node-edge indices
+            // 更新节点边索引
             self.update_node_edge_index(src, &edge_key_bytes, false)?;
             self.update_node_edge_index(dst, &edge_key_bytes, false)?;
 
@@ -222,7 +221,7 @@ impl StorageEngine for NativeStorage {
     }
 
     fn begin_transaction(&mut self) -> Result<TransactionId, StorageError> {
-        // TODO: Implement actual transaction support
+        // TODO: 实现实际的事务支持
         use std::time::{SystemTime, UNIX_EPOCH};
         let id = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -232,13 +231,13 @@ impl StorageEngine for NativeStorage {
     }
 
     fn commit_transaction(&mut self, _tx_id: TransactionId) -> Result<(), StorageError> {
-        // TODO: Implement actual transaction support
+        // TODO: 实现实际的事务支持
         self.db.flush()?;
         Ok(())
     }
 
     fn rollback_transaction(&mut self, _tx_id: TransactionId) -> Result<(), StorageError> {
-        // TODO: Implement actual transaction support
+        // TODO: 实现实际的事务支持
         Ok(())
     }
 }
@@ -248,7 +247,7 @@ impl NativeStorage {
         let node_id_bytes = self.value_to_bytes(node_id)?;
         let mut edge_list = match self.node_edge_index.get(&node_id_bytes)? {
             Some(list_bytes) => {
-                let (result, _len): (Vec<Vec<u8>>, usize) = bincode::decode_from_slice(&list_bytes, bincode::config::standard())
+                let result: Vec<Vec<u8>> = serde_json::from_slice(&list_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 result
             },
@@ -263,7 +262,7 @@ impl NativeStorage {
             edge_list.retain(|key| key != edge_key);
         }
 
-        let list_bytes = bincode::encode_to_vec(&edge_list, bincode::config::standard())
+        let list_bytes = serde_json::to_vec(&edge_list)
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         self.node_edge_index.insert(&node_id_bytes, list_bytes)?;
@@ -275,7 +274,7 @@ impl NativeStorage {
         let node_id_bytes = self.value_to_bytes(node_id)?;
         match self.node_edge_index.get(&node_id_bytes)? {
             Some(list_bytes) => {
-                let (edge_key_list, _len): (Vec<Vec<u8>>, usize) = bincode::decode_from_slice(&list_bytes, bincode::config::standard())
+                let edge_key_list: Vec<Vec<u8>> = serde_json::from_slice(&list_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 Ok(edge_key_list)
             }
