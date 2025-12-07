@@ -6,30 +6,20 @@
 pub mod core;
 pub mod storage;
 pub mod query;
-pub mod transaction;
-pub mod index;
 pub mod api;
 pub mod utils;
 pub mod config;
-pub mod expression;
+pub mod common;
 pub mod graph;
-pub mod context;
-pub mod network;
-pub mod function;
-pub mod time;
-pub mod stats;
-pub mod thread;
-pub mod process;
-pub mod session;
-pub mod log;
-pub mod memory;
-pub mod id;
-pub mod charset;
-pub mod fs;
-pub mod algorithm;
+pub mod services;
 
 // Re-export common types at the crate root for convenience
 pub use crate::core::{Vertex, Edge, Value, Direction, Tag, Path, Step, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, error::{Status, StatusOr}};
 pub use crate::storage::{StorageEngine, NativeStorage, StorageError};
 pub use crate::query::{Query, QueryResult, QueryExecutor, QueryError};
 pub use crate::config::Config;
+
+// Re-export commonly used types from submodules
+pub use crate::common::{base::id::*, time::*, memory::*, thread::*, process::*, network::*, fs::*, log::*, charset::*};
+pub use crate::graph::{transaction::*, index::*, expression::*};
+pub use crate::services::{session::*, stats::*, function::*, algorithm::*, context::*};

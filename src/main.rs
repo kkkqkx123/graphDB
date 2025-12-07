@@ -5,8 +5,6 @@ mod config;
 mod core;
 mod storage;
 mod query;
-mod transaction;
-mod index;
 mod api;
 mod utils;
 

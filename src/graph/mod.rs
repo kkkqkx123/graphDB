@@ -1,6 +1,19 @@
+//! 图操作核心模块
+//!
+//! 包含图相关的核心操作，包括事务管理、索引系统和表达式计算
+
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use crate::core::{Vertex, Edge, Value, Path};
+
+pub mod transaction;
+pub mod index;
+pub mod expression;
+
+// 重新导出图操作相关功能
+pub use transaction::*;
+pub use index::*;
+pub use expression::*;
 
 /// Represents the response from a graph database query
 #[derive(Debug, Clone, Serialize, Deserialize)]
