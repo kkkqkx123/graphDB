@@ -9,6 +9,7 @@ use crate::core::{Result, Value};
 /// 
 /// 每个查询请求的上下文，存储变量值和查询结果
 /// 对应原C++中的ExecutionContext类
+#[derive(Debug, Clone)]
 pub struct ExecutionContext {
     // name -> 多版本结果列表 (最新版本在前，最老版本在后)
     value_map: Arc<RwLock<HashMap<String, Vec<Result>>>>,

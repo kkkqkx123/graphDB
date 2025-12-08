@@ -1,9 +1,9 @@
 //! Join optimization rules for NebulaGraph
 //! These rules optimize join operations based on NebulaGraph's implementation
 
-use crate::query::optimizer::optimizer::{OptRule, Pattern, OptGroupNode, OptContext};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
 use super::optimizer::OptimizerError;
+use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
+use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
 // Rule for pushing filter down hash inner join
 #[derive(Debug)]
@@ -14,14 +14,20 @@ impl OptRule for PushFilterDownHashInnerJoinRule {
         "PushFilterDownHashInnerJoinRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing filter down hash inner join operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Filter)
-            .with_dependency(Pattern::new(PlanNodeKind::HashInnerJoin))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::Filter)
+                .with_dependency(Pattern::new(PlanNodeKind::HashInnerJoin)),
+        )
     }
 }
 
@@ -34,14 +40,20 @@ impl OptRule for PushFilterDownHashLeftJoinRule {
         "PushFilterDownHashLeftJoinRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing filter down hash left join operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Filter)
-            .with_dependency(Pattern::new(PlanNodeKind::HashLeftJoin))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::Filter)
+                .with_dependency(Pattern::new(PlanNodeKind::HashLeftJoin)),
+        )
     }
 }
 
@@ -54,14 +66,20 @@ impl OptRule for PushFilterDownInnerJoinRule {
         "PushFilterDownInnerJoinRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing filter down inner join operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Filter)
-            .with_dependency(Pattern::new(PlanNodeKind::InnerJoin))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::Filter)
+                .with_dependency(Pattern::new(PlanNodeKind::InnerJoin)),
+        )
     }
 }
 
@@ -74,14 +92,20 @@ impl OptRule for MergeGetVerticesAndDedupRule {
         "MergeGetVerticesAndDedupRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for merging get vertices and dedup operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::GetVertices)
-            .with_dependency(Pattern::new(PlanNodeKind::Dedup))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::GetVertices)
+                .with_dependency(Pattern::new(PlanNodeKind::Dedup)),
+        )
     }
 }
 
@@ -94,14 +118,20 @@ impl OptRule for MergeGetVerticesAndProjectRule {
         "MergeGetVerticesAndProjectRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for merging get vertices and project operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::GetVertices)
-            .with_dependency(Pattern::new(PlanNodeKind::Project))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::GetVertices)
+                .with_dependency(Pattern::new(PlanNodeKind::Project)),
+        )
     }
 }
 
@@ -114,14 +144,20 @@ impl OptRule for MergeGetNbrsAndDedupRule {
         "MergeGetNbrsAndDedupRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for merging get neighbors and dedup operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::GetNeighbors)
-            .with_dependency(Pattern::new(PlanNodeKind::Dedup))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::GetNeighbors)
+                .with_dependency(Pattern::new(PlanNodeKind::Dedup)),
+        )
     }
 }
 
@@ -134,14 +170,20 @@ impl OptRule for MergeGetNbrsAndProjectRule {
         "MergeGetNbrsAndProjectRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for merging get neighbors and project operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::GetNeighbors)
-            .with_dependency(Pattern::new(PlanNodeKind::Project))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::GetNeighbors)
+                .with_dependency(Pattern::new(PlanNodeKind::Project)),
+        )
     }
 }
 
@@ -154,13 +196,19 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
         "RemoveAppendVerticesBelowJoinRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for removing append vertices operations below join
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::AppendVertices)
-            .with_dependency(Pattern::new(PlanNodeKind::InnerJoin)) // Or other join types
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::AppendVertices)
+                .with_dependency(Pattern::new(PlanNodeKind::InnerJoin)),
+        ) // Or other join types
     }
 }

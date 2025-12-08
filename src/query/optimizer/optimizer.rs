@@ -67,7 +67,19 @@ impl OptGroupNode {
     }
 }
 
-#[derive(Debug, Default)]
+impl Clone for OptGroupNode {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            plan_node: self.plan_node.clone_plan_node(),
+            dependencies: self.dependencies.clone(),
+            cost: self.cost,
+            properties: self.properties.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct PlanNodeProperties {
     // Properties that describe the plan node for optimization purposes
     pub output_vars: Vec<String>,
@@ -80,7 +92,7 @@ pub struct PlanNodeProperties {
 pub trait OptRule: std::fmt::Debug {
     fn name(&self) -> &str;
     fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError>;
-    fn pattern(&self) -> &Pattern; // Define what plan nodes this rule matches
+    fn pattern(&self) -> Box<Pattern>; // Define what plan nodes this rule matches
 }
 
 #[derive(Debug, Clone)]
@@ -174,25 +186,25 @@ impl Optimizer {
     }
 
     pub fn find_best_plan(&mut self, qctx: &mut QueryContext, plan: ExecutionPlan) -> Result<ExecutionPlan, OptimizerError> {
-        // Create an optimization context
-        let mut opt_ctx = OptContext::new(qctx.clone());
-        
-        // Convert the execution plan to an optimization graph
-        let mut root_group = self.plan_to_group(&plan)?;
-        
-        // Apply optimization rules
-        for rule_set in &self.rule_sets {
-            for rule in &rule_set.rules {
-                // Apply the rule to the group
-                self.apply_rule(&mut opt_ctx, &mut root_group, rule.as_ref())?;
-            }
-        }
-        
-        // Convert the optimized group back to an execution plan
-        let optimized_plan = self.group_to_plan(&root_group)?;
-        
-        Ok(optimized_plan)
-    }
+         // Create an optimization context
+         let mut opt_ctx = OptContext::new(qctx.clone());
+
+         // Convert the execution plan to an optimization graph
+         let mut root_group = self.plan_to_group(&plan)?;
+
+         // Apply optimization rules
+         for rule_set in &self.rule_sets {
+             for rule in &rule_set.rules {
+                 // Apply the rule to the group
+                 self.apply_rule(&mut opt_ctx, &mut root_group, rule.as_ref())?;
+             }
+         }
+
+         // Convert the optimized group back to an execution plan
+         let optimized_plan = self.group_to_plan(&root_group)?;
+
+         Ok(optimized_plan)
+     }
 
     fn plan_to_group(&self, plan: &ExecutionPlan) -> Result<OptGroup, OptimizerError> {
         // Convert an execution plan to an optimization group structure
@@ -221,62 +233,64 @@ impl Optimizer {
     }
 
     fn group_to_plan(&self, group: &OptGroup) -> Result<ExecutionPlan, OptimizerError> {
-        // Convert an optimization group back to an execution plan
-        if let Some(opt_node) = group.nodes.first() {
-            let root = Some(opt_node.plan_node.clone());
-            Ok(ExecutionPlan::new(root))
-        } else {
-            Err(OptimizerError::PlanConversionError("Cannot convert empty group to plan".to_string()))
-        }
-    }
+         // Convert an optimization group back to an execution plan
+         if let Some(opt_node) = group.nodes.first() {
+             let root = Some(opt_node.plan_node.clone_plan_node());
+             Ok(ExecutionPlan::new(root))
+         } else {
+             Err(OptimizerError::PlanConversionError("Cannot convert empty group to plan".to_string()))
+         }
+     }
 
     fn apply_rule(&self, ctx: &mut OptContext, group: &mut OptGroup, rule: &dyn OptRule) -> Result<(), OptimizerError> {
-        // Apply a single optimization rule to the group
-        // This implementation applies the rule iteratively until no more changes occur
-        let mut changed = true;
-        let mut iterations = 0;
-        const MAX_ITERATIONS: usize = 10; // Prevent infinite loops
+         // Apply a single optimization rule to the group
+         // This implementation applies the rule iteratively until no more changes occur
+         let mut changed = true;
+         let mut iterations = 0;
+         const MAX_ITERATIONS: usize = 10; // Prevent infinite loops
 
-        while changed && iterations < MAX_ITERATIONS {
-            changed = false;
-            let mut new_nodes = Vec::new();
+         while changed && iterations < MAX_ITERATIONS {
+             changed = false;
+             let mut new_nodes = Vec::new();
+             let mut old_nodes = Vec::new();
+             std::mem::swap(&mut group.nodes, &mut old_nodes);
 
-            for node in &group.nodes {
-                if self.matches_pattern(node, rule.pattern()) {
-                    if let Some(new_node) = rule.apply(ctx, node)? {
-                        new_nodes.push(new_node);
-                        ctx.stats.rules_applied += 1;
-                        changed = true;
-                    } else {
-                        new_nodes.push(node.clone());
-                    }
-                } else {
-                    new_nodes.push(node.clone());
-                }
-            }
+             for node in old_nodes.into_iter() {
+                  if self.matches_pattern(&node, &rule.pattern()) {
+                      if let Some(new_node) = rule.apply(ctx, &node)? {
+                          new_nodes.push(new_node);
+                          ctx.stats.rules_applied += 1;
+                          changed = true;
+                      } else {
+                          new_nodes.push(node);
+                      }
+                  } else {
+                      new_nodes.push(node);
+                  }
+              }
 
-            group.nodes = new_nodes;
-            iterations += 1;
-        }
+             group.nodes = new_nodes;
+             iterations += 1;
+         }
 
-        Ok(())
-    }
+         Ok(())
+     }
 
     fn matches_pattern(&self, node: &OptGroupNode, pattern: &Pattern) -> bool {
-        // Check if the node matches the given pattern
-        if node.plan_node.kind() != pattern.kind {
-            return false;
-        }
+         // Check if the node matches the given pattern
+         if node.plan_node.kind() != pattern.kind {
+             return false;
+         }
 
-        // If the pattern has dependencies, check if node's dependencies match
-        if !pattern.dependencies.is_empty() {
-            // In a real implementation, we would check the actual dependencies
-            // For now, we just check if the number of dependencies is sufficient
-            // This is a simplified version of the pattern matching
-        }
+         // If the pattern has dependencies, check if node's dependencies match
+         if !pattern.dependencies.is_empty() {
+             // In a real implementation, we would check the actual dependencies
+             // For now, we just check if the number of dependencies is sufficient
+             // This is a simplified version of the pattern matching
+         }
 
-        true
-    }
+         true
+     }
 }
 
 #[derive(Debug, thiserror::Error)]

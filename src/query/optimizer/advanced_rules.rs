@@ -1,9 +1,9 @@
 //! Advanced optimization rules for NebulaGraph query optimization
 //! These rules provide more sophisticated optimizations based on NebulaGraph's implementation
 
-use crate::query::optimizer::optimizer::{OptRule, Pattern, OptGroupNode, OptContext};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
 use super::optimizer::OptimizerError;
+use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
+use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
 // Rule to push filters down expand operations
 #[derive(Debug)]
@@ -14,7 +14,11 @@ impl OptRule for PushFilterDownExpandRule {
         "PushFilterDownExpandRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Check if this node is a filter and has an expand as its child
         if node.plan_node.kind() == PlanNodeKind::Filter {
             // Implementation for pushing filter down expand operations
@@ -23,9 +27,10 @@ impl OptRule for PushFilterDownExpandRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Filter)
-            .with_dependency(Pattern::new(PlanNodeKind::Expand))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::Filter).with_dependency(Pattern::new(PlanNodeKind::Expand)),
+        )
     }
 }
 
@@ -38,13 +43,17 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
         "OptimizeEdgeIndexScanByFilterRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing edge index scan by filter
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::IndexScan) // Specifically for edge index scans
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::IndexScan)) // Specifically for edge index scans
     }
 }
 
@@ -57,13 +66,17 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
         "OptimizeTagIndexScanByFilterRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing tag index scan by filter
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::IndexScan) // Specifically for tag index scans
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::IndexScan)) // Specifically for tag index scans
     }
 }
 
@@ -76,13 +89,17 @@ impl OptRule for PushLimitDownRule {
         "PushLimitDownRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing limit down various operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Limit)
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::Limit))
     }
 }
 
@@ -95,14 +112,20 @@ impl OptRule for PushFilterDownTraverseRule {
         "PushFilterDownTraverseRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing filters down traverse operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Filter)
-            .with_dependency(Pattern::new(PlanNodeKind::Traverse))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::Filter)
+                .with_dependency(Pattern::new(PlanNodeKind::Traverse)),
+        )
     }
 }
 
@@ -115,14 +138,19 @@ impl OptRule for CombineFilterRule {
         "CombineFilterRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for combining multiple filter operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Filter)
-            .with_dependency(Pattern::new(PlanNodeKind::Filter))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::Filter).with_dependency(Pattern::new(PlanNodeKind::Filter)),
+        )
     }
 }
 
@@ -135,13 +163,17 @@ impl OptRule for EliminateFilterRule {
         "EliminateFilterRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for eliminating redundant filter operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Filter)
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::Filter))
     }
 }
 
@@ -154,14 +186,20 @@ impl OptRule for CollapseProjectRule {
         "CollapseProjectRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for collapsing multiple project operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Project)
-            .with_dependency(Pattern::new(PlanNodeKind::Project))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::Project)
+                .with_dependency(Pattern::new(PlanNodeKind::Project)),
+        )
     }
 }
 
@@ -174,13 +212,17 @@ impl OptRule for EliminateAppendVerticesRule {
         "EliminateAppendVerticesRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for eliminating redundant append vertices operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::AppendVertices)
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::AppendVertices))
     }
 }
 
@@ -193,13 +235,19 @@ impl OptRule for MergeGetVerticesAndProjectRule {
         "MergeGetVerticesAndProjectRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for merging get vertices and project operations
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::GetVertices)
-            .with_dependency(Pattern::new(PlanNodeKind::Project))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(
+            Pattern::new(PlanNodeKind::GetVertices)
+                .with_dependency(Pattern::new(PlanNodeKind::Project)),
+        )
     }
 }

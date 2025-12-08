@@ -4,6 +4,7 @@
 use std::sync::atomic::{AtomicI64, Ordering};
 
 /// ID生成器
+#[derive(Debug)]
 pub struct IdGenerator {
     counter: AtomicI64,
 }
@@ -29,6 +30,14 @@ impl IdGenerator {
     /// 获取当前计数值
     pub fn current_value(&self) -> i64 {
         self.counter.load(Ordering::SeqCst)
+    }
+}
+
+impl Clone for IdGenerator {
+    fn clone(&self) -> Self {
+        Self {
+            counter: AtomicI64::new(self.current_value()),
+        }
     }
 }
 
@@ -74,11 +83,11 @@ mod tests {
     #[test]
     fn test_id_generator() {
         let gen = IdGenerator::new(0);
-        
+
         assert_eq!(gen.id(), 0);
         assert_eq!(gen.id(), 1);
         assert_eq!(gen.id(), 2);
-        
+
         gen.reset(100);
         assert_eq!(gen.current_value(), 100);
         assert_eq!(gen.id(), 100);
@@ -87,10 +96,10 @@ mod tests {
     #[test]
     fn test_ep_id_generator() {
         let gen = EPIdGenerator::instance();
-        
+
         let first_id = gen.id();
         let second_id = gen.id();
-        
+
         assert_eq!(second_id, first_id + 1);
     }
 }

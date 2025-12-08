@@ -1,4 +1,5 @@
 /// A simple object pool for reusing objects to reduce allocation overhead
+#[derive(Debug, Clone)]
 pub struct ObjectPool<T> {
     pool: Vec<T>,
     max_size: usize,

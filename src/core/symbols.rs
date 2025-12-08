@@ -22,6 +22,7 @@ pub struct Symbol {
 }
 
 /// 符号表
+#[derive(Debug, Clone)]
 pub struct SymbolTable {
     symbols: Arc<RwLock<HashMap<String, Symbol>>>,
 }

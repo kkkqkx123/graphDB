@@ -1,6 +1,5 @@
 //! Plan node definitions for execution plans
-use std::collections::HashMap;
-use crate::core::{Value, Expression, Variable};
+use crate::query::validator::Variable;
 
 // Plan node kinds that represent different operations in the execution plan
 #[derive(Debug, Clone, PartialEq)]
@@ -174,6 +173,7 @@ pub trait PlanNode: std::fmt::Debug {
 }
 
 // Single dependency node - a plan node with one dependency
+#[derive(Debug)]
 pub struct SingleDependencyNode {
     pub id: i64,
     pub kind: PlanNodeKind,
@@ -224,6 +224,7 @@ impl PlanNode for SingleDependencyNode {
 }
 
 // Single input node - a plan node that takes single input
+#[derive(Debug)]
 pub struct SingleInputNode {
     pub id: i64,
     pub kind: PlanNodeKind,
@@ -274,6 +275,7 @@ impl PlanNode for SingleInputNode {
 }
 
 // Binary input node - a plan node with two dependencies
+#[derive(Debug)]
 pub struct BinaryInputNode {
     pub id: i64,
     pub kind: PlanNodeKind,

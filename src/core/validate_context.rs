@@ -8,6 +8,7 @@ use crate::core::Value;
 /// 
 /// 验证阶段的上下文，包含验证所需的信息
 /// 对应原C++中的ValidateContext类
+#[derive(Debug, Clone)]
 pub struct ValidateContext {
     // 命名空间映射
     namespaces: HashMap<String, String>,

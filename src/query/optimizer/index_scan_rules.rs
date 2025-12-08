@@ -1,9 +1,9 @@
 //! Index scan optimization rules for NebulaGraph
 //! These rules optimize index scan operations based on NebulaGraph's implementation
 
-use crate::query::optimizer::optimizer::{OptRule, Pattern, OptGroupNode, OptContext};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
 use super::optimizer::OptimizerError;
+use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
+use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
 // Rule to convert edge index full scans to more optimal operations
 #[derive(Debug)]
@@ -14,13 +14,17 @@ impl OptRule for EdgeIndexFullScanRule {
         "EdgeIndexFullScanRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing edge index full scans
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::IndexScan) // Specifically for edge index scans
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::IndexScan)) // Specifically for edge index scans
     }
 }
 
@@ -33,13 +37,17 @@ impl OptRule for TagIndexFullScanRule {
         "TagIndexFullScanRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing tag index full scans
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::IndexScan) // Specifically for tag index scans
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::IndexScan)) // Specifically for tag index scans
     }
 }
 
@@ -52,13 +60,17 @@ impl OptRule for IndexScanRule {
         "IndexScanRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing index scans
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::IndexScan)
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::IndexScan))
     }
 }
 
@@ -71,13 +83,17 @@ impl OptRule for UnionAllEdgeIndexScanRule {
         "UnionAllEdgeIndexScanRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing union all edge index scans
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::IndexScan) // For union all edge index scans
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::IndexScan)) // For union all edge index scans
     }
 }
 
@@ -90,12 +106,16 @@ impl OptRule for UnionAllTagIndexScanRule {
         "UnionAllTagIndexScanRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing union all tag index scans
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::IndexScan) // For union all tag index scans
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::IndexScan)) // For union all tag index scans
     }
 }

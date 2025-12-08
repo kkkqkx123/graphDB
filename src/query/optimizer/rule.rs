@@ -18,9 +18,9 @@ impl OptRule for FilterPushDownRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
+    fn pattern(&self) -> Box<Pattern> {
         // Pattern: Filter node with dependencies
-        &Pattern::new(PlanNodeKind::Filter)
+        Box::new(Pattern::new(PlanNodeKind::Filter))
     }
 }
 
@@ -39,9 +39,9 @@ impl OptRule for DedupEliminationRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
+    fn pattern(&self) -> Box<Pattern> {
         // Pattern: Dedup node
-        &Pattern::new(PlanNodeKind::Dedup)
+        Box::new(Pattern::new(PlanNodeKind::Dedup))
     }
 }
 
@@ -60,9 +60,9 @@ impl OptRule for JoinOptimizationRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
+    fn pattern(&self) -> Box<Pattern> {
         // Pattern: Join node
-        &Pattern::new(PlanNodeKind::InnerJoin)
+        Box::new(Pattern::new(PlanNodeKind::InnerJoin))
     }
 }
 
@@ -81,9 +81,9 @@ impl OptRule for ProjectionPushDownRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
+    fn pattern(&self) -> Box<Pattern> {
         // Pattern: Project node
-        &Pattern::new(PlanNodeKind::Project)
+        Box::new(Pattern::new(PlanNodeKind::Project))
     }
 }
 
@@ -102,9 +102,9 @@ impl OptRule for LimitOptimizationRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
+    fn pattern(&self) -> Box<Pattern> {
         // Pattern: Limit node
-        &Pattern::new(PlanNodeKind::Limit)
+        Box::new(Pattern::new(PlanNodeKind::Limit))
     }
 }
 
@@ -123,9 +123,9 @@ impl OptRule for PredicatePushDownRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
+    fn pattern(&self) -> Box<Pattern> {
         // Pattern: Filter node
-        &Pattern::new(PlanNodeKind::Filter)
+        Box::new(Pattern::new(PlanNodeKind::Filter))
     }
 }
 
@@ -144,9 +144,9 @@ impl OptRule for IndexFullScanRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
+    fn pattern(&self) -> Box<Pattern> {
         // Pattern: IndexScan node
-        &Pattern::new(PlanNodeKind::IndexScan)
+        Box::new(Pattern::new(PlanNodeKind::IndexScan))
     }
 }
 
@@ -165,9 +165,9 @@ impl OptRule for TopNRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
+    fn pattern(&self) -> Box<Pattern> {
         // Pattern: Sort/TopN node
-        &Pattern::new(PlanNodeKind::Sort)
+        Box::new(Pattern::new(PlanNodeKind::Sort))
     }
 }
 
@@ -186,8 +186,8 @@ impl OptRule for RemoveNoopProjectRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
+    fn pattern(&self) -> Box<Pattern> {
         // Pattern: Project node
-        &Pattern::new(PlanNodeKind::Project)
+        Box::new(Pattern::new(PlanNodeKind::Project))
     }
 }

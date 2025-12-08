@@ -1,7 +1,6 @@
 //! Main planner trait and implementation
 use crate::core::AstContext;
-use super::plan::{SubPlan, ExecutionPlan};
-use std::collections::HashMap;
+use super::plan::SubPlan;
 
 // Match function type - takes AstContext and returns whether the planner matches
 pub type MatchFunc = fn(&AstContext) -> bool;
@@ -10,6 +9,7 @@ pub type MatchFunc = fn(&AstContext) -> bool;
 pub type PlannerInstantiateFunc = fn() -> Box<dyn Planner>;
 
 // Structure that combines match function and planner instantiate function
+#[derive(Debug, Clone)]
 pub struct MatchAndInstantiate {
     pub match_func: MatchFunc,
     pub instantiate_func: PlannerInstantiateFunc,
@@ -41,20 +41,20 @@ impl SequentialPlanner {
         Box::new(Self::new())
     }
     
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        // For sequential planner, we generally match any statement
-        // In a real implementation, we might check if the statement type is appropriate
-        true
-    }
-    
-    // Converts an AST context to a plan (similar to the original Nebula toPlan method)
-    pub fn to_plan(ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // Select the appropriate planner based on the AST context and call its transform method
-        let mut planners_registry = PlannersRegistry::new();
-        Self::register_planners(&mut planners_registry);
+    pub fn match_ast_ctx(_ast_ctx: &AstContext) -> bool {
+         // For sequential planner, we generally match any statement
+         // In a real implementation, we might check if the statement type is appropriate
+         true
+     }
+     
+     // Converts an AST context to a plan (similar to the original Nebula toPlan method)
+     pub fn to_plan(ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+         // Select the appropriate planner based on the AST context and call its transform method
+         let mut planners_registry = PlannersRegistry::new();
+         Self::register_planners(&mut planners_registry);
 
-        planners_registry.create_plan(ast_ctx)
-    }
+         planners_registry.create_plan(ast_ctx)
+     }
 
     // Register all available planners in the registry
     pub fn register_planners(registry: &mut PlannersRegistry) {
@@ -106,14 +106,14 @@ impl SequentialPlanner {
 }
 
 impl Planner for SequentialPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        Self::to_plan(ast_ctx)
-    }
-    
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
-    }
-}
+     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+         Self::to_plan(ast_ctx)
+     }
+     
+     fn match_planner(&self, _ast_ctx: &AstContext) -> bool {
+         Self::match_ast_ctx(_ast_ctx)
+     }
+ }
 
 // Planner registry that keeps track of all available planners
 #[derive(Debug)]
@@ -134,7 +134,7 @@ impl PlannersRegistry {
     }
     
     // Get all planners that match the given AST context
-    pub fn get_matching_planners(&self, ast_ctx: &AstContext) -> Vec<&MatchAndInstantiate> {
+    pub fn get_matching_planners(&self, _ast_ctx: &AstContext) -> Vec<&MatchAndInstantiate> {
         // In a real implementation, this would check the AST context to determine
         // the statement type and return appropriate planners
         self.planners.values().flatten().collect()

@@ -19,9 +19,9 @@ impl OptRule for PushLimitDownGetVerticesRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Limit)
-            .with_dependency(Pattern::new(PlanNodeKind::GetVertices))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::Limit)
+            .with_dependency(Pattern::new(PlanNodeKind::GetVertices)))
     }
 }
 
@@ -39,9 +39,9 @@ impl OptRule for PushLimitDownGetNeighborsRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Limit)
-            .with_dependency(Pattern::new(PlanNodeKind::GetNeighbors))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::Limit)
+            .with_dependency(Pattern::new(PlanNodeKind::GetNeighbors)))
     }
 }
 
@@ -59,9 +59,9 @@ impl OptRule for PushLimitDownGetEdgesRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Limit)
-            .with_dependency(Pattern::new(PlanNodeKind::GetEdges))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::Limit)
+            .with_dependency(Pattern::new(PlanNodeKind::GetEdges)))
     }
 }
 
@@ -79,9 +79,9 @@ impl OptRule for PushLimitDownScanVerticesRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Limit)
-            .with_dependency(Pattern::new(PlanNodeKind::ScanVertices))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::Limit)
+            .with_dependency(Pattern::new(PlanNodeKind::ScanVertices)))
     }
 }
 
@@ -99,9 +99,9 @@ impl OptRule for PushLimitDownScanEdgesRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Limit)
-            .with_dependency(Pattern::new(PlanNodeKind::ScanEdges))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::Limit)
+            .with_dependency(Pattern::new(PlanNodeKind::ScanEdges)))
     }
 }
 
@@ -119,9 +119,9 @@ impl OptRule for PushLimitDownIndexScanRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Limit)
-            .with_dependency(Pattern::new(PlanNodeKind::IndexScan))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::Limit)
+            .with_dependency(Pattern::new(PlanNodeKind::IndexScan)))
     }
 }
 
@@ -139,9 +139,9 @@ impl OptRule for PushLimitDownProjectRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Limit)
-            .with_dependency(Pattern::new(PlanNodeKind::Project))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::Limit)
+            .with_dependency(Pattern::new(PlanNodeKind::Project)))
     }
 }
 
@@ -159,9 +159,9 @@ impl OptRule for PushLimitDownAllPathsRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Limit)
-            .with_dependency(Pattern::new(PlanNodeKind::AllPaths))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::Limit)
+            .with_dependency(Pattern::new(PlanNodeKind::AllPaths)))
     }
 }
 
@@ -179,8 +179,8 @@ impl OptRule for PushLimitDownExpandAllRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> &Pattern {
-        &Pattern::new(PlanNodeKind::Limit)
-            .with_dependency(Pattern::new(PlanNodeKind::ExpandAll))
+    fn pattern(&self) -> Box<Pattern> {
+        Box::new(Pattern::new(PlanNodeKind::Limit)
+            .with_dependency(Pattern::new(PlanNodeKind::ExpandAll)))
     }
 }

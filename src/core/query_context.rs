@@ -1,23 +1,30 @@
 //! 查询上下文模块 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use crate::core::{ExecutionContext, ValidateContext, SymbolTable, Value};
+use crate::core::{ExecutionContext, SymbolTable, ValidateContext, Value};
 use crate::graph::utils::IdGenerator;
 use crate::utils::ObjectPool;
-use std::result::Result; // 使用标准库的Result类型
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // 为简化实现，这里定义一些占位符类型
 // 在实际实现中，这些应该是完整的结构
+#[derive(Debug, Clone)]
 pub struct SchemaManager;
+#[derive(Debug, Clone)]
 pub struct IndexManager;
+#[derive(Debug, Clone)]
 pub struct StorageClient;
+#[derive(Debug, Clone)]
 pub struct MetaClient;
+#[derive(Debug, Clone)]
 pub struct CharsetInfo;
+#[derive(Debug, Clone)]
 pub struct ExecutionPlan;
+#[derive(Debug, Clone)]
 pub struct RequestContext;
 
 // 执行响应结构 - 简化版
+#[derive(Debug, Clone)]
 pub struct ExecutionResponse;
 
 /// 查询上下文
@@ -25,6 +32,7 @@ pub struct ExecutionResponse;
 /// 每个查询请求的上下文，从查询引擎接收到查询请求时创建
 /// 该上下文对象对解析器、规划器、优化器和执行器可见
 /// 对应原C++中的QueryContext类
+#[derive(Debug)]
 pub struct QueryContext {
     // 请求上下文
     rctx: Option<Box<RequestContext>>,
@@ -222,7 +230,27 @@ impl QueryContext {
     pub fn exist_parameter(&self, param: &str) -> bool {
         match self.ectx.get_value(param) {
             Ok(value) => !matches!(value, Value::Empty), // 检查参数值是否为空
-            Err(_) => false, // 如果参数不存在，返回false
+            Err(_) => false,                             // 如果参数不存在，返回false
+        }
+    }
+}
+
+impl Clone for QueryContext {
+    fn clone(&self) -> Self {
+        Self {
+            rctx: self.rctx.clone(),
+            vctx: self.vctx.clone(),
+            ectx: self.ectx.clone(),
+            plan: self.plan.clone(),
+            schema_manager: self.schema_manager.clone(),
+            index_manager: self.index_manager.clone(),
+            storage_client: self.storage_client.clone(),
+            meta_client: self.meta_client.clone(),
+            charset_info: self.charset_info.clone(),
+            obj_pool: self.obj_pool.clone(),
+            id_gen: IdGenerator::new(self.id_gen.current_value()),
+            sym_table: self.sym_table.clone(),
+            killed: AtomicBool::new(self.killed.load(Ordering::SeqCst)),
         }
     }
 }
