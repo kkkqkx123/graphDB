@@ -1,6 +1,6 @@
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
-use chrono::{DateTime, Utc, Local, NaiveDateTime, Datelike, Timelike};
+use chrono::{DateTime, Datelike, Local, Timelike, Utc};
 use serde::{Deserialize, Serialize};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Represents a timestamp in the database
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -20,7 +20,7 @@ impl Timestamp {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards");
-        
+
         Self {
             secs: now.as_secs() as i64,
             nsecs: now.subsec_nanos(),
@@ -65,7 +65,7 @@ impl Date {
         if day < 1 || day > 31 {
             return Err("Day must be between 1 and 31".to_string());
         }
-        
+
         Ok(Self { year, month, day })
     }
 
@@ -81,8 +81,7 @@ impl Date {
 
     /// Converts the date to a NaiveDate
     pub fn to_naive_date(&self) -> chrono::NaiveDate {
-        chrono::NaiveDate::from_ymd_opt(self.year, self.month, self.day)
-            .expect("Invalid date")
+        chrono::NaiveDate::from_ymd_opt(self.year, self.month, self.day).expect("Invalid date")
     }
 
     /// Creates a date from a NaiveDate
@@ -125,8 +124,13 @@ impl Time {
         if microsecond > 999_999 {
             return Err("Microsecond must be between 0 and 999,999".to_string());
         }
-        
-        Ok(Self { hour, minute, second, microsecond })
+
+        Ok(Self {
+            hour,
+            minute,
+            second,
+            microsecond,
+        })
     }
 
     /// Creates a time for now
@@ -174,7 +178,11 @@ pub struct DurationValue {
 impl DurationValue {
     /// Creates a new duration
     pub fn new(months: i32, days: i32, nsecs: i64) -> Self {
-        Self { months, days, nsecs }
+        Self {
+            months,
+            days,
+            nsecs,
+        }
     }
 
     /// Creates a duration from std::time::Duration
@@ -183,10 +191,10 @@ impl DurationValue {
         if negative {
             nsecs = -nsecs;
         }
-        
+
         Self {
-            months: 0,  // std::time::Duration doesn't support months
-            days: 0,    // std::time::Duration doesn't support days in the same way
+            months: 0, // std::time::Duration doesn't support months
+            days: 0,   // std::time::Duration doesn't support days in the same way
             nsecs,
         }
     }
@@ -196,7 +204,7 @@ impl DurationValue {
 pub mod time_utils {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
-    
+
     /// Get the current timestamp as milliseconds since epoch
     pub fn now_ms() -> i64 {
         SystemTime::now()
@@ -231,8 +239,10 @@ pub mod time_utils {
     pub fn timestamp_diff(start: &Timestamp, end: &Timestamp) -> Duration {
         let start_time = UNIX_EPOCH + Duration::new(start.secs as u64, start.nsecs);
         let end_time = UNIX_EPOCH + Duration::new(end.secs as u64, end.nsecs);
-        
-        end_time.duration_since(start_time).unwrap_or(Duration::new(0, 0))
+
+        end_time
+            .duration_since(start_time)
+            .unwrap_or(Duration::new(0, 0))
     }
 }
 
@@ -254,7 +264,7 @@ mod tests {
     fn test_date() {
         let date = Date::today();
         assert!(date.year > 0);
-        
+
         let specific_date = Date::new(2023, 12, 25).unwrap();
         assert_eq!(specific_date.year, 2023);
         assert_eq!(specific_date.month, 12);
@@ -265,7 +275,7 @@ mod tests {
     fn test_time() {
         let time = Time::now();
         assert!(time.hour <= 23);
-        
+
         let specific_time = Time::new(14, 30, 45, 123456).unwrap();
         assert_eq!(specific_time.hour, 14);
         assert_eq!(specific_time.minute, 30);
@@ -288,7 +298,7 @@ mod tests {
 
         let now_sec = time_utils::now_sec();
         assert!(now_sec > 0);
-        
+
         // Test timestamp formatting and parsing
         let ts = Timestamp::new(1672531200, 0); // 2023-01-01T00:00:00Z
         let iso_str = time_utils::format_timestamp_iso(&ts);

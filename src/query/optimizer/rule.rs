@@ -1,7 +1,7 @@
 //! Optimization rules implementation
-use crate::query::optimizer::optimizer::{OptRule, Pattern, OptGroupNode, OptContext};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
 use super::optimizer::OptimizerError;
+use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
+use crate::query::planner::plan::PlanNodeKind;
 
 // A rule that pushes down filters where possible
 #[derive(Debug)]
@@ -12,7 +12,11 @@ impl OptRule for FilterPushDownRule {
         "FilterPushDownRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // This rule would push filter operations down the plan tree
         // For now, return None indicating no transformation was made
         Ok(None)
@@ -33,7 +37,11 @@ impl OptRule for DedupEliminationRule {
         "DedupEliminationRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // This rule would eliminate duplicate operations
         // For now, return None indicating no transformation was made
         Ok(None)
@@ -54,7 +62,11 @@ impl OptRule for JoinOptimizationRule {
         "JoinOptimizationRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // This rule would optimize join operations
         // For now, return None indicating no transformation was made
         Ok(None)
@@ -75,7 +87,11 @@ impl OptRule for ProjectionPushDownRule {
         "ProjectionPushDownRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // This rule would push projection operations down the plan tree
         // For now, return None indicating no transformation was made
         Ok(None)
@@ -96,7 +112,11 @@ impl OptRule for LimitOptimizationRule {
         "LimitOptimizationRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // This rule would optimize limit operations
         // For now, return None indicating no transformation was made
         Ok(None)
@@ -117,7 +137,11 @@ impl OptRule for PredicatePushDownRule {
         "PredicatePushDownRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // This rule would push predicate operations down to storage layer when possible
         // For now, return None indicating no transformation was made
         Ok(None)
@@ -138,7 +162,11 @@ impl OptRule for IndexFullScanRule {
         "IndexFullScanRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // This rule would optimize index scans to use full scan when beneficial
         // For now, return None indicating no transformation was made
         Ok(None)
@@ -159,7 +187,11 @@ impl OptRule for TopNRule {
         "TopNRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // This rule would optimize top-N operations
         // For now, return None indicating no transformation was made
         Ok(None)
@@ -180,7 +212,11 @@ impl OptRule for RemoveNoopProjectRule {
         "RemoveNoopProjectRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // This rule would remove no-op project operations
         // For now, return None indicating no transformation was made
         Ok(None)

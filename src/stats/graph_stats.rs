@@ -210,9 +210,9 @@ mod tests {
         assert_eq!(stats.get_counter(StatType::NumSlowQueries), 0);
         
         // Record a slow query
-        stats.record_query_execution(10_000_000); // 10 seconds 
+        stats.record_query_execution(10_000_000); // 10 seconds
         assert_eq!(stats.get_counter(StatType::NumQueries), 2);
-        assert_eq!(stats.get_counter(StatType::QueryLatencyUs), 11_000_000);
+        assert_eq!(stats.get_counter(StatType::QueryLatencyUs), 10_001_000); // 1000 + 10_000_000
         assert_eq!(stats.get_counter(StatType::NumSlowQueries), 1);
     }
 

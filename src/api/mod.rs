@@ -1,16 +1,13 @@
-use tokio::signal;
 use anyhow::Result;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::signal;
 
-pub mod session;
 pub mod service;
+pub mod session;
 
+use crate::api::service::GraphService;
 use crate::config::Config;
-use crate::query::{QueryParser, QueryExecutor};
 use crate::storage::NativeStorage;
-use crate::api::service::{GraphService, QueryEngine};
-use crate::api::session::GraphSessionManager;
 
 pub async fn start_service(config_path: String) -> Result<()> {
     println!("Initializing GraphDB service...");

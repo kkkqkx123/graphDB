@@ -1,7 +1,7 @@
-use crate::core::{Value, Vertex, Edge, NullType};
-use crate::graph::expression::Expression;
 use super::context::EvalContext;
 use super::error::ExpressionError;
+use crate::core::Value;
+use crate::graph::expression::Expression;
 
 /// 评估属性表达式
 pub fn evaluate_property_expression(
@@ -20,9 +20,12 @@ pub fn evaluate_property_expression(
                     }
                 }
             }
-            Err(ExpressionError::PropertyNotFound(format!("{}.{}", tag, prop)))
+            Err(ExpressionError::PropertyNotFound(format!(
+                "{}.{}",
+                tag, prop
+            )))
         }
-        
+
         Expression::EdgeProperty { edge, prop } => {
             // 在边中查找属性
             if let Some(edge_obj) = context.edge {
@@ -33,9 +36,12 @@ pub fn evaluate_property_expression(
                     }
                 }
             }
-            Err(ExpressionError::PropertyNotFound(format!("{}.{}", edge, prop)))
+            Err(ExpressionError::PropertyNotFound(format!(
+                "{}.{}",
+                edge, prop
+            )))
         }
-        
+
         Expression::InputProperty(prop) => {
             // 从输入中查找属性
             if let Some(vertex) = context.vertex {
@@ -45,39 +51,44 @@ pub fn evaluate_property_expression(
                     }
                 }
             }
-            
+
             if let Some(edge) = context.edge {
                 if let Some(value) = edge.props.get(prop) {
                     return Ok(value.clone());
                 }
             }
-            
+
             if let Some(value) = context.vars.get(prop) {
                 return Ok(value.clone());
             }
-            
+
             Err(ExpressionError::PropertyNotFound(format!("$-.{}", prop)))
         }
-        
+
         Expression::VariableProperty { var, prop } => {
             // 从变量中查找属性
             if let Some(value) = context.vars.get(var) {
                 match value {
-                    Value::Map(map) => {
-                        match map.get(prop) {
-                            Some(prop_value) => Ok(prop_value.clone()),
-                            None => Err(ExpressionError::PropertyNotFound(format!("{}.{}", var, prop))),
-                        }
-                    }
-                    _ => Err(ExpressionError::TypeError(
-                        format!("Variable '{}' is not a map type, cannot access property '{}'", var, prop)
-                    )),
+                    Value::Map(map) => match map.get(prop) {
+                        Some(prop_value) => Ok(prop_value.clone()),
+                        None => Err(ExpressionError::PropertyNotFound(format!(
+                            "{}.{}",
+                            var, prop
+                        ))),
+                    },
+                    _ => Err(ExpressionError::TypeError(format!(
+                        "Variable '{}' is not a map type, cannot access property '{}'",
+                        var, prop
+                    ))),
                 }
             } else {
-                Err(ExpressionError::PropertyNotFound(format!("${}.{}", var, prop)))
+                Err(ExpressionError::PropertyNotFound(format!(
+                    "${}.{}",
+                    var, prop
+                )))
             }
         }
-        
+
         Expression::SourceProperty { tag, prop } => {
             // 查找源顶点的属性
             if let Some(edge) = context.edge {
@@ -92,7 +103,10 @@ pub fn evaluate_property_expression(
                     }
                 }
             }
-            Err(ExpressionError::PropertyNotFound(format!("$^.{}.{}", tag, prop)))
+            Err(ExpressionError::PropertyNotFound(format!(
+                "$^.{}.{}",
+                tag, prop
+            )))
         }
 
         Expression::DestinationProperty { tag, prop } => {
@@ -109,11 +123,14 @@ pub fn evaluate_property_expression(
                     }
                 }
             }
-            Err(ExpressionError::PropertyNotFound(format!("$$.{}.{}", tag, prop)))
+            Err(ExpressionError::PropertyNotFound(format!(
+                "$$.{}.{}",
+                tag, prop
+            )))
         }
-        
+
         _ => Err(ExpressionError::TypeError(
-            "Expression is not a property expression".to_string()
+            "Expression is not a property expression".to_string(),
         )),
     }
 }

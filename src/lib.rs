@@ -13,7 +13,6 @@ pub mod common;
 pub mod graph;
 pub mod services;
 pub mod stats;
-pub mod gc;
 
 // Re-export common types at the crate root for convenience
 pub use crate::core::{Vertex, Edge, Value, Direction, Tag, Path, Step, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, error::{Status, StatusOr}};

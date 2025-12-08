@@ -1,10 +1,10 @@
-use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
 
-use crate::core::{Value, Vertex, Edge};
-use crate::storage::StorageEngine;
+use super::base::{BaseExecutor, ExecutionResult, Executor};
+use crate::core::{Edge, Value, Vertex};
 use crate::query::QueryError;
-use super::base::{Executor, ExecutionResult, ExecutionContext, BaseExecutor};
+use crate::storage::StorageEngine;
 
 // Implementation for a basic GetVertices executor
 pub struct GetVerticesExecutor<S: StorageEngine> {
@@ -40,9 +40,10 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for GetVerticesExecutor<S> {
                     if let Some(vertex) = storage.get_node(id)? {
                         // Filter by tags if specified
                         if let Some(ref req_tags) = self.tags {
-                            if req_tags.iter().all(|tag_name| {
-                                vertex.tags.iter().any(|tag| tag.name == *tag_name)
-                            }) {
+                            if req_tags
+                                .iter()
+                                .all(|tag_name| vertex.tags.iter().any(|tag| tag.name == *tag_name))
+                            {
                                 result_vertices.push(vertex.clone());
                             }
                         } else {
@@ -88,11 +89,7 @@ pub struct GetEdgesExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> GetEdgesExecutor<S> {
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        edge_type: Option<String>,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>, edge_type: Option<String>) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetEdgesExecutor".to_string(), storage),
             edge_type,
@@ -186,7 +183,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for GetNeighborsExecutor<S> 
 // Example implementation of an InsertExecutor for adding new vertices/edges
 pub struct InsertExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    vertex_data: Option<Vec<Vertex>>,  // Data to be inserted
+    vertex_data: Option<Vec<Vertex>>, // Data to be inserted
     edge_data: Option<Vec<Edge>>,
 }
 

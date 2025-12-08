@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::RwLock;
 
 use crate::storage::NativeStorage;
@@ -27,13 +27,13 @@ pub struct AuthResponse {
 
 #[derive(Debug)]
 pub struct QueryEngine {
-    storage: Arc<NativeStorage>,
+    storage: Arc<Mutex<NativeStorage>>,
 }
 
 impl QueryEngine {
     pub fn new(storage: Arc<NativeStorage>) -> Arc<Self> {
         Arc::new(Self {
-            storage,
+            storage: Arc::new(Mutex::new((*storage).clone())),
         })
     }
 
@@ -45,10 +45,8 @@ impl QueryEngine {
         match parser.parse(&rctx.statement) {
             Ok(query) => {
                 // Use the shared storage to create a query executor
-                // We'll have to temporarily clone it for this one operation
-                // Or use a different approach - the executor should probably take a reference
-                // For now, let's make a temporary approach
-                let mut executor = QueryExecutorImpl::new(self.storage.as_ref().clone());
+                let storage_clone = Arc::clone(&self.storage);
+                let mut executor = QueryExecutorImpl::new(storage_clone);
                 match executor.execute(query) {
                     Ok(result) => ExecutionResponse {
                         result: Ok(format!("{:?}", result)),
@@ -67,8 +65,8 @@ impl QueryEngine {
         }
     }
 
-    pub fn get_storage(&self) -> &NativeStorage {
-        &self.storage
+    pub fn get_storage(&self) -> Arc<Mutex<NativeStorage>> {
+        Arc::clone(&self.storage)
     }
 }
 

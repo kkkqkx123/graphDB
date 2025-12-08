@@ -12,7 +12,7 @@ pub fn value_to_bool(value: &Value) -> Option<bool> {
             } else if s.to_lowercase() == "false" {
                 Some(false)
             } else {
-                None  // Cannot convert string to bool without more context
+                None // Cannot convert string to bool without more context
             }
         }
         Value::Empty => Some(false),
@@ -56,14 +56,14 @@ pub fn value_to_string(value: &Value) -> Option<String> {
         Value::Bool(b) => Some(b.to_string()),
         Value::Empty => Some(String::new()),
         Value::Null(_) => None,
-        _ => None,  // Other types may require more complex conversion
+        _ => None, // Other types may require more complex conversion
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Value, NullType};
+    use crate::core::{NullType, Value};
 
     #[test]
     fn test_type_utils() {
@@ -91,10 +91,22 @@ mod tests {
         assert_eq!(value_to_bool(&Value::Float(1.0)), Some(true));
         assert_eq!(value_to_bool(&Value::Float(0.0)), Some(false));
         assert_eq!(value_to_bool(&Value::Float(f64::NAN)), Some(false));
-        assert_eq!(value_to_bool(&Value::String("true".to_string())), Some(true));
-        assert_eq!(value_to_bool(&Value::String("TRUE".to_string())), Some(true));
-        assert_eq!(value_to_bool(&Value::String("false".to_string())), Some(false));
-        assert_eq!(value_to_bool(&Value::String("FALSE".to_string())), Some(false));
+        assert_eq!(
+            value_to_bool(&Value::String("true".to_string())),
+            Some(true)
+        );
+        assert_eq!(
+            value_to_bool(&Value::String("TRUE".to_string())),
+            Some(true)
+        );
+        assert_eq!(
+            value_to_bool(&Value::String("false".to_string())),
+            Some(false)
+        );
+        assert_eq!(
+            value_to_bool(&Value::String("FALSE".to_string())),
+            Some(false)
+        );
         assert_eq!(value_to_bool(&Value::String("yes".to_string())), None);
         assert_eq!(value_to_bool(&Value::Empty), Some(false));
         assert_eq!(value_to_bool(&Value::Null(NullType::Null)), None);
@@ -122,7 +134,10 @@ mod tests {
         assert_eq!(value_to_f64(&Value::Int(42)), Some(42.0));
         assert_eq!(value_to_f64(&Value::Int(-42)), Some(-42.0));
         assert_eq!(value_to_f64(&Value::String("12.3".to_string())), Some(12.3));
-        assert_eq!(value_to_f64(&Value::String("-12.3".to_string())), Some(-12.3));
+        assert_eq!(
+            value_to_f64(&Value::String("-12.3".to_string())),
+            Some(-12.3)
+        );
         assert_eq!(value_to_f64(&Value::String("abc".to_string())), None);
         assert_eq!(value_to_f64(&Value::Bool(true)), Some(1.0));
         assert_eq!(value_to_f64(&Value::Bool(false)), Some(0.0));
@@ -132,13 +147,28 @@ mod tests {
 
     #[test]
     fn test_value_to_string() {
-        assert_eq!(value_to_string(&Value::String("hello".to_string())), Some("hello".to_string()));
+        assert_eq!(
+            value_to_string(&Value::String("hello".to_string())),
+            Some("hello".to_string())
+        );
         assert_eq!(value_to_string(&Value::Int(42)), Some("42".to_string()));
         assert_eq!(value_to_string(&Value::Int(-42)), Some("-42".to_string()));
-        assert_eq!(value_to_string(&Value::Float(12.3)), Some("12.3".to_string()));
-        assert_eq!(value_to_string(&Value::Float(-12.3)), Some("-12.3".to_string()));
-        assert_eq!(value_to_string(&Value::Bool(true)), Some("true".to_string()));
-        assert_eq!(value_to_string(&Value::Bool(false)), Some("false".to_string()));
+        assert_eq!(
+            value_to_string(&Value::Float(12.3)),
+            Some("12.3".to_string())
+        );
+        assert_eq!(
+            value_to_string(&Value::Float(-12.3)),
+            Some("-12.3".to_string())
+        );
+        assert_eq!(
+            value_to_string(&Value::Bool(true)),
+            Some("true".to_string())
+        );
+        assert_eq!(
+            value_to_string(&Value::Bool(false)),
+            Some("false".to_string())
+        );
         assert_eq!(value_to_string(&Value::Empty), Some("".to_string()));
         assert_eq!(value_to_string(&Value::Null(NullType::Null)), None);
     }

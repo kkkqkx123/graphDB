@@ -14,12 +14,7 @@ pub fn murmurhash2(data: &[u8], seed: u32) -> u32 {
 
     // Process 4-byte chunks
     while pos + 4 <= data.len() {
-        let mut k = u32::from_le_bytes([
-            data[pos],
-            data[pos + 1],
-            data[pos + 2],
-            data[pos + 3],
-        ]);
+        let mut k = u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]);
         k = k.wrapping_mul(M);
         k ^= k >> R;
         k = k.wrapping_mul(M);
@@ -150,7 +145,7 @@ mod tests {
     fn test_murmurhash2_different_inputs() {
         // Different inputs should likely produce different hashes
         let data1 = b"hello world";
-        let data2 = b"hello worle";  // Different by 1 character
+        let data2 = b"hello worle"; // Different by 1 character
         let seed = 42;
         let hash1 = murmurhash2(data1, seed);
         let hash2 = murmurhash2(data2, seed);
@@ -181,7 +176,10 @@ mod tests {
         assert_ne!(murmurhash2(b"ab", 0), 0);
         assert_ne!(murmurhash2(b"abc", 0), 0);
         assert_ne!(murmurhash2(b"abcd", 0), 0);
-        assert_ne!(murmurhash2(b"hello world this is a longer test string", 0), 0);
+        assert_ne!(
+            murmurhash2(b"hello world this is a longer test string", 0),
+            0
+        );
     }
 
     #[test]
@@ -196,17 +194,17 @@ mod tests {
     fn test_murmurhasher() {
         // Test the Hasher implementation
         use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        
+        use std::hash::Hasher;
+
         let mut hasher = MurmurHasher::new();
         hasher.write(b"hello world");
         let murmur_hash = hasher.finish();
-        
+
         // Compare with Rust's default hasher (should be different)
         let mut default_hasher = DefaultHasher::new();
         default_hasher.write(b"hello world");
         let default_hash = default_hasher.finish();
-        
+
         // The hashes should be different (different algorithms)
         assert_ne!(murmur_hash, default_hash);
     }
@@ -215,12 +213,12 @@ mod tests {
     fn test_murmurhasher_with_different_types() {
         // Test that MurmurHasher can handle different data types
         use std::hash::Hasher;
-        
+
         let mut hasher = MurmurHasher::new();
         hasher.write_u32(42);
         hasher.write_u64(12345);
         let result = hasher.finish();
-        
+
         assert_ne!(result, 0);
     }
 }

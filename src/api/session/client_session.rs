@@ -1,7 +1,6 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
-use std::time::{Duration, Instant};
-use tokio::sync::RwLock as AsyncRwLock;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 #[derive(Debug, Clone)]
 pub struct SpaceInfo {
@@ -79,7 +78,11 @@ impl ClientSession {
     }
 
     pub fn is_god(&self) -> bool {
-        self.roles.lock().unwrap().values().any(|role| matches!(role, RoleType::GOD))
+        self.roles
+            .lock()
+            .unwrap()
+            .values()
+            .any(|role| matches!(role, RoleType::GOD))
     }
 
     pub fn set_role(&self, space: i64, role: RoleType) {
@@ -156,7 +159,7 @@ mod tests {
         };
 
         let client_session = ClientSession::new(session);
-        
+
         assert_eq!(client_session.id(), 123);
         assert_eq!(client_session.user(), "testuser");
         assert_eq!(client_session.roles().len(), 0);
@@ -173,13 +176,13 @@ mod tests {
             timezone: None,
         };
 
-        let mut client_session = ClientSession::new(session);
-        
+        let client_session = ClientSession::new(session);
+
         let space = SpaceInfo {
             name: "test_space".to_string(),
             id: 1,
         };
-        
+
         client_session.set_space(space.clone());
         assert_eq!(client_session.space().unwrap().name, "test_space");
         assert_eq!(client_session.space().unwrap().id, 1);
@@ -195,12 +198,15 @@ mod tests {
             timezone: None,
         };
 
-        let mut client_session = ClientSession::new(session);
-        
+        let client_session = ClientSession::new(session);
+
         client_session.set_role(1, RoleType::ADMIN);
-        assert!(matches!(client_session.role_with_space(1), Some(RoleType::ADMIN)));
+        assert!(matches!(
+            client_session.role_with_space(1),
+            Some(RoleType::ADMIN)
+        ));
         assert!(client_session.role_with_space(2).is_none());
-        
+
         // Test is_god function
         client_session.set_role(2, RoleType::GOD);
         assert!(client_session.is_god());
@@ -216,17 +222,17 @@ mod tests {
             timezone: None,
         };
 
-        let mut client_session = ClientSession::new(session);
-        
+        let client_session = ClientSession::new(session);
+
         // Add a query
         client_session.add_query(1, "SELECT * FROM users".to_string());
         assert!(client_session.find_query(1));
         assert!(!client_session.find_query(2));
-        
+
         // Remove a query
         client_session.delete_query(1);
         assert!(!client_session.find_query(1));
-        
+
         // Mark all queries killed
         client_session.add_query(1, "SELECT * FROM users".to_string());
         client_session.add_query(2, "INSERT INTO users VALUES (...)".to_string());
@@ -245,14 +251,13 @@ mod tests {
             timezone: None,
         };
 
-        let mut client_session = ClientSession::new(session);
-        
-        // Check initial idle time
+        let client_session = ClientSession::new(session);
+
+        // Check initial idle time is a valid u64 value
         let initial_idle = client_session.idle_seconds();
-        assert!(initial_idle >= 0);
-        
+
         // Charge the session (reset idle time)
         client_session.charge();
-        assert!(client_session.idle_seconds() < initial_idle + 1); // Should be close to 0 after charge
+        assert!(client_session.idle_seconds() <= initial_idle); // Should be close to 0 after charge
     }
 }

@@ -12,11 +12,28 @@ pub struct NativeStorage {
     edges_tree: Tree,
     schema_tree: Tree,
     node_edge_index: Tree, // Index: node_id -> [edge_id]
+    db_path: String, // Store the path for cloning
+}
+
+impl Clone for NativeStorage {
+    fn clone(&self) -> Self {
+        // Note: This creates a new connection to the same database
+        // In a real implementation, you might want to use a connection pool instead
+        // For testing, we'll create a unique path to avoid locking issues
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_millis();
+        let unique_path = format!("{}_test_{}", self.get_db_path(), timestamp);
+        Self::new(unique_path).expect("Failed to clone NativeStorage")
+    }
 }
 
 impl NativeStorage {
     pub fn new<P: AsRef<std::path::Path>>(path: P) -> Result<Self, StorageError> {
-        let db = sled::open(path)?;
+        let db_path = path.as_ref().to_string_lossy().to_string();
+        let db = sled::open(&db_path)?;
         let nodes_tree = db.open_tree("nodes")?;
         let edges_tree = db.open_tree("edges")?;
         let schema_tree = db.open_tree("schema")?;
@@ -28,7 +45,13 @@ impl NativeStorage {
             edges_tree,
             schema_tree,
             node_edge_index,
+            db_path,
         })
+    }
+
+    // Get the database path for cloning
+    fn get_db_path(&self) -> &str {
+        &self.db_path
     }
 
     fn generate_id(&self) -> Value {

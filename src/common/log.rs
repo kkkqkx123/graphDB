@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::fmt;
 use std::fmt::Write;
 use std::fs::{OpenOptions, File};
@@ -320,20 +320,19 @@ impl Logger {
 }
 
 /// Global logger instance
-static mut GLOBAL_LOGGER: Option<Arc<Mutex<Logger>>> = None;
-static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
+static GLOBAL_LOGGER: OnceLock<Arc<Mutex<Logger>>> = OnceLock::new();
 
 /// Initialize the global logger
 pub fn init_logger(min_level: LogLevel) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    LOGGER_INIT.call_once(|| unsafe {
-        GLOBAL_LOGGER = Some(Arc::new(Mutex::new(Logger::new(min_level))));
+    let _ = GLOBAL_LOGGER.get_or_init(|| {
+        Arc::new(Mutex::new(Logger::new(min_level)))
     });
     Ok(())
 }
 
 /// Get a reference to the global logger
 pub fn logger() -> Option<Arc<Mutex<Logger>>> {
-    unsafe { GLOBAL_LOGGER.clone() }
+    GLOBAL_LOGGER.get().cloned()
 }
 
 /// Log a message at the specified level
