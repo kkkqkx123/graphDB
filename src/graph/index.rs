@@ -159,6 +159,7 @@ fn value_to_string(value: &Value) -> String {
         Value::Set(_) => "set".to_string(),   // Simplified for indexing
         Value::Geography(_) => "geography".to_string(), // Simplified for indexing
         Value::Duration(_) => "duration".to_string(),   // Simplified for indexing
+        Value::DataSet(_) => "dataset".to_string(),   // Simplified for indexing
     }
 }
 

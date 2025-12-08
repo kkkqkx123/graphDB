@@ -3,3 +3,4 @@ data
 
 nebula-3.8.0/tests
 nebula-3.8.0/scripts
+**/repomix-output.xml

@@ -100,6 +100,13 @@ pub struct DurationValue {
     pub months: i32,
 }
 
+/// Simple DataSet representation similar to Nebula
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+pub struct DataSet {
+    pub col_names: Vec<String>,
+    pub rows: Vec<Vec<Value>>,
+}
+
 /// Represents a value that can be stored in node/edge properties
 /// This follows the design pattern of Nebula's Value type
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,6 +128,7 @@ pub enum Value {
     Set(std::collections::HashSet<Value>),
     Geography(GeographyValue),
     Duration(DurationValue),
+    DataSet(DataSet),
 }
 
 // Implement PartialEq manually to handle f64 comparison properly
@@ -246,8 +254,12 @@ impl Hash for Value {
                 g.hash(state);
             }
             Value::Duration(d) => {
-                16u8.hash(state);
+                17u8.hash(state);
                 d.hash(state);
+            }
+            Value::DataSet(ds) => {
+                18u8.hash(state);
+                ds.hash(state);
             }
         }
     }
@@ -310,6 +322,7 @@ impl std::fmt::Display for Value {
             }
             Value::Geography(g) => write!(f, "Geography({:?})", g.point),
             Value::Duration(d) => write!(f, "Duration({})", d.seconds),
+            Value::DataSet(ds) => write!(f, "DataSet({} columns, {} rows)", ds.col_names.len(), ds.rows.len()),
         }
     }
 }

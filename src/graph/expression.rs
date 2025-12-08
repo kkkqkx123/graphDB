@@ -11,6 +11,84 @@ pub enum Expression {
     UnaryOp(UnaryOperator, Box<Expression>),
 }
 
+impl Expression {
+    /// Get the kind of this expression
+    pub fn kind(&self) -> ExpressionKind {
+        match self {
+            Expression::Constant(_) => ExpressionKind::Constant,
+            Expression::Property(_) => ExpressionKind::Variable,
+            Expression::Function(name, _) => {
+                // Could be more specific based on function name, but for now we'll use FunctionCall
+                ExpressionKind::FunctionCall
+            },
+            Expression::BinaryOp(_, _, _) => ExpressionKind::Arithmetic, // Could be more specific based on operator
+            Expression::UnaryOp(_, _) => ExpressionKind::UnaryPlus, // Could be more specific based on operator
+        }
+    }
+
+    /// Get child expressions
+    pub fn children(&self) -> Vec<&Expression> {
+        match self {
+            Expression::Constant(_) => vec![],
+            Expression::Property(_) => vec![],
+            Expression::Function(_, args) => {
+                args.iter().collect()
+            },
+            Expression::BinaryOp(left, _, right) => {
+                vec![left.as_ref(), right.as_ref()]
+            },
+            Expression::UnaryOp(_, operand) => {
+                vec![operand.as_ref()]
+            },
+        }
+    }
+}
+
+/// A simplified version of the ExpressionKind enum for expression analysis
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ExpressionKind {
+    // 属性表达式类型
+    TagProperty,
+    EdgeProperty,
+    InputProperty,
+    VariableProperty,
+    DestinationProperty,
+    SourceProperty,
+
+    // 二元表达式类型
+    Arithmetic,
+    Relational,
+    Logical,
+
+    // 一元表达式类型
+    UnaryPlus,
+    UnaryNegate,
+    UnaryNot,
+    UnaryInvert,
+
+    // 函数调式
+    FunctionCall,
+
+    // 常量
+    Constant,
+
+    // 变量
+    Variable,
+
+    // 参数 (simplified as Variable for now)
+    Parameter,
+
+    // 其他类型
+    Aggregate,
+    TypeCasting,
+    Label,
+
+    // 容器类型
+    List,
+    Set,
+    Map,
+}
+
 /// Binary operators for expressions
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOperator {

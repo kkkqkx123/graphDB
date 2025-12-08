@@ -42,3 +42,27 @@ pub use type_utils::{
     value_to_f64,
     value_to_string
 };
+
+// 表达式工具模块
+pub mod expression_utils;
+pub use expression_utils::{
+    expr_check,
+    expr_rewrite,
+    expr_transform,
+    expr_collect,
+    AliasType,
+    Value,
+};
+pub use crate::graph::expression::ExpressionKind;
+
+// ID生成器模块
+pub mod id_generator;
+pub use id_generator::{
+    IdGenerator,
+    EPIdGenerator,
+    INVALID_ID,
+};
+
+// 匿名变量生成器模块
+pub mod anon_var_generator;
+pub use anon_var_generator::AnonVarGenerator;

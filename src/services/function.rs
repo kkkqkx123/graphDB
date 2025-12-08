@@ -55,6 +55,7 @@ impl From<&Value> for ValueType {
             Value::Set(_) => ValueType::Set(Box::new(ValueType::Empty)), // Generic set
             Value::Geography(_) => ValueType::Geography,
             Value::Duration(_) => ValueType::Duration,
+            Value::DataSet(_) => ValueType::Empty, // For now, treat DataSet as Empty
         }
     }
 }
