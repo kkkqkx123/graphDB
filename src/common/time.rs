@@ -29,8 +29,8 @@ impl Timestamp {
 
     /// Converts the timestamp to a DateTime<Utc>
     pub fn to_datetime(&self) -> DateTime<Utc> {
-        let naive = NaiveDateTime::from_timestamp_opt(self.secs, self.nsecs).unwrap();
-        DateTime::from_naive_utc_and_offset(naive, Utc)
+        let dt = DateTime::from_timestamp(self.secs, self.nsecs).unwrap();
+        dt
     }
 
     /// Creates a timestamp from a DateTime<Utc>

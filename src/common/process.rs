@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
+use std::time::{SystemTime, Duration};
 use std::process;
 use std::env;
 use std::fs;
 use std::path::Path;
 #[cfg(unix)]
-use signal_hook::{consts::SIGTERM, consts::SIGINT, consts::SIGHUP, iterator::Signals};
-#[cfg(not(unix))]
-use std::sync::mpsc::channel;
+use signal_hook::{consts::SIGTERM, consts::SIGINT, iterator::Signals};
 
 /// Represents a process identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -143,9 +141,6 @@ impl ProcessManager {
                 _ => {
                     // On non-Unix systems, just log the signal
                     println!("Signal {} to current process", signal);
-                }
-                _ => {
-                    // Other signals are not simulated in this simplified version
                 }
             }
             Ok(())
@@ -285,7 +280,6 @@ pub mod system_resources {
 
 /// Process execution utilities
 pub mod process_execution {
-    use super::*;
     use std::process::Command;
     
     /// Execute a command and return its output

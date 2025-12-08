@@ -267,7 +267,7 @@ impl FileHandle {
 
     /// Synchronize the file to disk
     pub fn sync_all(&self) -> FsResult<()> {
-        let mut file = self.file.lock().unwrap();
+        let file = self.file.lock().unwrap();
         file.sync_all()
             .map_err(|e| FsError::IoError(e))
     }
@@ -280,8 +280,8 @@ impl FileHandle {
 
 /// File lock for coordinating access to files
 pub struct FileLock {
-    file: File,
-    path: PathBuf,
+    _file: File,
+    _path: PathBuf,
 }
 
 impl FileLock {
@@ -297,8 +297,8 @@ impl FileLock {
         // In a real implementation, we would use proper file locking
         // For this implementation, we'll just return the file handle
         Ok(Self {
-            file,
-            path: path.as_ref().to_path_buf(),
+            _file: file,
+            _path: path.as_ref().to_path_buf(),
         })
     }
 
@@ -309,8 +309,8 @@ impl FileLock {
         
         // In a real implementation, we would use proper file locking
         Ok(Self {
-            file,
-            path: path.as_ref().to_path_buf(),
+            _file: file,
+            _path: path.as_ref().to_path_buf(),
         })
     }
 }

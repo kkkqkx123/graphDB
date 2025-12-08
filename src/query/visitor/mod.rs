@@ -15,3 +15,6 @@ pub use extract_filter_expr_visitor::ExtractFilterExprVisitor;
 pub use evaluable_expr_visitor::EvaluableExprVisitor;
 pub use fold_constant_expr_visitor::FoldConstantExprVisitor;
 pub use find_visitor::FindVisitor;
+
+#[cfg(test)]
+mod tests;

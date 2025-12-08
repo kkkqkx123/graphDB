@@ -17,7 +17,7 @@ pub enum PlanNodeKind {
     FulltextIndexScan,
     ScanVertices,
     ScanEdges,
-    
+
     // Data processing nodes
     Filter,
     Union,
@@ -46,13 +46,13 @@ pub enum PlanNodeKind {
     RollUpApply,
     PatternApply,
     Argument,
-    
+
     // Control flow nodes
     Select,
     Loop,
     PassThrough,
     Start,
-    
+
     // Schema-related nodes
     CreateSpace,
     CreateTag,
@@ -74,7 +74,7 @@ pub enum PlanNodeKind {
     DropTag,
     DropEdge,
     AlterSpace,
-    
+
     // Index-related nodes
     CreateTagIndex,
     CreateEdgeIndex,
@@ -94,7 +94,7 @@ pub enum PlanNodeKind {
     InsertEdges,
     SubmitJob,
     ShowHosts,
-    
+
     // User-related nodes
     CreateUser,
     DropUser,
@@ -106,19 +106,19 @@ pub enum PlanNodeKind {
     ListUsers,
     ListRoles,
     DescribeUser,
-    
+
     // Snapshot nodes
     CreateSnapshot,
     DropSnapshot,
     ShowSnapshots,
-    
+
     // Update/Delete nodes
     DeleteVertices,
     DeleteEdges,
     UpdateVertex,
     DeleteTags,
     UpdateEdge,
-    
+
     // Show nodes
     ShowParts,
     ShowCharset,
@@ -128,7 +128,7 @@ pub enum PlanNodeKind {
     SetConfig,
     GetConfig,
     ShowMetaLeader,
-    
+
     // Zone-related nodes
     ShowZones,
     MergeZone,
@@ -139,12 +139,12 @@ pub enum PlanNodeKind {
     DropHosts,
     DescribeZone,
     AddHostsIntoZone,
-    
+
     // Listener-related nodes
     AddListener,
     RemoveListener,
     ShowListener,
-    
+
     // Service-related nodes
     ShowServiceClients,
     ShowFTIndexes,
@@ -153,10 +153,10 @@ pub enum PlanNodeKind {
     ShowSessions,
     UpdateSession,
     KillSession,
-    
+
     ShowQueries,
     KillQuery,
-    
+
     // Placeholder for unknown node type
     Unknown,
 }
@@ -197,23 +197,37 @@ impl SingleDependencyNode {
 }
 
 impl PlanNode for SingleDependencyNode {
-    fn id(&self) -> i64 { self.id }
-    
-    fn kind(&self) -> PlanNodeKind { self.kind.clone() }
-    
-    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> { &self.dependencies }
-    
-    fn output_var(&self) -> &Option<Variable> { &self.output_var }
-    
-    fn col_names(&self) -> &Vec<String> { &self.col_names }
-    
-    fn cost(&self) -> f64 { self.cost }
-    
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+
+    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> {
+        &self.dependencies
+    }
+
+    fn output_var(&self) -> &Option<Variable> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &Vec<String> {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
     fn clone_plan_node(&self) -> Box<dyn PlanNode> {
         Box::new(SingleDependencyNode {
             id: self.id,
             kind: self.kind.clone(),
-            dependencies: self.dependencies.iter()
+            dependencies: self
+                .dependencies
+                .iter()
                 .map(|dep| dep.clone_plan_node())
                 .collect(),
             output_var: self.output_var.clone(),
@@ -248,23 +262,37 @@ impl SingleInputNode {
 }
 
 impl PlanNode for SingleInputNode {
-    fn id(&self) -> i64 { self.id }
-    
-    fn kind(&self) -> PlanNodeKind { self.kind.clone() }
-    
-    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> { &self.dependencies }
-    
-    fn output_var(&self) -> &Option<Variable> { &self.output_var }
-    
-    fn col_names(&self) -> &Vec<String> { &self.col_names }
-    
-    fn cost(&self) -> f64 { self.cost }
-    
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+
+    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> {
+        &self.dependencies
+    }
+
+    fn output_var(&self) -> &Option<Variable> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &Vec<String> {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
     fn clone_plan_node(&self) -> Box<dyn PlanNode> {
         Box::new(SingleInputNode {
             id: self.id,
             kind: self.kind.clone(),
-            dependencies: self.dependencies.iter()
+            dependencies: self
+                .dependencies
+                .iter()
                 .map(|dep| dep.clone_plan_node())
                 .collect(),
             output_var: self.output_var.clone(),
@@ -299,23 +327,37 @@ impl BinaryInputNode {
 }
 
 impl PlanNode for BinaryInputNode {
-    fn id(&self) -> i64 { self.id }
-    
-    fn kind(&self) -> PlanNodeKind { self.kind.clone() }
-    
-    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> { &self.dependencies }
-    
-    fn output_var(&self) -> &Option<Variable> { &self.output_var }
-    
-    fn col_names(&self) -> &Vec<String> { &self.col_names }
-    
-    fn cost(&self) -> f64 { self.cost }
-    
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+
+    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> {
+        &self.dependencies
+    }
+
+    fn output_var(&self) -> &Option<Variable> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &Vec<String> {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
     fn clone_plan_node(&self) -> Box<dyn PlanNode> {
         Box::new(BinaryInputNode {
             id: self.id,
             kind: self.kind.clone(),
-            dependencies: self.dependencies.iter()
+            dependencies: self
+                .dependencies
+                .iter()
                 .map(|dep| dep.clone_plan_node())
                 .collect(),
             output_var: self.output_var.clone(),
@@ -339,11 +381,11 @@ impl ExecutionPlan {
             id: -1, // Will be assigned later
         }
     }
-    
+
     pub fn set_root(&mut self, root: Box<dyn PlanNode>) {
         self.root = Some(root);
     }
-    
+
     pub fn root(&self) -> &Option<Box<dyn PlanNode>> {
         &self.root
     }

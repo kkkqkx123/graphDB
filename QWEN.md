@@ -58,7 +58,7 @@ installed targets: x86_64-pc-windows-msvc
 
 2. **Build commands**:
    ```bash
-   cd graphDB-rust
+   cd graphDB
    cargo build                 # Debug build (development)
    cargo build --release       # Release build (optimized for performance)
    ```
@@ -95,7 +95,7 @@ installed targets: x86_64-pc-windows-msvc
 6. **File-specific operations and filtering**:
    ```bash
    # Check specific file(s)
-   cargo check --manifest-path graphDB-rust/Cargo.toml
+   cargo check --manifest-path graphDB/Cargo.toml
 
    # Target specific file in compilation
    cargo build --package <package_name> --lib <specific_file.rs>
@@ -121,20 +121,20 @@ installed targets: x86_64-pc-windows-msvc
 ## File Structure
 
 - `Cargo.toml` - Rust project configuration
-- `graphDB-rust/` - Main directory for Rust implementation
-- `graphDB-rust/src/` - Rust source code
-- `graphDB-rust/tests/` - Integration test files
-- `graphDB-rust/benches/` - Performance benchmarks
-- `graphDB-rust/examples/` - Example applications
+- `graphDB/` - Main directory for Rust implementation
+- `graphDB/src/` - Rust source code
+- `graphDB/tests/` - Integration test files
+- `graphDB/benches/` - Performance benchmarks
+- `graphDB/examples/` - Example applications
 - `docs/` - Documentation (including design analysis)
 - `config/` - Configuration file examples
 - `target/` - Compiled artifacts (generated during build)
 
 ## Key Directories and Files
 
-- `graphDB-rust/Cargo.toml` - Project dependencies and configuration
-- `graphDB-rust/src/lib.rs` - Library entry point
-- `graphDB-rust/src/main.rs` - Executable entry point
+- `graphDB/Cargo.toml` - Project dependencies and configuration
+- `graphDB/src/lib.rs` - Library entry point
+- `graphDB/src/main.rs` - Executable entry point
 - `docs/rust-architecture-design.md` - Rust architecture design documentation
 - `docs/rust-rewrite-dependency-analysis.md` - Dependency analysis documentation
 
@@ -144,29 +144,21 @@ The project includes a comprehensive test suite utilising Rust's standard testin
 
 1. **Running tests**:
    ```bash
-   cargo test                          # Run all tests
-   cargo test -- --nocapture           # Run tests with output visible
-   cargo test -- --test-threads=1      # Run tests sequentially (useful for debugging)
-   cargo test <test_name>              # Run specific test(s) matching pattern
-   cargo test --test <integration_test_file>  # Run specific integration test
-   cargo test --release                # Run tests in release mode
-   cargo test --doc                    # Run documentation examples as tests
+   cargo test # Run all tests
+   cargo test -- --nocapture # Run tests with output visible
+   cargo test -- --test-threads=1 # Run tests sequentially (useful for debugging)
+   cargo test <test_name> # Run specific test(s) matching pattern
+   cargo test --test <integration_test_file> # Run specific integration test
+   cargo test --release  # Run tests in release mode
+   cargo test --doc # Run documentation examples as tests
    ```
 
 2. **Test organization**:
    - Unit tests: Located in the same file as the code being tested, marked with `#[cfg(test)]`
+   - Unit tests when original file is too large: Add individual test.rs, and add it to `mod.rs`
    - Integration tests: Located in the `tests/` directory
    - Benchmarks: Located in the `benches/` directory
-
-3. **Test-specific operations**:
-   ```bash
-   cargo test --workspace              # Run tests across all workspace members
-   cargo test --lib                    # Run only library tests (not binary/tests/)
-   cargo test --bins                   # Run tests for binary targets only
-   cargo test --benches                # Run benchmark tests
-   cargo test --features <feature>     # Run tests with specific feature flags
-   ```
-
+   
 ## Additional Notes
 
 - The project utilises Rust version 2021, employing the ownership system to ensure memory safety

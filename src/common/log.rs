@@ -1,7 +1,6 @@
 use std::sync::{Arc, Mutex};
 use std::fmt;
 use std::fmt::Write;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::fs::{OpenOptions, File};
 use std::io::Write as IoWrite;
 use std::path::Path;
@@ -540,8 +539,6 @@ pub mod log_utils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
-    use std::time::Duration;
 
     #[test]
     fn test_log_level() {

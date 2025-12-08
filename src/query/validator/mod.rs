@@ -9,3 +9,6 @@ pub mod validate_context;
 pub use match_validator::MatchValidator;
 pub use base_validator::Validator;
 pub use validate_context::{ValidateContext, Variable};
+
+#[cfg(test)]
+mod tests;

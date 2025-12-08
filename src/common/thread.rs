@@ -1,12 +1,11 @@
-use std::sync::{Arc, Mutex, RwLock, Condvar};
-use std::thread;
-use std::time::Duration;
 use std::collections::VecDeque;
 use std::future::Future;
-use tokio::sync::{Semaphore, Notify};
-use tokio::time::sleep;
-use tokio::task;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Condvar, Mutex, RwLock};
+use std::thread;
+use std::time::Duration;
+use tokio::sync::Notify;
+use tokio::task;
 
 /// A thread pool for executing tasks concurrently
 pub struct ThreadPool {
@@ -27,7 +26,11 @@ impl ThreadPool {
             workers.push(Worker::new(id, Arc::clone(&tasks), Arc::clone(&notifier)));
         }
 
-        Self { workers, tasks, notifier }
+        Self {
+            workers,
+            tasks,
+            notifier,
+        }
     }
 
     pub fn execute<F>(&self, f: F)
@@ -55,7 +58,7 @@ impl Worker {
     fn new(
         id: usize,
         tasks: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send>>>>,
-        notifier: Arc<Notify>,
+        _notifier: Arc<Notify>,
     ) -> Self {
         thread::spawn(move || {
             loop {
@@ -202,7 +205,7 @@ impl ThreadManager {
         Ok(())
     }
 
-    pub fn spawn_scoped<'scope, F>(&self, f: F) -> thread::ScopedJoinHandle<'scope, ()>
+    pub fn spawn_scoped<'scope, F>(&self, _f: F) -> thread::ScopedJoinHandle<'scope, ()>
     where
         F: FnOnce() + Send + 'scope,
     {
@@ -238,7 +241,6 @@ impl ThreadManager {
 /// A future-based thread utility for async operations
 pub mod async_utils {
     use super::*;
-    use tokio::sync::oneshot;
 
     /// Execute a blocking operation in a way that doesn't block the async runtime
     pub async fn spawn_blocking<F, R>(f: F) -> R
@@ -254,9 +256,11 @@ pub mod async_utils {
         futures::future::join_all(futures).await
     }
 
-
     /// Timeout a future with a specified duration
-    pub async fn timeout<T>(duration: Duration, future: impl Future<Output = T>) -> Result<T, tokio::time::error::Elapsed> {
+    pub async fn timeout<T>(
+        duration: Duration,
+        future: impl Future<Output = T>,
+    ) -> Result<T, tokio::time::error::Elapsed> {
         tokio::time::timeout(duration, future).await
     }
 
@@ -266,7 +270,10 @@ pub mod async_utils {
     }
 
     /// Create a oneshot channel for single-value async communication
-    pub fn oneshot<T>() -> (tokio::sync::oneshot::Sender<T>, tokio::sync::oneshot::Receiver<T>) {
+    pub fn oneshot<T>() -> (
+        tokio::sync::oneshot::Sender<T>,
+        tokio::sync::oneshot::Receiver<T>,
+    ) {
         tokio::sync::oneshot::channel()
     }
 }
@@ -282,7 +289,7 @@ pub struct ThreadLocal<T: 'static> {
 
 impl<T: 'static> ThreadLocal<T> {
     /// Create a new ThreadLocal with a default value
-    pub fn new<F>(init_fn: F) -> Self
+    pub fn new<F>(_init_fn: F) -> Self
     where
         F: Fn() -> T + Send + Sync + 'static,
     {
@@ -292,7 +299,7 @@ impl<T: 'static> ThreadLocal<T> {
     }
 
     /// Get a reference to the value for the current thread
-    pub fn with<F, R>(&self, f: F) -> R
+    pub fn with<F, R>(&self, _f: F) -> R
     where
         F: FnOnce(&T) -> R,
     {
@@ -363,15 +370,17 @@ mod tests {
             // Simulate a blocking operation
             std::thread::sleep(Duration::from_millis(10));
             42
-        }).await;
-        
+        })
+        .await;
+
         assert_eq!(result, 42);
 
         // Test timeout
         let timeout_result = async_utils::timeout(Duration::from_millis(50), async {
             tokio::time::sleep(Duration::from_millis(10)).await;
             "done"
-        }).await;
+        })
+        .await;
 
         assert!(timeout_result.is_ok());
         assert_eq!(timeout_result.unwrap(), "done");
