@@ -1,5 +1,5 @@
+use crate::core::{Direction, Edge, Value, Vertex};
 use std::collections::{HashMap, HashSet};
-use crate::core::{Value, Vertex, Direction, Edge};
 
 #[derive(Debug)]
 pub enum IndexError {
@@ -55,7 +55,12 @@ impl PropertyIndex {
         }
     }
 
-    pub fn insert(&mut self, property_name: String, value: Value, node_id: Value) -> Result<(), IndexError> {
+    pub fn insert(
+        &mut self,
+        property_name: String,
+        value: Value,
+        node_id: Value,
+    ) -> Result<(), IndexError> {
         self.indices
             .entry(property_name)
             .or_insert_with(HashMap::new)
@@ -65,7 +70,12 @@ impl PropertyIndex {
         Ok(())
     }
 
-    pub fn remove(&mut self, property_name: &str, value: &Value, node_id: &Value) -> Result<(), IndexError> {
+    pub fn remove(
+        &mut self,
+        property_name: &str,
+        value: &Value,
+        node_id: &Value,
+    ) -> Result<(), IndexError> {
         if let Some(property_map) = self.indices.get_mut(property_name) {
             if let Some(node_set) = property_map.get_mut(value) {
                 node_set.remove(node_id);
@@ -82,7 +92,11 @@ impl PropertyIndex {
         Ok(())
     }
 
-    pub fn get_nodes_by_property(&self, property_name: &str, value: &Value) -> Option<&HashSet<Value>> {
+    pub fn get_nodes_by_property(
+        &self,
+        property_name: &str,
+        value: &Value,
+    ) -> Option<&HashSet<Value>> {
         self.indices
             .get(property_name)
             .and_then(|property_map| property_map.get(value))
@@ -102,7 +116,12 @@ impl CompositeIndex {
     }
 
     /// This is a simplified approach that converts values to string representation
-    pub fn insert(&mut self, property_name: String, value: Value, node_id: Value) -> Result<(), IndexError> {
+    pub fn insert(
+        &mut self,
+        property_name: String,
+        value: Value,
+        node_id: Value,
+    ) -> Result<(), IndexError> {
         let value_str = value_to_string(&value);
         self.indices
             .entry(property_name)
@@ -113,7 +132,12 @@ impl CompositeIndex {
         Ok(())
     }
 
-    pub fn remove(&mut self, property_name: &str, value: &Value, node_id: &Value) -> Result<(), IndexError> {
+    pub fn remove(
+        &mut self,
+        property_name: &str,
+        value: &Value,
+        node_id: &Value,
+    ) -> Result<(), IndexError> {
         let value_str = value_to_string(value);
         if let Some(property_map) = self.indices.get_mut(property_name) {
             if let Some(node_set) = property_map.get_mut(&value_str) {
@@ -131,7 +155,11 @@ impl CompositeIndex {
         Ok(())
     }
 
-    pub fn get_nodes_by_property(&self, property_name: &str, value: &Value) -> Option<&HashSet<Value>> {
+    pub fn get_nodes_by_property(
+        &self,
+        property_name: &str,
+        value: &Value,
+    ) -> Option<&HashSet<Value>> {
         let value_str = value_to_string(value);
         self.indices
             .get(property_name)
@@ -150,16 +178,19 @@ fn value_to_string(value: &Value) -> String {
         Value::String(s) => s.clone(),
         Value::Date(d) => format!("{}-{}-{}", d.year, d.month, d.day),
         Value::Time(t) => format!("{}:{}:{}", t.hour, t.minute, t.sec),
-        Value::DateTime(dt) => format!("{}-{}-{} {}:{}:{}", dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.sec),
+        Value::DateTime(dt) => format!(
+            "{}-{}-{} {}:{}:{}",
+            dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.sec
+        ),
         Value::Vertex(_) => "vertex".to_string(), // Simplified for indexing
-        Value::Edge(_) => "edge".to_string(), // Simplified for indexing
-        Value::Path(_) => "path".to_string(), // Simplified for indexing
-        Value::List(_) => "list".to_string(), // Simplified for indexing
-        Value::Map(_) => "map".to_string(),   // Simplified for indexing
-        Value::Set(_) => "set".to_string(),   // Simplified for indexing
+        Value::Edge(_) => "edge".to_string(),     // Simplified for indexing
+        Value::Path(_) => "path".to_string(),     // Simplified for indexing
+        Value::List(_) => "list".to_string(),     // Simplified for indexing
+        Value::Map(_) => "map".to_string(),       // Simplified for indexing
+        Value::Set(_) => "set".to_string(),       // Simplified for indexing
         Value::Geography(_) => "geography".to_string(), // Simplified for indexing
-        Value::Duration(_) => "duration".to_string(),   // Simplified for indexing
-        Value::DataSet(_) => "dataset".to_string(),   // Simplified for indexing
+        Value::Duration(_) => "duration".to_string(), // Simplified for indexing
+        Value::DataSet(_) => "dataset".to_string(), // Simplified for indexing
     }
 }
 
@@ -181,12 +212,15 @@ impl IndexManager {
     pub fn update_indexes_for_node(&mut self, vertex: &Vertex) -> Result<(), IndexError> {
         // Update tag index
         for tag in &vertex.tags {
-            self.label_index.insert(tag.name.clone(), (*vertex.vid).clone())?;
+            self.label_index
+                .insert(tag.name.clone(), (*vertex.vid).clone())?;
 
             // Update property index for each tag's properties
             for (key, value) in &tag.properties {
-                self.property_index.insert(key.clone(), value.clone(), (*vertex.vid).clone())?;
-                self.composite_index.insert(key.clone(), value.clone(), (*vertex.vid).clone())?;
+                self.property_index
+                    .insert(key.clone(), value.clone(), (*vertex.vid).clone())?;
+                self.composite_index
+                    .insert(key.clone(), value.clone(), (*vertex.vid).clone())?;
             }
         }
 
@@ -212,7 +246,12 @@ impl IndexManager {
         self.label_index.get_nodes_by_label(label)
     }
 
-    pub fn get_nodes_by_property(&self, property_name: &str, value: &Value) -> Option<&HashSet<Value>> {
-        self.property_index.get_nodes_by_property(property_name, value)
+    pub fn get_nodes_by_property(
+        &self,
+        property_name: &str,
+        value: &Value,
+    ) -> Option<&HashSet<Value>> {
+        self.property_index
+            .get_nodes_by_property(property_name, value)
     }
 }

@@ -5,6 +5,7 @@ use serde_json;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Native storage implementation using sled database
+#[derive(Debug)]
 pub struct NativeStorage {
     db: Db,
     nodes_tree: Tree,

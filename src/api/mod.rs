@@ -1,30 +1,38 @@
 use tokio::signal;
 use anyhow::Result;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+pub mod session;
+pub mod service;
+
 use crate::config::Config;
 use crate::query::{QueryParser, QueryExecutor};
 use crate::storage::NativeStorage;
+use crate::api::service::{GraphService, QueryEngine};
+use crate::api::session::GraphSessionManager;
 
 pub async fn start_service(config_path: String) -> Result<()> {
     println!("Initializing GraphDB service...");
-    
+
     // Load configuration
     let config = Config::load(&config_path).unwrap_or_else(|_| Config::default());
     println!("Configuration loaded: {:?}", config);
-    
+
     // Initialize storage
-    let storage = NativeStorage::new(&config.storage_path)?;
+    let storage = Arc::new(NativeStorage::new(&config.storage_path)?);
     println!("Storage initialized at: {}", config.storage_path);
-    
-    // Initialize query executor
-    let query_executor = QueryExecutor::new(storage);
-    println!("Query executor initialized");
-    
+
+    // Initialize graph service with session management and query execution
+    let graph_service = GraphService::new(config.clone(), storage);
+    println!("Graph service initialized with session management");
+
     // Start HTTP server (placeholder)
     println!("Starting HTTP server on {}:{}", config.host, config.port);
-    
+
     // Wait for shutdown signal
     shutdown_signal().await;
-    
+
     println!("Shutting down GraphDB service...");
     Ok(())
 }
@@ -33,24 +41,26 @@ pub async fn execute_query(query_str: &str) -> Result<()> {
     println!("Executing query: {}", query_str);
 
     // Initialize storage for this example
-    let storage = NativeStorage::new("data/default")?;
-    let mut query_executor = QueryExecutor::new(storage);
+    let config = crate::config::Config::default();
+    let storage = Arc::new(NativeStorage::new(&config.storage_path)?);
 
-    // Parse the query
-    let parser = QueryParser;
-    match parser.parse(query_str) {
-        Ok(query) => {
-            match query_executor.execute(query) {
-                Ok(result) => {
-                    println!("Query executed successfully: {:?}", result);
-                }
-                Err(e) => {
-                    eprintln!("Query execution error: {}", e);
-                }
-            }
+    // Initialize graph service for the query execution
+    let graph_service = GraphService::new(config, storage);
+
+    // Create a temporary session for this execution
+    let session = graph_service
+        .get_session_manager()
+        .create_session("anonymous".to_string(), "127.0.0.1".to_string())
+        .unwrap();
+
+    let session_id = session.id();
+
+    match graph_service.execute(session_id, query_str).await {
+        Ok(result) => {
+            println!("Query executed successfully: {}", result);
         }
         Err(e) => {
-            eprintln!("Query parsing error: {}", e);
+            eprintln!("Query execution error: {}", e);
         }
     }
 

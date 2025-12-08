@@ -6,7 +6,6 @@ use crate::graph::expression::{BinaryOperator, UnaryOperator};
 use crate::graph::expression::{Expression, ExpressionKind};
 use crate::query::validator::ValidateContext;
 use crate::storage::StorageEngine;
-use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
