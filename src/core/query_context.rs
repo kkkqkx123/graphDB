@@ -3,7 +3,8 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use crate::core::{ExecutionContext, ValidateContext, SymbolTable, Value};
-use crate::utils::{IdGenerator, ObjectPool};
+use crate::graph::IdGenerator;
+use crate::utils::ObjectPool;
 use std::result::Result; // 使用标准库的Result类型
 
 // 为简化实现，这里定义一些占位符类型

@@ -52,6 +52,16 @@ pub struct Result {
     core: ResultCore,
 }
 
+impl PartialEq for Result {
+    fn eq(&self, other: &Self) -> bool {
+        self.core.check_memory == other.core.check_memory &&
+        self.core.state == other.core.state &&
+        self.core.msg == other.core.msg &&
+        self.core.value == other.core.value
+        // Note: We're not comparing the iterator because it's not PartialEq
+    }
+}
+
 impl std::fmt::Debug for Result {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Result")

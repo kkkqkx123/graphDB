@@ -9,6 +9,7 @@ pub mod response;
 pub mod result_set;
 pub mod batch_operation;
 pub mod schema;
+pub mod utils;
 
 // 重新导出图操作相关功能
 pub use transaction::*;
@@ -18,6 +19,7 @@ pub use response::*;
 pub use result_set::*;
 pub use batch_operation::*;
 pub use schema::*;
+pub use utils::*;
 
 #[cfg(test)]
 mod tests {

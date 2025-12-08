@@ -22,6 +22,6 @@ pub use crate::config::Config;
 
 // Re-export commonly used types from submodules
 pub use crate::common::{base::id::*, time::*, memory::*, thread::*, process::*, network::*, fs::*, log::*, charset::*};
-pub use crate::graph::{transaction::*, index::*, expression::*};
+pub use crate::graph::{transaction::*, index::*, expression::*, utils::{IdGenerator, EPIdGenerator, INVALID_ID, generate_id, is_valid_id}};
 pub use crate::expressions::{Expression, EvaluationError, ExpressionContext, DefaultExpressionContext, eval_unary_op, eval_binary_op, eval_function_call, eval_property_access, eval_list, eval_map, eval_set, UnaryOp, BinaryOp};
 pub use crate::services::{session::*, stats::*, function::*, algorithm::*, context::*};

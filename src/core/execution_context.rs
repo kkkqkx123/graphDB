@@ -67,18 +67,19 @@ impl ExecutionContext {
             .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
 
         if let Some(results) = value_map.get(name) {
-            // 版本处理：0是最新的，-1是前一个，依此类推；1是最老的，2是第二个老的，依此类推
+            // 版本处理：0是最新的，1是第二个最新，等等；-n表示第n个元素（与正索引访问相同元素）
             let index = if version >= 0 {
-                // 从最新开始计数
+                // 从最新开始计数，0是最新，1是第二个最新，等等
                 version as usize
             } else {
-                // 从末尾开始计数
-                if results.len() as i64 >= (-version) {
-                    results.len() - (-version) as usize
-                } else {
-                    return Err("Version index out of range".to_string());
-                }
+                // 负数索引与正数索引访问相同的元素：-1与1访问同一元素，等等
+                (-version) as usize
             };
+
+            // 检查索引范围
+            if index >= results.len() {
+                return Err("Version index out of range".to_string());
+            }
 
             if let Some(result) = results.get(index) {
                 Ok(result.clone())

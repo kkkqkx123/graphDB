@@ -9,8 +9,6 @@ pub mod lru_cache;
 pub use lru_cache::LruCache;
 
 // ID工具模块
-pub mod id_utils;
-pub use id_utils::{generate_id, is_valid_id};
 
 // 日志模块
 pub mod logger;
@@ -43,25 +41,17 @@ pub use type_utils::{
     value_to_string
 };
 
-// 表达式工具模块
-pub mod expression_utils;
-pub use expression_utils::{
-    expr_check,
-    expr_rewrite,
-    expr_transform,
-    expr_collect,
-    AliasType,
-    Value,
-};
-pub use crate::graph::expression::ExpressionKind;
-
-// ID生成器模块
-pub mod id_generator;
-pub use id_generator::{
-    IdGenerator,
-    EPIdGenerator,
-    INVALID_ID,
-};
+// 表达式工具模块 - temporarily commented out until expressions module issue is resolved
+// pub mod expression_utils;
+// pub use expression_utils::{
+//     expr_check,
+//     expr_rewrite,
+//     expr_transform,
+//     expr_collect,
+//     AliasType,
+// };
+// pub use crate::expressions::ExpressionKind;
+pub use crate::core::Value;
 
 // 匿名变量生成器模块
 pub mod anon_var_generator;

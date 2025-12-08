@@ -2,7 +2,7 @@
 //! 对应原C++中的AnonVarGenerator.h/cpp
 
 use std::sync::Arc;
-use crate::utils::IdGenerator;
+use crate::graph::IdGenerator;
 use crate::core::SymbolTable;
 
 /// 匿名变量生成器
