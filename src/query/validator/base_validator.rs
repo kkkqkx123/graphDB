@@ -1,0 +1,43 @@
+//! 基础验证器
+//! 对应 NebulaGraph Validator.h/.cpp 的功能
+//! 所有验证器的基类
+
+use crate::query::validator::ValidateContext;
+
+pub struct Validator {
+    context: ValidateContext,
+}
+
+impl Validator {
+    pub fn new(context: ValidateContext) -> Self {
+        Self {
+            context,
+        }
+    }
+
+    /// 验证实现 - 子类需要实现此方法
+    pub fn validate(&mut self) -> Result<(), String> {
+        self.validate_impl()
+    }
+
+    /// 子类需要重写的验证实现
+    fn validate_impl(&mut self) -> Result<(), String> {
+        // 基类默认实现，子类应该重写此方法
+        Ok(())
+    }
+
+    /// 获取验证上下文的可变引用
+    pub fn context_mut(&mut self) -> &mut ValidateContext {
+        &mut self.context
+    }
+
+    /// 获取验证上下文的引用
+    pub fn context(&self) -> &ValidateContext {
+        &self.context
+    }
+
+    /// 添加验证错误
+    pub fn add_error(&mut self, error: String) {
+        self.context.add_error(error);
+    }
+}

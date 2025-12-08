@@ -4,6 +4,28 @@ use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
 use std::hash::Hash;
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ValueTypeDef {
+    Empty,
+    Null,
+    Bool,
+    Int,
+    Float,
+    String,
+    Date,
+    Time,
+    DateTime,
+    Vertex,
+    Edge,
+    Path,
+    List,
+    Map,
+    Set,
+    Geography,
+    Duration,
+    DataSet,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum NullType {
     Null,
@@ -273,6 +295,429 @@ impl Value {
         self.hash(&mut hasher);
         hasher.finish()
     }
+
+    pub fn get_type(&self) -> ValueTypeDef {
+        match self {
+            Value::Empty => ValueTypeDef::Empty,
+            Value::Null(_) => ValueTypeDef::Null,
+            Value::Bool(_) => ValueTypeDef::Bool,
+            Value::Int(_) => ValueTypeDef::Int,
+            Value::Float(_) => ValueTypeDef::Float,
+            Value::String(_) => ValueTypeDef::String,
+            Value::Date(_) => ValueTypeDef::Date,
+            Value::Time(_) => ValueTypeDef::Time,
+            Value::DateTime(_) => ValueTypeDef::DateTime,
+            Value::Vertex(_) => ValueTypeDef::Vertex,
+            Value::Edge(_) => ValueTypeDef::Edge,
+            Value::Path(_) => ValueTypeDef::Path,
+            Value::List(_) => ValueTypeDef::List,
+            Value::Map(_) => ValueTypeDef::Map,
+            Value::Set(_) => ValueTypeDef::Set,
+            Value::Geography(_) => ValueTypeDef::Geography,
+            Value::Duration(_) => ValueTypeDef::Duration,
+            Value::DataSet(_) => ValueTypeDef::DataSet,
+        }
+    }
+
+    // Helper method to check if value is null
+    pub fn is_null(&self) -> bool {
+        matches!(self, Value::Null(_))
+    }
+
+    // Helper method to check if value is empty
+    pub fn is_empty(&self) -> bool {
+        matches!(self, Value::Empty)
+    }
+
+    // Helper method to get boolean value
+    pub fn bool_value(&self) -> Option<bool> {
+        match self {
+            Value::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    // Arithmetic operations
+    pub fn add(&self, other: &Value) -> Result<Value, String> {
+        use Value::*;
+        match (self, other) {
+            (Int(a), Int(b)) => Ok(Int(a + b)),
+            (Float(a), Float(b)) => Ok(Float(a + b)),
+            (Int(a), Float(b)) => Ok(Float(*a as f64 + b)),
+            (Float(a), Int(b)) => Ok(Float(a + *b as f64)),
+            (String(a), String(b)) => Ok(String(format!("{}{}", a, b))),
+            _ => Err("Cannot add values of these types".to_string()),
+        }
+    }
+
+    pub fn sub(&self, other: &Value) -> Result<Value, String> {
+        use Value::*;
+        match (self, other) {
+            (Int(a), Int(b)) => Ok(Int(a - b)),
+            (Float(a), Float(b)) => Ok(Float(a - b)),
+            (Int(a), Float(b)) => Ok(Float(*a as f64 - b)),
+            (Float(a), Int(b)) => Ok(Float(a - *b as f64)),
+            _ => Err("Cannot subtract these values".to_string()),
+        }
+    }
+
+    pub fn mul(&self, other: &Value) -> Result<Value, String> {
+        use Value::*;
+        match (self, other) {
+            (Int(a), Int(b)) => Ok(Int(a * b)),
+            (Float(a), Float(b)) => Ok(Float(a * b)),
+            (Int(a), Float(b)) => Ok(Float(*a as f64 * b)),
+            (Float(a), Int(b)) => Ok(Float(a * *b as f64)),
+            _ => Err("Cannot multiply these values".to_string()),
+        }
+    }
+
+    pub fn div(&self, other: &Value) -> Result<Value, String> {
+        use Value::*;
+        match (self, other) {
+            (Int(a), Int(b)) => {
+                if *b == 0 {
+                    return Err("Division by zero".to_string());
+                }
+                Ok(Float(*a as f64 / *b as f64))
+            }
+            (Float(a), Float(b)) => {
+                if *b == 0.0 {
+                    return Err("Division by zero".to_string());
+                }
+                Ok(Float(a / b))
+            }
+            (Int(a), Float(b)) => {
+                if *b == 0.0 {
+                    return Err("Division by zero".to_string());
+                }
+                Ok(Float(*a as f64 / b))
+            }
+            (Float(a), Int(b)) => {
+                if *b == 0 {
+                    return Err("Division by zero".to_string());
+                }
+                Ok(Float(a / *b as f64))
+            }
+            _ => Err("Cannot divide these values".to_string()),
+        }
+    }
+
+    pub fn modulo(&self, other: &Value) -> Result<Value, String> {
+        use Value::*;
+        match (self, other) {
+            (Int(a), Int(b)) => {
+                if *b == 0 {
+                    return Err("Division by zero".to_string());
+                }
+                Ok(Int(a % b))
+            }
+            (Float(a), Float(b)) => {
+                if *b == 0.0 {
+                    return Err("Division by zero".to_string());
+                }
+                Ok(Float(a % b))
+            }
+            (Int(a), Float(b)) => {
+                if *b == 0.0 {
+                    return Err("Division by zero".to_string());
+                }
+                Ok(Float(*a as f64 % b))
+            }
+            (Float(a), Int(b)) => {
+                if *b == 0 {
+                    return Err("Division by zero".to_string());
+                }
+                Ok(Float(a % *b as f64))
+            }
+            _ => Err("Cannot take modulo of these values".to_string()),
+        }
+    }
+
+    // Unary operations
+    pub fn negate(&self) -> Result<Value, String> {
+        use Value::*;
+        match self {
+            Int(i) => Ok(Int(-i)),
+            Float(f) => Ok(Float(-f)),
+            _ => Err("Cannot negate this value".to_string()),
+        }
+    }
+
+    // Comparison operations
+    pub fn equals(&self, other: &Value) -> bool {
+        self == other
+    }
+
+    pub fn less_than(&self, other: &Value) -> bool {
+        use Value::*;
+        match (self, other) {
+            (Int(a), Int(b)) => a < b,
+            (Float(a), Float(b)) => a < b,
+            (String(a), String(b)) => a < b,
+            _ => false,
+        }
+    }
+
+    pub fn less_than_equal(&self, other: &Value) -> bool {
+        use Value::*;
+        match (self, other) {
+            (Int(a), Int(b)) => a <= b,
+            (Float(a), Float(b)) => a <= b,
+            (String(a), String(b)) => a <= b,
+            _ => false,
+        }
+    }
+
+    pub fn greater_than(&self, other: &Value) -> bool {
+        use Value::*;
+        match (self, other) {
+            (Int(a), Int(b)) => a > b,
+            (Float(a), Float(b)) => a > b,
+            (String(a), String(b)) => a > b,
+            _ => false,
+        }
+    }
+
+    pub fn greater_than_equal(&self, other: &Value) -> bool {
+        use Value::*;
+        match (self, other) {
+            (Int(a), Int(b)) => a >= b,
+            (Float(a), Float(b)) => a >= b,
+            (String(a), String(b)) => a >= b,
+            _ => false,
+        }
+    }
+
+    // Container operations
+    pub fn contains(&self, item: &Value) -> bool {
+        match self {
+            Value::List(items) => items.contains(item),
+            Value::Set(items) => items.contains(item),
+            Value::Map(m) => m.contains_key(&item.to_string()),
+            _ => false,
+        }
+    }
+
+    // Type casting methods
+    pub fn cast_to_bool(&self) -> Result<Value, String> {
+        match self {
+            Value::Bool(b) => Ok(Value::Bool(*b)),
+            Value::Int(i) => Ok(Value::Bool(*i != 0)),
+            Value::Float(f) => Ok(Value::Bool(*f != 0.0)),
+            Value::String(s) => {
+                if s.to_lowercase() == "true" {
+                    Ok(Value::Bool(true))
+                } else if s.to_lowercase() == "false" {
+                    Ok(Value::Bool(false))
+                } else {
+                    Err("Cannot cast string to bool".to_string())
+                }
+            },
+            Value::Empty => Ok(Value::Bool(false)),
+            Value::Null(_) => Ok(Value::Bool(false)),
+            _ => Err("Cannot cast to bool".to_string()),
+        }
+    }
+
+    pub fn cast_to_int(&self) -> Result<Value, String> {
+        match self {
+            Value::Int(i) => Ok(Value::Int(*i)),
+            Value::Float(f) => Ok(Value::Int(*f as i64)),
+            Value::String(s) => {
+                match s.parse::<i64>() {
+                    Ok(i) => Ok(Value::Int(i)),
+                    Err(_) => Err("Cannot cast string to int".to_string()),
+                }
+            },
+            Value::Bool(b) => Ok(Value::Int(if *b { 1 } else { 0 })),
+            Value::Empty => Ok(Value::Int(0)),
+            Value::Null(_) => Ok(Value::Int(0)),
+            _ => Err("Cannot cast to int".to_string()),
+        }
+    }
+
+    pub fn cast_to_float(&self) -> Result<Value, String> {
+        match self {
+            Value::Float(f) => Ok(Value::Float(*f)),
+            Value::Int(i) => Ok(Value::Float(*i as f64)),
+            Value::String(s) => {
+                match s.parse::<f64>() {
+                    Ok(f) => Ok(Value::Float(f)),
+                    Err(_) => Err("Cannot cast string to float".to_string()),
+                }
+            },
+            Value::Bool(b) => Ok(Value::Float(if *b { 1.0 } else { 0.0 })),
+            Value::Empty => Ok(Value::Float(0.0)),
+            Value::Null(_) => Ok(Value::Float(0.0)),
+            _ => Err("Cannot cast to float".to_string()),
+        }
+    }
+
+    pub fn cast_to_string(&self) -> Result<Value, String> {
+        match self {
+            Value::String(s) => Ok(Value::String(s.clone())),
+            Value::Int(i) => Ok(Value::String(i.to_string())),
+            Value::Float(f) => Ok(Value::String(f.to_string())),
+            Value::Bool(b) => Ok(Value::String(if *b { "true".to_string() } else { "false".to_string() })),
+            Value::Empty => Ok(Value::String("".to_string())),
+            Value::Null(_) => Ok(Value::String("null".to_string())),
+            _ => Err("Cannot cast to string".to_string()),
+        }
+    }
+
+    pub fn cast_to_date(&self) -> Result<Value, String> {
+        match self {
+            Value::Date(d) => Ok(Value::Date(d.clone())),
+            Value::String(s) => {
+                // Parse date string in format "YYYY-MM-DD"
+                let parts: Vec<&str> = s.split('-').collect();
+                if parts.len() == 3 {
+                    match (parts[0].parse::<i32>(), parts[1].parse::<u32>(), parts[2].parse::<u32>()) {
+                        (Ok(year), Ok(month), Ok(day)) => {
+                            Ok(Value::Date(DateValue { year, month, day }))
+                        },
+                        _ => Err("Invalid date format".to_string()),
+                    }
+                } else {
+                    Err("Date string must be in YYYY-MM-DD format".to_string())
+                }
+            },
+            Value::Empty => Ok(Value::Date(DateValue { year: 1, month: 1, day: 1 })),
+            _ => Err("Cannot cast to date".to_string()),
+        }
+    }
+
+    pub fn cast_to_time(&self) -> Result<Value, String> {
+        match self {
+            Value::Time(t) => Ok(Value::Time(t.clone())),
+            Value::String(s) => {
+                // Parse time string in format "HH:MM:SS"
+                let parts: Vec<&str> = s.split(':').collect();
+                if parts.len() == 3 {
+                    match (parts[0].parse::<u32>(), parts[1].parse::<u32>(), parts[2].parse::<u32>()) {
+                        (Ok(hour), Ok(minute), Ok(sec)) => {
+                            Ok(Value::Time(TimeValue { hour, minute, sec, microsec: 0 }))
+                        },
+                        _ => Err("Invalid time format".to_string()),
+                    }
+                } else {
+                    Err("Time string must be in HH:MM:SS format".to_string())
+                }
+            },
+            Value::Empty => Ok(Value::Time(TimeValue { hour: 0, minute: 0, sec: 0, microsec: 0 })),
+            _ => Err("Cannot cast to time".to_string()),
+        }
+    }
+
+    pub fn cast_to_datetime(&self) -> Result<Value, String> {
+        match self {
+            Value::DateTime(dt) => Ok(Value::DateTime(dt.clone())),
+            Value::String(s) => {
+                // Parse datetime string in format "YYYY-MM-DD HH:MM:SS"
+                let parts: Vec<&str> = s.split_whitespace().collect();
+                if parts.len() == 2 {
+                    let date_part = parts[0];
+                    let time_part = parts[1];
+
+                    let date_parts: Vec<&str> = date_part.split('-').collect();
+                    let time_parts: Vec<&str> = time_part.split(':').collect();
+
+                    if date_parts.len() == 3 && time_parts.len() == 3 {
+                        match (
+                            date_parts[0].parse::<i32>(),
+                            date_parts[1].parse::<u32>(),
+                            date_parts[2].parse::<u32>(),
+                            time_parts[0].parse::<u32>(),
+                            time_parts[1].parse::<u32>(),
+                            time_parts[2].parse::<u32>()
+                        ) {
+                            (Ok(year), Ok(month), Ok(day), Ok(hour), Ok(minute), Ok(sec)) => {
+                                Ok(Value::DateTime(DateTimeValue {
+                                    year, month, day, hour, minute, sec, microsec: 0
+                                }))
+                            },
+                            _ => Err("Invalid datetime format".to_string()),
+                        }
+                    } else {
+                        Err("Invalid datetime format".to_string())
+                    }
+                } else {
+                    Err("Datetime string must be in YYYY-MM-DD HH:MM:SS format".to_string())
+                }
+            },
+            Value::Empty => Ok(Value::DateTime(DateTimeValue {
+                year: 1, month: 1, day: 1, hour: 0, minute: 0, sec: 0, microsec: 0
+            })),
+            _ => Err("Cannot cast to datetime".to_string()),
+        }
+    }
+
+    pub fn cast_to_vertex(&self) -> Result<Value, String> {
+        match self {
+            Value::Vertex(v) => Ok(Value::Vertex(v.clone())),
+            _ => Err("Cannot cast to vertex".to_string()),
+        }
+    }
+
+    pub fn cast_to_edge(&self) -> Result<Value, String> {
+        match self {
+            Value::Edge(e) => Ok(Value::Edge(e.clone())),
+            _ => Err("Cannot cast to edge".to_string()),
+        }
+    }
+
+    pub fn cast_to_path(&self) -> Result<Value, String> {
+        match self {
+            Value::Path(p) => Ok(Value::Path(p.clone())),
+            _ => Err("Cannot cast to path".to_string()),
+        }
+    }
+
+    pub fn cast_to_list(&self) -> Result<Value, String> {
+        match self {
+            Value::List(l) => Ok(Value::List(l.clone())),
+            Value::Empty => Ok(Value::List(vec![])),
+            _ => Err("Cannot cast to list".to_string()),
+        }
+    }
+
+    pub fn cast_to_map(&self) -> Result<Value, String> {
+        match self {
+            Value::Map(m) => Ok(Value::Map(m.clone())),
+            Value::Empty => Ok(Value::Map(HashMap::new())),
+            _ => Err("Cannot cast to map".to_string()),
+        }
+    }
+
+    pub fn cast_to_set(&self) -> Result<Value, String> {
+        match self {
+            Value::Set(s) => Ok(Value::Set(s.clone())),
+            Value::Empty => Ok(Value::Set(std::collections::HashSet::new())),
+            _ => Err("Cannot cast to set".to_string()),
+        }
+    }
+
+    pub fn cast_to_duration(&self) -> Result<Value, String> {
+        match self {
+            Value::Duration(d) => Ok(Value::Duration(d.clone())),
+            _ => Err("Cannot cast to duration".to_string()),
+        }
+    }
+
+    pub fn cast_to_geography(&self) -> Result<Value, String> {
+        match self {
+            Value::Geography(g) => Ok(Value::Geography(g.clone())),
+            _ => Err("Cannot cast to geography".to_string()),
+        }
+    }
+
+    pub fn cast_to_dataset(&self) -> Result<Value, String> {
+        match self {
+            Value::DataSet(ds) => Ok(Value::DataSet(ds.clone())),
+            _ => Err("Cannot cast to dataset".to_string()),
+        }
+    }
 }
 
 // Implement Display for Value enum
@@ -322,7 +767,12 @@ impl std::fmt::Display for Value {
             }
             Value::Geography(g) => write!(f, "Geography({:?})", g.point),
             Value::Duration(d) => write!(f, "Duration({})", d.seconds),
-            Value::DataSet(ds) => write!(f, "DataSet({} columns, {} rows)", ds.col_names.len(), ds.rows.len()),
+            Value::DataSet(ds) => write!(
+                f,
+                "DataSet({} columns, {} rows)",
+                ds.col_names.len(),
+                ds.rows.len()
+            ),
         }
     }
 }

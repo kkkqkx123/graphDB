@@ -3,6 +3,9 @@ use crate::core::{Vertex, Edge, Value, Tag, NullType};
 use crate::storage::{StorageEngine, StorageError};
 use thiserror::Error;
 
+pub mod visitor;
+pub mod validator;
+
 #[derive(Error, Debug)]
 pub enum QueryError {
     #[error("Storage error: {0}")]
