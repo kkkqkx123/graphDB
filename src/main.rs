@@ -1,12 +1,8 @@
 use clap::Parser;
 use anyhow::Result;
 
-mod config;
-mod core;
-mod storage;
-mod query;
-mod api;
-mod utils;
+// 导入库模块
+use graphdb::api;
 
 #[derive(Parser)]
 #[clap(version = "0.1.0", author = "GraphDB Contributors")]
