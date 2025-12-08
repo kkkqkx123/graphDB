@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use crate::core::{Value, Vertex, Edge, NullType};
+use super::binary::BinaryOperator;
+use super::unary::UnaryOperator;
 
 /// Represents an expression in a query
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -211,7 +213,7 @@ impl Expression {
                 items.iter().collect()
             },
             Expression::Map(items) => {
-                items.iter().map(|(_, expr)| expr.as_ref()).collect()
+                items.iter().map(|(_, expr)| expr).collect()
             },
             
             Expression::TypeCasting { expr, .. } => vec![expr.as_ref()],

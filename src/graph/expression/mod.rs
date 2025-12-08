@@ -15,3 +15,5 @@ pub use expr_type::*;
 pub use context::*;
 pub use error::*;
 pub use evaluator::*;
+pub use binary::BinaryOperator;
+pub use unary::UnaryOperator;
