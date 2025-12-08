@@ -1,10 +1,13 @@
-//! Plan node definitions for execution plans
-use crate::query::validator::Variable;
+//! PlanNode特征和基础实现
+//! 定义执行计划节点的通用接口和各种基础节点类型
 
-// Plan node kinds that represent different operations in the execution plan
+use crate::query::validator::Variable;
+use super::plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
+
+/// 计划节点类型枚举，表示执行计划中的各种操作
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlanNodeKind {
-    // Query nodes
+    // 查询节点
     GetNeighbors,
     GetVertices,
     GetEdges,
@@ -18,7 +21,7 @@ pub enum PlanNodeKind {
     ScanVertices,
     ScanEdges,
 
-    // Data processing nodes
+    // 数据处理节点
     Filter,
     Union,
     UnionAllVersionVar,
@@ -47,13 +50,13 @@ pub enum PlanNodeKind {
     PatternApply,
     Argument,
 
-    // Control flow nodes
+    // 控制流节点
     Select,
     Loop,
     PassThrough,
     Start,
 
-    // Schema-related nodes
+    // 模式相关节点
     CreateSpace,
     CreateTag,
     CreateEdge,
@@ -75,7 +78,7 @@ pub enum PlanNodeKind {
     DropEdge,
     AlterSpace,
 
-    // Index-related nodes
+    // 索引相关节点
     CreateTagIndex,
     CreateEdgeIndex,
     CreateFTIndex,
@@ -95,7 +98,7 @@ pub enum PlanNodeKind {
     SubmitJob,
     ShowHosts,
 
-    // User-related nodes
+    // 用户相关节点
     CreateUser,
     DropUser,
     UpdateUser,
@@ -107,19 +110,19 @@ pub enum PlanNodeKind {
     ListRoles,
     DescribeUser,
 
-    // Snapshot nodes
+    // 快照节点
     CreateSnapshot,
     DropSnapshot,
     ShowSnapshots,
 
-    // Update/Delete nodes
+    // 更新/删除节点
     DeleteVertices,
     DeleteEdges,
     UpdateVertex,
     DeleteTags,
     UpdateEdge,
 
-    // Show nodes
+    // 显示节点
     ShowParts,
     ShowCharset,
     ShowCollation,
@@ -129,7 +132,7 @@ pub enum PlanNodeKind {
     GetConfig,
     ShowMetaLeader,
 
-    // Zone-related nodes
+    // 区域相关节点
     ShowZones,
     MergeZone,
     RenameZone,
@@ -140,12 +143,12 @@ pub enum PlanNodeKind {
     DescribeZone,
     AddHostsIntoZone,
 
-    // Listener-related nodes
+    // 监听器相关节点
     AddListener,
     RemoveListener,
     ShowListener,
 
-    // Service-related nodes
+    // 服务相关节点
     ShowServiceClients,
     ShowFTIndexes,
     SignInService,
@@ -157,22 +160,50 @@ pub enum PlanNodeKind {
     ShowQueries,
     KillQuery,
 
-    // Placeholder for unknown node type
+    // 未知节点类型的占位符
     Unknown,
 }
 
-// Base plan node trait that all plan nodes implement
+/// PlanNode特征，所有计划节点都应实现该特征
 pub trait PlanNode: std::fmt::Debug {
+    /// 获取节点的唯一ID
     fn id(&self) -> i64;
+    
+    /// 获取节点的类型
     fn kind(&self) -> PlanNodeKind;
+    
+    /// 获取节点的依赖节点列表
     fn dependencies(&self) -> &Vec<Box<dyn PlanNode>>;
+    
+    /// 获取节点的输出变量
     fn output_var(&self) -> &Option<Variable>;
+    
+    /// 获取列名列表
     fn col_names(&self) -> &Vec<String>;
+    
+    /// 获取节点的成本估计值
     fn cost(&self) -> f64;
+    
+    /// 克隆节点
     fn clone_plan_node(&self) -> Box<dyn PlanNode>;
+    
+    /// 使用访问者模式访问节点
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError>;
+    
+    /// 设置节点的依赖
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>);
+    
+    /// 设置节点的输出变量
+    fn set_output_var(&mut self, var: Variable);
+    
+    /// 设置列名
+    fn set_col_names(&mut self, names: Vec<String>);
+    
+    /// 设置成本
+    fn set_cost(&mut self, cost: f64);
 }
 
-// Single dependency node - a plan node with one dependency
+/// 单一依赖节点 - 具有一个依赖的计划节点
 #[derive(Debug)]
 pub struct SingleDependencyNode {
     pub id: i64,
@@ -186,7 +217,7 @@ pub struct SingleDependencyNode {
 impl SingleDependencyNode {
     pub fn new(kind: PlanNodeKind, dep: Box<dyn PlanNode>) -> Self {
         Self {
-            id: -1, // Will be assigned later
+            id: -1, // 将在后续分配
             kind,
             dependencies: vec![dep],
             output_var: None,
@@ -235,9 +266,31 @@ impl PlanNode for SingleDependencyNode {
             cost: self.cost,
         })
     }
+
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>) {
+        self.dependencies = deps;
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn set_cost(&mut self, cost: f64) {
+        self.cost = cost;
+    }
 }
 
-// Single input node - a plan node that takes single input
+/// 单一输入节点 - 处理单一输入的计划节点
 #[derive(Debug)]
 pub struct SingleInputNode {
     pub id: i64,
@@ -251,7 +304,7 @@ pub struct SingleInputNode {
 impl SingleInputNode {
     pub fn new(kind: PlanNodeKind, dep: Box<dyn PlanNode>) -> Self {
         Self {
-            id: -1, // Will be assigned later
+            id: -1, // 将在后续分配
             kind,
             dependencies: vec![dep],
             output_var: None,
@@ -300,9 +353,31 @@ impl PlanNode for SingleInputNode {
             cost: self.cost,
         })
     }
+
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>) {
+        self.dependencies = deps;
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn set_cost(&mut self, cost: f64) {
+        self.cost = cost;
+    }
 }
 
-// Binary input node - a plan node with two dependencies
+/// 二元输入节点 - 具有两个依赖的计划节点
 #[derive(Debug)]
 pub struct BinaryInputNode {
     pub id: i64,
@@ -316,7 +391,7 @@ pub struct BinaryInputNode {
 impl BinaryInputNode {
     pub fn new(kind: PlanNodeKind, left: Box<dyn PlanNode>, right: Box<dyn PlanNode>) -> Self {
         Self {
-            id: -1, // Will be assigned later
+            id: -1, // 将在后续分配
             kind,
             dependencies: vec![left, right],
             output_var: None,
@@ -365,41 +440,117 @@ impl PlanNode for BinaryInputNode {
             cost: self.cost,
         })
     }
+
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>) {
+        self.dependencies = deps;
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn set_cost(&mut self, cost: f64) {
+        self.cost = cost;
+    }
 }
 
-// Execution plan structure
+/// 可变依赖节点 - 具有可变数量依赖的计划节点
 #[derive(Debug)]
-pub struct ExecutionPlan {
-    pub root: Option<Box<dyn PlanNode>>,
+pub struct VariableDependencyNode {
     pub id: i64,
+    pub kind: PlanNodeKind,
+    pub dependencies: Vec<Box<dyn PlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
 }
 
-impl ExecutionPlan {
-    pub fn new(root: Option<Box<dyn PlanNode>>) -> Self {
+impl VariableDependencyNode {
+    pub fn new(kind: PlanNodeKind) -> Self {
         Self {
-            root,
-            id: -1, // Will be assigned later
+            id: -1, // 将在后续分配
+            kind,
+            dependencies: Vec::new(),
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 0.0,
         }
     }
-
-    pub fn set_root(&mut self, root: Box<dyn PlanNode>) {
-        self.root = Some(root);
-    }
-
-    pub fn root(&self) -> &Option<Box<dyn PlanNode>> {
-        &self.root
+    
+    pub fn add_dependency(&mut self, dep: Box<dyn PlanNode>) {
+        self.dependencies.push(dep);
     }
 }
 
-// SubPlan structure for representing a section of the overall execution plan
-#[derive(Debug)]
-pub struct SubPlan {
-    pub root: Option<Box<dyn PlanNode>>,
-    pub tail: Option<Box<dyn PlanNode>>,
-}
+impl PlanNode for VariableDependencyNode {
+    fn id(&self) -> i64 {
+        self.id
+    }
 
-impl SubPlan {
-    pub fn new(root: Option<Box<dyn PlanNode>>, tail: Option<Box<dyn PlanNode>>) -> Self {
-        Self { root, tail }
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+
+    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> {
+        &self.dependencies
+    }
+
+    fn output_var(&self) -> &Option<Variable> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &Vec<String> {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn clone_plan_node(&self) -> Box<dyn PlanNode> {
+        Box::new(VariableDependencyNode {
+            id: self.id,
+            kind: self.kind.clone(),
+            dependencies: self
+                .dependencies
+                .iter()
+                .map(|dep| dep.clone_plan_node())
+                .collect(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        })
+    }
+
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>) {
+        self.dependencies = deps;
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn set_cost(&mut self, cost: f64) {
+        self.cost = cost;
     }
 }
