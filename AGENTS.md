@@ -42,6 +42,13 @@ The new codebase is organized into several main components:
 - `src/utils` - Utility functions and helpers
 - `src/config` - Configuration management
 
+
+## Key Directories and Files
+
+- `graphDB/Cargo.toml` - Project dependencies and configuration
+- `graphDB/src/lib.rs` - Library entry point
+- `graphDB/src/main.rs` - Executable entry point
+
 ## Building and Running
 
 The graphDB project utilises Cargo as its build system. To build the project:
@@ -72,71 +79,12 @@ installed targets: x86_64-pc-windows-msvc
    cargo run --release -- query --query "MATCH (n) RETURN n LIMIT 10"
    ```
 
-4. **Compilation checking and linting**:
-   ```bash
-   cargo check                         # Quick compilation check without building
-   cargo clippy                        # Linting for code quality and best practices
-   cargo clippy --fix                  # Automatically fix some linting issues
-   cargo fmt                           # Format code according to Rust standards
-   cargo fmt -- --check                # Check if code is properly formatted
-   ```
-
-5. **Testing commands**:
-   ```bash
-   cargo test                          # Run all tests
-   cargo test -- --nocapture           # Run tests with output visible
-   cargo test -- --test-threads=1      # Run tests sequentially (useful for debugging)
-   cargo test <test_name>              # Run specific test(s) matching pattern
-   cargo test --test <integration_test_file>  # Run specific integration test
-   cargo test --release                # Run tests in release mode
-   cargo test --doc                    # Run documentation examples as tests
-   ```
-
-6. **File-specific operations and filtering**:
-   ```bash
-   # Check specific file(s)
-   cargo check --manifest-path graphDB/Cargo.toml
-
-   # Target specific file in compilation
-   cargo build --package <package_name> --lib <specific_file.rs>
-
-   # Filter test results
-   cargo test <test_pattern>           # Run tests matching a pattern
-   cargo test -- --skip <pattern>      # Skip tests matching a pattern
-   cargo test -- <test_filter> --exact # Run only tests with exact name match
-
-   # Compilation for specific targets
-   cargo build --target x86_64-unknown-linux-musl  # For static linking
-   cargo build --target x86_64-apple-darwin
-   cargo build --target x86_64-pc-windows-msvc
-   ```
-
 ## Development Conventions
 
 - **Coding Style**: Employ Rust standard formatting (`cargo fmt`) and adhere to Rust naming conventions
 - **IDE Integration**: Utilise Rust-compatible editors such as VS Code (rust-analyzer) or IntelliJ IDEA
 - **Testing**: Employ Rust's built-in testing framework (`cargo test`), writing integration tests within the `tests/` directory
 - **Code Structure**: Adopt a modular design following Rust conventions
-
-## File Structure
-
-- `Cargo.toml` - Rust project configuration
-- `graphDB/` - Main directory for Rust implementation
-- `graphDB/src/` - Rust source code
-- `graphDB/tests/` - Integration test files
-- `graphDB/benches/` - Performance benchmarks
-- `graphDB/examples/` - Example applications
-- `docs/` - Documentation (including design analysis)
-- `config/` - Configuration file examples
-- `target/` - Compiled artifacts (generated during build)
-
-## Key Directories and Files
-
-- `graphDB/Cargo.toml` - Project dependencies and configuration
-- `graphDB/src/lib.rs` - Library entry point
-- `graphDB/src/main.rs` - Executable entry point
-- `docs/rust-architecture-design.md` - Rust architecture design documentation
-- `docs/rust-rewrite-dependency-analysis.md` - Dependency analysis documentation
 
 ## Testing
 
