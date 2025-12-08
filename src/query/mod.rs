@@ -7,8 +7,10 @@ pub mod visitor;
 pub mod validator;
 pub mod planner;
 pub mod optimizer;
+pub mod executor;
+pub mod scheduler;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum QueryError {
     #[error("Storage error: {0}")]
     StorageError(#[from] StorageError),

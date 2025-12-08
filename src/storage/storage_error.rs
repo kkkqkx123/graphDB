@@ -2,7 +2,7 @@ use crate::core::Value;
 use thiserror::Error;
 use sled;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum StorageError {
     #[error("Database error: {0}")]
     DbError(#[from] sled::Error),
