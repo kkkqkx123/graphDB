@@ -2,9 +2,10 @@ use crate::core::{Value, NullType};
 use crate::graph::expression::Expression;
 use super::context::EvalContext;
 use super::error::ExpressionError;
+use serde::{Deserialize, Serialize};
 
 /// Binary operators for expressions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BinaryOperator {
     // Arithmetic operations
     Add,

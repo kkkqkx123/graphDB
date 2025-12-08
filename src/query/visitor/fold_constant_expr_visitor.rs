@@ -1,7 +1,8 @@
 //! FoldConstantExprVisitor - 用于常量折叠的访问器
 //! 对应 NebulaGraph FoldConstantExprVisitor.h/.cpp 的功能
 
-use crate::graph::expression::{Expression, BinaryOperator, UnaryOperator};
+use crate::graph::expression::expr_type::Expression;
+use crate::graph::expression::{BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use std::collections::HashMap;
 
@@ -166,13 +167,13 @@ impl FoldConstantExprVisitor {
         }
     }
 
-    fn evaluate_unary(&self, op: &crate::graph::expression::UnaryOperator, operand: &Value) -> Result<Value, String> {
+    fn evaluate_unary(&self, op: &UnaryOperator, operand: &Value) -> Result<Value, String> {
         match op {
-            crate::graph::expression::UnaryOperator::Plus => Ok(operand.clone()),  // Identity operation
-            crate::graph::expression::UnaryOperator::Minus => operand.negate(),
-            crate::graph::expression::UnaryOperator::Not => Ok(Value::Bool(!operand.bool_value().unwrap_or(false))),
-            crate::graph::expression::UnaryOperator::Increment => Err("Increment operation not supported in constant folding".to_string()),
-            crate::graph::expression::UnaryOperator::Decrement => Err("Decrement operation not supported in constant folding".to_string()),
+            UnaryOperator::Plus => Ok(operand.clone()),  // Identity operation
+            UnaryOperator::Minus => operand.negate(),
+            UnaryOperator::Not => Ok(Value::Bool(!operand.bool_value().unwrap_or(false))),
+            UnaryOperator::Increment => Err("Increment operation not supported in constant folding".to_string()),
+            UnaryOperator::Decrement => Err("Decrement operation not supported in constant folding".to_string()),
         }
     }
 

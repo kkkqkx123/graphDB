@@ -9,6 +9,8 @@ pub mod context;
 pub mod evaluator;
 pub mod visitor;
 pub mod error;
+#[cfg(test)]
+pub mod tests;
 
 // Re-export common types at the root level
 pub use expr_type::*;

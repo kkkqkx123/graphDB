@@ -2,9 +2,10 @@ use crate::core::Value;
 use crate::graph::expression::Expression;
 use super::context::EvalContext;
 use super::error::ExpressionError;
+use serde::{Deserialize, Serialize};
 
 // 聚合数据结构，用于累积聚合函数的中间结果
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AggData {
     pub count: i64,
     pub sum: Value,

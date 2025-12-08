@@ -3,7 +3,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use crate::core::{ExecutionContext, ValidateContext, SymbolTable, Value};
-use crate::graph::IdGenerator;
+use crate::graph::utils::IdGenerator;
 use crate::utils::ObjectPool;
 use std::result::Result; // 使用标准库的Result类型
 

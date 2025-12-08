@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// Expression evaluation error
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Serialize, Deserialize)]
 pub enum ExpressionError {
     #[error("Type error: {0}")]
     TypeError(String),

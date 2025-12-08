@@ -1,12 +1,12 @@
 //! DeduceTypeVisitor - 用于推导表达式类型的访问器
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
-use std::collections::HashMap;
 use crate::core::{Value, ValueTypeDef};
-use crate::expressions::{Expression, ExpressionKind};
+use crate::graph::expression::{BinaryOperator, UnaryOperator};
+use crate::graph::expression::{Expression, ExpressionKind};
 use crate::query::validator::ValidateContext;
 use crate::storage::StorageEngine;
-use crate::expressions::operations::{UnaryOp, BinaryOp};
+use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
@@ -75,46 +75,189 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     fn visit(&mut self, expr: &Expression) -> Result<(), TypeDeductionError> {
         match expr {
             Expression::Constant(value) => self.visit_constant(value),
-            Expression::Unary { op, operand } => {
-                self.visit(operand)?;
-                self.visit_unary(op)
+            Expression::Property(_) => {
+                // Property expression is now handled differently in the new system
+                self.type_ = ValueTypeDef::Empty;
+                Ok(())
             }
-            Expression::Binary { op, left, right } => {
+            Expression::Function(name, args) => self.visit_function_call(name, args),
+            Expression::BinaryOp(left, op, right) => {
                 self.visit(left)?;
                 let left_type = self.type_.clone();
                 self.visit(right)?;
                 let right_type = self.type_.clone();
                 self.visit_binary(op, left_type, right_type)
             }
-            Expression::Variable { name } => self.visit_variable(name),
-            Expression::Property { entity, property } => {
-                self.visit(entity)?;
-                self.visit_property(property)  // property access result type depends on context
+            Expression::UnaryOp(op, operand) => {
+                self.visit(operand)?;
+                self.visit_unary(op)
             }
-            Expression::FunctionCall { name, args } => self.visit_function_call(name, args),
             Expression::List(items) => self.visit_list(items),
-            Expression::Map(pairs) => self.visit_map_pairs(pairs),
+            Expression::Map(pairs) => self.visit_map_items(pairs),
             Expression::Set(items) => self.visit_set(items),
-            Expression::Case { conditions, default } => self.visit_case(conditions, default),
-            Expression::Vertex { name } => self.visit_vertex_name(name),
-            Expression::Edge => self.visit_edge(),
-            Expression::PathBuild { items } => self.visit_path_build(items),
-            Expression::Aggregate { name, arg, distinct: _ } => {
-                if let Some(arg_expr) = arg {
-                    self.visit(arg_expr)?;
-                }
-                self.visit_aggregate(name)
+            Expression::TagProperty { tag: _, prop: _ } => {
+                self.type_ = ValueTypeDef::Empty; // Will be determined based on schema
+                Ok(())
             }
-            Expression::ListComprehension { inner_var: _, collection, filter, mapping } => {
-                self.visit(collection)?;
-                if let Some(filter_expr) = filter {
-                    self.visit(filter_expr)?;
+            Expression::EdgeProperty { edge: _, prop: _ } => {
+                self.type_ = ValueTypeDef::Empty; // Will be determined based on schema
+                Ok(())
+            }
+            Expression::InputProperty(_) => {
+                self.type_ = ValueTypeDef::Empty;
+                Ok(())
+            }
+            Expression::VariableProperty { var: _, prop: _ } => {
+                self.type_ = ValueTypeDef::Empty;
+                Ok(())
+            }
+            Expression::SourceProperty { tag: _, prop: _ } => {
+                self.type_ = ValueTypeDef::Empty;
+                Ok(())
+            }
+            Expression::DestinationProperty { tag: _, prop: _ } => {
+                self.type_ = ValueTypeDef::Empty;
+                Ok(())
+            }
+            Expression::UnaryPlus(operand) => {
+                self.visit(operand)?;
+                Ok(())
+            }
+            Expression::UnaryNegate(operand) => {
+                self.visit(operand)?;
+                Ok(())
+            }
+            Expression::UnaryNot(operand) => {
+                self.visit(operand)?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::UnaryIncr(operand) => {
+                self.visit(operand)?;
+                Ok(())
+            }
+            Expression::UnaryDecr(operand) => {
+                self.visit(operand)?;
+                Ok(())
+            }
+            Expression::IsNull(operand) => {
+                self.visit(operand)?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::IsNotNull(operand) => {
+                self.visit(operand)?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::IsEmpty(operand) => {
+                self.visit(operand)?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::IsNotEmpty(operand) => {
+                self.visit(operand)?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::TypeCasting {
+                expr,
+                target_type: _,
+            } => {
+                self.visit(expr.as_ref())?;
+                Ok(())
+            }
+            Expression::Case {
+                conditions,
+                default,
+            } => {
+                // Process each condition and default case
+                for (condition_expr, then_expr) in conditions {
+                    self.visit(condition_expr)?;
+                    self.visit(then_expr)?;
                 }
-                if let Some(mapping_expr) = mapping {
-                    self.visit(mapping_expr)?;
+                if let Some(default_expr) = default {
+                    self.visit(default_expr)?;
+                }
+                // Case expression result type depends on the then expressions
+                Ok(())
+            }
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct: _,
+            } => {
+                self.visit(arg.as_ref())?;
+                self.visit_aggregate(func)
+            }
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => {
+                self.visit(generator.as_ref())?;
+                if let Some(condition_expr) = condition.as_ref() {
+                    self.visit(condition_expr.as_ref())?;
                 }
                 // List comprehension always returns a list
                 self.type_ = ValueTypeDef::List;
+                Ok(())
+            }
+            Expression::Predicate { list, condition } => {
+                self.visit(list.as_ref())?;
+                self.visit(condition.as_ref())?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::Reduce {
+                list,
+                var,
+                initial,
+                expr,
+            } => {
+                self.visit(initial)?;
+                self.visit(list)?;
+                self.visit(expr)?;
+                Ok(())
+            }
+            Expression::PathBuild(items) => self.visit_path_build(items),
+            Expression::ESQuery(_) => {
+                self.type_ = ValueTypeDef::String; // Text search result
+                Ok(())
+            }
+            Expression::UUID => self.visit_uuid(),
+            Expression::Variable(name) => self.visit_variable(name),
+            Expression::Subscript { collection, index } => {
+                self.visit(collection)?;
+                self.visit(index)?;
+                // Result type depends on the container
+                Ok(())
+            }
+            Expression::SubscriptRange {
+                collection,
+                start,
+                end,
+            } => {
+                self.visit(collection)?;
+                if let Some(start_idx) = start.as_ref() {
+                    self.visit(start_idx)?;
+                }
+                if let Some(end_idx) = end.as_ref() {
+                    self.visit(end_idx)?;
+                }
+                // Result type is a list
+                self.type_ = ValueTypeDef::List;
+                Ok(())
+            }
+            Expression::Label(_) => {
+                self.type_ = ValueTypeDef::String;
+                Ok(())
+            }
+            Expression::MatchPathPattern {
+                path_alias: _,
+                patterns: _,
+            } => {
+                // Path pattern matching result
+                self.type_ = ValueTypeDef::Path;
                 Ok(())
             }
         }
@@ -125,103 +268,124 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_unary(&mut self, op: &UnaryOp) -> Result<(), TypeDeductionError> {
+    fn visit_unary(&mut self, op: &UnaryOperator) -> Result<(), TypeDeductionError> {
         match op {
-            UnaryOp::Plus => Ok(()),
-            UnaryOp::Minus => {
+            UnaryOperator::Plus => Ok(()),
+            UnaryOperator::Minus => {
                 // 检查类型是否支持取负操作
                 match &self.type_ {
                     ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
                     _ => {
                         let msg = format!("Cannot apply unary minus to type {:?}", self.type_);
-                        self.status = Some(TypeDeductionError::SemanticError(msg));
+                        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
                         Err(TypeDeductionError::SemanticError(msg))
                     }
                 }
             }
-            UnaryOp::Not => {
+            UnaryOperator::Not => {
                 // 检查类型是否支持取反操作
-                if self.type_ == ValueTypeDef::Bool || self.type_ == ValueTypeDef::Empty || self.type_ == ValueTypeDef::Null {
+                if self.type_ == ValueTypeDef::Bool
+                    || self.type_ == ValueTypeDef::Empty
+                    || self.type_ == ValueTypeDef::Null
+                {
                     Ok(())
                 } else {
                     let msg = format!("Cannot apply unary not to type {:?}", self.type_);
-                    self.status = Some(TypeDeductionError::SemanticError(msg));
+                    self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
                     Err(TypeDeductionError::SemanticError(msg))
                 }
             }
-            UnaryOp::IsNull => {
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            UnaryOp::IsNotNull => {
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            UnaryOp::IsEmpty => {
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            UnaryOp::IsNotEmpty => {
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
+            // The IsNull, IsNotNull, IsEmpty, and IsNotEmpty operations are not in the UnaryOp enum
+            UnaryOperator::Increment | UnaryOperator::Decrement => {
+                // For increment and decrement, type should remain the same if it's a number
+                match &self.type_ {
+                    ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
+                    _ => {
+                        let msg =
+                            format!("Cannot apply increment/decrement to type {:?}", self.type_);
+                        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
+                        Err(TypeDeductionError::SemanticError(msg))
+                    }
+                }
             }
         }
     }
 
     fn visit_binary(
         &mut self,
-        op: &BinaryOp,
+        op: &BinaryOperator,
         left_type: ValueTypeDef,
         right_type: ValueTypeDef,
     ) -> Result<(), TypeDeductionError> {
         match op {
-            BinaryOp::Add => {
+            BinaryOperator::Add => {
                 if left_type == ValueTypeDef::String && right_type == ValueTypeDef::String {
                     self.type_ = ValueTypeDef::String;
                 } else if left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Int {
                     self.type_ = ValueTypeDef::Int;
                 } else if left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Float {
                     self.type_ = ValueTypeDef::Float;
-                } else if (left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Float) ||
-                          (left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Int) {
+                } else if (left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Float)
+                    || (left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Int)
+                {
                     self.type_ = ValueTypeDef::Float;
                 } else {
-                    let msg = format!("Cannot apply + operator to types {:?} and {:?}", left_type, right_type);
-                    self.status = Some(TypeDeductionError::SemanticError(msg));
+                    let msg = format!(
+                        "Cannot apply + operator to types {:?} and {:?}",
+                        left_type, right_type
+                    );
+                    self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
                     return Err(TypeDeductionError::SemanticError(msg));
                 }
             }
-            BinaryOp::Minus | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => {
+            BinaryOperator::Sub
+            | BinaryOperator::Mul
+            | BinaryOperator::Div
+            | BinaryOperator::Mod => {
                 if left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Int {
                     self.type_ = ValueTypeDef::Int;
                 } else if left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Float {
                     self.type_ = ValueTypeDef::Float;
-                } else if (left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Float) ||
-                          (left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Int) {
+                } else if (left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Float)
+                    || (left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Int)
+                {
                     self.type_ = ValueTypeDef::Float;
                 } else {
                     let op_str = match op {
-                        BinaryOp::Minus => "Minus",
-                        BinaryOp::Mul => "Multiply",
-                        BinaryOp::Div => "Division",
-                        BinaryOp::Mod => "Mod",
+                        BinaryOperator::Sub => "Subtract",
+                        BinaryOperator::Mul => "Multiply",
+                        BinaryOperator::Div => "Division",
+                        BinaryOperator::Mod => "Mod",
                         _ => "BinaryOp",
                     };
-                    let msg = format!("Cannot apply {} operator to types {:?} and {:?}", op_str, left_type, right_type);
-                    self.status = Some(TypeDeductionError::SemanticError(msg));
+                    let msg = format!(
+                        "Cannot apply {} operator to types {:?} and {:?}",
+                        op_str, left_type, right_type
+                    );
+                    self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
                     return Err(TypeDeductionError::SemanticError(msg));
                 }
             }
-            BinaryOp::EQ | BinaryOp::NE | BinaryOp::LT | BinaryOp::LE | BinaryOp::GT | BinaryOp::GE => {
+            BinaryOperator::Eq
+            | BinaryOperator::Ne
+            | BinaryOperator::Lt
+            | BinaryOperator::Le
+            | BinaryOperator::Gt
+            | BinaryOperator::Ge => {
                 // 关系操作的结果类型是布尔值
                 self.type_ = ValueTypeDef::Bool;
             }
-            BinaryOp::And | BinaryOp::Or => {
+            BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Xor => {
                 // 逻辑操作的结果类型是布尔值
                 self.type_ = ValueTypeDef::Bool;
             }
-            BinaryOp::In | BinaryOp::NotIn => {
+            BinaryOperator::In | BinaryOperator::NotIn => {
                 // 集合操作的结果类型是布尔值
+                self.type_ = ValueTypeDef::Bool;
+            }
+            _ => {
+                // For other operations, we set the type to Bool by default
+                // This will need to be expanded based on the specific operation
                 self.type_ = ValueTypeDef::Bool;
             }
         }
@@ -235,7 +399,11 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_function_call(&mut self, name: &String, args: &Vec<Expression>) -> Result<(), TypeDeductionError> {
+    fn visit_function_call(
+        &mut self,
+        name: &String,
+        args: &Vec<Expression>,
+    ) -> Result<(), TypeDeductionError> {
         // 推导参数类型
         let mut arg_types = Vec::new();
         for arg in args {
@@ -326,7 +494,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_map(&mut self, _kvs: &HashMap<Expression, Expression>) -> Result<(), TypeDeductionError> {
+    fn visit_map_items(
+        &mut self,
+        _pairs: &Vec<(String, Expression)>,
+    ) -> Result<(), TypeDeductionError> {
         self.type_ = ValueTypeDef::Map;
         Ok(())
     }
@@ -337,14 +508,22 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_tag_property(&mut self, tag: &String, prop: &String) -> Result<(), TypeDeductionError> {
+    fn visit_tag_property(
+        &mut self,
+        tag: &String,
+        prop: &String,
+    ) -> Result<(), TypeDeductionError> {
         // 在实际实现中，这里会查询标签的 schema 来确定属性类型
         // 简化实现，返回Empty
         self.type_ = ValueTypeDef::Empty;
         Ok(())
     }
 
-    fn visit_edge_property(&mut self, edge: &String, prop: &String) -> Result<(), TypeDeductionError> {
+    fn visit_edge_property(
+        &mut self,
+        edge: &String,
+        prop: &String,
+    ) -> Result<(), TypeDeductionError> {
         // 在实际实现中，这里会查询边的 schema 来确定属性类型
         // 简化实现，返回Empty
         self.type_ = ValueTypeDef::Empty;
@@ -359,14 +538,18 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 return Ok(());
             }
         }
-        
+
         let msg = format!("Property {} does not exist", name);
         let err = TypeDeductionError::SemanticError(msg.clone());
         self.status = Some(err.clone());
         Err(err)
     }
 
-    fn visit_variable_property(&mut self, var: &String, prop: &String) -> Result<(), TypeDeductionError> {
+    fn visit_variable_property(
+        &mut self,
+        var: &String,
+        prop: &String,
+    ) -> Result<(), TypeDeductionError> {
         // 检查变量是否存在
         if !self.validate_context.exists_var(var) {
             let msg = format!("Variable {} does not exist", var);
@@ -374,7 +557,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             self.status = Some(err.clone());
             return Err(err);
         }
-        
+
         // 在实际实现中，这里会查询变量的 schema 来确定属性类型
         // 简化实现，返回Empty
         self.type_ = ValueTypeDef::Empty;
@@ -407,5 +590,4 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         self.type_ = ValueTypeDef::Path;
         Ok(())
     }
-
 }

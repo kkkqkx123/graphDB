@@ -11,7 +11,6 @@ pub mod utils;
 pub mod config;
 pub mod common;
 pub mod graph;
-pub mod expressions;
 pub mod services;
 
 // Re-export common types at the crate root for convenience

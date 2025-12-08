@@ -2,7 +2,7 @@
 //! 对应 NebulaGraph FindVisitor.h/.cpp 的功能
 
 use std::collections::HashSet;
-use crate::graph::expression::{Expression, ExpressionKind};
+use crate::graph::expression::expr_type::{Expression, ExpressionKind};
 
 pub struct FindVisitor {
     /// 要查找的表达式类型集合
@@ -72,11 +72,123 @@ impl FindVisitor {
                     self.visit(arg);
                 }
             },
-            // 对于常量、属性等没有子表达式的类型
+            Expression::TagProperty { .. } |
+            Expression::EdgeProperty { .. } |
+            Expression::InputProperty(_) |
+            Expression::VariableProperty { .. } |
+            Expression::SourceProperty { .. } |
+            Expression::DestinationProperty { .. } |
             Expression::Constant(_) |
             Expression::Property(_) => {
                 // 没有子表达式，无需处理
-            }
+            },
+            Expression::UnaryPlus(operand) => {
+                self.visit(operand);
+            },
+            Expression::UnaryNegate(operand) => {
+                self.visit(operand);
+            },
+            Expression::UnaryNot(operand) => {
+                self.visit(operand);
+            },
+            Expression::UnaryIncr(operand) => {
+                self.visit(operand);
+            },
+            Expression::UnaryDecr(operand) => {
+                self.visit(operand);
+            },
+            Expression::IsNull(operand) => {
+                self.visit(operand);
+            },
+            Expression::IsNotNull(operand) => {
+                self.visit(operand);
+            },
+            Expression::IsEmpty(operand) => {
+                self.visit(operand);
+            },
+            Expression::IsNotEmpty(operand) => {
+                self.visit(operand);
+            },
+            Expression::List(items) => {
+                for item in items {
+                    self.visit(item);
+                }
+            },
+            Expression::Set(items) => {
+                for item in items {
+                    self.visit(item);
+                }
+            },
+            Expression::Map(items) => {
+                for (_, value) in items {
+                    self.visit(value);
+                }
+            },
+            Expression::TypeCasting { expr, .. } => {
+                self.visit(expr);
+            },
+            Expression::Case { conditions, default } => {
+                for (condition, value) in conditions {
+                    self.visit(condition);
+                    self.visit(value);
+                }
+                if let Some(default_expr) = default {
+                    self.visit(default_expr);
+                }
+            },
+            Expression::Aggregate { arg, .. } => {
+                self.visit(arg);
+            },
+            Expression::ListComprehension { generator, condition } => {
+                self.visit(generator);
+                if let Some(condition_expr) = condition {
+                    self.visit(condition_expr);
+                }
+            },
+            Expression::Predicate { list, condition } => {
+                self.visit(list);
+                self.visit(condition);
+            },
+            Expression::Reduce { list, initial, expr, .. } => {
+                self.visit(list);
+                self.visit(initial);
+                self.visit(expr);
+            },
+            Expression::PathBuild(items) => {
+                for item in items {
+                    self.visit(item);
+                }
+            },
+            Expression::ESQuery(_) => {
+                // ESQuery has no child expressions
+            },
+            Expression::UUID => {
+                // UUID has no child expressions
+            },
+            Expression::Variable(_) => {
+                // Variable has no child expressions
+            },
+            Expression::Subscript { collection, index } => {
+                self.visit(collection);
+                self.visit(index);
+            },
+            Expression::SubscriptRange { collection, start, end } => {
+                self.visit(collection);
+                if let Some(start_expr) = start {
+                    self.visit(start_expr);
+                }
+                if let Some(end_expr) = end {
+                    self.visit(end_expr);
+                }
+            },
+            Expression::Label(_) => {
+                // Label has no child expressions
+            },
+            Expression::MatchPathPattern { patterns, .. } => {
+                for pattern in patterns {
+                    self.visit(pattern);
+                }
+            },
         }
     }
 
@@ -112,11 +224,123 @@ impl FindVisitor {
                     self.visit_with_predicate(arg, predicate, results);
                 }
             },
-            // 对于常量、属性等没有子表达式的类型
+            Expression::TagProperty { .. } |
+            Expression::EdgeProperty { .. } |
+            Expression::InputProperty(_) |
+            Expression::VariableProperty { .. } |
+            Expression::SourceProperty { .. } |
+            Expression::DestinationProperty { .. } |
             Expression::Constant(_) |
             Expression::Property(_) => {
                 // 没有子表达式，无需处理
-            }
+            },
+            Expression::UnaryPlus(operand) => {
+                self.visit_with_predicate(operand, predicate, results);
+            },
+            Expression::UnaryNegate(operand) => {
+                self.visit_with_predicate(operand, predicate, results);
+            },
+            Expression::UnaryNot(operand) => {
+                self.visit_with_predicate(operand, predicate, results);
+            },
+            Expression::UnaryIncr(operand) => {
+                self.visit_with_predicate(operand, predicate, results);
+            },
+            Expression::UnaryDecr(operand) => {
+                self.visit_with_predicate(operand, predicate, results);
+            },
+            Expression::IsNull(operand) => {
+                self.visit_with_predicate(operand, predicate, results);
+            },
+            Expression::IsNotNull(operand) => {
+                self.visit_with_predicate(operand, predicate, results);
+            },
+            Expression::IsEmpty(operand) => {
+                self.visit_with_predicate(operand, predicate, results);
+            },
+            Expression::IsNotEmpty(operand) => {
+                self.visit_with_predicate(operand, predicate, results);
+            },
+            Expression::List(items) => {
+                for item in items {
+                    self.visit_with_predicate(item, predicate, results);
+                }
+            },
+            Expression::Set(items) => {
+                for item in items {
+                    self.visit_with_predicate(item, predicate, results);
+                }
+            },
+            Expression::Map(items) => {
+                for (_, value) in items {
+                    self.visit_with_predicate(value, predicate, results);
+                }
+            },
+            Expression::TypeCasting { expr, .. } => {
+                self.visit_with_predicate(expr, predicate, results);
+            },
+            Expression::Case { conditions, default } => {
+                for (condition, value) in conditions {
+                    self.visit_with_predicate(condition, predicate, results);
+                    self.visit_with_predicate(value, predicate, results);
+                }
+                if let Some(default_expr) = default {
+                    self.visit_with_predicate(default_expr, predicate, results);
+                }
+            },
+            Expression::Aggregate { arg, .. } => {
+                self.visit_with_predicate(arg, predicate, results);
+            },
+            Expression::ListComprehension { generator, condition } => {
+                self.visit_with_predicate(generator, predicate, results);
+                if let Some(condition_expr) = condition {
+                    self.visit_with_predicate(condition_expr, predicate, results);
+                }
+            },
+            Expression::Predicate { list, condition } => {
+                self.visit_with_predicate(list, predicate, results);
+                self.visit_with_predicate(condition, predicate, results);
+            },
+            Expression::Reduce { list, initial, expr, .. } => {
+                self.visit_with_predicate(list, predicate, results);
+                self.visit_with_predicate(initial, predicate, results);
+                self.visit_with_predicate(expr, predicate, results);
+            },
+            Expression::PathBuild(items) => {
+                for item in items {
+                    self.visit_with_predicate(item, predicate, results);
+                }
+            },
+            Expression::ESQuery(_) => {
+                // ESQuery has no child expressions
+            },
+            Expression::UUID => {
+                // UUID has no child expressions
+            },
+            Expression::Variable(_) => {
+                // Variable has no child expressions
+            },
+            Expression::Subscript { collection, index } => {
+                self.visit_with_predicate(collection, predicate, results);
+                self.visit_with_predicate(index, predicate, results);
+            },
+            Expression::SubscriptRange { collection, start, end } => {
+                self.visit_with_predicate(collection, predicate, results);
+                if let Some(start_expr) = start {
+                    self.visit_with_predicate(start_expr, predicate, results);
+                }
+                if let Some(end_expr) = end {
+                    self.visit_with_predicate(end_expr, predicate, results);
+                }
+            },
+            Expression::Label(_) => {
+                // Label has no child expressions
+            },
+            Expression::MatchPathPattern { patterns, .. } => {
+                for pattern in patterns {
+                    self.visit_with_predicate(pattern, predicate, results);
+                }
+            },
         }
     }
 }

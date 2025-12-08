@@ -2,7 +2,7 @@
 //! 对应 NebulaGraph MatchValidator.h/.cpp 的功能
 
 use crate::query::validator::{Validator, ValidateContext};
-use crate::graph::expression::{Expression, ExpressionKind};
+use crate::graph::expression::expr_type::{Expression, ExpressionKind};
 use crate::core::ValueTypeDef;
 
 #[derive(Debug, Clone)]
@@ -176,7 +176,7 @@ impl MatchValidator {
                 // Property expression doesn't have sub-expressions
                 Ok(())
             },
-            Expression::Function(name, args) => {
+            Expression::Function(_, args) => {
                 for arg in args {
                     self.validate_expression_aliases(arg, aliases)?;
                 }
@@ -184,6 +184,134 @@ impl MatchValidator {
             },
             // For constants, there are no sub-expressions
             Expression::Constant(_) => Ok(()),
+            Expression::TagProperty { .. } |
+            Expression::EdgeProperty { .. } |
+            Expression::InputProperty(_) |
+            Expression::VariableProperty { .. } |
+            Expression::SourceProperty { .. } |
+            Expression::DestinationProperty { .. } => {
+                // These expressions don't have sub-expressions
+                Ok(())
+            },
+            Expression::UnaryPlus(operand) => {
+                self.validate_expression_aliases(operand, aliases)
+            },
+            Expression::UnaryNegate(operand) => {
+                self.validate_expression_aliases(operand, aliases)
+            },
+            Expression::UnaryNot(operand) => {
+                self.validate_expression_aliases(operand, aliases)
+            },
+            Expression::UnaryIncr(operand) => {
+                self.validate_expression_aliases(operand, aliases)
+            },
+            Expression::UnaryDecr(operand) => {
+                self.validate_expression_aliases(operand, aliases)
+            },
+            Expression::IsNull(operand) => {
+                self.validate_expression_aliases(operand, aliases)
+            },
+            Expression::IsNotNull(operand) => {
+                self.validate_expression_aliases(operand, aliases)
+            },
+            Expression::IsEmpty(operand) => {
+                self.validate_expression_aliases(operand, aliases)
+            },
+            Expression::IsNotEmpty(operand) => {
+                self.validate_expression_aliases(operand, aliases)
+            },
+            Expression::List(items) => {
+                for item in items {
+                    self.validate_expression_aliases(item, aliases)?;
+                }
+                Ok(())
+            },
+            Expression::Set(items) => {
+                for item in items {
+                    self.validate_expression_aliases(item, aliases)?;
+                }
+                Ok(())
+            },
+            Expression::Map(items) => {
+                for (_, value) in items {
+                    self.validate_expression_aliases(value, aliases)?;
+                }
+                Ok(())
+            },
+            Expression::TypeCasting { expr, .. } => {
+                self.validate_expression_aliases(expr, aliases)
+            },
+            Expression::Case { conditions, default } => {
+                for (condition, value) in conditions {
+                    self.validate_expression_aliases(condition, aliases)?;
+                    self.validate_expression_aliases(value, aliases)?;
+                }
+                if let Some(default_expr) = default {
+                    self.validate_expression_aliases(default_expr, aliases)?;
+                }
+                Ok(())
+            },
+            Expression::Aggregate { arg, .. } => {
+                self.validate_expression_aliases(arg, aliases)
+            },
+            Expression::ListComprehension { generator, condition } => {
+                self.validate_expression_aliases(generator, aliases)?;
+                if let Some(condition_expr) = condition {
+                    self.validate_expression_aliases(condition_expr, aliases)?;
+                }
+                Ok(())
+            },
+            Expression::Predicate { list, condition } => {
+                self.validate_expression_aliases(list, aliases)?;
+                self.validate_expression_aliases(condition, aliases)
+            },
+            Expression::Reduce { list, initial, expr, .. } => {
+                self.validate_expression_aliases(list, aliases)?;
+                self.validate_expression_aliases(initial, aliases)?;
+                self.validate_expression_aliases(expr, aliases)
+            },
+            Expression::PathBuild(items) => {
+                for item in items {
+                    self.validate_expression_aliases(item, aliases)?;
+                }
+                Ok(())
+            },
+            Expression::ESQuery(_) => {
+                // ESQuery has no sub-expressions
+                Ok(())
+            },
+            Expression::UUID => {
+                // UUID has no sub-expressions
+                Ok(())
+            },
+            Expression::Variable(_) => {
+                // Variable has no sub-expressions
+                Ok(())
+            },
+            Expression::Subscript { collection, index } => {
+                self.validate_expression_aliases(collection, aliases)?;
+                self.validate_expression_aliases(index, aliases)
+            },
+            Expression::SubscriptRange { collection, start, end } => {
+                self.validate_expression_aliases(collection, aliases)?;
+                if let Some(start_expr) = start {
+                    self.validate_expression_aliases(start_expr, aliases)?;
+                }
+                if let Some(end_expr) = end {
+                    self.validate_expression_aliases(end_expr, aliases)?;
+                }
+                Ok(())
+            },
+            Expression::Label(_) => {
+                // Label has no sub-expressions
+                Ok(())
+            },
+            Expression::MatchPathPattern { patterns, .. } => {
+                for pattern in patterns {
+                    self.validate_expression_aliases(pattern, aliases)?;
+                }
+                Ok(())
+            },
         }
     }
 

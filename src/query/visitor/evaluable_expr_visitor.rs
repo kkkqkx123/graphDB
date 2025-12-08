@@ -1,7 +1,7 @@
 //! EvaluableExprVisitor - 用于判断表达式是否可求值的访问器
 //! 对应 NebulaGraph EvaluableExprVisitor.h/.cpp 的功能
 
-use crate::graph::expression::Expression;
+use crate::graph::expression::expr_type::Expression;
 
 pub struct EvaluableExprVisitor {
     /// 表达式是否可求值

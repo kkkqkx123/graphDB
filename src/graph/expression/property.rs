@@ -82,7 +82,7 @@ pub fn evaluate_property_expression(
             // 查找源顶点的属性
             if let Some(edge) = context.edge {
                 // 在源顶点中查找标签和属性
-                if let Some(src_vertex) = &edge.src {
+                if let Value::Vertex(src_vertex) = &*edge.src {
                     for vertex_tag in &src_vertex.tags {
                         if &vertex_tag.name == tag {
                             if let Some(value) = vertex_tag.properties.get(prop) {
@@ -94,12 +94,12 @@ pub fn evaluate_property_expression(
             }
             Err(ExpressionError::PropertyNotFound(format!("$^.{}.{}", tag, prop)))
         }
-        
+
         Expression::DestinationProperty { tag, prop } => {
             // 查找目标顶点的属性
             if let Some(edge) = context.edge {
                 // 在目标顶点中查找标签和属性
-                if let Some(dst_vertex) = &edge.dst {
+                if let Value::Vertex(dst_vertex) = &*edge.dst {
                     for vertex_tag in &dst_vertex.tags {
                         if &vertex_tag.name == tag {
                             if let Some(value) = vertex_tag.properties.get(prop) {

@@ -79,6 +79,162 @@ impl DeducePropsVisitor {
                 }
                 Ok(())
             },
+            Expression::TagProperty { tag, prop } => {
+                // 处理标签属性表达式
+                self.handle_property(tag);
+                self.handle_property(prop);
+                Ok(())
+            },
+            Expression::EdgeProperty { edge, prop } => {
+                // 处理边属性表达式
+                self.handle_property(edge);
+                self.handle_property(prop);
+                Ok(())
+            },
+            Expression::InputProperty(prop) => {
+                // 处理输入属性表达式
+                self.handle_property(prop);
+                Ok(())
+            },
+            Expression::VariableProperty { var, prop } => {
+                // 处理变量属性表达式
+                self.handle_property(var);
+                self.handle_property(prop);
+                Ok(())
+            },
+            Expression::SourceProperty { tag, prop } => {
+                // 处理源属性表达式
+                self.handle_property(tag);
+                self.handle_property(prop);
+                Ok(())
+            },
+            Expression::DestinationProperty { tag, prop } => {
+                // 处理目标属性表达式
+                self.handle_property(tag);
+                self.handle_property(prop);
+                Ok(())
+            },
+            Expression::UnaryPlus(operand) => {
+                self.visit(operand)
+            },
+            Expression::UnaryNegate(operand) => {
+                self.visit(operand)
+            },
+            Expression::UnaryNot(operand) => {
+                self.visit(operand)
+            },
+            Expression::UnaryIncr(operand) => {
+                self.visit(operand)
+            },
+            Expression::UnaryDecr(operand) => {
+                self.visit(operand)
+            },
+            Expression::IsNull(operand) => {
+                self.visit(operand)
+            },
+            Expression::IsNotNull(operand) => {
+                self.visit(operand)
+            },
+            Expression::IsEmpty(operand) => {
+                self.visit(operand)
+            },
+            Expression::IsNotEmpty(operand) => {
+                self.visit(operand)
+            },
+            Expression::List(items) => {
+                for item in items {
+                    self.visit(item)?;
+                }
+                Ok(())
+            },
+            Expression::Set(items) => {
+                for item in items {
+                    self.visit(item)?;
+                }
+                Ok(())
+            },
+            Expression::Map(items) => {
+                for (_, value) in items {
+                    self.visit(value)?;
+                }
+                Ok(())
+            },
+            Expression::TypeCasting { expr, .. } => {
+                self.visit(expr)
+            },
+            Expression::Case { conditions, default } => {
+                for (condition, value) in conditions {
+                    self.visit(condition)?;
+                    self.visit(value)?;
+                }
+                if let Some(default_expr) = default {
+                    self.visit(default_expr)?;
+                }
+                Ok(())
+            },
+            Expression::Aggregate { arg, .. } => {
+                self.visit(arg.as_ref())?;
+                Ok(())
+            },
+            Expression::ListComprehension { generator, condition } => {
+                self.visit(generator)?;
+                if let Some(condition_expr) = condition {
+                    self.visit(condition_expr)?;
+                }
+                Ok(())
+            },
+            Expression::Predicate { list, condition } => {
+                self.visit(list)?;
+                self.visit(condition)?;
+                Ok(())
+            },
+            Expression::Reduce { list, initial, expr, .. } => {
+                self.visit(list)?;
+                self.visit(initial)?;
+                self.visit(expr)?;
+                Ok(())
+            },
+            Expression::PathBuild(items) => {
+                for item in items {
+                    self.visit(item)?;
+                }
+                Ok(())
+            },
+            Expression::ESQuery(_) => {
+                Ok(())
+            },
+            Expression::UUID => {
+                Ok(())
+            },
+            Expression::Variable(name) => {
+                self.handle_property(name);
+                Ok(())
+            },
+            Expression::Subscript { collection, index } => {
+                self.visit(collection)?;
+                self.visit(index)?;
+                Ok(())
+            },
+            Expression::SubscriptRange { collection, start, end } => {
+                self.visit(collection)?;
+                if let Some(start_expr) = start {
+                    self.visit(start_expr)?;
+                }
+                if let Some(end_expr) = end {
+                    self.visit(end_expr)?;
+                }
+                Ok(())
+            },
+            Expression::Label(name) => {
+                self.handle_property(name);
+                Ok(())
+            },
+            Expression::MatchPathPattern { patterns, .. } => {
+                for pattern in patterns {
+                    self.visit(pattern)?;
+                }
+                Ok(())
+            },
         }
     }
 

@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use crate::core::{Value, Vertex, Edge, NullType};
 use super::binary::BinaryOperator;
 use super::unary::UnaryOperator;
 
 /// Represents an expression in a query
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Expression {
     Constant(Value),
     Property(String),  // Property name to access
@@ -273,7 +274,7 @@ impl Expression {
 }
 
 /// A simplified version of the ExpressionKind enum for expression analysis
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ExpressionKind {
     // 属性表达式类型
     TagProperty,

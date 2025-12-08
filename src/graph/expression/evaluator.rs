@@ -9,6 +9,11 @@ pub struct ExpressionEvaluator;
 impl ExpressionEvaluator {
     /// Evaluate an expression in the given context
     pub fn evaluate(&self, expr: &Expression, context: &EvalContext) -> Result<Value, ExpressionError> {
+        self.eval_expression(expr, context)
+    }
+
+    /// Evaluate an expression in the given context
+    pub fn eval_expression(&self, expr: &Expression, context: &EvalContext) -> Result<Value, ExpressionError> {
         match expr {
             Expression::Constant(value) => Ok(value.clone()),
             Expression::Property(prop_name) => {
