@@ -9,7 +9,7 @@ use crate::storage::StorageEngine;
 use crate::expressions::operations::{UnaryOp, BinaryOp};
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum TypeDeductionError {
     #[error("Semantic error: {0}")]
     SemanticError(String),

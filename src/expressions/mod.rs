@@ -1,4 +1,3 @@
-pub mod value;
 pub mod base;
 pub mod operations;
 pub mod function_call;
@@ -12,7 +11,7 @@ pub mod agg;
 // Import the expression utilities functionality
 mod expression_utils {
     use std::collections::{HashMap, HashSet};
-    use crate::expressions::value::{Expression, ExpressionKind};
+    use crate::graph::expression::{Expression, ExpressionKind};
     use crate::core::Value;
 
     // 常量定义
@@ -30,7 +29,12 @@ mod expression_utils {
         /// 检查表达式是否为属性表达式
         pub fn is_property_expr(expr: &Expression) -> bool {
             matches!(expr.kind(),
-                ExpressionKind::Property
+                ExpressionKind::TagProperty |
+                ExpressionKind::EdgeProperty |
+                ExpressionKind::InputProperty |
+                ExpressionKind::VariableProperty |
+                ExpressionKind::DestinationProperty |
+                ExpressionKind::SourceProperty
             )
         }
 
@@ -51,10 +55,25 @@ mod expression_utils {
                 return current_depth; // 提前终止
             }
 
+            // Since the new Expression doesn't have a children() method, we'll check specific variants
             let mut max_depth = current_depth;
-            for child in expr.children() {
-                let child_depth = check_expr_depth_recursive(child, current_depth + 1);
-                max_depth = max_depth.max(child_depth);
+            match expr {
+                crate::graph::expression::Expression::UnaryOp(_, operand) => {
+                    let child_depth = check_expr_depth_recursive(operand, current_depth + 1);
+                    max_depth = max_depth.max(child_depth);
+                },
+                crate::graph::expression::Expression::BinaryOp(left, _, right) => {
+                    let left_depth = check_expr_depth_recursive(left, current_depth + 1);
+                    let right_depth = check_expr_depth_recursive(right, current_depth + 1);
+                    max_depth = max_depth.max(left_depth).max(right_depth);
+                },
+                crate::graph::expression::Expression::Function(_, args) => {
+                    for arg in args {
+                        let child_depth = check_expr_depth_recursive(arg, current_depth + 1);
+                        max_depth = max_depth.max(child_depth);
+                    }
+                },
+                _ => {} // Constants and Properties don't have children
             }
             max_depth
         }
@@ -154,10 +173,29 @@ mod expression_utils {
                 return Some(expr);
             }
 
-            for child in expr.children() {
-                if let Some(found) = find_any(child, expected) {
-                    return Some(found);
-                }
+            // Since the new Expression doesn't have a children() method, we'll check specific variants
+            match expr {
+                crate::graph::expression::Expression::UnaryOp(_, operand) => {
+                    if expected.contains(&operand.kind()) {
+                        return Some(operand);
+                    }
+                },
+                crate::graph::expression::Expression::BinaryOp(left, _, right) => {
+                    if expected.contains(&left.kind()) {
+                        return Some(left);
+                    }
+                    if expected.contains(&right.kind()) {
+                        return Some(right);
+                    }
+                },
+                crate::graph::expression::Expression::Function(_, args) => {
+                    for arg in args {
+                        if expected.contains(&arg.kind()) {
+                            return Some(arg);
+                        }
+                    }
+                },
+                _ => {} // Constants and Properties don't have children
             }
             None
         }
@@ -178,14 +216,38 @@ mod expression_utils {
                 result.push(expr);
             }
 
-            for child in expr.children() {
-                collect_all_recursive(child, expected, result);
+            // Since the new Expression doesn't have a children() method, we'll check specific variants
+            match expr {
+                crate::graph::expression::Expression::UnaryOp(_, operand) => {
+                    if expected.contains(&operand.kind()) {
+                        result.push(operand);
+                    }
+                    collect_all_recursive(operand, expected, result);
+                },
+                crate::graph::expression::Expression::BinaryOp(left, _, right) => {
+                    if expected.contains(&left.kind()) {
+                        result.push(left);
+                    }
+                    if expected.contains(&right.kind()) {
+                        result.push(right);
+                    }
+                    collect_all_recursive(left, expected, result);
+                    collect_all_recursive(right, expected, result);
+                },
+                crate::graph::expression::Expression::Function(_, args) => {
+                    for arg in args {
+                        if expected.contains(&arg.kind()) {
+                            result.push(arg);
+                        }
+                        collect_all_recursive(arg, expected, result);
+                    }
+                },
+                _ => {} // Constants and Properties don't have children
             }
         }
     }
 }
 
-pub use value::*;
 pub use base::*;
 pub use operations::*;
 pub use function_call::*;
@@ -197,4 +259,4 @@ pub use agg::*;
 pub use expression_utils::*;
 
 // Explicitly re-export core items for external access
-pub use value::{Expression, ExpressionKind};
+pub use crate::graph::expression::{Expression, ExpressionKind};

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use crate::core::{Value, NullType, Vertex, Edge};
 use super::base::EvaluationError;
-use crate::expressions::value::Expression;
+use crate::graph::expression::Expression;
 
 /// Evaluate property access operation
 pub fn eval_property_access(entity: Value, property: &str) -> Result<Value, EvaluationError> {

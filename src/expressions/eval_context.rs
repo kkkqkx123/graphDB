@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::expressions::value::Expression;
+use crate::graph::expression::Expression;
 use crate::core::Value;
 use crate::expressions::base::{EvaluationError, ExpressionContext as BaseExpressionContext, DefaultExpressionContext};
 

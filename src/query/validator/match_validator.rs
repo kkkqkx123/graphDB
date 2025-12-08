@@ -2,7 +2,7 @@
 //! 对应 NebulaGraph MatchValidator.h/.cpp 的功能
 
 use crate::query::validator::{Validator, ValidateContext};
-use crate::expressions::{Expression, ExpressionKind};
+use crate::graph::expression::{Expression, ExpressionKind};
 use crate::core::ValueTypeDef;
 
 #[derive(Debug, Clone)]
@@ -131,27 +131,32 @@ impl MatchValidator {
         // 使用FindVisitor查找表达式中使用的所有别名
         use crate::query::visitor::FindVisitor;
         let mut visitor = FindVisitor::new();
-        
+
         // 查找所有可能的别名使用
         let found_exprs = visitor.find_if(expr, |e| {
             // 检查表达式是否为别名引用（这需要根据具体表达式类型来判断）
             matches!(e.kind(),
                 ExpressionKind::Variable |
-                ExpressionKind::Property
+                ExpressionKind::TagProperty |
+                ExpressionKind::EdgeProperty |
+                ExpressionKind::InputProperty |
+                ExpressionKind::VariableProperty |
+                ExpressionKind::DestinationProperty |
+                ExpressionKind::SourceProperty
             )
         });
-        
+
         for found_expr in found_exprs {
-            if let Expression::Variable { name } = found_expr {
-                if !aliases.contains_key(name) {
+            if let Expression::Property(name) = found_expr {
+                if !aliases.contains_key(name.as_str()) {
                     return Err(format!("Undefined variable alias: {}", name));
                 }
             }
         }
-        
+
         // 递归验证子表达式
         self.validate_subexpressions_aliases(expr, aliases)?;
-        
+
         Ok(())
     }
 
@@ -160,24 +165,25 @@ impl MatchValidator {
                                       expr: &Expression,
                                       aliases: &std::collections::HashMap<String, AliasType>) -> Result<(), String> {
         match expr {
-            Expression::Unary { operand, .. } => {
+            Expression::UnaryOp(_, operand) => {
                 self.validate_expression_aliases(operand, aliases)
             },
-            Expression::Binary { left, right, .. } => {
+            Expression::BinaryOp(left, _, right) => {
                 self.validate_expression_aliases(left, aliases)?;
                 self.validate_expression_aliases(right, aliases)
             },
-            Expression::Property { entity, .. } => {
-                self.validate_expression_aliases(entity, aliases)
+            Expression::Property(_) => {
+                // Property expression doesn't have sub-expressions
+                Ok(())
             },
-            Expression::FunctionCall { args, .. } => {
+            Expression::Function(name, args) => {
                 for arg in args {
                     self.validate_expression_aliases(arg, aliases)?;
                 }
                 Ok(())
             },
-            // 其他表达式类型
-            _ => Ok(()),
+            // For constants, there are no sub-expressions
+            Expression::Constant(_) => Ok(()),
         }
     }
 
@@ -298,19 +304,19 @@ impl MatchValidator {
         // 检查引用的别名是否可用
         use crate::query::visitor::FindVisitor;
         let mut visitor = FindVisitor::new();
-        
+
         let vars = visitor.find_if(ref_expr, |e| {
             matches!(e.kind(), ExpressionKind::Variable)
         });
-        
+
         for var in vars {
-            if let Expression::Variable { name } = var {
-                if !aliases_available.contains_key(name) {
+            if let Expression::Property(name) = var {
+                if !aliases_available.contains_key(name.as_str()) {
                     return Err(format!("Undefined alias: {}", name));
                 }
             }
         }
-        
+
         Ok(())
     }
     

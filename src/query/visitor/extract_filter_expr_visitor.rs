@@ -1,7 +1,7 @@
 //! ExtractFilterExprVisitor - 用于提取过滤表达式的访问器
 //! 对应 NebulaGraph ExtractFilterExprVisitor.h/.cpp 的功能
 
-use crate::expressions::{Expression, ExpressionKind};
+use crate::graph::expression::Expression;
 
 #[derive(Debug, Clone)]
 pub struct ExtractFilterExprVisitor {
@@ -30,40 +30,23 @@ impl ExtractFilterExprVisitor {
     }
 
     fn visit(&mut self, expr: &Expression) -> Result<(), String> {
-        match &expr.kind {
+        // 简化实现：将所有二元操作符表达式视为过滤表达式
+        match expr {
             // AND操作通常包含多个过滤条件
-            ExpressionKind::Logical { op, operands } if op == "And" || op == "LogicalAnd" => {
+            Expression::BinaryOp(left, op, right) => {
                 if self.is_top_level || !self.top_level_only {
-                    // 如果在顶层，或者不只提取顶层，则继续遍历AND操作的子表达式
-                    for operand in operands {
-                        self.visit_with_updated_level(operand)?;
-                    }
+                    // 如果在顶层，或者不只提取顶层，则继续遍历子表达式
+                    self.visit_with_updated_level(left)?;
+                    self.visit_with_updated_level(right)?;
                 } else {
-                    // 如果不在顶层且只提取顶层，则将整个AND表达式作为一个过滤条件
+                    // 如果不在顶层且只提取顶层，则将整个表达式作为一个过滤条件
                     self.filter_exprs.push(expr.clone());
                 }
                 Ok(())
             },
-            // OR操作通常用于分支条件，可能不是纯粹的过滤条件
-            ExpressionKind::Logical { op, .. } if op == "Or" || op == "LogicalOr" => {
-                if !self.top_level_only {
-                    // 除非只提取顶层，否则也要处理OR操作
-                    // 但OR操作通常不被视为简单的过滤条件
-                    self.filter_exprs.push(expr.clone());
-                } else if self.is_top_level {
-                    self.filter_exprs.push(expr.clone());
-                }
-                Ok(())
-            },
-            // 简单的关系表达式通常作为过滤条件
-            ExpressionKind::Relational { .. } => {
-                if self.is_top_level || !self.top_level_only {
-                    self.filter_exprs.push(expr.clone());
-                }
-                Ok(())
-            },
+            
             // 函数调用，检查是否是过滤相关的函数
-            ExpressionKind::FunctionCall { name, .. } => {
+            Expression::Function(name, _) => {
                 // 某些函数可能用于过滤，如 is_empty, is_null 等
                 if is_filter_function(name) {
                     if self.is_top_level || !self.top_level_only {
@@ -72,6 +55,7 @@ impl ExtractFilterExprVisitor {
                 }
                 Ok(())
             },
+            
             // 处理其他可能的过滤表达式
             _ => {
                 // 检查是否为其他类型的过滤表达式
@@ -94,70 +78,18 @@ impl ExtractFilterExprVisitor {
     }
 
     fn visit_children(&mut self, expr: &Expression) -> Result<(), String> {
-        match &expr.kind {
-            ExpressionKind::Unary { operand, .. } => {
+        match expr {
+            Expression::UnaryOp(_, operand) => {
                 self.visit(operand)
             },
-            ExpressionKind::Arithmetic { left, right, .. } => {
+            Expression::BinaryOp(left, _, right) => {
                 self.visit(left)?;
                 self.visit(right)
             },
-            ExpressionKind::Relational { left, right, .. } => {
-                self.visit(left)?;
-                self.visit(right)
-            },
-            ExpressionKind::Logical { operands, .. } => {
-                for operand in operands {
-                    self.visit(operand)?;
-                }
-                Ok(())
-            },
-            ExpressionKind::Subscript { left, right } => {
-                self.visit(left)?;
-                self.visit(right)
-            },
-            ExpressionKind::Attribute { left, right } => {
-                self.visit(left)?;
-                self.visit(right)
-            },
-            ExpressionKind::FunctionCall { args, .. } => {
+            Expression::Function(_, args) => {
                 for arg in args {
                     self.visit(arg)?;
                 }
-                Ok(())
-            },
-            ExpressionKind::Aggregate { arg, .. } => {
-                self.visit(arg)
-            },
-            ExpressionKind::List(items) => {
-                for item in items {
-                    self.visit(item)?;
-                }
-                Ok(())
-            },
-            ExpressionKind::Set(items) => {
-                for item in items {
-                    self.visit(item)?;
-                }
-                Ok(())
-            },
-            ExpressionKind::Map(kvs) => {
-                for (k, v) in kvs {
-                    self.visit(k)?;
-                    self.visit(v)?;
-                }
-                Ok(())
-            },
-            ExpressionKind::Case { .. } => {
-                // Case表达式处理
-                Ok(())
-            },
-            ExpressionKind::Reduce { .. } => {
-                // Reduce表达式处理
-                Ok(())
-            },
-            ExpressionKind::ListComprehension { .. } => {
-                // 列表推导式处理
                 Ok(())
             },
             // 其他表达式类型，通常不需要进一步访问子节点
@@ -170,9 +102,9 @@ impl ExtractFilterExprVisitor {
     }
 }
 
-fn is_filter_function(func_name: &String) -> bool {
+fn is_filter_function(func_name: &str) -> bool {
     // 检查函数名是否为过滤相关函数
-    matches!(func_name.as_str().to_lowercase().as_str(), 
+    matches!(func_name.to_lowercase().as_str(), 
              "isempty" | "isnull" | "isnotnull" | "isnullorempty" | 
              "has" | "haslabel" | "hastag" | "contains")
 }
@@ -180,9 +112,7 @@ fn is_filter_function(func_name: &String) -> bool {
 fn is_filter_expression(expr: &Expression) -> bool {
     // 检查表达式是否为过滤表达式
     // 通常关系表达式和函数调用是过滤表达式
-    matches!(expr.kind,
-             ExpressionKind::Relational { .. } |
-             ExpressionKind::FunctionCall { .. } |
-             ExpressionKind::Predicate { .. } |
-             ExpressionKind::Unary { op, .. } if op == "IsNull" || op == "IsNotNull" || op == "IsEmpty" || op == "IsNotEmpty")
+    matches!(expr,
+             Expression::BinaryOp(_, _, _) |
+             Expression::Function(_, _))
 }

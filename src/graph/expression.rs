@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use crate::core::{Value, Vertex, Edge};
+use crate::core::{Value, Vertex, Edge, NullType};
 
 /// Represents an expression in a query
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expression {
     Constant(Value),
     Property(String),  // Property name to access
@@ -90,27 +90,43 @@ pub enum ExpressionKind {
 }
 
 /// Binary operators for expressions
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BinaryOperator {
+    // Arithmetic operations
     Add,
     Sub,
     Mul,
     Div,
+    Mod,
+    // Relational operations
     Eq,
     Ne,
     Lt,
     Le,
     Gt,
     Ge,
+    // Logical operations
     And,
     Or,
+    Xor,
+    // Other operations
+    In,
+    NotIn,
+    Subscript,
+    Attribute,
+    Contains,
+    StartsWith,
+    EndsWith,
 }
 
 /// Unary operators for expressions
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnaryOperator {
-    Neg,
+    Plus,
+    Minus,
     Not,
+    Increment,
+    Decrement,
 }
 
 /// Context for evaluating expressions, containing values for variables/properties
@@ -200,6 +216,7 @@ impl ExpressionEvaluator {
                     BinaryOperator::Sub => self.sub_values(left_val, right_val),
                     BinaryOperator::Mul => self.mul_values(left_val, right_val),
                     BinaryOperator::Div => self.div_values(left_val, right_val),
+                    BinaryOperator::Mod => self.mod_values(left_val, right_val),
                     BinaryOperator::Eq => Ok(Value::Bool(left_val == right_val)),
                     BinaryOperator::Ne => Ok(Value::Bool(left_val != right_val)),
                     BinaryOperator::Lt => self.cmp_values(left_val, right_val, |a, b| a < b),
@@ -208,14 +225,25 @@ impl ExpressionEvaluator {
                     BinaryOperator::Ge => self.cmp_values(left_val, right_val, |a, b| a >= b),
                     BinaryOperator::And => self.and_values(left_val, right_val),
                     BinaryOperator::Or => self.or_values(left_val, right_val),
+                    BinaryOperator::Xor => self.xor_values(left_val, right_val),
+                    BinaryOperator::In => self.in_values(left_val, right_val),
+                    BinaryOperator::NotIn => self.not_in_values(left_val, right_val),
+                    BinaryOperator::Subscript => self.subscript_values(left_val, right_val),
+                    BinaryOperator::Attribute => self.attribute_values(left_val, right_val),
+                    BinaryOperator::Contains => self.contains_values(left_val, right_val),
+                    BinaryOperator::StartsWith => self.starts_with_values(left_val, right_val),
+                    BinaryOperator::EndsWith => self.ends_with_values(left_val, right_val),
                 }
             },
             Expression::UnaryOp(op, operand) => {
                 let operand_val = self.evaluate(operand, context)?;
                 
                 match op {
-                    UnaryOperator::Neg => self.neg_value(operand_val),
+                    UnaryOperator::Plus => Ok(operand_val),  // Identity operation
+                    UnaryOperator::Minus => self.neg_value(operand_val),
                     UnaryOperator::Not => Ok(Value::Bool(!self.value_to_bool(&operand_val))),
+                    UnaryOperator::Increment => Err(ExpressionError::InvalidOperation("Increment operation not supported".to_string())),
+                    UnaryOperator::Decrement => Err(ExpressionError::InvalidOperation("Decrement operation not supported".to_string())),
                 }
             },
             Expression::Function(func_name, args) => {
@@ -287,6 +315,145 @@ impl ExpressionEvaluator {
         Ok(Value::Bool(left_bool || right_bool))
     }
     
+    fn mod_values(&self, left: Value, right: Value) -> Result<Value, ExpressionError> {
+        match (left, right) {
+            (Value::Int(a), Value::Int(b)) => {
+                if b == 0 {
+                    return Err(ExpressionError::InvalidOperation("Division by zero".to_string()));
+                }
+                Ok(Value::Int(a % b))
+            },
+            (Value::Float(a), Value::Float(b)) => {
+                if b == 0.0 {
+                    return Err(ExpressionError::InvalidOperation("Division by zero".to_string()));
+                }
+                Ok(Value::Float(a % b))
+            },
+            (Value::Int(a), Value::Float(b)) => {
+                if b == 0.0 {
+                    return Err(ExpressionError::InvalidOperation("Division by zero".to_string()));
+                }
+                Ok(Value::Float((a as f64) % b))
+            },
+            (Value::Float(a), Value::Int(b)) => {
+                if b == 0 {
+                    return Err(ExpressionError::InvalidOperation("Division by zero".to_string()));
+                }
+                Ok(Value::Float(a % (b as f64)))
+            },
+            _ => Err(ExpressionError::TypeError("Cannot perform mod operation on these value types".to_string())),
+        }
+    }
+
+    fn xor_values(&self, left: Value, right: Value) -> Result<Value, ExpressionError> {
+        let left_bool = self.value_to_bool(&left);
+        let right_bool = self.value_to_bool(&right);
+        Ok(Value::Bool(left_bool ^ right_bool))  // XOR operation
+    }
+
+    fn in_values(&self, left: Value, right: Value) -> Result<Value, ExpressionError> {
+        match right {
+            Value::List(items) => {
+                let found = items.iter().any(|item| *item == left);
+                Ok(Value::Bool(found))
+            },
+            Value::Set(items) => {
+                Ok(Value::Bool(items.contains(&left)))
+            },
+            Value::Map(items) => {
+                if let Value::String(key) = &left {
+                    Ok(Value::Bool(items.contains_key(key)))
+                } else {
+                    Err(ExpressionError::TypeError("Key for 'in' operation on map must be a string".to_string()))
+                }
+            },
+            _ => Err(ExpressionError::TypeError("Right operand of 'in' must be a list, set, or map".to_string())),
+        }
+    }
+
+    fn not_in_values(&self, left: Value, right: Value) -> Result<Value, ExpressionError> {
+        match self.in_values(left, right) {
+            Ok(Value::Bool(b)) => Ok(Value::Bool(!b)),
+            Ok(_) => Err(ExpressionError::TypeError("in_values should return boolean".to_string())),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn subscript_values(&self, collection: Value, index: Value) -> Result<Value, ExpressionError> {
+        match collection {
+            Value::List(items) => {
+                if let Value::Int(i) = index {
+                    if i >= 0 && (i as usize) < items.len() {
+                        Ok(items[i as usize].clone())
+                    } else {
+                        Err(ExpressionError::InvalidOperation("List index out of bounds".to_string()))
+                    }
+                } else {
+                    Err(ExpressionError::TypeError("List index must be an integer".to_string()))
+                }
+            },
+            Value::Map(items) => {
+                if let Value::String(key) = index {
+                    match items.get(&key) {
+                        Some(value) => Ok(value.clone()),
+                        None => Ok(Value::Null(NullType::Null)),
+                    }
+                } else {
+                    Err(ExpressionError::TypeError("Map key must be a string".to_string()))
+                }
+            },
+            _ => Err(ExpressionError::TypeError("Subscript operation requires a list or map".to_string())),
+        }
+    }
+
+    fn attribute_values(&self, left: Value, right: Value) -> Result<Value, ExpressionError> {
+        // For simplicity, treat this like a subscript operation for now
+        // In a real system, this would access object properties
+        match (&left, &right) {
+            (Value::Map(m), Value::String(key)) => {
+                match m.get(key) {
+                    Some(value) => Ok(value.clone()),
+                    None => Ok(Value::Null(NullType::Null)),
+                }
+            },
+            _ => Err(ExpressionError::TypeError("Attribute access requires a map and string key".to_string())),
+        }
+    }
+
+    fn contains_values(&self, left: Value, right: Value) -> Result<Value, ExpressionError> {
+        // Check if 'left' contains 'right'
+        match (&left, &right) {
+            (Value::List(items), item) => {
+                Ok(Value::Bool(items.contains(item)))
+            },
+            (Value::Set(items), item) => {
+                Ok(Value::Bool(items.contains(item)))
+            },
+            (Value::String(s), Value::String(substring)) => {
+                Ok(Value::Bool(s.contains(substring)))
+            },
+            _ => Err(ExpressionError::TypeError("Contains operation not supported for these types".to_string())),
+        }
+    }
+
+    fn starts_with_values(&self, left: Value, right: Value) -> Result<Value, ExpressionError> {
+        match (&left, &right) {
+            (Value::String(s), Value::String(prefix)) => {
+                Ok(Value::Bool(s.starts_with(prefix)))
+            },
+            _ => Err(ExpressionError::TypeError("Starts with operation requires string operands".to_string())),
+        }
+    }
+
+    fn ends_with_values(&self, left: Value, right: Value) -> Result<Value, ExpressionError> {
+        match (&left, &right) {
+            (Value::String(s), Value::String(suffix)) => {
+                Ok(Value::Bool(s.ends_with(suffix)))
+            },
+            _ => Err(ExpressionError::TypeError("Ends with operation requires string operands".to_string())),
+        }
+    }
+
     fn neg_value(&self, value: Value) -> Result<Value, ExpressionError> {
         match value {
             Value::Int(n) => Ok(Value::Int(-n)),

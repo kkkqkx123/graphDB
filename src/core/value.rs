@@ -24,6 +24,9 @@ pub enum ValueTypeDef {
     Geography,
     Duration,
     DataSet,
+    IntRange,
+    FloatRange,
+    StringRange,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -716,6 +719,70 @@ impl Value {
         match self {
             Value::DataSet(ds) => Ok(Value::DataSet(ds.clone())),
             _ => Err("Cannot cast to dataset".to_string()),
+        }
+    }
+
+    // Methods for expression evaluation
+    pub fn abs(&self) -> Result<Value, String> {
+        match self {
+            Value::Int(i) => Ok(Value::Int(i64::abs(*i))),
+            Value::Float(f) => Ok(Value::Float(f64::abs(*f))),
+            _ => Err("Cannot get absolute value".to_string()),
+        }
+    }
+
+    pub fn ceil(&self) -> Result<Value, String> {
+        match self {
+            Value::Int(i) => Ok(Value::Int(*i)),
+            Value::Float(f) => Ok(Value::Float(f64::ceil(*f))),
+            _ => Err("Cannot get ceiling value".to_string()),
+        }
+    }
+
+    pub fn floor(&self) -> Result<Value, String> {
+        match self {
+            Value::Int(i) => Ok(Value::Int(*i)),
+            Value::Float(f) => Ok(Value::Float(f64::floor(*f))),
+            _ => Err("Cannot get floor value".to_string()),
+        }
+    }
+
+    pub fn round(&self) -> Result<Value, String> {
+        match self {
+            Value::Int(i) => Ok(Value::Int(*i)),
+            Value::Float(f) => Ok(Value::Float(f64::round(*f))),
+            _ => Err("Cannot round value".to_string()),
+        }
+    }
+
+    pub fn lower(&self) -> Result<Value, String> {
+        match self {
+            Value::String(s) => Ok(Value::String(s.to_lowercase())),
+            _ => Err("Cannot convert to lowercase".to_string()),
+        }
+    }
+
+    pub fn upper(&self) -> Result<Value, String> {
+        match self {
+            Value::String(s) => Ok(Value::String(s.to_uppercase())),
+            _ => Err("Cannot convert to uppercase".to_string()),
+        }
+    }
+
+    pub fn trim(&self) -> Result<Value, String> {
+        match self {
+            Value::String(s) => Ok(Value::String(s.trim().to_string())),
+            _ => Err("Cannot trim value".to_string()),
+        }
+    }
+
+    pub fn length(&self) -> Result<Value, String> {
+        match self {
+            Value::String(s) => Ok(Value::Int(s.len() as i64)),
+            Value::List(l) => Ok(Value::Int(l.len() as i64)),
+            Value::Map(m) => Ok(Value::Int(m.len() as i64)),
+            Value::Set(s) => Ok(Value::Int(s.len() as i64)),
+            _ => Err("Cannot get length".to_string()),
         }
     }
 }

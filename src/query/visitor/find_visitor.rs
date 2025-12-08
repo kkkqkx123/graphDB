@@ -2,7 +2,7 @@
 //! 对应 NebulaGraph FindVisitor.h/.cpp 的功能
 
 use std::collections::HashSet;
-use crate::expressions::{Expression, ExpressionKind};
+use crate::graph::expression::{Expression, ExpressionKind};
 
 pub struct FindVisitor {
     /// 要查找的表达式类型集合
@@ -60,78 +60,21 @@ impl FindVisitor {
 
     fn visit_children(&mut self, expr: &Expression) {
         match expr {
-            Expression::Unary { operand, .. } => {
+            Expression::UnaryOp(_, operand) => {
                 self.visit(operand);
             },
-            Expression::Binary { left, right, .. } => {
+            Expression::BinaryOp(left, _, right) => {
                 self.visit(left);
                 self.visit(right);
             },
-            Expression::Property { entity, .. } => {
-                self.visit(entity);
-            },
-            Expression::FunctionCall { args, .. } => {
+            Expression::Function(_, args) => {
                 for arg in args {
                     self.visit(arg);
                 }
             },
-            Expression::List(items) => {
-                for item in items {
-                    self.visit(item);
-                }
-            },
-            Expression::Set(items) => {
-                for item in items {
-                    self.visit(item);
-                }
-            },
-            Expression::Map(pairs) => {
-                for (k, v) in pairs {
-                    self.visit(k);
-                    self.visit(v);
-                }
-            },
-            Expression::Case {
-                conditions,
-                default,
-            } => {
-                for (condition, result) in conditions {
-                    self.visit(condition);
-                    self.visit(result);
-                }
-                if let Some(default_expr) = default {
-                    self.visit(default_expr);
-                }
-            },
-            Expression::PathBuild { items } => {
-                for item in items {
-                    self.visit(item);
-                }
-            },
-            Expression::Aggregate { arg, .. } => {
-                if let Some(arg_expr) = arg {
-                    self.visit(arg_expr);
-                }
-            },
-            Expression::ListComprehension {
-                collection,
-                filter,
-                mapping,
-                ..
-            } => {
-                self.visit(collection);
-                if let Some(filter_expr) = filter {
-                    self.visit(filter_expr);
-                }
-                if let Some(mapping_expr) = mapping {
-                    self.visit(mapping_expr);
-                }
-            },
-            // 对于常量、变量、图结构等没有子表达式的类型
+            // 对于常量、属性等没有子表达式的类型
             Expression::Constant(_) |
-            Expression::Variable { .. } |
-            Expression::Vertex { .. } |
-            Expression::Edge => {
+            Expression::Property(_) => {
                 // 没有子表达式，无需处理
             }
         }
@@ -157,78 +100,21 @@ impl FindVisitor {
 
         // 递归访问子表达式
         match expr {
-            Expression::Unary { operand, .. } => {
+            Expression::UnaryOp(_, operand) => {
                 self.visit_with_predicate(operand, predicate, results);
             },
-            Expression::Binary { left, right, .. } => {
+            Expression::BinaryOp(left, _, right) => {
                 self.visit_with_predicate(left, predicate, results);
                 self.visit_with_predicate(right, predicate, results);
             },
-            Expression::Property { entity, .. } => {
-                self.visit_with_predicate(entity, predicate, results);
-            },
-            Expression::FunctionCall { args, .. } => {
+            Expression::Function(_, args) => {
                 for arg in args {
                     self.visit_with_predicate(arg, predicate, results);
                 }
             },
-            Expression::List(items) => {
-                for item in items {
-                    self.visit_with_predicate(item, predicate, results);
-                }
-            },
-            Expression::Set(items) => {
-                for item in items {
-                    self.visit_with_predicate(item, predicate, results);
-                }
-            },
-            Expression::Map(pairs) => {
-                for (k, v) in pairs {
-                    self.visit_with_predicate(k, predicate, results);
-                    self.visit_with_predicate(v, predicate, results);
-                }
-            },
-            Expression::Case {
-                conditions,
-                default
-            } => {
-                for (condition, result) in conditions {
-                    self.visit_with_predicate(condition, predicate, results);
-                    self.visit_with_predicate(result, predicate, results);
-                }
-                if let Some(default_expr) = default {
-                    self.visit_with_predicate(default_expr, predicate, results);
-                }
-            },
-            Expression::PathBuild { items } => {
-                for item in items {
-                    self.visit_with_predicate(item, predicate, results);
-                }
-            },
-            Expression::Aggregate { arg, .. } => {
-                if let Some(arg_expr) = arg {
-                    self.visit_with_predicate(arg_expr, predicate, results);
-                }
-            },
-            Expression::ListComprehension {
-                collection,
-                filter,
-                mapping,
-                ..
-            } => {
-                self.visit_with_predicate(collection, predicate, results);
-                if let Some(filter_expr) = filter {
-                    self.visit_with_predicate(filter_expr, predicate, results);
-                }
-                if let Some(mapping_expr) = mapping {
-                    self.visit_with_predicate(mapping_expr, predicate, results);
-                }
-            },
-            // 对于常量、变量、图结构等没有子表达式的类型
+            // 对于常量、属性等没有子表达式的类型
             Expression::Constant(_) |
-            Expression::Variable { .. } |
-            Expression::Vertex { .. } |
-            Expression::Edge => {
+            Expression::Property(_) => {
                 // 没有子表达式，无需处理
             }
         }
@@ -245,18 +131,18 @@ mod tests {
         let mut visitor = FindVisitor::new();
         
         // 创建一个包含常量的表达式: 1 + 2 * 3
-        let expr = Expression::arithmetic(
-            "Add".to_string(),
-            Box::new(Expression::constant(Value::Int(1))),
-            Box::new(Expression::arithmetic(
-                "Multiply".to_string(),
-                Box::new(Expression::constant(Value::Int(2))),
-                Box::new(Expression::constant(Value::Int(3))),
+        let expr = Expression::BinaryOp(
+            Box::new(Expression::Constant(Value::Int(1))),
+            crate::graph::expression::BinaryOperator::Add,
+            Box::new(Expression::BinaryOp(
+                Box::new(Expression::Constant(Value::Int(2))),
+                crate::graph::expression::BinaryOperator::Mul,
+                Box::new(Expression::Constant(Value::Int(3))),
             )),
         );
 
         let constants = visitor
-            .add_target_type(ExpressionKind::Constant(Value::Int(0))) // 使用占位符
+            .add_target_kind(ExpressionKind::Constant)
             .find(&expr);
 
         // 应该找到3个常量
@@ -268,18 +154,18 @@ mod tests {
         let mut visitor = FindVisitor::new();
         
         // 创建一个包含常量的表达式: 1 + 2 * 3
-        let expr = Expression::arithmetic(
-            "Add".to_string(),
-            Box::new(Expression::constant(Value::Int(1))),
-            Box::new(Expression::arithmetic(
-                "Multiply".to_string(),
-                Box::new(Expression::constant(Value::Int(2))),
-                Box::new(Expression::constant(Value::Int(3))),
+        let expr = Expression::BinaryOp(
+            Box::new(Expression::Constant(Value::Int(1))),
+            crate::graph::expression::BinaryOperator::Add,
+            Box::new(Expression::BinaryOp(
+                Box::new(Expression::Constant(Value::Int(2))),
+                crate::graph::expression::BinaryOperator::Mul,
+                Box::new(Expression::Constant(Value::Int(3))),
             )),
         );
 
         let constants = visitor.find_if(&expr, |e| {
-            matches!(e.kind, ExpressionKind::Constant(Value::Int(_)))
+            matches!(e, Expression::Constant(Value::Int(_)))
         });
 
         // 应该找到3个整数常量

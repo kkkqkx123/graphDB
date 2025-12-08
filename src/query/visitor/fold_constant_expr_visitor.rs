@@ -1,7 +1,7 @@
 //! FoldConstantExprVisitor - 用于常量折叠的访问器
 //! 对应 NebulaGraph FoldConstantExprVisitor.h/.cpp 的功能
 
-use crate::expressions::{Expression, ExpressionKind};
+use crate::graph::expression::{Expression, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use std::collections::HashMap;
 
@@ -23,95 +23,60 @@ impl FoldConstantExprVisitor {
     }
 
     fn visit(&self, expr: &Expression) -> Expression {
-        match &expr.kind {
+        match expr {
             // 常量表达式直接返回
-            ExpressionKind::Constant(_) => expr.clone(),
+            Expression::Constant(_) => expr.clone(),
             
             // 变量表达式尝试替换为参数值
-            ExpressionKind::Variable(name) => {
+            Expression::Property(name) => {
                 if let Some(value) = self.parameters.get(name) {
-                    Expression::constant(value.clone())
+                    Expression::Constant(value.clone())
                 } else {
                     expr.clone()
                 }
             },
             
             // 算术表达式尝试折叠常量
-            ExpressionKind::Arithmetic { op, left, right } => {
+            Expression::BinaryOp(left, op, right) => {
                 let left_folded = self.visit(left);
                 let right_folded = self.visit(right);
                 
                 // 如果左右操作数都是常量，执行常量折叠
-                if let (ExpressionKind::Constant(left_val), ExpressionKind::Constant(right_val)) = 
-                   (&left_folded.kind, &right_folded.kind) {
+                if let (Expression::Constant(left_val), Expression::Constant(right_val)) = 
+                   (&left_folded, &right_folded) {
                     match self.evaluate_arithmetic(op, left_val, right_val) {
                         Ok(result) => Expression::Constant(result),
-                        Err(_) => Expression::Binary {
-                            op: crate::expressions::operations::BinaryOp::Add, // Placeholder - fix based on actual op
-                            left: Box::new(left_folded),
-                            right: Box::new(right_folded),
-                        },
+                        Err(_) => Expression::BinaryOp(
+                            Box::new(left_folded),
+                            op.clone(),
+                            Box::new(right_folded),
+                        ),
                     }
                 } else {
-                    Expression::arithmetic(op.clone(), Box::new(left_folded), Box::new(right_folded))
-                }
-            },
-            
-            // 逻辑表达式尝试折叠常量
-            ExpressionKind::Logical { op, operands } => {
-                let mut folded_operands = Vec::new();
-                for operand in operands {
-                    folded_operands.push(self.visit(operand));
-                }
-                
-                // 检查是否所有操作数都是常量
-                let all_constants = folded_operands.iter()
-                    .all(|expr| matches!(expr.kind, ExpressionKind::Constant(_)));
-                
-                if all_constants && !folded_operands.is_empty() {
-                    // 尝试对常量逻辑表达式求值
-                    match self.evaluate_logical(op, &folded_operands) {
-                        Ok(result) => Expression::constant(result),
-                        Err(_) => Expression::logical(op.clone(), folded_operands),
-                    }
-                } else {
-                    Expression::logical(op.clone(), folded_operands)
-                }
-            },
-            
-            // 关系表达式尝试折叠常量
-            ExpressionKind::Relational { op, left, right } => {
-                let left_folded = self.visit(left);
-                let right_folded = self.visit(right);
-                
-                // 如果左右操作数都是常量，执行常量折叠
-                if let (ExpressionKind::Constant(left_val), ExpressionKind::Constant(right_val)) = 
-                   (&left_folded.kind, &right_folded.kind) {
-                    match self.evaluate_relational(op, left_val, right_val) {
-                        Ok(result) => Expression::constant(result),
-                        Err(_) => Expression::relational(op.clone(), Box::new(left_folded), Box::new(right_folded)),
-                    }
-                } else {
-                    Expression::relational(op.clone(), Box::new(left_folded), Box::new(right_folded))
+                    Expression::BinaryOp(
+                        Box::new(left_folded),
+                        op.clone(),
+                        Box::new(right_folded),
+                    )
                 }
             },
             
             // 一元表达式尝试折叠常量
-            ExpressionKind::Unary { op, operand } => {
+            Expression::UnaryOp(op, operand) => {
                 let operand_folded = self.visit(operand);
                 
-                if let ExpressionKind::Constant(val) = &operand_folded.kind {
+                if let Expression::Constant(val) = &operand_folded {
                     match self.evaluate_unary(op, val) {
-                        Ok(result) => Expression::constant(result),
-                        Err(_) => Expression::unary(op.clone(), Box::new(operand_folded)),
+                        Ok(result) => Expression::Constant(result),
+                        Err(_) => Expression::UnaryOp(op.clone(), Box::new(operand_folded)),
                     }
                 } else {
-                    Expression::unary(op.clone(), Box::new(operand_folded))
+                    Expression::UnaryOp(op.clone(), Box::new(operand_folded))
                 }
             },
             
             // 函数调用 - 尝试对参数都是常量的函数调用求值
-            ExpressionKind::FunctionCall { name, args } => {
+            Expression::Function(name, args) => {
                 let mut folded_args = Vec::new();
                 for arg in args {
                     folded_args.push(self.visit(arg));
@@ -119,157 +84,31 @@ impl FoldConstantExprVisitor {
                 
                 // 检查是否所有参数都是常量
                 let all_constants = folded_args.iter()
-                    .all(|expr| matches!(expr.kind, ExpressionKind::Constant(_)));
+                    .all(|expr| matches!(expr, Expression::Constant(_)));
                 
                 if all_constants {
                     // 尝试执行函数调用
                     match self.evaluate_function(name, &folded_args) {
-                        Ok(result) => Expression::constant(result),
-                        Err(_) => Expression::function_call(name.clone(), folded_args),
+                        Ok(result) => Expression::Constant(result),
+                        Err(_) => Expression::Function(name.clone(), folded_args),
                     }
                 } else {
-                    Expression::function_call(name.clone(), folded_args)
+                    Expression::Function(name.clone(), folded_args)
                 }
             },
             
-            // 类型转换 - 如果操作数是常量，尝试执行转换
-            ExpressionKind::TypeCasting { operand, target_type } => {
-                let operand_folded = self.visit(operand);
-                
-                if let ExpressionKind::Constant(val) = &operand_folded.kind {
-                    match self.cast_value(val, target_type) {
-                        Ok(result) => Expression::constant(result),
-                        Err(_) => Expression::type_casting(Box::new(operand_folded), target_type.clone()),
-                    }
-                } else {
-                    Expression::type_casting(Box::new(operand_folded), target_type.clone())
-                }
-            },
-            
-            // 容器表达式 - 折叠容器中的元素
-            ExpressionKind::List(items) => {
-                let mut folded_items = Vec::new();
-                for item in items {
-                    folded_items.push(self.visit(item));
-                }
-                Expression::list(folded_items)
-            },
-            
-            ExpressionKind::Set(items) => {
-                let mut folded_items = Vec::new();
-                for item in items {
-                    folded_items.push(self.visit(item));
-                }
-                Expression::set(folded_items)
-            },
-            
-            ExpressionKind::Map(kvs) => {
-                let mut folded_kvs = HashMap::new();
-                for (k, v) in kvs {
-                    let folded_k = self.visit(k);
-                    let folded_v = self.visit(v);
-                    folded_kvs.insert(folded_k, folded_v);
-                }
-                Expression::map(folded_kvs)
-            },
-            
-            // 其他表达式类型，递归处理子表达式
-            _ => self.visit_children(expr),
-        }
-    }
-
-    fn visit_children(&self, expr: &Expression) -> Expression {
-        match &expr.kind {
-            ExpressionKind::Unary { op, operand } => {
-                let operand_folded = self.visit(operand);
-                Expression::unary(op.clone(), Box::new(operand_folded))
-            },
-            ExpressionKind::Arithmetic { op, left, right } => {
-                let left_folded = self.visit(left);
-                let right_folded = self.visit(right);
-                Expression::arithmetic(op.clone(), Box::new(left_folded), Box::new(right_folded))
-            },
-            ExpressionKind::Relational { op, left, right } => {
-                let left_folded = self.visit(left);
-                let right_folded = self.visit(right);
-                Expression::relational(op.clone(), Box::new(left_folded), Box::new(right_folded))
-            },
-            ExpressionKind::Logical { op, operands } => {
-                let mut folded_operands = Vec::new();
-                for operand in operands {
-                    folded_operands.push(self.visit(operand));
-                }
-                Expression::logical(op.clone(), folded_operands)
-            },
-            ExpressionKind::Subscript { left, right } => {
-                let left_folded = self.visit(left);
-                let right_folded = self.visit(right);
-                Expression::subscript(Box::new(left_folded), Box::new(right_folded))
-            },
-            ExpressionKind::Attribute { left, right } => {
-                let left_folded = self.visit(left);
-                let right_folded = self.visit(right);
-                Expression::attribute(Box::new(left_folded), Box::new(right_folded))
-            },
-            ExpressionKind::FunctionCall { name, args } => {
-                let mut folded_args = Vec::new();
-                for arg in args {
-                    folded_args.push(self.visit(arg));
-                }
-                Expression::function_call(name.clone(), folded_args)
-            },
-            ExpressionKind::Aggregate { name, arg } => {
-                let arg_folded = self.visit(arg);
-                Expression::aggregate(name.clone(), Box::new(arg_folded))
-            },
-            ExpressionKind::List(items) => {
-                let mut folded_items = Vec::new();
-                for item in items {
-                    folded_items.push(self.visit(item));
-                }
-                Expression::list(folded_items)
-            },
-            ExpressionKind::Set(items) => {
-                let mut folded_items = Vec::new();
-                for item in items {
-                    folded_items.push(self.visit(item));
-                }
-                Expression::set(folded_items)
-            },
-            ExpressionKind::Map(kvs) => {
-                let mut folded_kvs = HashMap::new();
-                for (k, v) in kvs {
-                    let folded_k = self.visit(k);
-                    let folded_v = self.visit(v);
-                    folded_kvs.insert(folded_k, folded_v);
-                }
-                Expression::map(folded_kvs)
-            },
-            ExpressionKind::Case { .. } => {
-                // Case表达式处理
-                expr.clone() // 简化实现
-            },
-            ExpressionKind::Reduce { .. } => {
-                // Reduce表达式处理
-                expr.clone() // 简化实现
-            },
-            ExpressionKind::ListComprehension { .. } => {
-                // 列表推导式处理
-                expr.clone() // 简化实现
-            },
             // 其他表达式类型，直接返回
             _ => expr.clone(),
         }
     }
 
-    fn evaluate_arithmetic(&self, op: &str, left: &Value, right: &Value) -> Result<Value, String> {
+    fn evaluate_arithmetic(&self, op: &BinaryOperator, left: &Value, right: &Value) -> Result<Value, String> {
         match op {
-            "Add" => left.add(right),
-            "Minus" => left.sub(right),
-            "Multiply" => left.mul(right),
-            "Division" => left.div(right),
-            "Mod" => left.modulo(right),
-            _ => Err(format!("Unknown arithmetic operation: {}", op)),
+            BinaryOperator::Add => left.add(right),
+            BinaryOperator::Sub => left.sub(right),
+            BinaryOperator::Mul => left.mul(right),
+            BinaryOperator::Div => left.div(right),
+            _ => Err(format!("Unknown arithmetic operation: {:?}", op)),
         }
     }
 
@@ -278,7 +117,7 @@ impl FoldConstantExprVisitor {
             "And" | "LogicalAnd" => {
                 let mut result = true;
                 for operand in operands {
-                    if let ExpressionKind::Constant(val) = &operand.kind {
+                    if let Expression::Constant(val) = operand {
                         // 简化处理布尔值
                         result = result && val.bool_value().unwrap_or(false);
                     } else {
@@ -290,21 +129,9 @@ impl FoldConstantExprVisitor {
             "Or" | "LogicalOr" => {
                 let mut result = false;
                 for operand in operands {
-                    if let ExpressionKind::Constant(val) = &operand.kind {
+                    if let Expression::Constant(val) = operand {
                         // 简化处理布尔值
                         result = result || val.bool_value().unwrap_or(false);
-                    } else {
-                        return Err("Non-constant operand in logical operation".to_string());
-                    }
-                }
-                Ok(Value::Bool(result))
-            },
-            "Xor" | "LogicalXor" => {
-                let mut result = false;
-                for operand in operands {
-                    if let ExpressionKind::Constant(val) = &operand.kind {
-                        // 简化处理布尔值
-                        result ^= val.bool_value().unwrap_or(false);
                     } else {
                         return Err("Non-constant operand in logical operation".to_string());
                     }
@@ -339,16 +166,13 @@ impl FoldConstantExprVisitor {
         }
     }
 
-    fn evaluate_unary(&self, op: &str, operand: &Value) -> Result<Value, String> {
+    fn evaluate_unary(&self, op: &crate::graph::expression::UnaryOperator, operand: &Value) -> Result<Value, String> {
         match op {
-            "UnaryPlus" => Ok(operand.clone()),
-            "UnaryNegate" => operand.negate(),
-            "UnaryNot" => Ok(Value::Bool(!operand.bool_value().unwrap_or(false))),
-            "IsNull" => Ok(Value::Bool(operand.is_null())),
-            "IsNotNull" => Ok(Value::Bool(!operand.is_null())),
-            "IsEmpty" => Ok(Value::Bool(operand.is_empty())),
-            "IsNotEmpty" => Ok(Value::Bool(!operand.is_empty())),
-            _ => Err(format!("Unknown unary operation: {}", op)),
+            crate::graph::expression::UnaryOperator::Plus => Ok(operand.clone()),  // Identity operation
+            crate::graph::expression::UnaryOperator::Minus => operand.negate(),
+            crate::graph::expression::UnaryOperator::Not => Ok(Value::Bool(!operand.bool_value().unwrap_or(false))),
+            crate::graph::expression::UnaryOperator::Increment => Err("Increment operation not supported in constant folding".to_string()),
+            crate::graph::expression::UnaryOperator::Decrement => Err("Decrement operation not supported in constant folding".to_string()),
         }
     }
 
@@ -356,7 +180,7 @@ impl FoldConstantExprVisitor {
         match name.to_lowercase().as_str() {
             "abs" => {
                 if args.len() == 1 {
-                    if let ExpressionKind::Constant(val) = &args[0].kind {
+                    if let Expression::Constant(val) = &args[0] {
                         return val.abs();
                     }
                 }
@@ -364,7 +188,7 @@ impl FoldConstantExprVisitor {
             },
             "ceil" => {
                 if args.len() == 1 {
-                    if let ExpressionKind::Constant(val) = &args[0].kind {
+                    if let Expression::Constant(val) = &args[0] {
                         return val.ceil();
                     }
                 }
@@ -372,7 +196,7 @@ impl FoldConstantExprVisitor {
             },
             "floor" => {
                 if args.len() == 1 {
-                    if let ExpressionKind::Constant(val) = &args[0].kind {
+                    if let Expression::Constant(val) = &args[0] {
                         return val.floor();
                     }
                 }
@@ -380,7 +204,7 @@ impl FoldConstantExprVisitor {
             },
             "round" => {
                 if args.len() == 1 {
-                    if let ExpressionKind::Constant(val) = &args[0].kind {
+                    if let Expression::Constant(val) = &args[0] {
                         return val.round();
                     }
                 }
@@ -388,7 +212,7 @@ impl FoldConstantExprVisitor {
             },
             "lower" => {
                 if args.len() == 1 {
-                    if let ExpressionKind::Constant(val) = &args[0].kind {
+                    if let Expression::Constant(val) = &args[0] {
                         return val.lower();
                     }
                 }
@@ -396,7 +220,7 @@ impl FoldConstantExprVisitor {
             },
             "upper" => {
                 if args.len() == 1 {
-                    if let ExpressionKind::Constant(val) = &args[0].kind {
+                    if let Expression::Constant(val) = &args[0] {
                         return val.upper();
                     }
                 }
@@ -404,7 +228,7 @@ impl FoldConstantExprVisitor {
             },
             "trim" => {
                 if args.len() == 1 {
-                    if let ExpressionKind::Constant(val) = &args[0].kind {
+                    if let Expression::Constant(val) = &args[0] {
                         return val.trim();
                     }
                 }
@@ -412,7 +236,7 @@ impl FoldConstantExprVisitor {
             },
             "length" => {
                 if args.len() == 1 {
-                    if let ExpressionKind::Constant(val) = &args[0].kind {
+                    if let Expression::Constant(val) = &args[0] {
                         return val.length();
                     }
                 }
@@ -441,9 +265,9 @@ impl FoldConstantExprVisitor {
             crate::core::ValueTypeDef::Set => value.cast_to_set(),
             crate::core::ValueTypeDef::Duration => value.cast_to_duration(),
             crate::core::ValueTypeDef::Geography => value.cast_to_geography(),
-            crate::core::ValueTypeDef::IntRange => value.cast_to_int_range(),
-            crate::core::ValueTypeDef::FloatRange => value.cast_to_float_range(),
-            crate::core::ValueTypeDef::StringRange => value.cast_to_string_range(),
+            crate::core::ValueTypeDef::IntRange => value.cast_to_int(),
+            crate::core::ValueTypeDef::FloatRange => value.cast_to_float(),
+            crate::core::ValueTypeDef::StringRange => value.cast_to_string(),
             crate::core::ValueTypeDef::DataSet => value.cast_to_dataset(),
             crate::core::ValueTypeDef::Null => Ok(Value::Null(crate::core::NullType::Null)),
             crate::core::ValueTypeDef::Empty => Ok(Value::Empty),

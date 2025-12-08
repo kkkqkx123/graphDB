@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use crate::core::{Value, NullType};
 use super::base::{EvaluationError, ExpressionContext};
-use crate::expressions::value::Expression;
+use crate::graph::expression::Expression;
 
 /// Process a list container expression
 pub fn eval_list(items: &[Expression], context: &dyn ExpressionContext) -> Result<Value, EvaluationError> {
