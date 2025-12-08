@@ -5,6 +5,8 @@ use thiserror::Error;
 
 pub mod visitor;
 pub mod validator;
+pub mod planner;
+pub mod optimizer;
 
 #[derive(Error, Debug)]
 pub enum QueryError {

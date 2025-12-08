@@ -14,6 +14,7 @@ pub mod execution_context;
 pub mod result;
 pub mod query_context;
 pub mod validate_context;
+pub mod ast_context;
 
 pub use value::*;
 pub use vertex_edge_path::*;
@@ -23,3 +24,4 @@ pub use execution_context::*;
 pub use result::*;
 pub use query_context::*;
 pub use validate_context::*;
+pub use ast_context::*;
