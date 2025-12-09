@@ -1,5 +1,5 @@
 //! Main planner trait and implementation
-use crate::core::AstContext;
+use crate::query::context::AstContext;
 use super::plan::SubPlan;
 
 // Match function type - takes AstContext and returns whether the planner matches

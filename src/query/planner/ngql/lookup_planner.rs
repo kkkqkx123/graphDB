@@ -1,7 +1,7 @@
 //! LOOKUP语句规划器
 //! 处理Nebula LOOKUP查询的规划
 
-use crate::core::AstContext;
+use crate::query::context::AstContext;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::plan::SubPlan;
 

@@ -4,6 +4,7 @@ use crate::core::{Vertex, Edge, Value, Tag, NullType};
 use crate::storage::{StorageEngine, StorageError};
 use thiserror::Error;
 
+pub mod context;
 pub mod visitor;
 pub mod validator;
 pub mod planner;

@@ -1,7 +1,7 @@
 //! 维护操作规划器
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
-use crate::core::AstContext;
+use crate::query::context::AstContext;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::plan::SubPlan;
 

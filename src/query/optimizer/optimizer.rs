@@ -1,6 +1,6 @@
 //! Optimizer implementation for optimizing execution plans
 use crate::query::planner::plan::{PlanNode, PlanNodeKind, ExecutionPlan};
-use crate::core::QueryContext;
+use crate::query::context::QueryContext;
 
 #[derive(Debug, Clone)]
 pub struct OptContext {

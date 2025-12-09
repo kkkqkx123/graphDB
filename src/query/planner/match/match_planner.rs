@@ -1,7 +1,7 @@
 //! MATCH查询主规划器
 //! 负责将MATCH查询转换为执行计划
 
-use crate::core::AstContext;
+use crate::query::context::AstContext;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::plan::SubPlan;
 

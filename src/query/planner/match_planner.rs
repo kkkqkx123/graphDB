@@ -1,5 +1,5 @@
 //! Match planner implementation for handling MATCH queries
-use crate::core::AstContext;
+use crate::query::context::AstContext;
 use super::planner::{Planner, PlannerError};
 use super::plan::{SubPlan, PlanNodeKind, ExecutionPlan, SingleInputNode};
 
