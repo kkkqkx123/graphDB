@@ -20,6 +20,10 @@ pub enum QueryError {
     ParseError(String),
     #[error("Invalid query: {0}")]
     InvalidQuery(String),
+    #[error("Execution error: {0}")]
+    ExecutionError(String),
+    #[error("Expression error: {0}")]
+    ExpressionError(String),
 }
 
 #[derive(Debug, Clone)]

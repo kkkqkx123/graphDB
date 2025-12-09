@@ -98,34 +98,18 @@ impl ResultBuilder {
     pub fn build(self) -> Result {
         let value = self.value.unwrap_or(Value::Null(NullType::Null));
         
-        // 创建ResultCore
-        let mut core = super::result_core::ResultCore {
-            check_memory: self.check_memory,
-            state: self.state,
-            msg: self.msg,
-            value: Arc::new(value),
-            iterator: self.iterator,
-            memory_stats: self.memory_stats,
-            creation_time: std::time::SystemTime::now(),
-            access_count: std::sync::atomic::AtomicU64::new(0),
-            is_shared: false,
-            memory_manager: self.memory_manager,
-        };
+        // 使用完整构造方法创建结果
+        let mut result = Result::with_components(
+            value,
+            self.state,
+            self.msg,
+            self.iterator,
+            self.memory_stats,
+            self.check_memory,
+            self.memory_manager,
+        );
 
-        // 如果迭代器存在，更新值为迭代器的值
-        if let Some(iter) = &core.iterator {
-            if !iter.is_empty() {
-                if let Some(row) = iter.current_row() {
-                    if let Some(first_value) = row.first() {
-                        core.value = Arc::new(first_value.clone());
-                    }
-                }
-            }
-        }
-
-        Result {
-            core: Arc::new(core),
-        }
+        result
     }
 
     /// 从现有结果构建

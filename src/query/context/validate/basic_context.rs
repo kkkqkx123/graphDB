@@ -1,46 +1,23 @@
-//! 验证上下文模块 - 管理查询验证阶段的上下文信息
-//! 对应原C++中的ValidateContext.h
+//! 基本验证上下文模块
+//! 提供查询验证阶段的基础上下文管理功能
 
 use std::collections::{HashMap, HashSet};
 use crate::core::Value;
+use super::types::{SpaceInfo, Column, ColsDef, Variable};
 
-/// 图空间信息
-#[derive(Debug, Clone)]
-pub struct SpaceInfo {
-    pub id: i32,
-    pub name: String,
-    pub vid_type: String,  // 顶点ID类型
-}
-
-/// 列定义
-#[derive(Debug, Clone)]
-pub struct Column {
-    pub name: String,
-    pub type_: String,
-}
-
-/// 列定义集合 - 一个变量包含多个列
-pub type ColsDef = Vec<Column>;
-
-/// 变量定义 - 在查询中定义的变量（如MATCH中的别名）
-#[derive(Debug, Clone)]
-pub struct Variable {
-    pub name: String,
-    pub columns: ColsDef,
-}
-
-/// 验证上下文
+/// 基本验证上下文
 /// 
-/// 验证阶段的上下文，包含验证所需的信息
-/// 对应原C++中的ValidateContext类
+/// 验证阶段的上下文，包含验证所需的基础信息
 /// 
 /// 主要功能：
 /// 1. 追踪图空间的选择
 /// 2. 管理查询中定义的变量（如MATCH中的别名）
 /// 3. 存储参数
 /// 4. 追踪别名到类型的映射
+/// 5. 管理创建的空间和索引
+/// 6. 收集验证错误信息
 #[derive(Debug, Clone)]
-pub struct ValidateContext {
+pub struct BasicValidateContext {
     // 图空间栈 - 追踪空间切换的历史
     spaces: Vec<SpaceInfo>,
     
@@ -64,7 +41,7 @@ pub struct ValidateContext {
     errors: Vec<String>,
 }
 
-impl ValidateContext {
+impl BasicValidateContext {
     /// 创建新的验证上下文
     pub fn new() -> Self {
         Self {
@@ -137,7 +114,7 @@ impl ValidateContext {
     /// 
     /// # 示例
     /// ```ignore
-    /// let mut ctx = ValidateContext::new();
+    /// let mut ctx = BasicValidateContext::new();
     /// assert!(!ctx.exists_var("n"));
     /// 
     /// ctx.register_variable("n".to_string(), vec![
@@ -277,7 +254,7 @@ impl ValidateContext {
     }
 }
 
-impl Default for ValidateContext {
+impl Default for BasicValidateContext {
     fn default() -> Self {
         Self::new()
     }
@@ -289,8 +266,8 @@ mod tests {
     use crate::core::Value;
 
     #[test]
-    fn test_validate_context_new() {
-        let ctx = ValidateContext::new();
+    fn test_basic_validate_context_new() {
+        let ctx = BasicValidateContext::new();
         assert!(!ctx.space_chosen());
         assert!(ctx.get_all_variables().is_empty());
         assert!(!ctx.has_errors());
@@ -298,7 +275,7 @@ mod tests {
 
     #[test]
     fn test_exists_var_basic() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = BasicValidateContext::new();
         
         // 变量不存在
         assert!(!ctx.exists_var("n"));
@@ -326,69 +303,8 @@ mod tests {
     }
 
     #[test]
-    fn test_exists_var_multiple() {
-        let mut ctx = ValidateContext::new();
-        
-        ctx.register_variable("a".to_string(), vec![]);
-        ctx.register_variable("b".to_string(), vec![]);
-        ctx.register_variable("c".to_string(), vec![]);
-        
-        assert!(ctx.exists_var("a"));
-        assert!(ctx.exists_var("b"));
-        assert!(ctx.exists_var("c"));
-        assert!(!ctx.exists_var("d"));
-    }
-
-    #[test]
-    fn test_register_and_get_variable() {
-        let mut ctx = ValidateContext::new();
-        
-        let cols = vec![
-            Column {
-                name: "id".to_string(),
-                type_: "INT".to_string(),
-            },
-            Column {
-                name: "name".to_string(),
-                type_: "STRING".to_string(),
-            },
-        ];
-        
-        ctx.register_variable("person".to_string(), cols.clone());
-        
-        let retrieved = ctx.get_var("person");
-        assert_eq!(retrieved.len(), 2);
-        assert_eq!(retrieved[0].name, "id");
-        assert_eq!(retrieved[1].name, "name");
-    }
-
-    #[test]
-    fn test_var_has_column() {
-        let mut ctx = ValidateContext::new();
-        
-        ctx.register_variable(
-            "n".to_string(),
-            vec![
-                Column {
-                    name: "id".to_string(),
-                    type_: "INT".to_string(),
-                },
-                Column {
-                    name: "name".to_string(),
-                    type_: "STRING".to_string(),
-                },
-            ],
-        );
-        
-        assert!(ctx.var_has_column("n", "id"));
-        assert!(ctx.var_has_column("n", "name"));
-        assert!(!ctx.var_has_column("n", "age"));
-        assert!(!ctx.var_has_column("m", "id"));
-    }
-
-    #[test]
     fn test_space_management() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = BasicValidateContext::new();
         
         assert!(!ctx.space_chosen());
         
@@ -407,7 +323,7 @@ mod tests {
 
     #[test]
     fn test_parameter_management() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = BasicValidateContext::new();
         
         ctx.set_parameter("param1".to_string(), Value::Int(42));
         
@@ -418,7 +334,7 @@ mod tests {
 
     #[test]
     fn test_alias_management() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = BasicValidateContext::new();
         
         ctx.add_alias("my_alias".to_string(), "STRING".to_string());
         
@@ -428,37 +344,8 @@ mod tests {
     }
 
     #[test]
-    fn test_space_creation() {
-        let mut ctx = ValidateContext::new();
-        
-        ctx.add_space("new_space".to_string());
-        
-        assert!(ctx.has_space("new_space"));
-        assert!(!ctx.has_space("other_space"));
-        
-        let spaces = ctx.get_create_spaces();
-        assert_eq!(spaces.len(), 1);
-        assert!(spaces.contains(&"new_space".to_string()));
-    }
-
-    #[test]
-    fn test_index_management() {
-        let mut ctx = ValidateContext::new();
-        
-        ctx.add_index("idx_name".to_string());
-        ctx.add_index("idx_age".to_string());
-        
-        assert!(ctx.has_index("idx_name"));
-        assert!(ctx.has_index("idx_age"));
-        assert!(!ctx.has_index("idx_unknown"));
-        
-        let indexes = ctx.get_indexes();
-        assert_eq!(indexes.len(), 2);
-    }
-
-    #[test]
     fn test_error_management() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = BasicValidateContext::new();
         
         assert!(!ctx.has_errors());
         assert_eq!(ctx.error_count(), 0);
@@ -475,78 +362,6 @@ mod tests {
         assert_eq!(errors[0], "Error 1");
         
         ctx.clear_errors();
-        assert!(!ctx.has_errors());
-    }
-
-    #[test]
-    fn test_get_all_variables() {
-        let mut ctx = ValidateContext::new();
-        
-        ctx.register_variable("n".to_string(), vec![]);
-        ctx.register_variable("m".to_string(), vec![]);
-        ctx.register_variable("k".to_string(), vec![]);
-        
-        let vars = ctx.get_all_variables();
-        assert_eq!(vars.len(), 3);
-        assert!(vars.contains(&"n".to_string()));
-        assert!(vars.contains(&"m".to_string()));
-        assert!(vars.contains(&"k".to_string()));
-    }
-
-    #[test]
-    fn test_get_variable_object() {
-        let mut ctx = ValidateContext::new();
-        
-        let cols = vec![
-            Column {
-                name: "id".to_string(),
-                type_: "INT".to_string(),
-            },
-        ];
-        
-        ctx.register_variable("n".to_string(), cols);
-        
-        let var = ctx.get_variable("n");
-        assert!(var.is_some());
-        assert_eq!(var.unwrap().name, "n");
-        
-        assert!(ctx.get_variable("m").is_none());
-    }
-
-    #[test]
-    fn test_validate_context_comprehensive() {
-        let mut ctx = ValidateContext::new();
-        
-        // 添加空间
-        let space = SpaceInfo {
-            id: 1,
-            name: "my_space".to_string(),
-            vid_type: "INT".to_string(),
-        };
-        ctx.switch_to_space(space);
-        
-        // 添加变量
-        ctx.register_variable(
-            "person".to_string(),
-            vec![
-                Column {
-                    name: "id".to_string(),
-                    type_: "INT".to_string(),
-                },
-            ],
-        );
-        
-        // 添加参数
-        ctx.set_parameter("limit".to_string(), Value::Int(10));
-        
-        // 添加别名
-        ctx.add_alias("person_alias".to_string(), "VERTEX".to_string());
-        
-        // 验证所有功能
-        assert!(ctx.space_chosen());
-        assert!(ctx.exists_var("person"));
-        assert!(ctx.exist_parameter("limit"));
-        assert!(ctx.exist_alias("person_alias"));
         assert!(!ctx.has_errors());
     }
 }

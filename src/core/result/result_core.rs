@@ -106,8 +106,17 @@ impl Clone for ResultCore {
     }
 }
 
+impl PartialEq for ResultCore {
+    fn eq(&self, other: &Self) -> bool {
+        // 比较主要属性：状态、消息和值
+        self.state == other.state && 
+        self.msg == other.msg && 
+        self.value == other.value
+    }
+}
+
 /// 执行结果
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Result {
     core: Arc<ResultCore>,
 }
@@ -147,6 +156,52 @@ impl Result {
         let mut result = Self::new(value, state);
         Arc::get_mut(&mut result.core).unwrap().msg = msg;
         result
+    }
+
+    /// 完整构造方法 - 用于 ResultBuilder
+    pub(crate) fn with_components(
+        value: Value,
+        state: ResultState,
+        msg: String,
+        iterator: Option<Arc<dyn ResultIterator>>,
+        memory_stats: MemoryStats,
+        check_memory: bool,
+        memory_manager: Option<Arc<dyn MemoryManager>>,
+    ) -> Self {
+        let core = ResultCore {
+            check_memory,
+            state,
+            msg,
+            value: Arc::new(value),
+            iterator,
+            memory_stats,
+            creation_time: std::time::SystemTime::now(),
+            access_count: AtomicU64::new(0),
+            is_shared: false,
+            memory_manager,
+        };
+
+        Self {
+            core: Arc::new(core),
+        }
+    }
+
+    /// 更新迭代器并调整值 - 用于 ResultBuilder
+    pub(crate) fn update_iterator_and_value(&mut self, iterator: Option<Arc<dyn ResultIterator>>) {
+        if let Some(core) = Arc::get_mut(&mut self.core) {
+            core.iterator = iterator;
+            
+            // 如果迭代器存在，更新值为迭代器的值
+            if let Some(iter) = &core.iterator {
+                if !iter.is_empty() {
+                    if let Some(row) = iter.current_row() {
+                        if let Some(first_value) = row.first() {
+                            core.value = Arc::new(first_value.clone());
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// 获取值的引用

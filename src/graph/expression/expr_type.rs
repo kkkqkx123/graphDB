@@ -2,6 +2,7 @@ use super::binary::BinaryOperator;
 use super::unary::UnaryOperator;
 use crate::core::Value;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Represents an expression in a query
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -311,6 +312,108 @@ impl Expression {
 
             Expression::MatchPathPattern { patterns, .. } => patterns.iter().collect(),
         }
+    }
+
+    /// 评估表达式
+    pub fn evaluate(&self, context: &crate::graph::expression::EvalContext) -> Result<Value, String> {
+        match self {
+            Expression::Constant(value) => Ok(value.clone()),
+            Expression::Property(name) => {
+                // 从上下文中获取属性值
+                if let Some(value) = context.vars.get(name) {
+                    Ok(value.clone())
+                } else {
+                    Ok(Value::Null(crate::core::NullType::UnknownProp))
+                }
+            },
+            Expression::Variable(name) => {
+                // 从上下文中获取变量值
+                if let Some(value) = context.vars.get(name) {
+                    Ok(value.clone())
+                } else {
+                    Ok(Value::Null(crate::core::NullType::UnknownProp))
+                }
+            },
+            Expression::InputProperty(name) => {
+                // 从上下文中获取输入属性值
+                if let Some(value) = context.vars.get(&format!("$-{}", name)) {
+                    Ok(value.clone())
+                } else {
+                    Ok(Value::Null(crate::core::NullType::UnknownProp))
+                }
+            },
+            Expression::Function(name, args) => {
+                // 简化的函数评估
+                match name.as_str() {
+                    "id" => {
+                        if let Some(vertex) = context.vertex {
+                            Ok(*vertex.vid.clone())
+                        } else {
+                            Ok(Value::Null(crate::core::NullType::UnknownProp))
+                        }
+                    },
+                    _ => Err(format!("Unknown function: {}", name)),
+                }
+            },
+            // 其他表达式类型的评估...
+            _ => Ok(Value::Null(crate::core::NullType::UnknownProp)),
+        }
+    }
+}
+
+/// 字面量表达式
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LiteralExpression {
+    pub value: Value,
+}
+
+impl LiteralExpression {
+    pub fn new(value: Value) -> Self {
+        Self { value }
+    }
+}
+
+/// 变量表达式
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct VariableExpression {
+    pub name: String,
+}
+
+impl VariableExpression {
+    pub fn new(name: String) -> Self {
+        Self { name }
+    }
+}
+
+/// 输入属性表达式
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct InputPropertyExpression {
+    pub name: String,
+}
+
+impl InputPropertyExpression {
+    pub fn new(name: String) -> Self {
+        Self { name }
+    }
+    
+    pub fn evaluate(&self, context: &crate::graph::expression::EvalContext) -> Result<Value, String> {
+        if let Some(value) = context.vars.get(&self.name) {
+            Ok(value.clone())
+        } else {
+            Ok(Value::Null(crate::core::NullType::UnknownProp))
+        }
+    }
+}
+
+/// 属性表达式
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PropertyExpression {
+    pub name: String,
+}
+
+impl PropertyExpression {
+    pub fn new(name: String) -> Self {
+        Self { name }
     }
 }
 

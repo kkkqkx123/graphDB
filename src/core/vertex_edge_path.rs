@@ -34,10 +34,28 @@ impl Tag {
 }
 
 /// Represents a vertex in the graph, similar to Nebula's Vertex structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Vertex {
     pub vid: Box<Value>,             // Vertex ID can now be any Value type, using Box to break cycles
     pub tags: Vec<Tag>,              // A vertex can have multiple tags
+    pub properties: HashMap<String, Value>,  // Vertex properties
+}
+
+// 手动实现Hash以处理HashMap的Hash
+impl std::hash::Hash for Vertex {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.vid.hash(state);
+        for tag in &self.tags {
+            tag.hash(state);
+        }
+        // 对于HashMap，我们按键值对的排序顺序进行哈希
+        let mut pairs: Vec<_> = self.properties.iter().collect();
+        pairs.sort_by_key(|&(k, _)| k);
+        for (k, v) in pairs {
+            k.hash(state);
+            v.hash(state);
+        }
+    }
 }
 
 impl Vertex {
@@ -45,6 +63,15 @@ impl Vertex {
         Self {
             vid: Box::new(vid),
             tags,
+            properties: HashMap::new(),
+        }
+    }
+    
+    pub fn new_with_properties(vid: Value, tags: Vec<Tag>, properties: HashMap<String, Value>) -> Self {
+        Self {
+            vid: Box::new(vid),
+            tags,
+            properties,
         }
     }
 
@@ -69,6 +96,7 @@ impl Default for Vertex {
         Self {
             vid: Box::new(Value::Null(NullType::NaN)),
             tags: Vec::new(),
+            properties: HashMap::new(),
         }
     }
 }
@@ -81,6 +109,14 @@ pub struct Edge {
     pub edge_type: String,          // Edge type name
     pub ranking: i64,               // Edge ranking
     pub props: HashMap<String, Value>,  // Edge properties
+}
+
+/// 为了兼容性，添加properties字段
+impl Edge {
+    /// 获取边的属性
+    pub fn properties(&self) -> &HashMap<String, Value> {
+        &self.props
+    }
 }
 
 // Implement Hash manually for Edge to handle HashMap hashing
@@ -121,10 +157,27 @@ pub struct Step {
 }
 
 /// Represents a path in the graph
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Path {
     pub src: Box<Vertex>,
     pub steps: Vec<Step>,
+}
+
+// 手动实现Hash以处理复杂类型的Hash
+impl std::hash::Hash for Path {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.src.hash(state);
+        for step in &self.steps {
+            step.hash(state);
+        }
+    }
+}
+
+impl Path {
+    /// 获取路径中的边
+    pub fn edges(&self) -> Vec<&Edge> {
+        self.steps.iter().map(|step| &step.edge).collect()
+    }
 }
 
 impl Default for Path {

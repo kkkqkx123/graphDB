@@ -19,3 +19,6 @@ pub use error::*;
 pub use evaluator::*;
 pub use binary::BinaryOperator;
 pub use unary::UnaryOperator;
+
+// 类型别名，为了兼容性
+pub type ExpressionContext<'a> = EvalContext<'a>;

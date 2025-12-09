@@ -278,7 +278,7 @@ mod tests {
         // 测试验证上下文
         let _space = ValidateContext::new().current_space().cloned();
         ctx.vctx_mut()
-            .switch_to_space(crate::query::context::validate_context::SpaceInfo {
+            .switch_to_space(crate::query::context::validate::types::SpaceInfo {
                 id: 1,
                 name: "test_space".to_string(),
                 vid_type: "INT".to_string(),

@@ -5,6 +5,24 @@
 //! - AppendVertices（追加顶点）
 //! - Unwind（列表展开）
 //! - PatternApply（模式匹配）
-//! - RollUp（聚合操作）
+//! - RollUpApply（聚合操作）
 
-// 占位符，后续会添加具体的执行器实现
+// 变量赋值执行器
+pub mod assign;
+pub use assign::AssignExecutor;
+
+// 列表展开执行器
+pub mod unwind;
+pub use unwind::UnwindExecutor;
+
+// 追加顶点执行器
+pub mod append_vertices;
+pub use append_vertices::AppendVerticesExecutor;
+
+// 模式匹配执行器
+pub mod pattern_apply;
+pub use pattern_apply::{PatternApplyExecutor, PatternType, EdgeDirection};
+
+// 聚合操作执行器
+pub mod rollup_apply;
+pub use rollup_apply::RollUpApplyExecutor;

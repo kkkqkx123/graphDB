@@ -29,6 +29,10 @@ pub mod join;
 
 // 数据转换执行器
 pub mod transformations;
+pub use transformations::{
+    AssignExecutor, UnwindExecutor, AppendVerticesExecutor,
+    PatternApplyExecutor, RollUpApplyExecutor, PatternType, EdgeDirection
+};
 
 // 循环控制
 pub mod loops;

@@ -42,6 +42,11 @@ impl<'a> EvalContext<'a> {
             vars: HashMap::new(),
         }
     }
+
+    /// 设置变量值
+    pub fn set_variable(&mut self, name: String, value: Value) {
+        self.vars.insert(name, value);
+    }
 }
 
 impl<'a> From<&'a SerializableEvalContext> for EvalContext<'a> {

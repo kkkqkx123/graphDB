@@ -125,6 +125,21 @@ pub struct DurationValue {
     pub months: i32,
 }
 
+/// Simple List representation similar to Nebula
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct List {
+    pub values: Vec<Value>,
+}
+
+// 手动实现Hash以处理Value的Hash
+impl std::hash::Hash for List {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for value in &self.values {
+            value.hash(state);
+        }
+    }
+}
+
 /// Simple DataSet representation similar to Nebula
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
 pub struct DataSet {
@@ -137,6 +152,14 @@ impl DataSet {
         Self {
             col_names: Vec::new(),
             rows: Vec::new(),
+        }
+    }
+}
+
+impl List {
+    pub fn new() -> Self {
+        Self {
+            values: Vec::new(),
         }
     }
 }
