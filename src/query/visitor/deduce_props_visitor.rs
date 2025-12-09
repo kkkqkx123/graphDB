@@ -1,6 +1,7 @@
 //! DeducePropsVisitor - 用于推导表达式属性的访问器
 //! 对应 NebulaGraph DeducePropsVisitor.h/.cpp 的功能
 
+use crate::graph::expression::binary::BinaryOperator;
 use crate::graph::expression::Expression;
 use std::collections::{HashMap, HashSet};
 
@@ -547,7 +548,7 @@ mod tests {
     #[test]
     fn test_deduce_visitor_constant() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expression::Constant(crate::core::Value::Integer(42));
+        let expr = Expression::Constant(crate::core::Value::Int(42));
 
         assert!(visitor.deduce(&expr).is_ok());
         assert!(visitor.get_props().is_all_props_empty());
@@ -615,7 +616,7 @@ mod tests {
         let mut visitor = DeducePropsVisitor::new();
         let expr = Expression::BinaryOp(
             Box::new(Expression::Property("age".to_string())),
-            crate::graph::expression::BinaryOperator::Plus,
+            crate::graph::expression::BinaryOperator::Add,
             Box::new(Expression::Property("bonus".to_string())),
         );
 

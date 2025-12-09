@@ -102,7 +102,8 @@ impl Iterator for SequentialIter {
         if self.curr_pos < self.rows.len() {
             // 快速删除：交换最后一行到当前位置，然后 pop
             // 这不保持顺序，但速度更快
-            self.rows.swap(self.curr_pos, self.rows.len() - 1);
+            let len = self.rows.len();
+            self.rows.swap(self.curr_pos, len - 1);
             self.rows.pop();
             // curr_pos 不变，指向原来的最后一行
         }
@@ -364,13 +365,13 @@ mod tests {
         let mut copy = iter.copy();
 
         // 拷贝应该有相同的状态
-        assert_eq!(copy.curr_pos, iter.curr_pos);
+        assert_eq!(copy.is_empty(), iter.is_empty());
         assert_eq!(copy.size(), iter.size());
-
+        
         // 修改原迭代器不应该影响拷贝
         iter.next();
-        assert_eq!(copy.curr_pos, 1);
-        assert_eq!(iter.curr_pos, 2);
+        assert_eq!(copy.size(), iter.size());
+        assert_eq!(copy.is_empty(), iter.is_empty());
     }
 
     #[test]

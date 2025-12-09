@@ -19,31 +19,40 @@ impl AggregateValidator {
             Expression::BinaryOp(left, _, right) => {
                 self.has_aggregate_expr(left) || self.has_aggregate_expr(right)
             }
-            Expression::Function(_, args) => {
-                args.iter().any(|arg| self.has_aggregate_expr(arg))
-            }
-            Expression::List(items) => {
-                items.iter().any(|item| self.has_aggregate_expr(item))
-            }
-            Expression::Set(items) => {
-                items.iter().any(|item| self.has_aggregate_expr(item))
-            }
-            Expression::Map(items) => {
-                items.iter().any(|(_, value)| self.has_aggregate_expr(value))
-            }
-            Expression::Case { conditions, default } => {
+            Expression::Function(_, args) => args.iter().any(|arg| self.has_aggregate_expr(arg)),
+            Expression::List(items) => items.iter().any(|item| self.has_aggregate_expr(item)),
+            Expression::Set(items) => items.iter().any(|item| self.has_aggregate_expr(item)),
+            Expression::Map(items) => items
+                .iter()
+                .any(|(_, value)| self.has_aggregate_expr(value)),
+            Expression::Case {
+                conditions,
+                default,
+            } => {
                 conditions.iter().any(|(cond, val)| {
                     self.has_aggregate_expr(cond) || self.has_aggregate_expr(val)
-                }) || default.as_ref().map_or(false, |d| self.has_aggregate_expr(d))
+                }) || default
+                    .as_ref()
+                    .map_or(false, |d| self.has_aggregate_expr(d))
             }
-            Expression::ListComprehension { generator, condition } => {
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => {
                 self.has_aggregate_expr(generator)
-                    || condition.as_ref().map_or(false, |c| self.has_aggregate_expr(c))
+                    || condition
+                        .as_ref()
+                        .map_or(false, |c| self.has_aggregate_expr(c))
             }
             Expression::Predicate { list, condition } => {
                 self.has_aggregate_expr(list) || self.has_aggregate_expr(condition)
             }
-            Expression::Reduce { list, initial, expr, .. } => {
+            Expression::Reduce {
+                list,
+                initial,
+                expr,
+                ..
+            } => {
                 self.has_aggregate_expr(list)
                     || self.has_aggregate_expr(initial)
                     || self.has_aggregate_expr(expr)
@@ -64,12 +73,12 @@ impl AggregateValidator {
     pub fn validate_aggregate_expr(&self, expr: &Expression) -> Result<(), String> {
         // 这里可以添加更详细的聚合函数验证逻辑
         // 例如检查聚合函数的参数类型、嵌套使用等
-        
+
         if self.has_aggregate_expr(expr) {
             // 检查聚合函数的使用是否合法
             // 在实际实现中，这里会进行更详细的验证
         }
-        
+
         Ok(())
     }
 }
@@ -99,7 +108,7 @@ mod tests {
         // 对于测试目的，我们暂时使用一个简单的测试
         let binary_expr = Expression::BinaryOp(
             Box::new(Expression::Constant(crate::core::Value::Int(1))),
-            crate::graph::expression::expr_type::BinaryOperator::Add,
+            crate::graph::expression::BinaryOperator::Add,
             Box::new(Expression::Constant(crate::core::Value::Int(2))),
         );
         assert_eq!(validator.has_aggregate_expr(&binary_expr), false);
@@ -138,13 +147,13 @@ mod tests {
         // 测试嵌套表达式
         let nested_expr = Expression::BinaryOp(
             Box::new(Expression::UnaryOp(
-                crate::graph::expression::expr_type::UnaryOperator::Negate,
+                crate::graph::expression::UnaryOperator::Minus,
                 Box::new(Expression::Constant(crate::core::Value::Int(5))),
             )),
-            crate::graph::expression::expr_type::BinaryOperator::Add,
+            crate::graph::expression::BinaryOperator::Add,
             Box::new(Expression::Constant(crate::core::Value::Int(10))),
         );
-        
+
         assert_eq!(validator.has_aggregate_expr(&nested_expr), false);
     }
 
@@ -158,7 +167,7 @@ mod tests {
             Expression::Constant(crate::core::Value::Int(2)),
             Expression::Constant(crate::core::Value::Int(3)),
         ]);
-        
+
         assert_eq!(validator.has_aggregate_expr(&list_expr), false);
     }
 }

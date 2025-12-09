@@ -142,6 +142,9 @@ impl Expression {
                 crate::graph::expression::unary::UnaryOperator::Minus => {
                     ExpressionKind::UnaryNegate
                 }
+                crate::graph::expression::unary::UnaryOperator::Negate => {
+                    ExpressionKind::UnaryNegate
+                }
                 crate::graph::expression::unary::UnaryOperator::Not => ExpressionKind::UnaryNot,
                 crate::graph::expression::unary::UnaryOperator::Increment => {
                     ExpressionKind::UnaryInvert

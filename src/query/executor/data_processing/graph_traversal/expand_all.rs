@@ -15,9 +15,9 @@ use crate::storage::StorageEngine;
 /// 通常用于路径探索查询
 pub struct ExpandAllExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    edge_direction: EdgeDirection,
-    edge_types: Option<Vec<String>>,
-    max_depth: Option<usize>, // 最大扩展深度
+    pub edge_direction: EdgeDirection,
+    pub edge_types: Option<Vec<String>>,
+    pub max_depth: Option<usize>, // 最大扩展深度
     input_executor: Option<Box<dyn Executor<S>>>,
     // 路径缓存
     path_cache: Vec<Path>,
@@ -25,7 +25,7 @@ pub struct ExpandAllExecutor<S: StorageEngine> {
     visited_nodes: HashSet<Value>,
 }
 
-impl<S: StorageEngine> ExpandAllExecutor<S> {
+impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
     pub fn new(
         id: usize,
         storage: Arc<Mutex<S>>,
@@ -100,81 +100,87 @@ impl<S: StorageEngine> ExpandAllExecutor<S> {
     }
 
     /// 递归扩展路径
-    async fn expand_paths_recursive(
-        &mut self,
-        current_path: &mut Path,
+    fn expand_paths_recursive<'a>(
+        &'a mut self,
+        current_path: &'a mut Path,
         current_depth: usize,
         max_depth: usize,
-    ) -> Result<(), QueryError> {
-        // 获取当前路径的最后一个节点
-        let current_node = if current_path.steps.is_empty() {
-            &current_path.src.vid
-        } else {
-            &current_path.steps.last().unwrap().dst.vid
-        };
-
-        // 检查是否达到最大深度
-        if current_depth >= max_depth {
-            // 保存当前路径
-            self.path_cache.push(current_path.clone());
-            return Ok(());
-        }
-
-        // 获取邻居节点和边
-        let neighbors_with_edges = self.get_neighbors_with_edges(current_node).await?;
-
-        if neighbors_with_edges.is_empty() {
-            // 没有更多邻居，保存当前路径
-            self.path_cache.push(current_path.clone());
-            return Ok(());
-        }
-
-        // 为每个邻居创建新路径
-        for (neighbor_id, edge) in neighbors_with_edges {
-            // 检查是否已访问过该节点（避免循环）
-            if self.visited_nodes.contains(&neighbor_id) {
-                // 保存当前路径（包含循环）
-                let mut path_with_cycle = current_path.clone();
-                path_with_cycle.steps.push(Step {
-                    dst: Box::new(Vertex::new(neighbor_id.clone(), Vec::new())),
-                    edge: Box::new(edge),
-                });
-                self.path_cache.push(path_with_cycle);
-                continue;
-            }
-
-            // 获取邻居节点的完整信息
-            let neighbor_vertex = {
-                let storage = self.base.storage.lock().unwrap();
-                storage
-                    .get_node(&neighbor_id)
-                    .map_err(|e| QueryError::StorageError(e))?
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Vec<Path>, QueryError>> + Send + 'a>,
+    > {
+        Box::pin(async move {
+            // 获取当前路径的最后一个节点
+            let current_node = if current_path.steps.is_empty() {
+                &current_path.src.vid
+            } else {
+                &current_path.steps.last().unwrap().dst.vid
             };
 
-            if let Some(vertex) = neighbor_vertex {
-                // 创建新路径
-                let mut new_path = current_path.clone();
-                new_path.steps.push(Step {
-                    dst: Box::new(vertex),
-                    edge: Box::new(edge),
-                });
-
-                // 标记为已访问
-                self.visited_nodes.insert(neighbor_id.clone());
-
-                // 递归扩展
-                self.expand_paths_recursive(&mut new_path, current_depth + 1, max_depth)
-                    .await?;
-
-                // 取消标记（允许在其他路径中访问）
-                self.visited_nodes.remove(&neighbor_id);
+            // 检查是否达到最大深度
+            if current_depth >= max_depth {
+                // 返回当前路径
+                return Ok(vec![current_path.clone()]);
             }
-        }
 
-        // 保存当前路径
-        self.path_cache.push(current_path.clone());
+            // 获取邻居节点和边
+            let neighbors_with_edges = self.get_neighbors_with_edges(current_node).await?;
 
-        Ok(())
+            if neighbors_with_edges.is_empty() {
+                // 没有更多邻居，返回当前路径
+                return Ok(vec![current_path.clone()]);
+            }
+
+            let mut all_paths = Vec::new();
+
+            // 为每个邻居创建新路径
+            for (neighbor_id, edge) in neighbors_with_edges {
+                // 检查是否已访问过该节点（避免循环）
+                if self.visited_nodes.contains(&neighbor_id) {
+                    // 创建包含循环的路径
+                    let mut path_with_cycle = current_path.clone();
+                    path_with_cycle.steps.push(Step {
+                        dst: Box::new(Vertex::new(neighbor_id.clone(), Vec::new())),
+                        edge: Box::new(edge),
+                    });
+                    all_paths.push(path_with_cycle);
+                    continue;
+                }
+
+                // 获取邻居节点的完整信息
+                let neighbor_vertex = {
+                    let storage = self.base.storage.lock().unwrap();
+                    storage
+                        .get_node(&neighbor_id)
+                        .map_err(|e| QueryError::StorageError(e))?
+                };
+
+                if let Some(vertex) = neighbor_vertex {
+                    // 创建新路径
+                    let mut new_path = current_path.clone();
+                    new_path.steps.push(Step {
+                        dst: Box::new(vertex),
+                        edge: Box::new(edge),
+                    });
+
+                    // 标记为已访问
+                    self.visited_nodes.insert(neighbor_id.clone());
+
+                    // 递归扩展
+                    let mut expanded_paths = self
+                        .expand_paths_recursive(&mut new_path, current_depth + 1, max_depth)
+                        .await?;
+                    all_paths.append(&mut expanded_paths);
+
+                    // 取消标记（允许在其他路径中访问）
+                    self.visited_nodes.remove(&neighbor_id);
+                }
+            }
+
+            // 添加当前路径
+            all_paths.push(current_path.clone());
+
+            Ok(all_paths)
+        })
     }
 
     /// 构建扩展结果
@@ -190,8 +196,8 @@ impl<S: StorageEngine> ExpandAllExecutor<S> {
 
             // 添加每一步的边和节点
             for step in &path.steps {
-                path_value.push(Value::Edge(step.edge.clone()));
-                path_value.push(Value::Vertex(step.dst.clone()));
+                path_value.push(Value::Edge((*step.edge).clone()));
+                path_value.push(Value::Vertex(Box::new((*step.dst).clone())));
             }
 
             path_values.push(Value::List(path_value));
@@ -227,17 +233,22 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             ExecutionResult::Vertices(vertices) => vertices,
             ExecutionResult::Edges(edges) => {
                 // 从边中提取节点
-                let mut nodes = HashSet::new();
+                let mut nodes = Vec::new();
+                let storage = self.base.storage.lock().unwrap();
+                let mut visited = HashSet::new();
                 for edge in edges {
-                    let storage = self.base.storage.lock().unwrap();
                     if let Ok(Some(src_vertex)) = storage.get_node(&edge.src) {
-                        nodes.insert(src_vertex);
+                        if visited.insert(src_vertex.vid.clone()) {
+                            nodes.push(src_vertex);
+                        }
                     }
                     if let Ok(Some(dst_vertex)) = storage.get_node(&edge.dst) {
-                        nodes.insert(dst_vertex);
+                        if visited.insert(dst_vertex.vid.clone()) {
+                            nodes.push(dst_vertex);
+                        }
                     }
                 }
-                nodes.into_iter().collect()
+                nodes.into_iter().map(|v| v).collect()
             }
             ExecutionResult::Values(values) => {
                 // 从值中提取节点
@@ -245,7 +256,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                 let storage = self.base.storage.lock().unwrap();
                 for value in values {
                     match value {
-                        Value::Vertex(vertex) => vertices.push(vertex),
+                        Value::Vertex(vertex) => vertices.push(*vertex),
                         Value::String(id_str) => {
                             // 尝试将字符串作为节点ID获取节点
                             let node_id = Value::String(id_str);
@@ -268,7 +279,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
         for vertex in input_nodes {
             // 重置访问状态
             self.visited_nodes.clear();
-            self.visited_nodes.insert(vertex.vid.clone());
+            self.visited_nodes.insert((*vertex.vid).clone());
 
             // 创建初始路径
             let mut initial_path = Path {
@@ -277,8 +288,10 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             };
 
             // 递归扩展路径
-            self.expand_paths_recursive(&mut initial_path, 0, max_depth)
+            let mut expanded_paths = self
+                .expand_paths_recursive(&mut initial_path, 0, max_depth)
                 .await?;
+            self.path_cache.append(&mut expanded_paths);
         }
 
         // 构建结果

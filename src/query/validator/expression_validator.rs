@@ -3,7 +3,7 @@
 
 use crate::core::ValueTypeDef;
 use crate::graph::expression::expr_type::Expression;
-use crate::query::validator::match_structs::{AliasType, WhereClauseContext};
+use crate::query::validator::structs::{AliasType, WhereClauseContext};
 use crate::query::validator::{ValidateContext, Validator};
 use std::collections::HashMap;
 
@@ -27,7 +27,7 @@ impl ExpressionValidator {
         // 验证表达式的类型
 
         // 使用别名验证器验证别名
-        use super::alias_validator::AliasValidator;
+        use crate::query::validator::alias_validator::AliasValidator;
         let alias_validator = AliasValidator::new();
         alias_validator.validate_aliases(&[filter.clone()], &context.aliases_available)?;
 
@@ -66,7 +66,7 @@ impl ExpressionValidator {
     pub fn validate_path(
         &self,
         path: &Expression,
-        context: &mut crate::query::validator::match_structs::MatchClauseContext,
+        context: &mut crate::query::validator::structs::MatchClauseContext,
     ) -> Result<(), String> {
         // 验证Match路径表达式
         // 检查路径中的节点和边定义
@@ -95,7 +95,7 @@ impl ExpressionValidator {
     pub fn validate_single_path_pattern(
         &self,
         pattern: &Expression,
-        context: &mut crate::query::validator::match_structs::MatchClauseContext,
+        context: &mut crate::query::validator::structs::MatchClauseContext,
     ) -> Result<(), String> {
         // 验证单个路径模式的结构
         // 在实际实现中，这里会检查节点、边的定义等
@@ -106,14 +106,14 @@ impl ExpressionValidator {
     pub fn validate_return(
         &self,
         return_expr: &Expression,
-        query_parts: &[crate::query::validator::match_structs::QueryPart],
-        context: &mut crate::query::validator::match_structs::ReturnClauseContext,
+        query_parts: &[crate::query::validator::structs::QueryPart],
+        context: &mut crate::query::validator::structs::ReturnClauseContext,
     ) -> Result<(), String> {
         // 验证Return子句中的表达式
         // 检查使用的别名是否在作用域内
 
         // 使用别名验证器验证别名
-        use super::alias_validator::AliasValidator;
+        use crate::query::validator::alias_validator::AliasValidator;
         let alias_validator = AliasValidator::new();
         alias_validator.validate_aliases(&[return_expr.clone()], &context.aliases_available)
     }
@@ -122,13 +122,13 @@ impl ExpressionValidator {
     pub fn validate_with(
         &self,
         with_expr: &Expression,
-        query_parts: &[crate::query::validator::match_structs::QueryPart],
-        context: &mut crate::query::validator::match_structs::WithClauseContext,
+        query_parts: &[crate::query::validator::structs::QueryPart],
+        context: &mut crate::query::validator::structs::WithClauseContext,
     ) -> Result<(), String> {
         // 验证With子句中的表达式别名
 
         // 使用别名验证器验证别名
-        use super::alias_validator::AliasValidator;
+        use crate::query::validator::alias_validator::AliasValidator;
         let alias_validator = AliasValidator::new();
         alias_validator.validate_aliases(&[with_expr.clone()], &context.aliases_available)?;
 
@@ -143,7 +143,7 @@ impl ExpressionValidator {
         }
 
         // 验证是否包含聚合表达式
-        use super::aggregate_validator::AggregateValidator;
+        use crate::query::validator::aggregate_validator::AggregateValidator;
         let aggregate_validator = AggregateValidator::new();
         if aggregate_validator.has_aggregate_expr(with_expr) {
             context.yield_clause.has_agg = true;
@@ -156,17 +156,17 @@ impl ExpressionValidator {
     pub fn validate_unwind(
         &self,
         unwind_expr: &Expression,
-        context: &mut crate::query::validator::match_structs::UnwindClauseContext,
+        context: &mut crate::query::validator::structs::UnwindClauseContext,
     ) -> Result<(), String> {
         // 验证Unwind表达式中的别名
 
         // 使用别名验证器验证别名
-        use super::alias_validator::AliasValidator;
+        use crate::query::validator::alias_validator::AliasValidator;
         let alias_validator = AliasValidator::new();
         alias_validator.validate_aliases(&[unwind_expr.clone()], &context.aliases_available)?;
 
         // 检查是否有聚合表达式（在UNWIND中不允许）
-        use super::aggregate_validator::AggregateValidator;
+        use crate::query::validator::aggregate_validator::AggregateValidator;
         let aggregate_validator = AggregateValidator::new();
         if aggregate_validator.has_aggregate_expr(unwind_expr) {
             return Err("UNWIND子句中不能使用聚合表达式".to_string());
@@ -178,7 +178,7 @@ impl ExpressionValidator {
     /// 验证Yield子句
     pub fn validate_yield(
         &self,
-        context: &mut crate::query::validator::match_structs::YieldClauseContext,
+        context: &mut crate::query::validator::structs::YieldClauseContext,
     ) -> Result<(), String> {
         // 如果有聚合函数，执行特殊验证
         if context.has_agg {
@@ -186,7 +186,7 @@ impl ExpressionValidator {
         }
 
         // 对于普通Yield子句，验证别名
-        use super::alias_validator::AliasValidator;
+        use crate::query::validator::alias_validator::AliasValidator;
         let alias_validator = AliasValidator::new();
         for col in &context.yield_columns {
             alias_validator.validate_aliases(&[col.expr.clone()], &context.aliases_available)?;
@@ -198,10 +198,10 @@ impl ExpressionValidator {
     /// 验证分组子句
     fn validate_group(
         &self,
-        yield_ctx: &mut crate::query::validator::match_structs::YieldClauseContext,
+        yield_ctx: &mut crate::query::validator::structs::YieldClauseContext,
     ) -> Result<(), String> {
         // 验证分组逻辑
-        use super::aggregate_validator::AggregateValidator;
+        use crate::query::validator::aggregate_validator::AggregateValidator;
         let aggregate_validator = AggregateValidator::new();
 
         for col in &yield_ctx.yield_columns {
@@ -225,7 +225,7 @@ impl ExpressionValidator {
 mod tests {
     use super::*;
     use crate::graph::expression::expr_type::Expression;
-    use crate::query::validator::match_structs::{
+    use crate::query::validator::structs::{
         MatchClauseContext, ReturnClauseContext, UnwindClauseContext, WhereClauseContext,
         WithClauseContext, YieldClauseContext, YieldColumn,
     };

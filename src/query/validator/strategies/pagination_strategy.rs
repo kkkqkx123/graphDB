@@ -67,9 +67,10 @@ impl PaginationValidationStrategy {
         let inputs = vec![]; // 分页表达式通常不依赖于输入
         let space = "default".to_string(); // 使用默认空间
         
+        let default_context = Default::default();
         let mut type_visitor = DeduceTypeVisitor::new(
             &storage,
-            &Default::default(), // 使用默认上下文
+            &default_context, // 使用默认上下文
             inputs,
             space,
         );

@@ -119,7 +119,7 @@ impl GraphStats {
     pub fn record_query_execution(&self, latency_us: u64) {
         self.increment_counter(StatType::NumQueries);
         self.add_value(StatType::QueryLatencyUs, latency_us);
-        
+
         if latency_us > self.query_stats.slow_query_threshold_us {
             self.increment_counter(StatType::NumSlowQueries);
             self.add_value(StatType::SlowQueryLatencyUs, latency_us);
@@ -127,7 +127,9 @@ impl GraphStats {
     }
 
     pub fn record_session_opened(&self) {
-        self.session_stats.num_opened_sessions.fetch_add(1, Ordering::SeqCst);
+        self.session_stats
+            .num_opened_sessions
+            .fetch_add(1, Ordering::SeqCst);
         self.increment_counter(StatType::NumOpenedSessions);
     }
 
@@ -136,7 +138,9 @@ impl GraphStats {
     }
 
     pub fn record_auth_failure(&self) {
-        self.session_stats.num_auth_failed_sessions.fetch_add(1, Ordering::SeqCst);
+        self.session_stats
+            .num_auth_failed_sessions
+            .fetch_add(1, Ordering::SeqCst);
         self.increment_counter(StatType::NumAuthFailedSessions);
     }
 
@@ -149,9 +153,15 @@ impl GraphStats {
 
     pub fn get_session_stats(&self) -> (usize, usize, usize, usize) {
         (
-            self.session_stats.num_opened_sessions.load(Ordering::SeqCst),
-            self.session_stats.num_active_sessions.load(Ordering::SeqCst),
-            self.session_stats.num_auth_failed_sessions.load(Ordering::SeqCst),
+            self.session_stats
+                .num_opened_sessions
+                .load(Ordering::SeqCst),
+            self.session_stats
+                .num_active_sessions
+                .load(Ordering::SeqCst),
+            self.session_stats
+                .num_auth_failed_sessions
+                .load(Ordering::SeqCst),
             self.session_stats
                 .num_reclaimed_expired_sessions
                 .load(Ordering::SeqCst),
@@ -170,7 +180,7 @@ mod tests {
     #[test]
     fn test_graph_stats_creation() {
         let stats = GraphStats::new();
-        
+
         // Check initial values are 0
         assert_eq!(stats.get_counter(StatType::NumQueries), 0);
         assert_eq!(stats.get_counter(StatType::NumActiveQueries), 0);
@@ -179,10 +189,10 @@ mod tests {
     #[test]
     fn test_increment_counter() {
         let stats = GraphStats::new();
-        
+
         stats.increment_counter(StatType::NumQueries);
         assert_eq!(stats.get_counter(StatType::NumQueries), 1);
-        
+
         stats.increment_counter(StatType::NumQueries);
         assert_eq!(stats.get_counter(StatType::NumQueries), 2);
     }
@@ -190,10 +200,10 @@ mod tests {
     #[test]
     fn test_add_value() {
         let stats = GraphStats::new();
-        
+
         stats.add_value(StatType::QueryLatencyUs, 1000);
         assert_eq!(stats.get_counter(StatType::QueryLatencyUs), 1000);
-        
+
         stats.add_value(StatType::QueryLatencyUs, 500);
         assert_eq!(stats.get_counter(StatType::QueryLatencyUs), 1500);
     }
@@ -201,13 +211,13 @@ mod tests {
     #[test]
     fn test_record_query_execution() {
         let stats = GraphStats::new();
-        
+
         // Record a fast query
         stats.record_query_execution(1000); // 1000 microseconds = 1ms
         assert_eq!(stats.get_counter(StatType::NumQueries), 1);
         assert_eq!(stats.get_counter(StatType::QueryLatencyUs), 1000);
         assert_eq!(stats.get_counter(StatType::NumSlowQueries), 0);
-        
+
         // Record a slow query
         stats.record_query_execution(10_000_000); // 10 seconds
         assert_eq!(stats.get_counter(StatType::NumQueries), 2);
@@ -218,16 +228,16 @@ mod tests {
     #[test]
     fn test_session_stats() {
         let stats = GraphStats::new();
-        
+
         stats.record_session_opened();
         let (opened, active, failed, reclaimed) = stats.get_session_stats();
         assert_eq!(opened, 1);
         assert_eq!(failed, 0);
-        
+
         stats.record_auth_failure();
         let (opened, active, failed, reclaimed) = stats.get_session_stats();
         assert_eq!(failed, 1);
-        
+
         stats.record_expired_session_reclaimed();
         let (opened, active, failed, reclaimed) = stats.get_session_stats();
         assert_eq!(reclaimed, 1);

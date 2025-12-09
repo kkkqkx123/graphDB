@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{Edge, Path, Step, Value, Vertex};
@@ -15,9 +15,9 @@ use crate::storage::StorageEngine;
 /// 结合了 ExpandExecutor 的功能，支持更复杂的遍历需求
 pub struct TraverseExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    edge_direction: EdgeDirection,
-    edge_types: Option<Vec<String>>,
-    max_depth: Option<usize>,
+    pub edge_direction: EdgeDirection,
+    pub edge_types: Option<Vec<String>>,
+    pub max_depth: Option<usize>,
     conditions: Option<String>, // 遍历条件
     input_executor: Option<Box<dyn Executor<S>>>,
     // 遍历状态
@@ -75,7 +75,7 @@ impl<S: StorageEngine> TraverseExecutor<S> {
         // 获取节点的所有边
         let edges = storage
             .get_node_edges(node_id, crate::core::Direction::Both)
-            .map_err(|e| QueryError::StorageError(e.to_string()))?;
+            .map_err(|e| QueryError::StorageError(e))?;
 
         // 过滤边类型
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
@@ -93,23 +93,23 @@ impl<S: StorageEngine> TraverseExecutor<S> {
             .filter_map(|edge| match self.edge_direction {
                 EdgeDirection::In => {
                     if *edge.dst == *node_id {
-                        Some((edge.src.clone(), edge))
+                        Some(((*edge.src).clone(), edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Out => {
                     if *edge.src == *node_id {
-                        Some((edge.dst.clone(), edge))
+                        Some(((*edge.dst).clone(), edge))
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Both => {
                     if *edge.src == *node_id {
-                        Some((edge.dst.clone(), edge))
+                        Some(((*edge.dst).clone(), edge))
                     } else if *edge.dst == *node_id {
-                        Some((edge.src.clone(), edge))
+                        Some(((*edge.src).clone(), edge))
                     } else {
                         None
                     }
@@ -158,7 +158,7 @@ impl<S: StorageEngine> TraverseExecutor<S> {
                 let storage = self.base.storage.lock().unwrap();
                 let neighbor_vertex = storage
                     .get_node(&neighbor_id)
-                    .map_err(|e| QueryError::StorageError(e.to_string()))?;
+                    .map_err(|e| QueryError::StorageError(e))?;
 
                 if let Some(vertex) = neighbor_vertex {
                     // 检查条件
@@ -195,12 +195,13 @@ impl<S: StorageEngine> TraverseExecutor<S> {
 
         // 为每个输入节点创建初始路径
         for vertex in input_nodes {
+            let vid = vertex.vid.clone();
             let initial_path = Path {
                 src: Box::new(vertex),
                 steps: Vec::new(),
             };
             self.current_paths.push(initial_path);
-            self.visited_nodes.insert(vertex.vid.clone());
+            self.visited_nodes.insert(*vid);
         }
 
         Ok(())
@@ -220,7 +221,7 @@ impl<S: StorageEngine> TraverseExecutor<S> {
 
                 // 添加每一步的边和节点
                 for step in &path.steps {
-                    path_value.push(Value::Edge(step.edge.clone()));
+                    path_value.push(Value::Edge((*step.edge).clone()));
                     path_value.push(Value::Vertex(step.dst.clone()));
                 }
 
@@ -280,17 +281,22 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for TraverseExecutor<S> {
             ExecutionResult::Vertices(vertices) => vertices,
             ExecutionResult::Edges(edges) => {
                 // 从边中提取节点
-                let mut nodes = HashSet::new();
+                let mut nodes = Vec::new();
+                let mut visited = HashSet::new();
                 for edge in edges {
                     let storage = self.base.storage.lock().unwrap();
                     if let Ok(Some(src_vertex)) = storage.get_node(&edge.src) {
-                        nodes.insert(src_vertex);
+                        if visited.insert(src_vertex.vid.clone()) {
+                            nodes.push(src_vertex);
+                        }
                     }
                     if let Ok(Some(dst_vertex)) = storage.get_node(&edge.dst) {
-                        nodes.insert(dst_vertex);
+                        if visited.insert(dst_vertex.vid.clone()) {
+                            nodes.push(dst_vertex);
+                        }
                     }
                 }
-                nodes.into_iter().collect()
+                nodes
             }
             ExecutionResult::Values(values) => {
                 // 从值中提取节点
@@ -298,7 +304,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for TraverseExecutor<S> {
                 let storage = self.base.storage.lock().unwrap();
                 for value in values {
                     match value {
-                        Value::Vertex(vertex) => vertices.push(vertex),
+                        Value::Vertex(vertex) => vertices.push(*vertex),
                         Value::String(id_str) => {
                             // 尝试将字符串作为节点ID获取节点
                             let node_id = Value::String(id_str);

@@ -132,6 +132,15 @@ pub struct DataSet {
     pub rows: Vec<Vec<Value>>,
 }
 
+impl DataSet {
+    pub fn new() -> Self {
+        Self {
+            col_names: Vec::new(),
+            rows: Vec::new(),
+        }
+    }
+}
+
 /// Represents a value that can be stored in node/edge properties
 /// This follows the design pattern of Nebula's Value type
 #[derive(Debug, Clone, Serialize, Deserialize)]

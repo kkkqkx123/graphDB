@@ -47,9 +47,10 @@ impl ExpressionValidationStrategy {
         let inputs = vec![]; // 过滤表达式通常不依赖于输入
         let space = "default".to_string(); // 使用默认空间
         
+        let default_context = Default::default();
         let mut type_visitor = DeduceTypeVisitor::new(
             &storage,
-            &Default::default(), // 使用默认上下文
+            &default_context, // 使用默认上下文
             inputs,
             space,
         );
@@ -108,8 +109,8 @@ impl ExpressionValidationStrategy {
     /// 验证单个路径模式
     pub fn validate_single_path_pattern(
         &self,
-        pattern: &Expression,
-        context: &MatchClauseContext,
+        _pattern: &Expression,
+        _context: &MatchClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证单个路径模式的结构
         // 在实际实现中，这里会检查节点、边的定义等
@@ -120,7 +121,7 @@ impl ExpressionValidationStrategy {
     pub fn validate_return(
         &self,
         return_expr: &Expression,
-        query_parts: &[QueryPart],
+        _query_parts: &[QueryPart],
         context: &ReturnClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证Return子句中的表达式
@@ -136,7 +137,7 @@ impl ExpressionValidationStrategy {
     pub fn validate_with(
         &self,
         with_expr: &Expression,
-        query_parts: &[QueryPart],
+        _query_parts: &[QueryPart],
         context: &WithClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证With子句中的表达式别名
@@ -303,7 +304,7 @@ mod tests {
         let strategy = ExpressionValidationStrategy::new();
         
         // 创建测试数据
-        let mut where_context = WhereClauseContext {
+        let where_context = WhereClauseContext {
             filter: None,
             aliases_available: std::collections::HashMap::new(),
             aliases_generated: std::collections::HashMap::new(),
@@ -319,7 +320,7 @@ mod tests {
     fn test_validate_path() {
         let strategy = ExpressionValidationStrategy::new();
         
-        let mut match_context = MatchClauseContext {
+        let match_context = MatchClauseContext {
             paths: Vec::new(),
             aliases_available: std::collections::HashMap::new(),
             aliases_generated: std::collections::HashMap::new(),
@@ -338,7 +339,7 @@ mod tests {
     fn test_validate_return() {
         let strategy = ExpressionValidationStrategy::new();
         
-        let mut return_context = ReturnClauseContext {
+        let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: Vec::new(),
                 aliases_available: std::collections::HashMap::new(),
@@ -369,7 +370,7 @@ mod tests {
     fn test_validate_with() {
         let strategy = ExpressionValidationStrategy::new();
         
-        let mut with_context = WithClauseContext {
+        let with_context = WithClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: Vec::new(),
                 aliases_available: std::collections::HashMap::new(),
@@ -401,7 +402,7 @@ mod tests {
     fn test_validate_unwind() {
         let strategy = ExpressionValidationStrategy::new();
         
-        let mut unwind_context = UnwindClauseContext {
+        let unwind_context = UnwindClauseContext {
             alias: "test".to_string(),
             unwind_expr: Expression::Constant(crate::core::Value::Int(1)),
             aliases_available: std::collections::HashMap::new(),
@@ -418,7 +419,7 @@ mod tests {
     fn test_validate_yield() {
         let strategy = ExpressionValidationStrategy::new();
         
-        let mut yield_context = YieldClauseContext {
+        let yield_context = YieldClauseContext {
             yield_columns: vec![YieldColumn::new(Expression::Constant(crate::core::Value::Int(1)), "col1".to_string())],
             aliases_available: std::collections::HashMap::new(),
             aliases_generated: std::collections::HashMap::new(),

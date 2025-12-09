@@ -28,8 +28,8 @@ pub struct ShortestPathExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     start_vertex_ids: Vec<Value>,
     end_vertex_ids: Vec<Value>,
-    edge_direction: EdgeDirection,
-    edge_types: Option<Vec<String>>,
+    pub edge_direction: EdgeDirection,
+    pub edge_types: Option<Vec<String>>,
     algorithm: ShortestPathAlgorithm, // 使用的算法
     input_executor: Option<Box<dyn Executor<S>>>,
     // 路径缓存
@@ -75,7 +75,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         // 获取节点的所有边
         let edges = storage
             .get_node_edges(node_id, crate::core::Direction::Both)
-            .map_err(|e| QueryError::StorageError(e.to_string()))?;
+            .map_err(|e| QueryError::StorageError(e))?;
 
         // 过滤边类型
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
@@ -95,23 +95,23 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
                     EdgeDirection::In => {
                         if *edge.dst == *node_id {
                             // 对于最短路径，我们可以使用边的ranking作为权重
-                            (edge.src.clone(), edge.ranking as f64)
+                            ((*edge.src).clone(), edge.ranking as f64)
                         } else {
                             return None;
                         }
                     }
                     EdgeDirection::Out => {
                         if *edge.src == *node_id {
-                            (edge.dst.clone(), edge.ranking as f64)
+                            ((*edge.dst).clone(), edge.ranking as f64)
                         } else {
                             return None;
                         }
                     }
                     EdgeDirection::Both => {
                         if *edge.src == *node_id {
-                            (edge.dst.clone(), edge.ranking as f64)
+                            ((*edge.dst).clone(), edge.ranking as f64)
                         } else if *edge.dst == *node_id {
-                            (edge.src.clone(), edge.ranking as f64)
+                            ((*edge.src).clone(), edge.ranking as f64)
                         } else {
                             return None;
                         }
@@ -172,6 +172,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
                 }
             }
         }
+        Ok(())
     }
 
     /// Dijkstra算法实现
@@ -229,6 +230,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
                 }
             }
         }
+        Ok(())
     }
 
     /// 重建路径
@@ -282,6 +284,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
                 self.dijkstra_shortest_path().await?;
             }
         }
+        Ok(())
     }
 
     /// 构建结果
@@ -296,11 +299,11 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
 
             // 添加每一步的边和节点
             for step in &path.steps {
-                path_value.push(Value::Edge(step.edge.clone()));
+                path_value.push(Value::Edge((*step.edge).clone()));
                 path_value.push(Value::Vertex(step.dst.clone()));
             }
 
-            path_values.push(Value::List(path_value));
+            path_values.push(Value::Path(path.clone()));
         }
 
         ExecutionResult::Values(path_values)
@@ -332,7 +335,10 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
         let (start_nodes, end_nodes) = match input_result {
             ExecutionResult::Vertices(vertices) => {
                 if vertices.len() >= 2 {
-                    (vec![vertices[0].vid.clone()], vec![vertices[1].vid.clone()])
+                    (
+                        vec![(*vertices[0].vid).clone()],
+                        vec![(*vertices[1].vid).clone()],
+                    )
                 } else {
                     (Vec::new(), Vec::new())
                 }
@@ -340,7 +346,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
             ExecutionResult::Edges(edges) => {
                 if !edges.is_empty() {
                     let first_edge = &edges[0];
-                    (vec![first_edge.src.clone()], vec![first_edge.dst.clone()])
+                    (vec![(*first_edge.src).clone()], vec![(*first_edge.dst).clone()])
                 } else {
                     (Vec::new(), Vec::new())
                 }

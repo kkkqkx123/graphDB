@@ -15,9 +15,9 @@ use crate::storage::StorageEngine;
 /// 通常用于图遍历和路径查询
 pub struct ExpandExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    edge_direction: EdgeDirection,
-    edge_types: Option<Vec<String>>,
-    max_depth: Option<usize>, // 最大扩展深度
+    pub edge_direction: EdgeDirection,
+    pub edge_types: Option<Vec<String>>,
+    pub max_depth: Option<usize>, // 最大扩展深度
     input_executor: Option<Box<dyn Executor<S>>>,
     // 缓存已访问的节点，用于避免循环
     visited_nodes: HashSet<Value>,
@@ -69,23 +69,23 @@ impl<S: StorageEngine> ExpandExecutor<S> {
             .filter_map(|edge| match self.edge_direction {
                 EdgeDirection::In => {
                     if *edge.dst == *node_id {
-                        Some(edge.src.clone())
+                        Some((*edge.src).clone())
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Out => {
                     if *edge.src == *node_id {
-                        Some(edge.dst.clone())
+                        Some((*edge.dst).clone())
                     } else {
                         None
                     }
                 }
                 EdgeDirection::Both => {
                     if *edge.src == *node_id {
-                        Some(edge.dst.clone())
+                        Some((*edge.dst).clone())
                     } else if *edge.dst == *node_id {
-                        Some(edge.src.clone())
+                        Some((*edge.src).clone())
                     } else {
                         None
                     }
@@ -166,16 +166,28 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandExecutor<S> {
 
         // 提取输入节点
         let input_nodes = match input_result {
-            ExecutionResult::Vertices(vertices) => vertices.into_iter().map(|v| v.vid).collect(),
+            ExecutionResult::Vertices(vertices) => vertices.into_iter().map(|v| *v.vid).collect(),
             ExecutionResult::Edges(edges) => {
-                let mut nodes = HashSet::new();
+                let mut nodes = Vec::new();
+                let mut visited = HashSet::new();
                 for edge in edges {
-                    nodes.insert(edge.src);
-                    nodes.insert(edge.dst);
+                    if visited.insert(edge.src.clone()) {
+                        nodes.push(*edge.src);
+                    }
+                    if visited.insert(edge.dst.clone()) {
+                        nodes.push(*edge.dst);
+                    }
                 }
-                nodes.into_iter().collect()
+                nodes
             }
-            ExecutionResult::Values(values) => values,
+            ExecutionResult::Values(values) => {
+                values.into_iter().filter_map(|v| {
+                    match v {
+                        Value::Vertex(vertex) => Some(*vertex.vid),
+                        _ => None,
+                    }
+                }).collect()
+            },
             _ => Vec::new(),
         };
 

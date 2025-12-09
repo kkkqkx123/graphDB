@@ -1,11 +1,11 @@
 //! DeduceTypeVisitor - 用于推导表达式类型的访问器
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
-use crate::core::{Value, ValueTypeDef};
+use crate::core::{Value, ValueTypeDef, Vertex, Edge, Direction};
 use crate::graph::expression::{BinaryOperator, UnaryOperator};
-use crate::graph::expression::{Expression, ExpressionKind};
+use crate::graph::expression::Expression;
 use crate::query::validator::ValidateContext;
-use crate::storage::StorageEngine;
+use crate::storage::{StorageEngine, StorageError};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
@@ -22,7 +22,7 @@ pub enum TypeDeductionError {
 /// 用于递归遍历表达式树，推导表达式的结果类型
 pub struct DeduceTypeVisitor<'a, S: StorageEngine> {
     /// 存储引擎
-    storage: &'a S,
+    _storage: &'a S,
     /// 验证上下文
     validate_context: &'a ValidateContext,
     /// 输入列定义：列名 -> 列类型
@@ -48,7 +48,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         let vid_type = ValueTypeDef::String;
 
         Self {
-            storage,
+            _storage: storage,
             validate_context,
             inputs,
             space,
@@ -63,8 +63,8 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         inputs: Vec<(String, ValueTypeDef)>,
         space: String,
     ) -> (Self, ValidateContext) {
-        let vctx = ValidateContext::new();
-        let vid_type = ValueTypeDef::String;
+        let _vctx = ValidateContext::new();
+        let _vid_type = ValueTypeDef::String;
 
         // 返回值类型无法直接满足要求，这里需要特殊处理
         // 实现中应该使用默认存储引擎或Mock
@@ -672,9 +672,10 @@ mod tests {
 
     #[test]
     fn test_is_superior_type() {
+        let validate_context = ValidateContext::new();
         let visitor = DeduceTypeVisitor::new(
             &MockStorageEngine,
-            &ValidateContext::new(),
+            &validate_context,
             vec![],
             "test_space".to_string(),
         );
@@ -687,9 +688,10 @@ mod tests {
 
     #[test]
     fn test_are_types_compatible() {
+        let validate_context = ValidateContext::new();
         let visitor = DeduceTypeVisitor::new(
             &MockStorageEngine,
-            &ValidateContext::new(),
+            &validate_context,
             vec![],
             "test_space".to_string(),
         );
@@ -711,9 +713,10 @@ mod tests {
 
     #[test]
     fn test_parse_type_def() {
+        let validate_context = ValidateContext::new();
         let visitor = DeduceTypeVisitor::new(
             &MockStorageEngine,
-            &ValidateContext::new(),
+            &validate_context,
             vec![],
             "test_space".to_string(),
         );
@@ -727,14 +730,15 @@ mod tests {
 
     #[test]
     fn test_visit_constant() {
+        let validate_context = ValidateContext::new();
         let mut visitor = DeduceTypeVisitor::new(
             &MockStorageEngine,
-            &ValidateContext::new(),
+            &validate_context,
             vec![],
             "test_space".to_string(),
         );
 
-        let value = Value::Integer(42);
+        let value = Value::Int(42);
         let result = visitor.visit_constant(&value);
 
         assert!(result.is_ok());
@@ -743,9 +747,10 @@ mod tests {
 
     #[test]
     fn test_visit_list() {
+        let validate_context = ValidateContext::new();
         let mut visitor = DeduceTypeVisitor::new(
             &MockStorageEngine,
-            &ValidateContext::new(),
+            &validate_context,
             vec![],
             "test_space".to_string(),
         );
@@ -754,5 +759,70 @@ mod tests {
 
         assert!(result.is_ok());
         assert_eq!(visitor.type_(), ValueTypeDef::List);
+    }
+}
+
+// Mock 存储引擎用于测试
+#[cfg(test)]
+struct MockStorageEngine;
+
+#[cfg(test)]
+impl StorageEngine for MockStorageEngine {
+    fn insert_node(&mut self, vertex: Vertex) -> Result<Value, StorageError> {
+        Ok(vertex.vid.as_ref().clone())
+    }
+
+    fn get_node(&self, _id: &Value) -> Result<Option<Vertex>, StorageError> {
+        Ok(None)
+    }
+
+    fn update_node(&mut self, _vertex: Vertex) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn delete_node(&mut self, _id: &Value) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn insert_edge(&mut self, _edge: Edge) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn get_edge(
+        &self,
+        _src: &Value,
+        _dst: &Value,
+        _edge_type: &str,
+    ) -> Result<Option<Edge>, StorageError> {
+        Ok(None)
+    }
+
+    fn get_node_edges(
+        &self,
+        _node_id: &Value,
+        _direction: Direction,
+    ) -> Result<Vec<Edge>, StorageError> {
+        Ok(Vec::new())
+    }
+
+    fn delete_edge(
+        &mut self,
+        _src: &Value,
+        _dst: &Value,
+        _edge_type: &str,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn begin_transaction(&mut self) -> Result<u64, StorageError> {
+        Ok(1)
+    }
+
+    fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), StorageError> {
+        Ok(())
     }
 }

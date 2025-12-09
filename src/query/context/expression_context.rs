@@ -370,24 +370,7 @@ impl QueryExpressionContext {
         }
     }
 
-    /// 获取列值（已存在，但添加文档说明）
-    ///
-    /// # 参数
-    /// - `col`: 列名
-    ///
-    /// # 返回
-    /// - Ok(Value): 列值
-    /// - Err(String): 如果列不存在或没有迭代器
-    pub fn get_column(&self, col: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock().unwrap();
-        match iter_guard.as_ref() {
-            Some(iter) => iter
-                .get_column(col)
-                .ok_or_else(|| format!("列 {} 不存在", col))
-                .map(|v| v.clone()),
-            None => Err("没有设置迭代器".to_string()),
-        }
-    }
+
 
     // ===== 迭代器管理 =====
 

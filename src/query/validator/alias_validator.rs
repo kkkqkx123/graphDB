@@ -2,7 +2,7 @@
 //! 负责验证表达式中的别名引用和可用性
 
 use crate::graph::expression::expr_type::Expression;
-use crate::query::validator::match_structs::AliasType;
+use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 
 /// 别名验证器
@@ -62,9 +62,7 @@ impl AliasValidator {
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), String> {
         match expr {
-            Expression::UnaryOp(_, operand) => {
-                self.validate_expression_aliases(operand, aliases)
-            }
+            Expression::UnaryOp(_, operand) => self.validate_expression_aliases(operand, aliases),
             Expression::BinaryOp(left, _, right) => {
                 self.validate_expression_aliases(left, aliases)?;
                 self.validate_expression_aliases(right, aliases)
@@ -90,33 +88,15 @@ impl AliasValidator {
                 // These expressions don't have sub-expressions
                 Ok(())
             }
-            Expression::UnaryPlus(operand) => {
-                self.validate_expression_aliases(operand, aliases)
-            }
-            Expression::UnaryNegate(operand) => {
-                self.validate_expression_aliases(operand, aliases)
-            }
-            Expression::UnaryNot(operand) => {
-                self.validate_expression_aliases(operand, aliases)
-            }
-            Expression::UnaryIncr(operand) => {
-                self.validate_expression_aliases(operand, aliases)
-            }
-            Expression::UnaryDecr(operand) => {
-                self.validate_expression_aliases(operand, aliases)
-            }
-            Expression::IsNull(operand) => {
-                self.validate_expression_aliases(operand, aliases)
-            }
-            Expression::IsNotNull(operand) => {
-                self.validate_expression_aliases(operand, aliases)
-            }
-            Expression::IsEmpty(operand) => {
-                self.validate_expression_aliases(operand, aliases)
-            }
-            Expression::IsNotEmpty(operand) => {
-                self.validate_expression_aliases(operand, aliases)
-            }
+            Expression::UnaryPlus(operand) => self.validate_expression_aliases(operand, aliases),
+            Expression::UnaryNegate(operand) => self.validate_expression_aliases(operand, aliases),
+            Expression::UnaryNot(operand) => self.validate_expression_aliases(operand, aliases),
+            Expression::UnaryIncr(operand) => self.validate_expression_aliases(operand, aliases),
+            Expression::UnaryDecr(operand) => self.validate_expression_aliases(operand, aliases),
+            Expression::IsNull(operand) => self.validate_expression_aliases(operand, aliases),
+            Expression::IsNotNull(operand) => self.validate_expression_aliases(operand, aliases),
+            Expression::IsEmpty(operand) => self.validate_expression_aliases(operand, aliases),
+            Expression::IsNotEmpty(operand) => self.validate_expression_aliases(operand, aliases),
             Expression::List(items) => {
                 for item in items {
                     self.validate_expression_aliases(item, aliases)?;
@@ -135,10 +115,11 @@ impl AliasValidator {
                 }
                 Ok(())
             }
-            Expression::TypeCasting { expr, .. } => {
-                self.validate_expression_aliases(expr, aliases)
-            }
-            Expression::Case { conditions, default } => {
+            Expression::TypeCasting { expr, .. } => self.validate_expression_aliases(expr, aliases),
+            Expression::Case {
+                conditions,
+                default,
+            } => {
                 for (condition, value) in conditions {
                     self.validate_expression_aliases(condition, aliases)?;
                     self.validate_expression_aliases(value, aliases)?;
@@ -148,10 +129,11 @@ impl AliasValidator {
                 }
                 Ok(())
             }
-            Expression::Aggregate { arg, .. } => {
-                self.validate_expression_aliases(arg, aliases)
-            }
-            Expression::ListComprehension { generator, condition } => {
+            Expression::Aggregate { arg, .. } => self.validate_expression_aliases(arg, aliases),
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => {
                 self.validate_expression_aliases(generator, aliases)?;
                 if let Some(condition_expr) = condition {
                     self.validate_expression_aliases(condition_expr, aliases)?;
@@ -162,7 +144,12 @@ impl AliasValidator {
                 self.validate_expression_aliases(list, aliases)?;
                 self.validate_expression_aliases(condition, aliases)
             }
-            Expression::Reduce { list, initial, expr, .. } => {
+            Expression::Reduce {
+                list,
+                initial,
+                expr,
+                ..
+            } => {
                 self.validate_expression_aliases(list, aliases)?;
                 self.validate_expression_aliases(initial, aliases)?;
                 self.validate_expression_aliases(expr, aliases)
@@ -189,7 +176,11 @@ impl AliasValidator {
                 self.validate_expression_aliases(collection, aliases)?;
                 self.validate_expression_aliases(index, aliases)
             }
-            Expression::SubscriptRange { collection, start, end } => {
+            Expression::SubscriptRange {
+                collection,
+                start,
+                end,
+            } => {
                 self.validate_expression_aliases(collection, aliases)?;
                 if let Some(start_expr) = start {
                     self.validate_expression_aliases(start_expr, aliases)?;
@@ -235,10 +226,7 @@ impl AliasValidator {
                                 alias_name
                             ));
                         } else if alias_type != &AliasType::Node {
-                            return Err(format!(
-                                "别名 `{}` 没有边属性 src/dst",
-                                alias_name
-                            ));
+                            return Err(format!("别名 `{}` 没有边属性 src/dst", alias_name));
                         }
                     }
                 }
@@ -257,7 +245,10 @@ impl AliasValidator {
     ) -> Result<(), String> {
         for (name, alias_type) in last_aliases {
             if !cur_aliases.contains_key(name) {
-                if cur_aliases.insert(name.clone(), alias_type.clone()).is_some() {
+                if cur_aliases
+                    .insert(name.clone(), alias_type.clone())
+                    .is_some()
+                {
                     return Err(format!("`{}': 重复定义的别名", name));
                 }
             }
@@ -294,7 +285,9 @@ mod tests {
 
         // 测试无效的别名引用
         let invalid_expr = Expression::Variable("invalid".to_string());
-        assert!(validator.validate_aliases(&[invalid_expr], &aliases).is_err());
+        assert!(validator
+            .validate_aliases(&[invalid_expr], &aliases)
+            .is_err());
     }
 
     #[test]
@@ -303,7 +296,10 @@ mod tests {
 
         // 测试从变量表达式中提取别名
         let var_expr = Expression::Variable("test_var".to_string());
-        assert_eq!(validator.extract_alias_name(&var_expr), Some("test_var".to_string()));
+        assert_eq!(
+            validator.extract_alias_name(&var_expr),
+            Some("test_var".to_string())
+        );
 
         // 测试从常量表达式中提取别名（应该返回None）
         let const_expr = Expression::Constant(crate::core::Value::Int(42));
@@ -339,7 +335,9 @@ mod tests {
         last_aliases.insert("c".to_string(), AliasType::Path);
 
         // 组合别名
-        assert!(validator.combine_aliases(&mut cur_aliases, &last_aliases).is_ok());
+        assert!(validator
+            .combine_aliases(&mut cur_aliases, &last_aliases)
+            .is_ok());
         assert_eq!(cur_aliases.len(), 3);
         assert!(cur_aliases.contains_key("a"));
         assert!(cur_aliases.contains_key("b"));
@@ -357,6 +355,8 @@ mod tests {
         last_aliases.insert("a".to_string(), AliasType::Edge); // 冲突的别名
 
         // 组合别名应该失败
-        assert!(validator.combine_aliases(&mut cur_aliases, &last_aliases).is_err());
+        assert!(validator
+            .combine_aliases(&mut cur_aliases, &last_aliases)
+            .is_err());
     }
 }

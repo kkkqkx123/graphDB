@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::core::value::{Value, NullType};
 
 /// Represents a tag in the graph, similar to Nebula's Tag structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Tag {
     pub name: String,
     pub properties: HashMap<String, Value>,
@@ -34,7 +34,7 @@ impl Tag {
 }
 
 /// Represents a vertex in the graph, similar to Nebula's Vertex structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Vertex {
     pub vid: Box<Value>,             // Vertex ID can now be any Value type, using Box to break cycles
     pub tags: Vec<Tag>,              // A vertex can have multiple tags

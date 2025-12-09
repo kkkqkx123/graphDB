@@ -171,6 +171,7 @@ impl FoldConstantExprVisitor {
         match op {
             UnaryOperator::Plus => Ok(operand.clone()),  // Identity operation
             UnaryOperator::Minus => operand.negate(),
+            UnaryOperator::Negate => operand.negate(),
             UnaryOperator::Not => Ok(Value::Bool(!operand.bool_value().unwrap_or(false))),
             UnaryOperator::Increment => Err("Increment operation not supported in constant folding".to_string()),
             UnaryOperator::Decrement => Err("Decrement operation not supported in constant folding".to_string()),

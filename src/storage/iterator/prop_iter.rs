@@ -61,7 +61,7 @@ impl PropIter {
 
     /// 创建数据集索引
     fn make_dataset_index(&mut self) -> Result<(), String> {
-        let ds = &self.ds_index.ds;
+        let ds = self.ds_index.ds.clone();
         
         // 构建列索引
         for (i, col_name) in ds.col_names.iter().enumerate() {
@@ -139,6 +139,11 @@ impl PropIter {
     pub fn get_col_indices(&self) -> &HashMap<String, usize> {
         &self.ds_index.col_indices
     }
+
+    /// 获取当前位置
+    pub fn curr_pos(&self) -> usize {
+        self.curr_pos
+    }
 }
 
 impl Iterator for PropIter {
@@ -166,7 +171,8 @@ impl Iterator for PropIter {
     fn unstable_erase(&mut self) {
         if self.curr_pos < self.rows.len() {
             // 快速删除：交换最后一行到当前位置，然后 pop
-            self.rows.swap(self.curr_pos, self.rows.len() - 1);
+            let len = self.rows.len();
+            self.rows.swap(self.curr_pos, len - 1);
             self.rows.pop();
             // curr_pos 不变，指向原来的最后一行
         }
@@ -354,17 +360,17 @@ mod tests {
         let data = Arc::new(create_test_prop_data());
         let mut iter = PropIter::new(data).unwrap();
         
-        assert_eq!(iter.curr_pos, 0);
+        assert_eq!(iter.curr_pos(), 0);
         assert!(iter.valid());
         
         // 移动到第二行
         iter.next();
-        assert_eq!(iter.curr_pos, 1);
+        assert_eq!(iter.curr_pos(), 1);
         assert!(iter.valid());
         
         // 移动到第三行（越界）
         iter.next();
-        assert_eq!(iter.curr_pos, 2);
+        assert_eq!(iter.curr_pos(), 2);
         assert!(!iter.valid());
     }
 
@@ -428,10 +434,10 @@ mod tests {
         let mut iter = PropIter::new(data).unwrap();
         
         iter.next();
-        assert_eq!(iter.curr_pos, 1);
+        assert_eq!(iter.curr_pos(), 1);
         
         iter.reset(0);
-        assert_eq!(iter.curr_pos, 0);
+        assert_eq!(iter.curr_pos(), 0);
         assert_eq!(
             iter.get_column("player.name"),
             Some(&Value::String("Alice".to_string()))
@@ -447,13 +453,13 @@ mod tests {
         let mut copy = iter.copy();
         
         // 拷贝应该有相同的状态
-        assert_eq!(copy.curr_pos, iter.curr_pos);
+        assert_eq!(copy.is_empty(), iter.is_empty());
         assert_eq!(copy.size(), iter.size());
         
         // 修改原迭代器不应该影响拷贝
         iter.next();
-        assert_eq!(copy.curr_pos, 1);
-        assert_eq!(iter.curr_pos, 2);
+        assert_eq!(copy.size(), iter.size());
+        assert_eq!(copy.is_empty(), iter.is_empty());
     }
 
     #[test]

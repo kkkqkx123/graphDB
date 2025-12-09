@@ -38,7 +38,7 @@ impl ValidationFactory {
     ) -> Vec<Box<dyn ValidationStrategy>> {
         strategy_types
             .iter()
-            .map(|&strategy_type| Self::create_strategy(strategy_type))
+            .map(|strategy_type| Self::create_strategy(strategy_type.clone()))
             .collect()
     }
 }

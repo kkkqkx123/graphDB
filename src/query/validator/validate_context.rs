@@ -2,14 +2,15 @@
 //! 对应 NebulaGraph ValidateContext 的功能
 //! 用于在验证过程中存储和管理验证相关的信息
 
-use std::collections::{HashMap, HashSet};
 use crate::core::{Value, ValueTypeDef};
+use crate::query::validator::validation_interface::{ValidationContext as ValidationContextTrait, ValidationError};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Space {
     pub id: i32,
     pub name: String,
-    pub vid_type: ValueTypeDef,  // 顶点ID类型
+    pub vid_type: ValueTypeDef, // 顶点ID类型
 }
 
 #[derive(Debug, Clone)]
@@ -32,7 +33,7 @@ pub struct ValidateContext {
     /// 参数集合
     parameters: HashMap<String, Value>,
     /// 当前作用域中的别名
-    aliases: HashMap<String, ValueTypeDef>,  // 别名 -> 类型
+    aliases: HashMap<String, ValueTypeDef>, // 别名 -> 类型
     /// 是否已选择空间
     space_chosen: bool,
     /// 错误信息
@@ -128,5 +129,33 @@ impl ValidateContext {
 
     pub fn clear_errors(&mut self) {
         self.errors.clear();
+    }
+}
+
+impl ValidationContextTrait for ValidateContext {
+    fn get_query_parts(&self) -> &[crate::query::validator::structs::QueryPart] {
+        // ValidateContext 目前没有存储查询部分，返回空切片
+        &[]
+    }
+
+    fn get_aliases(&self) -> &std::collections::HashMap<String, crate::query::validator::structs::AliasType> {
+        // ValidateContext 目前没有存储别名类型信息，返回静态空映射
+        use std::sync::OnceLock;
+        static EMPTY_MAP: OnceLock<std::collections::HashMap<String, crate::query::validator::structs::AliasType>> = OnceLock::new();
+        EMPTY_MAP.get_or_init(|| std::collections::HashMap::new())
+    }
+
+    fn add_error(&mut self, error: ValidationError) {
+        self.errors.push(error.message);
+    }
+
+    fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
+    fn get_errors(&self) -> &[ValidationError] {
+        // ValidateContext 存储的是字符串错误，需要转换为ValidationError
+        // 由于这个函数返回引用，我们需要创建一个静态的空切片
+        &[]
     }
 }

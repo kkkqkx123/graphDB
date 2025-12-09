@@ -3,7 +3,7 @@
 
 use crate::graph::expression::expr_type::Expression;
 use crate::core::ValueTypeDef;
-use crate::query::validator::match_structs::PaginationContext;
+use crate::query::validator::structs::PaginationContext;
 
 /// 分页验证器
 pub struct PaginationValidator;
@@ -54,9 +54,10 @@ impl PaginationValidator {
         let inputs = vec![]; // 分页表达式通常不依赖于输入
         let space = "default".to_string(); // 使用默认空间
 
+        let default_context = Default::default();
         let mut type_visitor = DeduceTypeVisitor::new(
             &storage,
-            &Default::default(), // 使用默认上下文
+            &default_context, // 使用默认上下文
             inputs,
             space,
         );
@@ -78,7 +79,7 @@ impl PaginationValidator {
     }
 
     /// 验证步数范围
-    pub fn validate_step_range(&self, range: &crate::query::validator::match_structs::MatchStepRange) -> Result<(), String> {
+    pub fn validate_step_range(&self, range: &crate::query::validator::structs::MatchStepRange) -> Result<(), String> {
         if range.min > range.max {
             return Err(format!(
                 "最大跳数必须大于等于最小跳数: {} vs. {}",
@@ -92,8 +93,8 @@ impl PaginationValidator {
     pub fn validate_order_by(
         &self,
         factors: &[Expression], // 排序因子
-        yield_columns: &[crate::query::validator::match_structs::YieldColumn],
-        context: &crate::query::validator::match_structs::OrderByClauseContext,
+        yield_columns: &[crate::query::validator::structs::YieldColumn],
+        context: &crate::query::validator::structs::OrderByClauseContext,
     ) -> Result<(), String> {
         // 验证OrderBy子句
         for &(index, _) in &context.indexed_order_factors {
@@ -110,7 +111,7 @@ impl PaginationValidator {
 mod tests {
     use super::*;
     use crate::graph::expression::expr_type::Expression;
-    use crate::query::validator::match_structs::{MatchStepRange, OrderByClauseContext, OrderType, YieldColumn};
+    use crate::query::validator::structs::{MatchStepRange, OrderByClauseContext, OrderType, YieldColumn};
 
     #[test]
     fn test_pagination_validator_creation() {

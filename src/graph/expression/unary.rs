@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub enum UnaryOperator {
     Plus,
     Minus,
+    Negate,
     Not,
     Increment,
     Decrement,
@@ -26,6 +27,7 @@ pub fn evaluate_unary_op(
     match op {
         UnaryOperator::Plus => Ok(operand_val),  // Identity operation
         UnaryOperator::Minus => neg_value(operand_val),
+        UnaryOperator::Negate => neg_value(operand_val),
         UnaryOperator::Not => Ok(Value::Bool(!value_to_bool(&operand_val))),
         UnaryOperator::Increment => Err(ExpressionError::InvalidOperation("Increment operation not supported".to_string())),
         UnaryOperator::Decrement => Err(ExpressionError::InvalidOperation("Decrement operation not supported".to_string())),

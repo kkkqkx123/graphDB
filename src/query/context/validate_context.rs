@@ -409,11 +409,11 @@ mod tests {
     fn test_parameter_management() {
         let mut ctx = ValidateContext::new();
         
-        ctx.set_parameter("param1".to_string(), Value::Integer(42));
+        ctx.set_parameter("param1".to_string(), Value::Int(42));
         
         assert!(ctx.exist_parameter("param1"));
         assert!(!ctx.exist_parameter("param2"));
-        assert_eq!(ctx.get_parameter("param1"), Some(&Value::Integer(42)));
+        assert_eq!(ctx.get_parameter("param1"), Some(&Value::Int(42)));
     }
 
     #[test]
@@ -537,7 +537,7 @@ mod tests {
         );
         
         // 添加参数
-        ctx.set_parameter("limit".to_string(), Value::Integer(10));
+        ctx.set_parameter("limit".to_string(), Value::Int(10));
         
         // 添加别名
         ctx.add_alias("person_alias".to_string(), "VERTEX".to_string());

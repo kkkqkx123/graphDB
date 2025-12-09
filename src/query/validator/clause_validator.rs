@@ -3,7 +3,7 @@
 
 use crate::graph::expression::expr_type::Expression;
 use crate::query::validator::{Validator, ValidateContext};
-use crate::query::validator::match_structs::{
+use crate::query::validator::structs::{
     QueryPart, MatchClauseContext, ReturnClauseContext, YieldClauseContext,
     YieldColumn, Path, AliasType
 };
@@ -24,7 +24,7 @@ impl ClauseValidator {
         validator: &mut Validator,
     ) -> Result<(), String> {
         // 检查别名可用性
-        use super::expression_validator::ExpressionValidator;
+        use crate::query::validator::expression_validator::ExpressionValidator;
         let expr_validator = ExpressionValidator::new();
         
         for col in &context.yield_clause.yield_columns {
@@ -72,7 +72,7 @@ impl ClauseValidator {
             let prev_query_part = &query_parts[query_parts.len() - 2];
             if let Some(ref boundary) = prev_query_part.boundary {
                 match boundary {
-                    crate::query::validator::match_structs::BoundaryClauseContext::Unwind(unwind_ctx) => {
+                    crate::query::validator::structs::BoundaryClauseContext::Unwind(unwind_ctx) => {
                         // 添加Unwind子句的别名
                         columns.push(YieldColumn::new(
                             Expression::Label(unwind_ctx.alias.clone()),
@@ -95,7 +95,7 @@ impl ClauseValidator {
                             ));
                         }
                     }
-                    crate::query::validator::match_structs::BoundaryClauseContext::With(with_ctx) => {
+                    crate::query::validator::structs::BoundaryClauseContext::With(with_ctx) => {
                         // 添加With子句的列
                         for col in &with_ctx.yield_clause.yield_columns {
                             if !col.alias.is_empty() {
@@ -176,7 +176,7 @@ impl ClauseValidator {
         }
 
         // 对于普通Yield子句，验证别名
-        use super::alias_validator::AliasValidator;
+        use crate::query::validator::alias_validator::AliasValidator;
         let alias_validator = AliasValidator::new();
         for col in &context.yield_columns {
             alias_validator.validate_aliases(&[col.expr.clone()], &context.aliases_available)?;
@@ -188,7 +188,7 @@ impl ClauseValidator {
     /// 验证分组子句
     fn validate_group(&self, yield_ctx: &mut YieldClauseContext) -> Result<(), String> {
         // 验证分组逻辑
-        use super::aggregate_validator::AggregateValidator;
+        use crate::query::validator::aggregate_validator::AggregateValidator;
         let aggregate_validator = AggregateValidator::new();
 
         for col in &yield_ctx.yield_columns {
@@ -235,7 +235,7 @@ impl ClauseValidator {
 mod tests {
     use super::*;
     use crate::graph::expression::expr_type::Expression;
-    use crate::query::validator::match_structs::{
+    use crate::query::validator::structs::{
         QueryPart, MatchClauseContext, ReturnClauseContext, YieldClauseContext,
         YieldColumn, Path, NodeInfo, EdgeInfo, Direction, MatchStepRange,
         PaginationContext, OrderByClauseContext, OrderType
@@ -427,7 +427,7 @@ mod tests {
             alias: "test_path".to_string(),
             anonymous: false,
             gen_path: true,
-            path_type: crate::query::validator::match_structs::PathType::Default,
+            path_type: crate::query::validator::structs::PathType::Default,
             node_infos: Vec::new(),
             edge_infos: Vec::new(),
             path_build: None,

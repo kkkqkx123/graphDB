@@ -78,9 +78,10 @@ impl GetNeighborsIter {
 
     /// 处理列表数据
     fn process_list(&mut self) -> Result<(), String> {
-        match &*self.data {
+        let data_clone = self.data.clone();
+        match &*data_clone {
             Value::List(list) => {
-                for val in &list.values {
+                for val in list {
                     if let Value::DataSet(dataset) = val {
                         let ds_index = self.make_dataset_index(dataset)?;
                         self.ds_indices.push(ds_index);
@@ -95,7 +96,7 @@ impl GetNeighborsIter {
     }
 
     /// 创建数据集索引
-    fn make_dataset_index(&self, ds: &DataSet) -> Result<DataSetIndex, String> {
+    fn make_dataset_index(&mut self, ds: &DataSet) -> Result<DataSetIndex, String> {
         let mut ds_index = DataSetIndex {
             ds: Arc::new(ds.clone()),
             col_indices: HashMap::new(),
@@ -111,8 +112,8 @@ impl GetNeighborsIter {
     }
 
     /// 构建索引
-    fn build_index(&self, ds_index: &mut DataSetIndex) -> Result<i64, String> {
-        let col_names = &ds_index.ds.col_names;
+    fn build_index(&mut self, ds_index: &mut DataSetIndex) -> Result<i64, String> {
+        let col_names = ds_index.ds.col_names.clone();
         if col_names.len() < 3 {
             return Err("列名数量不足".to_string());
         }
@@ -207,23 +208,23 @@ impl GetNeighborsIter {
 
                     let current_col = &ds_index.ds.rows[row_idx][col_idx];
                     if !matches!(current_col, Value::List(_)) || 
-                       matches!(current_col, Value::List(list) if list.values.is_empty()) {
+                       matches!(current_col, Value::List(list) if list.is_empty()) {
                         self.col_idx += 1;
                         continue;
                     }
 
                     if let Value::List(current_col_list) = current_col {
-                        self.edge_idx_upper_bound = current_col_list.values.len() as i64;
+                        self.edge_idx_upper_bound = current_col_list.len() as i64;
                         self.edge_idx = 0;
                         
                         while self.edge_idx < self.edge_idx_upper_bound && !self.valid {
                             let edge_idx = self.edge_idx as usize;
-                            if edge_idx >= current_col_list.values.len() {
+                            if edge_idx >= current_col_list.len() {
                                 self.edge_idx += 1;
                                 continue;
                             }
 
-                            let current_edge = &current_col_list.values[edge_idx];
+                            let current_edge = &current_col_list[edge_idx];
                             if !matches!(current_edge, Value::List(_)) {
                                 self.edge_idx += 1;
                                 continue;
@@ -321,13 +322,13 @@ impl Iterator for GetNeighborsIter {
 
                 let current_col = &self.ds_indices[self.current_ds_index].ds.rows[self.current_row][col_idx];
                 if !matches!(current_col, Value::List(_)) || 
-                   matches!(current_col, Value::List(list) if list.values.is_empty()) {
+                   matches!(current_col, Value::List(list) if list.is_empty()) {
                     self.col_idx += 1;
                     continue;
                 }
 
                 if let Value::List(current_col_list) = current_col {
-                    self.edge_idx_upper_bound = current_col_list.values.len() as i64;
+                    self.edge_idx_upper_bound = current_col_list.len() as i64;
                     self.edge_idx = 0;
                     break;
                 }
@@ -386,7 +387,7 @@ impl Iterator for GetNeighborsIter {
                 for edge_idx in ds_idx.edge_props_map.values() {
                     if edge_idx.col_idx < row.len() {
                         if let Value::List(list) = &row[edge_idx.col_idx] {
-                            count += list.values.len();
+                            count += list.len();
                         }
                     }
                 }
@@ -532,8 +533,8 @@ impl Iterator for GetNeighborsIter {
                     let row = &ds_index.ds.rows[self.current_row];
                     if prop_index.col_idx < row.len() {
                         if let Value::List(list) = &row[prop_index.col_idx] {
-                            if *prop_idx < list.values.len() {
-                                return Some(list.values[*prop_idx].clone());
+                            if *prop_idx < list.len() {
+                                return Some(list[*prop_idx].clone());
                             }
                         }
                     }
@@ -548,8 +549,8 @@ impl Iterator for GetNeighborsIter {
             let row = &ds_index.ds.rows[self.current_row];
             if prop_index.col_idx < row.len() {
                 if let Value::List(list) = &row[prop_index.col_idx] {
-                    if *prop_idx < list.values.len() {
-                        Some(list.values[*prop_idx].clone())
+                    if *prop_idx < list.len() {
+                        Some(list[*prop_idx].clone())
                     } else {
                         None
                     }
@@ -584,10 +585,10 @@ impl Iterator for GetNeighborsIter {
         }
 
         if let Value::List(edge_col) = &row[prop_index.col_idx] {
-            if self.edge_idx >= 0 && (self.edge_idx as usize) < edge_col.values.len() {
-                if let Value::List(edge_data) = &edge_col.values[self.edge_idx as usize] {
-                    if *prop_idx < edge_data.values.len() {
-                        return Some(edge_data.values[*prop_idx].clone());
+            if self.edge_idx >= 0 && (self.edge_idx as usize) < edge_col.len() {
+                if let Value::List(edge_data) = &edge_col[self.edge_idx as usize] {
+                    if *prop_idx < edge_data.len() {
+                        return Some(edge_data[*prop_idx].clone());
                     }
                 }
             }

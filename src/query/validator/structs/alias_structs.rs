@@ -1,5 +1,6 @@
 //! 别名相关数据结构
 
+use crate::query::validator::{MatchClauseContext, Path, UnwindClauseContext, WithClauseContext};
 use std::collections::HashMap;
 
 /// Cypher查询中的别名类型
