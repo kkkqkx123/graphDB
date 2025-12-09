@@ -24,6 +24,57 @@ pub struct ResultCore {
     pub iterator: Arc<dyn ResultIterator>,
 }
 
+// 新的Result结构体，使用新的Iterator系统
+#[derive(Debug, Clone)]
+pub struct NewResult {
+    pub check_memory: bool,
+    pub state: ResultState,
+    pub msg: String,
+    pub value: Arc<Value>,
+    pub iterator: Option<Box<dyn Iterator>>,
+}
+
+impl NewResult {
+    pub fn new(value: Value, state: ResultState) -> Self {
+        Self {
+            check_memory: false,
+            state,
+            msg: String::new(),
+            value: Arc::new(value),
+            iterator: None,
+        }
+    }
+
+    pub fn with_iterator(mut self, iterator: Box<dyn Iterator>) -> Self {
+        self.iterator = Some(iterator);
+        self
+    }
+
+    pub fn value(&self) -> &Value {
+        &self.value
+    }
+
+    pub fn state(&self) -> ResultState {
+        self.state
+    }
+
+    pub fn msg(&self) -> &str {
+        &self.msg
+    }
+
+    pub fn iterator(&self) -> Option<&Box<dyn Iterator>> {
+        self.iterator.as_ref()
+    }
+
+    pub fn iterator_mut(&mut self) -> Option<&mut Box<dyn Iterator>> {
+        self.iterator.as_mut()
+    }
+
+    pub fn size(&self) -> usize {
+        self.iterator.as_ref().map(|iter| iter.size()).unwrap_or(0)
+    }
+}
+
 impl std::fmt::Debug for ResultCore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ResultCore")
@@ -82,7 +133,7 @@ impl Result {
                 state: ResultState::UnExecuted,
                 msg: String::new(),
                 value: Arc::new(Value::Null(NullType::Null)),
-                iterator: Arc::new(SequentialIterator::new(vec![])), // 使用默认迭代器
+                iterator: Arc::new(SequentialIterator::new(Box::new(DefaultIter::new(Arc::new(Value::Null(NullType::Null)))))), // 使用默认迭代器
             },
         }
     }
@@ -95,7 +146,7 @@ impl Result {
                 state,
                 msg: String::new(),
                 value: Arc::new(value),
-                iterator: Arc::new(SequentialIterator::new(vec![])), // 使用默认迭代器
+                iterator: Arc::new(SequentialIterator::new(Box::new(DefaultIter::new(Arc::new(Value::Null(NullType::Null)))))), // 使用默认迭代器
             },
         }
     }
@@ -108,7 +159,7 @@ impl Result {
                 state,
                 msg,
                 value: Arc::new(value),
-                iterator: Arc::new(SequentialIterator::new(vec![])), // 使用默认迭代器
+                iterator: Arc::new(SequentialIterator::new(Box::new(DefaultIter::new(Arc::new(Value::Null(NullType::Null)))))), // 使用默认迭代器
             },
         }
     }
@@ -191,7 +242,7 @@ impl ResultBuilder {
                 state: ResultState::Success,
                 msg: String::new(),
                 value: Arc::new(Value::Null(NullType::Null)),
-                iterator: Arc::new(SequentialIterator::new(vec![])), // 使用默认迭代器
+                iterator: Arc::new(SequentialIterator::new(Box::new(DefaultIter::new(Arc::new(Value::Null(NullType::Null)))))), // 使用默认迭代器
             },
         }
     }
@@ -224,6 +275,13 @@ impl ResultBuilder {
         self
     }
 
+    /// 设置新的迭代器（使用新的Iterator系统）
+    pub fn new_iterator(mut self, iterator: Box<dyn Iterator>) -> Self {
+        let adapter = IteratorAdapter::new(iterator);
+        self.core.iterator = Arc::new(adapter);
+        self
+    }
+
     /// 设置内存检查标志
     pub fn check_memory(mut self, check_memory: bool) -> Self {
         self.core.check_memory = check_memory;
@@ -244,8 +302,7 @@ impl Default for ResultBuilder {
     }
 }
 
-// 作为示例，这里定义一个简单的迭代器trait和实现
-// 在实际实现中，这将是更复杂的迭代器系统
+// 定义ResultIterator trait
 pub trait ResultIterator: Send + Sync {
     /// 获取值
     fn value_ptr(&self) -> Arc<Value>;
@@ -280,74 +337,132 @@ pub trait ResultIterator: Send + Sync {
     fn get_column_by_index(&self, index: usize) -> &Value;
 }
 
-// 实现一个顺序迭代器作为示例
-#[derive(Clone)]
-pub struct SequentialIterator {
-    values: Vec<Value>,
-    current_pos: usize,
+// 使用新的Iterator系统
+use crate::storage::iterator::{Iterator, DefaultIter};
+
+// 适配器：将新的Iterator适配到ResultIterator接口
+pub struct IteratorAdapter {
+    iter: Box<dyn Iterator>,
 }
 
-impl std::fmt::Debug for SequentialIterator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SequentialIterator")
-            .field("values", &self.values)
-            .field("current_pos", &self.current_pos)
-            .finish()
+impl IteratorAdapter {
+    pub fn new(iter: Box<dyn Iterator>) -> Self {
+        Self { iter }
     }
 }
 
-impl SequentialIterator {
-    pub fn new(values: Vec<Value>) -> Self {
-        Self {
-            values,
-            current_pos: 0,
+impl ResultIterator for IteratorAdapter {
+    fn value_ptr(&self) -> Arc<Value> {
+        // 从迭代器获取当前行的第一个值作为默认值
+        if let Some(row) = self.iter.row() {
+            if !row.is_empty() {
+                Arc::new(row[0].clone())
+            } else {
+                Arc::new(Value::Null(NullType::Null))
+            }
+        } else {
+            Arc::new(Value::Null(NullType::Null))
         }
+    }
+
+    fn is_valid(&self) -> bool {
+        self.iter.valid()
+    }
+
+    fn next(&mut self) {
+        self.iter.next();
+    }
+
+    fn current_row(&self) -> Option<&Value> {
+        // Iterator返回Row，我们返回行的第一个值
+        self.iter.row().and_then(|row| row.first())
+    }
+
+    fn size(&self) -> usize {
+        self.iter.size()
+    }
+
+    fn reset(&mut self) {
+        self.iter.reset(0);
+    }
+
+    fn clear(&mut self) {
+        self.iter.clear();
+    }
+
+    fn get_column(&self, col_name: &str) -> &Value {
+        self.iter.get_column(col_name).unwrap_or(&Value::Null(NullType::Null))
+    }
+
+    fn get_column_by_index(&self, index: usize) -> &Value {
+        self.iter.get_column_by_index(index as i32).unwrap_or(&Value::Null(NullType::Null))
+    }
+}
+
+// SequentialIterator适配器
+pub struct SequentialIterator {
+    iter: Box<dyn Iterator>,
+}
+
+impl SequentialIterator {
+    pub fn new(iter: Box<dyn Iterator>) -> Self {
+        Self { iter }
     }
 }
 
 impl ResultIterator for SequentialIterator {
     fn value_ptr(&self) -> Arc<Value> {
-        if self.values.is_empty() {
-            Arc::new(Value::Null(NullType::Null))
+        // 从迭代器获取当前行的第一个值作为默认值
+        if let Some(row) = self.iter.row() {
+            if !row.is_empty() {
+                Arc::new(row[0].clone())
+            } else {
+                Arc::new(Value::Null(NullType::Null))
+            }
         } else {
-            Arc::new(Value::List(self.values.clone()))
+            Arc::new(Value::Null(NullType::Null))
         }
     }
 
     fn is_valid(&self) -> bool {
-        self.current_pos < self.values.len()
+        self.iter.valid()
     }
 
     fn next(&mut self) {
-        if self.current_pos < self.values.len() {
-            self.current_pos += 1;
-        }
+        self.iter.next();
     }
 
     fn current_row(&self) -> Option<&Value> {
-        self.values.get(self.current_pos)
+        // Iterator返回Row，我们返回行的第一个值
+        self.iter.row().and_then(|row| row.first())
     }
 
     fn size(&self) -> usize {
-        self.values.len()
+        self.iter.size()
     }
 
     fn reset(&mut self) {
-        self.current_pos = 0;
+        self.iter.reset(0);
     }
 
     fn clear(&mut self) {
-        self.values.clear();
-        self.current_pos = 0;
+        self.iter.clear();
     }
 
-    fn get_column(&self, _col_name: &str) -> &Value {
-        // 在顺序迭代器中，列概念不适用，返回空值
-        &Value::Null(NullType::Null)
+    fn get_column(&self, col_name: &str) -> &Value {
+        self.iter.get_column(col_name).unwrap_or(&Value::Null(NullType::Null))
     }
 
     fn get_column_by_index(&self, index: usize) -> &Value {
-        self.values.get(index).unwrap_or(&Value::Null(NullType::Null))
+        self.iter.get_column_by_index(index as i32).unwrap_or(&Value::Null(NullType::Null))
+    }
+}
+
+impl std::fmt::Debug for SequentialIterator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SequentialIterator")
+            .field("iter", &self.iter)
+            .finish()
     }
 }
 

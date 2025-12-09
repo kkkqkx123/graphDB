@@ -1,11 +1,13 @@
+use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-use async_trait::async_trait;
 
-use crate::core::{Value, Vertex, Edge, Path, Step};
-use crate::storage::StorageEngine;
+use crate::core::{Edge, Path, Step, Value, Vertex};
+use crate::query::executor::base::{
+    BaseExecutor, EdgeDirection, ExecutionResult, Executor, InputExecutor,
+};
 use crate::query::QueryError;
-use crate::query::executor::base::{Executor, ExecutionResult, ExecutionContext, BaseExecutor, InputExecutor, EdgeDirection};
+use crate::storage::StorageEngine;
 
 /// TraverseExecutor - 完整图遍历执行器
 ///
@@ -16,7 +18,7 @@ pub struct TraverseExecutor<S: StorageEngine> {
     edge_direction: EdgeDirection,
     edge_types: Option<Vec<String>>,
     max_depth: Option<usize>,
-    conditions: Option<String>,  // 遍历条件
+    conditions: Option<String>, // 遍历条件
     input_executor: Option<Box<dyn Executor<S>>>,
     // 遍历状态
     current_paths: Vec<Path>,
@@ -64,16 +66,21 @@ impl<S: StorageEngine> TraverseExecutor<S> {
     }
 
     /// 获取节点的邻居节点和对应的边
-    async fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
+    async fn get_neighbors_with_edges(
+        &self,
+        node_id: &Value,
+    ) -> Result<Vec<(Value, Edge)>, QueryError> {
         let storage = self.base.storage.lock().unwrap();
-        
+
         // 获取节点的所有边
-        let edges = storage.get_node_edges(node_id, crate::core::Direction::Both)
+        let edges = storage
+            .get_node_edges(node_id, crate::core::Direction::Both)
             .map_err(|e| QueryError::StorageError(e.to_string()))?;
 
         // 过滤边类型
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
-            edges.into_iter()
+            edges
+                .into_iter()
                 .filter(|edge| edge_types.contains(&edge.edge_type))
                 .collect()
         } else {
@@ -81,31 +88,30 @@ impl<S: StorageEngine> TraverseExecutor<S> {
         };
 
         // 根据方向过滤边并提取邻居节点ID和边
-        let neighbors_with_edges = filtered_edges.into_iter()
-            .filter_map(|edge| {
-                match self.edge_direction {
-                    EdgeDirection::In => {
-                        if *edge.dst == *node_id {
-                            Some((edge.src.clone(), edge))
-                        } else {
-                            None
-                        }
+        let neighbors_with_edges = filtered_edges
+            .into_iter()
+            .filter_map(|edge| match self.edge_direction {
+                EdgeDirection::In => {
+                    if *edge.dst == *node_id {
+                        Some((edge.src.clone(), edge))
+                    } else {
+                        None
                     }
-                    EdgeDirection::Out => {
-                        if *edge.src == *node_id {
-                            Some((edge.dst.clone(), edge))
-                        } else {
-                            None
-                        }
+                }
+                EdgeDirection::Out => {
+                    if *edge.src == *node_id {
+                        Some((edge.dst.clone(), edge))
+                    } else {
+                        None
                     }
-                    EdgeDirection::Both => {
-                        if *edge.src == *node_id {
-                            Some((edge.dst.clone(), edge))
-                        } else if *edge.dst == *node_id {
-                            Some((edge.src.clone(), edge))
-                        } else {
-                            None
-                        }
+                }
+                EdgeDirection::Both => {
+                    if *edge.src == *node_id {
+                        Some((edge.dst.clone(), edge))
+                    } else if *edge.dst == *node_id {
+                        Some((edge.src.clone(), edge))
+                    } else {
+                        None
                     }
                 }
             })
@@ -122,7 +128,11 @@ impl<S: StorageEngine> TraverseExecutor<S> {
     }
 
     /// 执行单步遍历
-    async fn traverse_step(&mut self, current_depth: usize, max_depth: usize) -> Result<(), QueryError> {
+    async fn traverse_step(
+        &mut self,
+        current_depth: usize,
+        max_depth: usize,
+    ) -> Result<(), QueryError> {
         if current_depth >= max_depth {
             // 达到最大深度，将当前路径标记为完成
             self.completed_paths.extend(self.current_paths.clone());
@@ -146,7 +156,8 @@ impl<S: StorageEngine> TraverseExecutor<S> {
             for (neighbor_id, edge) in neighbors_with_edges {
                 // 获取邻居节点的完整信息
                 let storage = self.base.storage.lock().unwrap();
-                let neighbor_vertex = storage.get_node(&neighbor_id)
+                let neighbor_vertex = storage
+                    .get_node(&neighbor_id)
                     .map_err(|e| QueryError::StorageError(e.to_string()))?;
 
                 if let Some(vertex) = neighbor_vertex {
@@ -200,19 +211,19 @@ impl<S: StorageEngine> TraverseExecutor<S> {
         if self.generate_path {
             // 返回路径结果
             let mut path_values = Vec::new();
-            
+
             for path in &self.completed_paths {
                 let mut path_value = Vec::new();
-                
+
                 // 添加起始节点
                 path_value.push(Value::Vertex(path.src.clone()));
-                
+
                 // 添加每一步的边和节点
                 for step in &path.steps {
                     path_value.push(Value::Edge(step.edge.clone()));
                     path_value.push(Value::Vertex(step.dst.clone()));
                 }
-                
+
                 path_values.push(Value::List(path_value));
             }
 
@@ -316,7 +327,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for TraverseExecutor<S> {
         // 执行遍历
         for current_depth in 0..max_depth {
             self.traverse_step(current_depth, max_depth).await?;
-            
+
             // 如果没有更多路径可以扩展，提前结束
             if self.current_paths.is_empty() {
                 break;
@@ -335,7 +346,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for TraverseExecutor<S> {
         self.current_paths.clear();
         self.completed_paths.clear();
         self.visited_nodes.clear();
-        
+
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
         }
@@ -347,7 +358,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for TraverseExecutor<S> {
         self.current_paths.clear();
         self.completed_paths.clear();
         self.visited_nodes.clear();
-        
+
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;
         }

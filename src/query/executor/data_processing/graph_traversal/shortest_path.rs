@@ -1,11 +1,13 @@
+use async_trait::async_trait;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
-use async_trait::async_trait;
 
-use crate::core::{Value, Vertex, Edge, Path, Step};
-use crate::storage::StorageEngine;
+use crate::core::{Edge, Path, Step, Value};
+use crate::query::executor::base::{
+    BaseExecutor, EdgeDirection, ExecutionResult, Executor, InputExecutor,
+};
 use crate::query::QueryError;
-use crate::query::executor::base::{Executor, ExecutionResult, ExecutionContext, BaseExecutor, InputExecutor, EdgeDirection};
+use crate::storage::StorageEngine;
 
 /// 最短路径算法枚举
 #[derive(Debug, Clone)]
@@ -28,7 +30,7 @@ pub struct ShortestPathExecutor<S: StorageEngine> {
     end_vertex_ids: Vec<Value>,
     edge_direction: EdgeDirection,
     edge_types: Option<Vec<String>>,
-    algorithm: ShortestPathAlgorithm,  // 使用的算法
+    algorithm: ShortestPathAlgorithm, // 使用的算法
     input_executor: Option<Box<dyn Executor<S>>>,
     // 路径缓存
     shortest_paths: Vec<Path>,
@@ -64,16 +66,21 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
     }
 
     /// 获取节点的邻居节点和对应的边
-    async fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
+    async fn get_neighbors_with_edges(
+        &self,
+        node_id: &Value,
+    ) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
         let storage = self.base.storage.lock().unwrap();
-        
+
         // 获取节点的所有边
-        let edges = storage.get_node_edges(node_id, crate::core::Direction::Both)
+        let edges = storage
+            .get_node_edges(node_id, crate::core::Direction::Both)
             .map_err(|e| QueryError::StorageError(e.to_string()))?;
 
         // 过滤边类型
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
-            edges.into_iter()
+            edges
+                .into_iter()
                 .filter(|edge| edge_types.contains(&edge.edge_type))
                 .collect()
         } else {
@@ -81,7 +88,8 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         };
 
         // 根据方向过滤边并提取邻居节点ID和边
-        let neighbors_with_edges = filtered_edges.into_iter()
+        let neighbors_with_edges = filtered_edges
+            .into_iter()
             .filter_map(|edge| {
                 let (neighbor_id, weight) = match self.edge_direction {
                     EdgeDirection::In => {
@@ -143,7 +151,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
 
             // 获取邻居节点
             let neighbors = self.get_neighbors_with_edges(&current_id).await?;
-            
+
             for (neighbor_id, edge, _weight) in neighbors {
                 // 如果已经访问过，跳过
                 if path_map.contains_key(&neighbor_id) {
@@ -158,7 +166,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
                         dst: Box::new(neighbor_vertex),
                         edge: Box::new(edge),
                     });
-                    
+
                     queue.push_back((neighbor_id.clone(), new_path.clone()));
                     path_map.insert(neighbor_id, new_path);
                 }
@@ -173,7 +181,8 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
             self.distance_map.insert(start_id.clone(), 0.0);
         }
 
-        let mut priority_queue: Vec<(f64, Value)> = self.start_vertex_ids
+        let mut priority_queue: Vec<(f64, Value)> = self
+            .start_vertex_ids
             .iter()
             .map(|id| (0.0, id.clone()))
             .collect();
@@ -200,18 +209,22 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
 
             // 获取邻居节点
             let neighbors = self.get_neighbors_with_edges(&current_id).await?;
-            
+
             for (neighbor_id, edge, weight) in neighbors {
                 if self.visited_nodes.contains(&neighbor_id) {
                     continue;
                 }
 
                 let new_distance = current_distance + weight;
-                let existing_distance = self.distance_map.get(&neighbor_id).unwrap_or(&f64::INFINITY);
+                let existing_distance = self
+                    .distance_map
+                    .get(&neighbor_id)
+                    .unwrap_or(&f64::INFINITY);
 
                 if new_distance < *existing_distance {
                     self.distance_map.insert(neighbor_id.clone(), new_distance);
-                    self.previous_map.insert(neighbor_id.clone(), (current_id.clone(), edge));
+                    self.previous_map
+                        .insert(neighbor_id.clone(), (current_id.clone(), edge));
                     priority_queue.push((new_distance, neighbor_id));
                 }
             }
@@ -245,7 +258,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         if let Ok(Some(start_vertex)) = storage.get_node(&current_id) {
             // 反转路径步骤
             path_steps.reverse();
-            
+
             Ok(Some(Path {
                 src: Box::new(start_vertex),
                 steps: path_steps,
@@ -274,19 +287,19 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
     /// 构建结果
     fn build_result(&self) -> ExecutionResult {
         let mut path_values = Vec::new();
-        
+
         for path in &self.shortest_paths {
             let mut path_value = Vec::new();
-            
+
             // 添加起始节点
             path_value.push(Value::Vertex(path.src.clone()));
-            
+
             // 添加每一步的边和节点
             for step in &path.steps {
                 path_value.push(Value::Edge(step.edge.clone()));
                 path_value.push(Value::Vertex(step.dst.clone()));
             }
-            
+
             path_values.push(Value::List(path_value));
         }
 
@@ -376,7 +389,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
         self.visited_nodes.clear();
         self.distance_map.clear();
         self.previous_map.clear();
-        
+
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
         }
@@ -389,7 +402,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
         self.visited_nodes.clear();
         self.distance_map.clear();
         self.previous_map.clear();
-        
+
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;
         }

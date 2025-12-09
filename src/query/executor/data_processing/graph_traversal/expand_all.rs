@@ -1,11 +1,13 @@
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 
-use crate::core::{Value, Vertex, Edge, Path, Step};
-use crate::storage::StorageEngine;
+use crate::core::{Edge, Path, Step, Value, Vertex};
+use crate::query::executor::base::{
+    BaseExecutor, EdgeDirection, ExecutionResult, Executor, InputExecutor,
+};
 use crate::query::QueryError;
-use crate::query::executor::base::{Executor, ExecutionResult, ExecutionContext, BaseExecutor, InputExecutor, EdgeDirection};
+use crate::storage::StorageEngine;
 
 /// ExpandAllExecutor - 全路径扩展执行器
 ///
@@ -15,7 +17,7 @@ pub struct ExpandAllExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     edge_direction: EdgeDirection,
     edge_types: Option<Vec<String>>,
-    max_depth: Option<usize>,  // 最大扩展深度
+    max_depth: Option<usize>, // 最大扩展深度
     input_executor: Option<Box<dyn Executor<S>>>,
     // 路径缓存
     path_cache: Vec<Path>,
@@ -43,16 +45,21 @@ impl<S: StorageEngine> ExpandAllExecutor<S> {
     }
 
     /// 获取节点的邻居节点和对应的边
-    async fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
+    async fn get_neighbors_with_edges(
+        &self,
+        node_id: &Value,
+    ) -> Result<Vec<(Value, Edge)>, QueryError> {
         let storage = self.base.storage.lock().unwrap();
-        
+
         // 获取节点的所有边
-        let edges = storage.get_node_edges(node_id, crate::core::Direction::Both)
-            .map_err(|e| QueryError::StorageError(e.to_string()))?;
+        let edges = storage
+            .get_node_edges(node_id, crate::core::Direction::Both)
+            .map_err(|e| QueryError::StorageError(e))?;
 
         // 过滤边类型
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
-            edges.into_iter()
+            edges
+                .into_iter()
                 .filter(|edge| edge_types.contains(&edge.edge_type))
                 .collect()
         } else {
@@ -60,31 +67,30 @@ impl<S: StorageEngine> ExpandAllExecutor<S> {
         };
 
         // 根据方向过滤边并提取邻居节点ID和边
-        let neighbors_with_edges = filtered_edges.into_iter()
-            .filter_map(|edge| {
-                match self.edge_direction {
-                    EdgeDirection::In => {
-                        if *edge.dst == *node_id {
-                            Some((edge.src.clone(), edge))
-                        } else {
-                            None
-                        }
+        let neighbors_with_edges = filtered_edges
+            .into_iter()
+            .filter_map(|edge| match self.edge_direction {
+                EdgeDirection::In => {
+                    if *edge.dst == *node_id {
+                        Some(((*edge.src).clone(), edge))
+                    } else {
+                        None
                     }
-                    EdgeDirection::Out => {
-                        if *edge.src == *node_id {
-                            Some((edge.dst.clone(), edge))
-                        } else {
-                            None
-                        }
+                }
+                EdgeDirection::Out => {
+                    if *edge.src == *node_id {
+                        Some(((*edge.dst).clone(), edge))
+                    } else {
+                        None
                     }
-                    EdgeDirection::Both => {
-                        if *edge.src == *node_id {
-                            Some((edge.dst.clone(), edge))
-                        } else if *edge.dst == *node_id {
-                            Some((edge.src.clone(), edge))
-                        } else {
-                            None
-                        }
+                }
+                EdgeDirection::Both => {
+                    if *edge.src == *node_id {
+                        Some(((*edge.dst).clone(), edge))
+                    } else if *edge.dst == *node_id {
+                        Some(((*edge.src).clone(), edge))
+                    } else {
+                        None
                     }
                 }
             })
@@ -138,9 +144,12 @@ impl<S: StorageEngine> ExpandAllExecutor<S> {
             }
 
             // 获取邻居节点的完整信息
-            let storage = self.base.storage.lock().unwrap();
-            let neighbor_vertex = storage.get_node(&neighbor_id)
-                .map_err(|e| QueryError::StorageError(e.to_string()))?;
+            let neighbor_vertex = {
+                let storage = self.base.storage.lock().unwrap();
+                storage
+                    .get_node(&neighbor_id)
+                    .map_err(|e| QueryError::StorageError(e))?
+            };
 
             if let Some(vertex) = neighbor_vertex {
                 // 创建新路径
@@ -154,7 +163,8 @@ impl<S: StorageEngine> ExpandAllExecutor<S> {
                 self.visited_nodes.insert(neighbor_id.clone());
 
                 // 递归扩展
-                self.expand_paths_recursive(&mut new_path, current_depth + 1, max_depth).await?;
+                self.expand_paths_recursive(&mut new_path, current_depth + 1, max_depth)
+                    .await?;
 
                 // 取消标记（允许在其他路径中访问）
                 self.visited_nodes.remove(&neighbor_id);
@@ -171,19 +181,19 @@ impl<S: StorageEngine> ExpandAllExecutor<S> {
     fn build_expansion_result(&self) -> ExecutionResult {
         // 将路径转换为值列表
         let mut path_values = Vec::new();
-        
+
         for path in &self.path_cache {
             let mut path_value = Vec::new();
-            
+
             // 添加起始节点
             path_value.push(Value::Vertex(path.src.clone()));
-            
+
             // 添加每一步的边和节点
             for step in &path.steps {
                 path_value.push(Value::Edge(step.edge.clone()));
                 path_value.push(Value::Vertex(step.dst.clone()));
             }
-            
+
             path_values.push(Value::List(path_value));
         }
 
@@ -267,7 +277,8 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             };
 
             // 递归扩展路径
-            self.expand_paths_recursive(&mut initial_path, 0, max_depth).await?;
+            self.expand_paths_recursive(&mut initial_path, 0, max_depth)
+                .await?;
         }
 
         // 构建结果
@@ -278,7 +289,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
         // 初始化扩展所需的任何资源
         self.path_cache.clear();
         self.visited_nodes.clear();
-        
+
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
         }
@@ -289,7 +300,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
         // 清理资源
         self.path_cache.clear();
         self.visited_nodes.clear();
-        
+
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;
         }

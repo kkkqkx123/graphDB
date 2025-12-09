@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use crate::core::{Value, Vertex, Edge, NullType};
-use crate::graph::expression::Expression;
 use super::context::EvalContext;
 use super::error::ExpressionError;
+use crate::core::{NullType, Value};
+use crate::graph::expression::Expression;
+use std::collections::HashMap;
 
 /// 评估函数表达式
 pub fn evaluate_function(
@@ -13,7 +13,9 @@ pub fn evaluate_function(
     match func_name.to_lowercase().as_str() {
         "has_property" => {
             if args.len() != 1 {
-                return Err(ExpressionError::FunctionError("has_property expects 1 argument".to_string()));
+                return Err(ExpressionError::FunctionError(
+                    "has_property expects 1 argument".to_string(),
+                ));
             }
 
             let prop_expr = &args[0];
@@ -21,12 +23,19 @@ pub fn evaluate_function(
             let prop_name_val = evaluator.evaluate(prop_expr, context)?;
             let prop_name = match prop_name_val {
                 Value::String(name) => name,
-                _ => return Err(ExpressionError::FunctionError("Property name must be a string".to_string())),
+                _ => {
+                    return Err(ExpressionError::FunctionError(
+                        "Property name must be a string".to_string(),
+                    ))
+                }
             };
 
             // Check if property exists in vertex
             let exists = if let Some(vertex) = context.vertex {
-                vertex.tags.iter().any(|tag| tag.properties.contains_key(&prop_name))
+                vertex
+                    .tags
+                    .iter()
+                    .any(|tag| tag.properties.contains_key(&prop_name))
             } else if let Some(edge) = context.edge {
                 edge.props.contains_key(&prop_name)
             } else {
@@ -34,7 +43,7 @@ pub fn evaluate_function(
             };
 
             Ok(Value::Bool(exists))
-        },
+        }
         "coalesce" => {
             for arg in args {
                 let evaluator = super::evaluator::ExpressionEvaluator;
@@ -44,9 +53,12 @@ pub fn evaluate_function(
                 }
             }
             Ok(Value::Null(crate::core::NullType::Null))
-        },
+        }
         // 添加更多函数实现
-        _ => Err(ExpressionError::FunctionError(format!("Unknown function: {}", func_name))),
+        _ => Err(ExpressionError::FunctionError(format!(
+            "Unknown function: {}",
+            func_name
+        ))),
     }
 }
 
@@ -73,7 +85,7 @@ pub fn evaluate_aggregate(
             } else {
                 Ok(Value::Int(if distinct { 1 } else { 1 })) // 简化实现
             }
-        },
+        }
         "sum" => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             let arg_val = evaluator.evaluate(arg, context)?;
@@ -81,9 +93,11 @@ pub fn evaluate_aggregate(
             match arg_val {
                 Value::Int(n) => Ok(Value::Int(n)),
                 Value::Float(f) => Ok(Value::Float(f)),
-                _ => Err(ExpressionError::TypeError("Sum can only be applied to numeric values".to_string())),
+                _ => Err(ExpressionError::TypeError(
+                    "Sum can only be applied to numeric values".to_string(),
+                )),
             }
-        },
+        }
         "avg" => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             let arg_val = evaluator.evaluate(arg, context)?;
@@ -91,15 +105,20 @@ pub fn evaluate_aggregate(
             match arg_val {
                 Value::Int(n) => Ok(Value::Float(n as f64)),
                 Value::Float(f) => Ok(Value::Float(f)),
-                _ => Err(ExpressionError::TypeError("Avg can only be applied to numeric values".to_string())),
+                _ => Err(ExpressionError::TypeError(
+                    "Avg can only be applied to numeric values".to_string(),
+                )),
             }
-        },
+        }
         "min" | "max" => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             let arg_val = evaluator.evaluate(arg, context)?;
             // 这是一个简化的实现
             Ok(arg_val)
-        },
-        _ => Err(ExpressionError::FunctionError(format!("Unknown aggregate function: {}", func))),
+        }
+        _ => Err(ExpressionError::FunctionError(format!(
+            "Unknown aggregate function: {}",
+            func
+        ))),
     }
 }

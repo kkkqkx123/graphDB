@@ -1,7 +1,7 @@
 //! DeducePropsVisitor - 用于推导表达式属性的访问器
 //! 对应 NebulaGraph DeducePropsVisitor.h/.cpp 的功能
 
-use crate::graph::expression::{Expression, ExpressionKind};
+use crate::graph::expression::Expression;
 use std::collections::{HashMap, HashSet};
 
 /// 属性定义
@@ -147,11 +147,9 @@ impl ExpressionProps {
     /// 检查给定属性映射是否为变量属性的子集
     pub fn is_subset_of_var(&self, props: &HashMap<String, HashSet<String>>) -> bool {
         props.iter().all(|(var, var_props)| {
-            self.var_props
-                .get(var)
-                .map_or(false, |my_props| {
-                    var_props.iter().all(|p| my_props.contains(p))
-                })
+            self.var_props.get(var).map_or(false, |my_props| {
+                var_props.iter().all(|p| my_props.contains(p))
+            })
         })
     }
 
@@ -641,7 +639,10 @@ mod tests {
         props1.union_props(&props2);
 
         assert_eq!(props1.input_props.len(), 2);
-        assert!(props1.tag_props.get("Person").map_or(false, |p| p.len() == 2));
+        assert!(props1
+            .tag_props
+            .get("Person")
+            .map_or(false, |p| p.len() == 2));
         assert!(props1
             .edge_props
             .get("follow")

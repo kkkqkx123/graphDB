@@ -14,7 +14,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct DefaultIter {
     value: Arc<Value>,
-    valid: bool,
+    counter: usize,
 }
 
 impl DefaultIter {
@@ -22,7 +22,7 @@ impl DefaultIter {
     pub fn new(value: Arc<Value>) -> Self {
         Self {
             value,
-            valid: true,
+            counter: 0,
         }
     }
 
@@ -38,27 +38,27 @@ impl Iterator for DefaultIter {
     }
 
     fn valid(&self) -> bool {
-        self.valid
+        self.counter == 0
     }
 
     fn next(&mut self) {
-        self.valid = false;
+        self.counter += 1;
     }
 
     fn erase(&mut self) {
-        self.valid = false;
+        self.counter += 1;
     }
 
     fn unstable_erase(&mut self) {
-        self.valid = false;
+        self.counter += 1;
     }
 
     fn clear(&mut self) {
-        self.valid = false;
+        self.counter = 1;
     }
 
-    fn reset(&mut self, _pos: usize) {
-        self.valid = true;
+    fn reset(&mut self, pos: usize) {
+        self.counter = pos;
     }
 
     fn size(&self) -> usize {
@@ -121,7 +121,7 @@ impl Iterator for DefaultIter {
     fn copy(&self) -> Box<dyn Iterator> {
         Box::new(DefaultIter {
             value: self.value.clone(),
-            valid: self.valid,
+            counter: self.counter,
         })
     }
 }

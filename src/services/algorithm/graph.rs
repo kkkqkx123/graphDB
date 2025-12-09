@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::Hash;
 use std::cmp::Ordering;
-use crate::core::{Vertex, Edge};
 
 /// Graph algorithm utilities
 pub struct GraphAlgorithms;

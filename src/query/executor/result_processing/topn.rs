@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::{Edge, Value, Vertex};
+use crate::query::executor::base::{
+    BaseExecutor, ExecutionContext, ExecutionResult, Executor, InputExecutor,
+};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
-use crate::query::executor::base::{BaseExecutor, ExecutionContext, ExecutionResult, Executor, InputExecutor};
 
 /// TopNExecutor - TOP N 结果执行器
 ///

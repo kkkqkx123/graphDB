@@ -1,8 +1,8 @@
 //! 查询上下文模块 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
-use crate::core::{SymbolTable, ValidateContext, Value};
-use super::QueryExecutionContext;
+use crate::core::{SymbolTable, Value};
+use super::{ValidateContext, QueryExecutionContext};
 use crate::graph::utils::IdGenerator;
 use crate::utils::ObjectPool;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -81,7 +81,7 @@ impl QueryContext {
         Self {
             rctx: None,
             vctx: ValidateContext::new(),
-            ectx: ExecutionContext::new(),
+            ectx: QueryExecutionContext::new(),
             plan: None,
             schema_manager: None,
             index_manager: None,

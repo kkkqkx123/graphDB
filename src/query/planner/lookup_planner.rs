@@ -1,8 +1,8 @@
 //! Lookup planner implementation for handling LOOKUP queries in NebulaGraph
 
-use crate::query::context::AstContext;
+use super::plan::{ExecutionPlan, PlanNodeKind, SingleInputNode, SubPlan};
 use super::planner::{Planner, PlannerError};
-use super::plan::{SubPlan, PlanNodeKind, ExecutionPlan, SingleInputNode};
+use crate::query::context::AstContext;
 
 #[derive(Debug)]
 pub struct LookupPlanner {
@@ -29,18 +29,23 @@ impl Planner for LookupPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         // Generate the execution plan for the lookup statement
         if !Self::match_ast_ctx(ast_ctx) {
-            return Err(PlannerError::InvalidAstContext("AST context is not a lookup statement".to_string()));
+            return Err(PlannerError::InvalidAstContext(
+                "AST context is not a lookup statement".to_string(),
+            ));
         }
 
         // Create a plan node for the lookup operation
         let lookup_node = Box::new(SingleInputNode::new(
             PlanNodeKind::IndexScan, // Using IndexScan as the base node for lookup
-            Box::new(SingleInputNode::new(PlanNodeKind::Start, create_empty_node()?))
+            Box::new(SingleInputNode::new(
+                PlanNodeKind::Start,
+                create_empty_node()?,
+            )),
         ));
 
         // Create the execution plan
         let execution_plan = ExecutionPlan::new(Some(lookup_node));
-        
+
         // For now, just return a subplan with the execution plan
         // In a complete implementation, this would be more complex
         Ok(SubPlan::new(Some(execution_plan.root.unwrap()), None))
@@ -53,7 +58,7 @@ impl Planner for LookupPlanner {
 
 // Helper function to create an empty start node
 fn create_empty_node() -> Result<Box<dyn super::plan::PlanNode>, PlannerError> {
-    use super::plan::{PlanNode, SingleDependencyNode, PlanNodeKind};
+    use super::plan::{PlanNodeKind, SingleDependencyNode};
 
     Ok(Box::new(SingleDependencyNode {
         id: -1,

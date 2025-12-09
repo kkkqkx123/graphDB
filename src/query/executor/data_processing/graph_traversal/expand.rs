@@ -1,11 +1,13 @@
+use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-use async_trait::async_trait;
 
-use crate::core::{Value, Vertex, Edge};
-use crate::storage::StorageEngine;
+use crate::core::Value;
+use crate::query::executor::base::{
+    BaseExecutor, EdgeDirection, ExecutionResult, Executor, InputExecutor,
+};
 use crate::query::QueryError;
-use crate::query::executor::base::{Executor, ExecutionResult, ExecutionContext, BaseExecutor, InputExecutor, EdgeDirection};
+use crate::storage::StorageEngine;
 
 /// ExpandExecutor - 单步路径扩展执行器
 ///
@@ -15,7 +17,7 @@ pub struct ExpandExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     edge_direction: EdgeDirection,
     edge_types: Option<Vec<String>>,
-    max_depth: Option<usize>,  // 最大扩展深度
+    max_depth: Option<usize>, // 最大扩展深度
     input_executor: Option<Box<dyn Executor<S>>>,
     // 缓存已访问的节点，用于避免循环
     visited_nodes: HashSet<Value>,
@@ -45,14 +47,16 @@ impl<S: StorageEngine> ExpandExecutor<S> {
     /// 获取节点的邻居节点
     async fn get_neighbors(&self, node_id: &Value) -> Result<Vec<Value>, QueryError> {
         let storage = self.base.storage.lock().unwrap();
-        
+
         // 获取节点的所有边
-        let edges = storage.get_node_edges(node_id, crate::core::Direction::Both)
-            .map_err(|e| QueryError::StorageError(e.to_string()))?;
+        let edges = storage
+            .get_node_edges(node_id, crate::core::Direction::Both)
+            .map_err(|e| QueryError::StorageError(e))?;
 
         // 过滤边类型
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
-            edges.into_iter()
+            edges
+                .into_iter()
                 .filter(|edge| edge_types.contains(&edge.edge_type))
                 .collect()
         } else {
@@ -60,31 +64,30 @@ impl<S: StorageEngine> ExpandExecutor<S> {
         };
 
         // 根据方向过滤边并提取邻居节点ID
-        let neighbors = filtered_edges.into_iter()
-            .filter_map(|edge| {
-                match self.edge_direction {
-                    EdgeDirection::In => {
-                        if *edge.dst == *node_id {
-                            Some(edge.src.clone())
-                        } else {
-                            None
-                        }
+        let neighbors = filtered_edges
+            .into_iter()
+            .filter_map(|edge| match self.edge_direction {
+                EdgeDirection::In => {
+                    if *edge.dst == *node_id {
+                        Some(edge.src.clone())
+                    } else {
+                        None
                     }
-                    EdgeDirection::Out => {
-                        if *edge.src == *node_id {
-                            Some(edge.dst.clone())
-                        } else {
-                            None
-                        }
+                }
+                EdgeDirection::Out => {
+                    if *edge.src == *node_id {
+                        Some(edge.dst.clone())
+                    } else {
+                        None
                     }
-                    EdgeDirection::Both => {
-                        if *edge.src == *node_id {
-                            Some(edge.dst.clone())
-                        } else if *edge.dst == *node_id {
-                            Some(edge.src.clone())
-                        } else {
-                            None
-                        }
+                }
+                EdgeDirection::Both => {
+                    if *edge.src == *node_id {
+                        Some(edge.dst.clone())
+                    } else if *edge.dst == *node_id {
+                        Some(edge.src.clone())
+                    } else {
+                        None
                     }
                 }
             })
@@ -108,9 +111,10 @@ impl<S: StorageEngine> ExpandExecutor<S> {
 
             // 获取邻居节点
             let neighbors = self.get_neighbors(&node_id).await?;
-            
+
             // 缓存邻接关系
-            self.adjacency_cache.insert(node_id.clone(), neighbors.clone());
+            self.adjacency_cache
+                .insert(node_id.clone(), neighbors.clone());
 
             // 添加未访问的邻居节点
             for neighbor in neighbors {
@@ -186,7 +190,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandExecutor<S> {
         // 初始化扩展所需的任何资源
         self.visited_nodes.clear();
         self.adjacency_cache.clear();
-        
+
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
         }
@@ -197,7 +201,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandExecutor<S> {
         // 清理资源
         self.visited_nodes.clear();
         self.adjacency_cache.clear();
-        
+
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;
         }

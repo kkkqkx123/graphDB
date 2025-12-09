@@ -10,9 +10,9 @@
 
 mod base_validator;
 mod match_validator;
-mod validation_interface;
-mod validation_factory;
 mod validate_context;
+mod validation_factory;
+mod validation_interface;
 
 pub mod strategies;
 pub mod structs;
@@ -20,7 +20,6 @@ pub mod structs;
 pub use base_validator::Validator;
 pub use match_validator::MatchValidator;
 pub use validate_context::{ValidateContext, Variable};
-pub use validation_interface::*;
 pub use validation_factory::ValidationFactory;
 
 // 导出策略模块
@@ -30,8 +29,8 @@ pub use structs::*;
 
 // 为了向后兼容，保留旧的导出
 // 这些将在重构完成后被移除
-pub use alias_validator::AliasValidator;
 pub use aggregate_validator::AggregateValidator;
-pub use pagination_validator::PaginationValidator;
-pub use expression_validator::ExpressionValidator;
+pub use alias_validator::AliasValidator;
 pub use clause_validator::ClauseValidator;
+pub use expression_validator::ExpressionValidator;
+pub use pagination_validator::PaginationValidator;

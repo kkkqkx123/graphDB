@@ -6,7 +6,6 @@ use crate::graph::expression::{BinaryOperator, UnaryOperator};
 use crate::graph::expression::{Expression, ExpressionKind};
 use crate::query::validator::ValidateContext;
 use crate::storage::StorageEngine;
-use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
@@ -118,24 +117,12 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             Expression::List(items) => self.visit_list(items),
             Expression::Map(pairs) => self.visit_map_items(pairs),
             Expression::Set(items) => self.visit_set(items),
-            Expression::TagProperty { tag, prop } => {
-                self.visit_tag_property(tag, prop)
-            }
-            Expression::EdgeProperty { edge, prop } => {
-                self.visit_edge_property(edge, prop)
-            }
-            Expression::InputProperty(prop) => {
-                self.visit_input_property(prop)
-            }
-            Expression::VariableProperty { var, prop } => {
-                self.visit_variable_property(var, prop)
-            }
-            Expression::SourceProperty { tag, prop } => {
-                self.visit_source_property(tag, prop)
-            }
-            Expression::DestinationProperty { tag, prop } => {
-                self.visit_dest_property(tag, prop)
-            }
+            Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
+            Expression::EdgeProperty { edge, prop } => self.visit_edge_property(edge, prop),
+            Expression::InputProperty(prop) => self.visit_input_property(prop),
+            Expression::VariableProperty { var, prop } => self.visit_variable_property(var, prop),
+            Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
+            Expression::DestinationProperty { tag, prop } => self.visit_dest_property(tag, prop),
             Expression::UnaryPlus(operand) => {
                 self.visit(operand)?;
                 Ok(())
@@ -144,7 +131,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.visit(operand)?;
                 // 检查是否可以取反
                 match &self.type_ {
-                    ValueTypeDef::Int | ValueTypeDef::Float | ValueTypeDef::Empty | ValueTypeDef::Null => Ok(()),
+                    ValueTypeDef::Int
+                    | ValueTypeDef::Float
+                    | ValueTypeDef::Empty
+                    | ValueTypeDef::Null => Ok(()),
                     _ => {
                         let msg = format!("无法对类型 {:?} 执行取反操作", self.type_);
                         self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
@@ -206,7 +196,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = self.parse_type_def(target_type);
                 Ok(())
             }
-            Expression::Case { conditions, default } => {
+            Expression::Case {
+                conditions,
+                default,
+            } => {
                 // 检查所有条件和默认分支的类型是否一致
                 let mut result_type: Option<ValueTypeDef> = None;
 
@@ -252,11 +245,18 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 }
                 Ok(())
             }
-            Expression::Aggregate { func, arg, distinct: _ } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct: _,
+            } => {
                 self.visit(arg.as_ref())?;
                 self.visit_aggregate(func)
             }
-            Expression::ListComprehension { generator, condition } => {
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => {
                 self.visit(generator.as_ref())?;
                 if let Some(condition_expr) = condition.as_ref() {
                     self.visit(condition_expr.as_ref())?;
@@ -272,7 +272,12 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = ValueTypeDef::Bool;
                 Ok(())
             }
-            Expression::Reduce { list, var: _, initial, expr } => {
+            Expression::Reduce {
+                list,
+                var: _,
+                initial,
+                expr,
+            } => {
                 self.visit(initial)?;
                 let accumulator_type = self.type_.clone();
                 self.visit(list)?;
@@ -305,7 +310,11 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 };
                 Ok(())
             }
-            Expression::SubscriptRange { collection, start, end } => {
+            Expression::SubscriptRange {
+                collection,
+                start,
+                end,
+            } => {
                 self.visit(collection)?;
                 if let Some(start_idx) = start.as_ref() {
                     self.visit(start_idx)?;
@@ -322,7 +331,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = ValueTypeDef::String;
                 Ok(())
             }
-            Expression::MatchPathPattern { path_alias: _, patterns } => {
+            Expression::MatchPathPattern {
+                path_alias: _,
+                patterns,
+            } => {
                 for pattern in patterns {
                     self.visit(pattern)?;
                 }
@@ -364,8 +376,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                     || (left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Int)
                 {
                     self.type_ = ValueTypeDef::Float;
-                } else if self.is_superior_type(&left_type) || self.is_superior_type(&right_type)
-                {
+                } else if self.is_superior_type(&left_type) || self.is_superior_type(&right_type) {
                     // NULL或EMPTY类型兼容任何类型
                     self.type_ = if self.is_superior_type(&left_type) {
                         right_type
@@ -381,7 +392,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                     return Err(TypeDeductionError::SemanticError(msg));
                 }
             }
-            BinaryOperator::Sub | BinaryOperator::Mul | BinaryOperator::Div | BinaryOperator::Mod => {
+            BinaryOperator::Sub
+            | BinaryOperator::Mul
+            | BinaryOperator::Div
+            | BinaryOperator::Mod => {
                 if left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Int {
                     self.type_ = ValueTypeDef::Int;
                 } else if left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Float {
@@ -390,8 +404,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                     || (left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Int)
                 {
                     self.type_ = ValueTypeDef::Float;
-                } else if self.is_superior_type(&left_type) || self.is_superior_type(&right_type)
-                {
+                } else if self.is_superior_type(&left_type) || self.is_superior_type(&right_type) {
                     // NULL或EMPTY类型兼容任何类型
                     self.type_ = if self.is_superior_type(&left_type) {
                         right_type
@@ -464,9 +477,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         let name_upper = name.to_uppercase();
         self.type_ = match name_upper.as_str() {
             // ID提取函数
-            "ID" | "SRC" | "DST" | "NONE_DIRECT_SRC" | "NONE_DIRECT_DST" => {
-                self.vid_type.clone()
-            }
+            "ID" | "SRC" | "DST" | "NONE_DIRECT_SRC" | "NONE_DIRECT_DST" => self.vid_type.clone(),
             // 聚合函数
             "COUNT" => ValueTypeDef::Int,
             "AVG" | "SUM" => ValueTypeDef::Float,
@@ -511,11 +522,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导标签属性表达式的类型
-    fn visit_tag_property(
-        &mut self,
-        _tag: &str,
-        _prop: &str,
-    ) -> Result<(), TypeDeductionError> {
+    fn visit_tag_property(&mut self, _tag: &str, _prop: &str) -> Result<(), TypeDeductionError> {
         // 在实际实现中，这里会查询标签的schema来确定属性类型
         // 简化实现，返回Empty类型
         self.type_ = ValueTypeDef::Empty;
@@ -523,11 +530,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导边属性表达式的类型
-    fn visit_edge_property(
-        &mut self,
-        _edge: &str,
-        _prop: &str,
-    ) -> Result<(), TypeDeductionError> {
+    fn visit_edge_property(&mut self, _edge: &str, _prop: &str) -> Result<(), TypeDeductionError> {
         // 在实际实现中，这里会查询边的schema来确定属性类型
         // 简化实现，返回Empty类型
         self.type_ = ValueTypeDef::Empty;
@@ -570,22 +573,14 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导源顶点属性表达式的类型
-    fn visit_source_property(
-        &mut self,
-        _tag: &str,
-        _prop: &str,
-    ) -> Result<(), TypeDeductionError> {
+    fn visit_source_property(&mut self, _tag: &str, _prop: &str) -> Result<(), TypeDeductionError> {
         // 源顶点属性，简化实现返回Empty
         self.type_ = ValueTypeDef::Empty;
         Ok(())
     }
 
     /// 推导目标顶点属性表达式的类型
-    fn visit_dest_property(
-        &mut self,
-        _tag: &str,
-        _prop: &str,
-    ) -> Result<(), TypeDeductionError> {
+    fn visit_dest_property(&mut self, _tag: &str, _prop: &str) -> Result<(), TypeDeductionError> {
         // 目标顶点属性，简化实现返回Empty
         self.type_ = ValueTypeDef::Empty;
         Ok(())
@@ -760,13 +755,4 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(visitor.type_(), ValueTypeDef::List);
     }
-}
-
-// Mock 存储引擎用于测试
-#[cfg(test)]
-struct MockStorageEngine;
-
-#[cfg(test)]
-impl StorageEngine for MockStorageEngine {
-    // 实现必要的方法
 }

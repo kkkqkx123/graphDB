@@ -220,7 +220,7 @@ impl<S: StorageEngine> GraphContext<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::{NativeStorage, StorageEngine};
+    use crate::storage::NativeStorage;
 
     #[test]
     fn test_metrics() {

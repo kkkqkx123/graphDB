@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use std::fmt::Debug;
-use tokio::time;
 
 /// Statistics counter for a specific metric
 #[derive(Debug, Clone)]

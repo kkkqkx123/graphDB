@@ -190,11 +190,56 @@ impl QueryExpressionContext {
     /// - `var`: 变量名
     /// - `prop`: 属性名
     pub fn get_var_prop(&self, var: &str, prop: &str) -> Result<Value, String> {
-        // 获取变量值，然后从中提取属性
-        let _var_val = self.get_var(var)?;
-        // TODO: 从变量值中提取属性
-        // 这需要根据Value的类型进行处理
-        Err("属性访问暂未实现".to_string())
+        // 获取变量值
+        let var_val = self.get_var(var)?;
+        
+        // 根据Value的类型提取属性
+        match &var_val {
+            Value::Vertex(vertex) => {
+                // 从顶点中获取属性（需要指定标签名，这里使用默认标签）
+                // 在实际使用中，可能需要指定标签名，这里先使用第一个标签
+                if let Some(tag) = vertex.tags.first() {
+                    tag.properties.get(prop)
+                        .ok_or_else(|| format!("顶点变量 {} 的属性 {} 不存在", var, prop))
+                        .map(|v| v.clone())
+                } else {
+                    Err(format!("顶点变量 {} 没有标签", var))
+                }
+            }
+            Value::Edge(edge) => {
+                // 从边中获取属性
+                edge.props.get(prop)
+                    .ok_or_else(|| format!("边变量 {} 的属性 {} 不存在", var, prop))
+                    .map(|v| v.clone())
+            }
+            Value::Map(map) => {
+                // 从Map中获取属性
+                map.get(prop)
+                    .ok_or_else(|| format!("Map变量 {} 的属性 {} 不存在", var, prop))
+                    .map(|v| v.clone())
+            }
+            Value::DataSet(dataset) => {
+                // 从DataSet中获取列
+                let col_idx = dataset.col_names.iter().position(|c| c == prop)
+                    .ok_or_else(|| format!("DataSet变量 {} 的列 {} 不存在", var, prop))?;
+                
+                // 获取当前行的值（如果有迭代器）
+                let iter_guard = self.iter.lock().unwrap();
+                match iter_guard.as_ref() {
+                    Some(iter) => {
+                        if iter.valid() {
+                            iter.get_column_by_index(col_idx as i32)
+                                .ok_or_else(|| format!("DataSet变量 {} 的列 {} 值不存在", var, prop))
+                                .map(|v| v.clone())
+                        } else {
+                            Err("迭代器无效".to_string())
+                        }
+                    }
+                    None => Err("没有设置迭代器".to_string()),
+                }
+            }
+            _ => Err(format!("变量 {} 的类型不支持属性访问", var)),
+        }
     }
 
     /// 获取标签属性（tag.prop_name）
@@ -227,6 +272,77 @@ impl QueryExpressionContext {
         }
     }
 
+    // ===== 属性访问（补充缺失的接口） =====
+
+    /// 获取源顶点属性（$^.prop_name）
+    ///
+    /// # 参数
+    /// - `tag`: 标签名
+    /// - `prop`: 属性名
+    pub fn get_src_prop(&self, tag: &str, prop: &str) -> Result<Value, String> {
+        let iter_guard = self.iter.lock().unwrap();
+        match iter_guard.as_ref() {
+            Some(iter) => {
+                // 从当前顶点获取源属性
+                // 这需要迭代器支持源顶点属性访问
+                // 暂时委托给 get_tag_prop
+                iter.get_tag_prop(tag, prop)
+                    .ok_or_else(|| format!("源顶点标签 {} 的属性 {} 不存在", tag, prop))
+            }
+            None => Err("没有设置迭代器".to_string()),
+        }
+    }
+
+    /// 获取目标顶点属性（$$.prop_name）
+    ///
+    /// # 参数
+    /// - `tag`: 标签名
+    /// - `prop`: 属性名
+    pub fn get_dst_prop(&self, tag: &str, prop: &str) -> Result<Value, String> {
+        let iter_guard = self.iter.lock().unwrap();
+        match iter_guard.as_ref() {
+            Some(iter) => {
+                // 从当前边获取目标顶点属性
+                // 这需要迭代器支持目标顶点属性访问
+                // 暂时委托给 get_tag_prop
+                iter.get_tag_prop(tag, prop)
+                    .ok_or_else(|| format!("目标顶点标签 {} 的属性 {} 不存在", tag, prop))
+            }
+            None => Err("没有设置迭代器".to_string()),
+        }
+    }
+
+    /// 获取输入属性（$-.prop_name）
+    ///
+    /// # 参数
+    /// - `prop`: 属性名
+    pub fn get_input_prop(&self, prop: &str) -> Result<Value, String> {
+        let iter_guard = self.iter.lock().unwrap();
+        match iter_guard.as_ref() {
+            Some(iter) => {
+                // 从输入行获取属性
+                iter.get_column(prop)
+                    .ok_or_else(|| format!("输入属性 {} 不存在", prop))
+                    .map(|v| v.clone())
+            }
+            None => Err("没有设置迭代器".to_string()),
+        }
+    }
+
+    /// 获取输入属性索引
+    ///
+    /// # 参数
+    /// - `prop`: 属性名
+    pub fn get_input_prop_index(&self, prop: &str) -> Result<usize, String> {
+        let iter_guard = self.iter.lock().unwrap();
+        match iter_guard.as_ref() {
+            Some(iter) => iter
+                .get_column_index(prop)
+                .ok_or_else(|| format!("输入属性 {} 的索引不存在", prop)),
+            None => Err("没有设置迭代器".to_string()),
+        }
+    }
+
     // ===== 对象获取 =====
 
     /// 获取顶点
@@ -250,6 +366,25 @@ impl QueryExpressionContext {
             Some(iter) => iter
                 .get_edge()
                 .ok_or_else(|| "边不存在".to_string()),
+            None => Err("没有设置迭代器".to_string()),
+        }
+    }
+
+    /// 获取列值（已存在，但添加文档说明）
+    ///
+    /// # 参数
+    /// - `col`: 列名
+    ///
+    /// # 返回
+    /// - Ok(Value): 列值
+    /// - Err(String): 如果列不存在或没有迭代器
+    pub fn get_column(&self, col: &str) -> Result<Value, String> {
+        let iter_guard = self.iter.lock().unwrap();
+        match iter_guard.as_ref() {
+            Some(iter) => iter
+                .get_column(col)
+                .ok_or_else(|| format!("列 {} 不存在", col))
+                .map(|v| v.clone()),
             None => Err("没有设置迭代器".to_string()),
         }
     }

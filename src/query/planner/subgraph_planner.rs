@@ -52,7 +52,7 @@ impl Planner for SubgraphPlanner {
 
 // Helper function to create an empty start node
 fn create_empty_node() -> Result<Box<dyn super::plan::PlanNode>, PlannerError> {
-    use super::plan::{PlanNode, SingleDependencyNode, PlanNodeKind};
+    use super::plan::{SingleDependencyNode, PlanNodeKind};
 
     Ok(Box::new(SingleDependencyNode {
         id: -1,
