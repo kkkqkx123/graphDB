@@ -1,12 +1,12 @@
-use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
+use std::sync::{Arc, Mutex};
 
-use crate::core::{Value, Vertex, Edge};
-use crate::storage::StorageEngine;
+use super::base::{BaseExecutor, ExecutionContext, ExecutionResult, Executor, InputExecutor};
+use crate::core::{Edge, Value, Vertex};
 use crate::query::QueryError;
-use super::base::{Executor, ExecutionResult, ExecutionContext, BaseExecutor, InputExecutor};
+use crate::storage::StorageEngine;
 
 // Executor for limiting the number of results
 pub struct LimitExecutor<S: StorageEngine> {
@@ -16,11 +16,7 @@ pub struct LimitExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> LimitExecutor<S> {
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        limit: usize,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>, limit: usize) -> Self {
         Self {
             base: BaseExecutor::new(id, "LimitExecutor".to_string(), storage),
             limit,
@@ -53,21 +49,15 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LimitExecutor<S> {
         // Apply the limit to the result
         let limited_result = match input_result {
             ExecutionResult::Vertices(vertices) => {
-                let limited_vertices = vertices.into_iter()
-                    .take(self.limit)
-                    .collect::<Vec<_>>();
+                let limited_vertices = vertices.into_iter().take(self.limit).collect::<Vec<_>>();
                 ExecutionResult::Vertices(limited_vertices)
             }
             ExecutionResult::Edges(edges) => {
-                let limited_edges = edges.into_iter()
-                    .take(self.limit)
-                    .collect::<Vec<_>>();
+                let limited_edges = edges.into_iter().take(self.limit).collect::<Vec<_>>();
                 ExecutionResult::Edges(limited_edges)
             }
             ExecutionResult::Values(values) => {
-                let limited_values = values.into_iter()
-                    .take(self.limit)
-                    .collect::<Vec<_>>();
+                let limited_values = values.into_iter().take(self.limit).collect::<Vec<_>>();
                 ExecutionResult::Values(limited_values)
             }
             ExecutionResult::Count(count) => {
@@ -113,11 +103,7 @@ pub struct OffsetExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> OffsetExecutor<S> {
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        offset: usize,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>, offset: usize) -> Self {
         Self {
             base: BaseExecutor::new(id, "OffsetExecutor".to_string(), storage),
             offset,
@@ -150,25 +136,23 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for OffsetExecutor<S> {
         // Apply the offset to the result
         let offset_result = match input_result {
             ExecutionResult::Vertices(vertices) => {
-                let offset_vertices = vertices.into_iter()
-                    .skip(self.offset)
-                    .collect::<Vec<_>>();
+                let offset_vertices = vertices.into_iter().skip(self.offset).collect::<Vec<_>>();
                 ExecutionResult::Vertices(offset_vertices)
             }
             ExecutionResult::Edges(edges) => {
-                let offset_edges = edges.into_iter()
-                    .skip(self.offset)
-                    .collect::<Vec<_>>();
+                let offset_edges = edges.into_iter().skip(self.offset).collect::<Vec<_>>();
                 ExecutionResult::Edges(offset_edges)
             }
             ExecutionResult::Values(values) => {
-                let offset_values = values.into_iter()
-                    .skip(self.offset)
-                    .collect::<Vec<_>>();
+                let offset_values = values.into_iter().skip(self.offset).collect::<Vec<_>>();
                 ExecutionResult::Values(offset_values)
             }
             ExecutionResult::Count(count) => {
-                let offset_count = if count > self.offset { count - self.offset } else { 0 };
+                let offset_count = if count > self.offset {
+                    count - self.offset
+                } else {
+                    0
+                };
                 ExecutionResult::Count(offset_count)
             }
             ExecutionResult::Success => ExecutionResult::Success,
@@ -209,10 +193,7 @@ pub struct DistinctExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> DistinctExecutor<S> {
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>) -> Self {
         Self {
             base: BaseExecutor::new(id, "DistinctExecutor".to_string(), storage),
             input_executor: None,
@@ -247,7 +228,8 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DistinctExecutor<S> {
                 // In a real implementation, we would use a more sophisticated comparison
                 // For now, we'll use vertex ID as the uniqueness criteria
                 let mut seen_ids = std::collections::HashSet::new();
-                let distinct_vertices = vertices.into_iter()
+                let distinct_vertices = vertices
+                    .into_iter()
                     .filter(|v| seen_ids.insert(v.vid.clone()))
                     .collect::<Vec<_>>();
                 ExecutionResult::Vertices(distinct_vertices)
@@ -256,9 +238,11 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DistinctExecutor<S> {
                 // In a real implementation, we would use a more sophisticated comparison
                 // For now, we'll use a combination of edge fields as the uniqueness criteria
                 let mut seen_edges = std::collections::HashSet::new();
-                let distinct_edges = edges.into_iter()
+                let distinct_edges = edges
+                    .into_iter()
                     .filter(|e| {
-                        let edge_key = (e.src.clone(), e.dst.clone(), e.edge_type.clone(), e.ranking);
+                        let edge_key =
+                            (e.src.clone(), e.dst.clone(), e.edge_type.clone(), e.ranking);
                         seen_edges.insert(edge_key)
                     })
                     .collect::<Vec<_>>();
@@ -267,7 +251,8 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DistinctExecutor<S> {
             ExecutionResult::Values(values) => {
                 // Remove duplicate values
                 let mut seen_values = std::collections::HashSet::new();
-                let distinct_values = values.into_iter()
+                let distinct_values = values
+                    .into_iter()
                     .filter(|v| seen_values.insert(v.clone()))
                     .collect::<Vec<_>>();
                 ExecutionResult::Values(distinct_values)
@@ -316,11 +301,7 @@ pub struct SampleExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> SampleExecutor<S> {
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        sample_size: usize,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>, sample_size: usize) -> Self {
         Self {
             base: BaseExecutor::new(id, "SampleExecutor".to_string(), storage),
             sample_size,
@@ -329,12 +310,7 @@ impl<S: StorageEngine> SampleExecutor<S> {
         }
     }
 
-    pub fn with_seed(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        sample_size: usize,
-        seed: u64,
-    ) -> Self {
+    pub fn with_seed(id: usize, storage: Arc<Mutex<S>>, sample_size: usize, seed: u64) -> Self {
         Self {
             base: BaseExecutor::new(id, "SampleExecutor".to_string(), storage),
             sample_size,
@@ -374,15 +350,16 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for SampleExecutor<S> {
                 } else {
                     rand::rngs::StdRng::from_entropy()
                 };
-                
+
                 let mut indices: Vec<usize> = (0..vertices.len()).collect();
                 indices.shuffle(&mut rng);
-                
-                let sampled_vertices = indices.into_iter()
+
+                let sampled_vertices = indices
+                    .into_iter()
                     .take(sample_size)
                     .map(|i| vertices[i].clone())
                     .collect::<Vec<_>>();
-                
+
                 ExecutionResult::Vertices(sampled_vertices)
             }
             ExecutionResult::Edges(edges) => {
@@ -392,15 +369,16 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for SampleExecutor<S> {
                 } else {
                     rand::rngs::StdRng::from_entropy()
                 };
-                
+
                 let mut indices: Vec<usize> = (0..edges.len()).collect();
                 indices.shuffle(&mut rng);
-                
-                let sampled_edges = indices.into_iter()
+
+                let sampled_edges = indices
+                    .into_iter()
                     .take(sample_size)
                     .map(|i| edges[i].clone())
                     .collect::<Vec<_>>();
-                
+
                 ExecutionResult::Edges(sampled_edges)
             }
             ExecutionResult::Values(values) => {
@@ -410,15 +388,16 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for SampleExecutor<S> {
                 } else {
                     rand::rngs::StdRng::from_entropy()
                 };
-                
+
                 let mut indices: Vec<usize> = (0..values.len()).collect();
                 indices.shuffle(&mut rng);
-                
-                let sampled_values = indices.into_iter()
+
+                let sampled_values = indices
+                    .into_iter()
                     .take(sample_size)
                     .map(|i| values[i].clone())
                     .collect::<Vec<_>>();
-                
+
                 ExecutionResult::Values(sampled_values)
             }
             ExecutionResult::Count(count) => {
@@ -433,6 +412,118 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for SampleExecutor<S> {
 
     fn open(&mut self) -> Result<(), QueryError> {
         // Initialize any resources needed for sampling
+        if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.open()?;
+        }
+        Ok(())
+    }
+
+    fn close(&mut self) -> Result<(), QueryError> {
+        // Clean up any resources
+        if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.close()?;
+        }
+        Ok(())
+    }
+
+    fn id(&self) -> usize {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+}
+
+// Executor for getting the top N results
+pub struct TopNExecutor<S: StorageEngine> {
+    base: BaseExecutor<S>,
+    n: usize,                  // Number of top results to return
+    sort_columns: Vec<String>, // Columns to sort by
+    ascending: bool,           // Sort direction
+    input_executor: Option<Box<dyn Executor<S>>>,
+}
+
+impl<S: StorageEngine> TopNExecutor<S> {
+    pub fn new(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        n: usize,
+        sort_columns: Vec<String>,
+        ascending: bool,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "TopNExecutor".to_string(), storage),
+            n,
+            sort_columns,
+            ascending,
+            input_executor: None,
+        }
+    }
+}
+
+impl<S: StorageEngine> InputExecutor<S> for TopNExecutor<S> {
+    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
+        self.input_executor = Some(input);
+    }
+
+    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
+        self.input_executor.as_ref()
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for TopNExecutor<S> {
+    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        // Execute the input executor first if it exists
+        let input_result = if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.execute().await?
+        } else {
+            // If no input executor, return empty result
+            ExecutionResult::Vertices(Vec::new())
+        };
+
+        // Apply sort and limit to get top N results
+        let top_n_result = match input_result {
+            ExecutionResult::Vertices(mut vertices) => {
+                // In a real implementation, we would sort by the specified properties
+                // For now, we'll just sort by vertex ID as an example
+                if self.ascending {
+                    vertices.sort_by(|a, b| a.vid.cmp(&b.vid));
+                } else {
+                    vertices.sort_by(|a, b| b.vid.cmp(&a.vid));
+                }
+                let top_vertices = vertices.into_iter().take(self.n).collect::<Vec<_>>();
+                ExecutionResult::Vertices(top_vertices)
+            }
+            ExecutionResult::Edges(mut edges) => {
+                // For edges, we might sort by source vertex ID or other properties
+                if self.ascending {
+                    edges.sort_by(|a, b| a.src.cmp(&b.src));
+                } else {
+                    edges.sort_by(|a, b| b.src.cmp(&a.src));
+                }
+                let top_edges = edges.into_iter().take(self.n).collect::<Vec<_>>();
+                ExecutionResult::Edges(top_edges)
+            }
+            ExecutionResult::Values(mut values) => {
+                // For values, we might need to compare them if possible
+                // For now, just take the first N values
+                let top_values = values.into_iter().take(self.n).collect::<Vec<_>>();
+                ExecutionResult::Values(top_values)
+            }
+            ExecutionResult::Count(count) => {
+                // For count, return the minimum of count and N
+                ExecutionResult::Count(std::cmp::min(count, self.n))
+            }
+            ExecutionResult::Success => ExecutionResult::Success,
+        };
+
+        Ok(top_n_result)
+    }
+
+    fn open(&mut self) -> Result<(), QueryError> {
+        // Initialize any resources needed for TopN operation
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
         }

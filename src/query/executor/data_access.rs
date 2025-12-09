@@ -180,56 +180,43 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for GetNeighborsExecutor<S> 
     }
 }
 
-// Example implementation of an InsertExecutor for adding new vertices/edges
-pub struct InsertExecutor<S: StorageEngine> {
+// Implementation for GetPropExecutor
+pub struct GetPropExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    vertex_data: Option<Vec<Vertex>>, // Data to be inserted
-    edge_data: Option<Vec<Edge>>,
+    vertex_ids: Option<Vec<Value>>,
+    edge_ids: Option<Vec<Value>>,
+    prop_names: Vec<String>,  // List of property names to retrieve
 }
 
-impl<S: StorageEngine> InsertExecutor<S> {
+impl<S: StorageEngine> GetPropExecutor<S> {
     pub fn new(
         id: usize,
         storage: Arc<Mutex<S>>,
-        vertex_data: Option<Vec<Vertex>>,
-        edge_data: Option<Vec<Edge>>,
+        vertex_ids: Option<Vec<Value>>,
+        edge_ids: Option<Vec<Value>>,
+        prop_names: Vec<String>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
-            vertex_data,
-            edge_data,
+            base: BaseExecutor::new(id, "GetPropExecutor".to_string(), storage),
+            vertex_ids,
+            edge_ids,
+            prop_names,
         }
     }
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for GetPropExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
-        let mut total_inserted = 0;
+        // In a real implementation, this would fetch specific properties from vertices or edges
+        // For now, return empty list
+        let props = Vec::new();
 
-        // Insert vertices if provided
-        if let Some(vertices) = &self.vertex_data {
-            let mut storage = self.base.storage.lock().unwrap();
-            for vertex in vertices {
-                storage.insert_node(vertex.clone())?; // Assuming we have an insert_node method
-                total_inserted += 1;
-            }
-        }
-
-        // Insert edges if provided
-        if let Some(edges) = &self.edge_data {
-            let mut storage = self.base.storage.lock().unwrap();
-            for edge in edges {
-                storage.insert_edge(edge.clone())?; // Assuming we have an insert_edge method
-                total_inserted += 1;
-            }
-        }
-
-        Ok(ExecutionResult::Count(total_inserted))
+        Ok(ExecutionResult::Values(props))
     }
 
     fn open(&mut self) -> Result<(), QueryError> {
-        // Initialize any resources needed for insertion
+        // Initialize any resources needed for property retrieval
         Ok(())
     }
 

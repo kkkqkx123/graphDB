@@ -39,6 +39,12 @@ pub struct ValidateContext {
     errors: Vec<String>,
 }
 
+impl Default for ValidateContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ValidateContext {
     pub fn new() -> Self {
         Self {

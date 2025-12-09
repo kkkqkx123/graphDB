@@ -123,6 +123,46 @@ pub enum EdgeDirection {
     Both,
 }
 
+// Implementation for StartExecutor
+pub struct StartExecutor<S: StorageEngine> {
+    base: BaseExecutor<S>,
+}
+
+impl<S: StorageEngine> StartExecutor<S> {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "StartExecutor".to_string(), storage),
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
+    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        // StartExecutor typically produces an initial result set or provides a starting point
+        // For initial implementation, we can return a simple success or empty result
+        Ok(ExecutionResult::Success)
+    }
+
+    fn open(&mut self) -> Result<(), QueryError> {
+        // Initialize any resources needed for the start executor
+        Ok(())
+    }
+
+    fn close(&mut self) -> Result<(), QueryError> {
+        // Clean up any resources
+        Ok(())
+    }
+
+    fn id(&self) -> usize {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+}
+
 // Helper functions for working with ExecutionResult
 impl ExecutionResult {
     pub fn is_empty(&self) -> bool {
