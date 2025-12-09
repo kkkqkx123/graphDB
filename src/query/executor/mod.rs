@@ -18,9 +18,10 @@ pub use data_access::{
 
 // Re-export data processing executors
 pub use data_processing::{
-    FilterExecutor, ProjectExecutor, SortExecutor, AggregateExecutor,
-    ExpandExecutor, ExpandAllExecutor, TraverseExecutor, ShortestPathExecutor,
-    ShortestPathAlgorithm
+    FilterExecutor, graph_traversal::{
+        ExpandExecutor, ExpandAllExecutor, TraverseExecutor, ShortestPathExecutor,
+        ShortestPathAlgorithm
+    }
 };
 
 // Re-export data modification executors

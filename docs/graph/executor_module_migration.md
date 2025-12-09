@@ -1,498 +1,683 @@
-# NebulaGraph Executor 模块迁移方案
+# Executor 模块迁移实施指南
 
 ## 文档概述
 
-本文档分析了 NebulaGraph 3.8.0 中 `src/graph/executor` 目录的所有模块，并为新架构中的迁移提供详细的映射方案。
+本文档基于已实施的 `executor_refactoring_plan.md` 提供具体的迁移实施指南，指导如何继续添加新的执行器到现有的模块化架构中。
 
-**分析日期**: 2025-12-09  
+**更新日期**: 2025-12-09  
 **源代码**: `nebula-3.8.0/src/graph/executor`  
-**目标架构**: 新 Rust GraphDB 单机版
+**目标架构**: 新 Rust GraphDB 单机版  
+**状态**: 进行中（第一阶段已完成）
 
 ---
 
-## 目录结构对比
+## 架构现状回顾
 
-### NebulaGraph 3.8.0 执行器目录结构
+### 已完成的拆分结构
 
-```
-src/graph/executor/
-├── admin/           # 管理功能执行器 (20+ 个执行器)
-├── algo/            # 算法执行器 (最短路径、全路径等)
-├── logic/           # 逻辑控制执行器 (START、SELECT、LOOP等)
-├── maintain/        # 维护执行器 (标签、边、索引管理)
-├── mutate/          # 数据修改执行器 (INSERT、UPDATE、DELETE)
-├── query/           # 查询执行器 (40+ 种查询操作)
-├── test/            # 测试文件
-├── Executor.h/cpp           # 基础执行器类
-├── ExecutionError.h         # 错误定义
-└── StorageAccessExecutor.h/cpp  # 存储访问基类
-```
-
-### 新 Rust 架构执行器组织
+当前目录结构已按照规划完全实施：
 
 ```
 src/query/executor/
-├── base.rs                  # 基础执行器接口和类型
-├── data_access.rs           # 数据访问执行器
-├── data_modification.rs      # 数据修改执行器
-├── data_processing.rs       # 数据处理执行器
-├── result_processing.rs     # 结果处理执行器
-└── mod.rs                   # 模块导出
+├── base.rs                           # ✓ 基础执行器
+├── data_access.rs                    # ✓ 数据访问（3个已实施）
+├── data_modification.rs              # ✓ 数据修改（3个已实施）
+├── data_processing/                  # ✓ 目录已建
+│   ├── mod.rs                        # ✓ 模块导出
+│   ├── filter.rs                     # ✓ FilterExecutor
+│   ├── loops.rs                      # 预留
+│   ├── graph_traversal/              # ✓ 子目录已建
+│   │   ├── mod.rs                    # ✓ 导出
+│   │   ├── expand.rs                 # ✓ ExpandExecutor
+│   │   ├── expand_all.rs             # ✓ ExpandAllExecutor
+│   │   ├── traverse.rs               # ✓ TraverseExecutor
+│   │   └── shortest_path.rs          # ✓ ShortestPathExecutor
+│   ├── join/                         # 预留
+│   ├── set_operations/               # 预留
+│   └── transformations/              # 预留
+├── result_processing/                # ✓ 目录已建
+│   ├── mod.rs                        # ✓ 导出
+│   ├── projection.rs                 # ✓ ProjectExecutor
+│   ├── aggregation.rs                # ✓ AggregateExecutor
+│   ├── sorting.rs                    # ✓ SortExecutor
+│   ├── limiting.rs                   # ✓ LimitExecutor, OffsetExecutor
+│   ├── dedup.rs                      # ✓ DistinctExecutor
+│   ├── sampling.rs                   # ✓ SampleExecutor
+│   └── topn.rs                       # ✓ TopNExecutor
+└── mod.rs                            # ✓ 顶级导出
 ```
+
+**已实施统计**：
+- ✓ 20 个执行器已实现
+- 32 个执行器待实施
 
 ---
 
-## 详细映射方案
+## 已实施执行器概览
 
-### 一、核心基础模块
+### 第一优先级（全部完成）
 
-#### 1. Executor.h/cpp → `src/query/executor/base.rs`
+| 执行器 | 位置 | 说明 |
+|---|---|---|
+| Executor | `base.rs` | 基础 trait |
+| StartExecutor | `base.rs` | 查询入口 |
+| GetVerticesExecutor | `data_access.rs` | 获取节点 |
+| GetEdgesExecutor | `data_access.rs` | 获取边 |
+| GetNeighborsExecutor | `data_access.rs` | 获取邻接 |
+| FilterExecutor | `data_processing/filter.rs` | 条件过滤 |
+| ExpandExecutor | `data_processing/graph_traversal/expand.rs` | 图展开 |
+| ExpandAllExecutor | `data_processing/graph_traversal/expand_all.rs` | 全路径 |
+| TraverseExecutor | `data_processing/graph_traversal/traverse.rs` | 图遍历 |
+| ShortestPathExecutor | `data_processing/graph_traversal/shortest_path.rs` | 最短路径 |
+| ProjectExecutor | `result_processing/projection.rs` | 列投影 |
+| AggregateExecutor | `result_processing/aggregation.rs` | 聚合函数 |
+| SortExecutor | `result_processing/sorting.rs` | 排序 |
+| LimitExecutor | `result_processing/limiting.rs` | 限制行数 |
+| OffsetExecutor | `result_processing/limiting.rs` | 跳过行数 |
+| InsertExecutor | `data_modification.rs` | 插入数据 |
+| UpdateExecutor | `data_modification.rs` | 更新数据 |
+| DeleteExecutor | `data_modification.rs` | 删除数据 |
+| DistinctExecutor | `result_processing/dedup.rs` | 去重 |
+| TopNExecutor | `result_processing/topn.rs` | TOP N |
+| SampleExecutor | `result_processing/sampling.rs` | 采样 |
 
-**优先级**: ⭐⭐⭐ (最高)
+---
 
-| 原始类型 | 说明 | 迁移内容 |
-|---------|------|--------|
-| `Executor` | 基础执行器抽象类 | 定义 Rust trait 或 enum |
-| `next()` | 获取下一行结果 | 异步结果迭代方法 |
-| `getProps()` | 获取输出属性 | 结果集结构定义 |
-| `finish()` | 执行完成清理 | Drop trait 实现 |
+## 继续迁移指南
 
-**关键设计决策**：
-- 使用 Rust trait 替代虚基类
-- 基于 async/await 的异步执行
-- 使用 Result<T> 处理错误而非异常
+### 迁移流程（通用步骤）
+
+所有新执行器的迁移应遵循以下流程：
+
+#### 步骤 1：创建文件和实现执行器
+
+在对应的子模块目录中创建文件：
 
 ```rust
-/// 新架构基础执行器 trait
-pub trait Executor: Send + Sync {
-    /// 获取下一批结果
-    async fn next(&mut self) -> Result<Vec<Row>>;
+// 示例：data_processing/join/inner_join.rs
+use crate::query::executor::base::{Executor, ExecutionContext, ExecutionResult};
+use async_trait::async_trait;
+
+/// INNER JOIN 执行器
+pub struct InnerJoinExecutor {
+    // 字段定义
+    left_input: Box<dyn Executor>,
+    right_input: Box<dyn Executor>,
+    join_condition: String,
+    // ... 其他必要字段
+}
+
+#[async_trait]
+impl Executor for InnerJoinExecutor {
+    async fn next(&mut self) -> ExecutionResult<Vec<Row>> {
+        // 实现 JOIN 逻辑
+    }
     
-    /// 获取输出列信息
-    fn output_schema(&self) -> &Schema;
+    fn output_schema(&self) -> &Schema {
+        // 返回输出列信息
+    }
     
-    /// 执行完成或取消时清理资源
-    async fn close(&mut self) -> Result<()>;
+    async fn close(&mut self) -> ExecutionResult<()> {
+        // 清理资源
+    }
 }
 ```
 
-#### 2. StorageAccessExecutor.h/cpp → `src/query/executor/data_access.rs`
+#### 步骤 2：在子模块 `mod.rs` 中导出
 
-**优先级**: ⭐⭐⭐ (最高)
+编辑对应的 `mod.rs` 文件，添加模块声明和导出：
 
-| 原始类型 | 说明 | 迁移内容 |
-|---------|------|--------|
-| `StorageAccessExecutor` | 存储访问基类 | 数据访问执行器基类 |
-| 存储接口 | 与存储层通信 | 定义 StorageClient trait |
+```rust
+// 示例：data_processing/join/mod.rs
+mod inner_join;
+mod left_join;    // 之后添加
+mod cross_join;   // 之后添加
 
-**实现模块**:
-- `GetNeighborsExecutor` - 获取相邻节点
-- `GetVerticesExecutor` - 获取节点
-- `GetEdgesExecutor` - 获取边
-- `IndexScanExecutor` - 索引扫描
+pub use inner_join::InnerJoinExecutor;
+pub use left_join::LeftJoinExecutor;
+pub use cross_join::CartesianProductExecutor;
+```
+
+#### 步骤 3：在上级 `mod.rs` 中重导出
+
+更新 `data_processing/mod.rs`（或其他上级模块）：
+
+```rust
+// data_processing/mod.rs 示例片段
+pub mod join;
+pub use join::{InnerJoinExecutor, LeftJoinExecutor, CartesianProductExecutor};
+```
+
+#### 步骤 4：在顶级 `executor/mod.rs` 中导出
+
+最后更新 `src/query/executor/mod.rs` 的公共导出：
+
+```rust
+// 添加到 Re-export data processing executors 部分
+pub use data_processing::{
+    FilterExecutor, ProjectExecutor, SortExecutor, AggregateExecutor,
+    ExpandExecutor, ExpandAllExecutor, TraverseExecutor, ShortestPathExecutor,
+    ShortestPathAlgorithm,
+    // 新添加
+    InnerJoinExecutor, LeftJoinExecutor, CartesianProductExecutor,
+};
+```
+
+#### 步骤 5：编写测试
+
+为新执行器添加单元测试和集成测试：
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[tokio::test]
+    async fn test_inner_join() {
+        // 测试逻辑
+    }
+}
+```
+
+#### 步骤 6：验证编译和测试
+
+```bash
+# 检查编译
+cargo check
+
+# 编译代码
+cargo build
+
+# 运行测试
+cargo test
+
+# 检查代码风格
+cargo fmt
+cargo clippy
+```
 
 ---
 
-### 二、查询执行器 (query/)
+## 分阶段迁移计划
 
-**目标模块**: `src/query/executor/data_access.rs` 和 `data_processing.rs`
+### 阶段 1：集合运算执行器（优先级：⭐⭐）
 
-#### 2.1 数据访问类执行器
+**目标目录**: `src/query/executor/data_processing/set_operations/`
 
-| ExecutorName | 优先级 | 映射位置 | 依赖关系 | 说明 |
-|---|---|---|---|---|
-| `GetNeighborsExecutor` | ⭐⭐⭐ | `data_access.rs` | 存储引擎 | 图遍历的基础操作 |
-| `GetVerticesExecutor` | ⭐⭐⭐ | `data_access.rs` | 存储引擎 | 按ID获取节点及属性 |
-| `GetEdgesExecutor` | ⭐⭐⭐ | `data_access.rs` | 存储引擎 | 按ID获取边及属性 |
-| `GetPropExecutor` | ⭐⭐⭐ | `data_access.rs` | GetVertices/GetEdges | 属性获取优化 |
-| `IndexScanExecutor` | ⭐⭐ | `data_access.rs` | 索引引擎 | 索引扫描查询 |
-| `ScanVerticesExecutor` | ⭐⭐ | `data_access.rs` | 存储引擎 | 全表扫描节点 |
-| `ScanEdgesExecutor` | ⭐⭐ | `data_access.rs` | 存储引擎 | 全表扫描边 |
-| `FulltextIndexScanExecutor` | ⭐ | `data_access.rs` | 全文索引引擎 | 全文索引查询 |
+#### 1.1 UnionExecutor（UNION 去重）
 
-#### 2.2 数据处理类执行器
+**文件**: `set_operations/union.rs`
 
-| ExecutorName | 优先级 | 映射位置 | 依赖关系 | 说明 |
-|---|---|---|---|---|
-| `FilterExecutor` | ⭐⭐⭐ | `data_processing.rs` | 表达式计算 | WHERE/FILTER 条件执行 |
-| `ExpandExecutor` | ⭐⭐⭐ | `data_processing.rs` | GetNeighbors | 路径扩展，关键的图遍历操作 |
-| `ExpandAllExecutor` | ⭐⭐⭐ | `data_processing.rs` | GetNeighbors | 返回所有路径 |
-| `TraverseExecutor` | ⭐⭐⭐ | `data_processing.rs` | Expand | 完整的图遍历执行 |
-| `JoinExecutor` | ⭐⭐ | `data_processing.rs` | 比较操作 | INNER JOIN 执行 |
-| `LeftJoinExecutor` | ⭐⭐ | `data_processing.rs` | 比较操作 | LEFT OUTER JOIN 执行 |
-| `InnerJoinExecutor` | ⭐⭐ | `data_processing.rs` | 比较操作 | INNER JOIN 执行 |
-| `UnionExecutor` | ⭐⭐ | `data_processing.rs` | 数据合并 | UNION 执行（去重） |
-| `UnionAllVersionVarExecutor` | ⭐ | `data_processing.rs` | 数据合并 | UNION ALL 执行 |
-| `UnwindExecutor` | ⭐⭐ | `data_processing.rs` | 列表展开 | UNWIND 执行 |
-| `IntersectExecutor` | ⭐⭐ | `data_processing.rs` | 集合运算 | INTERSECT 执行 |
-| `MinusExecutor` | ⭐⭐ | `data_processing.rs` | 集合运算 | MINUS/EXCEPT 执行 |
-| `AppendVerticesExecutor` | ⭐⭐ | `data_processing.rs` | GetVertices | 追加顶点信息 |
-| `AssignExecutor` | ⭐⭐ | `data_processing.rs` | 变量赋值 | 变量赋值操作 |
-| `ValueExecutor` | ⭐ | `data_processing.rs` | 常量评估 | 返回常量值 |
-| `PatternApplyExecutor` | ⭐ | `data_processing.rs` | Pattern匹配 | 模式匹配应用 |
-| `RollUpApplyExecutor` | ⭐ | `data_processing.rs` | 聚合 | ROLLUP 操作 |
+```rust
+/// UNION 执行器 - 合并两个结果集并去重
+pub struct UnionExecutor {
+    left_input: Box<dyn Executor>,
+    right_input: Box<dyn Executor>,
+    seen: HashSet<Row>,  // 用于去重
+}
 
-#### 2.3 结果处理类执行器
-
-| ExecutorName | 优先级 | 映射位置 | 依赖关系 | 说明 |
-|---|---|---|---|---|
-| `ProjectExecutor` | ⭐⭐⭐ | `result_processing.rs` | 列选择 | 选择和投影输出列 |
-| `AggregateExecutor` | ⭐⭐⭐ | `result_processing.rs` | 聚合函数 | COUNT/SUM/AVG/MAX/MIN |
-| `SortExecutor` | ⭐⭐⭐ | `result_processing.rs` | 比较操作 | ORDER BY 执行 |
-| `LimitExecutor` | ⭐⭐⭐ | `result_processing.rs` | 结果限制 | LIMIT/OFFSET 执行 |
-| `TopNExecutor` | ⭐⭐ | `result_processing.rs` | 排序限制 | TOP N 优化 |
-| `DedupExecutor` | ⭐⭐ | `result_processing.rs` | 集合操作 | DISTINCT 去重执行 |
-| `DataCollectExecutor` | ⭐⭐ | `result_processing.rs` | 结果收集 | 收集所有结果 |
-| `SetExecutor` | ⭐ | `result_processing.rs` | 变量设置 | SET 语句执行 |
-| `SampleExecutor` | ⭐ | `result_processing.rs` | 随机采样 | 随机采样结果 |
-
----
-
-### 三、数据修改执行器 (mutate/)
-
-**目标模块**: `src/query/executor/data_modification.rs`
-
-**优先级**: ⭐⭐⭐ (最高)
-
-| ExecutorName | 说明 | 实现细节 |
-|---|---|---|
-| `InsertExecutor` | 插入节点和边 | 调用存储引擎的写入接口 |
-| `UpdateExecutor` | 更新节点/边属性 | 支持条件更新和批量更新 |
-| `DeleteExecutor` | 删除节点和边 | 处理级联删除逻辑 |
+#[async_trait]
+impl Executor for UnionExecutor {
+    async fn next(&mut self) -> ExecutionResult<Vec<Row>> {
+        // 从左输入获取行，添加到 seen
+        // 从右输入获取行，检查是否在 seen 中
+        // 返回未见过的行
+    }
+}
+```
 
 **关键考虑**:
-- 事务支持（原子性）
-- 约束检查（唯一性、引用完整性等）
-- 错误恢复和回滚机制
+- 去重需要对比整行数据
+- 需要实现 Hash 和 Eq trait 用于去重
+- 可考虑使用外部排序用于大数据集
 
----
+#### 1.2 UnionAllExecutor（UNION ALL 不去重）
 
-### 四、算法执行器 (algo/)
-
-**目标模块**: `src/query/executor/data_processing.rs` 或独立模块 `src/query/algorithms/`
-
-| ExecutorName | 优先级 | 说明 | 复杂度 |
-|---|---|---|---|
-| `ShortestPathExecutor` | ⭐⭐⭐ | Dijkstra/BFS最短路径 | O(V+E) |
-| `SingleShortestPath` | ⭐⭐⭐ | 单源最短路径辅助类 | 支持类 |
-| `BFSShortestPathExecutor` | ⭐⭐⭐ | BFS最短路径优化版 | O(V+E) |
-| `MultiShortestPathExecutor` | ⭐⭐ | 多源最短路径 | O(K*(V+E)) |
-| `BatchShortestPath` | ⭐⭐ | 批量最短路径 | 优化版 |
-| `AllPathsExecutor` | ⭐⭐ | 查找所有路径 | O(2^V) |
-| `SubgraphExecutor` | ⭐⭐ | 子图提取 | O(V+E) |
-| `CartesianProductExecutor` | ⭐ | 笛卡尔积运算 | O(n*m) |
-
-**建议**：将算法实现为独立的 trait，可组合到不同的执行器中。
-
----
-
-### 五、维护执行器 (maintain/)
-
-**目标模块**：`src/index/` 或需要移除
-
-| ExecutorName | 优先级 | 新架构处理 | 说明 |
-|---|---|---|---|
-| `TagExecutor` | ❌ | 删除 | 分布式元数据，单机不需 |
-| `EdgeExecutor` | ❌ | 删除 | 分布式元数据，单机不需 |
-| `TagIndexExecutor` | ⭐⭐ | `src/index/tag_index.rs` | 标签索引管理 |
-| `EdgeIndexExecutor` | ⭐⭐ | `src/index/edge_index.rs` | 边索引管理 |
-| `FTIndexExecutor` | ⭐ | `src/index/fulltext_index.rs` | 全文索引管理 |
-
-**说明**：分布式管理相关的执行器应删除，索引管理应迁移到 `src/index/` 模块。
-
----
-
-### 六、管理执行器 (admin/)
-
-**目标模块**：`src/api/` 或 `src/commands/`
-
-#### 6.1 需要保留（适配单机）
-
-| ExecutorName | 优先级 | 映射位置 | 说明 |
-|---|---|---|---|
-| `SessionExecutor` | ⭐⭐ | `src/api/session.rs` | 会话管理 |
-| `SpaceExecutor` | ⭐⭐ | `src/api/space.rs` | 图空间管理 |
-| `ConfigExecutor` | ⭐ | `src/api/config.rs` | 配置管理 |
-| `ShowQueriesExecutor` | ⭐ | `src/api/show_queries.rs` | 显示查询统计 |
-| `ShowStatsExecutor` | ⭐ | `src/api/show_stats.rs` | 显示统计信息 |
-| `CharsetExecutor` | ⭐ | `src/api/charset.rs` | 字符集管理 |
-| `ChangePasswordExecutor` | ⭐ | `src/api/security.rs` | 修改密码 |
-
-#### 6.2 需要删除（分布式特定）
-
-以下执行器为分布式特定功能，单机版不需要：
-
-- `ShowHostsExecutor` - 显示主机列表
-- `AddHostsExecutor` - 添加主机
-- `DropHostsExecutor` - 删除主机
-- `ZoneExecutor` - 区域管理
-- `PartExecutor` - 分区管理
-- `ListenerExecutor` - 监听器管理
-- `SnapshotExecutor` - 快照管理
-- `SubmitJobExecutor` - 分布式任务
-- `KillQueryExecutor` - 删除分布式查询
-- `ShowMetaLeaderExecutor` - 显示Meta Leader
-- `SignInServiceExecutor` - 服务登录
-- `SignOutServiceExecutor` - 服务登出
-- `ShowServiceClientsExecutor` - 显示服务客户端
-
-#### 6.3 权限管理（简化）
-
-单机版应简化权限系统：
-
-| ExecutorName | 处理方式 | 说明 |
-|---|---|---|
-| `CreateUserExecutor` | 简化 | 仅保留基本用户管理 |
-| `DropUserExecutor` | 简化 | 简化实现 |
-| `UpdateUserExecutor` | 简化 | 简化实现 |
-| `DescribeUserExecutor` | 简化 | 简化实现 |
-| `ListUsersExecutor` | 简化 | 简化实现 |
-| `GrantRoleExecutor` | 删除 | 单机可不需 |
-| `RevokeRoleExecutor` | 删除 | 单机可不需 |
-| `ListUserRolesExecutor` | 删除 | 单机可不需 |
-| `ListRolesExecutor` | 删除 | 单机可不需 |
-
----
-
-### 七、逻辑控制执行器 (logic/)
-
-**目标模块**：`src/query/scheduler/` 或 `src/query/executor/base.rs`
-
-| ExecutorName | 优先级 | 映射位置 | 说明 |
-|---|---|---|---|
-| `StartExecutor` | ⭐⭐⭐ | `src/query/executor/base.rs` | 查询开始点，执行逻辑入口 |
-| `SelectExecutor` | ⭐⭐⭐ | `src/query/scheduler/` | 执行计划选择和分发 |
-| `LoopExecutor` | ⭐⭐ | `src/query/executor/data_processing.rs` | 循环执行（for循环结构） |
-| `ArgumentExecutor` | ⭐⭐ | `src/query/executor/base.rs` | 参数传递和处理 |
-| `PassThroughExecutor` | ⭐ | `src/query/executor/base.rs` | 直通执行器 |
-
----
-
-## 迁移优先级与时间表
-
-### 第一阶段：核心基础（1-2周）
-
-**目标**: 建立基本的执行框架
-
-1. **基础执行器框架** (`base.rs`)
-   - Executor trait 定义
-   - 基础错误处理
-   - 执行上下文定义
-
-2. **数据访问执行器** (`data_access.rs`)
-   - GetNeighborsExecutor
-   - GetVerticesExecutor
-   - GetEdgesExecutor
-
-3. **数据修改执行器** (`data_modification.rs`)
-   - InsertExecutor
-   - UpdateExecutor
-   - DeleteExecutor
-
-### 第二阶段：查询能力（2-3周）
-
-**目标**: 实现完整的查询处理链
-
-1. **数据处理执行器** (`data_processing.rs`)
-   - FilterExecutor
-   - ExpandExecutor / TraverseExecutor
-   - JoinExecutor / UnionExecutor
-
-2. **结果处理执行器** (`result_processing.rs`)
-   - ProjectExecutor
-   - AggregateExecutor
-   - SortExecutor
-   - LimitExecutor
-
-### 第三阶段：高级功能（3-4周）
-
-**目标**: 完善图算法和高级功能
-
-1. **图算法** (`src/query/algorithms/`)
-   - ShortestPathExecutor
-   - AllPathsExecutor
-   - SubgraphExecutor
-
-2. **索引管理** (`src/index/`)
-   - 迁移索引相关执行器
-
-3. **API管理** (`src/api/`)
-   - 管理命令执行器的适配
-
-### 第四阶段：优化与测试（1-2周）
-
-**目标**: 性能优化和综合测试
-
-1. 执行器性能优化
-2. 内存管理优化
-3. 集成测试
-4. 文档完善
-
----
-
-## 架构设计建议
-
-### 1. 执行器基类设计
+**文件**: `set_operations/union_all.rs`
 
 ```rust
-/// 执行器基类
-pub trait Executor: Send + Sync {
-    /// 初始化执行器
-    async fn init(&mut self) -> Result<()>;
-    
-    /// 获取下一批结果
-    async fn next(&mut self) -> Result<Option<Vec<Row>>>;
-    
-    /// 获取输出模式
-    fn output_schema(&self) -> &Schema;
-    
-    /// 获取执行统计信息
-    fn stats(&self) -> ExecutionStats;
-    
-    /// 关闭执行器并释放资源
-    async fn close(&mut self) -> Result<()>;
+/// UNION ALL 执行器 - 合并两个结果集（不去重）
+pub struct UnionAllVersionVarExecutor {
+    left_input: Box<dyn Executor>,
+    right_input: Box<dyn Executor>,
+    current_input: CurrentInput,  // 追踪当前输入
 }
 
-/// 执行上下文
-pub struct ExecutionContext {
-    /// 存储引擎
+enum CurrentInput {
+    Left,
+    Right,
+    Done,
+}
+```
+
+**区别于 Union**:
+- 不需要去重
+- 实现更简单，性能更高
+- 按顺序返回所有行
+
+#### 1.3 IntersectExecutor（交集）
+
+**文件**: `set_operations/intersect.rs`
+
+```rust
+/// INTERSECT 执行器 - 两个结果集的交集
+pub struct IntersectExecutor {
+    left_input: Box<dyn Executor>,
+    right_input: Box<dyn Executor>,
+    left_rows: HashSet<Row>,  // 缓存左输入
+    right_rows: HashSet<Row>, // 缓存右输入
+}
+```
+
+**实现策略**:
+- 先读取左输入到集合
+- 读取右输入，检查交集
+- 返回既在左又在右的行
+
+#### 1.4 MinusExecutor（差集 / EXCEPT）
+
+**文件**: `set_operations/minus.rs`
+
+```rust
+/// MINUS/EXCEPT 执行器 - 从第一个集合中移除第二个集合的元素
+pub struct MinusExecutor {
+    left_input: Box<dyn Executor>,
+    right_input: Box<dyn Executor>,
+    right_rows: HashSet<Row>,  // 缓存右输入
+}
+```
+
+**实现策略**:
+- 先读取右输入到集合
+- 读取左输入，过滤掉在右集合中的行
+- 返回只在左存在的行
+
+### 阶段 2：JOIN 执行器（优先级：⭐⭐）
+
+**目标目录**: `src/query/executor/data_processing/join/`
+
+#### 2.1 InnerJoinExecutor（内连接）
+
+**文件**: `join/inner_join.rs`
+
+```rust
+/// INNER JOIN 执行器
+pub struct InnerJoinExecutor {
+    left_input: Box<dyn Executor>,
+    right_input: Box<dyn Executor>,
+    join_keys: Vec<String>,  // JOIN 条件的列名
+    join_condition: Option<Expression>,  // 额外的 ON 条件
+}
+
+#[async_trait]
+impl Executor for InnerJoinExecutor {
+    async fn next(&mut self) -> ExecutionResult<Vec<Row>> {
+        // 实现嵌套循环 JOIN 或哈希 JOIN
+        // 只返回两边都匹配的行
+    }
+}
+```
+
+**优化策略**:
+- **嵌套循环 JOIN** - 简单但低效，用于小数据集
+- **哈希 JOIN** - 构建右表的哈希表，扫描左表
+- **排序-合并 JOIN** - 如果两表都已排序
+
+**推荐实现**: 哈希 JOIN（缓存右表）
+
+#### 2.2 LeftJoinExecutor（左外连接）
+
+**文件**: `join/left_join.rs`
+
+```rust
+/// LEFT OUTER JOIN 执行器
+pub struct LeftJoinExecutor {
+    left_input: Box<dyn Executor>,
+    right_input: Box<dyn Executor>,
+    join_keys: Vec<String>,
+    join_condition: Option<Expression>,
+    unmatched_right_filled: bool,
+}
+```
+
+**区别于 InnerJoin**:
+- 保留左表中所有行
+- 右表不匹配的部分填充 NULL
+- 需要追踪哪些右表行被匹配过
+
+#### 2.3 CartesianProductExecutor（笛卡尔积）
+
+**文件**: `join/cross_join.rs`
+
+```rust
+/// 笛卡尔积执行器 - CROSS JOIN
+pub struct CartesianProductExecutor {
+    left_input: Box<dyn Executor>,
+    right_input: Box<dyn Executor>,
+    left_rows: Vec<Row>,  // 缓存左表
+    current_left_idx: usize,
+    current_right: Option<Row>,
+}
+```
+
+**特点**:
+- 无 JOIN 条件
+- 返回左表行数 × 右表行数 的结果
+- 内存消耗大，应限制表大小
+
+### 阶段 3：数据转换执行器（优先级：⭐⭐）
+
+**目标目录**: `src/query/executor/data_processing/transformations/`
+
+#### 3.1 AssignExecutor（变量赋值）
+
+**文件**: `transformations/assign.rs`
+
+```rust
+/// ASSIGN 执行器 - 为变量赋值
+pub struct AssignExecutor {
+    input: Box<dyn Executor>,
+    assignments: Vec<(String, Expression)>,  // 变量名 -> 表达式
+}
+
+#[async_trait]
+impl Executor for AssignExecutor {
+    async fn next(&mut self) -> ExecutionResult<Vec<Row>> {
+        let mut input_rows = self.input.next().await?;
+        
+        for row in &mut input_rows {
+            for (var_name, expr) in &self.assignments {
+                let value = expr.evaluate(row)?;
+                // 将值存储到执行上下文或行的变量部分
+            }
+        }
+        
+        Ok(input_rows)
+    }
+}
+```
+
+**功能**:
+- 计算表达式值
+- 将结果赋给变量
+- 变量存储在执行上下文中
+
+#### 3.2 AppendVerticesExecutor（追加顶点属性）
+
+**文件**: `transformations/append_vertices.rs`
+
+```rust
+/// 追加顶点属性执行器
+pub struct AppendVerticesExecutor {
+    input: Box<dyn Executor>,
+    vertex_ids: Vec<String>,  // 要追加的顶点 ID
     storage: Arc<dyn StorageEngine>,
-    
-    /// 索引引擎
-    index: Arc<dyn IndexEngine>,
-    
-    /// 变量作用域
-    scope: HashMap<String, Value>,
-    
-    /// 执行统计
-    stats: ExecutionStats,
 }
 ```
 
-### 2. 执行器组合模式
+**功能**:
+- 获取输入中的顶点 ID
+- 从存储中获取完整的顶点属性
+- 合并到输出行中
 
-使用组合模式构建复杂查询：
+#### 3.3 UnwindExecutor（展开列表）
+
+**文件**: `transformations/unwind.rs`
 
 ```rust
-pub struct PipelineExecutor {
-    /// 执行器链
-    executors: Vec<Box<dyn Executor>>,
-    
-    /// 上下文
-    context: Arc<ExecutionContext>,
+/// UNWIND 执行器 - 展开列表成多行
+pub struct UnwindExecutor {
+    input: Box<dyn Executor>,
+    unwinding_column: String,  // 要展开的列
+    new_column_name: String,   // 展开后的新列名
+}
+
+#[async_trait]
+impl Executor for UnwindExecutor {
+    async fn next(&mut self) -> ExecutionResult<Vec<Row>> {
+        let input_rows = self.input.next().await?;
+        let mut output_rows = Vec::new();
+        
+        for row in input_rows {
+            if let Some(Value::List(items)) = row.get(&self.unwinding_column) {
+                for item in items {
+                    let mut new_row = row.clone();
+                    new_row.insert(self.new_column_name.clone(), item.clone());
+                    output_rows.push(new_row);
+                }
+            }
+        }
+        
+        Ok(output_rows)
+    }
 }
 ```
 
-### 3. 异步执行设计
+**示例**:
+```
+输入: [id: 1, tags: ["a", "b"]]
+输出: [id: 1, tags: "a"]
+      [id: 1, tags: "b"]
+```
 
-- 使用 Tokio 或 async-std 进行异步操作
-- 支持流式处理和批处理
-- 实现取消令牌（CancellationToken）支持
+#### 3.4 PatternApplyExecutor（模式匹配）
 
-### 4. 错误处理
-
-统一的错误类型：
+**文件**: `transformations/pattern_apply.rs`
 
 ```rust
+/// 模式匹配应用执行器
+pub struct PatternApplyExecutor {
+    input: Box<dyn Executor>,
+    pattern: Pattern,  // 图模式
+}
+```
+
+**复杂度高** - 涉及复杂的模式匹配算法
+
+#### 3.5 RollUpApplyExecutor（ROLLUP 操作）
+
+**文件**: `transformations/rollup.rs`
+
+```rust
+/// ROLLUP 操作执行器
+pub struct RollUpApplyExecutor {
+    input: Box<dyn Executor>,
+    group_by_cols: Vec<String>,
+    aggregations: Vec<AggregateFunc>,
+}
+```
+
+### 阶段 4：图遍历扩展（优先级：⭐⭐）
+
+**目标目录**: `src/query/executor/data_processing/graph_traversal/`
+
+#### 4.1 AllPathsExecutor（所有路径）
+
+**文件**: `graph_traversal/all_paths.rs`
+
+```rust
+/// 所有路径执行器 - 找出两点之间的所有简单路径
+pub struct AllPathsExecutor {
+    input: Box<dyn Executor>,
+    start_vertex: String,
+    end_vertex: String,
+    max_length: Option<usize>,
+    storage: Arc<dyn StorageEngine>,
+}
+
+#[async_trait]
+impl Executor for AllPathsExecutor {
+    async fn next(&mut self) -> ExecutionResult<Vec<Row>> {
+        // 使用 DFS 找出所有路径
+        // 需要处理循环避免
+        // 可能结果很多
+    }
+}
+```
+
+**算法**: DFS（深度优先搜索）
+- 维护访问过的顶点集合
+- 回溯时移除访问标记
+
+#### 4.2 SubgraphExecutor（子图提取）
+
+**文件**: `graph_traversal/subgraph.rs`
+
+```rust
+/// 子图提取执行器
+pub struct SubgraphExecutor {
+    input: Box<dyn Executor>,
+    vertex_filter: Option<Expression>,
+    edge_filter: Option<Expression>,
+    storage: Arc<dyn StorageEngine>,
+}
+```
+
+**功能**:
+- 根据条件过滤顶点
+- 根据条件过滤边
+- 返回满足条件的子图
+
+### 阶段 5：结果处理补充（优先级：⭐⭐）
+
+**目标目录**: `src/query/executor/result_processing/`
+
+#### 5.1 DataCollectExecutor（结果收集）
+
+**文件**: `result_processing/collect.rs`
+
+```rust
+/// 结果收集执行器 - 收集所有结果到内存
+pub struct DataCollectExecutor {
+    input: Box<dyn Executor>,
+    collected_data: Vec<Row>,
+}
+
+#[async_trait]
+impl Executor for DataCollectExecutor {
+    async fn next(&mut self) -> ExecutionResult<Vec<Row>> {
+        // 一次性返回所有结果
+        // 适用于需要完整结果集的场景
+    }
+}
+```
+
+**注意**: 可能内存消耗大，应限制结果集大小
+
+#### 5.2 SetExecutor（SET 语句）
+
+**文件**: `result_processing/set.rs`
+
+```rust
+/// SET 执行器 - 设置变量或配置
+pub struct SetExecutor {
+    variable_name: String,
+    value: Expression,
+}
+```
+
+### 阶段 6：数据访问补充（优先级：⭐⭐）
+
+**目标文件**: `src/query/executor/data_access.rs`
+
+添加以下执行器到现有文件：
+
+#### 6.1 GetPropExecutor（获取属性）
+
+```rust
+/// 获取属性执行器 - 优化版本的属性获取
+pub struct GetPropExecutor {
+    vertex_ids: Vec<String>,
+    properties: Vec<String>,
+    storage: Arc<dyn StorageEngine>,
+}
+```
+
+#### 6.2 IndexScanExecutor（索引扫描）
+
+```rust
+/// 索引扫描执行器
+pub struct IndexScanExecutor {
+    index_name: String,
+    predicates: Vec<Predicate>,
+    index_engine: Arc<dyn IndexEngine>,
+}
+```
+
+#### 6.3 ScanVerticesExecutor 和 ScanEdgesExecutor（全表扫描）
+
+```rust
+/// 全表扫描顶点执行器
+pub struct ScanVerticesExecutor {
+    vertex_label: String,
+    filter: Option<Expression>,
+    storage: Arc<dyn StorageEngine>,
+}
+```
+
+---
+
+## 实现要点和最佳实践
+
+### 1. 异步编程
+
+所有执行器应使用 async/await 模式：
+
+```rust
+#[async_trait]
+impl Executor for MyExecutor {
+    async fn next(&mut self) -> ExecutionResult<Vec<Row>> {
+        // 异步操作
+    }
+}
+```
+
+### 2. 错误处理
+
+使用 `ExecutionResult<T>` 处理错误：
+
+```rust
+pub type ExecutionResult<T> = Result<T, ExecutionError>;
+
 pub enum ExecutionError {
     StorageError(String),
     TypeError(String),
     IndexError(String),
     QueryError(String),
-    Cancelled,
 }
 ```
 
----
+### 3. 内存管理
 
-## 文件迁移清单
+- 对大数据集进行流式处理
+- 必要时使用外部排序或哈希表
+- 及时释放不需要的数据
 
-### 需要迁移的核心文件
+### 4. 执行上下文
 
-```
-nebula-3.8.0/src/graph/executor/
-├── Executor.h/cpp                    → src/query/executor/base.rs
-├── ExecutionError.h                  → src/core/error.rs (扩展)
-├── StorageAccessExecutor.h/cpp       → src/query/executor/data_access.rs
-│
-├── query/
-│   ├── GetNeighborsExecutor.*        → data_access.rs
-│   ├── GetVerticesExecutor.*         → data_access.rs
-│   ├── GetEdgesExecutor.*            → data_access.rs
-│   ├── FilterExecutor.*              → data_processing.rs
-│   ├── ExpandExecutor.*              → data_processing.rs
-│   ├── ProjectExecutor.*             → result_processing.rs
-│   ├── AggregateExecutor.*           → result_processing.rs
-│   ├── SortExecutor.*                → result_processing.rs
-│   ├── LimitExecutor.*               → result_processing.rs
-│   └── [其他查询执行器]              → 相应模块
-│
-├── mutate/
-│   ├── InsertExecutor.*              → data_modification.rs
-│   ├── UpdateExecutor.*              → data_modification.rs
-│   └── DeleteExecutor.*              → data_modification.rs
-│
-├── algo/
-│   ├── ShortestPathExecutor.*        → src/query/algorithms/shortest_path.rs
-│   ├── AllPathsExecutor.*            → src/query/algorithms/all_paths.rs
-│   └── [其他算法]                    → algorithms/
-│
-└── logic/
-    ├── StartExecutor.*               → executor/base.rs (修改)
-    ├── SelectExecutor.*              → scheduler/
-    └── [其他逻辑]                    → 相应模块
+所有执行器应能访问执行上下文：
+
+```rust
+pub struct ExecutionContext {
+    pub storage: Arc<dyn StorageEngine>,
+    pub index: Arc<dyn IndexEngine>,
+    pub scope: HashMap<String, Value>,
+}
 ```
 
-### 需要删除的文件
+### 5. 性能考虑
 
-所有分布式相关的执行器：
+- **选择合适的算法**: 根据数据规模选择 JOIN 算法
+- **索引利用**: 在可能的地方使用索引
+- **批处理**: 返回批量行而非单行
+- **内存限制**: 避免一次性加载全部数据
 
-```
-maintain/TagExecutor.*          ❌ 删除
-maintain/EdgeExecutor.*         ❌ 删除
-admin/ShowHostsExecutor.*       ❌ 删除
-admin/ZoneExecutor.*            ❌ 删除
-admin/PartExecutor.*            ❌ 删除
-[其他分布式执行器]              ❌ 删除
-```
+### 6. 代码组织
 
----
-
-## 依赖关系图
-
-```
-Executor (base trait)
-├── StorageAccessExecutor (trait)
-│   ├── GetNeighborsExecutor
-│   ├── GetVerticesExecutor
-│   ├── GetEdgesExecutor
-│   └── IndexScanExecutor
-│
-├── DataProcessingExecutor
-│   ├── FilterExecutor
-│   ├── ExpandExecutor
-│   ├── TraverseExecutor
-│   ├── JoinExecutor
-│   ├── UnionExecutor
-│   └── LoopExecutor
-│
-├── ResultProcessingExecutor
-│   ├── ProjectExecutor
-│   ├── AggregateExecutor
-│   ├── SortExecutor
-│   ├── LimitExecutor
-│   └── DedupExecutor
-│
-├── DataModificationExecutor
-│   ├── InsertExecutor
-│   ├── UpdateExecutor
-│   └── DeleteExecutor
-│
-└── AlgorithmExecutor
-    ├── ShortestPathExecutor
-    ├── AllPathsExecutor
-    └── SubgraphExecutor
-```
+按功能分组相关的执行器：
+- 相同类别的执行器放在同一文件或子目录
+- 共享的代码提取到公共模块
+- 明确的模块导出和重导出
 
 ---
 
@@ -500,29 +685,122 @@ Executor (base trait)
 
 ### 单元测试
 
-- 为每个执行器编写单元测试
-- 测试正常路径和错误路径
-- 验证输出结果的正确性
+为每个执行器创建测试：
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::*;
+    
+    #[tokio::test]
+    async fn test_basic_functionality() {
+        // 测试基本功能
+    }
+    
+    #[tokio::test]
+    async fn test_empty_input() {
+        // 测试空输入
+    }
+    
+    #[tokio::test]
+    async fn test_error_handling() {
+        // 测试错误处理
+    }
+}
+```
 
 ### 集成测试
 
-- 测试执行器链（Pipeline）
-- 测试复杂查询执行
-- 性能基准测试
+在 `tests/` 目录创建集成测试：
 
-### 回归测试
+```rust
+// tests/executor_integration_tests.rs
+#[tokio::test]
+async fn test_union_executor_pipeline() {
+    // 测试 Union 执行器与其他执行器的组合
+}
+```
 
-- 使用原 NebulaGraph 的测试用例进行对比
-- 验证结果一致性
+### 验证清单
+
+每个新执行器应通过以下检查：
+
+- [ ] 编译通过 (`cargo check`)
+- [ ] 单元测试通过 (`cargo test`)
+- [ ] 代码格式 (`cargo fmt`)
+- [ ] Clippy 检查 (`cargo clippy`)
+- [ ] 文档注释完整
+- [ ] 在 `mod.rs` 正确导出
+- [ ] 性能合理（无明显性能回归）
 
 ---
 
-## 参考资源
+## 迁移进度追踪
 
-- NebulaGraph 3.8.0 源代码文档
-- Rust 异步编程最佳实践
-- 相关设计文档：
-  - `src/query/executor/mod.rs`
-  - `src/query/scheduler/mod.rs`
-  - `src/core/types.rs`
+### 完成度统计
 
+| 阶段 | 执行器数量 | 完成数 | 进度 |
+|---|---|---|---|
+| 阶段 1：集合运算 | 4 | 0 | 0% |
+| 阶段 2：JOIN | 3 | 0 | 0% |
+| 阶段 3：数据转换 | 5 | 0 | 0% |
+| 阶段 4：图遍历扩展 | 2 | 0 | 0% |
+| 阶段 5：结果处理 | 2 | 0 | 0% |
+| 阶段 6：数据访问 | 5 | 0 | 0% |
+| **总计** | **21** | **0** | **0%** |
+
+### 优先级任务
+
+**立即开始**（阶段 1-2）:
+1. UnionExecutor
+2. InnerJoinExecutor  
+3. LeftJoinExecutor
+4. UnwindExecutor
+5. AssignExecutor
+
+**次优先**（阶段 3-4）:
+6. IntersectExecutor
+7. MinusExecutor
+8. CartesianProductExecutor
+9. AllPathsExecutor
+10. AppendVerticesExecutor
+
+---
+
+## 参考文档和资源
+
+### 相关文档
+
+- `executor_refactoring_plan.md` - 详细的拆分方案
+- `executor_mapping_table.md` - NebulaGraph 到新架构的映射
+- `README.md` - 项目概述
+
+### 代码参考
+
+- `src/query/executor/base.rs` - 基础 trait 定义
+- `src/query/executor/data_processing/filter.rs` - 现有实现参考
+- `src/query/executor/result_processing/projection.rs` - 现有实现参考
+
+### 相关工具
+
+```bash
+# 格式化代码
+cargo fmt
+
+# 检查代码
+cargo clippy
+
+# 运行测试
+cargo test
+
+# 生成文档
+cargo doc --open
+```
+
+---
+
+**文档版本**: v2.0  
+**最后更新**: 2025-12-09  
+**状态**: 持续更新中  
+**下一步**: 开始实施阶段 1 的集合运算执行器
