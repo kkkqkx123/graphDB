@@ -1,10 +1,10 @@
 //! 表达式验证器模块
 //! 负责验证各种表达式类型和结构
 
-use crate::graph::expression::expr_type::Expression;
 use crate::core::ValueTypeDef;
-use crate::query::validator::{Validator, ValidateContext};
-use crate::query::validator::match_structs::{WhereClauseContext, AliasType};
+use crate::graph::expression::expr_type::Expression;
+use crate::query::validator::match_structs::{AliasType, WhereClauseContext};
+use crate::query::validator::{ValidateContext, Validator};
 use std::collections::HashMap;
 
 /// 表达式验证器
@@ -25,7 +25,7 @@ impl ExpressionValidator {
         // 验证过滤表达式
         // 检查表达式中的别名是否已定义
         // 验证表达式的类型
-        
+
         // 使用别名验证器验证别名
         use super::alias_validator::AliasValidator;
         let alias_validator = AliasValidator::new();
@@ -43,12 +43,7 @@ impl ExpressionValidator {
         let inputs = vec![]; // 过滤表达式通常不依赖于输入
         let space = "default".to_string(); // 使用默认空间
 
-        let mut type_visitor = DeduceTypeVisitor::new(
-            &storage,
-            validator.context(),
-            inputs,
-            space,
-        );
+        let mut type_visitor = DeduceTypeVisitor::new(&storage, validator.context(), inputs, space);
 
         let expr_type = type_visitor
             .deduce_type(filter)
@@ -116,7 +111,7 @@ impl ExpressionValidator {
     ) -> Result<(), String> {
         // 验证Return子句中的表达式
         // 检查使用的别名是否在作用域内
-        
+
         // 使用别名验证器验证别名
         use super::alias_validator::AliasValidator;
         let alias_validator = AliasValidator::new();
@@ -131,7 +126,7 @@ impl ExpressionValidator {
         context: &mut crate::query::validator::match_structs::WithClauseContext,
     ) -> Result<(), String> {
         // 验证With子句中的表达式别名
-        
+
         // 使用别名验证器验证别名
         use super::alias_validator::AliasValidator;
         let alias_validator = AliasValidator::new();
@@ -164,7 +159,7 @@ impl ExpressionValidator {
         context: &mut crate::query::validator::match_structs::UnwindClauseContext,
     ) -> Result<(), String> {
         // 验证Unwind表达式中的别名
-        
+
         // 使用别名验证器验证别名
         use super::alias_validator::AliasValidator;
         let alias_validator = AliasValidator::new();
@@ -231,8 +226,8 @@ mod tests {
     use super::*;
     use crate::graph::expression::expr_type::Expression;
     use crate::query::validator::match_structs::{
-        WhereClauseContext, MatchClauseContext, ReturnClauseContext,
-        WithClauseContext, UnwindClauseContext, YieldClauseContext, YieldColumn
+        MatchClauseContext, ReturnClauseContext, UnwindClauseContext, WhereClauseContext,
+        WithClauseContext, YieldClauseContext, YieldColumn,
     };
     use std::collections::HashMap;
 
@@ -246,7 +241,7 @@ mod tests {
     #[test]
     fn test_validate_filter() {
         let validator = ExpressionValidator::new();
-        
+
         // 创建测试数据
         let mut where_context = WhereClauseContext {
             filter: None,
@@ -254,18 +249,20 @@ mod tests {
             aliases_generated: HashMap::new(),
             paths: Vec::new(),
         };
-        
+
         let mut base_validator = Validator::new(ValidateContext::new());
-        
+
         // 测试布尔表达式
         let bool_expr = Expression::Constant(crate::core::Value::Bool(true));
-        assert!(validator.validate_filter(&bool_expr, &mut where_context, &mut base_validator).is_ok());
+        assert!(validator
+            .validate_filter(&bool_expr, &mut where_context, &mut base_validator)
+            .is_ok());
     }
 
     #[test]
     fn test_validate_path() {
         let validator = ExpressionValidator::new();
-        
+
         let mut match_context = MatchClauseContext {
             paths: Vec::new(),
             aliases_available: HashMap::new(),
@@ -275,7 +272,7 @@ mod tests {
             skip: None,
             limit: None,
         };
-        
+
         // 测试路径验证
         // 注意：这里需要一个有效的路径表达式
         // 暂时跳过这个测试，因为需要特定的路径表达式构造
@@ -284,7 +281,7 @@ mod tests {
     #[test]
     fn test_validate_return() {
         let validator = ExpressionValidator::new();
-        
+
         let mut return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: Vec::new(),
@@ -306,16 +303,18 @@ mod tests {
             order_by: None,
             distinct: false,
         };
-        
+
         // 测试Return子句验证
         let return_expr = Expression::Constant(crate::core::Value::Int(1));
-        assert!(validator.validate_return(&return_expr, &[], &mut return_context).is_ok());
+        assert!(validator
+            .validate_return(&return_expr, &[], &mut return_context)
+            .is_ok());
     }
 
     #[test]
     fn test_validate_with() {
         let validator = ExpressionValidator::new();
-        
+
         let mut with_context = WithClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: Vec::new(),
@@ -338,16 +337,18 @@ mod tests {
             order_by: None,
             distinct: false,
         };
-        
+
         // 测试With子句验证
         let with_expr = Expression::Constant(crate::core::Value::Int(1));
-        assert!(validator.validate_with(&with_expr, &[], &mut with_context).is_ok());
+        assert!(validator
+            .validate_with(&with_expr, &[], &mut with_context)
+            .is_ok());
     }
 
     #[test]
     fn test_validate_unwind() {
         let validator = ExpressionValidator::new();
-        
+
         let mut unwind_context = UnwindClauseContext {
             alias: "test".to_string(),
             unwind_expr: Expression::Constant(crate::core::Value::Int(1)),
@@ -355,18 +356,23 @@ mod tests {
             aliases_generated: HashMap::new(),
             paths: Vec::new(),
         };
-        
+
         // 测试Unwind子句验证
         let unwind_expr = Expression::Constant(crate::core::Value::Int(1));
-        assert!(validator.validate_unwind(&unwind_expr, &mut unwind_context).is_ok());
+        assert!(validator
+            .validate_unwind(&unwind_expr, &mut unwind_context)
+            .is_ok());
     }
 
     #[test]
     fn test_validate_yield() {
         let validator = ExpressionValidator::new();
-        
+
         let mut yield_context = YieldClauseContext {
-            yield_columns: vec![YieldColumn::new(Expression::Constant(crate::core::Value::Int(1)), "col1".to_string())],
+            yield_columns: vec![YieldColumn::new(
+                Expression::Constant(crate::core::Value::Int(1)),
+                "col1".to_string(),
+            )],
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),
             distinct: false,
@@ -379,7 +385,7 @@ mod tests {
             proj_cols: Vec::new(),
             paths: Vec::new(),
         };
-        
+
         // 测试Yield子句验证
         assert!(validator.validate_yield(&mut yield_context).is_ok());
     }
@@ -387,7 +393,7 @@ mod tests {
     #[test]
     fn test_single_path_pattern() {
         let validator = ExpressionValidator::new();
-        
+
         let mut match_context = MatchClauseContext {
             paths: Vec::new(),
             aliases_available: HashMap::new(),
@@ -397,9 +403,11 @@ mod tests {
             skip: None,
             limit: None,
         };
-        
+
         // 测试单个路径模式验证
         let pattern = Expression::Constant(crate::core::Value::Int(1));
-        assert!(validator.validate_single_path_pattern(&pattern, &mut match_context).is_ok());
+        assert!(validator
+            .validate_single_path_pattern(&pattern, &mut match_context)
+            .is_ok());
     }
 }

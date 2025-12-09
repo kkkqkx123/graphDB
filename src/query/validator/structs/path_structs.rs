@@ -1,0 +1,85 @@
+//! 路径相关数据结构
+
+use crate::graph::expression::expr_type::Expression;
+
+/// 路径信息
+#[derive(Debug, Clone)]
+pub struct Path {
+    pub alias: String,
+    pub anonymous: bool,
+    pub gen_path: bool,  // 是否生成路径
+    pub path_type: PathType,
+    pub node_infos: Vec<NodeInfo>,
+    pub edge_infos: Vec<EdgeInfo>,
+    pub path_build: Option<Expression>, // 路径构建表达式
+    pub is_pred: bool, // 是否为谓词
+    pub is_anti_pred: bool, // 是否为反向谓词
+    pub compare_variables: Vec<String>, // 比较变量
+    pub collect_variable: String, // 收集变量
+    pub roll_up_apply: bool, // 是否应用RollUp
+}
+
+/// 路径类型
+#[derive(Debug, Clone, Copy)]
+pub enum PathType {
+    Default,
+    Shortest,
+    AllShortest,
+    SingleSourceShortest,
+    SingleSourceAllShortest,
+}
+
+/// Node信息
+#[derive(Debug, Clone)]
+pub struct NodeInfo {
+    pub alias: String,
+    pub labels: Vec<String>,
+    pub props: Option<Expression>,
+    pub anonymous: bool,
+    pub filter: Option<Expression>, // 节点过滤条件
+    pub tids: Vec<i32>, // 标签ID列表
+    pub label_props: Vec<Option<Expression>>, // 标签属性
+}
+
+/// Edge信息
+#[derive(Debug, Clone)]
+pub struct EdgeInfo {
+    pub alias: String,
+    pub inner_alias: String, // 内部别名
+    pub types: Vec<String>,
+    pub props: Option<Expression>,
+    pub anonymous: bool,
+    pub filter: Option<Expression>, // 边过滤条件
+    pub direction: Direction, // 边方向
+    pub range: Option<MatchStepRange>, // 步数范围
+    pub edge_types: Vec<i32>, // 边类型ID
+}
+
+/// 边的方向
+#[derive(Debug, Clone, Copy)]
+pub enum Direction {
+    Forward,  // ->
+    Backward, // <-
+    Bidirectional, // -
+}
+
+/// 路径步数范围
+#[derive(Debug, Clone)]
+pub struct MatchStepRange {
+    pub min: u32,
+    pub max: u32,
+}
+
+impl MatchStepRange {
+    pub fn new(min: u32, max: u32) -> Self {
+        MatchStepRange { min, max }
+    }
+    
+    pub fn min(&self) -> u32 {
+        self.min
+    }
+    
+    pub fn max(&self) -> u32 {
+        self.max
+    }
+}
