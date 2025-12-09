@@ -53,7 +53,13 @@ impl<S: StorageEngine> SetExecutor<S> {
     pub fn get_left_input_data(&self) -> Result<DataSet, QueryError> {
         match self.base.context.get_result(&self.left_input_var) {
             Some(ExecutionResult::Values(values)) => {
-                // 将Values转换为DataSet
+                // 检查Values中是否包含DataSet
+                if values.len() == 1 {
+                    if let Value::DataSet(dataset) = &values[0] {
+                        return Ok(dataset.clone());
+                    }
+                }
+                // 如果不是DataSet，尝试将Values转换为DataSet
                 Ok(DataSet {
                     col_names: self.col_names.clone(),
                     rows: vec![values.clone()],
@@ -77,7 +83,13 @@ impl<S: StorageEngine> SetExecutor<S> {
     pub fn get_right_input_data(&self) -> Result<DataSet, QueryError> {
         match self.base.context.get_result(&self.right_input_var) {
             Some(ExecutionResult::Values(values)) => {
-                // 将Values转换为DataSet
+                // 检查Values中是否包含DataSet
+                if values.len() == 1 {
+                    if let Value::DataSet(dataset) = &values[0] {
+                        return Ok(dataset.clone());
+                    }
+                }
+                // 如果不是DataSet，尝试将Values转换为DataSet
                 Ok(DataSet {
                     col_names: self.col_names.clone(),
                     rows: vec![values.clone()],

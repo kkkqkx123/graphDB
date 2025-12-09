@@ -126,11 +126,17 @@ mod tests {
     // 创建测试用的存储引擎
     fn create_test_storage() -> Arc<Mutex<crate::storage::NativeStorage>> {
         use std::time::{SystemTime, UNIX_EPOCH};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        
+        // 使用原子计数器确保每个测试使用唯一的数据库路径
+        static TEST_COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let test_id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+        
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
-            .as_millis();
-        let test_db_path = format!("test_intersect_db_{}", timestamp);
+            .as_nanos();
+        let test_db_path = format!("data/tests/test_intersect_db_{}_{}", test_id, timestamp);
         let storage = crate::storage::NativeStorage::new(test_db_path)
             .expect("Failed to create test storage");
         Arc::new(Mutex::new(storage))
@@ -166,7 +172,14 @@ mod tests {
         };
 
         // 将数据集设置到执行器上下文中
-        // 这里需要根据实际的上下文实现来设置数据
+        executor.set_executor.base_mut().context.set_result(
+            "left_input".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+        );
+        executor.set_executor.base_mut().context.set_result(
+            "right_input".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+        );
 
         // 执行INTERSECT操作
         let result = executor.execute().await;
@@ -210,6 +223,16 @@ mod tests {
             ],
         };
 
+        // 将数据集设置到执行器上下文中
+        executor.set_executor.base_mut().context.set_result(
+            "left_no_common".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+        );
+        executor.set_executor.base_mut().context.set_result(
+            "right_no_common".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+        );
+
         // 执行INTERSECT操作
         let result = executor.execute().await;
         assert!(result.is_ok());
@@ -228,6 +251,30 @@ mod tests {
             storage,
             "empty_left".to_string(),
             "right_input".to_string(),
+        );
+
+        // 设置空的左数据集和非空的右数据集
+        let left_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![
+                vec![Value::Int(1), Value::String("Alice".to_string())],
+                vec![Value::Int(2), Value::String("Bob".to_string())],
+            ],
+        };
+
+        // 将数据集设置到执行器上下文中
+        executor.set_executor.base_mut().context.set_result(
+            "empty_left".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+        );
+        executor.set_executor.base_mut().context.set_result(
+            "right_input".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
         // 测试左数据集为空的INTERSECT
@@ -250,6 +297,30 @@ mod tests {
             "empty_right".to_string(),
         );
 
+        // 设置非空的左数据集和空的右数据集
+        let left_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![
+                vec![Value::Int(1), Value::String("Alice".to_string())],
+                vec![Value::Int(2), Value::String("Bob".to_string())],
+            ],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![],
+        };
+
+        // 将数据集设置到执行器上下文中
+        executor.set_executor.base_mut().context.set_result(
+            "left_input".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+        );
+        executor.set_executor.base_mut().context.set_result(
+            "empty_right".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+        );
+
         // 测试右数据集为空的INTERSECT
         let result = executor.execute().await;
         assert!(result.is_ok());
@@ -268,6 +339,27 @@ mod tests {
             storage,
             "empty_left".to_string(),
             "empty_right".to_string(),
+        );
+
+        // 设置两个空数据集
+        let left_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![],
+        };
+
+        // 将数据集设置到执行器上下文中
+        executor.set_executor.base_mut().context.set_result(
+            "empty_left".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+        );
+        executor.set_executor.base_mut().context.set_result(
+            "empty_right".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
         // 测试两个数据集都为空的INTERSECT
@@ -303,6 +395,16 @@ mod tests {
             ],
         };
 
+        // 将数据集设置到执行器上下文中
+        executor.set_executor.base_mut().context.set_result(
+            "left_dup".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+        );
+        executor.set_executor.base_mut().context.set_result(
+            "right_dup".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+        );
+
         // 执行INTERSECT操作
         let result = executor.execute().await;
         assert!(result.is_ok());
@@ -336,6 +438,16 @@ mod tests {
             col_names: vec!["id".to_string(), "title".to_string()], // 不同的列名
             rows: vec![vec![Value::Int(1), Value::String("Ms".to_string())]],
         };
+
+        // 将数据集设置到执行器上下文中
+        executor.set_executor.base_mut().context.set_result(
+            "left_mismatch".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+        );
+        executor.set_executor.base_mut().context.set_result(
+            "right_mismatch".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+        );
 
         // 执行应该失败
         let result = executor.execute().await;
