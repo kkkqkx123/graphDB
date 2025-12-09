@@ -11,12 +11,16 @@
 
 pub mod ast_context;
 pub mod validate_context;
+pub mod enhanced_validate_context;
+pub mod request_context;
 pub mod query_context;
 pub mod execution_context;
 pub mod expression_context;
 
 pub use ast_context::*;
 pub use validate_context::*;
+pub use enhanced_validate_context::*;
+pub use request_context::*;
 pub use query_context::*;
 pub use execution_context::{QueryExecutionContext};
 pub use expression_context::*;

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use super::base::{BaseExecutor, ExecutionResult, Executor};
-use crate::core::{Edge, Value, Vertex};
+use crate::core::Value;
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -185,7 +185,7 @@ pub struct GetPropExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
     edge_ids: Option<Vec<Value>>,
-    prop_names: Vec<String>,  // List of property names to retrieve
+    prop_names: Vec<String>, // List of property names to retrieve
 }
 
 impl<S: StorageEngine> GetPropExecutor<S> {

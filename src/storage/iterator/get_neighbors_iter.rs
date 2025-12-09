@@ -357,12 +357,79 @@ impl Iterator for GetNeighborsIter {
     }
 
     fn erase(&mut self) {
-        // 简单实现：移动到下一行
-        self.next();
+        // 实现真正的删除逻辑：从当前数据集中删除当前边
+        if !self.valid() || self.no_edge {
+            return;
+        }
+
+        let ds_index = &mut self.ds_indices[self.current_ds_index];
+        let current_edge_name = match self.current_edge_name() {
+            Some(name) => name.to_string(),
+            None => return,
+        };
+
+        // 获取当前边的属性索引
+        if let Some(prop_index) = ds_index.edge_props_map.get(&current_edge_name) {
+            let row_idx = self.current_row;
+            let col_idx = prop_index.col_idx;
+
+            if row_idx < ds_index.ds.rows.len() && col_idx < ds_index.ds.rows[row_idx].len() {
+                if let Value::List(edge_col) = &mut ds_index.ds.rows[row_idx][col_idx] {
+                    let edge_idx = self.edge_idx as usize;
+                    if edge_idx < edge_col.len() {
+                        edge_col.remove(edge_idx);
+                        
+                        // 调整索引
+                        if edge_col.is_empty() {
+                            // 如果该列空了，删除整个列
+                            ds_index.ds.rows[row_idx].remove(col_idx);
+                            ds_index.ds.col_names.remove(col_idx);
+                            
+                            // 重新构建索引
+                            let _ = self.build_index(ds_index);
+                        }
+                        
+                        // 重置到有效位置
+                        self.reset(self.current_row);
+                    }
+                }
+            }
+        }
     }
 
     fn unstable_erase(&mut self) {
-        self.erase();
+        // 快速删除：不保持顺序，直接交换删除
+        if !self.valid() || self.no_edge {
+            return;
+        }
+
+        let ds_index = &mut self.ds_indices[self.current_ds_index];
+        let current_edge_name = match self.current_edge_name() {
+            Some(name) => name.to_string(),
+            None => return,
+        };
+
+        if let Some(prop_index) = ds_index.edge_props_map.get(&current_edge_name) {
+            let row_idx = self.current_row;
+            let col_idx = prop_index.col_idx;
+
+            if row_idx < ds_index.ds.rows.len() && col_idx < ds_index.ds.rows[row_idx].len() {
+                if let Value::List(edge_col) = &mut ds_index.ds.rows[row_idx][col_idx] {
+                    let edge_idx = self.edge_idx as usize;
+                    if edge_idx < edge_col.len() {
+                        // 快速删除：交换到最后然后pop
+                        let len = edge_col.len();
+                        if edge_idx != len - 1 {
+                            edge_col.swap(edge_idx, len - 1);
+                        }
+                        edge_col.pop();
+                        
+                        // 重置到有效位置
+                        self.reset(self.current_row);
+                    }
+                }
+            }
+        }
     }
 
     fn clear(&mut self) {
@@ -413,46 +480,221 @@ impl Iterator for GetNeighborsIter {
     }
 
     fn select(&mut self, offset: usize, count: usize) {
-        // 简化实现：重置到指定位置
-        self.reset(offset);
-        for _ in 0..count {
-            if !self.valid() {
-                break;
+        // 实现真正的选择逻辑：选择指定范围的边
+        if self.no_edge || offset >= self.size() {
+            self.clear();
+            return;
+        }
+
+        // 收集所有边的信息
+        let mut all_edges = Vec::new();
+        let original_state = (
+            self.current_ds_index,
+            self.current_row,
+            self.col_idx,
+            self.edge_idx,
+            self.edge_idx_upper_bound,
+            self.valid,
+        );
+
+        // 重置到开始位置，收集所有边
+        self.reset(0);
+        while self.valid() {
+            if let Some(edge_name) = self.current_edge_name() {
+                all_edges.push((
+                    self.current_ds_index,
+                    self.current_row,
+                    self.col_idx,
+                    self.edge_idx,
+                    edge_name.to_string(),
+                ));
             }
             self.next();
+        }
+
+        // 检查范围有效性
+        if offset >= all_edges.len() {
+            self.clear();
+            return;
+        }
+
+        let end = std::cmp::min(offset + count, all_edges.len());
+        let selected_edges = &all_edges[offset..end];
+
+        // 重建数据集，只保留选中的边
+        if !selected_edges.is_empty() {
+            // 找到第一个选中的边，重置到该位置
+            let (ds_idx, row_idx, col_idx, edge_idx, _) = selected_edges[0];
+            self.current_ds_index = ds_idx;
+            self.current_row = row_idx;
+            self.col_idx = col_idx;
+            self.edge_idx = edge_idx;
+            self.valid = true;
+
+            // 删除未选中的边
+            for i in (0..all_edges.len()).rev() {
+                if i < offset || i >= end {
+                    let (ds_idx, row_idx, col_idx, edge_idx, _) = all_edges[i];
+                    self.current_ds_index = ds_idx;
+                    self.current_row = row_idx;
+                    self.col_idx = col_idx;
+                    self.edge_idx = edge_idx;
+                    self.erase();
+                }
+            }
+
+            // 重置到第一个选中的边
+            self.reset(0);
+        } else {
+            self.clear();
         }
     }
 
     fn sample(&mut self, count: i64) {
         if count <= 0 {
             self.clear();
-        } else {
-            // 简化实现：保留前count个结果
-            let mut sampled_count = 0;
+            return;
+        }
+
+        if self.no_edge {
+            return;
+        }
+
+        let total_size = self.size();
+        if total_size == 0 {
+            self.clear();
+            return;
+        }
+
+        let sample_count = count as usize;
+        if sample_count >= total_size {
+            // 如果采样数量大于等于总数，保持原样
             self.reset(0);
-            while self.valid() && sampled_count < count as usize {
-                sampled_count += 1;
-                self.next();
+            return;
+        }
+
+        // 使用蓄水池采样算法
+        let mut reservoir = Vec::new();
+        let mut all_edges = Vec::new();
+        
+        // 收集所有边
+        let original_state = (
+            self.current_ds_index,
+            self.current_row,
+            self.col_idx,
+            self.edge_idx,
+            self.edge_idx_upper_bound,
+            self.valid,
+        );
+
+        self.reset(0);
+        let mut index = 0;
+        while self.valid() {
+            if let Some(edge_name) = self.current_edge_name() {
+                all_edges.push((
+                    self.current_ds_index,
+                    self.current_row,
+                    self.col_idx,
+                    self.edge_idx,
+                    edge_name.to_string(),
+                    index,
+                ));
             }
-            if sampled_count < count as usize {
-                self.clear();
+            self.next();
+            index += 1;
+        }
+
+        // 蓄水池采样
+        for i in 0..all_edges.len() {
+            if reservoir.len() < sample_count {
+                reservoir.push(all_edges[i].clone());
+            } else {
+                let j = fastrand::usize(0..i + 1);
+                if j < sample_count {
+                    reservoir[j] = all_edges[i].clone();
+                }
             }
+        }
+
+        // 重建数据集，只保留采样的边
+        if !reservoir.is_empty() {
+            // 排序蓄水池，按原始顺序处理
+            reservoir.sort_by_key(|edge| edge.5); // 按原始索引排序
+
+            // 删除未采样的边
+            for i in (0..all_edges.len()).rev() {
+                let should_keep = reservoir.iter().any(|e| e.5 == all_edges[i].5);
+                if !should_keep {
+                    let (ds_idx, row_idx, col_idx, edge_idx, _, _) = all_edges[i];
+                    self.current_ds_index = ds_idx;
+                    self.current_row = row_idx;
+                    self.col_idx = col_idx;
+                    self.edge_idx = edge_idx;
+                    self.erase();
+                }
+            }
+
+            // 重置到第一个采样的边
+            self.reset(0);
+        } else {
+            self.clear();
         }
     }
 
     fn erase_range(&mut self, first: usize, last: usize) {
-        // 简化实现：重置到first，然后删除到last
-        self.reset(first);
-        for i in first..last {
-            if !self.valid() {
-                break;
+        if first >= last || self.no_edge {
+            return;
+        }
+
+        let total_size = self.size();
+        if first >= total_size {
+            return;
+        }
+
+        let end = std::cmp::min(last, total_size);
+
+        // 收集所有边的信息
+        let mut all_edges = Vec::new();
+        
+        let original_state = (
+            self.current_ds_index,
+            self.current_row,
+            self.col_idx,
+            self.edge_idx,
+            self.edge_idx_upper_bound,
+            self.valid,
+        );
+
+        self.reset(0);
+        let mut index = 0;
+        while self.valid() {
+            if let Some(edge_name) = self.current_edge_name() {
+                all_edges.push((
+                    self.current_ds_index,
+                    self.current_row,
+                    self.col_idx,
+                    self.edge_idx,
+                    edge_name.to_string(),
+                    index,
+                ));
             }
-            if i >= first && i < last {
+            self.next();
+            index += 1;
+        }
+
+        // 删除指定范围的边（从后往前删除，避免索引变化）
+        for i in (first..end).rev() {
+            if i < all_edges.len() {
+                let (ds_idx, row_idx, col_idx, edge_idx, _, _) = all_edges[i];
+                self.current_ds_index = ds_idx;
+                self.current_row = row_idx;
+                self.col_idx = col_idx;
+                self.edge_idx = edge_idx;
                 self.erase();
-            } else {
-                self.next();
             }
         }
+
+        // 重置到有效位置
         self.reset(0);
     }
 

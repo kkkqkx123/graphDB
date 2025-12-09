@@ -6,14 +6,14 @@ pub mod error;
 pub mod lru_cache;
 pub mod murmur;
 pub mod result;
+pub mod symbol;
 pub mod schema;
 pub mod signal_handler;
-pub mod symbols;
 pub mod value;
 pub mod vertex_edge_path;
 
 pub use result::*;
+pub use symbol::*;
 pub use schema::*;
-pub use symbols::*;
 pub use value::*;
 pub use vertex_edge_path::*;

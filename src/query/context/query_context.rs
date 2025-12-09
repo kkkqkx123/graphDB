@@ -1,8 +1,8 @@
 //! 查询上下文模块 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
+use super::{QueryExecutionContext, ValidateContext};
 use crate::core::{SymbolTable, Value};
-use super::{ValidateContext, QueryExecutionContext};
 use crate::graph::utils::IdGenerator;
 use crate::utils::ObjectPool;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -276,12 +276,13 @@ mod tests {
         assert_eq!(id2, id1 + 1);
 
         // 测试验证上下文
-        let space = ValidateContext::new().current_space().cloned();
-        ctx.vctx_mut().switch_to_space(crate::query::context::validate_context::SpaceInfo {
-            id: 1,
-            name: "test_space".to_string(),
-            vid_type: "INT".to_string(),
-        });
+        let _space = ValidateContext::new().current_space().cloned();
+        ctx.vctx_mut()
+            .switch_to_space(crate::query::context::validate_context::SpaceInfo {
+                id: 1,
+                name: "test_space".to_string(),
+                vid_type: "INT".to_string(),
+            });
         assert!(ctx.vctx().current_space().is_some());
         assert_eq!(ctx.vctx().current_space().unwrap().name, "test_space");
 

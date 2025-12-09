@@ -1,0 +1,607 @@
+//! 请求上下文模块 - 管理查询请求的上下文信息
+//! 对应原C++中的RequestContext.h
+
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+use crate::core::Value;
+
+/// 会话信息
+#[derive(Debug, Clone)]
+pub struct SessionInfo {
+    pub session_id: String,
+    pub user_name: String,
+    pub client_ip: String,
+    pub client_port: u16,
+    pub created_at: std::time::SystemTime,
+}
+
+impl SessionInfo {
+    pub fn new(session_id: String, user_name: String, client_ip: String, client_port: u16) -> Self {
+        Self {
+            session_id,
+            user_name,
+            client_ip,
+            client_port,
+            created_at: std::time::SystemTime::now(),
+        }
+    }
+}
+
+/// 请求参数
+#[derive(Debug, Clone)]
+pub struct RequestParams {
+    pub query: String,
+    pub parameters: HashMap<String, Value>,
+    pub timeout_ms: u64,
+    pub max_retry_times: u32,
+}
+
+impl RequestParams {
+    pub fn new(query: String) -> Self {
+        Self {
+            query,
+            parameters: HashMap::new(),
+            timeout_ms: 30000, // 默认30秒
+            max_retry_times: 3,
+        }
+    }
+
+    pub fn with_parameters(mut self, params: HashMap<String, Value>) -> Self {
+        self.parameters = params;
+        self
+    }
+
+    pub fn with_timeout(mut self, timeout_ms: u64) -> Self {
+        self.timeout_ms = timeout_ms;
+        self
+    }
+
+    pub fn with_max_retry(mut self, max_retry: u32) -> Self {
+        self.max_retry_times = max_retry;
+        self
+    }
+}
+
+/// 响应对象
+#[derive(Debug, Clone)]
+pub struct Response {
+    pub success: bool,
+    pub data: Option<Value>,
+    pub error_message: Option<String>,
+    pub execution_time_ms: u64,
+    pub affected_rows: u64,
+}
+
+impl Response {
+    pub fn new(success: bool) -> Self {
+        Self {
+            success,
+            data: None,
+            error_message: None,
+            execution_time_ms: 0,
+            affected_rows: 0,
+        }
+    }
+
+    pub fn with_data(mut self, data: Value) -> Self {
+        self.data = Some(data);
+        self
+    }
+
+    pub fn with_error(mut self, error: String) -> Self {
+        self.error_message = Some(error);
+        self.success = false;
+        self
+    }
+
+    pub fn with_execution_time(mut self, time_ms: u64) -> Self {
+        self.execution_time_ms = time_ms;
+        self
+    }
+
+    pub fn with_affected_rows(mut self, rows: u64) -> Self {
+        self.affected_rows = rows;
+        self
+    }
+
+    pub fn is_success(&self) -> bool {
+        self.success
+    }
+
+    pub fn get_data(&self) -> Option<&Value> {
+        self.data.as_ref()
+    }
+
+    pub fn get_error(&self) -> Option<&String> {
+        self.error_message.as_ref()
+    }
+}
+
+/// 请求上下文
+/// 
+/// 管理查询请求的完整生命周期，包括：
+/// 1. 请求参数管理
+/// 2. 会话信息管理
+/// 3. 响应对象管理
+/// 4. 请求生命周期管理
+#[derive(Debug, Clone)]
+pub struct RequestContext {
+    // 会话信息
+    session_info: Option<SessionInfo>,
+    
+    // 请求参数
+    request_params: RequestParams,
+    
+    // 响应对象
+    response: Arc<RwLock<Response>>,
+    
+    // 请求开始时间
+    start_time: std::time::SystemTime,
+    
+    // 请求状态
+    status: Arc<RwLock<RequestStatus>>,
+    
+    // 自定义属性
+    attributes: Arc<RwLock<HashMap<String, Value>>>,
+}
+
+/// 请求状态
+#[derive(Debug, Clone, PartialEq)]
+pub enum RequestStatus {
+    Pending,
+    Processing,
+    Completed,
+    Failed,
+    Cancelled,
+}
+
+impl RequestContext {
+    /// 创建新的请求上下文
+    pub fn new(session_info: SessionInfo, request_params: RequestParams) -> Self {
+        Self {
+            session_info: Some(session_info),
+            request_params,
+            response: Arc::new(RwLock::new(Response::new(true))),
+            start_time: std::time::SystemTime::now(),
+            status: Arc::new(RwLock::new(RequestStatus::Pending)),
+            attributes: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    /// 创建简化的请求上下文（用于测试）
+    pub fn simple(query: String) -> Self {
+        let session_info = SessionInfo::new(
+            "test_session".to_string(),
+            "test_user".to_string(),
+            "127.0.0.1".to_string(),
+            0,
+        );
+        let request_params = RequestParams::new(query);
+        Self::new(session_info, request_params)
+    }
+
+    // ==================== 会话信息管理 ====================
+
+    /// 获取会话信息
+    pub fn session_info(&self) -> Option<&SessionInfo> {
+        self.session_info.as_ref()
+    }
+
+    /// 获取会话ID
+    pub fn session_id(&self) -> Option<&str> {
+        self.session_info.as_ref().map(|s| s.session_id.as_str())
+    }
+
+    /// 获取用户名
+    pub fn user_name(&self) -> Option<&str> {
+        self.session_info.as_ref().map(|s| s.user_name.as_str())
+    }
+
+    /// 获取客户端IP
+    pub fn client_ip(&self) -> Option<&str> {
+        self.session_info.as_ref().map(|s| s.client_ip.as_str())
+    }
+
+    // ==================== 请求参数管理 ====================
+
+    /// 获取查询字符串
+    pub fn query(&self) -> &str {
+        &self.request_params.query
+    }
+
+    /// 获取请求参数
+    pub fn request_params(&self) -> &RequestParams {
+        &self.request_params
+    }
+
+    /// 获取参数值
+    pub fn get_parameter(&self, name: &str) -> Option<Value> {
+        self.request_params.parameters.get(name).cloned()
+    }
+
+    /// 设置参数值
+    pub fn set_parameter(&mut self, name: String, value: Value) {
+        self.request_params.parameters.insert(name, value);
+    }
+
+    /// 获取超时时间（毫秒）
+    pub fn timeout_ms(&self) -> u64 {
+        self.request_params.timeout_ms
+    }
+
+    /// 获取最大重试次数
+    pub fn max_retry_times(&self) -> u32 {
+        self.request_params.max_retry_times
+    }
+
+    // ==================== 响应对象管理 ====================
+
+    /// 设置响应数据
+    pub fn set_response_data(&self, data: Value) -> Result<(), String> {
+        let mut response = self.response.write()
+            .map_err(|e| format!("Failed to acquire write lock on response: {}", e))?;
+        
+        response.data = Some(data);
+        response.success = true;
+        Ok(())
+    }
+
+    /// 设置响应错误
+    pub fn set_response_error(&self, error: String) -> Result<(), String> {
+        let mut response = self.response.write()
+            .map_err(|e| format!("Failed to acquire write lock on response: {}", e))?;
+        
+        response.error_message = Some(error);
+        response.success = false;
+        Ok(())
+    }
+
+    /// 获取响应
+    pub fn get_response(&self) -> Result<Response, String> {
+        let response = self.response.read()
+            .map_err(|e| format!("Failed to acquire read lock on response: {}", e))?;
+        
+        Ok(response.clone())
+    }
+
+    /// 获取响应数据
+    pub fn get_response_data(&self) -> Result<Option<Value>, String> {
+        let response = self.response.read()
+            .map_err(|e| format!("Failed to acquire read lock on response: {}", e))?;
+        
+        Ok(response.data.clone())
+    }
+
+    /// 获取响应错误
+    pub fn get_response_error(&self) -> Result<Option<String>, String> {
+        let response = self.response.read()
+            .map_err(|e| format!("Failed to acquire read lock on response: {}", e))?;
+        
+        Ok(response.error_message.clone())
+    }
+
+    /// 设置执行时间
+    pub fn set_execution_time(&self, time_ms: u64) -> Result<(), String> {
+        let mut response = self.response.write()
+            .map_err(|e| format!("Failed to acquire write lock on response: {}", e))?;
+        
+        response.execution_time_ms = time_ms;
+        Ok(())
+    }
+
+    /// 设置影响行数
+    pub fn set_affected_rows(&self, rows: u64) -> Result<(), String> {
+        let mut response = self.response.write()
+            .map_err(|e| format!("Failed to acquire write lock on response: {}", e))?;
+        
+        response.affected_rows = rows;
+        Ok(())
+    }
+
+    // ==================== 请求生命周期管理 ====================
+
+    /// 获取请求开始时间
+    pub fn start_time(&self) -> std::time::SystemTime {
+        self.start_time
+    }
+
+    /// 获取请求持续时间
+    pub fn duration(&self) -> std::time::Duration {
+        std::time::SystemTime::now()
+            .duration_since(self.start_time)
+            .unwrap_or(std::time::Duration::from_secs(0))
+    }
+
+    /// 获取请求状态
+    pub fn status(&self) -> Result<RequestStatus, String> {
+        let status = self.status.read()
+            .map_err(|e| format!("Failed to acquire read lock on status: {}", e))?;
+        
+        Ok(status.clone())
+    }
+
+    /// 设置请求状态
+    pub fn set_status(&self, status: RequestStatus) -> Result<(), String> {
+        let mut current_status = self.status.write()
+            .map_err(|e| format!("Failed to acquire write lock on status: {}", e))?;
+        
+        *current_status = status;
+        Ok(())
+    }
+
+    /// 标记请求为处理中
+    pub fn mark_processing(&self) -> Result<(), String> {
+        self.set_status(RequestStatus::Processing)
+    }
+
+    /// 标记请求为完成
+    pub fn mark_completed(&self) -> Result<(), String> {
+        self.set_status(RequestStatus::Completed)
+    }
+
+    /// 标记请求为失败
+    pub fn mark_failed(&self) -> Result<(), String> {
+        self.set_status(RequestStatus::Failed)
+    }
+
+    /// 标记请求为取消
+    pub fn mark_cancelled(&self) -> Result<(), String> {
+        self.set_status(RequestStatus::Cancelled)
+    }
+
+    /// 检查请求是否完成
+    pub fn is_completed(&self) -> Result<bool, String> {
+        let status = self.status()?;
+        Ok(matches!(status, RequestStatus::Completed | RequestStatus::Failed | RequestStatus::Cancelled))
+    }
+
+    /// 检查请求是否失败
+    pub fn is_failed(&self) -> Result<bool, String> {
+        let status = self.status()?;
+        Ok(matches!(status, RequestStatus::Failed))
+    }
+
+    /// 检查请求是否取消
+    pub fn is_cancelled(&self) -> Result<bool, String> {
+        let status = self.status()?;
+        Ok(matches!(status, RequestStatus::Cancelled))
+    }
+
+    // ==================== 自定义属性管理 ====================
+
+    /// 设置自定义属性
+    pub fn set_attribute(&self, key: String, value: Value) -> Result<(), String> {
+        let mut attributes = self.attributes.write()
+            .map_err(|e| format!("Failed to acquire write lock on attributes: {}", e))?;
+        
+        attributes.insert(key, value);
+        Ok(())
+    }
+
+    /// 获取自定义属性
+    pub fn get_attribute(&self, key: &str) -> Result<Option<Value>, String> {
+        let attributes = self.attributes.read()
+            .map_err(|e| format!("Failed to acquire read lock on attributes: {}", e))?;
+        
+        Ok(attributes.get(key).cloned())
+    }
+
+    /// 检查属性是否存在
+    pub fn has_attribute(&self, key: &str) -> Result<bool, String> {
+        let attributes = self.attributes.read()
+            .map_err(|e| format!("Failed to acquire read lock on attributes: {}", e))?;
+        
+        Ok(attributes.contains_key(key))
+    }
+
+    /// 获取所有属性键
+    pub fn get_attribute_keys(&self) -> Result<Vec<String>, String> {
+        let attributes = self.attributes.read()
+            .map_err(|e| format!("Failed to acquire read lock on attributes: {}", e))?;
+        
+        Ok(attributes.keys().cloned().collect())
+    }
+
+    /// 删除属性
+    pub fn remove_attribute(&self, key: &str) -> Result<Option<Value>, String> {
+        let mut attributes = self.attributes.write()
+            .map_err(|e| format!("Failed to acquire write lock on attributes: {}", e))?;
+        
+        Ok(attributes.remove(key))
+    }
+
+    /// 生成请求上下文的字符串表示
+    pub fn to_string(&self) -> Result<String, String> {
+        let status = self.status()?;
+        let response = self.get_response()?;
+        let attributes = self.attributes.read()
+            .map_err(|e| format!("Failed to acquire read lock on attributes: {}", e))?;
+        
+        let mut result = String::new();
+        result.push_str("RequestContext {\n");
+        
+        if let Some(session) = &self.session_info {
+            result.push_str(&format!("  session_id: {},\n", session.session_id));
+            result.push_str(&format!("  user_name: {},\n", session.user_name));
+            result.push_str(&format!("  client_ip: {},\n", session.client_ip));
+        }
+        
+        result.push_str(&format!("  query: {},\n", self.request_params.query));
+        result.push_str(&format!("  status: {:?},\n", status));
+        result.push_str(&format!("  response_success: {},\n", response.success));
+        result.push_str(&format!("  execution_time_ms: {},\n", response.execution_time_ms));
+        result.push_str(&format!("  affected_rows: {},\n", response.affected_rows));
+        result.push_str(&format!("  attributes_count: {},\n", attributes.len()));
+        result.push_str(&format!("  duration: {:?},\n", self.duration()));
+        result.push_str("}");
+        
+        Ok(result)
+    }
+}
+
+impl Default for RequestContext {
+    fn default() -> Self {
+        let session_info = SessionInfo::new(
+            "default_session".to_string(),
+            "default_user".to_string(),
+            "127.0.0.1".to_string(),
+            0,
+        );
+        let request_params = RequestParams::new("SELECT 1".to_string());
+        Self::new(session_info, request_params)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_request_context_creation() {
+        let session_info = SessionInfo::new(
+            "test_session".to_string(),
+            "test_user".to_string(),
+            "192.168.1.1".to_string(),
+            12345,
+        );
+        let request_params = RequestParams::new("MATCH (n) RETURN n".to_string());
+        let ctx = RequestContext::new(session_info, request_params);
+
+        assert_eq!(ctx.session_id(), Some("test_session"));
+        assert_eq!(ctx.user_name(), Some("test_user"));
+        assert_eq!(ctx.client_ip(), Some("192.168.1.1"));
+        assert_eq!(ctx.query(), "MATCH (n) RETURN n");
+        assert_eq!(ctx.timeout_ms(), 30000);
+        assert_eq!(ctx.max_retry_times(), 3);
+    }
+
+    #[test]
+    fn test_request_context_simple() {
+        let ctx = RequestContext::simple("SELECT * FROM users".to_string());
+        assert_eq!(ctx.query(), "SELECT * FROM users");
+        assert_eq!(ctx.session_id(), Some("test_session"));
+        assert_eq!(ctx.user_name(), Some("test_user"));
+    }
+
+    #[test]
+    fn test_request_parameters() {
+        let mut ctx = RequestContext::simple("MATCH (n) WHERE n.name = $name RETURN n".to_string());
+        
+        // 设置参数
+        ctx.set_parameter("name".to_string(), Value::String("Alice".to_string()));
+        
+        // 获取参数
+        let param = ctx.get_parameter("name");
+        assert!(param.is_some());
+        assert_eq!(param.unwrap(), Value::String("Alice".to_string()));
+        
+        // 获取不存在的参数
+        let missing_param = ctx.get_parameter("missing");
+        assert!(missing_param.is_none());
+    }
+
+    #[test]
+    fn test_response_management() {
+        let ctx = RequestContext::simple("MATCH (n) RETURN n".to_string());
+        
+        // 设置响应数据
+        let data = Value::List(vec![
+            Value::Map(std::collections::HashMap::new()),
+            Value::Map(std::collections::HashMap::new()),
+        ]);
+        ctx.set_response_data(data.clone()).unwrap();
+        
+        // 获取响应
+        let response = ctx.get_response().unwrap();
+        assert!(response.is_success());
+        assert!(response.get_data().is_some());
+        
+        // 设置响应错误
+        ctx.set_response_error("Query failed".to_string()).unwrap();
+        let response = ctx.get_response().unwrap();
+        assert!(!response.is_success());
+        assert!(response.get_error().is_some());
+        assert_eq!(response.get_error().unwrap(), "Query failed");
+    }
+
+    #[test]
+    fn test_request_lifecycle() {
+        let ctx = RequestContext::simple("MATCH (n) RETURN n".to_string());
+        
+        // 初始状态
+        assert_eq!(ctx.status().unwrap(), RequestStatus::Pending);
+        assert!(!ctx.is_completed().unwrap());
+        
+        // 标记为处理中
+        ctx.mark_processing().unwrap();
+        assert_eq!(ctx.status().unwrap(), RequestStatus::Processing);
+        
+        // 标记为完成
+        ctx.mark_completed().unwrap();
+        assert_eq!(ctx.status().unwrap(), RequestStatus::Completed);
+        assert!(ctx.is_completed().unwrap());
+        
+        // 测试失败状态
+        let ctx2 = RequestContext::simple("INVALID QUERY".to_string());
+        ctx2.mark_failed().unwrap();
+        assert!(ctx2.is_failed().unwrap());
+        
+        // 测试取消状态
+        let ctx3 = RequestContext::simple("LONG RUNNING QUERY".to_string());
+        ctx3.mark_cancelled().unwrap();
+        assert!(ctx3.is_cancelled().unwrap());
+    }
+
+    #[test]
+    fn test_attributes() {
+        let ctx = RequestContext::simple("MATCH (n) RETURN n".to_string());
+        
+        // 设置属性
+        ctx.set_attribute("query_type".to_string(), Value::String("read".to_string())).unwrap();
+        ctx.set_attribute("priority".to_string(), Value::Int(1)).unwrap();
+        
+        // 获取属性
+        let query_type = ctx.get_attribute("query_type").unwrap();
+        assert!(query_type.is_some());
+        assert_eq!(query_type.unwrap(), Value::String("read".to_string()));
+        
+        // 检查属性存在
+        assert!(ctx.has_attribute("priority").unwrap());
+        assert!(!ctx.has_attribute("missing").unwrap());
+        
+        // 获取所有属性键
+        let keys = ctx.get_attribute_keys().unwrap();
+        assert_eq!(keys.len(), 2);
+        assert!(keys.contains(&"query_type".to_string()));
+        assert!(keys.contains(&"priority".to_string()));
+        
+        // 删除属性
+        let removed = ctx.remove_attribute("priority").unwrap();
+        assert!(removed.is_some());
+        assert!(!ctx.has_attribute("priority").unwrap());
+    }
+
+    #[test]
+    fn test_duration() {
+        let ctx = RequestContext::simple("MATCH (n) RETURN n".to_string());
+        
+        // 等待一小段时间
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        
+        let duration = ctx.duration();
+        assert!(duration.as_millis() >= 10);
+    }
+
+    #[test]
+    fn test_to_string() {
+        let ctx = RequestContext::simple("MATCH (n) RETURN n".to_string());
+        ctx.set_attribute("test".to_string(), Value::String("value".to_string())).unwrap();
+        
+        let ctx_str = ctx.to_string().unwrap();
+        assert!(ctx_str.contains("RequestContext"));
+        assert!(ctx_str.contains("MATCH (n) RETURN n"));
+        assert!(ctx_str.contains("test_session"));
+        assert!(ctx_str.contains("test_user"));
+        assert!(ctx_str.contains("attributes_count: 1"));
+    }
+}

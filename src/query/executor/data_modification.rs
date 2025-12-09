@@ -1,15 +1,15 @@
-use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
 
-use crate::core::{Value, Vertex, Edge};
-use crate::storage::StorageEngine;
+use super::base::{BaseExecutor, ExecutionResult, Executor};
+use crate::core::{Edge, Value, Vertex};
 use crate::query::QueryError;
-use super::base::{Executor, ExecutionResult, ExecutionContext, BaseExecutor};
+use crate::storage::StorageEngine;
 
 // Executor for inserting new vertices/edges
 pub struct InsertExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    vertex_data: Option<Vec<Vertex>>,  // Data to be inserted
+    vertex_data: Option<Vec<Vertex>>, // Data to be inserted
     edge_data: Option<Vec<Edge>>,
 }
 
@@ -27,11 +27,7 @@ impl<S: StorageEngine> InsertExecutor<S> {
         }
     }
 
-    pub fn with_vertices(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        vertex_data: Vec<Vertex>,
-    ) -> Self {
+    pub fn with_vertices(id: usize, storage: Arc<Mutex<S>>, vertex_data: Vec<Vertex>) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
             vertex_data: Some(vertex_data),
@@ -39,11 +35,7 @@ impl<S: StorageEngine> InsertExecutor<S> {
         }
     }
 
-    pub fn with_edges(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        edge_data: Vec<Edge>,
-    ) -> Self {
+    pub fn with_edges(id: usize, storage: Arc<Mutex<S>>, edge_data: Vec<Edge>) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
             vertex_data: None,
@@ -100,9 +92,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
 // Executor for updating existing vertices/edges
 pub struct UpdateExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    vertex_updates: Option<Vec<VertexUpdate>>,  // Updates to apply to vertices
-    edge_updates: Option<Vec<EdgeUpdate>>,      // Updates to apply to edges
-    condition: Option<String>,                  // Condition for selecting items to update
+    vertex_updates: Option<Vec<VertexUpdate>>, // Updates to apply to vertices
+    edge_updates: Option<Vec<EdgeUpdate>>,     // Updates to apply to edges
+    condition: Option<String>,                 // Condition for selecting items to update
 }
 
 #[derive(Debug, Clone)]
@@ -192,10 +184,10 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
 // Executor for deleting vertices/edges
 pub struct DeleteExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    vertex_ids: Option<Vec<Value>>,  // IDs of vertices to delete
-    edge_ids: Option<Vec<Value>>,    // IDs of edges to delete
-    condition: Option<String>,       // Condition for selecting items to delete
-    cascade: bool,                   // Whether to delete related items
+    vertex_ids: Option<Vec<Value>>, // IDs of vertices to delete
+    edge_ids: Option<Vec<Value>>,   // IDs of edges to delete
+    condition: Option<String>,      // Condition for selecting items to delete
+    cascade: bool,                  // Whether to delete related items
 }
 
 impl<S: StorageEngine> DeleteExecutor<S> {
@@ -276,7 +268,7 @@ pub struct CreateIndexExecutor<S: StorageEngine> {
     index_name: String,
     index_type: IndexType,
     properties: Vec<String>,  // Properties to index
-    tag_name: Option<String>,  // Tag name for vertex indexes
+    tag_name: Option<String>, // Tag name for vertex indexes
 }
 
 #[derive(Debug, Clone)]
@@ -341,11 +333,7 @@ pub struct DropIndexExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> DropIndexExecutor<S> {
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        index_name: String,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>, index_name: String) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropIndexExecutor".to_string(), storage),
             index_name,
