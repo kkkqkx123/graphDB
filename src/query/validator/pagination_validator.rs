@@ -4,6 +4,7 @@
 use crate::graph::expression::expr_type::Expression;
 use crate::core::ValueTypeDef;
 use crate::query::validator::structs::PaginationContext;
+use crate::config::test_config::test_config;
 
 /// 分页验证器
 pub struct PaginationValidator;
@@ -42,40 +43,51 @@ impl PaginationValidator {
 
     /// 验证分页表达式
     pub fn validate_pagination_expr(&self, expr: &Expression, clause_name: &str) -> Result<(), String> {
-        // 使用DeduceTypeVisitor来推导表达式的类型
-        use crate::query::visitor::DeduceTypeVisitor;
-        use crate::storage::NativeStorage; // 使用实际可用的存储实现
+        // 简化验证：直接检查表达式是否为整数常量
+        match expr {
+            Expression::Constant(crate::core::Value::Int(_)) => Ok(()),
+            Expression::Constant(_) => Err(format!(
+                "{}表达式必须求值为整数类型",
+                clause_name
+            )),
+            _ => {
+                // 对于非常量表达式，使用类型推导
+                use crate::query::visitor::DeduceTypeVisitor;
+                use crate::storage::NativeStorage;
 
-        // 创建临时存储引擎用于类型推导
-        let temp_dir = std::env::temp_dir().join("graphdb_temp_storage");
-        std::fs::create_dir_all(&temp_dir).map_err(|e| format!("创建临时目录失败: {}", e))?;
-        let storage = NativeStorage::new(&temp_dir).map_err(|e| format!("创建存储失败: {}", e))?;
+                // 创建临时存储引擎用于类型推导
+                let config = test_config();
+                let temp_dir = config.temp_storage_path();
+                std::fs::create_dir_all(&temp_dir).map_err(|e| format!("创建临时目录失败: {}", e))?;
+                let storage = NativeStorage::new(&temp_dir).map_err(|e| format!("创建存储失败: {}", e))?;
 
-        let inputs = vec![]; // 分页表达式通常不依赖于输入
-        let space = "default".to_string(); // 使用默认空间
+                let inputs = vec![];
+                let space = "default".to_string();
 
-        let default_context = Default::default();
-        let mut type_visitor = DeduceTypeVisitor::new(
-            &storage,
-            &default_context, // 使用默认上下文
-            inputs,
-            space,
-        );
+                let default_context = Default::default();
+                let mut type_visitor = DeduceTypeVisitor::new(
+                    &storage,
+                    &default_context,
+                    inputs,
+                    space,
+                );
 
-        let expr_type = type_visitor
-            .deduce_type(expr)
-            .map_err(|e| format!("类型推导失败: {:?}", e))?;
+                let expr_type = type_visitor
+                    .deduce_type(expr)
+                    .map_err(|e| format!("类型推导失败: {:?}", e))?;
 
-        if expr_type != ValueTypeDef::Int 
-            && expr_type != ValueTypeDef::Empty 
-            && expr_type != ValueTypeDef::Null {
-            return Err(format!(
-                "{}表达式必须求值为整数类型，得到{:?}",
-                clause_name, expr_type
-            ));
+                if expr_type != ValueTypeDef::Int
+                    && expr_type != ValueTypeDef::Empty
+                    && expr_type != ValueTypeDef::Null {
+                    return Err(format!(
+                        "{}表达式必须求值为整数类型，得到{:?}",
+                        clause_name, expr_type
+                    ));
+                }
+
+                Ok(())
+            }
         }
-
-        Ok(())
     }
 
     /// 验证步数范围

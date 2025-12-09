@@ -215,8 +215,8 @@ impl GetNeighborsIter {
             };
 
             for row_idx in 0..ds_guard.rows.len() {
-                self.col_idx = ds_index.col_lower_bound + 1;
-                while self.col_idx < ds_index.col_upper_bound && !self.valid {
+                self.col_idx = ds_index.col_lower_bound + 1; // 从第一列边开始
+                while self.col_idx <= ds_index.col_upper_bound && !self.valid {
                     let col_idx = self.col_idx as usize;
                     if col_idx >= ds_guard.rows[row_idx].len() {
                         self.col_idx += 1;
@@ -251,6 +251,7 @@ impl GetNeighborsIter {
                             self.valid = true;
                             self.current_ds_index = ds_idx;
                             self.current_row = row_idx;
+                            self.edge_idx = edge_idx as i64; // 确保edge_idx是有效的
                             break;
                         }
                     }
@@ -302,7 +303,9 @@ impl Iterator for GetNeighborsIter {
 
         if let Ok(ds_guard) = self.ds_indices[self.current_ds_index].ds.lock() {
             self.current_row < ds_guard.rows.len()
-                && self.col_idx < self.ds_indices[self.current_ds_index].col_upper_bound
+                && self.col_idx <= self.ds_indices[self.current_ds_index].col_upper_bound
+                && self.edge_idx >= 0
+                && self.edge_idx < self.edge_idx_upper_bound
         } else {
             false
         }
@@ -380,13 +383,13 @@ impl Iterator for GetNeighborsIter {
                         self.current_ds_index += 1;
                         if self.current_ds_index < self.ds_indices.len() {
                             self.current_row = 0;
-                            self.col_idx = self.ds_indices[self.current_ds_index].col_lower_bound;
+                            self.col_idx = self.ds_indices[self.current_ds_index].col_lower_bound + 1;
                         } else {
                             self.valid = false;
                             break;
                         }
                     } else {
-                        self.col_idx = self.ds_indices[self.current_ds_index].col_lower_bound;
+                        self.col_idx = self.ds_indices[self.current_ds_index].col_lower_bound + 1;
                     }
                 } else {
                     self.valid = false;
@@ -499,7 +502,7 @@ impl Iterator for GetNeighborsIter {
     fn reset(&mut self, _pos: usize) {
         self.current_ds_index = 0;
         self.current_row = 0;
-        self.col_idx = -1;
+        self.col_idx = self.ds_indices[0].col_lower_bound;
         self.edge_idx = -1;
         self.edge_idx_upper_bound = -1;
         self.go_to_first_edge();
@@ -860,7 +863,7 @@ impl Iterator for GetNeighborsIter {
 
         let current_edge_name = self.current_edge_name()?;
 
-        if edge != "*" && !current_edge_name.contains(edge) {
+        if edge != "*" && current_edge_name != edge {
             return None;
         }
 
@@ -919,7 +922,7 @@ mod tests {
             "_vid".to_string(),
             "_stats".to_string(),
             "_tag:player:name:age".to_string(),
-            "_edge:follow:weight".to_string(),
+            "_edge:+follow:weight".to_string(),
         ];
 
         dataset.rows = vec![vec![
@@ -931,7 +934,7 @@ mod tests {
                 Value::Int(25),
             ]),
             Value::List(vec![
-                // _edge:follow:weight
+                // _edge:+follow:weight
                 Value::List(vec![Value::Float(0.8)]), // 第一条边
                 Value::List(vec![Value::Float(0.6)]), // 第二条边
             ]),
@@ -950,9 +953,30 @@ mod tests {
     #[test]
     fn test_get_neighbors_iter_valid() {
         let data = Arc::new(create_test_neighbors_data());
-        let iter = GetNeighborsIter::new(data).unwrap();
+        let mut iter = GetNeighborsIter::new(data).unwrap();
 
         assert_eq!(iter.kind(), IteratorKind::GetNeighbors);
+        
+        // 调试信息
+        println!("valid: {}", iter.valid());
+        println!("current_ds_index: {}", iter.current_ds_index);
+        println!("current_row: {}", iter.current_row);
+        println!("col_idx: {}", iter.col_idx);
+        println!("edge_idx: {}", iter.edge_idx);
+        println!("edge_idx_upper_bound: {}", iter.edge_idx_upper_bound);
+        println!("no_edge: {}", iter.no_edge);
+        println!("ds_indices len: {}", iter.ds_indices.len());
+        if !iter.ds_indices.is_empty() {
+            println!("col_upper_bound: {}", iter.ds_indices[0].col_upper_bound);
+        }
+        
+        // 如果迭代器无效，尝试重置
+        if !iter.valid() {
+            println!("迭代器无效，尝试重置");
+            iter.reset(0);
+            println!("重置后 valid: {}", iter.valid());
+        }
+        
         assert!(iter.valid());
     }
 
@@ -993,7 +1017,7 @@ mod tests {
         let iter = GetNeighborsIter::new(data).unwrap();
 
         // 获取边属性
-        let weight = iter.get_edge_prop("follow", "weight");
+        let weight = iter.get_edge_prop("+follow", "weight");
         assert!(weight.is_some());
         assert_eq!(weight.unwrap(), Value::Float(0.8));
     }

@@ -11,6 +11,7 @@ use crate::query::executor::base::{Executor, ExecutionResult, BaseExecutor};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::graph::expression::{Expression, ExpressionContext};
+use crate::config::test_config::test_config;
 
 /// AppendVertices执行器
 /// 用于根据顶点ID获取顶点信息并追加到结果中
@@ -224,7 +225,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         
         // 获取存储引擎
         let storage = self.base.storage.lock()
-            .map_err(|_| QueryError::StorageError(crate::storage::StorageError::LockError("Failed to lock storage".to_string())))?;
+            .map_err(|_| QueryError::StorageError(crate::storage::StorageError::InvalidOperation("Failed to lock storage".to_string())))?;
 
         for vid in vids {
             if vid.is_empty() {
@@ -233,7 +234,6 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 
             // 从存储中获取顶点
             let vertex = storage.get_node(&vid)
-                .await
                 .map_err(|e| QueryError::StorageError(e))?;
 
             if let Some(vertex) = vertex {
@@ -351,12 +351,13 @@ mod tests {
     use super::*;
     use crate::core::Value;
     use crate::graph::expression::{Expression, VariableExpression};
-    use crate::storage::memory::MemoryStorageEngine;
+    use crate::storage::NativeStorage;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_append_vertices_executor() {
-        let storage = Arc::new(Mutex::new(MemoryStorageEngine::new()));
+        let config = test_config();
+        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db_append_vertices")).unwrap()));
         
         // 创建输入数据
         let vids = vec![
@@ -371,7 +372,7 @@ mod tests {
         context.set_result("input".to_string(), input_result);
         
         // 创建AppendVerticesExecutor
-        let src_expr = Expression::Variable(VariableExpression::new("_".to_string()));
+        let src_expr = Expression::Variable("_".to_string());
         let mut executor = AppendVerticesExecutor::with_context(
             1,
             storage,

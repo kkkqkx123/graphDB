@@ -2,7 +2,6 @@
 //! 
 //! 负责处理变量赋值操作，将表达式的结果赋值给变量
 
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
@@ -62,17 +61,17 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
                 .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
 
             // 根据值的类型设置到执行上下文中
-            match value {
+            match &value {
                 Value::DataSet(dataset) => {
                     // 如果是数据集，创建一个Values结果
-                    let values: Vec<Value> = dataset.rows.into_iter()
-                        .flat_map(|row| row.into_iter())
+                    let values: Vec<Value> = dataset.rows.iter()
+                        .flat_map(|row| row.iter().cloned())
                         .collect();
                     self.base.context.set_result(var_name.clone(), ExecutionResult::Values(values));
                 },
                 _ => {
                     // 其他类型直接设置为变量
-                    self.base.context.set_variable(var_name.clone(), value);
+                    self.base.context.set_variable(var_name.clone(), value.clone());
                 }
             }
 
@@ -117,18 +116,20 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for AssignExecutor<S> {
 mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::graph::expression::{Expression, LiteralExpression};
-    use crate::storage::memory::MemoryStorageEngine;
+    use crate::graph::expression::Expression;
+    use crate::storage::NativeStorage;
+    use crate::config::test_config::test_config;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_assign_executor() {
-        let storage = Arc::new(Mutex::new(MemoryStorageEngine::new()));
+        let config = test_config();
+        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db_assign")).unwrap()));
         
         // 创建赋值项
         let assign_items = vec![
-            ("var1".to_string(), Expression::Literal(LiteralExpression::new(Value::Int(42)))),
-            ("var2".to_string(), Expression::Literal(LiteralExpression::new(Value::String("hello".to_string())))),
+            ("var1".to_string(), Expression::Constant(Value::Int(42))),
+            ("var2".to_string(), Expression::Constant(Value::String("hello".to_string()))),
         ];
 
         let mut executor = AssignExecutor::new(1, storage, assign_items);

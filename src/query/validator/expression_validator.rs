@@ -5,6 +5,7 @@ use crate::core::ValueTypeDef;
 use crate::graph::expression::expr_type::Expression;
 use crate::query::validator::structs::{AliasType, WhereClauseContext};
 use crate::query::validator::{ValidateContext, Validator};
+use crate::config::test_config::test_config;
 use std::collections::HashMap;
 
 /// 表达式验证器
@@ -36,7 +37,8 @@ impl ExpressionValidator {
         use crate::storage::NativeStorage; // 使用实际可用的存储实现
 
         // 创建临时存储引擎用于类型推导
-        let temp_dir = std::env::temp_dir().join("graphdb_temp_storage");
+        let config = test_config();
+        let temp_dir = config.temp_storage_path();
         std::fs::create_dir_all(&temp_dir).map_err(|e| format!("创建临时目录失败: {}", e))?;
         let storage = NativeStorage::new(&temp_dir).map_err(|e| format!("创建存储失败: {}", e))?;
 

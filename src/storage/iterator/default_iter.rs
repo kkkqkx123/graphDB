@@ -62,7 +62,11 @@ impl Iterator for DefaultIter {
     }
 
     fn size(&self) -> usize {
-        1
+        if self.valid() {
+            1
+        } else {
+            0
+        }
     }
 
     fn row(&self) -> Option<&Row> {

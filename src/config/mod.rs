@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+pub mod test_config;
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
     pub host: String,

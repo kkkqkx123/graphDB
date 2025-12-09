@@ -2,7 +2,7 @@
 //! 
 //! 负责处理聚合操作，将右输入中的值根据左输入的键进行聚合
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
@@ -303,7 +303,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
 
         // 将结果转换为值列表
         let left_values = match left_result {
-            ExecutionResult::Values(values) => values,
+            ExecutionResult::Values(values) => values.clone(),
             ExecutionResult::Vertices(vertices) => {
                 vertices.iter().map(|v| Value::Vertex(Box::new(v.clone()))).collect::<Vec<_>>()
             },
@@ -314,7 +314,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         };
 
         let right_values = match right_result {
-            ExecutionResult::Values(values) => values,
+            ExecutionResult::Values(values) => values.clone(),
             ExecutionResult::Vertices(vertices) => {
                 vertices.iter().map(|v| Value::Vertex(Box::new(v.clone()))).collect::<Vec<_>>()
             },
@@ -404,12 +404,14 @@ mod tests {
     use super::*;
     use crate::core::Value;
     use crate::graph::expression::{Expression, LiteralExpression, InputPropertyExpression};
-    use crate::storage::memory::MemoryStorageEngine;
+    use crate::storage::NativeStorage;
+    use crate::config::test_config::test_config;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_rollup_apply_executor() {
-        let storage = Arc::new(Mutex::new(MemoryStorageEngine::new()));
+        let config = test_config();
+        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db_rollup_apply")).unwrap()));
         
         // 创建左输入数据
         let left_values = vec![
@@ -431,7 +433,7 @@ mod tests {
         
         // 创建RollUpApplyExecutor
         let compare_cols = vec![
-            Expression::Literal(LiteralExpression::new(Value::Int(0))), // 简化的比较列
+            Expression::Constant(Value::Int(0)), // 简化的比较列
         ];
         let collect_col = InputPropertyExpression::new("_".to_string());
         
@@ -451,8 +453,8 @@ mod tests {
         
         // 检查结果
         if let ExecutionResult::Values(values) = result {
-            // 应该有6个值（2个左值 × 3个右值）
-            assert_eq!(values.len(), 6);
+            // 应该有4个值（2个左值 × 2个聚合组）
+            assert_eq!(values.len(), 4);
         } else {
             panic!("Expected Values result");
         }

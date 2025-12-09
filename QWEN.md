@@ -93,19 +93,20 @@ The project includes a comprehensive test suite utilising Rust's standard testin
 1. **Running tests**:
    ```bash
    cargo test # Run all tests
-   cargo test -- --nocapture # Run tests with output visible
    cargo test -- --test-threads=1 # Run tests sequentially (useful for debugging)
    cargo test <test_name> # Run specific test(s) matching pattern
    cargo test --test <integration_test_file> # Run specific integration test
    cargo test --release  # Run tests in release mode
    cargo test --doc # Run documentation examples as tests
    ```
+It is not recommended to run all tests in one time. 
 
 2. **Test organization**:
    - Unit tests: Located in the same file as the code being tested, marked with `#[cfg(test)]`
    - Unit tests when original file is too large: Add individual test.rs, and add it to `mod.rs`
    - Integration tests: Located in the `tests/` directory
    - Benchmarks: Located in the `benches/` directory
+   - Tests relevent to storage: use `pub mod test_config;`, don't use individual path
    
 ## Additional Notes
 

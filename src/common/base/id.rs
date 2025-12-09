@@ -1,8 +1,8 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicU64, Ordering};
 use uuid::Uuid;
 
 /// A unique identifier for vertices
@@ -138,7 +138,7 @@ pub struct IdGenerator {
 impl IdGenerator {
     pub fn new() -> Self {
         Self {
-            vertex_counter: AtomicU64::new(1),  // Start from 1 to avoid 0
+            vertex_counter: AtomicU64::new(1), // Start from 1 to avoid 0
             edge_counter: AtomicU64::new(1),
             tag_counter: AtomicU64::new(1),
             edge_type_counter: AtomicU64::new(1),
@@ -188,7 +188,8 @@ impl IdGenerator {
 }
 
 /// Global ID generator instance
-static ID_GENERATOR: once_cell::sync::Lazy<IdGenerator> = once_cell::sync::Lazy::new(IdGenerator::new);
+static ID_GENERATOR: once_cell::sync::Lazy<IdGenerator> =
+    once_cell::sync::Lazy::new(IdGenerator::new);
 
 /// Get reference to the global ID generator
 pub fn id_generator() -> &'static IdGenerator {
@@ -302,7 +303,7 @@ pub mod id_utils {
     fn hash_string(s: &str) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         s.hash(&mut hasher);
         hasher.finish()
@@ -465,10 +466,10 @@ mod tests {
     #[test]
     fn test_id_generator() {
         let gen = IdGenerator::new();
-        
+
         let id1 = gen.generate_vertex_id();
         let id2 = gen.generate_vertex_id();
-        
+
         assert!(id_utils::is_valid_vertex_id(id1));
         assert!(id_utils::is_valid_vertex_id(id2));
         assert_ne!(id1.as_i64(), id2.as_i64());
@@ -478,7 +479,7 @@ mod tests {
     fn test_global_id_generator() {
         let id1 = gen_vertex_id();
         let id2 = gen_vertex_id();
-        
+
         assert_ne!(id1.as_i64(), id2.as_i64());
     }
 
@@ -486,7 +487,7 @@ mod tests {
     fn test_uuid_generator() {
         let uuid_str = UuidGenerator::generate();
         assert!(UuidGenerator::is_valid(&uuid_str));
-        
+
         let uuid = UuidGenerator::generate_uuid();
         assert_eq!(uuid.to_string().len(), 36); // Standard UUID length
     }
@@ -501,32 +502,35 @@ mod tests {
     #[test]
     fn test_id_registry() {
         let mut registry = IdRegistry::new();
-        
+
         let vertex_id = VertexId::new(100);
         registry.register_vertex_string_id("vertex_100".to_string(), vertex_id);
-        
+
         assert_eq!(registry.get_vertex_id("vertex_100"), Some(vertex_id));
-        assert_eq!(registry.get_string_id_for_vertex(vertex_id), Some("vertex_100".to_string()));
-        
+        assert_eq!(
+            registry.get_string_id_for_vertex(vertex_id),
+            Some("vertex_100".to_string())
+        );
+
         let edge_id = EdgeId::new(200);
         registry.register_edge_string_id("edge_200".to_string(), edge_id);
-        
+
         assert_eq!(registry.get_edge_id("edge_200"), Some(edge_id));
-        assert_eq!(registry.get_string_id_for_edge(edge_id), Some("edge_200".to_string()));
+        assert_eq!(
+            registry.get_string_id_for_edge(edge_id),
+            Some("edge_200".to_string())
+        );
     }
 
     #[test]
     fn test_id_utils() {
         let vertex_id = id_utils::string_to_vertex_id("test_vertex");
         assert!(id_utils::is_valid_vertex_id(vertex_id));
-        
+
         let edge_id = id_utils::string_to_edge_id("test_edge");
         assert!(id_utils::is_valid_edge_id(edge_id));
-        
-        let combined = id_utils::combine_vertex_edge_ids(
-            VertexId::new(1), 
-            EdgeId::new(2)
-        );
+
+        let combined = id_utils::combine_vertex_edge_ids(VertexId::new(1), EdgeId::new(2));
         assert_eq!(combined, "1_2");
     }
 }

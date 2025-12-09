@@ -126,7 +126,7 @@ pub struct DurationValue {
 }
 
 /// Simple List representation similar to Nebula
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct List {
     pub values: Vec<Value>,
 }

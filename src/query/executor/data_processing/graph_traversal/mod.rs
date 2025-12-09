@@ -8,8 +8,6 @@
 //! - 所有路径（AllPaths）
 //! - 子图提取（Subgraph）
 
-
-
 pub mod expand;
 pub mod expand_all;
 pub mod shortest_path;
@@ -219,13 +217,16 @@ impl GraphTraversalExecutorFactory {
 #[cfg(test)]
 mod tests_impl {
     use super::*;
+    use crate::config::test_config::test_config;
     use crate::core::{Edge, Value, Vertex};
     use crate::query::executor::base::{EdgeDirection, Executor};
     use crate::storage::{NativeStorage, StorageEngine};
     use std::sync::{Arc, Mutex};
 
-    async fn create_test_graph() -> Arc<Mutex<NativeStorage>> {
-        let storage = Arc::new(Mutex::new(NativeStorage::new("test_graph").unwrap()));
+    async fn create_test_graph(test_name: &str) -> Arc<Mutex<NativeStorage>> {
+        let config = test_config();
+        let db_path = config.test_db_path(&format!("test_graph_{}", test_name));
+        let storage = Arc::new(Mutex::new(NativeStorage::new(db_path).unwrap()));
 
         // 创建测试图：A -> B -> C, A -> D
         {
@@ -275,7 +276,7 @@ mod tests_impl {
 
     #[tokio::test]
     async fn test_expand_executor() {
-        let storage = create_test_graph().await;
+        let storage = create_test_graph("expand").await;
         let executor = GraphTraversalExecutorFactory::create_expand_executor(
             1,
             storage,
@@ -294,7 +295,7 @@ mod tests_impl {
 
     #[tokio::test]
     async fn test_expand_all_executor() {
-        let storage = create_test_graph().await;
+        let storage = create_test_graph("expand_all").await;
         let executor = GraphTraversalExecutorFactory::create_expand_all_executor(
             2,
             storage,
@@ -312,7 +313,7 @@ mod tests_impl {
 
     #[tokio::test]
     async fn test_traverse_executor() {
-        let storage = create_test_graph().await;
+        let storage = create_test_graph("traverse").await;
         let executor = GraphTraversalExecutorFactory::create_traverse_executor(
             3,
             storage,
@@ -331,7 +332,7 @@ mod tests_impl {
 
     #[tokio::test]
     async fn test_shortest_path_executor() {
-        let storage = create_test_graph().await;
+        let storage = create_test_graph("shortest_path").await;
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             4,
             storage,

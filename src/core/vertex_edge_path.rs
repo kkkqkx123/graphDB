@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-use crate::core::value::{Value, NullType};
+use crate::core::value::{NullType, Value};
 
 /// Represents a tag in the graph, similar to Nebula's Tag structure
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -26,19 +26,16 @@ impl std::hash::Hash for Tag {
 
 impl Tag {
     pub fn new(name: String, properties: HashMap<String, Value>) -> Self {
-        Self {
-            name,
-            properties,
-        }
+        Self { name, properties }
     }
 }
 
 /// Represents a vertex in the graph, similar to Nebula's Vertex structure
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Vertex {
-    pub vid: Box<Value>,             // Vertex ID can now be any Value type, using Box to break cycles
-    pub tags: Vec<Tag>,              // A vertex can have multiple tags
-    pub properties: HashMap<String, Value>,  // Vertex properties
+    pub vid: Box<Value>, // Vertex ID can now be any Value type, using Box to break cycles
+    pub tags: Vec<Tag>,  // A vertex can have multiple tags
+    pub properties: HashMap<String, Value>, // Vertex properties
 }
 
 // 手动实现Hash以处理HashMap的Hash
@@ -66,8 +63,12 @@ impl Vertex {
             properties: HashMap::new(),
         }
     }
-    
-    pub fn new_with_properties(vid: Value, tags: Vec<Tag>, properties: HashMap<String, Value>) -> Self {
+
+    pub fn new_with_properties(
+        vid: Value,
+        tags: Vec<Tag>,
+        properties: HashMap<String, Value>,
+    ) -> Self {
         Self {
             vid: Box::new(vid),
             tags,
@@ -104,11 +105,11 @@ impl Default for Vertex {
 /// Represents an edge in the graph, similar to Nebula's Edge structure
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Edge {
-    pub src: Box<Value>,            // Source vertex ID (can be any Value type, using Box to break cycles)
-    pub dst: Box<Value>,            // Destination vertex ID (can be any Value type, using Box to break cycles)
-    pub edge_type: String,          // Edge type name
-    pub ranking: i64,               // Edge ranking
-    pub props: HashMap<String, Value>,  // Edge properties
+    pub src: Box<Value>, // Source vertex ID (can be any Value type, using Box to break cycles)
+    pub dst: Box<Value>, // Destination vertex ID (can be any Value type, using Box to break cycles)
+    pub edge_type: String, // Edge type name
+    pub ranking: i64,    // Edge ranking
+    pub props: HashMap<String, Value>, // Edge properties
 }
 
 /// 为了兼容性，添加properties字段
@@ -137,8 +138,13 @@ impl std::hash::Hash for Edge {
 }
 
 impl Edge {
-    pub fn new(src: Value, dst: Value, edge_type: String, ranking: i64,
-               props: HashMap<String, Value>) -> Self {
+    pub fn new(
+        src: Value,
+        dst: Value,
+        edge_type: String,
+        ranking: i64,
+        props: HashMap<String, Value>,
+    ) -> Self {
         Self {
             src: Box::new(src),
             dst: Box::new(dst),
@@ -176,7 +182,7 @@ impl std::hash::Hash for Path {
 impl Path {
     /// 获取路径中的边
     pub fn edges(&self) -> Vec<&Edge> {
-        self.steps.iter().map(|step| &step.edge).collect()
+        self.steps.iter().map(|step| step.edge.as_ref()).collect()
     }
 }
 

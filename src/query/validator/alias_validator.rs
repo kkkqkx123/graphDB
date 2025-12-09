@@ -244,13 +244,14 @@ impl AliasValidator {
         last_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), String> {
         for (name, alias_type) in last_aliases {
-            if !cur_aliases.contains_key(name) {
-                if cur_aliases
-                    .insert(name.clone(), alias_type.clone())
-                    .is_some()
-                {
-                    return Err(format!("`{}': 重复定义的别名", name));
+            if let Some(existing_type) = cur_aliases.get(name) {
+                // 检查类型是否冲突
+                if existing_type != alias_type {
+                    return Err(format!("`{}': 别名类型冲突", name));
                 }
+            } else {
+                // 插入新的别名
+                cur_aliases.insert(name.clone(), alias_type.clone());
             }
         }
         Ok(())

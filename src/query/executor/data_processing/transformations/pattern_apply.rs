@@ -173,7 +173,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
             if !properties.is_empty() {
                 for (prop_name, prop_expr) in properties {
                     // 获取边属性值
-                    let prop_value = edge.properties.get(prop_name)
+                    let prop_value = edge.properties().get(prop_name)
                         .cloned()
                         .unwrap_or(Value::Null(crate::core::NullType::UnknownProp));
                     
@@ -202,7 +202,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     fn match_path_pattern(&self, path: &Path, pattern: &PatternType, _expr_context: &ExpressionContext) -> Result<bool, QueryError> {
         if let PatternType::Path { length_range, .. } = pattern {
             // 检查路径长度
-            let path_length = path.edges.len();
+            let path_length = path.steps.len();
             
             if let Some((min_len, max_len)) = length_range {
                 if path_length < *min_len {
@@ -280,11 +280,11 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                         
                         if !self.track_prev_path {
                             // 不跟踪前一个路径，只返回匹配的值
-                            row.push(value);
+                            row.push(value.clone());
                         } else {
                             // 跟踪前一个路径，需要保留原始行
                             // 这里简化处理，实际应该从输入结果中获取原始行
-                            row.push(value);
+                            row.push(value.clone());
                         }
                         
                         dataset.rows.push(row);
@@ -365,13 +365,15 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for PatternApplyExecutor<S> 
 mod tests {
     use super::*;
     use crate::core::{Value, Vertex, Tag};
-    use crate::graph::expression::{Expression, LiteralExpression};
-    use crate::storage::memory::MemoryStorageEngine;
+    use crate::graph::expression::Expression;
+    use crate::storage::NativeStorage;
+    use crate::config::test_config::test_config;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_pattern_apply_executor() {
-        let storage = Arc::new(Mutex::new(MemoryStorageEngine::new()));
+        let config = test_config();
+        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db_pattern_apply")).unwrap()));
         
         // 创建测试顶点
         let tag = Tag {
@@ -380,7 +382,7 @@ mod tests {
         };
         
         let vertex = Vertex {
-            vid: Value::String("vertex1".to_string()),
+            vid: Box::new(Value::String("vertex1".to_string())),
             tags: vec![tag],
             properties: HashMap::new(),
         };

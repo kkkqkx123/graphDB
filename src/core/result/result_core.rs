@@ -116,9 +116,21 @@ impl PartialEq for ResultCore {
 }
 
 /// 执行结果
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Result {
     core: Arc<ResultCore>,
+}
+
+impl Clone for Result {
+    fn clone(&self) -> Self {
+        // 克隆ResultCore并标记为共享
+        let mut cloned_core = (*self.core).clone();
+        cloned_core.is_shared = true;
+        
+        Self {
+            core: Arc::new(cloned_core),
+        }
+    }
 }
 
 impl Result {
@@ -352,7 +364,7 @@ mod tests {
         
         assert_eq!(result.state(), &ResultState::Success);
         assert_eq!(result.value(), &value);
-        assert_eq!(result.access_count(), 0);
+        assert_eq!(result.access_count(), 1); // 调用value()会增加访问计数
         assert!(!result.is_shared());
     }
 
