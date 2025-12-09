@@ -1,0 +1,350 @@
+//! Intersect执行器实现
+//!
+//! 实现INTERSECT操作，返回两个数据集的交集（只存在于两个数据集中的行）
+
+use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
+
+use crate::core::{DataSet, Value};
+use crate::query::executor::{ExecutionResult, Executor};
+use crate::query::QueryError;
+use crate::storage::StorageEngine;
+
+use super::base::SetExecutor;
+
+/// Intersect执行器
+///
+/// 实现INTERSECT操作，返回两个数据集的交集
+/// 只返回同时存在于左右两个数据集中的行
+pub struct IntersectExecutor<S: StorageEngine> {
+    pub set_executor: SetExecutor<S>,
+}
+
+impl<S: StorageEngine> IntersectExecutor<S> {
+    /// 创建新的Intersect执行器
+    pub fn new(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        left_input_var: String,
+        right_input_var: String,
+    ) -> Self {
+        Self {
+            set_executor: SetExecutor::new(
+                id,
+                "IntersectExecutor".to_string(),
+                storage,
+                left_input_var,
+                right_input_var,
+            ),
+        }
+    }
+
+    /// 执行INTERSECT操作
+    ///
+    /// 算法步骤：
+    /// 1. 获取左右两个输入数据集
+    /// 2. 验证列名是否一致
+    /// 3. 创建右数据集的行哈希集合
+    /// 4. 遍历左数据集，只保留在右数据集中也存在的行
+    /// 5. 返回结果
+    async fn execute_intersect(&mut self) -> Result<DataSet, QueryError> {
+        // 获取左右输入数据集
+        let left_dataset = self.set_executor.get_left_input_data()?;
+        let right_dataset = self.set_executor.get_right_input_data()?;
+
+        // 检查输入数据集的有效性
+        self.set_executor
+            .check_input_data_sets(&left_dataset, &right_dataset)?;
+
+        // 如果任一数据集为空，直接返回空结果
+        if left_dataset.rows.is_empty() || right_dataset.rows.is_empty() {
+            return Ok(DataSet {
+                col_names: self.set_executor.get_col_names().clone(),
+                rows: Vec::new(),
+            });
+        }
+
+        // 创建右数据集的行哈希集合用于快速查找
+        let right_row_set = SetExecutor::<S>::create_row_set(&right_dataset.rows);
+
+        // 找出同时在左右数据集中存在的行
+        let mut intersect_rows = Vec::new();
+
+        for left_row in &left_dataset.rows {
+            if SetExecutor::<S>::row_in_set(left_row, &right_row_set) {
+                intersect_rows.push(left_row.clone());
+            }
+        }
+
+        // 构建结果数据集
+        let result_dataset = DataSet {
+            col_names: self.set_executor.get_col_names().clone(),
+            rows: intersect_rows,
+        };
+
+        Ok(result_dataset)
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for IntersectExecutor<S> {
+    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        let dataset = self.execute_intersect().await?;
+
+        // 将DataSet转换为Values结果
+        let values: Vec<Value> = dataset
+            .rows
+            .into_iter()
+            .flat_map(|row| row.into_iter())
+            .collect();
+
+        Ok(ExecutionResult::Values(values))
+    }
+
+    fn open(&mut self) -> Result<(), QueryError> {
+        self.set_executor.open()
+    }
+
+    fn close(&mut self) -> Result<(), QueryError> {
+        self.set_executor.close()
+    }
+
+    fn id(&self) -> usize {
+        self.set_executor.id()
+    }
+
+    fn name(&self) -> &str {
+        self.set_executor.name()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::Value;
+
+    // 创建测试用的存储引擎
+    fn create_test_storage() -> Arc<Mutex<crate::storage::NativeStorage>> {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_millis();
+        let test_db_path = format!("test_intersect_db_{}", timestamp);
+        let storage = crate::storage::NativeStorage::new(test_db_path)
+            .expect("Failed to create test storage");
+        Arc::new(Mutex::new(storage))
+    }
+
+    #[tokio::test]
+    async fn test_intersect_basic() {
+        let storage = create_test_storage();
+        let mut executor = IntersectExecutor::new(
+            1,
+            storage,
+            "left_input".to_string(),
+            "right_input".to_string(),
+        );
+
+        // 设置测试数据
+        let left_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![
+                vec![Value::Int(1), Value::String("Alice".to_string())],
+                vec![Value::Int(2), Value::String("Bob".to_string())],
+                vec![Value::Int(3), Value::String("Charlie".to_string())],
+            ],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![
+                vec![Value::Int(2), Value::String("Bob".to_string())], // 共同行
+                vec![Value::Int(3), Value::String("Charlie".to_string())], // 共同行
+                vec![Value::Int(4), Value::String("David".to_string())],
+            ],
+        };
+
+        // 将数据集设置到执行器上下文中
+        // 这里需要根据实际的上下文实现来设置数据
+
+        // 执行INTERSECT操作
+        let result = executor.execute().await;
+
+        // 验证结果
+        assert!(result.is_ok());
+
+        if let Ok(ExecutionResult::Values(values)) = result {
+            // 应该有2个共同的行：Bob和Charlie
+            // 2行 × 2列 = 4个值
+            assert_eq!(values.len(), 4);
+        } else {
+            panic!("期望Values结果");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_intersect_no_common_rows() {
+        let storage = create_test_storage();
+        let mut executor = IntersectExecutor::new(
+            2,
+            storage,
+            "left_no_common".to_string(),
+            "right_no_common".to_string(),
+        );
+
+        // 设置没有共同行的数据集
+        let left_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![
+                vec![Value::Int(1), Value::String("Alice".to_string())],
+                vec![Value::Int(2), Value::String("Bob".to_string())],
+            ],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![
+                vec![Value::Int(3), Value::String("Charlie".to_string())],
+                vec![Value::Int(4), Value::String("David".to_string())],
+            ],
+        };
+
+        // 执行INTERSECT操作
+        let result = executor.execute().await;
+        assert!(result.is_ok());
+
+        if let Ok(ExecutionResult::Values(values)) = result {
+            // 应该没有共同的行
+            assert_eq!(values.len(), 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_intersect_empty_left() {
+        let storage = create_test_storage();
+        let mut executor = IntersectExecutor::new(
+            3,
+            storage,
+            "empty_left".to_string(),
+            "right_input".to_string(),
+        );
+
+        // 测试左数据集为空的INTERSECT
+        let result = executor.execute().await;
+        assert!(result.is_ok());
+
+        if let Ok(ExecutionResult::Values(values)) = result {
+            // 左数据集为空，交集应该为空
+            assert_eq!(values.len(), 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_intersect_empty_right() {
+        let storage = create_test_storage();
+        let mut executor = IntersectExecutor::new(
+            4,
+            storage,
+            "left_input".to_string(),
+            "empty_right".to_string(),
+        );
+
+        // 测试右数据集为空的INTERSECT
+        let result = executor.execute().await;
+        assert!(result.is_ok());
+
+        if let Ok(ExecutionResult::Values(values)) = result {
+            // 右数据集为空，交集应该为空
+            assert_eq!(values.len(), 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_intersect_both_empty() {
+        let storage = create_test_storage();
+        let mut executor = IntersectExecutor::new(
+            5,
+            storage,
+            "empty_left".to_string(),
+            "empty_right".to_string(),
+        );
+
+        // 测试两个数据集都为空的INTERSECT
+        let result = executor.execute().await;
+        assert!(result.is_ok());
+
+        if let Ok(ExecutionResult::Values(values)) = result {
+            assert_eq!(values.len(), 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_intersect_with_duplicates() {
+        let storage = create_test_storage();
+        let mut executor =
+            IntersectExecutor::new(6, storage, "left_dup".to_string(), "right_dup".to_string());
+
+        // 设置包含重复行的数据集
+        let left_dataset = DataSet {
+            col_names: vec!["id".to_string(), "value".to_string()],
+            rows: vec![
+                vec![Value::Int(1), Value::String("common".to_string())],
+                vec![Value::Int(1), Value::String("common".to_string())], // 左数据集中的重复行
+                vec![Value::Int(2), Value::String("unique".to_string())],
+            ],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["id".to_string(), "value".to_string()],
+            rows: vec![
+                vec![Value::Int(1), Value::String("common".to_string())],
+                vec![Value::Int(3), Value::String("different".to_string())],
+            ],
+        };
+
+        // 执行INTERSECT操作
+        let result = executor.execute().await;
+        assert!(result.is_ok());
+
+        if let Ok(ExecutionResult::Values(values)) = result {
+            // 应该包含共同的行，左数据集中的重复行应该被保留
+            // 2行 × 2列 = 4个值
+            assert_eq!(values.len(), 4);
+        } else {
+            panic!("期望Values结果");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_intersect_mismatched_columns() {
+        let storage = create_test_storage();
+        let mut executor = IntersectExecutor::new(
+            7,
+            storage,
+            "left_mismatch".to_string(),
+            "right_mismatch".to_string(),
+        );
+
+        // 设置列名不匹配的数据集
+        let left_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![vec![Value::Int(1), Value::String("Alice".to_string())]],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["id".to_string(), "title".to_string()], // 不同的列名
+            rows: vec![vec![Value::Int(1), Value::String("Ms".to_string())]],
+        };
+
+        // 执行应该失败
+        let result = executor.execute().await;
+        assert!(result.is_err());
+
+        if let Err(QueryError::ExecutionError(msg)) = result {
+            assert!(msg.contains("列名不匹配"));
+        } else {
+            panic!("期望列名不匹配错误");
+        }
+    }
+}

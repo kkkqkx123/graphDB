@@ -1,0 +1,213 @@
+//! Union执行器实现
+//!
+//! 实现UNION操作，合并两个数据集并去除重复行
+
+use std::sync::{Arc, Mutex};
+use async_trait::async_trait;
+
+use crate::core::{Value, DataSet};
+use crate::query::executor::{Executor, ExecutionResult};
+use crate::query::QueryError;
+use crate::storage::StorageEngine;
+
+use super::base::SetExecutor;
+
+/// Union执行器
+///
+/// 实现UNION操作，合并两个数据集并去除重复行
+/// 类似于SQL的UNION（不是UNION ALL）
+pub struct UnionExecutor<S: StorageEngine> {
+    pub set_executor: SetExecutor<S>,
+}
+
+impl<S: StorageEngine> UnionExecutor<S> {
+    /// 创建新的Union执行器
+    pub fn new(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        left_input_var: String,
+        right_input_var: String,
+    ) -> Self {
+        Self {
+            set_executor: SetExecutor::new(
+                id,
+                "UnionExecutor".to_string(),
+                storage,
+                left_input_var,
+                right_input_var,
+            ),
+        }
+    }
+
+    /// 执行UNION操作
+    ///
+    /// 算法步骤：
+    /// 1. 获取左右两个输入数据集
+    /// 2. 验证列名是否一致
+    /// 3. 合并两个数据集的所有行
+    /// 4. 去除重复行
+    /// 5. 返回结果
+    async fn execute_union(&mut self) -> Result<DataSet, QueryError> {
+        // 获取左右输入数据集
+        let left_dataset = self.set_executor.get_left_input_data()?;
+        let right_dataset = self.set_executor.get_right_input_data()?;
+
+        // 检查输入数据集的有效性
+        self.set_executor.check_input_data_sets(&left_dataset, &right_dataset)?;
+
+        // 合并两个数据集
+        let combined_dataset = SetExecutor::<S>::concat_datasets(left_dataset, right_dataset);
+
+        // 去除重复行
+        let deduped_rows = SetExecutor::<S>::dedup_rows(combined_dataset.rows);
+
+        // 构建结果数据集
+        let result_dataset = DataSet {
+            col_names: self.set_executor.get_col_names().clone(),
+            rows: deduped_rows,
+        };
+
+        Ok(result_dataset)
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for UnionExecutor<S> {
+    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        let dataset = self.execute_union().await?;
+        
+        // 将DataSet转换为Values结果
+        let values: Vec<Value> = dataset.rows.into_iter()
+            .flat_map(|row| row.into_iter())
+            .collect();
+
+        Ok(ExecutionResult::Values(values))
+    }
+
+    fn open(&mut self) -> Result<(), QueryError> {
+        self.set_executor.open()
+    }
+
+    fn close(&mut self) -> Result<(), QueryError> {
+        self.set_executor.close()
+    }
+
+    fn id(&self) -> usize {
+        self.set_executor.id()
+    }
+
+    fn name(&self) -> &str {
+        self.set_executor.name()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::Value;
+    use crate::query::executor::ExecutionContext;
+    use std::collections::HashMap;
+
+    // 创建测试用的存储引擎
+    fn create_test_storage() -> Arc<Mutex<crate::storage::NativeStorage>> {
+        // 这里应该创建一个测试用的存储引擎实例
+        // 为了简化测试，我们使用一个模拟的实现
+        todo!("需要实现测试用的存储引擎")
+    }
+
+    #[tokio::test]
+    async fn test_union_basic() {
+        let storage = create_test_storage();
+        let mut executor = UnionExecutor::new(
+            1,
+            storage,
+            "left_input".to_string(),
+            "right_input".to_string(),
+        );
+
+        // 设置测试数据
+        let left_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![
+                vec![Value::Int(1), Value::String("Alice".to_string())],
+                vec![Value::Int(2), Value::String("Bob".to_string())],
+            ],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![
+                vec![Value::Int(2), Value::String("Bob".to_string())], // 重复行
+                vec![Value::Int(3), Value::String("Charlie".to_string())],
+            ],
+        };
+
+        // 将数据集设置到执行器上下文中
+        // 这里需要根据实际的上下文实现来设置数据
+
+        // 执行UNION操作
+        let result = executor.execute().await;
+
+        // 验证结果
+        assert!(result.is_ok());
+        
+        if let Ok(ExecutionResult::Values(values)) = result {
+            // 应该有3个唯一的值（去重后）
+            // 1, Alice, 2, Bob, 3, Charlie
+            assert_eq!(values.len(), 6); // 3行 × 2列
+        } else {
+            panic!("期望Values结果");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_union_empty_datasets() {
+        let storage = create_test_storage();
+        let mut executor = UnionExecutor::new(
+            2,
+            storage,
+            "empty_left".to_string(),
+            "empty_right".to_string(),
+        );
+
+        // 测试空数据集的UNION
+        let result = executor.execute().await;
+        assert!(result.is_ok());
+        
+        if let Ok(ExecutionResult::Values(values)) = result {
+            assert_eq!(values.len(), 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_union_mismatched_columns() {
+        let storage = create_test_storage();
+        let mut executor = UnionExecutor::new(
+            3,
+            storage,
+            "left_mismatch".to_string(),
+            "right_mismatch".to_string(),
+        );
+
+        // 设置列名不匹配的数据集
+        let left_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![vec![Value::Int(1), Value::String("Alice".to_string())]],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["id".to_string(), "title".to_string()], // 不同的列名
+            rows: vec![vec![Value::Int(2), Value::String("Mr".to_string())]],
+        };
+
+        // 执行应该失败
+        let result = executor.execute().await;
+        assert!(result.is_err());
+        
+        if let Err(QueryError::ExecutionError(msg)) = result {
+            assert!(msg.contains("列名不匹配"));
+        } else {
+            panic!("期望列名不匹配错误");
+        }
+    }
+}

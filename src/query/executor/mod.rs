@@ -21,6 +21,9 @@ pub use data_processing::{
     FilterExecutor, graph_traversal::{
         ExpandExecutor, ExpandAllExecutor, TraverseExecutor, ShortestPathExecutor,
         ShortestPathAlgorithm
+    }, set_operations::{
+        SetExecutor, UnionExecutor, UnionAllExecutor,
+        IntersectExecutor, MinusExecutor
     }
 };
 

@@ -23,6 +23,10 @@ pub use graph_traversal::{
 
 // 集合运算执行器
 pub mod set_operations;
+pub use set_operations::{
+    SetExecutor, UnionExecutor, UnionAllExecutor,
+    IntersectExecutor, MinusExecutor
+};
 
 // JOIN 执行器
 pub mod join;
