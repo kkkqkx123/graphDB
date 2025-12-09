@@ -1,7 +1,8 @@
 //! 查询上下文模块 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
-use crate::core::{ExecutionContext, SymbolTable, ValidateContext, Value};
+use crate::core::{SymbolTable, ValidateContext, Value};
+use super::QueryExecutionContext;
 use crate::graph::utils::IdGenerator;
 use crate::utils::ObjectPool;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -40,8 +41,8 @@ pub struct QueryContext {
     // 验证上下文
     vctx: ValidateContext,
 
-    // 执行上下文
-    ectx: ExecutionContext,
+    // 查询执行上下文
+    ectx: QueryExecutionContext,
 
     // 执行计划
     plan: Option<Box<ExecutionPlan>>,
@@ -139,13 +140,13 @@ impl QueryContext {
         &mut self.vctx
     }
 
-    /// 获取执行上下文
-    pub fn ectx(&self) -> &ExecutionContext {
+    /// 获取查询执行上下文
+    pub fn ectx(&self) -> &QueryExecutionContext {
         &self.ectx
     }
 
-    /// 获取可变执行上下文
-    pub fn ectx_mut(&mut self) -> &mut ExecutionContext {
+    /// 获取可变查询执行上下文
+    pub fn ectx_mut(&mut self) -> &mut QueryExecutionContext {
         &mut self.ectx
     }
 
@@ -297,7 +298,7 @@ mod tests {
 
         // 测试执行上下文
         let value = crate::core::Value::Int(42);
-        ctx.ectx_mut().set_value("test_val", value.clone()).unwrap();
+        ctx.ectx().set_value("test_val", value.clone()).unwrap();
         let retrieved = ctx.ectx().get_value("test_val").unwrap();
         assert_eq!(retrieved, value);
     }

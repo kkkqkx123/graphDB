@@ -1,22 +1,28 @@
-//! 执行上下文模块 - 管理查询执行期间的上下文信息
+//! 查询执行上下文模块 - 管理查询执行期间的上下文信息
 //! 对应原C++中的ExecutionContext.h/cpp
+//!
+//! 注意：这是查询级别的执行上下文，不同于应用级别的 services::context::ExecutionContext
 
 use std::collections::HashMap;
 use std::sync::{RwLock, Arc};
 use crate::core::{Result, Value};
 
-/// 执行上下文
+/// 查询执行上下文
 /// 
-/// 每个查询请求的上下文，存储变量值和查询结果
+/// 每个查询请求的执行上下文，存储查询变量值和查询结果的多版本历史
 /// 对应原C++中的ExecutionContext类
+/// 
+/// 与 services::context::ExecutionContext 的区别：
+/// - services::context::ExecutionContext: 应用级，追踪单个操作的超时和统计
+/// - QueryExecutionContext: 查询级，管理查询变量的多版本
 #[derive(Debug, Clone)]
-pub struct ExecutionContext {
+pub struct QueryExecutionContext {
     // name -> 多版本结果列表 (最新版本在前，最老版本在后)
     value_map: Arc<RwLock<HashMap<String, Vec<Result>>>>,
 }
 
-impl ExecutionContext {
-    /// 创建新的执行上下文
+impl QueryExecutionContext {
+    /// 创建新的查询执行上下文
     pub fn new() -> Self {
         Self {
             value_map: Arc::new(RwLock::new(HashMap::new())),
@@ -205,7 +211,7 @@ impl ExecutionContext {
     }
 }
 
-impl Default for ExecutionContext {
+impl Default for QueryExecutionContext {
     fn default() -> Self {
         Self::new()
     }
@@ -216,8 +222,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_execution_context() {
-        let ctx = ExecutionContext::new();
+    fn test_query_execution_context() {
+        let ctx = QueryExecutionContext::new();
         
         // 测试初始化变量
         ctx.init_var("test_var");
@@ -238,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_versioned_operations() {
-        let ctx = ExecutionContext::new();
+        let ctx = QueryExecutionContext::new();
         
         // 创建一些测试结果
         let result1 = Result::new(Value::Int(1), crate::core::ResultState::Success);

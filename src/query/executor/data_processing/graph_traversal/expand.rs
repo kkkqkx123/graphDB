@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
@@ -16,6 +17,10 @@ pub struct ExpandExecutor<S: StorageEngine> {
     edge_types: Option<Vec<String>>,
     max_depth: Option<usize>,  // 最大扩展深度
     input_executor: Option<Box<dyn Executor<S>>>,
+    // 缓存已访问的节点，用于避免循环
+    visited_nodes: HashSet<Value>,
+    // 邻接关系缓存
+    adjacency_cache: HashMap<Value, Vec<Value>>,
 }
 
 impl<S: StorageEngine> ExpandExecutor<S> {
@@ -32,7 +37,105 @@ impl<S: StorageEngine> ExpandExecutor<S> {
             edge_types,
             max_depth,
             input_executor: None,
+            visited_nodes: HashSet::new(),
+            adjacency_cache: HashMap::new(),
         }
+    }
+
+    /// 获取节点的邻居节点
+    async fn get_neighbors(&self, node_id: &Value) -> Result<Vec<Value>, QueryError> {
+        let storage = self.base.storage.lock().unwrap();
+        
+        // 获取节点的所有边
+        let edges = storage.get_node_edges(node_id, crate::core::Direction::Both)
+            .map_err(|e| QueryError::StorageError(e.to_string()))?;
+
+        // 过滤边类型
+        let filtered_edges = if let Some(ref edge_types) = self.edge_types {
+            edges.into_iter()
+                .filter(|edge| edge_types.contains(&edge.edge_type))
+                .collect()
+        } else {
+            edges
+        };
+
+        // 根据方向过滤边并提取邻居节点ID
+        let neighbors = filtered_edges.into_iter()
+            .filter_map(|edge| {
+                match self.edge_direction {
+                    EdgeDirection::In => {
+                        if *edge.dst == *node_id {
+                            Some(edge.src.clone())
+                        } else {
+                            None
+                        }
+                    }
+                    EdgeDirection::Out => {
+                        if *edge.src == *node_id {
+                            Some(edge.dst.clone())
+                        } else {
+                            None
+                        }
+                    }
+                    EdgeDirection::Both => {
+                        if *edge.src == *node_id {
+                            Some(edge.dst.clone())
+                        } else if *edge.dst == *node_id {
+                            Some(edge.src.clone())
+                        } else {
+                            None
+                        }
+                    }
+                }
+            })
+            .collect();
+
+        Ok(neighbors)
+    }
+
+    /// 执行单步扩展
+    async fn expand_step(&mut self, input_nodes: Vec<Value>) -> Result<Vec<Value>, QueryError> {
+        let mut expanded_nodes = Vec::new();
+
+        for node_id in input_nodes {
+            // 检查是否已访问过该节点
+            if self.visited_nodes.contains(&node_id) {
+                continue;
+            }
+
+            // 标记为已访问
+            self.visited_nodes.insert(node_id.clone());
+
+            // 获取邻居节点
+            let neighbors = self.get_neighbors(&node_id).await?;
+            
+            // 缓存邻接关系
+            self.adjacency_cache.insert(node_id.clone(), neighbors.clone());
+
+            // 添加未访问的邻居节点
+            for neighbor in neighbors {
+                if !self.visited_nodes.contains(&neighbor) {
+                    expanded_nodes.push(neighbor);
+                }
+            }
+        }
+
+        Ok(expanded_nodes)
+    }
+
+    /// 构建扩展结果
+    fn build_expansion_result(&self, expanded_nodes: Vec<Value>) -> ExecutionResult {
+        // 将节点ID转换为顶点对象
+        let mut vertices = Vec::new();
+        let storage = self.base.storage.lock().unwrap();
+
+        for node_id in expanded_nodes {
+            if let Ok(Some(vertex)) = storage.get_node(&node_id) {
+                vertices.push(vertex);
+            }
+        }
+
+        ExecutionResult::Vertices(vertices)
     }
 }
 
@@ -57,13 +160,33 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandExecutor<S> {
             ExecutionResult::Vertices(Vec::new())
         };
 
-        // 在实际实现中，这将根据边的方向和类型扩展图遍历
-        // 现在返回输入结果不变
-        Ok(input_result)
+        // 提取输入节点
+        let input_nodes = match input_result {
+            ExecutionResult::Vertices(vertices) => vertices.into_iter().map(|v| v.vid).collect(),
+            ExecutionResult::Edges(edges) => {
+                let mut nodes = HashSet::new();
+                for edge in edges {
+                    nodes.insert(edge.src);
+                    nodes.insert(edge.dst);
+                }
+                nodes.into_iter().collect()
+            }
+            ExecutionResult::Values(values) => values,
+            _ => Vec::new(),
+        };
+
+        // 执行扩展操作
+        let expanded_nodes = self.expand_step(input_nodes).await?;
+
+        // 构建结果
+        Ok(self.build_expansion_result(expanded_nodes))
     }
 
     fn open(&mut self) -> Result<(), QueryError> {
         // 初始化扩展所需的任何资源
+        self.visited_nodes.clear();
+        self.adjacency_cache.clear();
+        
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
         }
@@ -72,6 +195,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandExecutor<S> {
 
     fn close(&mut self) -> Result<(), QueryError> {
         // 清理资源
+        self.visited_nodes.clear();
+        self.adjacency_cache.clear();
+        
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;
         }
