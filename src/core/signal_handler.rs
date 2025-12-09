@@ -6,11 +6,11 @@
 #[cfg(unix)]
 use signal_hook::{consts::SIGTERM, consts::SIGINT, consts::SIGQUIT, consts::SIGHUP, consts::SIGPIPE, iterator::Signals};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 
 /// Static instance of the signal handler
-static mut SIGNAL_HANDLER: Option<Arc<SignalHandler>> = None;
-static INIT: Once = Once::new();
+// static mut SIGNAL_HANDLER: Option<Arc<SignalHandler>> = None; // 注释掉未使用的静态变量
+// static INIT: Once = Once::new(); // 注释掉未使用的静态变量
 
 /// Holds information about a received signal
 #[derive(Debug, Clone)]
@@ -46,7 +46,9 @@ pub struct SignalHandler {
     #[cfg(unix)]
     signals: Arc<Signals>,
     #[cfg(not(unix))]
+    #[allow(dead_code)]
     signals: Arc<std::sync::Mutex<std::collections::HashMap<i32, Box<dyn Fn() + Send + Sync>>>>,
+    #[allow(dead_code)]
     signal_info: Arc<std::sync::Mutex<Option<SignalInfo>>>,
 }
 

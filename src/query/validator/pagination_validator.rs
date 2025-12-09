@@ -104,7 +104,7 @@ impl PaginationValidator {
     /// 验证排序子句
     pub fn validate_order_by(
         &self,
-        factors: &[Expression], // 排序因子
+        _factors: &[Expression], // 排序因子
         yield_columns: &[crate::query::validator::structs::YieldColumn],
         context: &crate::query::validator::structs::OrderByClauseContext,
     ) -> Result<(), String> {
@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_pagination_validator_creation() {
-        let validator = PaginationValidator::new();
+        let _validator = PaginationValidator::new();
         // 验证器创建成功
         assert!(true); // 占位测试
     }

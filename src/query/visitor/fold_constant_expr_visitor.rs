@@ -113,6 +113,7 @@ impl FoldConstantExprVisitor {
         }
     }
 
+    #[allow(dead_code)]
     fn evaluate_logical(&self, op: &str, operands: &[Expression]) -> Result<Value, String> {
         match op {
             "And" | "LogicalAnd" => {
@@ -143,6 +144,7 @@ impl FoldConstantExprVisitor {
         }
     }
 
+    #[allow(dead_code)]
     fn evaluate_relational(&self, op: &str, left: &Value, right: &Value) -> Result<Value, String> {
         match op {
             "RelEQ" => Ok(Value::Bool(left.equals(right))),
@@ -155,7 +157,7 @@ impl FoldConstantExprVisitor {
             "RelNotIn" => Ok(Value::Bool(!right.contains(left))),
             "RelRegex" => {
                 // 正则表达式匹配简化实现
-                if let (Value::String(s), Value::String(pattern)) = (left, right) {
+                if let (Value::String(_s), Value::String(_pattern)) = (left, right) {
                     // 在实际实现中，这里会执行正则匹配
                     // 简化实现，返回True
                     Ok(Value::Bool(true))
@@ -249,6 +251,7 @@ impl FoldConstantExprVisitor {
         }
     }
 
+    #[allow(dead_code)]
     fn cast_value(&self, value: &Value, target_type: &crate::core::ValueTypeDef) -> Result<Value, String> {
         // 类型转换实现
         match target_type {

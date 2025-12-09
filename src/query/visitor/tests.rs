@@ -358,7 +358,7 @@ mod tests {
         // 测试提取过滤表达式
         let result = visitor.extract(&expr);
         assert!(result.is_ok());
-        let filter_exprs = result.unwrap();
+        let _filter_exprs = result.unwrap();
         // 由于实现可能不同，我们只检查结果不为空
         // assert!(!filter_exprs.is_empty());
     }
@@ -374,7 +374,7 @@ mod tests {
         // 测试提取过滤函数表达式
         let result = visitor.extract(&expr);
         assert!(result.is_ok());
-        let filter_exprs = result.unwrap();
+        let _filter_exprs = result.unwrap();
         // 由于实现可能不同，我们只检查结果不为空
         // assert!(!filter_exprs.is_empty());
     }

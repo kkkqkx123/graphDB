@@ -1,7 +1,6 @@
 //! 验证上下文基础数据类型定义
 //! 包含所有验证上下文相关的核心数据结构
 
-use crate::core::Value;
 
 /// 图空间信息
 #[derive(Debug, Clone)]

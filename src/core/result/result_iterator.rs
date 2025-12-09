@@ -44,6 +44,7 @@ pub trait ResultIterator: Send + Sync {
 /// 顺序结果迭代器
 #[derive(Debug)]
 pub struct SequentialResultIterator {
+    #[allow(dead_code)]
     data: Arc<Value>,
     rows: Vec<Vec<Value>>,
     col_names: Vec<String>,

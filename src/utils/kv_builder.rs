@@ -43,7 +43,7 @@ pub fn from_keys_and_values(keys: &[&str], values: &[Value]) -> Result<HashMap<S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Value, NullType};
+    use crate::core::Value;
 
     #[test]
     fn test_kv_builder() {

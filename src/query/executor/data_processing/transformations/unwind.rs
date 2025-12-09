@@ -5,12 +5,14 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::config::test_config::test_config;
 use crate::core::{DataSet, Value};
 use crate::graph::expression::{Expression, ExpressionContext};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
+
+#[cfg(test)]
+use crate::config::test_config::test_config;
 
 /// Unwind执行器
 /// 用于将列表中的每个元素展开为单独的行

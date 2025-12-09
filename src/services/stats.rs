@@ -9,6 +9,7 @@ pub struct Counter {
     pub name: String,
     pub description: String,
     value: Arc<Mutex<u64>>,
+    #[allow(dead_code)]
     created_at: std::time::SystemTime,
 }
 
@@ -43,6 +44,7 @@ pub struct Gauge {
     pub name: String,
     pub description: String,
     value: Arc<Mutex<f64>>,
+    #[allow(dead_code)]
     created_at: std::time::SystemTime,
 }
 
@@ -75,6 +77,7 @@ pub struct Histogram {
     buckets: Vec<f64>,
     counts: Arc<Mutex<Vec<u64>>>,
     sum: Arc<Mutex<f64>>,
+    #[allow(dead_code)]
     created_at: std::time::SystemTime,
 }
 
@@ -134,6 +137,7 @@ pub struct Timer {
     pub name: String,
     pub description: String,
     value: Arc<Mutex<Vec<Duration>>>,
+    #[allow(dead_code)]
     created_at: std::time::SystemTime,
 }
 
@@ -186,6 +190,7 @@ pub struct StatsRegistry {
     gauges: Arc<Mutex<HashMap<String, Gauge>>>,
     histograms: Arc<Mutex<HashMap<String, Histogram>>>,
     timers: Arc<Mutex<HashMap<String, Timer>>>,
+    #[allow(dead_code)]
     created_at: std::time::SystemTime,
 }
 
@@ -399,7 +404,7 @@ mod tests {
         timer.record(Duration::from_millis(100));
         timer.record(Duration::from_millis(200));
         
-        let (avg, min, max, count) = timer.get_stats();
+        let (_avg, min, max, count) = timer.get_stats();
         assert_eq!(count, 2);
         assert_eq!(min, Duration::from_millis(100));
         assert_eq!(max, Duration::from_millis(200));

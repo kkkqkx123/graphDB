@@ -2,7 +2,7 @@
 //! These rules optimize limit and pagination operations based on NebulaGraph's implementation
 
 use crate::query::optimizer::optimizer::{OptRule, Pattern, OptGroupNode, OptContext};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
+use crate::query::planner::plan::PlanNodeKind;
 use super::optimizer::OptimizerError;
 
 // Rule to push limit down get vertices operations
@@ -14,7 +14,7 @@ impl OptRule for PushLimitDownGetVerticesRule {
         "PushLimitDownGetVerticesRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(&self, _ctx: &mut OptContext, _node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing limit down get vertices operations
         Ok(None)
     }
@@ -34,7 +34,7 @@ impl OptRule for PushLimitDownGetNeighborsRule {
         "PushLimitDownGetNeighborsRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(&self, _ctx: &mut OptContext, _node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing limit down get neighbors operations
         Ok(None)
     }
@@ -54,7 +54,7 @@ impl OptRule for PushLimitDownGetEdgesRule {
         "PushLimitDownGetEdgesRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(&self, _ctx: &mut OptContext, _node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing limit down get edges operations
         Ok(None)
     }
@@ -74,7 +74,7 @@ impl OptRule for PushLimitDownScanVerticesRule {
         "PushLimitDownScanVerticesRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(&self, _ctx: &mut OptContext, _node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing limit down scan vertices operations
         Ok(None)
     }
@@ -94,7 +94,7 @@ impl OptRule for PushLimitDownScanEdgesRule {
         "PushLimitDownScanEdgesRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(&self, _ctx: &mut OptContext, _node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing limit down scan edges operations
         Ok(None)
     }
@@ -114,7 +114,7 @@ impl OptRule for PushLimitDownIndexScanRule {
         "PushLimitDownIndexScanRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(&self, _ctx: &mut OptContext, _node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing limit down index scan operations
         Ok(None)
     }
@@ -134,7 +134,7 @@ impl OptRule for PushLimitDownProjectRule {
         "PushLimitDownProjectRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(&self, _ctx: &mut OptContext, _node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing limit down project operations
         Ok(None)
     }
@@ -154,7 +154,7 @@ impl OptRule for PushLimitDownAllPathsRule {
         "PushLimitDownAllPathsRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(&self, _ctx: &mut OptContext, _node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing limit down all paths operations
         Ok(None)
     }
@@ -174,7 +174,7 @@ impl OptRule for PushLimitDownExpandAllRule {
         "PushLimitDownExpandAllRule"
     }
 
-    fn apply(&self, _ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(&self, _ctx: &mut OptContext, _node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing limit down expand all operations
         Ok(None)
     }

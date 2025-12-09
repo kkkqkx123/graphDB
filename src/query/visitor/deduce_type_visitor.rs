@@ -1,12 +1,17 @@
 //! DeduceTypeVisitor - 用于推导表达式类型的访问器
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
-use crate::core::{Value, ValueTypeDef, Vertex, Edge, Direction};
-use crate::graph::expression::{BinaryOperator, UnaryOperator};
+use crate::core::{Value, ValueTypeDef};
 use crate::graph::expression::Expression;
+use crate::graph::expression::{BinaryOperator, UnaryOperator};
 use crate::query::validator::ValidateContext;
-use crate::storage::{StorageEngine, StorageError};
+use crate::storage::StorageEngine;
 use thiserror::Error;
+
+#[cfg(test)]
+use crate::core::{Direction, Edge, Vertex};
+#[cfg(test)]
+use crate::storage::StorageError;
 
 #[derive(Error, Debug, Clone)]
 pub enum TypeDeductionError {
@@ -28,7 +33,7 @@ pub struct DeduceTypeVisitor<'a, S: StorageEngine> {
     /// 输入列定义：列名 -> 列类型
     inputs: Vec<(String, ValueTypeDef)>,
     /// 图空间ID
-    space: String,
+    _space: String,
     /// 当前推导状态
     status: Option<TypeDeductionError>,
     /// 推导出的类型
@@ -51,7 +56,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             _storage: storage,
             validate_context,
             inputs,
-            space,
+            _space: space,
             status: None,
             type_: ValueTypeDef::Empty,
             vid_type,
@@ -60,8 +65,8 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
 
     /// 创建用于测试的访问器（不需要存储和验证上下文）
     pub fn new_for_test(
-        inputs: Vec<(String, ValueTypeDef)>,
-        space: String,
+        _inputs: Vec<(String, ValueTypeDef)>,
+        _space: String,
     ) -> (Self, ValidateContext) {
         let _vctx = ValidateContext::new();
         let _vid_type = ValueTypeDef::String;
@@ -326,7 +331,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = ValueTypeDef::List;
                 Ok(())
             }
-            Expression::Label(name) => {
+            Expression::Label(_name) => {
                 // 标签通常是字符串
                 self.type_ = ValueTypeDef::String;
                 Ok(())

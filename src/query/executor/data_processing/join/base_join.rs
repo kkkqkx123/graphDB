@@ -2,7 +2,6 @@
 //!
 //! 提供所有join操作的基础实现，包括哈希表构建、探测等核心功能
 
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -26,6 +25,7 @@ pub struct BaseJoinExecutor<S: StorageEngine> {
     /// 输出列名
     col_names: Vec<String>,
     /// 是否交换左右输入（优化用）
+    #[allow(dead_code)]
     exchange: bool,
     /// 右侧输出列索引（用于自然连接）
     rhs_output_col_idxs: Option<Vec<usize>>,
@@ -248,11 +248,11 @@ impl InnerJoinOperation {
 impl<S: StorageEngine> JoinOperation<S> for InnerJoinOperation {
     fn execute_join(
         &mut self,
-        left_dataset: &DataSet,
-        right_dataset: &DataSet,
+        _left_dataset: &DataSet,
+        _right_dataset: &DataSet,
     ) -> Result<DataSet, QueryError> {
         // 简化实现：执行基本的内连接
-        let mut result = DataSet::new();
+        let result = DataSet::new();
 
         // 这里应该实现具体的内连接逻辑
         // 暂时返回空结果集
@@ -272,11 +272,11 @@ impl LeftJoinOperation {
 impl<S: StorageEngine> JoinOperation<S> for LeftJoinOperation {
     fn execute_join(
         &mut self,
-        left_dataset: &DataSet,
-        right_dataset: &DataSet,
+        _left_dataset: &DataSet,
+        _right_dataset: &DataSet,
     ) -> Result<DataSet, QueryError> {
         // 简化实现：执行基本的左连接
-        let mut result = DataSet::new();
+        let result = DataSet::new();
 
         // 这里应该实现具体的左连接逻辑
         // 暂时返回空结果集

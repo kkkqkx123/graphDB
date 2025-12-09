@@ -104,7 +104,7 @@ impl JoinConfig {
     }
 
     /// 创建笛卡尔积配置
-    pub fn cross_join(input_vars: Vec<String>, output_columns: Vec<String>) -> Self {
+    pub fn cross_join(_input_vars: Vec<String>, output_columns: Vec<String>) -> Self {
         Self {
             join_type: JoinType::Cross,
             left_var: String::new(),

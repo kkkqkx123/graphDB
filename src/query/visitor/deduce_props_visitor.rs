@@ -1,7 +1,6 @@
 //! DeducePropsVisitor - 用于推导表达式属性的访问器
 //! 对应 NebulaGraph DeducePropsVisitor.h/.cpp 的功能
 
-use crate::graph::expression::binary::BinaryOperator;
 use crate::graph::expression::Expression;
 use std::collections::{HashMap, HashSet};
 

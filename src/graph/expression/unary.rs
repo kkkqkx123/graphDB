@@ -1,4 +1,4 @@
-use crate::core::{Value, NullType};
+use crate::core::Value;
 use crate::graph::expression::Expression;
 use super::context::EvalContext;
 use super::error::ExpressionError;

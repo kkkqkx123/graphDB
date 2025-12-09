@@ -362,7 +362,7 @@ mod tests {
         let mut iter = SequentialIter::new(data).unwrap();
 
         iter.next();
-        let mut copy = iter.copy();
+        let copy = iter.copy();
 
         // 拷贝应该有相同的状态
         assert_eq!(copy.is_empty(), iter.is_empty());

@@ -1,4 +1,4 @@
-use crate::core::{Direction, Edge, Value, Vertex};
+use crate::core::{Value, Vertex};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]

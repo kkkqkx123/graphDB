@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_alias_validator_creation() {
-        let validator = AliasValidator::new();
+        let _validator = AliasValidator::new();
         // 验证器创建成功
         assert!(true); // 占位测试
     }

@@ -15,7 +15,7 @@ impl SegmentsConnector {
     }
 
     /// 连接多个子计划段
-    pub fn connect_segments(&self, segments: Vec<SubPlan>) -> SubPlan {
+    pub fn connect_segments(&self, _segments: Vec<SubPlan>) -> SubPlan {
         // TODO: 实现段连接逻辑
         SubPlan::new(None, None)
     }

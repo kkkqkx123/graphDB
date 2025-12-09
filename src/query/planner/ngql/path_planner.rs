@@ -36,7 +36,7 @@ impl PathPlanner {
 }
 
 impl Planner for PathPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+    fn transform(&mut self, _ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         // TODO: 实现PATH查询的规划逻辑
         Err(PlannerError::UnsupportedOperation(
             "PATH query planning not yet implemented".to_string(),

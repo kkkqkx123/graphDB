@@ -1,8 +1,7 @@
 use super::context::EvalContext;
 use super::error::ExpressionError;
-use crate::core::{NullType, Value};
+use crate::core::Value;
 use crate::graph::expression::Expression;
-use std::collections::HashMap;
 
 /// 评估函数表达式
 pub fn evaluate_function(

@@ -183,11 +183,11 @@ impl AliasValidationStrategy {
             | Expression::UUID
             | Expression::Variable(_)
             | Expression::Label(_) => Ok(()),
-            Expression::TypeCasting { expr, target_type } => todo!(),
+            Expression::TypeCasting { expr: _, target_type: _ } => todo!(),
             Expression::Aggregate {
-                func,
-                arg,
-                distinct,
+                func: _,
+                arg: _,
+                distinct: _,
             } => todo!(),
         }
     }

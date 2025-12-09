@@ -1,14 +1,14 @@
 //! 基本验证上下文模块
 //! 提供查询验证阶段的基础上下文管理功能
 
-use std::collections::{HashMap, HashSet};
+use super::types::{ColsDef, SpaceInfo, Variable};
 use crate::core::Value;
-use super::types::{SpaceInfo, Column, ColsDef, Variable};
+use std::collections::{HashMap, HashSet};
 
 /// 基本验证上下文
-/// 
+///
 /// 验证阶段的上下文，包含验证所需的基础信息
-/// 
+///
 /// 主要功能：
 /// 1. 追踪图空间的选择
 /// 2. 管理查询中定义的变量（如MATCH中的别名）
@@ -20,23 +20,23 @@ use super::types::{SpaceInfo, Column, ColsDef, Variable};
 pub struct BasicValidateContext {
     // 图空间栈 - 追踪空间切换的历史
     spaces: Vec<SpaceInfo>,
-    
+
     // 已定义的变量映射 (变量名 -> 列定义)
     // 例如：MATCH (n:Person) -> 变量 n 的列定义
     variables: HashMap<String, ColsDef>,
-    
+
     // 参数映射
     parameters: HashMap<String, Value>,
-    
+
     // 别名到类型的映射
     aliases: HashMap<String, String>,
-    
+
     // 创建的空间集合
     create_spaces: HashSet<String>,
-    
+
     // 索引集合
     indexes: HashSet<String>,
-    
+
     // 收集的错误信息
     errors: Vec<String>,
 }
@@ -56,7 +56,7 @@ impl BasicValidateContext {
     }
 
     // ==================== 空间管理 ====================
-    
+
     /// 切换到指定的图空间
     /// 此操作将空间压入栈中，允许跟踪空间切换历史
     pub fn switch_to_space(&mut self, space: SpaceInfo) {
@@ -69,13 +69,11 @@ impl BasicValidateContext {
     }
 
     /// 获取当前选择的空间
-    /// 
+    ///
     /// # Panics
     /// 如果尚未选择空间，则panic
     pub fn which_space(&self) -> &SpaceInfo {
-        self.spaces
-            .last()
-            .expect("空间未被选择")
+        self.spaces.last().expect("空间未被选择")
     }
 
     /// 获取当前空间（可选）
@@ -84,9 +82,9 @@ impl BasicValidateContext {
     }
 
     // ==================== 变量管理 ====================
-    
+
     /// 注册一个变量（例如MATCH中的别名）
-    /// 
+    ///
     /// # 参数
     /// * `var` - 变量名称
     /// * `cols` - 变量包含的列定义
@@ -103,25 +101,25 @@ impl BasicValidateContext {
     }
 
     /// 检查变量是否存在
-    /// 
+    ///
     /// 这是最常用的方法，用于验证一个变量是否已在查询中定义
-    /// 
+    ///
     /// # 参数
     /// * `var` - 变量名称
-    /// 
+    ///
     /// # 返回值
     /// 如果变量已注册，返回 `true`；否则返回 `false`
-    /// 
+    ///
     /// # 示例
     /// ```ignore
     /// let mut ctx = BasicValidateContext::new();
     /// assert!(!ctx.exists_var("n"));
-    /// 
+    ///
     /// ctx.register_variable("n".to_string(), vec![
     ///     Column { name: "id".to_string(), type_: "INT".to_string() },
     ///     Column { name: "name".to_string(), type_: "STRING".to_string() },
     /// ]);
-    /// 
+    ///
     /// assert!(ctx.exists_var("n"));
     /// ```
     pub fn exists_var(&self, var: &str) -> bool {
@@ -154,7 +152,7 @@ impl BasicValidateContext {
     }
 
     // ==================== 参数管理 ====================
-    
+
     /// 设置参数
     pub fn set_parameter(&mut self, name: String, value: Value) {
         self.parameters.insert(name, value);
@@ -176,7 +174,7 @@ impl BasicValidateContext {
     }
 
     // ==================== 别名管理 ====================
-    
+
     /// 添加别名及其类型
     pub fn add_alias(&mut self, alias: String, type_: String) {
         self.aliases.insert(alias, type_);
@@ -193,7 +191,7 @@ impl BasicValidateContext {
     }
 
     // ==================== 空间创建管理 ====================
-    
+
     /// 添加待创建的空间
     pub fn add_space(&mut self, space_name: String) {
         self.create_spaces.insert(space_name);
@@ -210,7 +208,7 @@ impl BasicValidateContext {
     }
 
     // ==================== 索引管理 ====================
-    
+
     /// 添加索引
     pub fn add_index(&mut self, index_name: String) {
         self.indexes.insert(index_name);
@@ -227,7 +225,7 @@ impl BasicValidateContext {
     }
 
     // ==================== 错误管理 ====================
-    
+
     /// 添加错误信息
     pub fn add_error(&mut self, error: String) {
         self.errors.push(error);
@@ -263,7 +261,7 @@ impl Default for BasicValidateContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
+    use crate::{core::Value, query::context::Column};
 
     #[test]
     fn test_basic_validate_context_new() {
@@ -276,10 +274,10 @@ mod tests {
     #[test]
     fn test_exists_var_basic() {
         let mut ctx = BasicValidateContext::new();
-        
+
         // 变量不存在
         assert!(!ctx.exists_var("n"));
-        
+
         // 添加变量
         ctx.register_variable(
             "n".to_string(),
@@ -294,10 +292,10 @@ mod tests {
                 },
             ],
         );
-        
+
         // 变量存在
         assert!(ctx.exists_var("n"));
-        
+
         // 其他变量不存在
         assert!(!ctx.exists_var("m"));
     }
@@ -305,17 +303,17 @@ mod tests {
     #[test]
     fn test_space_management() {
         let mut ctx = BasicValidateContext::new();
-        
+
         assert!(!ctx.space_chosen());
-        
+
         let space = SpaceInfo {
             id: 1,
             name: "test_space".to_string(),
             vid_type: "INT".to_string(),
         };
-        
+
         ctx.switch_to_space(space.clone());
-        
+
         assert!(ctx.space_chosen());
         assert_eq!(ctx.which_space().name, "test_space");
         assert_eq!(ctx.current_space().map(|s| s.id), Some(1));
@@ -324,9 +322,9 @@ mod tests {
     #[test]
     fn test_parameter_management() {
         let mut ctx = BasicValidateContext::new();
-        
+
         ctx.set_parameter("param1".to_string(), Value::Int(42));
-        
+
         assert!(ctx.exist_parameter("param1"));
         assert!(!ctx.exist_parameter("param2"));
         assert_eq!(ctx.get_parameter("param1"), Some(&Value::Int(42)));
@@ -335,9 +333,9 @@ mod tests {
     #[test]
     fn test_alias_management() {
         let mut ctx = BasicValidateContext::new();
-        
+
         ctx.add_alias("my_alias".to_string(), "STRING".to_string());
-        
+
         assert!(ctx.exist_alias("my_alias"));
         assert!(!ctx.exist_alias("other_alias"));
         assert_eq!(ctx.get_alias_type("my_alias"), Some(&"STRING".to_string()));
@@ -346,21 +344,21 @@ mod tests {
     #[test]
     fn test_error_management() {
         let mut ctx = BasicValidateContext::new();
-        
+
         assert!(!ctx.has_errors());
         assert_eq!(ctx.error_count(), 0);
-        
+
         ctx.add_error("Error 1".to_string());
         assert!(ctx.has_errors());
         assert_eq!(ctx.error_count(), 1);
-        
+
         ctx.add_error("Error 2".to_string());
         assert_eq!(ctx.error_count(), 2);
-        
+
         let errors = ctx.get_errors();
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[0], "Error 1");
-        
+
         ctx.clear_errors();
         assert!(!ctx.has_errors());
     }

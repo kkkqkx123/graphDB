@@ -1,7 +1,7 @@
 //! 符号表模块 - 管理查询中的变量和别名
 //! 对应原C++中的context/Symbols.h
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::{RwLock, Arc};
 use super::dependency_tracker::DependencyTracker;
 use super::plan_node::PlanNodeRef;

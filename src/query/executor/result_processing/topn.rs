@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::query::executor::base::{
-    BaseExecutor, ExecutionContext, ExecutionResult, Executor, InputExecutor,
+    BaseExecutor, ExecutionResult, Executor, InputExecutor,
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -13,6 +13,7 @@ use crate::storage::StorageEngine;
 pub struct TopNExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     n: usize,                  // 返回的结果数量
+    #[allow(dead_code)]
     sort_columns: Vec<String>, // 排序列
     ascending: bool,           // 排序方向
     input_executor: Option<Box<dyn Executor<S>>>,
@@ -80,7 +81,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for TopNExecutor<S> {
                 let top_edges = edges.into_iter().take(self.n).collect::<Vec<_>>();
                 ExecutionResult::Edges(top_edges)
             }
-            ExecutionResult::Values(mut values) => {
+            ExecutionResult::Values(values) => {
                 // 对于值，我们可能需要进行比较（如果可能）
                 // 现在只取前 N 个值
                 let top_values = values.into_iter().take(self.n).collect::<Vec<_>>();

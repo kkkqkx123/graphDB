@@ -157,7 +157,7 @@ impl SessionManager {
 
     /// Create a new session
     pub fn create_session(&self, user_id: Option<String>, client_info: String, connection_info: String) -> SessionId {
-        let mut session = Session::new(user_id, client_info, connection_info);
+        let session = Session::new(user_id, client_info, connection_info);
         let session_id = session.id.clone();
         
         let session = Arc::new(Mutex::new(session));

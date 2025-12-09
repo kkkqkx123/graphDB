@@ -36,7 +36,7 @@ impl FetchVerticesPlanner {
 }
 
 impl Planner for FetchVerticesPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+    fn transform(&mut self, _ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         // TODO: 实现FETCH VERTICES查询的规划逻辑
         Err(PlannerError::UnsupportedOperation(
             "FETCH VERTICES query planning not yet implemented".to_string(),

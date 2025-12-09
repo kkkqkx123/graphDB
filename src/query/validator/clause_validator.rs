@@ -2,12 +2,11 @@
 //! 负责验证不同查询子句（MATCH、RETURN、WITH、UNWIND等）
 
 use crate::graph::expression::expr_type::Expression;
-use crate::query::validator::{Validator, ValidateContext};
+use crate::query::validator::Validator;
 use crate::query::validator::structs::{
     QueryPart, MatchClauseContext, ReturnClauseContext, YieldClauseContext,
     YieldColumn, Path, AliasType
 };
-use std::collections::HashMap;
 
 /// 子句验证器
 pub struct ClauseValidator;
@@ -21,7 +20,7 @@ impl ClauseValidator {
     pub fn validate_return_clause(
         &self,
         context: &ReturnClauseContext,
-        validator: &mut Validator,
+        _validator: &mut Validator,
     ) -> Result<(), String> {
         // 检查别名可用性
         use crate::query::validator::expression_validator::ExpressionValidator;
@@ -158,7 +157,7 @@ impl ClauseValidator {
     pub fn build_outputs(&self, paths: &mut Vec<Path>) -> Result<(), String> {
         // 构建查询输出，包括列名和类型
         // 这里会根据路径信息构建最终的输出格式
-        for path in paths {
+        for _path in paths {
             // 为每个路径构建输出信息
             // 在实际实现中，这里会构建具体的输出格式
         }
@@ -214,15 +213,15 @@ impl ClauseValidator {
     ) -> Result<(), String> {
         // 验证Match子句的基本结构
         // 检查路径、别名等的有效性
-        
+
         // 验证路径
-        for path in &context.paths {
+        for _path in &context.paths {
             // 验证路径结构
             // 在实际实现中，这里会进行更详细的路径验证
         }
 
         // 验证WHERE子句（如果存在）
-        if let Some(ref where_clause) = context.where_clause {
+        if let Some(ref _where_clause) = context.where_clause {
             // 验证WHERE子句
             // 在实际实现中，这里会进行更详细的WHERE子句验证
         }
@@ -234,17 +233,17 @@ impl ClauseValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use crate::graph::expression::expr_type::Expression;
+    use crate::query::validator::ValidateContext;
     use crate::query::validator::structs::{
         QueryPart, MatchClauseContext, ReturnClauseContext, YieldClauseContext,
-        YieldColumn, Path, NodeInfo, EdgeInfo, Direction, MatchStepRange,
-        PaginationContext, OrderByClauseContext, OrderType
+        YieldColumn, Path, PaginationContext
     };
-    use std::collections::HashMap;
-
+    
     #[test]
     fn test_clause_validator_creation() {
-        let validator = ClauseValidator::new();
+        let _validator = ClauseValidator::new();
         // 验证器创建成功
         assert!(true); // 占位测试
     }

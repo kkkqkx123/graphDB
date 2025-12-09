@@ -36,7 +36,7 @@ impl GraphSessionManager {
     pub fn create_session(
         &self,
         user_name: String,
-        client_ip: String,
+        _client_ip: String,
     ) -> Result<Arc<ClientSession>, String> {
         // Check if we're out of connections
         if self.is_out_of_connections() {

@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::{Edge, Value, Vertex};
+#[allow(unused_imports)]
+use crate::core::Value;
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
-use crate::query::executor::base::{BaseExecutor, ExecutionContext, ExecutionResult, Executor, InputExecutor};
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, InputExecutor};
 
 /// LimitExecutor - 结果数量限制执行器
 ///

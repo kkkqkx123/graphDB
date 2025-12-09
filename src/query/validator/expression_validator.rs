@@ -3,10 +3,8 @@
 
 use crate::core::ValueTypeDef;
 use crate::graph::expression::expr_type::Expression;
-use crate::query::validator::structs::{AliasType, WhereClauseContext};
-use crate::query::validator::{ValidateContext, Validator};
-use crate::config::test_config::test_config;
-use std::collections::HashMap;
+use crate::query::validator::structs::WhereClauseContext;
+use crate::query::validator::Validator;
 
 /// 表达式验证器
 pub struct ExpressionValidator;
@@ -37,8 +35,12 @@ impl ExpressionValidator {
         use crate::storage::NativeStorage; // 使用实际可用的存储实现
 
         // 创建临时存储引擎用于类型推导
-        let config = test_config();
-        let temp_dir = config.temp_storage_path();
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_millis();
+        let temp_dir = format!("temp_storage_{}", timestamp);
         std::fs::create_dir_all(&temp_dir).map_err(|e| format!("创建临时目录失败: {}", e))?;
         let storage = NativeStorage::new(&temp_dir).map_err(|e| format!("创建存储失败: {}", e))?;
 
@@ -96,8 +98,8 @@ impl ExpressionValidator {
     /// 验证单个路径模式
     pub fn validate_single_path_pattern(
         &self,
-        pattern: &Expression,
-        context: &mut crate::query::validator::structs::MatchClauseContext,
+        _pattern: &Expression,
+        _context: &mut crate::query::validator::structs::MatchClauseContext,
     ) -> Result<(), String> {
         // 验证单个路径模式的结构
         // 在实际实现中，这里会检查节点、边的定义等
@@ -108,7 +110,7 @@ impl ExpressionValidator {
     pub fn validate_return(
         &self,
         return_expr: &Expression,
-        query_parts: &[crate::query::validator::structs::QueryPart],
+        _query_parts: &[crate::query::validator::structs::QueryPart],
         context: &mut crate::query::validator::structs::ReturnClauseContext,
     ) -> Result<(), String> {
         // 验证Return子句中的表达式
@@ -124,7 +126,7 @@ impl ExpressionValidator {
     pub fn validate_with(
         &self,
         with_expr: &Expression,
-        query_parts: &[crate::query::validator::structs::QueryPart],
+        _query_parts: &[crate::query::validator::structs::QueryPart],
         context: &mut crate::query::validator::structs::WithClauseContext,
     ) -> Result<(), String> {
         // 验证With子句中的表达式别名
@@ -227,6 +229,7 @@ impl ExpressionValidator {
 mod tests {
     use super::*;
     use crate::graph::expression::expr_type::Expression;
+    use crate::query::validator::ValidateContext;
     use crate::query::validator::structs::{
         MatchClauseContext, ReturnClauseContext, UnwindClauseContext, WhereClauseContext,
         WithClauseContext, YieldClauseContext, YieldColumn,
@@ -235,7 +238,7 @@ mod tests {
 
     #[test]
     fn test_expression_validator_creation() {
-        let validator = ExpressionValidator::new();
+        let _validator = ExpressionValidator::new();
         // 验证器创建成功
         assert!(true); // 占位测试
     }
@@ -263,9 +266,9 @@ mod tests {
 
     #[test]
     fn test_validate_path() {
-        let validator = ExpressionValidator::new();
+        let _validator = ExpressionValidator::new();
 
-        let mut match_context = MatchClauseContext {
+        let mut _match_context = MatchClauseContext {
             paths: Vec::new(),
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),
@@ -315,7 +318,7 @@ mod tests {
 
     #[test]
     fn test_validate_with() {
-        let validator = ExpressionValidator::new();
+        let _validator = ExpressionValidator::new();
 
         let mut with_context = WithClauseContext {
             yield_clause: YieldClauseContext {
@@ -342,14 +345,14 @@ mod tests {
 
         // 测试With子句验证
         let with_expr = Expression::Constant(crate::core::Value::Int(1));
-        assert!(validator
+        assert!(ExpressionValidator::new()
             .validate_with(&with_expr, &[], &mut with_context)
             .is_ok());
     }
 
     #[test]
     fn test_validate_unwind() {
-        let validator = ExpressionValidator::new();
+        let _validator = ExpressionValidator::new();
 
         let mut unwind_context = UnwindClauseContext {
             alias: "test".to_string(),
@@ -361,14 +364,14 @@ mod tests {
 
         // 测试Unwind子句验证
         let unwind_expr = Expression::Constant(crate::core::Value::Int(1));
-        assert!(validator
+        assert!(ExpressionValidator::new()
             .validate_unwind(&unwind_expr, &mut unwind_context)
             .is_ok());
     }
 
     #[test]
     fn test_validate_yield() {
-        let validator = ExpressionValidator::new();
+        let _validator = ExpressionValidator::new();
 
         let mut yield_context = YieldClauseContext {
             yield_columns: vec![YieldColumn::new(
@@ -389,12 +392,12 @@ mod tests {
         };
 
         // 测试Yield子句验证
-        assert!(validator.validate_yield(&mut yield_context).is_ok());
+        assert!(ExpressionValidator::new().validate_yield(&mut yield_context).is_ok());
     }
 
     #[test]
     fn test_single_path_pattern() {
-        let validator = ExpressionValidator::new();
+        let _validator = ExpressionValidator::new();
 
         let mut match_context = MatchClauseContext {
             paths: Vec::new(),
@@ -407,9 +410,9 @@ mod tests {
         };
 
         // 测试单个路径模式验证
-        let pattern = Expression::Constant(crate::core::Value::Int(1));
-        assert!(validator
-            .validate_single_path_pattern(&pattern, &mut match_context)
+        let _pattern = Expression::Constant(crate::core::Value::Int(1));
+        assert!(ExpressionValidator::new()
+            .validate_single_path_pattern(&_pattern, &mut match_context)
             .is_ok());
     }
 }

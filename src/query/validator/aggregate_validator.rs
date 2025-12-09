@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_aggregate_validator_creation() {
-        let validator = AggregateValidator::new();
+        let _validator = AggregateValidator::new();
         // 验证器创建成功
         assert!(true); // 占位测试
     }

@@ -103,7 +103,7 @@ where
             }
 
             // Create new node
-            let mut new_node = Box::new(Node::new(key.clone(), value));
+            let new_node = Box::new(Node::new(key.clone(), value));
             let new_node_ptr = Box::into_raw(new_node);
 
             // Add to map
@@ -175,14 +175,17 @@ where
         }
     }
 
+    #[allow(dead_code)]
     fn stats_total(&self) -> u64 {
         self.stats_total
     }
 
+    #[allow(dead_code)]
     fn stats_hits(&self) -> u64 {
         self.stats_hits
     }
 
+    #[allow(dead_code)]
     fn stats_evicts(&self) -> u64 {
         self.stats_evicts
     }

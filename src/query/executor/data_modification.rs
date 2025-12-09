@@ -94,6 +94,7 @@ pub struct UpdateExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     vertex_updates: Option<Vec<VertexUpdate>>, // Updates to apply to vertices
     edge_updates: Option<Vec<EdgeUpdate>>,     // Updates to apply to edges
+    #[allow(dead_code)]
     condition: Option<String>,                 // Condition for selecting items to update
 }
 
@@ -135,8 +136,8 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
 
         // Update vertices if provided
         if let Some(updates) = &self.vertex_updates {
-            let mut storage = self.base.storage.lock().unwrap();
-            for update in updates {
+            let _storage = self.base.storage.lock().unwrap();
+            for _update in updates {
                 // In a real implementation, we would:
                 // 1. Check if the vertex exists
                 // 2. Apply the condition if provided
@@ -148,8 +149,8 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
 
         // Update edges if provided
         if let Some(updates) = &self.edge_updates {
-            let mut storage = self.base.storage.lock().unwrap();
-            for update in updates {
+            let _storage = self.base.storage.lock().unwrap();
+            for _update in updates {
                 // In a real implementation, we would:
                 // 1. Check if the edge exists
                 // 2. Apply the condition if provided
@@ -186,7 +187,9 @@ pub struct DeleteExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>, // IDs of vertices to delete
     edge_ids: Option<Vec<Value>>,   // IDs of edges to delete
+    #[allow(dead_code)]
     condition: Option<String>,      // Condition for selecting items to delete
+    #[allow(dead_code)]
     cascade: bool,                  // Whether to delete related items
 }
 
@@ -216,8 +219,8 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
 
         // Delete vertices if provided
         if let Some(ids) = &self.vertex_ids {
-            let mut storage = self.base.storage.lock().unwrap();
-            for id in ids {
+            let _storage = self.base.storage.lock().unwrap();
+            for _id in ids {
                 // In a real implementation, we would:
                 // 1. Check if the vertex exists
                 // 2. Apply the condition if provided
@@ -229,8 +232,8 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
 
         // Delete edges if provided
         if let Some(ids) = &self.edge_ids {
-            let mut storage = self.base.storage.lock().unwrap();
-            for id in ids {
+            let _storage = self.base.storage.lock().unwrap();
+            for _id in ids {
                 // In a real implementation, we would:
                 // 1. Check if the edge exists
                 // 2. Apply the condition if provided
@@ -265,9 +268,13 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
 // Executor for creating indexes
 pub struct CreateIndexExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
+    #[allow(dead_code)]
     index_name: String,
+    #[allow(dead_code)]
     index_type: IndexType,
+    #[allow(dead_code)]
     properties: Vec<String>,  // Properties to index
+    #[allow(dead_code)]
     tag_name: Option<String>, // Tag name for vertex indexes
 }
 
@@ -329,6 +336,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
 // Executor for dropping indexes
 pub struct DropIndexExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
+    #[allow(dead_code)]
     index_name: String,
 }
 

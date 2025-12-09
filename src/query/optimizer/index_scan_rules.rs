@@ -3,7 +3,7 @@
 
 use super::optimizer::OptimizerError;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+use crate::query::planner::plan::PlanNodeKind;
 
 // Rule to convert edge index full scans to more optimal operations
 #[derive(Debug)]
@@ -17,7 +17,7 @@ impl OptRule for EdgeIndexFullScanRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing edge index full scans
         Ok(None)
@@ -40,7 +40,7 @@ impl OptRule for TagIndexFullScanRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing tag index full scans
         Ok(None)
@@ -63,7 +63,7 @@ impl OptRule for IndexScanRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing index scans
         Ok(None)
@@ -86,7 +86,7 @@ impl OptRule for UnionAllEdgeIndexScanRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing union all edge index scans
         Ok(None)
@@ -109,7 +109,7 @@ impl OptRule for UnionAllTagIndexScanRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing union all tag index scans
         Ok(None)

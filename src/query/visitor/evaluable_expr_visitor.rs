@@ -40,7 +40,7 @@ impl EvaluableExprVisitor {
             Expression::Constant(_) => Ok(()),
 
             // 变量表达式依赖于上下文，可能不可求值
-            Expression::Property(name) => {
+            Expression::Property(_name) => {
                 // 在当前实现中，如果表达式包含变量，则可能是不可求值的
                 // 在实际实现中，需要检查该变量是否在当前上下文中被定义
                 self.evaluable = false;

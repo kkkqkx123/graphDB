@@ -9,6 +9,7 @@ use crate::query::planner::plan::SubPlan;
 /// 处理Cypher MATCH语句的转换为执行计划
 #[derive(Debug)]
 pub struct MatchPlanner {
+    #[allow(dead_code)]
     tail_connected: bool,
 }
 
@@ -40,7 +41,7 @@ impl MatchPlanner {
 }
 
 impl Planner for MatchPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+    fn transform(&mut self, _ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         // TODO: 实现MATCH查询的复杂规划逻辑
         // 使用MatchClausePlanner、WhereClausePlanner、ReturnClausePlanner等
         Err(PlannerError::UnsupportedOperation(

@@ -2,7 +2,6 @@ use super::binary::BinaryOperator;
 use super::unary::UnaryOperator;
 use crate::core::Value;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Represents an expression in a query
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -133,7 +132,7 @@ impl Expression {
         match self {
             Expression::Constant(_) => ExpressionKind::Constant,
             Expression::Property(_) => ExpressionKind::Variable,
-            Expression::Function(name, _) => {
+            Expression::Function(_name, _) => {
                 // Could be more specific based on function name, but for now we'll use FunctionCall
                 ExpressionKind::FunctionCall
             }
@@ -342,7 +341,7 @@ impl Expression {
                     Ok(Value::Null(crate::core::NullType::UnknownProp))
                 }
             },
-            Expression::Function(name, args) => {
+            Expression::Function(name, _args) => {
                 // 简化的函数评估
                 match name.as_str() {
                     "id" => {

@@ -6,6 +6,7 @@ use crate::query::context::AstContext;
 #[derive(Debug)]
 pub struct MatchPlanner {
     // Whether the tail is connected in the plan
+    #[allow(dead_code)]
     tail_connected: bool,
 }
 
@@ -28,12 +29,12 @@ impl MatchPlanner {
 }
 
 impl Planner for MatchPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+    fn transform(&mut self, _ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         // Generate the execution plan for the match statement
         // This would call various helper methods to build the plan
 
         // First, verify this is a match statement
-        if !Self::match_ast_ctx(ast_ctx) {
+        if !_ast_ctx.statement_type().eq_ignore_ascii_case("MATCH") {
             return Err(PlannerError::InvalidAstContext(
                 "AST context is not a match statement".to_string(),
             ));

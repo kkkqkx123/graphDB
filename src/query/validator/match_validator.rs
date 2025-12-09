@@ -280,7 +280,7 @@ mod tests {
     #[test]
     fn test_validate_step_range() {
         let context = ValidateContext::new();
-        let mut validator = MatchValidator::new(context);
+        let validator = MatchValidator::new(context);
 
         // 测试有效的范围（min <= max）
         let valid_range = MatchStepRange::new(1, 3);

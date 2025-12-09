@@ -329,9 +329,9 @@ mod tests {
 
     #[test]
     fn test_validate_path() {
-        let strategy = ExpressionValidationStrategy::new();
+        let _strategy = ExpressionValidationStrategy::new();
 
-        let match_context = MatchClauseContext {
+        let _match_context = MatchClauseContext {
             paths: Vec::new(),
             aliases_available: std::collections::HashMap::new(),
             aliases_generated: std::collections::HashMap::new(),

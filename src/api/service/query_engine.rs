@@ -1,5 +1,4 @@
 use std::sync::{Arc, Mutex};
-use tokio::sync::RwLock;
 
 use crate::storage::NativeStorage;
 use crate::query::{QueryParser, QueryExecutor as QueryExecutorImpl};
@@ -93,7 +92,7 @@ mod tests {
         };
 
         let storage = Arc::new(NativeStorage::new(&config.storage_path).unwrap());
-        let query_engine = QueryEngine::new(storage);
+        let _query_engine = QueryEngine::new(storage);
 
         // We can't directly check the data dir, so we'll just test that storage initialization succeeded
         // by ensuring no panic occurred during construction
@@ -134,7 +133,7 @@ mod tests {
             client_session: Some(client_session),
         };
 
-        let response = query_engine.execute(request_context).await;
+        let _response = query_engine.execute(request_context).await;
         // The query will likely fail with an unsupported statement, but we want to ensure
         // the execution path works without panicking
         // Note: This particular query might fail since our parser doesn't support it,

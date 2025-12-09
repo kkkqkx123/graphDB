@@ -7,6 +7,7 @@ use std::sync::Arc;
 pub struct GraphService {
     session_manager: Arc<GraphSessionManager>,
     query_engine: Arc<QueryEngine>,
+    #[allow(dead_code)]
     config: Config,
 }
 
@@ -153,7 +154,7 @@ mod tests {
         let session_id = session.id();
 
         // Try to execute a query (this will likely fail due to unsupported query, but should not panic)
-        let result = graph_service.execute(session_id, "SHOW SPACES").await;
+        let _result = graph_service.execute(session_id, "SHOW SPACES").await;
         // The result could be either success or failure depending on whether the query is supported,
         // but we're checking that it doesn't panic or fail in an unexpected way
     }

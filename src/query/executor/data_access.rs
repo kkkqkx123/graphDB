@@ -85,6 +85,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for GetVerticesExecutor<S> {
 // Implementation for a basic GetEdges executor
 pub struct GetEdgesExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
+    #[allow(dead_code)]
     edge_type: Option<String>,
 }
 
@@ -129,8 +130,11 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for GetEdgesExecutor<S> {
 // Implementation for a basic GetNeighbors executor
 pub struct GetNeighborsExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
+    #[allow(dead_code)]
     vertex_ids: Vec<Value>,
+    #[allow(dead_code)]
     edge_direction: super::base::EdgeDirection, // Direction: In, Out, or Both
+    #[allow(dead_code)]
     edge_types: Option<Vec<String>>,
 }
 
@@ -183,8 +187,11 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for GetNeighborsExecutor<S> 
 // Implementation for GetPropExecutor
 pub struct GetPropExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
+    #[allow(dead_code)]
     vertex_ids: Option<Vec<Value>>,
+    #[allow(dead_code)]
     edge_ids: Option<Vec<Value>>,
+    #[allow(dead_code)]
     prop_names: Vec<String>, // List of property names to retrieve
 }
 

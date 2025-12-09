@@ -67,6 +67,7 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
     }
 
     /// 执行多表笛卡尔积
+    #[allow(dead_code)]
     fn execute_multi_way_cartesian_product(&self) -> Result<DataSet, QueryError> {
         if self.input_vars.len() < 2 {
             return Err(QueryError::ExecutionError(
@@ -323,8 +324,6 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
 mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::query::executor::base::ExecutionContext;
-    use std::collections::HashMap;
 
     // 模拟存储引擎
     struct MockStorage;

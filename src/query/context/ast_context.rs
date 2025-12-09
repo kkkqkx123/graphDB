@@ -3,6 +3,7 @@
 #[derive(Debug, Clone)]
 pub struct AstContext {
     statement_type: String,
+    #[allow(dead_code)]
     query_text: String,
     contains_path: bool,
 }

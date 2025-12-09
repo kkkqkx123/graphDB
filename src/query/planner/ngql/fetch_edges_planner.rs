@@ -36,7 +36,7 @@ impl FetchEdgesPlanner {
 }
 
 impl Planner for FetchEdgesPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+    fn transform(&mut self, _ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         // TODO: 实现FETCH EDGES查询的规划逻辑
         Err(PlannerError::UnsupportedOperation(
             "FETCH EDGES query planning not yet implemented".to_string(),

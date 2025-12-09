@@ -2,42 +2,43 @@
 //!
 //! 包含图相关的核心操作，包括事务管理、索引系统和表达式计算
 
-pub mod transaction;
-pub mod index;
+pub mod batch_operation;
 pub mod expression;
+pub mod index;
 pub mod response;
 pub mod result_set;
-pub mod batch_operation;
 pub mod schema;
+pub mod transaction;
 pub mod utils;
 
 // 重新导出图操作相关功能
-pub use transaction::*;
-pub use index::*;
+pub use batch_operation::*;
 pub use expression::*;
+pub use index::*;
 pub use response::*;
 pub use result_set::*;
-pub use batch_operation::*;
 pub use schema::*;
+pub use transaction::*;
 pub use utils::*;
 
 #[cfg(test)]
+#[allow(hidden_glob_reexports)]
 mod tests {
+    use super::ApiResponse;
+    use super::GraphData;
+    use super::GraphResponse;
+    use super::ResultSet;
+    use crate::core::{Tag, Value, Vertex};
     use std::collections::HashMap;
-    use super::*;
-    use crate::core::{Value, Vertex, Tag, NullType};
 
     #[test]
     fn test_graph_response() {
         let vertex = Vertex::new(
             Value::Int(1),
-            vec![Tag::new("person".to_string(), HashMap::new())]
+            vec![Tag::new("person".to_string(), HashMap::new())],
         );
 
-        let response = GraphResponse::success_with_data(
-            GraphData::Vertex(vertex),
-            10
-        );
+        let response = GraphResponse::success_with_data(GraphData::Vertex(vertex), 10);
 
         assert!(response.success);
         assert_eq!(response.execution_time_ms, 10);

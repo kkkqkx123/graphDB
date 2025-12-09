@@ -48,7 +48,9 @@ impl ExecutionState {
 
 // Implementation of the AsyncMsgNotifyBasedScheduler in Rust
 pub struct AsyncMsgNotifyBasedScheduler<S: StorageEngine> {
+    #[allow(dead_code)]
     storage: Arc<Mutex<S>>,
+    #[allow(dead_code)]
     execution_context: Arc<Mutex<ExecutionContext>>,
     execution_state: Arc<Mutex<ExecutionState>>,
 }
@@ -63,6 +65,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     }
 
     // Execute a single executor
+    #[allow(dead_code)]
     async fn execute_executor(&self, executor: &mut Box<dyn Executor<S>>) -> Result<ExecutionResult, QueryError> {
         {
             let mut state = self.execution_state.lock().unwrap();
@@ -89,6 +92,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     }
 
     // Get executable executors (those with all dependencies satisfied)
+    #[allow(dead_code)]
     fn get_executable_executors(&self, plan: &ExecutionPlan<S>) -> Vec<usize> {
         let state = self.execution_state.lock().unwrap();
         plan.get_executable_executors(&state.execution_results)
@@ -218,7 +222,7 @@ impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBase
         }
     }
 
-    fn add_dependency(&mut self, from: usize, to: usize) -> Result<(), QueryError> {
+    fn add_dependency(&mut self, _from: usize, _to: usize) -> Result<(), QueryError> {
         // This would be used during plan construction, not during execution
         // For now, just return OK - dependencies should be set up in the ExecutionPlan
         Ok(())

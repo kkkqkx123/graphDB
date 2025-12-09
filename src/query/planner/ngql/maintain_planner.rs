@@ -37,7 +37,7 @@ impl MaintainPlanner {
 }
 
 impl Planner for MaintainPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+    fn transform(&mut self, _ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         // TODO: 实现维护操作的规划逻辑
         Err(PlannerError::UnsupportedOperation(
             "Maintenance query planning not yet implemented".to_string(),

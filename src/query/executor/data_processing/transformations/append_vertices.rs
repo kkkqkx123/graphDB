@@ -2,7 +2,6 @@
 //! 
 //! 负责处理追加顶点操作，根据给定的顶点ID获取顶点信息并追加到结果中
 
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
@@ -11,7 +10,6 @@ use crate::query::executor::base::{Executor, ExecutionResult, BaseExecutor};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::graph::expression::{Expression, ExpressionContext};
-use crate::config::test_config::test_config;
 
 /// AppendVertices执行器
 /// 用于根据顶点ID获取顶点信息并追加到结果中
@@ -22,6 +20,7 @@ pub struct AppendVerticesExecutor<S: StorageEngine + Send + 'static> {
     /// 源表达式，用于获取顶点ID
     src_expr: Expression,
     /// 要获取的属性列表
+    #[allow(dead_code)]
     props: Vec<String>,
     /// 顶点过滤表达式
     v_filter: Option<Expression>,
@@ -188,7 +187,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         }
 
         // 获取输入结果
-        let input_result = self.base.context.get_result(&self.input_var).unwrap();
+        let _input_result = self.base.context.get_result(&self.input_var).unwrap();
 
         for vid in vids {
             if vid.is_empty() {
@@ -350,8 +349,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for AppendVerticesExecutor<S
 mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::graph::expression::{Expression, VariableExpression};
+    use crate::graph::expression::Expression;
     use crate::storage::NativeStorage;
+    use crate::config::test_config::test_config;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]

@@ -16,13 +16,13 @@ use std::ptr;
 /// Minimum chunk size for arena allocation (4KB)
 const MIN_CHUNK_SIZE: usize = 4096;
 /// Maximum chunk size for arena allocation
-const MAX_CHUNK_SIZE: usize = u16::MAX as usize;
+// const MAX_CHUNK_SIZE: usize = u16::MAX as usize; // 注释掉未使用的常量
 /// Memory alignment for allocations
-const ALIGNMENT: usize = std::mem::align_of::<MaxAlignT>();
+const ALIGNMENT: usize = std::mem::align_of::<usize>(); // 使用usize的对齐方式
 
 /// Type representing maximum alignment
 #[repr(align(16))]
-struct MaxAlignT(u8);
+// struct MaxAlignT(u8); // 注释掉未使用的对齐类型
 
 /// A chunk of memory in the arena
 struct Chunk {

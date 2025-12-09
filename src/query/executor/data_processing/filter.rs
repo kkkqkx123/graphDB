@@ -1,16 +1,16 @@
 use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
-use crate::core::{Value, Vertex, Edge};
 use crate::storage::StorageEngine;
 use crate::query::QueryError;
-use crate::query::executor::base::{Executor, ExecutionResult, ExecutionContext, BaseExecutor, InputExecutor};
+use crate::query::executor::base::{Executor, ExecutionResult, BaseExecutor, InputExecutor};
 
 /// FilterExecutor - 条件过滤执行器
 /// 
 /// 根据指定的条件对输入数据进行过滤，通常用于 WHERE 子句
 pub struct FilterExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
+    #[allow(dead_code)]
     condition: String, // 在实际实现中，这将是一个表达式
     input_executor: Option<Box<dyn Executor<S>>>,
 }

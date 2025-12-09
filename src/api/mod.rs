@@ -21,7 +21,7 @@ pub async fn start_service(config_path: String) -> Result<()> {
     println!("Storage initialized at: {}", config.storage_path);
 
     // Initialize graph service with session management and query execution
-    let graph_service = GraphService::new(config.clone(), storage);
+    let _graph_service = GraphService::new(config.clone(), storage);
     println!("Graph service initialized with session management");
 
     // Start HTTP server (placeholder)

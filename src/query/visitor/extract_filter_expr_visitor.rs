@@ -33,7 +33,7 @@ impl ExtractFilterExprVisitor {
         // 简化实现：将所有二元操作符表达式视为过滤表达式
         match expr {
             // AND操作通常包含多个过滤条件
-            Expression::BinaryOp(left, op, right) => {
+            Expression::BinaryOp(left, _op, right) => {
                 if self.is_top_level || !self.top_level_only {
                     // 如果在顶层，或者不只提取顶层，则继续遍历子表达式
                     self.visit_with_updated_level(left)?;

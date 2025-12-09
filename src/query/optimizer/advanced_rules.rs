@@ -3,7 +3,7 @@
 
 use super::optimizer::OptimizerError;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+use crate::query::planner::plan::{PlanNodeKind};
 
 // Rule to push filters down expand operations
 #[derive(Debug)]
@@ -17,13 +17,11 @@ impl OptRule for PushFilterDownExpandRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Check if this node is a filter and has an expand as its child
-        if node.plan_node.kind() == PlanNodeKind::Filter {
-            // Implementation for pushing filter down expand operations
-            // For now, return None indicating no transformation was made
-        }
+        // Implementation for pushing filter down expand operations
+        // For now, return None indicating no transformation was made
         Ok(None)
     }
 
@@ -46,7 +44,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing edge index scan by filter
         Ok(None)
@@ -69,7 +67,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for optimizing tag index scan by filter
         Ok(None)
@@ -92,7 +90,7 @@ impl OptRule for PushLimitDownRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing limit down various operations
         Ok(None)
@@ -115,7 +113,7 @@ impl OptRule for PushFilterDownTraverseRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing filters down traverse operations
         Ok(None)
@@ -141,7 +139,7 @@ impl OptRule for CombineFilterRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for combining multiple filter operations
         Ok(None)
@@ -166,7 +164,7 @@ impl OptRule for EliminateFilterRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for eliminating redundant filter operations
         Ok(None)
@@ -189,7 +187,7 @@ impl OptRule for CollapseProjectRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for collapsing multiple project operations
         Ok(None)
@@ -215,7 +213,7 @@ impl OptRule for EliminateAppendVerticesRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for eliminating redundant append vertices operations
         Ok(None)
@@ -238,7 +236,7 @@ impl OptRule for MergeGetVerticesAndProjectRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for merging get vertices and project operations
         Ok(None)

@@ -3,7 +3,7 @@
 
 use super::optimizer::OptimizerError;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+use crate::query::planner::plan::PlanNodeKind;
 
 // Rule for pushing filter down hash inner join
 #[derive(Debug)]
@@ -17,7 +17,7 @@ impl OptRule for PushFilterDownHashInnerJoinRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing filter down hash inner join operations
         Ok(None)
@@ -43,7 +43,7 @@ impl OptRule for PushFilterDownHashLeftJoinRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing filter down hash left join operations
         Ok(None)
@@ -69,7 +69,7 @@ impl OptRule for PushFilterDownInnerJoinRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for pushing filter down inner join operations
         Ok(None)
@@ -95,7 +95,7 @@ impl OptRule for MergeGetVerticesAndDedupRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for merging get vertices and dedup operations
         Ok(None)
@@ -121,7 +121,7 @@ impl OptRule for MergeGetVerticesAndProjectRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for merging get vertices and project operations
         Ok(None)
@@ -147,7 +147,7 @@ impl OptRule for MergeGetNbrsAndDedupRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for merging get neighbors and dedup operations
         Ok(None)
@@ -173,7 +173,7 @@ impl OptRule for MergeGetNbrsAndProjectRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for merging get neighbors and project operations
         Ok(None)
@@ -199,7 +199,7 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // Implementation for removing append vertices operations below join
         Ok(None)

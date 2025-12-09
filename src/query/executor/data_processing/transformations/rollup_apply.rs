@@ -403,7 +403,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for RollUpApplyExecutor<S> {
 mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::graph::expression::{Expression, LiteralExpression, InputPropertyExpression};
+    use crate::graph::expression::Expression;
     use crate::storage::NativeStorage;
     use crate::config::test_config::test_config;
     use std::sync::{Arc, Mutex};

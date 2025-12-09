@@ -99,7 +99,7 @@ impl ResultBuilder {
         let value = self.value.unwrap_or(Value::Null(NullType::Null));
         
         // 使用完整构造方法创建结果
-        let mut result = Result::with_components(
+        let result = Result::with_components(
             value,
             self.state,
             self.msg,

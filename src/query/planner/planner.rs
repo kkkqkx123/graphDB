@@ -27,6 +27,7 @@ pub trait Planner: std::fmt::Debug {
 // Sequential planner that handles sequential execution of statements
 #[derive(Debug)]
 pub struct SequentialPlanner {
+    #[allow(dead_code)]
     planners: Vec<MatchAndInstantiate>,
 }
 

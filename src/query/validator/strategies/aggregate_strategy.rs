@@ -7,9 +7,7 @@ use super::super::validation_interface::{
     ValidationStrategy, ValidationStrategyType,
 };
 use super::agg_functions::AggFunctionMeta;
-use crate::graph::expression::binary::BinaryOperator;
 use crate::graph::expression::expr_type::Expression;
-use crate::graph::expression::unary::UnaryOperator;
 
 /// 聚合验证策略
 pub struct AggregateValidationStrategy;
@@ -368,6 +366,8 @@ impl ValidationStrategy for AggregateValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph::expression::binary::BinaryOperator;
+    use crate::graph::expression::unary::UnaryOperator;
     use crate::graph::expression::expr_type::Expression;
 
     #[test]

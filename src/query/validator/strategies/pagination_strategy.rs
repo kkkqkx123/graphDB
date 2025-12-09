@@ -120,7 +120,7 @@ impl PaginationValidationStrategy {
     /// 验证排序子句
     pub fn validate_order_by(
         &self,
-        factors: &[Expression], // 排序因子
+        _factors: &[Expression], // 排序因子
         yield_columns: &[YieldColumn],
         context: &OrderByClauseContext,
     ) -> Result<(), ValidationError> {

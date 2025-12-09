@@ -5,7 +5,6 @@
 use super::super::validation_interface::*;
 use super::super::structs::*;
 use crate::graph::expression::expr_type::Expression;
-use std::collections::HashMap;
 
 /// 子句验证策略
 pub struct ClauseValidationStrategy;
@@ -167,7 +166,7 @@ impl ClauseValidationStrategy {
     pub fn build_outputs(&self, paths: &mut Vec<Path>) -> Result<(), ValidationError> {
         // 构建查询输出，包括列名和类型
         // 这里会根据路径信息构建最终的输出格式
-        for path in paths {
+        for _path in paths {
             // 为每个路径构建输出信息
             // 在实际实现中，这里会构建具体的输出格式
         }
@@ -224,13 +223,13 @@ impl ClauseValidationStrategy {
         // 检查路径、别名等的有效性
         
         // 验证路径
-        for path in &context.paths {
+        for _path in &context.paths {
             // 验证路径结构
             // 在实际实现中，这里会进行更详细的路径验证
         }
         
         // 验证WHERE子句（如果存在）
-        if let Some(ref where_clause) = context.where_clause {
+        if let Some(ref _where_clause) = context.where_clause {
             // 验证WHERE子句
             // 在实际实现中，这里会进行更详细的WHERE子句验证
         }
@@ -254,7 +253,7 @@ impl ValidationStrategy for ClauseValidationStrategy {
                     BoundaryClauseContext::With(with_ctx) => {
                         self.validate_yield_clause(&with_ctx.yield_clause)?;
                     }
-                    BoundaryClauseContext::Unwind(unwind_ctx) => {
+                    BoundaryClauseContext::Unwind(_unwind_ctx) => {
                         // UNWIND子句的验证在表达式策略中处理
                     }
                 }
@@ -276,6 +275,7 @@ impl ValidationStrategy for ClauseValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use crate::graph::expression::expr_type::Expression;
     
     #[test]

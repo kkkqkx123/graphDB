@@ -36,6 +36,7 @@ pub enum StatType {
 #[derive(Debug)]
 struct QueryStats {
     slow_query_threshold_us: u64,
+    #[allow(dead_code)]
     enable_space_level_metrics: bool,
 }
 
@@ -230,16 +231,18 @@ mod tests {
         let stats = GraphStats::new();
 
         stats.record_session_opened();
-        let (opened, active, failed, reclaimed) = stats.get_session_stats();
+        let (opened, _active, failed, _reclaimed) = stats.get_session_stats();
         assert_eq!(opened, 1);
         assert_eq!(failed, 0);
 
         stats.record_auth_failure();
-        let (opened, active, failed, reclaimed) = stats.get_session_stats();
+        let (opened, _active, failed, _reclaimed) = stats.get_session_stats();
         assert_eq!(failed, 1);
+        assert_eq!(opened, 1);
 
         stats.record_expired_session_reclaimed();
-        let (opened, active, failed, reclaimed) = stats.get_session_stats();
+        let (opened, _active, _failed, reclaimed) = stats.get_session_stats();
         assert_eq!(reclaimed, 1);
+        assert_eq!(opened, 1);
     }
 }

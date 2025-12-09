@@ -18,7 +18,7 @@ pub mod expression_context;
 
 pub use ast_context::*;
 pub use validate::*;
-pub use request_context::*;
-pub use query_context::*;
+pub use request_context::RequestContext;
+pub use query_context::{QueryContext, SchemaManager};
 pub use execution_context::{QueryExecutionContext};
 pub use expression_context::*;

@@ -2,7 +2,6 @@
 //!
 //! 实现基于哈希的内连接算法，支持单键和多键连接
 
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
@@ -10,7 +9,7 @@ use crate::core::{Value, DataSet};
 use crate::storage::StorageEngine;
 use crate::query::executor::base::{Executor, ExecutionResult};
 use crate::query::QueryError;
-use crate::query::executor::data_processing::join::base_join::{BaseJoinExecutor, JoinOperation};
+use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::data_processing::join::hash_table::{HashTableBuilder, HashTableProbe, SingleKeyHashTable, MultiKeyHashTable};
 
 /// 内连接执行器
@@ -257,8 +256,6 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for HashInnerJoinExecutor<S>
 mod tests {
     use super::*;
     use crate::core::Value;
-    use std::collections::HashMap;
-    use crate::query::executor::base::ExecutionContext;
 
     // 模拟存储引擎
     struct MockStorage;

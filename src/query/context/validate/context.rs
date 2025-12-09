@@ -4,7 +4,7 @@
 use super::basic_context::BasicValidateContext;
 use super::generators::{AnonColGenerator, AnonVarGenerator, GeneratorFactory};
 use super::schema::{SchemaInfo, SchemaProvider};
-use super::types::{ColsDef, SpaceInfo, Variable, Column};
+use super::types::{ColsDef, SpaceInfo, Variable};
 use crate::core::symbol::SymbolTable;
 use crate::core::Value;
 use std::collections::HashMap;
@@ -421,7 +421,7 @@ impl Default for ValidateContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
+    use super::super::types::Column;
 
     struct MockSchemaProvider;
 
@@ -548,7 +548,7 @@ mod tests {
 
     #[test]
     fn test_generators() {
-        let mut ctx = ValidateContext::new();
+        let ctx = ValidateContext::new();
 
         // 测试生成器
         let var1 = ctx.generate_anon_var();
