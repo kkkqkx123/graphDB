@@ -1,9 +1,8 @@
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use crate::api::session::{GraphSessionManager, ClientSession};
 use crate::api::service::QueryEngine;
-use crate::storage::NativeStorage;
+use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
+use crate::storage::NativeStorage;
+use std::sync::Arc;
 
 pub struct GraphService {
     session_manager: Arc<GraphSessionManager>,
@@ -23,7 +22,11 @@ impl GraphService {
         })
     }
 
-    pub async fn authenticate(&self, username: &str, password: &str) -> Result<Arc<ClientSession>, String> {
+    pub async fn authenticate(
+        &self,
+        username: &str,
+        password: &str,
+    ) -> Result<Arc<ClientSession>, String> {
         // In a real implementation, you would verify the username and password
         // For now, we'll just create a session if the credentials are non-empty
         if username.is_empty() || password.is_empty() {
@@ -70,10 +73,10 @@ impl GraphService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
-    use tempfile::TempDir;
     use crate::config::Config;
     use crate::storage::NativeStorage;
+    use std::sync::Arc;
+    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_graph_service_creation() {
@@ -143,7 +146,10 @@ mod tests {
         let graph_service = GraphService::new(config, storage);
 
         // First authenticate to get a session
-        let session = graph_service.authenticate("testuser", "password").await.unwrap();
+        let session = graph_service
+            .authenticate("testuser", "password")
+            .await
+            .unwrap();
         let session_id = session.id();
 
         // Try to execute a query (this will likely fail due to unsupported query, but should not panic)

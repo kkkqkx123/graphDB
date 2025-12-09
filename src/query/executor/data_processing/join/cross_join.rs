@@ -2,14 +2,14 @@
 //!
 //! 实现笛卡尔积（交叉连接）算法，支持多表连接
 
-use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
 
-use crate::core::{Value, DataSet};
-use crate::storage::StorageEngine;
-use crate::query::executor::base::{Executor, ExecutionResult};
-use crate::query::QueryError;
+use crate::core::{DataSet, Value};
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
+use crate::query::QueryError;
+use crate::storage::StorageEngine;
 
 /// 笛卡尔积执行器
 pub struct CrossJoinExecutor<S: StorageEngine> {
@@ -69,12 +69,18 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
     /// 执行多表笛卡尔积
     fn execute_multi_way_cartesian_product(&self) -> Result<DataSet, QueryError> {
         if self.input_vars.len() < 2 {
-            return Err(QueryError::ExecutionError("笛卡尔积需要至少两个输入".to_string()));
+            return Err(QueryError::ExecutionError(
+                "笛卡尔积需要至少两个输入".to_string(),
+            ));
         }
 
         // 获取第一个数据集作为初始结果
         let first_var = &self.input_vars[0];
-        let first_result = self.base_executor.get_base().context.get_result(first_var)
+        let first_result = self
+            .base_executor
+            .get_base()
+            .context
+            .get_result(first_var)
             .ok_or_else(|| QueryError::ExecutionError(format!("找不到输入变量: {}", first_var)))?;
 
         let first_dataset = match first_result {
@@ -82,17 +88,27 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
                 if let Some(Value::DataSet(dataset)) = values.first() {
                     dataset.clone()
                 } else {
-                    return Err(QueryError::ExecutionError("第一个输入不是有效的数据集".to_string()));
+                    return Err(QueryError::ExecutionError(
+                        "第一个输入不是有效的数据集".to_string(),
+                    ));
                 }
-            },
-            _ => return Err(QueryError::ExecutionError("第一个输入不是有效的数据集".to_string())),
+            }
+            _ => {
+                return Err(QueryError::ExecutionError(
+                    "第一个输入不是有效的数据集".to_string(),
+                ))
+            }
         };
 
         // 依次与其他数据集进行笛卡尔积
         let mut current_result = first_dataset;
         for i in 1..self.input_vars.len() {
             let var = &self.input_vars[i];
-            let result = self.base_executor.get_base().context.get_result(var)
+            let result = self
+                .base_executor
+                .get_base()
+                .context
+                .get_result(var)
                 .ok_or_else(|| QueryError::ExecutionError(format!("找不到输入变量: {}", var)))?;
 
             let dataset = match result {
@@ -100,10 +116,18 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
                     if let Some(Value::DataSet(dataset)) = values.first() {
                         dataset.clone()
                     } else {
-                        return Err(QueryError::ExecutionError(format!("输入变量 {} 不是有效的数据集", var)));
+                        return Err(QueryError::ExecutionError(format!(
+                            "输入变量 {} 不是有效的数据集",
+                            var
+                        )));
                     }
-                },
-                _ => return Err(QueryError::ExecutionError(format!("输入变量 {} 不是有效的数据集", var))),
+                }
+                _ => {
+                    return Err(QueryError::ExecutionError(format!(
+                        "输入变量 {} 不是有效的数据集",
+                        var
+                    )))
+                }
             };
 
             // 执行当前结果与新数据集的笛卡尔积
@@ -120,13 +144,19 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
     /// 优化的笛卡尔积实现（使用迭代器避免中间结果集）
     fn execute_optimized_cartesian_product(&self) -> Result<DataSet, QueryError> {
         if self.input_vars.len() < 2 {
-            return Err(QueryError::ExecutionError("笛卡尔积需要至少两个输入".to_string()));
+            return Err(QueryError::ExecutionError(
+                "笛卡尔积需要至少两个输入".to_string(),
+            ));
         }
 
         // 获取所有输入数据集
         let mut datasets = Vec::new();
         for var in &self.input_vars {
-            let result = self.base_executor.get_base().context.get_result(var)
+            let result = self
+                .base_executor
+                .get_base()
+                .context
+                .get_result(var)
                 .ok_or_else(|| QueryError::ExecutionError(format!("找不到输入变量: {}", var)))?;
 
             let dataset = match result {
@@ -134,10 +164,18 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
                     if let Some(Value::DataSet(dataset)) = values.first() {
                         dataset.clone()
                     } else {
-                        return Err(QueryError::ExecutionError(format!("输入变量 {} 不是有效的数据集", var)));
+                        return Err(QueryError::ExecutionError(format!(
+                            "输入变量 {} 不是有效的数据集",
+                            var
+                        )));
                     }
-                },
-                _ => return Err(QueryError::ExecutionError(format!("输入变量 {} 不是有效的数据集", var))),
+                }
+                _ => {
+                    return Err(QueryError::ExecutionError(format!(
+                        "输入变量 {} 不是有效的数据集",
+                        var
+                    )))
+                }
             };
 
             datasets.push(dataset);
@@ -155,10 +193,10 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
 
         // 计算结果集大小
         let total_size: usize = datasets.iter().map(|ds| ds.rows.len()).product();
-        
+
         let mut result = DataSet::new();
         result.col_names = self.base_executor.get_col_names().clone();
-        
+
         if total_size > 0 {
             result.rows.reserve(total_size);
         }
@@ -201,21 +239,39 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
             let left_var = &self.input_vars[0];
             let right_var = &self.input_vars[1];
 
-            let left_result = self.base_executor.get_base().context.get_result(left_var)
-                .ok_or_else(|| QueryError::ExecutionError(format!("找不到左输入变量: {}", left_var)))?;
+            let left_result = self
+                .base_executor
+                .get_base()
+                .context
+                .get_result(left_var)
+                .ok_or_else(|| {
+                    QueryError::ExecutionError(format!("找不到左输入变量: {}", left_var))
+                })?;
 
-            let right_result = self.base_executor.get_base().context.get_result(right_var)
-                .ok_or_else(|| QueryError::ExecutionError(format!("找不到右输入变量: {}", right_var)))?;
+            let right_result = self
+                .base_executor
+                .get_base()
+                .context
+                .get_result(right_var)
+                .ok_or_else(|| {
+                    QueryError::ExecutionError(format!("找不到右输入变量: {}", right_var))
+                })?;
 
             let left_dataset = match left_result {
                 ExecutionResult::Values(values) => {
                     if let Some(Value::DataSet(dataset)) = values.first() {
                         dataset.clone()
                     } else {
-                        return Err(QueryError::ExecutionError("左输入不是有效的数据集".to_string()));
+                        return Err(QueryError::ExecutionError(
+                            "左输入不是有效的数据集".to_string(),
+                        ));
                     }
-                },
-                _ => return Err(QueryError::ExecutionError("左输入不是有效的数据集".to_string())),
+                }
+                _ => {
+                    return Err(QueryError::ExecutionError(
+                        "左输入不是有效的数据集".to_string(),
+                    ))
+                }
             };
 
             let right_dataset = match right_result {
@@ -223,10 +279,16 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
                     if let Some(Value::DataSet(dataset)) = values.first() {
                         dataset.clone()
                     } else {
-                        return Err(QueryError::ExecutionError("右输入不是有效的数据集".to_string()));
+                        return Err(QueryError::ExecutionError(
+                            "右输入不是有效的数据集".to_string(),
+                        ));
                     }
-                },
-                _ => return Err(QueryError::ExecutionError("右输入不是有效的数据集".to_string())),
+                }
+                _ => {
+                    return Err(QueryError::ExecutionError(
+                        "右输入不是有效的数据集".to_string(),
+                    ))
+                }
             };
 
             self.execute_two_way_cartesian_product(&left_dataset, &right_dataset)?
@@ -261,23 +323,73 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
 mod tests {
     use super::*;
     use crate::core::Value;
-    use std::collections::HashMap;
     use crate::query::executor::base::ExecutionContext;
+    use std::collections::HashMap;
 
     // 模拟存储引擎
     struct MockStorage;
-    impl crate::storage::StorageEngine for MockStorage {}
+    
+    impl crate::storage::StorageEngine for MockStorage {
+        fn insert_node(&mut self, _vertex: crate::core::vertex_edge_path::Vertex) -> Result<crate::core::Value, crate::storage::StorageError> {
+            Ok(crate::core::Value::Null(crate::core::value::NullType::NaN))
+        }
+        
+        fn get_node(&self, _id: &crate::core::Value) -> Result<Option<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+            Ok(None)
+        }
+        
+        fn update_node(&mut self, _vertex: crate::core::vertex_edge_path::Vertex) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        
+        fn delete_node(&mut self, _id: &crate::core::Value) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        
+        fn insert_edge(&mut self, _edge: crate::core::vertex_edge_path::Edge) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        
+        fn get_edge(&self, _src: &crate::core::Value, _dst: &crate::core::Value, _edge_type: &str) -> Result<Option<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError> {
+            Ok(None)
+        }
+        
+        fn get_node_edges(&self, _node_id: &crate::core::Value, _direction: crate::core::vertex_edge_path::Direction) -> Result<Vec<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+        
+        fn delete_edge(&mut self, _src: &crate::core::Value, _dst: &crate::core::Value, _edge_type: &str) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        
+        fn begin_transaction(&mut self) -> Result<u64, crate::storage::StorageError> {
+            Ok(1)
+        }
+        
+        fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        
+        fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+    }
 
     #[tokio::test]
     async fn test_cross_join_two_tables() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建执行器
         let mut executor = CrossJoinExecutor::new(
             1,
             storage,
             vec!["left".to_string(), "right".to_string()],
-            vec!["id".to_string(), "name".to_string(), "age".to_string(), "city".to_string()],
+            vec![
+                "id".to_string(),
+                "name".to_string(),
+                "age".to_string(),
+                "city".to_string(),
+            ],
         );
 
         // 设置执行上下文
@@ -297,12 +409,12 @@ mod tests {
             ],
         };
 
-        executor.base_executor.base.context.set_result(
+        executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
         );
 
-        executor.base_executor.base.context.set_result(
+        executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
@@ -315,26 +427,32 @@ mod tests {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
                     assert_eq!(dataset.rows.len(), 4); // 2 * 2 = 4 行结果
-                    
+
                     // 验证第一行
-                    assert_eq!(dataset.rows[0], vec![
-                        Value::Int(1),
-                        Value::String("Alice".to_string()),
-                        Value::Int(25),
-                        Value::String("New York".to_string()),
-                    ]);
-                    
+                    assert_eq!(
+                        dataset.rows[0],
+                        vec![
+                            Value::Int(1),
+                            Value::String("Alice".to_string()),
+                            Value::Int(25),
+                            Value::String("New York".to_string()),
+                        ]
+                    );
+
                     // 验证最后一行
-                    assert_eq!(dataset.rows[3], vec![
-                        Value::Int(2),
-                        Value::String("Bob".to_string()),
-                        Value::Int(30),
-                        Value::String("London".to_string()),
-                    ]);
+                    assert_eq!(
+                        dataset.rows[3],
+                        vec![
+                            Value::Int(2),
+                            Value::String("Bob".to_string()),
+                            Value::Int(30),
+                            Value::String("London".to_string()),
+                        ]
+                    );
                 } else {
                     panic!("期望DataSet结果");
                 }
-            },
+            }
             _ => panic!("期望Values结果"),
         }
     }
@@ -342,7 +460,7 @@ mod tests {
     #[tokio::test]
     async fn test_cross_join_empty_table() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建执行器
         let mut executor = CrossJoinExecutor::new(
             1,
@@ -354,9 +472,7 @@ mod tests {
         // 设置执行上下文
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
-            rows: vec![
-                vec![Value::Int(1), Value::String("Alice".to_string())],
-            ],
+            rows: vec![vec![Value::Int(1), Value::String("Alice".to_string())]],
         };
 
         let right_dataset = DataSet {
@@ -364,12 +480,12 @@ mod tests {
             rows: Vec::new(), // 空右表
         };
 
-        executor.base_executor.base.context.set_result(
+        executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
         );
 
-        executor.base_executor.base.context.set_result(
+        executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
@@ -385,7 +501,7 @@ mod tests {
                 } else {
                     panic!("期望DataSet结果");
                 }
-            },
+            }
             _ => panic!("期望Values结果"),
         }
     }
@@ -393,13 +509,24 @@ mod tests {
     #[tokio::test]
     async fn test_cross_join_three_tables() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建执行器
         let mut executor = CrossJoinExecutor::new(
             1,
             storage,
-            vec!["table1".to_string(), "table2".to_string(), "table3".to_string()],
-            vec!["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string(), "e".to_string(), "f".to_string()],
+            vec![
+                "table1".to_string(),
+                "table2".to_string(),
+                "table3".to_string(),
+            ],
+            vec![
+                "a".to_string(),
+                "b".to_string(),
+                "c".to_string(),
+                "d".to_string(),
+                "e".to_string(),
+                "f".to_string(),
+            ],
         );
 
         // 设置执行上下文
@@ -418,17 +545,17 @@ mod tests {
             rows: vec![vec![Value::Int(4), Value::Int(5), Value::Int(6)]],
         };
 
-        executor.base_executor.base.context.set_result(
+        executor.base_executor.get_base_mut().context.set_result(
             "table1".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(table1)]),
         );
 
-        executor.base_executor.base.context.set_result(
+        executor.base_executor.get_base_mut().context.set_result(
             "table2".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(table2)]),
         );
 
-        executor.base_executor.base.context.set_result(
+        executor.base_executor.get_base_mut().context.set_result(
             "table3".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(table3)]),
         );
@@ -441,14 +568,21 @@ mod tests {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
                     assert_eq!(dataset.rows.len(), 1); // 1 * 1 * 1 = 1 行结果
-                    assert_eq!(dataset.rows[0], vec![
-                        Value::Int(1), Value::Int(2), Value::Int(3), 
-                        Value::Int(4), Value::Int(5), Value::Int(6)
-                    ]);
+                    assert_eq!(
+                        dataset.rows[0],
+                        vec![
+                            Value::Int(1),
+                            Value::Int(2),
+                            Value::Int(3),
+                            Value::Int(4),
+                            Value::Int(5),
+                            Value::Int(6)
+                        ]
+                    );
                 } else {
                     panic!("期望DataSet结果");
                 }
-            },
+            }
             _ => panic!("期望Values结果"),
         }
     }

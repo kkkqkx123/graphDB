@@ -309,7 +309,52 @@ mod tests {
 
     // 模拟存储引擎
     struct MockStorage;
-    impl crate::storage::StorageEngine for MockStorage {}
+    
+    impl crate::storage::StorageEngine for MockStorage {
+        fn insert_node(&mut self, _vertex: crate::core::vertex_edge_path::Vertex) -> Result<crate::core::Value, crate::storage::StorageError> {
+            Ok(crate::core::Value::Null(crate::core::value::NullType::NaN))
+        }
+        
+        fn get_node(&self, _id: &crate::core::Value) -> Result<Option<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+            Ok(None)
+        }
+        
+        fn update_node(&mut self, _vertex: crate::core::vertex_edge_path::Vertex) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        
+        fn delete_node(&mut self, _id: &crate::core::Value) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        
+        fn insert_edge(&mut self, _edge: crate::core::vertex_edge_path::Edge) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        
+        fn get_edge(&self, _src: &crate::core::Value, _dst: &crate::core::Value, _edge_type: &str) -> Result<Option<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError> {
+            Ok(None)
+        }
+        
+        fn get_node_edges(&self, _node_id: &crate::core::Value, _direction: crate::core::vertex_edge_path::Direction) -> Result<Vec<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+        
+        fn delete_edge(&mut self, _src: &crate::core::Value, _dst: &crate::core::Value, _edge_type: &str) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        
+        fn begin_transaction(&mut self) -> Result<u64, crate::storage::StorageError> {
+            Ok(1)
+        }
+        
+        fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        
+        fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+    }
 
     #[tokio::test]
     async fn test_left_join_single_key() {
@@ -344,12 +389,12 @@ mod tests {
             ],
         };
 
-        executor.base_executor.base.context.set_result(
+        executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
         );
 
-        executor.base_executor.base.context.set_result(
+        executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
@@ -418,12 +463,12 @@ mod tests {
             rows: Vec::new(), // 空右表
         };
 
-        executor.base_executor.base.context.set_result(
+        executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
         );
 
-        executor.base_executor.base.context.set_result(
+        executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );

@@ -8,17 +8,23 @@
 //! 基于nebula-graph的join实现，使用哈希连接算法优化性能
 
 pub mod base_join;
+pub mod cross_join;
 pub mod hash_table;
 pub mod inner_join;
 pub mod left_join;
-pub mod cross_join;
 
 // 重新导出主要类型
-pub use base_join::{BaseJoinExecutor, JoinOperation, InnerJoinOperation, LeftJoinOperation, CartesianProductOperation};
-pub use hash_table::{JoinKey, SingleKeyHashTable, MultiKeyHashTable, HashTableBuilder, HashTableProbe, HashTableStats};
-pub use inner_join::{InnerJoinExecutor, HashInnerJoinExecutor};
-pub use left_join::{LeftJoinExecutor, HashLeftJoinExecutor};
+pub use base_join::{
+    BaseJoinExecutor, CartesianProductOperation, InnerJoinOperation, JoinOperation,
+    LeftJoinOperation,
+};
 pub use cross_join::CrossJoinExecutor;
+pub use hash_table::{
+    HashTableBuilder, HashTableProbe, HashTableStats, JoinKey, MultiKeyHashTable,
+    SingleKeyHashTable,
+};
+pub use inner_join::{HashInnerJoinExecutor, InnerJoinExecutor};
+pub use left_join::{HashLeftJoinExecutor, LeftJoinExecutor};
 
 /// Join操作的类型枚举
 #[derive(Debug, Clone, PartialEq)]
@@ -98,10 +104,7 @@ impl JoinConfig {
     }
 
     /// 创建笛卡尔积配置
-    pub fn cross_join(
-        input_vars: Vec<String>,
-        output_columns: Vec<String>,
-    ) -> Self {
+    pub fn cross_join(input_vars: Vec<String>, output_columns: Vec<String>) -> Self {
         Self {
             join_type: JoinType::Cross,
             left_var: String::new(),
@@ -160,7 +163,7 @@ impl JoinExecutorFactory {
                         config.output_columns,
                     )))
                 }
-            },
+            }
             JoinType::Left => {
                 if config.enable_parallel {
                     Ok(Box::new(HashLeftJoinExecutor::new(
@@ -183,28 +186,29 @@ impl JoinExecutorFactory {
                         config.output_columns,
                     )))
                 }
-            },
+            }
             JoinType::Cross => {
                 // 笛卡尔积需要特殊处理，因为可能有多个输入
                 let input_vars = if config.left_var.is_empty() && config.right_var.is_empty() {
                     // 从配置中无法获取，需要外部提供
                     return Err(crate::query::QueryError::ExecutionError(
-                        "笛卡尔积需要提供输入变量列表".to_string()
+                        "笛卡尔积需要提供输入变量列表".to_string(),
                     ));
                 } else {
                     vec![config.left_var, config.right_var]
                 };
-                
+
                 Ok(Box::new(CrossJoinExecutor::new(
                     id,
                     storage,
                     input_vars,
                     config.output_columns,
                 )))
-            },
-            _ => Err(crate::query::QueryError::ExecutionError(
-                format!("不支持的join类型: {:?}", config.join_type)
-            )),
+            }
+            _ => Err(crate::query::QueryError::ExecutionError(format!(
+                "不支持的join类型: {:?}",
+                config.join_type
+            ))),
         }
     }
 }
@@ -212,23 +216,79 @@ impl JoinExecutorFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
+    use crate::core::{Direction, Value};
     use std::sync::{Arc, Mutex};
 
     // 模拟存储引擎
     struct MockStorage;
     impl crate::storage::StorageEngine for MockStorage {
-        fn insert_node(&self, _node: crate::core::Vertex) -> Result<(), crate::storage::StorageError> { Ok(()) }
-        fn get_node(&self, _id: &crate::core::VertexId) -> Result<Option<crate::core::Vertex>, crate::storage::StorageError> { Ok(None) }
-        fn update_node(&self, _node: crate::core::Vertex) -> Result<(), crate::storage::StorageError> { Ok(()) }
-        fn delete_node(&self, _id: &crate::core::VertexId) -> Result<bool, crate::storage::StorageError> { Ok(false) }
-        fn insert_edge(&self, _edge: crate::core::Edge) -> Result<(), crate::storage::StorageError> { Ok(()) }
-        fn get_edge(&self, _src: &crate::core::VertexId, _dst: &crate::core::VertexId, _type: &str) -> Result<Option<crate::core::Edge>, crate::storage::StorageError> { Ok(None) }
-        fn get_node_edges(&self, _id: &crate::core::VertexId, _direction: crate::storage::EdgeDirection) -> Result<Vec<crate::core::Edge>, crate::storage::StorageError> { Ok(Vec::new()) }
-        fn delete_edge(&self, _src: &crate::core::VertexId, _dst: &crate::core::VertexId, _type: &str) -> Result<bool, crate::storage::StorageError> { Ok(false) }
-        fn begin_transaction(&self) -> Result<crate::storage::TransactionId, crate::storage::StorageError> { Ok(0) }
-        fn commit_transaction(&self, _tx_id: crate::storage::TransactionId) -> Result<(), crate::storage::StorageError> { Ok(()) }
-        fn rollback_transaction(&self, _tx_id: crate::storage::TransactionId) -> Result<(), crate::storage::StorageError> { Ok(()) }
+        fn insert_node(
+            &mut self,
+            _node: crate::core::Vertex,
+        ) -> Result<Value, crate::storage::StorageError> {
+            Ok(Value::Empty)
+        }
+        fn get_node(
+            &self,
+            _id: &Value,
+        ) -> Result<Option<crate::core::Vertex>, crate::storage::StorageError> {
+            Ok(None)
+        }
+        fn update_node(
+            &mut self,
+            _node: crate::core::Vertex,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        fn delete_node(&mut self, _id: &Value) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        fn insert_edge(
+            &mut self,
+            _edge: crate::core::Edge,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        fn get_edge(
+            &self,
+            _src: &Value,
+            _dst: &Value,
+            _edge_type: &str,
+        ) -> Result<Option<crate::core::Edge>, crate::storage::StorageError> {
+            Ok(None)
+        }
+        fn get_node_edges(
+            &self,
+            _id: &Value,
+            _direction: Direction,
+        ) -> Result<Vec<crate::core::Edge>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+        fn delete_edge(
+            &mut self,
+            _src: &Value,
+            _dst: &Value,
+            _edge_type: &str,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        fn begin_transaction(
+            &mut self,
+        ) -> Result<crate::storage::TransactionId, crate::storage::StorageError> {
+            Ok(0)
+        }
+        fn commit_transaction(
+            &mut self,
+            _tx_id: crate::storage::TransactionId,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+        fn rollback_transaction(
+            &mut self,
+            _tx_id: crate::storage::TransactionId,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
     }
 
     #[test]
@@ -239,7 +299,8 @@ mod tests {
             vec!["0".to_string()],
             vec!["0".to_string()],
             vec!["id".to_string(), "name".to_string()],
-        ).with_parallel(true);
+        )
+        .with_parallel(true);
 
         assert_eq!(config.join_type, JoinType::Inner);
         assert_eq!(config.left_var, "left");
@@ -250,7 +311,7 @@ mod tests {
     #[test]
     fn test_join_executor_factory() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         let config = JoinConfig::inner_join(
             "left".to_string(),
             "right".to_string(),

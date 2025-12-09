@@ -219,6 +219,11 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     pub fn get_base(&self) -> &BaseExecutor<S> {
         &self.base
     }
+
+    /// 获取可变的基础执行器
+    pub fn get_base_mut(&mut self) -> &mut BaseExecutor<S> {
+        &mut self.base
+    }
 }
 
 /// Join操作的通用trait
