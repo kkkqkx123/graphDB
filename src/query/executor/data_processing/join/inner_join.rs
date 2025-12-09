@@ -1,0 +1,329 @@
+//! 内连接执行器实现
+//!
+//! 实现基于哈希的内连接算法，支持单键和多键连接
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use async_trait::async_trait;
+
+use crate::core::{Value, DataSet};
+use crate::storage::StorageEngine;
+use crate::query::executor::base::{Executor, ExecutionResult};
+use crate::query::QueryError;
+use crate::query::executor::data_processing::join::base_join::{BaseJoinExecutor, JoinOperation};
+use crate::query::executor::data_processing::join::hash_table::{HashTableBuilder, HashTableProbe, SingleKeyHashTable, MultiKeyHashTable};
+
+/// 内连接执行器
+pub struct InnerJoinExecutor<S: StorageEngine> {
+    base_executor: BaseJoinExecutor<S>,
+    /// 哈希表（用于单键连接）
+    single_key_hash_table: Option<SingleKeyHashTable>,
+    /// 多键哈希表（用于多键连接）
+    multi_key_hash_table: Option<MultiKeyHashTable>,
+    /// 是否使用多键连接
+    use_multi_key: bool,
+}
+
+impl<S: StorageEngine> InnerJoinExecutor<S> {
+    pub fn new(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        left_var: String,
+        right_var: String,
+        hash_keys: Vec<String>,
+        probe_keys: Vec<String>,
+        col_names: Vec<String>,
+    ) -> Self {
+        let use_multi_key = hash_keys.len() > 1;
+        Self {
+            base_executor: BaseJoinExecutor::new(
+                id,
+                storage,
+                left_var,
+                right_var,
+                hash_keys,
+                probe_keys,
+                col_names,
+            ),
+            single_key_hash_table: None,
+            multi_key_hash_table: None,
+            use_multi_key,
+        }
+    }
+
+    /// 执行单键内连接
+    fn execute_single_key_join(
+        &mut self,
+        left_dataset: &DataSet,
+        right_dataset: &DataSet,
+    ) -> Result<DataSet, QueryError> {
+        // 决定是否交换左右输入以优化性能
+        let (build_dataset, probe_dataset, build_key_idx, probe_key_idx, exchange) = 
+            if self.base_executor.should_exchange(left_dataset.rows.len(), right_dataset.rows.len()) {
+                // 交换：右表作为构建表，左表作为探测表
+                (right_dataset, left_dataset, 1, 0, true)
+            } else {
+                // 不交换：左表作为构建表，右表作为探测表
+                (left_dataset, right_dataset, 0, 1, false)
+            };
+
+        // 构建哈希表
+        let hash_table = HashTableBuilder::build_single_key_table(build_dataset, build_key_idx)
+            .map_err(|e| QueryError::ExecutionError(format!("构建哈希表失败: {}", e)))?;
+
+        // 探测哈希表
+        let probe_results = HashTableProbe::probe_single_key(&hash_table, probe_dataset, probe_key_idx);
+
+        // 构建结果集
+        let mut result = DataSet::new();
+        result.col_names = self.base_executor.get_col_names().clone();
+
+        for (probe_row, matching_rows) in probe_results {
+            for build_row in matching_rows {
+                let new_row = if exchange {
+                    // 交换了，探测行是左，构建行是右
+                    self.base_executor.new_row(probe_row.clone(), build_row)
+                } else {
+                    // 未交换，构建行是左，探测行是右
+                    self.base_executor.new_row(build_row, probe_row.clone())
+                };
+                result.rows.push(new_row);
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// 执行多键内连接
+    fn execute_multi_key_join(
+        &mut self,
+        left_dataset: &DataSet,
+        right_dataset: &DataSet,
+    ) -> Result<DataSet, QueryError> {
+        // 解析键索引
+        let mut left_key_indices = Vec::new();
+        let mut right_key_indices = Vec::new();
+
+        for key in self.base_executor.get_hash_keys() {
+            let idx = key.parse::<usize>()
+                .map_err(|_| QueryError::ExecutionError("无效的左键索引".to_string()))?;
+            left_key_indices.push(idx);
+        }
+
+        for key in self.base_executor.get_probe_keys() {
+            let idx = key.parse::<usize>()
+                .map_err(|_| QueryError::ExecutionError("无效的右键索引".to_string()))?;
+            right_key_indices.push(idx);
+        }
+
+        // 决定是否交换左右输入以优化性能
+        let (build_dataset, probe_dataset, build_key_indices, probe_key_indices, exchange) = 
+            if self.base_executor.should_exchange(left_dataset.rows.len(), right_dataset.rows.len()) {
+                // 交换：右表作为构建表，左表作为探测表
+                (right_dataset, left_dataset, &right_key_indices, &left_key_indices, true)
+            } else {
+                // 不交换：左表作为构建表，右表作为探测表
+                (left_dataset, right_dataset, &left_key_indices, &right_key_indices, false)
+            };
+
+        // 构建哈希表
+        let hash_table = HashTableBuilder::build_multi_key_table(build_dataset, build_key_indices)
+            .map_err(|e| QueryError::ExecutionError(format!("构建多键哈希表失败: {}", e)))?;
+
+        // 探测哈希表
+        let probe_results = HashTableProbe::probe_multi_key(&hash_table, probe_dataset, probe_key_indices);
+
+        // 构建结果集
+        let mut result = DataSet::new();
+        result.col_names = self.base_executor.get_col_names().clone();
+
+        for (probe_row, matching_rows) in probe_results {
+            for build_row in matching_rows {
+                let new_row = if exchange {
+                    // 交换了，探测行是左，构建行是右
+                    self.base_executor.new_row(probe_row.clone(), build_row)
+                } else {
+                    // 未交换，构建行是左，探测行是右
+                    self.base_executor.new_row(build_row, probe_row.clone())
+                };
+                result.rows.push(new_row);
+            }
+        }
+
+        Ok(result)
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
+    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        // 检查输入数据集
+        let (left_dataset, right_dataset) = self.base_executor.check_input_datasets()?;
+
+        // 处理空集情况
+        if left_dataset.rows.is_empty() || right_dataset.rows.is_empty() {
+            let empty_result = DataSet {
+                col_names: self.base_executor.get_col_names().clone(),
+                rows: Vec::new(),
+            };
+            return Ok(ExecutionResult::Values(vec![Value::DataSet(empty_result)]));
+        }
+
+        // 根据键的数量选择连接算法
+        let result = if self.use_multi_key {
+            self.execute_multi_key_join(&left_dataset, &right_dataset)?
+        } else {
+            self.execute_single_key_join(&left_dataset, &right_dataset)?
+        };
+
+        Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
+    }
+
+    fn open(&mut self) -> Result<(), QueryError> {
+        // 初始化资源
+        Ok(())
+    }
+
+    fn close(&mut self) -> Result<(), QueryError> {
+        // 清理资源
+        self.single_key_hash_table = None;
+        self.multi_key_hash_table = None;
+        Ok(())
+    }
+
+    fn id(&self) -> usize {
+        self.base_executor.get_base().id
+    }
+
+    fn name(&self) -> &str {
+        &self.base_executor.get_base().name
+    }
+}
+
+/// 哈希内连接执行器（并行版本）
+pub struct HashInnerJoinExecutor<S: StorageEngine> {
+    inner: InnerJoinExecutor<S>,
+}
+
+impl<S: StorageEngine> HashInnerJoinExecutor<S> {
+    pub fn new(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        left_var: String,
+        right_var: String,
+        hash_keys: Vec<String>,
+        probe_keys: Vec<String>,
+        col_names: Vec<String>,
+    ) -> Self {
+        Self {
+            inner: InnerJoinExecutor::new(
+                id,
+                storage,
+                left_var,
+                right_var,
+                hash_keys,
+                probe_keys,
+                col_names,
+            ),
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for HashInnerJoinExecutor<S> {
+    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        // 目前与普通内连接相同，后续可以添加并行处理逻辑
+        self.inner.execute().await
+    }
+
+    fn open(&mut self) -> Result<(), QueryError> {
+        self.inner.open()
+    }
+
+    fn close(&mut self) -> Result<(), QueryError> {
+        self.inner.close()
+    }
+
+    fn id(&self) -> usize {
+        self.inner.id()
+    }
+
+    fn name(&self) -> &str {
+        "HashInnerJoinExecutor"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::Value;
+    use std::collections::HashMap;
+    use crate::query::executor::base::ExecutionContext;
+
+    // 模拟存储引擎
+    struct MockStorage;
+    impl crate::storage::StorageEngine for MockStorage {}
+
+    #[tokio::test]
+    async fn test_inner_join_single_key() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+        
+        // 创建执行器
+        let mut executor = InnerJoinExecutor::new(
+            1,
+            storage,
+            "left".to_string(),
+            "right".to_string(),
+            vec!["0".to_string()], // 左表第0列作为键
+            vec!["0".to_string()], // 右表第0列作为键
+            vec!["id".to_string(), "name".to_string(), "age".to_string()],
+        );
+
+        // 设置执行上下文
+        let left_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![
+                vec![Value::Int(1), Value::String("Alice".to_string())],
+                vec![Value::Int(2), Value::String("Bob".to_string())],
+            ],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["id".to_string(), "age".to_string()],
+            rows: vec![
+                vec![Value::Int(1), Value::Int(25)],
+                vec![Value::Int(3), Value::Int(35)],
+            ],
+        };
+
+        executor.base_executor.base.context.set_result(
+            "left".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+        );
+
+        executor.base_executor.base.context.set_result(
+            "right".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+        );
+
+        // 执行连接
+        let result = executor.execute().await.unwrap();
+
+        // 验证结果
+        match result {
+            ExecutionResult::Values(values) => {
+                if let Some(Value::DataSet(dataset)) = values.first() {
+                    assert_eq!(dataset.rows.len(), 1); // 只有一个匹配
+                    assert_eq!(dataset.rows[0], vec![
+                        Value::Int(1),
+                        Value::String("Alice".to_string()),
+                        Value::Int(25),
+                    ]);
+                } else {
+                    panic!("期望DataSet结果");
+                }
+            },
+            _ => panic!("期望Values结果"),
+        }
+    }
+}
