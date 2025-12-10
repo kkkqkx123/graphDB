@@ -34,6 +34,8 @@ pub enum ExecutionResult {
     Vertices(Vec<Vertex>),
     Edges(Vec<Edge>),
     Values(Vec<Value>),
+    Paths(Vec<crate::core::vertex_edge_path::Path>),
+    DataSet(crate::core::value::DataSet),
     Count(usize),
     Success,
 }
@@ -170,6 +172,8 @@ impl ExecutionResult {
             ExecutionResult::Vertices(v) => v.is_empty(),
             ExecutionResult::Edges(e) => e.is_empty(),
             ExecutionResult::Values(v) => v.is_empty(),
+            ExecutionResult::Paths(p) => p.is_empty(),
+            ExecutionResult::DataSet(ds) => ds.rows.is_empty(),
             ExecutionResult::Count(c) => *c == 0,
             ExecutionResult::Success => false,
         }
@@ -180,6 +184,8 @@ impl ExecutionResult {
             ExecutionResult::Vertices(v) => v.len(),
             ExecutionResult::Edges(e) => e.len(),
             ExecutionResult::Values(v) => v.len(),
+            ExecutionResult::Paths(p) => p.len(),
+            ExecutionResult::DataSet(ds) => ds.rows.len(),
             ExecutionResult::Count(c) => *c,
             ExecutionResult::Success => 0,
         }

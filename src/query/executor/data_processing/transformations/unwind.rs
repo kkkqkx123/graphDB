@@ -203,6 +203,59 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     dataset.rows.push(row);
                 }
             }
+            ExecutionResult::Paths(paths) => {
+                // 处理路径列表
+                for path in paths {
+                    let path_value = Value::Path(path.clone());
+                    expr_context.set_variable("_".to_string(), path_value.clone());
+
+                    let unwind_value = self
+                        .unwind_expr
+                        .evaluate(&expr_context)
+                        .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+
+                    let list_values = self.extract_list(&unwind_value);
+
+                    for list_item in list_values {
+                        let mut row = Vec::new();
+
+                        if !self.from_pipe {
+                            row.push(path_value.clone());
+                        }
+
+                        row.push(list_item);
+
+                        dataset.rows.push(row);
+                    }
+                }
+            }
+            ExecutionResult::DataSet(ds) => {
+                // 处理数据集
+                for row in &ds.rows {
+                    for value in row {
+                        expr_context.set_variable("_".to_string(), value.clone());
+
+                        let unwind_value = self
+                            .unwind_expr
+                            .evaluate(&expr_context)
+                            .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+
+                        let list_values = self.extract_list(&unwind_value);
+
+                        for list_item in list_values {
+                            let mut new_row = Vec::new();
+
+                            if !self.from_pipe {
+                                new_row.push(value.clone());
+                            }
+
+                            new_row.push(list_item);
+
+                            dataset.rows.push(new_row);
+                        }
+                    }
+                }
+            }
             ExecutionResult::Count(_) => {
                 return Err(QueryError::ExecutionError(
                     "Cannot unwind count result".to_string(),
@@ -288,11 +341,20 @@ mod tests {
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 6);
             // UNWIND的模式是：[原始列表, 元素1, 原始列表, 元素2, 原始列表, 元素3]
-            assert_eq!(values[0], Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
+            assert_eq!(
+                values[0],
+                Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)])
+            );
             assert_eq!(values[1], Value::Int(1));
-            assert_eq!(values[2], Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
+            assert_eq!(
+                values[2],
+                Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)])
+            );
             assert_eq!(values[3], Value::Int(2));
-            assert_eq!(values[4], Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
+            assert_eq!(
+                values[4],
+                Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)])
+            );
             assert_eq!(values[5], Value::Int(3));
         } else {
             panic!("Expected Values result");

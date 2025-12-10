@@ -87,6 +87,31 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for TopNExecutor<S> {
                 let top_values = values.into_iter().take(self.n).collect::<Vec<_>>();
                 ExecutionResult::Values(top_values)
             }
+            ExecutionResult::Paths(mut paths) => {
+                // 对路径进行排序（按路径长度或其他标准）
+                if self.ascending {
+                    paths.sort_by(|a, b| a.len().cmp(&b.len()));
+                } else {
+                    paths.sort_by(|a, b| b.len().cmp(&a.len()));
+                }
+                let top_paths = paths.into_iter().take(self.n).collect::<Vec<_>>();
+                ExecutionResult::Paths(top_paths)
+            }
+            ExecutionResult::DataSet(mut dataset) => {
+                // 对数据集的行进行排序（按第一列或其他标准）
+                if !dataset.rows.is_empty() {
+                    if self.ascending {
+                        dataset.rows.sort_by(|a, b| a.cmp(b));
+                    } else {
+                        dataset.rows.sort_by(|a, b| b.cmp(a));
+                    }
+                }
+                let top_rows = dataset.rows.into_iter().take(self.n).collect::<Vec<_>>();
+                ExecutionResult::DataSet(crate::core::value::DataSet {
+                    col_names: dataset.col_names,
+                    rows: top_rows,
+                })
+            }
             ExecutionResult::Count(count) => {
                 // 对于计数，返回 count 和 N 的最小值
                 ExecutionResult::Count(std::cmp::min(count, self.n))

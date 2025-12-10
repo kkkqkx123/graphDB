@@ -80,6 +80,28 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DistinctExecutor<S> {
                     .collect::<Vec<_>>();
                 ExecutionResult::Values(distinct_values)
             }
+            ExecutionResult::Paths(paths) => {
+                // 移除重复路径
+                let mut seen_paths = std::collections::HashSet::new();
+                let distinct_paths = paths
+                    .into_iter()
+                    .filter(|p| seen_paths.insert(p.clone()))
+                    .collect::<Vec<_>>();
+                ExecutionResult::Paths(distinct_paths)
+            }
+            ExecutionResult::DataSet(dataset) => {
+                // 移除重复行
+                let mut seen_rows = std::collections::HashSet::new();
+                let distinct_rows = dataset
+                    .rows
+                    .into_iter()
+                    .filter(|r| seen_rows.insert(r.clone()))
+                    .collect::<Vec<_>>();
+                ExecutionResult::DataSet(crate::core::value::DataSet {
+                    col_names: dataset.col_names,
+                    rows: distinct_rows,
+                })
+            }
             ExecutionResult::Count(count) => {
                 // Count 已经是独特的
                 ExecutionResult::Count(count)

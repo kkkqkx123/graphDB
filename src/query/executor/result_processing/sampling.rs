@@ -119,6 +119,47 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for SampleExecutor<S> {
 
                 ExecutionResult::Values(sampled_values)
             }
+            ExecutionResult::Paths(paths) => {
+                let sample_size = std::cmp::min(self.sample_size, paths.len());
+                let mut rng = if let Some(seed) = self.seed {
+                    rand::rngs::StdRng::seed_from_u64(seed)
+                } else {
+                    rand::rngs::StdRng::from_entropy()
+                };
+
+                let mut indices: Vec<usize> = (0..paths.len()).collect();
+                indices.shuffle(&mut rng);
+
+                let sampled_paths = indices
+                    .into_iter()
+                    .take(sample_size)
+                    .map(|i| paths[i].clone())
+                    .collect::<Vec<_>>();
+
+                ExecutionResult::Paths(sampled_paths)
+            }
+            ExecutionResult::DataSet(dataset) => {
+                let sample_size = std::cmp::min(self.sample_size, dataset.rows.len());
+                let mut rng = if let Some(seed) = self.seed {
+                    rand::rngs::StdRng::seed_from_u64(seed)
+                } else {
+                    rand::rngs::StdRng::from_entropy()
+                };
+
+                let mut indices: Vec<usize> = (0..dataset.rows.len()).collect();
+                indices.shuffle(&mut rng);
+
+                let sampled_rows = indices
+                    .into_iter()
+                    .take(sample_size)
+                    .map(|i| dataset.rows[i].clone())
+                    .collect::<Vec<_>>();
+
+                ExecutionResult::DataSet(crate::core::value::DataSet {
+                    col_names: dataset.col_names,
+                    rows: sampled_rows,
+                })
+            }
             ExecutionResult::Count(count) => {
                 // 对于计数，我们无法真正采样，所以只返回计数
                 ExecutionResult::Count(count)

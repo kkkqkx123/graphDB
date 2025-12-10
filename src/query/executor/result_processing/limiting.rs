@@ -61,6 +61,17 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LimitExecutor<S> {
                 let limited_values = values.into_iter().take(self.limit).collect::<Vec<_>>();
                 ExecutionResult::Values(limited_values)
             }
+            ExecutionResult::Paths(paths) => {
+                let limited_paths = paths.into_iter().take(self.limit).collect::<Vec<_>>();
+                ExecutionResult::Paths(limited_paths)
+            }
+            ExecutionResult::DataSet(dataset) => {
+                let limited_rows = dataset.rows.into_iter().take(self.limit).collect::<Vec<_>>();
+                ExecutionResult::DataSet(crate::core::value::DataSet {
+                    col_names: dataset.col_names,
+                    rows: limited_rows,
+                })
+            }
             ExecutionResult::Count(count) => {
                 let limited_count = std::cmp::min(count, self.limit);
                 ExecutionResult::Count(limited_count)
@@ -149,6 +160,17 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for OffsetExecutor<S> {
             ExecutionResult::Values(values) => {
                 let offset_values = values.into_iter().skip(self.offset).collect::<Vec<_>>();
                 ExecutionResult::Values(offset_values)
+            }
+            ExecutionResult::Paths(paths) => {
+                let offset_paths = paths.into_iter().skip(self.offset).collect::<Vec<_>>();
+                ExecutionResult::Paths(offset_paths)
+            }
+            ExecutionResult::DataSet(dataset) => {
+                let offset_rows = dataset.rows.into_iter().skip(self.offset).collect::<Vec<_>>();
+                ExecutionResult::DataSet(crate::core::value::DataSet {
+                    col_names: dataset.col_names,
+                    rows: offset_rows,
+                })
             }
             ExecutionResult::Count(count) => {
                 let offset_count = if count > self.offset {

@@ -103,7 +103,7 @@ impl Default for Vertex {
 }
 
 /// Represents an edge in the graph, similar to Nebula's Edge structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Edge {
     pub src: Box<Value>, // Source vertex ID (can be any Value type, using Box to break cycles)
     pub dst: Box<Value>, // Destination vertex ID (can be any Value type, using Box to break cycles)
@@ -156,14 +156,14 @@ impl Edge {
 }
 
 /// Represents a step in a path
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Step {
     pub dst: Box<Vertex>,
     pub edge: Box<Edge>,
 }
 
 /// Represents a path in the graph
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Path {
     pub src: Box<Vertex>,
     pub steps: Vec<Step>,
@@ -183,6 +183,16 @@ impl Path {
     /// 获取路径中的边
     pub fn edges(&self) -> Vec<&Edge> {
         self.steps.iter().map(|step| step.edge.as_ref()).collect()
+    }
+
+    /// 获取路径长度（步骤数）
+    pub fn len(&self) -> usize {
+        self.steps.len()
+    }
+
+    /// 检查路径是否为空（仅包含源顶点）
+    pub fn is_empty(&self) -> bool {
+        self.steps.is_empty()
     }
 }
 

@@ -2,4 +2,623 @@
 //!
 //! 包含循环控制相关的执行器
 
-// 占位符，后续会添加 LoopExecutor 的具体实现
+use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
+
+use crate::core::Value;
+use crate::graph::expression::{EvalContext, Expression, ExpressionEvaluator};
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
+use crate::query::QueryError;
+use crate::storage::StorageEngine;
+
+/// 循环状态
+#[derive(Debug, Clone, PartialEq)]
+pub enum LoopState {
+    NotStarted,
+    Running,
+    Finished,
+    Error(String),
+}
+
+/// LoopExecutor - 循环控制执行器
+///
+/// 实现循环控制逻辑，支持条件循环和计数循环
+pub struct LoopExecutor<S: StorageEngine> {
+    base: BaseExecutor<S>,
+    condition: Option<Expression>, // 循环条件，None 表示无限循环
+    body_executor: Box<dyn Executor<S>>,
+    max_iterations: Option<usize>,
+    current_iteration: usize,
+    loop_state: LoopState,
+    evaluator: ExpressionEvaluator,
+    // 循环结果收集
+    results: Vec<ExecutionResult>,
+    // 循环变量上下文
+    loop_context: EvalContext<'static>,
+}
+
+impl<S: StorageEngine> LoopExecutor<S> {
+    pub fn new(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        condition: Option<Expression>,
+        body_executor: Box<dyn Executor<S>>,
+        max_iterations: Option<usize>,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "LoopExecutor".to_string(), storage),
+            condition,
+            body_executor,
+            max_iterations,
+            current_iteration: 0,
+            loop_state: LoopState::NotStarted,
+            evaluator: ExpressionEvaluator,
+            results: Vec::new(),
+            loop_context: EvalContext::new(),
+        }
+    }
+}
+
+impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
+    /// 评估循环条件
+    async fn evaluate_condition(&mut self) -> Result<bool, QueryError> {
+        match &self.condition {
+            Some(expr) => {
+                let result = self
+                    .evaluator
+                    .evaluate(expr, &self.loop_context)
+                    .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+
+                Ok(self.value_to_bool(&result))
+            }
+            None => Ok(true), // 无条件循环
+        }
+    }
+
+    /// 将值转换为布尔值
+    fn value_to_bool(&self, value: &Value) -> bool {
+        match value {
+            Value::Bool(b) => *b,
+            Value::Null(_) => false,
+            Value::Int(0) => false,
+            Value::Float(0.0) => false,
+            Value::String(s) if s.is_empty() => false,
+            Value::List(l) if l.is_empty() => false,
+            Value::Map(m) if m.is_empty() => false,
+            _ => true, // 非空、非零值视为 true
+        }
+    }
+
+    /// 检查是否应该继续循环
+    fn should_continue(&self) -> bool {
+        if let LoopState::Error(_) = self.loop_state {
+            return false;
+        }
+
+        if let Some(max_iter) = self.max_iterations {
+            if self.current_iteration >= max_iter {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// 执行单次循环
+    async fn execute_iteration(&mut self) -> Result<ExecutionResult, QueryError> {
+        self.current_iteration += 1;
+
+        // 更新循环上下文中的迭代变量
+        self.loop_context.set_variable(
+            "__iteration".to_string(),
+            Value::Int(self.current_iteration as i64),
+        );
+
+        // 执行循环体
+        let result = self.body_executor.execute().await?;
+
+        // 重置循环体状态，为下次迭代做准备
+        self.body_executor.close()?;
+        self.body_executor.open()?;
+
+        Ok(result)
+    }
+
+    /// 收集所有循环结果
+    fn collect_results(&self) -> ExecutionResult {
+        if self.results.is_empty() {
+            return ExecutionResult::Success;
+        }
+
+        // 尝试合并同类型的结果
+        let mut all_values = Vec::new();
+        let mut all_vertices = Vec::new();
+        let mut all_edges = Vec::new();
+        let mut all_paths = Vec::new();
+        let mut all_datasets = Vec::new();
+
+        for result in &self.results {
+            match result {
+                ExecutionResult::Values(values) => all_values.extend(values.clone()),
+                ExecutionResult::Vertices(vertices) => all_vertices.extend(vertices.clone()),
+                ExecutionResult::Edges(edges) => all_edges.extend(edges.clone()),
+                ExecutionResult::Paths(paths) => all_paths.extend(paths.clone()),
+                ExecutionResult::DataSet(dataset) => all_datasets.push(dataset.clone()),
+                ExecutionResult::Count(count) => all_values.push(Value::Int(*count as i64)),
+                ExecutionResult::Success => {}
+            }
+        }
+
+        // 根据内容返回最合适的结果类型
+        if !all_values.is_empty()
+            && all_vertices.is_empty()
+            && all_edges.is_empty()
+            && all_paths.is_empty()
+        {
+            ExecutionResult::Values(all_values)
+        } else if !all_vertices.is_empty()
+            && all_values.is_empty()
+            && all_edges.is_empty()
+            && all_paths.is_empty()
+        {
+            ExecutionResult::Vertices(all_vertices)
+        } else if !all_edges.is_empty()
+            && all_values.is_empty()
+            && all_vertices.is_empty()
+            && all_paths.is_empty()
+        {
+            ExecutionResult::Edges(all_edges)
+        } else if !all_paths.is_empty()
+            && all_values.is_empty()
+            && all_vertices.is_empty()
+            && all_edges.is_empty()
+        {
+            ExecutionResult::Paths(all_paths)
+        } else if !all_datasets.is_empty()
+            && all_values.is_empty()
+            && all_vertices.is_empty()
+            && all_edges.is_empty()
+            && all_paths.is_empty()
+        {
+            // 合并数据集
+            if all_datasets.len() == 1 {
+                ExecutionResult::DataSet(all_datasets.into_iter().next().unwrap())
+            } else {
+                // 简化处理：返回第一个数据集
+                ExecutionResult::DataSet(all_datasets.into_iter().next().unwrap())
+            }
+        } else {
+            // 混合类型，返回值列表
+            let mut mixed_values = Vec::new();
+            mixed_values.extend(all_values);
+            for vertex in all_vertices {
+                mixed_values.push(Value::Vertex(Box::new(vertex)));
+            }
+            for edge in all_edges {
+                mixed_values.push(Value::Edge(edge));
+            }
+            for path in all_paths {
+                mixed_values.push(Value::Path(path));
+            }
+            ExecutionResult::Values(mixed_values)
+        }
+    }
+
+    /// 设置循环变量
+    pub fn set_loop_variable(&mut self, name: String, value: Value) {
+        self.loop_context.set_variable(name, value);
+    }
+
+    /// 获取当前迭代次数
+    pub fn current_iteration(&self) -> usize {
+        self.current_iteration
+    }
+
+    /// 获取循环状态
+    pub fn loop_state(&self) -> &LoopState {
+        &self.loop_state
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for LoopExecutor<S> {
+    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        self.loop_state = LoopState::Running;
+        self.results.clear();
+        self.current_iteration = 0;
+
+        // 打开循环体执行器
+        self.body_executor.open()?;
+
+        // 执行循环
+        while self.should_continue() {
+            // 评估循环条件
+            let should_continue = match self.evaluate_condition().await {
+                Ok(continue_flag) => continue_flag,
+                Err(e) => {
+                    self.loop_state = LoopState::Error(e.to_string());
+                    break;
+                }
+            };
+
+            if !should_continue {
+                break;
+            }
+
+            // 执行循环体
+            match self.execute_iteration().await {
+                Ok(result) => {
+                    self.results.push(result);
+                }
+                Err(e) => {
+                    self.loop_state = LoopState::Error(e.to_string());
+                    break;
+                }
+            }
+        }
+
+        // 关闭循环体执行器
+        let _ = self.body_executor.close();
+
+        // 设置最终状态
+        if !matches!(self.loop_state, LoopState::Error(_)) {
+            self.loop_state = LoopState::Finished;
+        }
+
+        // 返回收集的结果
+        Ok(self.collect_results())
+    }
+
+    fn open(&mut self) -> Result<(), QueryError> {
+        // 初始化循环状态
+        self.loop_state = LoopState::NotStarted;
+        self.current_iteration = 0;
+        self.results.clear();
+        self.loop_context = EvalContext::new();
+
+        // 打开循环体执行器
+        self.body_executor.open()?;
+        Ok(())
+    }
+
+    fn close(&mut self) -> Result<(), QueryError> {
+        // 关闭循环体执行器
+        self.body_executor.close()?;
+
+        // 清理资源
+        self.results.clear();
+        self.loop_context = EvalContext::new();
+
+        Ok(())
+    }
+
+    fn id(&self) -> usize {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+}
+
+/// WhileLoopExecutor - 条件循环执行器
+///
+/// 专门用于实现 WHILE 循环
+pub struct WhileLoopExecutor<S: StorageEngine> {
+    inner: LoopExecutor<S>,
+}
+
+impl<S: StorageEngine + Send + 'static> WhileLoopExecutor<S> {
+    pub fn new(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        condition: Expression,
+        body_executor: Box<dyn Executor<S>>,
+        max_iterations: Option<usize>,
+    ) -> Self {
+        Self {
+            inner: LoopExecutor::new(id, storage, Some(condition), body_executor, max_iterations),
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for WhileLoopExecutor<S> {
+    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        self.inner.execute().await
+    }
+
+    fn open(&mut self) -> Result<(), QueryError> {
+        self.inner.open()
+    }
+
+    fn close(&mut self) -> Result<(), QueryError> {
+        self.inner.close()
+    }
+
+    fn id(&self) -> usize {
+        self.inner.id()
+    }
+
+    fn name(&self) -> &str {
+        "WhileLoopExecutor"
+    }
+}
+
+/// ForLoopExecutor - 计数循环执行器
+///
+/// 专门用于实现 FOR 循环
+pub struct ForLoopExecutor<S: StorageEngine> {
+    inner: LoopExecutor<S>,
+    start: i64,
+    end: i64,
+    step: i64,
+    loop_var: String,
+}
+
+impl<S: StorageEngine + Send + 'static> ForLoopExecutor<S> {
+    pub fn new(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        loop_var: String,
+        start: i64,
+        end: i64,
+        step: i64,
+        body_executor: Box<dyn Executor<S>>,
+    ) -> Self {
+        let mut executor = LoopExecutor::new(
+            id,
+            storage,
+            None, // 条件在内部处理
+            body_executor,
+            Some(((end - start).abs() / step.abs() + 1) as usize),
+        );
+
+        // 设置循环变量
+        executor.set_loop_variable(loop_var.clone(), Value::Int(start));
+
+        Self {
+            inner: executor,
+            start,
+            end,
+            step,
+            loop_var,
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for ForLoopExecutor<S> {
+    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        // 初始化循环
+        self.inner.open()?;
+
+        let mut current = self.start;
+        let mut results = Vec::new();
+
+        // 执行循环
+        while (self.step > 0 && current <= self.end) || (self.step < 0 && current >= self.end) {
+            // 设置循环变量
+            self.inner
+                .set_loop_variable(self.loop_var.clone(), Value::Int(current));
+
+            // 执行循环体
+            let result = self.inner.execute_iteration().await?;
+            results.push(result);
+
+            // 更新循环变量
+            current += self.step;
+        }
+
+        // 关闭循环
+        self.inner.close()?;
+
+        // 返回结果
+        self.inner.results = results;
+        Ok(self.inner.collect_results())
+    }
+
+    fn open(&mut self) -> Result<(), QueryError> {
+        self.inner.open()
+    }
+
+    fn close(&mut self) -> Result<(), QueryError> {
+        self.inner.close()
+    }
+
+    fn id(&self) -> usize {
+        self.inner.id()
+    }
+
+    fn name(&self) -> &str {
+        "ForLoopExecutor"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::value::NullType;
+    use crate::graph::expression::BinaryOperator;
+    use std::sync::{Arc, Mutex};
+
+    // 模拟存储引擎
+    struct MockStorage;
+
+    impl StorageEngine for MockStorage {
+        fn insert_node(
+            &mut self,
+            _vertex: crate::core::vertex_edge_path::Vertex,
+        ) -> Result<crate::core::Value, crate::storage::StorageError> {
+            Ok(crate::core::Value::Null(NullType::NaN))
+        }
+
+        fn get_node(
+            &self,
+            _id: &crate::core::Value,
+        ) -> Result<Option<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
+            Ok(None)
+        }
+
+        fn update_node(
+            &mut self,
+            _vertex: crate::core::vertex_edge_path::Vertex,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn delete_node(
+            &mut self,
+            _id: &crate::core::Value,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn insert_edge(
+            &mut self,
+            _edge: crate::core::vertex_edge_path::Edge,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn get_edge(
+            &self,
+            _src: &crate::core::Value,
+            _dst: &crate::core::Value,
+            _edge_type: &str,
+        ) -> Result<Option<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError>
+        {
+            Ok(None)
+        }
+
+        fn get_node_edges(
+            &self,
+            _node_id: &crate::core::Value,
+            _direction: crate::core::vertex_edge_path::Direction,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError>
+        {
+            Ok(Vec::new())
+        }
+
+        fn delete_edge(
+            &mut self,
+            _src: &crate::core::Value,
+            _dst: &crate::core::Value,
+            _edge_type: &str,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn begin_transaction(&mut self) -> Result<u64, crate::storage::StorageError> {
+            Ok(1)
+        }
+
+        fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn rollback_transaction(
+            &mut self,
+            _tx_id: u64,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+    }
+
+    // 模拟计数执行器
+    struct CountExecutor {
+        count: i64,
+        max_count: i64,
+    }
+
+    #[async_trait]
+    impl<S: StorageEngine + Send + 'static> Executor<S> for CountExecutor {
+        async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+            if self.count < self.max_count {
+                self.count += 1;
+                Ok(ExecutionResult::Values(vec![Value::Int(self.count)]))
+            } else {
+                Ok(ExecutionResult::Success)
+            }
+        }
+
+        fn open(&mut self) -> Result<(), QueryError> {
+            Ok(())
+        }
+        fn close(&mut self) -> Result<(), QueryError> {
+            Ok(())
+        }
+        fn id(&self) -> usize {
+            0
+        }
+        fn name(&self) -> &str {
+            "CountExecutor"
+        }
+    }
+
+    #[tokio::test]
+    async fn test_while_loop_executor() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+
+        // 创建条件表达式：__iteration < 3
+        let condition = Expression::BinaryOp(
+            Box::new(Expression::Variable("__iteration".to_string())),
+            BinaryOperator::Lt,
+            Box::new(Expression::Constant(Value::Int(3))),
+        );
+
+        let body_executor = Box::new(CountExecutor {
+            count: 0,
+            max_count: 10,
+        });
+
+        let mut executor = WhileLoopExecutor::new(
+            1,
+            storage,
+            condition,
+            body_executor,
+            Some(5), // 最大5次迭代
+        );
+
+        // 执行循环
+        let result = executor.execute().await.unwrap();
+
+        // 验证结果
+        match result {
+            ExecutionResult::Values(values) => {
+                assert_eq!(values.len(), 3); // 应该执行3次
+                assert_eq!(values, vec![Value::Int(1), Value::Int(2), Value::Int(3),]);
+            }
+            _ => panic!("Expected Values result"),
+        }
+
+        assert_eq!(executor.inner.current_iteration(), 3);
+        assert_eq!(executor.inner.loop_state(), &LoopState::Finished);
+    }
+
+    #[tokio::test]
+    async fn test_for_loop_executor() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+
+        let body_executor = Box::new(CountExecutor {
+            count: 0,
+            max_count: 10,
+        });
+
+        let mut executor =
+            ForLoopExecutor::new(1, storage, "i".to_string(), 1, 3, 1, body_executor);
+
+        // 执行循环
+        let result = executor.execute().await.unwrap();
+
+        // 验证结果
+        match result {
+            ExecutionResult::Values(values) => {
+                assert_eq!(values.len(), 3); // 应该执行3次
+                assert_eq!(values, vec![Value::Int(1), Value::Int(2), Value::Int(3),]);
+            }
+            _ => panic!("Expected Values result"),
+        }
+    }
+}

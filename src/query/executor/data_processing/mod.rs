@@ -14,6 +14,14 @@
 pub mod filter;
 pub use filter::FilterExecutor;
 
+// 去重执行器
+pub mod dedup;
+pub use dedup::{DedupExecutor, DedupStrategy};
+
+// 采样执行器
+pub mod sample;
+pub use sample::{SampleExecutor, SampleMethod};
+
 // 图遍历执行器
 pub mod graph_traversal;
 pub use graph_traversal::{
@@ -40,3 +48,6 @@ pub use transformations::{
 
 // 循环控制
 pub mod loops;
+pub use loops::{
+    LoopExecutor, LoopState, WhileLoopExecutor, ForLoopExecutor
+};

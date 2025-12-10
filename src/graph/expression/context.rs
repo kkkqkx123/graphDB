@@ -3,7 +3,7 @@ use crate::core::{Value, Vertex, Edge};
 use serde::{Deserialize, Serialize};
 
 /// Context for evaluating expressions, containing values for variables/properties
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct EvalContext<'a> {
     pub vertex: Option<&'a Vertex>,
     pub edge: Option<&'a Edge>,
