@@ -1,6 +1,5 @@
 use async_trait::async_trait;
-use rand::seq::SliceRandom;
-use rand::SeedableRng;
+use rand::Rng;
 use std::sync::{Arc, Mutex};
 
 #[allow(unused_imports)]
@@ -8,6 +7,25 @@ use crate::core::Value;
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, InputExecutor};
+
+/// 蓄水池采样算法实现
+fn reservoir_sampling<T: Clone>(items: Vec<T>, sample_size: usize) -> Vec<T> {
+    if items.len() <= sample_size {
+        return items;
+    }
+    
+    let mut rng = rand::thread_rng();
+    let mut reservoir: Vec<T> = items[..sample_size].to_vec();
+    
+    for (i, item) in items.iter().enumerate().skip(sample_size) {
+        let j = rng.gen_range(0..=i);
+        if j < sample_size {
+            reservoir[j] = item.clone();
+        }
+    }
+    
+    reservoir
+}
 
 /// SampleExecutor - 采样执行器
 ///
@@ -60,109 +78,56 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for SampleExecutor<S> {
             ExecutionResult::Vertices(Vec::new())
         };
 
+        // 检查是否需要采样
+        let should_sample = match &input_result {
+            ExecutionResult::Vertices(vertices) => vertices.len() > self.sample_size,
+            ExecutionResult::Edges(edges) => edges.len() > self.sample_size,
+            ExecutionResult::Values(values) => values.len() > self.sample_size,
+            ExecutionResult::Paths(paths) => paths.len() > self.sample_size,
+            ExecutionResult::DataSet(dataset) => dataset.rows.len() > self.sample_size,
+            ExecutionResult::Count(count) => *count > self.sample_size,
+            ExecutionResult::Success => false,
+        };
+
+        // 如果不需要采样，直接返回原始结果
+        if !should_sample {
+            return Ok(input_result);
+        }
+
         // 从结果中采样
         let sampled_result = match input_result {
             ExecutionResult::Vertices(vertices) => {
                 let sample_size = std::cmp::min(self.sample_size, vertices.len());
-                let mut rng = if let Some(seed) = self.seed {
-                    rand::rngs::StdRng::seed_from_u64(seed)
-                } else {
-                    rand::rngs::StdRng::from_entropy()
-                };
-
-                let mut indices: Vec<usize> = (0..vertices.len()).collect();
-                indices.shuffle(&mut rng);
-
-                let sampled_vertices = indices
-                    .into_iter()
-                    .take(sample_size)
-                    .map(|i| vertices[i].clone())
-                    .collect::<Vec<_>>();
-
+                let sampled_vertices = reservoir_sampling(vertices, sample_size);
                 ExecutionResult::Vertices(sampled_vertices)
             }
             ExecutionResult::Edges(edges) => {
                 let sample_size = std::cmp::min(self.sample_size, edges.len());
-                let mut rng = if let Some(seed) = self.seed {
-                    rand::rngs::StdRng::seed_from_u64(seed)
-                } else {
-                    rand::rngs::StdRng::from_entropy()
-                };
-
-                let mut indices: Vec<usize> = (0..edges.len()).collect();
-                indices.shuffle(&mut rng);
-
-                let sampled_edges = indices
-                    .into_iter()
-                    .take(sample_size)
-                    .map(|i| edges[i].clone())
-                    .collect::<Vec<_>>();
-
+                let sampled_edges = reservoir_sampling(edges, sample_size);
                 ExecutionResult::Edges(sampled_edges)
             }
             ExecutionResult::Values(values) => {
                 let sample_size = std::cmp::min(self.sample_size, values.len());
-                let mut rng = if let Some(seed) = self.seed {
-                    rand::rngs::StdRng::seed_from_u64(seed)
-                } else {
-                    rand::rngs::StdRng::from_entropy()
-                };
-
-                let mut indices: Vec<usize> = (0..values.len()).collect();
-                indices.shuffle(&mut rng);
-
-                let sampled_values = indices
-                    .into_iter()
-                    .take(sample_size)
-                    .map(|i| values[i].clone())
-                    .collect::<Vec<_>>();
-
+                let sampled_values = reservoir_sampling(values, sample_size);
                 ExecutionResult::Values(sampled_values)
             }
             ExecutionResult::Paths(paths) => {
                 let sample_size = std::cmp::min(self.sample_size, paths.len());
-                let mut rng = if let Some(seed) = self.seed {
-                    rand::rngs::StdRng::seed_from_u64(seed)
-                } else {
-                    rand::rngs::StdRng::from_entropy()
-                };
-
-                let mut indices: Vec<usize> = (0..paths.len()).collect();
-                indices.shuffle(&mut rng);
-
-                let sampled_paths = indices
-                    .into_iter()
-                    .take(sample_size)
-                    .map(|i| paths[i].clone())
-                    .collect::<Vec<_>>();
-
+                let sampled_paths = reservoir_sampling(paths, sample_size);
                 ExecutionResult::Paths(sampled_paths)
             }
             ExecutionResult::DataSet(dataset) => {
                 let sample_size = std::cmp::min(self.sample_size, dataset.rows.len());
-                let mut rng = if let Some(seed) = self.seed {
-                    rand::rngs::StdRng::seed_from_u64(seed)
-                } else {
-                    rand::rngs::StdRng::from_entropy()
-                };
-
-                let mut indices: Vec<usize> = (0..dataset.rows.len()).collect();
-                indices.shuffle(&mut rng);
-
-                let sampled_rows = indices
-                    .into_iter()
-                    .take(sample_size)
-                    .map(|i| dataset.rows[i].clone())
-                    .collect::<Vec<_>>();
-
+                let sampled_rows = reservoir_sampling(dataset.rows, sample_size);
                 ExecutionResult::DataSet(crate::core::value::DataSet {
                     col_names: dataset.col_names,
                     rows: sampled_rows,
                 })
             }
             ExecutionResult::Count(count) => {
-                // 对于计数，我们无法真正采样，所以只返回计数
-                ExecutionResult::Count(count)
+                // 对于计数结果，采样意味着返回不超过采样大小的计数
+                let sampled_count = std::cmp::min(count, self.sample_size);
+                ExecutionResult::Count(sampled_count)
             }
             ExecutionResult::Success => ExecutionResult::Success,
         };
