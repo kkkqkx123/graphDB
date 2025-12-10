@@ -37,7 +37,7 @@ impl Path {
 }
 
 /// 路径类型
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PathType {
     Default,
     Shortest,
