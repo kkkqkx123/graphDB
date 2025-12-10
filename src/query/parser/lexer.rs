@@ -1,17 +1,16 @@
 //! Lexer implementation for the query parser
-//! 
+//!
 //! This module implements a lexical analyzer that converts input query strings into tokens.
 
-use std::collections::HashMap;
 use crate::query::parser::token::{Token, TokenKind};
 
 pub struct Lexer {
     input: Vec<char>,
-    position: usize,          // Current position in input
-    read_position: usize,     // Next position to read
-    ch: Option<char>,         // Current character
-    line: usize,              // Current line number
-    column: usize,            // Current column number
+    position: usize,      // Current position in input
+    read_position: usize, // Next position to read
+    ch: Option<char>,     // Current character
+    line: usize,          // Current line number
+    column: usize,        // Current column number
 }
 
 impl Lexer {
@@ -34,7 +33,7 @@ impl Lexer {
         } else {
             self.ch = Some(self.input[self.read_position]);
         }
-        
+
         // Update position and column
         if self.ch == Some('\n') {
             self.line += 1;
@@ -42,7 +41,7 @@ impl Lexer {
         } else {
             self.column += 1;
         }
-        
+
         self.position = self.read_position;
         self.read_position += 1;
     }
@@ -104,14 +103,14 @@ impl Lexer {
     fn read_string(&mut self) -> String {
         self.read_char(); // Skip opening quote
         let start_position = self.position;
-        
+
         while let Some(ch) = self.ch {
             if ch == '"' || ch == '\'' {
                 break;
             }
             self.read_char();
         }
-        
+
         let result: String = self.input[start_position..self.position].iter().collect();
         self.read_char(); // Skip closing quote
         result
@@ -305,7 +304,7 @@ impl Lexer {
                 } else {
                     Token::new(TokenKind::Assign, "=".to_string(), self.line, self.column)
                 }
-            },
+            }
             Some('+') => Token::new(TokenKind::Plus, "+".to_string(), self.line, self.column),
             Some('-') => {
                 if self.peek_char() == Some('>') {
@@ -314,7 +313,7 @@ impl Lexer {
                 } else {
                     Token::new(TokenKind::Minus, "-".to_string(), self.line, self.column)
                 }
-            },
+            }
             Some('*') => Token::new(TokenKind::Star, "*".to_string(), self.line, self.column),
             Some('/') => Token::new(TokenKind::Div, "/".to_string(), self.line, self.column),
             Some('%') => Token::new(TokenKind::Mod, "%".to_string(), self.line, self.column),
@@ -325,18 +324,23 @@ impl Lexer {
                 } else {
                     Token::new(TokenKind::NotOp, "!".to_string(), self.line, self.column)
                 }
-            },
+            }
             Some('<') => {
                 if self.peek_char() == Some('-') {
                     self.read_char(); // Skip the '-'
-                    Token::new(TokenKind::BackArrow, "<-".to_string(), self.line, self.column)
+                    Token::new(
+                        TokenKind::BackArrow,
+                        "<-".to_string(),
+                        self.line,
+                        self.column,
+                    )
                 } else if self.peek_char() == Some('=') {
                     self.read_char(); // Skip the '='
                     Token::new(TokenKind::Le, "<=".to_string(), self.line, self.column)
                 } else {
                     Token::new(TokenKind::Lt, "<".to_string(), self.line, self.column)
                 }
-            },
+            }
             Some('>') => {
                 if self.peek_char() == Some('=') {
                     self.read_char(); // Skip the '='
@@ -344,7 +348,7 @@ impl Lexer {
                 } else {
                     Token::new(TokenKind::Gt, ">".to_string(), self.line, self.column)
                 }
-            },
+            }
             Some('~') => {
                 if self.peek_char() == Some('=') {
                     self.read_char(); // Skip the '='
@@ -354,7 +358,7 @@ impl Lexer {
                     self.read_char();
                     Token::new(TokenKind::NotOp, "~".to_string(), self.line, self.column)
                 }
-            },
+            }
             Some('(') => Token::new(TokenKind::LParen, "(".to_string(), self.line, self.column),
             Some(')') => Token::new(TokenKind::RParen, ")".to_string(), self.line, self.column),
             Some('[') => Token::new(TokenKind::LBracket, "[".to_string(), self.line, self.column),
@@ -369,17 +373,27 @@ impl Lexer {
                 } else {
                     Token::new(TokenKind::Dot, ".".to_string(), self.line, self.column)
                 }
-            },
+            }
             Some(':') => Token::new(TokenKind::Colon, ":".to_string(), self.line, self.column),
-            Some(';') => Token::new(TokenKind::Semicolon, ";".to_string(), self.line, self.column),
+            Some(';') => Token::new(
+                TokenKind::Semicolon,
+                ";".to_string(),
+                self.line,
+                self.column,
+            ),
             Some('?') => Token::new(TokenKind::QMark, "?".to_string(), self.line, self.column),
             Some('|') => Token::new(TokenKind::Pipe, "|".to_string(), self.line, self.column),
             Some('@') => Token::new(TokenKind::At, "@".to_string(), self.line, self.column),
             Some('$') => Token::new(TokenKind::Dollar, "$".to_string(), self.line, self.column),
             Some('"') | Some('\'') => {
                 let literal = self.read_string();
-                Token::new(TokenKind::StringLiteral(literal.clone()), literal.clone(), self.line, self.column)
-            },
+                Token::new(
+                    TokenKind::StringLiteral(literal.clone()),
+                    literal.clone(),
+                    self.line,
+                    self.column,
+                )
+            }
             Some(ch) if ch.is_ascii_digit() => {
                 let literal = self.read_number();
                 if self.ch == Some('.') && self.peek_char().map_or(false, |c| c.is_ascii_digit()) {
@@ -387,23 +401,38 @@ impl Lexer {
                     self.read_char(); // Skip the '.'
                     let float_literal = format!("{}.{}", literal, self.read_number());
                     let float_val: f64 = float_literal.parse().unwrap_or(0.0);
-                    Token::new(TokenKind::FloatLiteral(float_val), float_literal, self.line, self.column)
+                    Token::new(
+                        TokenKind::FloatLiteral(float_val),
+                        float_literal,
+                        self.line,
+                        self.column,
+                    )
                 } else {
                     let int_val: i64 = literal.parse().unwrap_or(0);
-                    Token::new(TokenKind::IntegerLiteral(int_val), literal, self.line, self.column)
+                    Token::new(
+                        TokenKind::IntegerLiteral(int_val),
+                        literal,
+                        self.line,
+                        self.column,
+                    )
                 }
-            },
+            }
             Some(ch) if ch.is_alphabetic() || ch == '_' => {
                 let literal = self.read_identifier();
                 let token_kind = self.lookup_keyword(&literal);
                 Token::new(token_kind, literal, self.line, self.column)
-            },
+            }
             None => Token::new(TokenKind::Eof, "".to_string(), self.line, self.column),
             Some(other) => {
                 // Handle unexpected characters
                 let unexpected = other.to_string();
                 self.read_char();
-                Token::new(TokenKind::Identifier(unexpected.clone()), unexpected, self.line, self.column)
+                Token::new(
+                    TokenKind::Identifier(unexpected.clone()),
+                    unexpected,
+                    self.line,
+                    self.column,
+                )
             }
         };
 
@@ -420,7 +449,7 @@ mod tests {
     fn test_simple_identifiers() {
         let input = "CREATE MATCH RETURN";
         let mut lexer = Lexer::new(input);
-        
+
         let tokens: Vec<Token> = std::iter::from_fn(|| {
             let token = lexer.next_token();
             if token.kind == TokenKind::Eof {
@@ -428,8 +457,9 @@ mod tests {
             } else {
                 Some(token)
             }
-        }).collect();
-        
+        })
+        .collect();
+
         assert_eq!(tokens[0].kind, TokenKind::Create);
         assert_eq!(tokens[0].lexeme, "CREATE");
         assert_eq!(tokens[1].kind, TokenKind::Match);
@@ -437,12 +467,12 @@ mod tests {
         assert_eq!(tokens[2].kind, TokenKind::Return);
         assert_eq!(tokens[2].lexeme, "RETURN");
     }
-    
+
     #[test]
     fn test_operators() {
         let input = "= == ! != < <= > >=";
         let mut lexer = Lexer::new(input);
-        
+
         let tokens: Vec<Token> = std::iter::from_fn(|| {
             let token = lexer.next_token();
             if token.kind == TokenKind::Eof {
@@ -450,8 +480,9 @@ mod tests {
             } else {
                 Some(token)
             }
-        }).collect();
-        
+        })
+        .collect();
+
         assert_eq!(tokens[0].kind, TokenKind::Assign);
         assert_eq!(tokens[1].kind, TokenKind::Eq);
         assert_eq!(tokens[2].kind, TokenKind::NotOp);
@@ -461,12 +492,12 @@ mod tests {
         assert_eq!(tokens[6].kind, TokenKind::Gt);
         assert_eq!(tokens[7].kind, TokenKind::Ge);
     }
-    
+
     #[test]
     fn test_literals() {
         let input = "42 3.14 \"hello\" true false";
         let mut lexer = Lexer::new(input);
-        
+
         let tokens: Vec<Token> = std::iter::from_fn(|| {
             let token = lexer.next_token();
             if token.kind == TokenKind::Eof {
@@ -474,20 +505,24 @@ mod tests {
             } else {
                 Some(token)
             }
-        }).collect();
-        
+        })
+        .collect();
+
         assert_eq!(tokens[0].kind, TokenKind::IntegerLiteral(42));
         assert_eq!(tokens[1].kind, TokenKind::FloatLiteral(3.14));
-        assert_eq!(tokens[2].kind, TokenKind::StringLiteral("hello".to_string()));
+        assert_eq!(
+            tokens[2].kind,
+            TokenKind::StringLiteral("hello".to_string())
+        );
         assert_eq!(tokens[3].kind, TokenKind::Identifier("true".to_string()));
         assert_eq!(tokens[4].kind, TokenKind::Identifier("false".to_string()));
     }
-    
+
     #[test]
     fn test_arrows() {
         let input = "-> <-";
         let mut lexer = Lexer::new(input);
-        
+
         let tokens: Vec<Token> = std::iter::from_fn(|| {
             let token = lexer.next_token();
             if token.kind == TokenKind::Eof {
@@ -495,8 +530,9 @@ mod tests {
             } else {
                 Some(token)
             }
-        }).collect();
-        
+        })
+        .collect();
+
         assert_eq!(tokens[0].kind, TokenKind::Arrow);
         assert_eq!(tokens[1].kind, TokenKind::BackArrow);
     }

@@ -11,8 +11,10 @@ pub mod algo_nodes;
 pub mod mutate_nodes;
 pub mod maintain_nodes;
 pub mod scan_nodes;
+pub mod nodes;
 
 // 重新导出主要的类型
 pub use plan_node::{PlanNode, PlanNodeKind, SingleDependencyNode, SingleInputNode, BinaryInputNode, VariableDependencyNode};
 pub use execution_plan::{ExecutionPlan, SubPlan};
 pub use plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
+pub use nodes::*;

@@ -1,9 +1,12 @@
 //! FETCH EDGES查询规划器
 //! 处理FETCH EDGES查询的规划
 
-use crate::query::context::AstContext;
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::context::{AstContext, FetchEdgesContext};
+use crate::query::planner::plan::nodes::*;
+use crate::query::planner::plan::plan_node::PlanNode;
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::validator::{Column, Variable};
 
 /// FETCH EDGES查询规划器
 /// 负责将FETCH EDGES查询转换为执行计划
@@ -36,11 +39,100 @@ impl FetchEdgesPlanner {
 }
 
 impl Planner for FetchEdgesPlanner {
-    fn transform(&mut self, _ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // TODO: 实现FETCH EDGES查询的规划逻辑
-        Err(PlannerError::UnsupportedOperation(
-            "FETCH EDGES query planning not yet implemented".to_string(),
-        ))
+    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+        // 从ast_ctx创建FetchEdgesContext
+        let fetch_ctx = FetchEdgesContext::new(ast_ctx.clone());
+
+        // 实现FETCH EDGES查询的规划逻辑
+        println!("Processing FETCH EDGES query planning: {:?}", fetch_ctx);
+
+        // 1. 创建参数节点，获取边的条件
+        let mut arg_node = Box::new(Argument::new(1, &fetch_ctx.input_var_name));
+        arg_node.set_col_names(vec!["edge_condition".to_string()]);
+        arg_node.set_output_var(Variable {
+            name: "edge_condition".to_string(),
+            columns: vec![],
+        });
+
+        // 2. 创建获取边的节点
+        let mut get_edges_node = Box::new(GetEdges::new(
+            2,
+            1,
+            &fetch_ctx.src.clone().unwrap_or_default(),
+            &fetch_ctx.edge_type.clone().unwrap_or_default(),
+            &fetch_ctx.rank.clone().unwrap_or_default(),
+            &fetch_ctx.dst.clone().unwrap_or_default(),
+        ));
+        get_edges_node.set_dependencies(vec![arg_node.clone_plan_node()]);
+        get_edges_node.set_output_var(Variable {
+            name: "fetched_edges".to_string(),
+            columns: vec![],
+        });
+
+        // 设置边属性
+        get_edges_node.edge_props = fetch_ctx
+            .expr_props
+            .edge_props
+            .iter()
+            .map(|(edge_type, props)| EdgeProp::new(edge_type, props.clone()))
+            .collect();
+
+        // 3. 创建过滤空边的节点
+        let mut filter_node = Box::new(Filter::new(
+            3,
+            &format!("{} IS NOT EMPTY", fetch_ctx.edge_name),
+        ));
+        filter_node.set_dependencies(vec![get_edges_node.clone_plan_node()]);
+        filter_node.set_output_var(Variable {
+            name: "filtered_edges".to_string(),
+            columns: vec![],
+        });
+
+        // 4. 创建投影节点
+        let mut project_node = Box::new(Project::new(
+            4,
+            &fetch_ctx.yield_expr.clone().unwrap_or("*".to_string()),
+        ));
+        project_node.set_dependencies(vec![filter_node.clone_plan_node()]);
+        let result_columns: Vec<Column> = vec![
+            Column {
+                name: "src".to_string(),
+                type_: crate::core::ValueTypeDef::String, // 使用正确的类型
+            },
+            Column {
+                name: "dst".to_string(),
+                type_: crate::core::ValueTypeDef::String, // 使用正确的类型
+            },
+            Column {
+                name: "rank".to_string(),
+                type_: crate::core::ValueTypeDef::Int, // 使用正确的类型
+            },
+        ];
+        project_node.set_output_var(Variable {
+            name: "project_result".to_string(),
+            columns: result_columns,
+        });
+
+        // 5. 如果需要去重，创建去重节点
+        let final_node = if fetch_ctx.distinct {
+            let mut dedup_node = Box::new(Dedup::new(5));
+            dedup_node.set_dependencies(vec![project_node.clone_plan_node()]);
+            dedup_node.set_output_var(Variable {
+                name: "dedup_result".to_string(),
+                columns: vec![],
+            });
+            dedup_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+        } else {
+            project_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+        };
+
+        // 创建SubPlan
+        let sub_plan = SubPlan {
+            root: Some(final_node),
+            tail: Some(arg_node.clone_plan_node()),
+        };
+
+        Ok(sub_plan)
     }
 
     fn match_planner(&self, ast_ctx: &AstContext) -> bool {

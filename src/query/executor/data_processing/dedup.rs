@@ -3,7 +3,7 @@
 //! 实现数据去重功能，支持基于指定键的去重策略
 
 use async_trait::async_trait;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{Edge, Value, Vertex};
@@ -452,7 +452,7 @@ mod tests {
             }
         }
 
-        let mut input_executor = MockInputExecutor {
+        let input_executor = MockInputExecutor {
             result: input_result,
         };
 
@@ -533,7 +533,7 @@ mod tests {
             }
         }
 
-        let mut input_executor = MockInputExecutor {
+        let input_executor = MockInputExecutor {
             result: input_result,
         };
 

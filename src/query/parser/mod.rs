@@ -5,6 +5,7 @@
 
 pub mod lexer;
 pub mod parser;
+pub mod query_parser;
 pub mod ast;
 pub mod token;
 pub mod error;

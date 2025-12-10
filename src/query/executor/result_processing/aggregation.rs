@@ -7,18 +7,18 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, InputExecutor};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, InputExecutor};
 
 /// 聚合函数类型
 #[derive(Debug, Clone)]
 pub enum AggregateFunction {
     Count,
-    Sum(String),    // 字段名
-    Avg(String),    // 字段名
-    Max(String),    // 字段名
-    Min(String),    // 字段名
+    Sum(String), // 字段名
+    Avg(String), // 字段名
+    Max(String), // 字段名
+    Min(String), // 字段名
 }
 
 /// 聚合数据状态
@@ -227,7 +227,7 @@ impl AggData {
 /// 执行聚合操作，支持 COUNT, SUM, AVG, MAX, MIN 等聚合函数
 pub struct AggregateExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    group_keys: Vec<String>,           // 分组键
+    group_keys: Vec<String>,                     // 分组键
     aggregate_functions: Vec<AggregateFunction>, // 聚合函数
     input_executor: Option<Box<dyn Executor<S>>>,
 }
@@ -271,7 +271,10 @@ impl<S: StorageEngine> AggregateExecutor<S> {
     fn extract_aggregate_value(&self, row: &[Value], func: &AggregateFunction) -> Value {
         match func {
             AggregateFunction::Count => Value::Int(1), // COUNT 总是返回 1
-            AggregateFunction::Sum(column) | AggregateFunction::Avg(column) | AggregateFunction::Max(column) | AggregateFunction::Min(column) => {
+            AggregateFunction::Sum(column)
+            | AggregateFunction::Avg(column)
+            | AggregateFunction::Max(column)
+            | AggregateFunction::Min(column) => {
                 // 在实际实现中，这里需要根据列名找到对应的值
                 // 现在简化实现，假设列名存在
                 if let Some(index) = self.group_keys.iter().position(|k| k == column) {
@@ -325,7 +328,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for AggregateExecutor<S> {
                 // 为每个分组键创建初始聚合数据
                 for row in &dataset.rows {
                     let group_key = self.extract_group_key(row);
-                    
+
                     // 获取或创建该分组的聚合数据
                     let agg_datas = result.entry(group_key).or_insert_with(|| {
                         self.aggregate_functions
@@ -343,7 +346,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for AggregateExecutor<S> {
 
                 // 生成结果数据集
                 let mut result_dataset = crate::core::value::DataSet::new();
-                
+
                 // 设置列名
                 let mut col_names = Vec::new();
                 col_names.extend(self.group_keys.clone());
@@ -362,12 +365,12 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for AggregateExecutor<S> {
                 for (group_key, agg_datas) in result {
                     let mut row = Vec::new();
                     row.extend(group_key);
-                    
+
                     for (i, func) in self.aggregate_functions.iter().enumerate() {
                         let result_value = agg_datas[i].result(func)?;
                         row.push(result_value);
                     }
-                    
+
                     result_dataset.rows.push(row);
                 }
 

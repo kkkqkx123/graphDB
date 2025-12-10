@@ -1,6 +1,7 @@
 //! Main planner trait and implementation
 use super::plan::SubPlan;
 use crate::query::context::AstContext;
+use crate::query::parser::query_parser::{QueryParser, QueryContext};
 
 // Match function type - takes AstContext and returns whether the planner matches
 pub type MatchFunc = fn(&AstContext) -> bool;
@@ -50,7 +51,10 @@ impl SequentialPlanner {
 
     // Converts an AST context to a plan (similar to the original Nebula toPlan method)
     pub fn to_plan(ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // Select the appropriate planner based on the AST context and call its transform method
+        // First, we need to parse the query to get detailed context
+        // For now, we pass the original ast_ctx directly to the planners
+        // In future, we might want to parse the query text first
+
         let mut planners_registry = PlannersRegistry::new();
         Self::register_planners(&mut planners_registry);
 
@@ -101,6 +105,33 @@ impl SequentialPlanner {
             MatchAndInstantiate {
                 match_func: crate::query::planner::subgraph_planner::SubgraphPlanner::match_ast_ctx,
                 instantiate_func: crate::query::planner::subgraph_planner::SubgraphPlanner::make,
+            },
+        );
+
+        // Register fetch vertices planner
+        registry.add_planner(
+            "FETCH VERTICES".to_string(),
+            MatchAndInstantiate {
+                match_func: crate::query::planner::ngql::FetchVerticesPlanner::match_ast_ctx,
+                instantiate_func: crate::query::planner::ngql::FetchVerticesPlanner::make,
+            },
+        );
+
+        // Register fetch edges planner
+        registry.add_planner(
+            "FETCH EDGES".to_string(),
+            MatchAndInstantiate {
+                match_func: crate::query::planner::ngql::FetchEdgesPlanner::match_ast_ctx,
+                instantiate_func: crate::query::planner::ngql::FetchEdgesPlanner::make,
+            },
+        );
+
+        // Register maintain planner
+        registry.add_planner(
+            "MAINTAIN".to_string(),
+            MatchAndInstantiate {
+                match_func: crate::query::planner::ngql::MaintainPlanner::match_ast_ctx,
+                instantiate_func: crate::query::planner::ngql::MaintainPlanner::make,
             },
         );
     }

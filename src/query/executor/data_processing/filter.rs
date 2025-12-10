@@ -375,7 +375,7 @@ mod tests {
             }
         }
 
-        let mut input_executor = MockInputExecutor {
+        let input_executor = MockInputExecutor {
             result: input_result,
         };
 

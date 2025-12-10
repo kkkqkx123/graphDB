@@ -14,11 +14,8 @@ use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::{PlanNode, PlanNodeKind, SingleDependencyNode, SingleInputNode};
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::validator::structs::{
-    alias_structs::QueryPart,
-    clause_structs::{
-        MatchClauseContext,
-    },
-    CypherClauseContext, CypherClauseKind,
+    alias_structs::QueryPart, clause_structs::MatchClauseContext, CypherClauseContext,
+    CypherClauseKind,
 };
 use std::collections::HashSet;
 
@@ -113,20 +110,25 @@ impl MatchPlanner {
         for (alias, alias_type) in &match_ctx.aliases_generated {
             if let Some(available_type) = match_ctx.aliases_available.get(alias) {
                 inter_aliases.insert(alias.clone());
-                
+
                 // 检查类型兼容性
                 // 如果任何类型是运行时类型，将类型检查留给运行时
-                if matches!(available_type, crate::query::validator::structs::AliasType::Runtime) ||
-                   matches!(alias_type, crate::query::validator::structs::AliasType::Runtime) {
+                if matches!(
+                    available_type,
+                    crate::query::validator::structs::AliasType::Runtime
+                ) || matches!(
+                    alias_type,
+                    crate::query::validator::structs::AliasType::Runtime
+                ) {
                     continue;
                 }
-                
+
                 // 非运行时连接的类型应该相同
                 if available_type != alias_type {
-                    return Err(PlannerError::InvalidAstContext(
-                        format!("{} binding to different type: {:?} vs {:?}",
-                               alias, alias_type, available_type)
-                    ));
+                    return Err(PlannerError::InvalidAstContext(format!(
+                        "{} binding to different type: {:?} vs {:?}",
+                        alias, alias_type, available_type
+                    )));
                 }
             }
         }
@@ -230,22 +232,29 @@ impl MatchPlanner {
 
             // 处理 WITH/UNWIND 子句中的 ORDER BY 和 Pagination
             match boundary {
-                crate::query::validator::structs::alias_structs::BoundaryClauseContext::With(with_ctx) => {
+                crate::query::validator::structs::alias_structs::BoundaryClauseContext::With(
+                    with_ctx,
+                ) => {
                     // 处理 ORDER BY 子句
                     if let Some(order_by_ctx) = &with_ctx.order_by {
-                        let order_plan = self.gen_plan(&CypherClauseContext::OrderBy(order_by_ctx.clone()))?;
+                        let order_plan =
+                            self.gen_plan(&CypherClauseContext::OrderBy(order_by_ctx.clone()))?;
                         let connector = SegmentsConnector::new();
                         *query_plan = connector.add_input(order_plan, query_plan.clone(), true);
                     }
 
                     // 处理分页子句 (SKIP/LIMIT)
                     if let Some(pagination_ctx) = &with_ctx.pagination {
-                        let pagination_plan = self.gen_plan(&CypherClauseContext::Pagination(pagination_ctx.clone()))?;
+                        let pagination_plan = self
+                            .gen_plan(&CypherClauseContext::Pagination(pagination_ctx.clone()))?;
                         let connector = SegmentsConnector::new();
-                        *query_plan = connector.add_input(pagination_plan, query_plan.clone(), true);
+                        *query_plan =
+                            connector.add_input(pagination_plan, query_plan.clone(), true);
                     }
                 }
-                crate::query::validator::structs::alias_structs::BoundaryClauseContext::Unwind(_unwind_ctx) => {
+                crate::query::validator::structs::alias_structs::BoundaryClauseContext::Unwind(
+                    _unwind_ctx,
+                ) => {
                     // UNWIND 子句不支持 ORDER BY 和 PAGINATION
                     // 这些功能在 WITH 子句中支持
                 }
@@ -304,10 +313,8 @@ impl Planner for MatchPlanner {
         }) as Box<dyn PlanNode>;
 
         // 创建一个GetNeighbors节点作为示例
-        let get_neighbors_node = Box::new(SingleInputNode::new(
-            PlanNodeKind::GetNeighbors,
-            start_node,
-        ));
+        let get_neighbors_node =
+            Box::new(SingleInputNode::new(PlanNodeKind::GetNeighbors, start_node));
 
         query_plan.root = Some(get_neighbors_node.clone());
         query_plan.tail = Some(get_neighbors_node);
@@ -331,7 +338,7 @@ mod tests {
     use super::*;
     use crate::query::context::AstContext;
     use crate::query::validator::structs::{
-        CypherClauseContext, MatchClauseContext, Path, NodeInfo, AliasType, PathType
+        AliasType, CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
     };
     use std::collections::HashMap;
 
@@ -355,10 +362,11 @@ mod tests {
 
     /// 创建测试用的路径
     fn create_test_path(alias: &str, anonymous: bool, node_aliases: Vec<&str>) -> Path {
-        let node_infos = node_aliases.into_iter()
+        let node_infos = node_aliases
+            .into_iter()
             .map(|node_alias| create_test_node_info(node_alias, false))
             .collect();
-        
+
         Path {
             alias: alias.to_string(),
             anonymous,
@@ -391,7 +399,7 @@ mod tests {
     #[test]
     fn test_match_planner_new() {
         let planner = MatchPlanner::new();
-        
+
         // 验证创建的实例
         assert!(!planner.tail_connected);
     }
@@ -399,7 +407,7 @@ mod tests {
     #[test]
     fn test_match_planner_default() {
         let planner = MatchPlanner::default();
-        
+
         // 验证默认创建的实例
         assert!(!planner.tail_connected);
     }
@@ -407,7 +415,7 @@ mod tests {
     #[test]
     fn test_match_planner_debug() {
         let planner = MatchPlanner::new();
-        
+
         let debug_str = format!("{:?}", planner);
         assert!(debug_str.contains("MatchPlanner"));
     }
@@ -415,7 +423,7 @@ mod tests {
     #[test]
     fn test_make() {
         let planner_box = MatchPlanner::make();
-        
+
         // 验证工厂函数创建的实例
         assert!(true); // 如果能创建实例就通过
     }
@@ -423,7 +431,7 @@ mod tests {
     #[test]
     fn test_match_ast_ctx_match() {
         let ast_ctx = create_test_ast_context("MATCH", "MATCH (n) RETURN n");
-        
+
         // MATCH 语句应该匹配
         assert!(MatchPlanner::match_ast_ctx(&ast_ctx));
     }
@@ -431,7 +439,7 @@ mod tests {
     #[test]
     fn test_match_ast_ctx_match_lowercase() {
         let ast_ctx = create_test_ast_context("match", "match (n) return n");
-        
+
         // 小写的 MATCH 语句应该匹配
         assert!(MatchPlanner::match_ast_ctx(&ast_ctx));
     }
@@ -439,7 +447,7 @@ mod tests {
     #[test]
     fn test_match_ast_ctx_non_match() {
         let ast_ctx = create_test_ast_context("GO", "GO FROM 1 OVER edge");
-        
+
         // 非 MATCH 语句不应该匹配
         assert!(!MatchPlanner::match_ast_ctx(&ast_ctx));
     }
@@ -447,7 +455,7 @@ mod tests {
     #[test]
     fn test_get_match_and_instantiate() {
         let match_and_instantiate = MatchPlanner::get_match_and_instantiate();
-        
+
         // 验证获取的匹配和实例化函数
         assert!(true); // 如果能获取就通过
     }
@@ -455,12 +463,12 @@ mod tests {
     #[test]
     fn test_gen_plan_match() {
         let mut planner = MatchPlanner::new();
-        
+
         let match_ctx = create_test_match_clause_context();
         let clause_ctx = CypherClauseContext::Match(match_ctx);
-        
+
         let result = planner.gen_plan(&clause_ctx);
-        
+
         // 生成 MATCH 计划应该成功
         assert!(result.is_ok());
     }
@@ -468,7 +476,7 @@ mod tests {
     #[test]
     fn test_gen_plan_unwind() {
         let mut planner = MatchPlanner::new();
-        
+
         let unwind_ctx = crate::query::validator::structs::UnwindClauseContext {
             alias: "item".to_string(),
             unwind_expr: crate::graph::expression::expr_type::Expression::Variable("x".to_string()),
@@ -476,11 +484,11 @@ mod tests {
             aliases_generated: HashMap::new(),
             paths: vec![],
         };
-        
+
         let clause_ctx = CypherClauseContext::Unwind(unwind_ctx);
-        
+
         let result = planner.gen_plan(&clause_ctx);
-        
+
         // 生成 UNWIND 计划应该成功
         assert!(result.is_ok());
     }
@@ -488,7 +496,7 @@ mod tests {
     #[test]
     fn test_gen_plan_with() {
         let mut planner = MatchPlanner::new();
-        
+
         let yield_clause = crate::query::validator::structs::YieldClauseContext {
             yield_columns: vec![],
             aliases_available: HashMap::new(),
@@ -503,7 +511,7 @@ mod tests {
             proj_cols: vec![],
             paths: vec![],
         };
-        
+
         let with_ctx = crate::query::validator::structs::WithClauseContext {
             yield_clause,
             aliases_available: HashMap::new(),
@@ -513,11 +521,11 @@ mod tests {
             order_by: None,
             distinct: false,
         };
-        
+
         let clause_ctx = CypherClauseContext::With(with_ctx);
-        
+
         let result = planner.gen_plan(&clause_ctx);
-        
+
         // 生成 WITH 计划应该成功
         assert!(result.is_ok());
     }
@@ -525,7 +533,7 @@ mod tests {
     #[test]
     fn test_gen_plan_return() {
         let mut planner = MatchPlanner::new();
-        
+
         let yield_clause = crate::query::validator::structs::YieldClauseContext {
             yield_columns: vec![],
             aliases_available: HashMap::new(),
@@ -540,7 +548,7 @@ mod tests {
             proj_cols: vec![],
             paths: vec![],
         };
-        
+
         let return_ctx = crate::query::validator::structs::ReturnClauseContext {
             yield_clause,
             aliases_available: HashMap::new(),
@@ -549,11 +557,11 @@ mod tests {
             order_by: None,
             distinct: false,
         };
-        
+
         let clause_ctx = CypherClauseContext::Return(return_ctx);
-        
+
         let result = planner.gen_plan(&clause_ctx);
-        
+
         // 生成 RETURN 计划应该成功
         assert!(result.is_ok());
     }
@@ -561,7 +569,7 @@ mod tests {
     #[test]
     fn test_gen_plan_unsupported() {
         let mut planner = MatchPlanner::new();
-        
+
         let yield_ctx = crate::query::validator::structs::YieldClauseContext {
             yield_columns: vec![],
             aliases_available: HashMap::new(),
@@ -576,11 +584,11 @@ mod tests {
             proj_cols: vec![],
             paths: vec![],
         };
-        
+
         let clause_ctx = CypherClauseContext::Yield(yield_ctx);
-        
+
         let result = planner.gen_plan(&clause_ctx);
-        
+
         // 不支持的子句类型应该返回错误
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -594,12 +602,12 @@ mod tests {
     #[test]
     fn test_connect_match_plan_empty_query_plan() {
         let mut planner = MatchPlanner::new();
-        
+
         let match_ctx = create_test_match_clause_context();
         let mut query_plan = SubPlan::new(None, None);
-        
+
         let result = planner.connect_match_plan(&mut query_plan, &match_ctx);
-        
+
         // 连接空查询计划应该成功
         assert!(result.is_ok());
         assert!(query_plan.root.is_some());
@@ -608,9 +616,9 @@ mod tests {
     #[test]
     fn test_connect_match_plan_with_existing_plan() {
         let mut planner = MatchPlanner::new();
-        
+
         let match_ctx = create_test_match_clause_context();
-        
+
         let existing_plan = SubPlan::new(
             Some(Box::new(SingleDependencyNode {
                 id: -1,
@@ -620,13 +628,13 @@ mod tests {
                 col_names: vec![],
                 cost: 0.0,
             })),
-            None
+            None,
         );
-        
+
         let mut query_plan = existing_plan;
-        
+
         let result = planner.connect_match_plan(&mut query_plan, &match_ctx);
-        
+
         // 连接现有查询计划应该成功
         assert!(result.is_ok());
         assert!(query_plan.root.is_some());
@@ -635,11 +643,15 @@ mod tests {
     #[test]
     fn test_connect_match_plan_with_intersecting_aliases() {
         let mut planner = MatchPlanner::new();
-        
+
         let mut match_ctx = create_test_match_clause_context();
-        match_ctx.aliases_generated.insert("n".to_string(), AliasType::Node);
-        match_ctx.aliases_available.insert("n".to_string(), AliasType::Node);
-        
+        match_ctx
+            .aliases_generated
+            .insert("n".to_string(), AliasType::Node);
+        match_ctx
+            .aliases_available
+            .insert("n".to_string(), AliasType::Node);
+
         let existing_plan = SubPlan::new(
             Some(Box::new(SingleDependencyNode {
                 id: -1,
@@ -649,13 +661,13 @@ mod tests {
                 col_names: vec![],
                 cost: 0.0,
             })),
-            None
+            None,
         );
-        
+
         let mut query_plan = existing_plan;
-        
+
         let result = planner.connect_match_plan(&mut query_plan, &match_ctx);
-        
+
         // 连接有交集别名的计划应该成功
         assert!(result.is_ok());
         assert!(query_plan.root.is_some());
@@ -664,21 +676,27 @@ mod tests {
     #[test]
     fn test_connect_match_plan_optional_with_where() {
         let mut planner = MatchPlanner::new();
-        
+
         let mut match_ctx = create_test_match_clause_context();
         match_ctx.is_optional = true;
-        match_ctx.aliases_generated.insert("n".to_string(), AliasType::Node);
-        match_ctx.aliases_available.insert("n".to_string(), AliasType::Node);
-        
+        match_ctx
+            .aliases_generated
+            .insert("n".to_string(), AliasType::Node);
+        match_ctx
+            .aliases_available
+            .insert("n".to_string(), AliasType::Node);
+
         let where_ctx = crate::query::validator::structs::WhereClauseContext {
-            filter: Some(crate::graph::expression::expr_type::Expression::Variable("x".to_string())),
+            filter: Some(crate::graph::expression::expr_type::Expression::Variable(
+                "x".to_string(),
+            )),
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),
             paths: vec![],
         };
-        
+
         match_ctx.where_clause = Some(where_ctx);
-        
+
         let existing_plan = SubPlan::new(
             Some(Box::new(SingleDependencyNode {
                 id: -1,
@@ -688,13 +706,13 @@ mod tests {
                 col_names: vec![],
                 cost: 0.0,
             })),
-            None
+            None,
         );
-        
+
         let mut query_plan = existing_plan;
-        
+
         let result = planner.connect_match_plan(&mut query_plan, &match_ctx);
-        
+
         // 连接可选 MATCH 带 WHERE 子句应该成功
         assert!(result.is_ok());
         assert!(query_plan.root.is_some());
@@ -703,18 +721,18 @@ mod tests {
     #[test]
     fn test_transform_match_statement() {
         let mut planner = MatchPlanner::new();
-        
+
         let ast_ctx = create_test_ast_context("MATCH", "MATCH (n) RETURN n");
-        
+
         let result = planner.transform(&ast_ctx);
-        
+
         // 转换 MATCH 语句应该成功
         assert!(result.is_ok());
-        
+
         let subplan = result.unwrap();
         assert!(subplan.root.is_some());
         assert!(subplan.tail.is_some());
-        
+
         // 验证根节点类型
         if let Some(root) = &subplan.root {
             assert_eq!(root.kind(), PlanNodeKind::GetNeighbors);
@@ -724,11 +742,11 @@ mod tests {
     #[test]
     fn test_transform_non_match_statement() {
         let mut planner = MatchPlanner::new();
-        
+
         let ast_ctx = create_test_ast_context("GO", "GO FROM 1 OVER edge");
-        
+
         let result = planner.transform(&ast_ctx);
-        
+
         // 转换非 MATCH 语句应该失败
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -742,9 +760,9 @@ mod tests {
     #[test]
     fn test_match_planner_trait() {
         let planner = MatchPlanner::new();
-        
+
         let ast_ctx = create_test_ast_context("MATCH", "MATCH (n) RETURN n");
-        
+
         // 测试 trait 方法
         assert!(planner.match_planner(&ast_ctx));
     }
@@ -752,7 +770,7 @@ mod tests {
     #[test]
     fn test_gen_query_part_plan() {
         let mut planner = MatchPlanner::new();
-        
+
         let match_ctx = create_test_match_clause_context();
         let query_part = crate::query::validator::structs::alias_structs::QueryPart {
             matchs: vec![match_ctx],
@@ -761,11 +779,11 @@ mod tests {
             aliases_generated: HashMap::new(),
             paths: vec![],
         };
-        
+
         let mut query_plan = SubPlan::new(None, None);
-        
+
         let result = planner.gen_query_part_plan(&mut query_plan, &query_part);
-        
+
         // 生成查询部分计划应该成功
         assert!(result.is_ok());
     }
@@ -773,9 +791,9 @@ mod tests {
     #[test]
     fn test_gen_query_part_plan_with_boundary() {
         let mut planner = MatchPlanner::new();
-        
+
         let match_ctx = create_test_match_clause_context();
-        
+
         let yield_clause = crate::query::validator::structs::YieldClauseContext {
             yield_columns: vec![],
             aliases_available: HashMap::new(),
@@ -790,7 +808,7 @@ mod tests {
             proj_cols: vec![],
             paths: vec![],
         };
-        
+
         let with_ctx = crate::query::validator::structs::WithClauseContext {
             yield_clause,
             aliases_available: HashMap::new(),
@@ -800,9 +818,10 @@ mod tests {
             order_by: None,
             distinct: false,
         };
-        
-        let boundary = crate::query::validator::structs::alias_structs::BoundaryClauseContext::With(with_ctx);
-        
+
+        let boundary =
+            crate::query::validator::structs::alias_structs::BoundaryClauseContext::With(with_ctx);
+
         let query_part = crate::query::validator::structs::alias_structs::QueryPart {
             matchs: vec![match_ctx],
             boundary: Some(boundary),
@@ -810,11 +829,11 @@ mod tests {
             aliases_generated: HashMap::new(),
             paths: vec![],
         };
-        
+
         let mut query_plan = SubPlan::new(None, None);
-        
+
         let result = planner.gen_query_part_plan(&mut query_plan, &query_part);
-        
+
         // 生成带边界子句的查询部分计划应该成功
         assert!(result.is_ok());
     }
