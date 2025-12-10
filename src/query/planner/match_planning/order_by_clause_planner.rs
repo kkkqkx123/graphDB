@@ -6,7 +6,7 @@ use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePl
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
-    CypherClauseContext, CypherClauseKind, OrderByClauseContext,
+    CypherClauseContext, CypherClauseKind,
 };
 
 /// ORDER BY子句规划器

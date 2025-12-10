@@ -7,7 +7,6 @@ use crate::query::planner::match_planning::match_clause_planner::MatchClausePlan
 use crate::query::planner::match_planning::return_clause_planner::ReturnClausePlanner;
 use crate::query::planner::match_planning::segments_connector::SegmentsConnector;
 use crate::query::planner::match_planning::unwind_clause_planner::UnwindClausePlanner;
-use crate::query::planner::match_planning::where_clause_planner::WhereClausePlanner;
 use crate::query::planner::match_planning::with_clause_planner::WithClausePlanner;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::{PlanNodeKind, SingleDependencyNode};
@@ -15,9 +14,9 @@ use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::validator::structs::{
     alias_structs::QueryPart,
     clause_structs::{
-        MatchClauseContext, ReturnClauseContext, WhereClauseContext, WithClauseContext,
+        MatchClauseContext,
     },
-    CypherClauseContext, CypherClauseContext as ClauseContext, CypherClauseKind,
+    CypherClauseContext, CypherClauseKind,
 };
 use std::collections::HashSet;
 

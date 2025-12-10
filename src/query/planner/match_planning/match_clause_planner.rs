@@ -5,10 +5,10 @@ use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePl
 use crate::query::planner::match_planning::match_path_planner::MatchPathPlanner;
 use crate::query::planner::match_planning::segments_connector::SegmentsConnector;
 use crate::query::planner::match_planning::shortest_path_planner::ShortestPathPlanner;
-use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::{SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
-    clause_structs::WhereClauseContext, CypherClauseContext, CypherClauseKind, MatchClauseContext,
+    CypherClauseContext, CypherClauseKind, MatchClauseContext,
 };
 use std::collections::HashSet;
 

@@ -6,7 +6,6 @@ use crate::query::planner::plan::{SubPlan, PlanNodeKind, SingleInputNode};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
     MatchClauseContext, Path, WhereClauseContext,
-    clause_structs::YieldColumn,
 };
 use std::collections::HashSet;
 

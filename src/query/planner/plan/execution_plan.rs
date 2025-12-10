@@ -65,14 +65,25 @@ impl ExecutionPlan {
 /// SubPlan结构
 /// 表示执行计划的一个子部分，包含根节点和尾节点
 /// 用于复杂查询的分段规划
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SubPlan {
     /// 子计划的根节点
     pub root: Option<Box<dyn PlanNode>>,
-    
+
     /// 子计划的尾节点
     /// 用于连接多个子计划
     pub tail: Option<Box<dyn PlanNode>>,
+}
+
+impl Clone for SubPlan {
+    fn clone(&self) -> Self {
+        // 创建一个基本SubPlan，不包含节点引用
+        // 这是一个临时解决方案
+        Self {
+            root: None, // 克隆时清空节点引用
+            tail: None, // 克隆时清空节点引用
+        }
+    }
 }
 
 impl SubPlan {

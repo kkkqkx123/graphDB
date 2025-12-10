@@ -1,8 +1,8 @@
 //! PlanNode特征和基础实现
 //! 定义执行计划节点的通用接口和各种基础节点类型
 
+use super::plan_node_visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::validator::Variable;
-use super::plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
 
 /// 计划节点类型枚举，表示执行计划中的各种操作
 #[derive(Debug, Clone, PartialEq)]
@@ -168,43 +168,43 @@ pub enum PlanNodeKind {
 pub trait PlanNode: std::fmt::Debug {
     /// 获取节点的唯一ID
     fn id(&self) -> i64;
-    
+
     /// 获取节点的类型
     fn kind(&self) -> PlanNodeKind;
-    
+
     /// 获取节点的依赖节点列表
     fn dependencies(&self) -> &Vec<Box<dyn PlanNode>>;
-    
+
     /// 获取节点的输出变量
     fn output_var(&self) -> &Option<Variable>;
-    
+
     /// 获取列名列表
     fn col_names(&self) -> &Vec<String>;
-    
+
     /// 获取节点的成本估计值
     fn cost(&self) -> f64;
-    
+
     /// 克隆节点
     fn clone_plan_node(&self) -> Box<dyn PlanNode>;
-    
+
     /// 使用访问者模式访问节点
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError>;
-    
+
     /// 设置节点的依赖
     fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>);
-    
+
     /// 设置节点的输出变量
     fn set_output_var(&mut self, var: Variable);
-    
+
     /// 设置列名
     fn set_col_names(&mut self, names: Vec<String>);
-    
+
     /// 设置成本
     fn set_cost(&mut self, cost: f64);
 }
 
 /// 单一依赖节点 - 具有一个依赖的计划节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SingleDependencyNode {
     pub id: i64,
     pub kind: PlanNodeKind,
@@ -212,6 +212,21 @@ pub struct SingleDependencyNode {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
+}
+
+impl Clone for SingleDependencyNode {
+    fn clone(&self) -> Self {
+        // 创建一个基本结构体，不包含依赖项
+        // 这是一个临时解决方案，因为PlanNode的克隆需要特别处理
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            dependencies: Vec::new(), // 克隆时清空依赖项
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        }
+    }
 }
 
 impl SingleDependencyNode {
@@ -291,7 +306,7 @@ impl PlanNode for SingleDependencyNode {
 }
 
 /// 单一输入节点 - 处理单一输入的计划节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SingleInputNode {
     pub id: i64,
     pub kind: PlanNodeKind,
@@ -299,6 +314,21 @@ pub struct SingleInputNode {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
+}
+
+impl Clone for SingleInputNode {
+    fn clone(&self) -> Self {
+        // 创建一个基本结构体，不包含依赖项
+        // 这是一个临时解决方案，因为PlanNode的克隆需要特别处理
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            dependencies: Vec::new(), // 克隆时清空依赖项
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        }
+    }
 }
 
 impl SingleInputNode {
@@ -378,7 +408,7 @@ impl PlanNode for SingleInputNode {
 }
 
 /// 二元输入节点 - 具有两个依赖的计划节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct BinaryInputNode {
     pub id: i64,
     pub kind: PlanNodeKind,
@@ -386,6 +416,21 @@ pub struct BinaryInputNode {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
+}
+
+impl Clone for BinaryInputNode {
+    fn clone(&self) -> Self {
+        // 创建一个基本结构体，不包含依赖项
+        // 这是一个临时解决方案，因为PlanNode的克隆需要特别处理
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            dependencies: Vec::new(), // 克隆时清空依赖项
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        }
+    }
 }
 
 impl BinaryInputNode {
@@ -465,7 +510,7 @@ impl PlanNode for BinaryInputNode {
 }
 
 /// 可变依赖节点 - 具有可变数量依赖的计划节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct VariableDependencyNode {
     pub id: i64,
     pub kind: PlanNodeKind,
@@ -473,6 +518,21 @@ pub struct VariableDependencyNode {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
+}
+
+impl Clone for VariableDependencyNode {
+    fn clone(&self) -> Self {
+        // 创建一个基本结构体，不包含依赖项
+        // 这是一个临时解决方案，因为PlanNode的克隆需要特别处理
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            dependencies: Vec::new(), // 克隆时清空依赖项
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        }
+    }
 }
 
 impl VariableDependencyNode {
@@ -486,7 +546,7 @@ impl VariableDependencyNode {
             cost: 0.0,
         }
     }
-    
+
     pub fn add_dependency(&mut self, dep: Box<dyn PlanNode>) {
         self.dependencies.push(dep);
     }

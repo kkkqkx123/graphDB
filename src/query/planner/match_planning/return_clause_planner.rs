@@ -10,7 +10,7 @@ use crate::query::planner::match_planning::yield_clause_planner::YieldClausePlan
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
-    CypherClauseContext, CypherClauseKind, ReturnClauseContext,
+    CypherClauseContext, CypherClauseKind,
 };
 
 /// RETURN子句规划器

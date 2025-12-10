@@ -7,7 +7,7 @@ use crate::query::planner::match_planning::match_path_planner::MatchPathPlanner;
 use crate::query::planner::match_planning::segments_connector::SegmentsConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind, WhereClauseContext};
+use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 
 /// WHERE子句规划器
 /// 负责规划WHERE子句中的过滤条件
@@ -67,10 +67,10 @@ impl CypherClausePlanner for WhereClausePlanner {
                 let connector = SegmentsConnector::new();
                 if path.is_pred {
                     // 构建模式谓词的计划
-                    paths_plan = connector.pattern_apply(&paths_plan, &path_plan, path);
+                    paths_plan = connector.pattern_apply(paths_plan, path_plan, path);
                 } else {
                     // 构建路径收集的计划
-                    paths_plan = connector.roll_up_apply(&paths_plan, &path_plan, path);
+                    paths_plan = connector.roll_up_apply(paths_plan, path_plan, path);
                 }
             }
 

@@ -4,9 +4,8 @@
 
 use crate::query::validator::structs::{
     CypherClauseContext, MatchClauseContext,
-    path_structs::{Path, NodeInfo},
+    path_structs::NodeInfo,
 };
-use std::collections::HashSet;
 
 /// 起始顶点ID查找器
 /// 负责在查询规划中找到起始顶点

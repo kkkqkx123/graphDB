@@ -5,7 +5,7 @@
 use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind, PaginationContext};
+use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 
 /// 分页规划器
 /// 负责规划LIMIT和OFFSET子句

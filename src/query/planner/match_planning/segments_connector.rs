@@ -87,13 +87,15 @@ impl SegmentsConnector {
             return right;
         }
 
-        // 将左计划的根节点作为右计划的尾节点的输入
-        if let (Some(left_root), Some(right_tail)) = (left.root, right.tail) {
-            // TODO: 设置输入变量和列名
-            // 这里需要根据具体情况设置依赖关系和变量
+        // 使用引用避免移动值
+        match (&left.root, &right.tail) {
+            (Some(_), Some(_)) => {
+                // TODO: 设置输入变量和列名
+                // 这里需要根据具体情况设置依赖关系和变量
+                SubPlan::new(left.root, right.tail)
+            }
+            _ => SubPlan::new(left.root, right.tail)
         }
-
-        SubPlan::new(left.root, right.tail)
     }
 
     /// 模式应用（用于模式谓词）
