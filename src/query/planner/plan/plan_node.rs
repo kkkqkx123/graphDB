@@ -204,7 +204,7 @@ pub trait PlanNode: std::fmt::Debug {
 }
 
 /// 单一依赖节点 - 具有一个依赖的计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SingleDependencyNode {
     pub id: i64,
     pub kind: PlanNodeKind,
@@ -291,7 +291,7 @@ impl PlanNode for SingleDependencyNode {
 }
 
 /// 单一输入节点 - 处理单一输入的计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SingleInputNode {
     pub id: i64,
     pub kind: PlanNodeKind,
@@ -378,7 +378,7 @@ impl PlanNode for SingleInputNode {
 }
 
 /// 二元输入节点 - 具有两个依赖的计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BinaryInputNode {
     pub id: i64,
     pub kind: PlanNodeKind,
@@ -465,7 +465,7 @@ impl PlanNode for BinaryInputNode {
 }
 
 /// 可变依赖节点 - 具有可变数量依赖的计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VariableDependencyNode {
     pub id: i64,
     pub kind: PlanNodeKind,

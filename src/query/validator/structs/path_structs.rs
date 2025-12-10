@@ -19,6 +19,23 @@ pub struct Path {
     pub roll_up_apply: bool, // 是否应用RollUp
 }
 
+impl Path {
+    /// 检查是否为默认路径类型
+    pub fn is_default_path(&self) -> bool {
+        matches!(self.path_type, PathType::Default)
+    }
+    
+    /// 获取节点信息列表
+    pub fn node_infos(&self) -> &[NodeInfo] {
+        &self.node_infos
+    }
+    
+    /// 获取边信息列表
+    pub fn edge_infos(&self) -> &[EdgeInfo] {
+        &self.edge_infos
+    }
+}
+
 /// 路径类型
 #[derive(Debug, Clone, Copy)]
 pub enum PathType {

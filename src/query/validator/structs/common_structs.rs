@@ -68,6 +68,49 @@ pub enum ClauseType {
     Yield,
 }
 
+/// Cypher子句上下文枚举
+/// 表示不同类型的Cypher子句上下文
+#[derive(Debug, Clone)]
+pub enum CypherClauseContext {
+    Match(MatchClauseContext),
+    Where(WhereClauseContext),
+    Return(ReturnClauseContext),
+    With(WithClauseContext),
+    Unwind(UnwindClauseContext),
+    Yield(YieldClauseContext),
+    OrderBy(OrderByClauseContext),
+    Pagination(PaginationContext),
+}
+
+/// Cypher子句类型
+#[derive(Debug, Clone, PartialEq)]
+pub enum CypherClauseKind {
+    Match,
+    Where,
+    Return,
+    With,
+    Unwind,
+    Yield,
+    OrderBy,
+    Pagination,
+}
+
+impl CypherClauseContext {
+    /// 获取子句类型
+    pub fn kind(&self) -> CypherClauseKind {
+        match self {
+            CypherClauseContext::Match(_) => CypherClauseKind::Match,
+            CypherClauseContext::Where(_) => CypherClauseKind::Where,
+            CypherClauseContext::Return(_) => CypherClauseKind::Return,
+            CypherClauseContext::With(_) => CypherClauseKind::With,
+            CypherClauseContext::Unwind(_) => CypherClauseKind::Unwind,
+            CypherClauseContext::Yield(_) => CypherClauseKind::Yield,
+            CypherClauseContext::OrderBy(_) => CypherClauseKind::OrderBy,
+            CypherClauseContext::Pagination(_) => CypherClauseKind::Pagination,
+        }
+    }
+}
+
 /// 验证结果
 #[derive(Debug, Clone)]
 pub struct ValidationResult {

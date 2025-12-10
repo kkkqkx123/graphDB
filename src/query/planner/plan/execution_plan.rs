@@ -65,7 +65,7 @@ impl ExecutionPlan {
 /// SubPlan结构
 /// 表示执行计划的一个子部分，包含根节点和尾节点
 /// 用于复杂查询的分段规划
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubPlan {
     /// 子计划的根节点
     pub root: Option<Box<dyn PlanNode>>,

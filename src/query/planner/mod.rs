@@ -15,11 +15,11 @@ pub mod path_planner;
 pub mod subgraph_planner;
 
 // 新的模块化结构
-pub mod r#match;
+pub mod match_planning;
 pub mod ngql;
 
 // 重新导出主要的类型
 pub use ngql::{GoPlanner, LookupPlanner, PathPlanner, SubgraphPlanner};
 pub use plan::{ExecutionPlan, PlanNode, PlanNodeKind, PlanNodeVisitor, SubPlan};
 pub use planner::{Planner, PlannerError, PlannersRegistry, SequentialPlanner};
-pub use r#match::MatchPlanner;
+pub use match_planning::MatchPlanner;
