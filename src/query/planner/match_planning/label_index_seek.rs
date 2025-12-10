@@ -133,7 +133,10 @@ impl LabelIndexSeek {
             root = filter_node;
         }
 
-        Ok(SubPlan::new(Some(index_scan_node), Some(root)))
+        // 对于标签索引查找，tail应该是IndexScan节点
+        // root可能是Filter节点（如果有过滤条件）或IndexScan节点
+        let tail = index_scan_node.clone();
+        Ok(SubPlan::new(Some(root), Some(tail)))
     }
 
     /// 检查是否可以使用标签索引查找

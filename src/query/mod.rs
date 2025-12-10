@@ -11,6 +11,7 @@ pub mod planner;
 pub mod optimizer;
 pub mod executor;
 pub mod scheduler;
+pub mod parser;
 
 #[derive(Error, Debug, Clone)]
 pub enum QueryError {
@@ -230,30 +231,247 @@ impl<S: StorageEngine> QueryExecutor<S> {
     }
 }
 
+use crate::query::parser::parser::{Parser as NewParser};
+use crate::query::parser::ast::{Statement, Expression as AstExpression};
+
 pub struct QueryParser;
 
 impl QueryParser {
     pub fn parse(&self, query_string: &str) -> Result<Query, QueryError> {
-        // Simplified parser for demonstration
-        // A real implementation would have a proper parser
+        // Use the new parser implementation
+        let mut parser = NewParser::new(query_string);
+        let statements = parser.parse()
+            .map_err(|e| QueryError::ParseError(e.to_string()))?;
 
-        let lower_query = query_string.trim().to_uppercase();
+        if statements.is_empty() {
+            return Err(QueryError::ParseError("No valid statement found".to_string()));
+        }
 
-        if lower_query.starts_with("CREATE NODE") {
-            // Parse CREATE NODE query
-            // This is a simplified example - real parsing would be more robust
-            Ok(Query::CreateNode {
-                id: None,
-                tags: vec![Tag::new("Default".to_string(), HashMap::new())],
+        // Convert the first statement to our Query type
+        // For now, we'll handle only simple cases and extend as needed
+        match &statements[0] {
+            Statement::Match(match_stmt) => self.convert_match_statement(&match_stmt),
+            Statement::CreateNode(create_node_stmt) => self.convert_create_node_statement(&create_node_stmt),
+            Statement::CreateEdge(create_edge_stmt) => self.convert_create_edge_statement(&create_edge_stmt),
+            Statement::Delete(delete_stmt) => self.convert_delete_statement(&delete_stmt),
+            Statement::Update(update_stmt) => self.convert_update_statement(&update_stmt),
+            // Add more statement types as needed
+            _ => Err(QueryError::ParseError(format!("Unsupported statement type: {:?}", statements[0])))
+        }
+    }
+
+    fn convert_match_statement(
+        &self,
+        match_stmt: &crate::query::parser::ast::MatchStatement,
+    ) -> Result<Query, QueryError> {
+        // For now, we'll implement a basic conversion
+        // We'll extract WHERE conditions and any specified tags
+
+        let mut tags = None;
+        let mut conditions = Vec::new();
+
+        // Process clauses to extract tags and conditions
+        for clause in &match_stmt.clauses {
+            match clause {
+                crate::query::parser::ast::MatchClause::Match(match_detail) => {
+                    // Extract tag information from patterns
+                    for path in &match_detail.patterns {
+                        for segment in &path.path {
+                            if let crate::query::parser::ast::MatchPathSegment::Node(node) = segment {
+                                if !node.labels.is_empty() {
+                                    let tag_names: Vec<String> = node.labels.iter()
+                                        .map(|label| label.name.clone())
+                                        .collect();
+                                    tags = Some(tag_names);
+                                }
+                            }
+                        }
+                    }
+
+                    // Process WHERE clause
+                    if let Some(where_clause) = &match_detail.where_clause {
+                        if let Ok(condition) = self.convert_expression(&where_clause.condition) {
+                            conditions.push(condition);
+                        }
+                    }
+                }
+                crate::query::parser::ast::MatchClause::Where(where_clause) => {
+                    if let Ok(condition) = self.convert_expression(&where_clause.condition) {
+                        conditions.push(condition);
+                    }
+                }
+                _ => {} // Other clauses are handled at a higher level or ignored for now
+            }
+        }
+
+        Ok(Query::MatchNodes {
+            tags,
+            conditions,
+        })
+    }
+
+    fn convert_create_node_statement(
+        &self,
+        create_node_stmt: &crate::query::parser::ast::CreateNodeStatement,
+    ) -> Result<Query, QueryError> {
+        // Convert tags
+        let tags: Vec<Tag> = create_node_stmt.tags.iter()
+            .map(|tag_id| {
+                let properties = match &tag_id.properties {
+                    Some(props) => {
+                        let mut map = HashMap::new();
+                        for (key, value_expr) in props {
+                            if let Ok(value) = self.convert_ast_expression_to_value(value_expr) {
+                                map.insert(key.clone(), value);
+                            }
+                        }
+                        map
+                    },
+                    None => HashMap::new(),
+                };
+
+                Tag::new(tag_id.name.clone(), properties)
             })
-        } else if lower_query.starts_with("MATCH") {
-            // Parse MATCH query
-            Ok(Query::MatchNodes {
-                tags: None,
-                conditions: Vec::new(),
-            })
+            .collect();
+
+        Ok(Query::CreateNode {
+            id: None, // ID will be generated
+            tags,
+        })
+    }
+
+    fn convert_create_edge_statement(
+        &self,
+        create_edge_stmt: &crate::query::parser::ast::CreateEdgeStatement,
+    ) -> Result<Query, QueryError> {
+        // Convert source and destination expressions to values
+        let src = self.convert_ast_expression_to_value(&create_edge_stmt.src)?;
+        let dst = self.convert_ast_expression_to_value(&create_edge_stmt.dst)?;
+
+        // Convert properties
+        let mut properties = HashMap::new();
+        for prop in &create_edge_stmt.properties {
+            let value = self.convert_ast_expression_to_value(&prop.value)?;
+            properties.insert(prop.name.clone(), value);
+        }
+
+        Ok(Query::CreateEdge {
+            src,
+            dst,
+            edge_type: create_edge_stmt.edge_type.clone(),
+            name: String::new(), // Not used in our model
+            ranking: 0, // Default ranking
+            properties,
+        })
+    }
+
+    fn convert_delete_statement(
+        &self,
+        delete_stmt: &crate::query::parser::ast::DeleteStatement,
+    ) -> Result<Query, QueryError> {
+        if !delete_stmt.delete_vertices {
+            return Err(QueryError::ParseError("Deleting edges not supported in this model".to_string()));
+        }
+
+        if delete_stmt.vertex_exprs.is_empty() {
+            return Err(QueryError::ParseError("No vertex specified for deletion".to_string()));
+        }
+
+        // For now, we'll use the first vertex expression as the ID
+        let id = self.convert_ast_expression_to_value(&delete_stmt.vertex_exprs[0])?;
+
+        Ok(Query::DeleteNode { id })
+    }
+
+    fn convert_update_statement(
+        &self,
+        update_stmt: &crate::query::parser::ast::UpdateStatement,
+    ) -> Result<Query, QueryError> {
+        if !update_stmt.update_vertices {
+            return Err(QueryError::ParseError("Updating edges not supported in this model".to_string()));
+        }
+
+        let id = if let Some(ref vertex_ref) = update_stmt.vertex_ref {
+            self.convert_ast_expression_to_value(vertex_ref)?
         } else {
-            Err(QueryError::ParseError("Unsupported query type".to_string()))
+            return Err(QueryError::ParseError("No vertex specified for update".to_string()));
+        };
+
+        // Convert update items to tags
+        let mut tags = Vec::new();
+        for assignment in &update_stmt.update_items {
+            match &assignment.prop {
+                crate::query::parser::ast::PropertyRef::InlineProp(prop_name) => {
+                    // For now, we'll create a default tag with the updated properties
+                    let value = self.convert_ast_expression_to_value(&assignment.value)?;
+                    let mut properties = HashMap::new();
+                    properties.insert(prop_name.clone(), value);
+                    tags.push(Tag::new("UpdatedTag".to_string(), properties));
+                }
+                crate::query::parser::ast::PropertyRef::Prop(tag_name, prop_name) => {
+                    let value = self.convert_ast_expression_to_value(&assignment.value)?;
+                    let mut properties = HashMap::new();
+                    properties.insert(prop_name.clone(), value);
+                    tags.push(Tag::new(tag_name.clone(), properties));
+                }
+            }
+        }
+
+        Ok(Query::UpdateNode { id, tags })
+    }
+
+    fn convert_expression(
+        &self,
+        expr: &crate::query::parser::ast::Expression,
+    ) -> Result<Condition, QueryError> {
+        // Convert AST expression to our Condition type
+        // This is a simplified implementation
+        match expr {
+            crate::query::parser::ast::Expression::Relational(left, op, right) => {
+                // Convert left and right expressions to property names and values
+                let prop_name = self.extract_property_name(left)?;
+                let value = self.convert_ast_expression_to_value(right)?;
+
+                match op {
+                    crate::query::parser::ast::RelationalOp::Eq => Ok(Condition::PropertyEquals(prop_name, value)),
+                    crate::query::parser::ast::RelationalOp::Ne => Err(QueryError::ParseError("Not equal operator not supported yet".to_string())),
+                    crate::query::parser::ast::RelationalOp::Lt => Ok(Condition::PropertyLessThan(prop_name, value)),
+                    crate::query::parser::ast::RelationalOp::Le => Err(QueryError::ParseError("Less than or equal operator not supported yet".to_string())),
+                    crate::query::parser::ast::RelationalOp::Gt => Ok(Condition::PropertyGreaterThan(prop_name, value)),
+                    crate::query::parser::ast::RelationalOp::Ge => Err(QueryError::ParseError("Greater than or equal operator not supported yet".to_string())),
+                    crate::query::parser::ast::RelationalOp::Regex => Err(QueryError::ParseError("Regex operator not supported yet".to_string())),
+                }
+            }
+            _ => Err(QueryError::ParseError("Unsupported expression type for condition".to_string())),
+        }
+    }
+
+    fn extract_property_name(&self, expr: &crate::query::parser::ast::Expression) -> Result<String, QueryError> {
+        // Extract the property name from an expression
+        match expr {
+            crate::query::parser::ast::Expression::PropertyAccess(_, prop_name) => Ok(prop_name.clone()),
+            crate::query::parser::ast::Expression::Variable(name) => Ok(name.clone()),
+            _ => Err(QueryError::ParseError("Could not extract property name from expression".to_string())),
+        }
+    }
+
+    fn convert_ast_expression_to_value(
+        &self,
+        expr: &crate::query::parser::ast::Expression,
+    ) -> Result<Value, QueryError> {
+        // Convert an AST expression to a Value
+        match expr {
+            crate::query::parser::ast::Expression::Constant(value) => Ok(value.clone()),
+            crate::query::parser::ast::Expression::Variable(name) => {
+                // In a real implementation, this would look up the variable in the execution context
+                // For now, we'll return a string representation
+                Ok(Value::String(name.clone()))
+            }
+            crate::query::parser::ast::Expression::FunctionCall(func) => {
+                // Function calls would need to be evaluated in the execution context
+                Err(QueryError::ParseError("Function calls in expressions not supported in parsing".to_string()))
+            }
+            _ => Err(QueryError::ParseError("Unsupported expression type for value conversion".to_string())),
         }
     }
 }

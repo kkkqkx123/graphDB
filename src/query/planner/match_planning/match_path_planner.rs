@@ -539,9 +539,9 @@ mod tests {
         let subplan = result.unwrap();
         assert!(subplan.root.is_some());
         
-        // 验证根节点类型
+        // 验证根节点类型 - 对于有标签的单节点，应该使用IndexScan
         if let Some(root) = &subplan.root {
-            assert_eq!(root.kind(), PlanNodeKind::Traverse);
+            assert_eq!(root.kind(), PlanNodeKind::IndexScan);
         }
     }
 
@@ -561,9 +561,9 @@ mod tests {
         let subplan = result.unwrap();
         assert!(subplan.root.is_some());
         
-        // 验证根节点类型
+        // 验证根节点类型 - 对于多节点路径，应该使用Project节点
         if let Some(root) = &subplan.root {
-            assert_eq!(root.kind(), PlanNodeKind::Traverse);
+            assert_eq!(root.kind(), PlanNodeKind::Project);
         }
     }
 
@@ -746,11 +746,16 @@ mod tests {
         
         // 验证 SubPlan 结构
         assert!(subplan.root().is_some());
-        assert!(subplan.tail().is_none()); // 尾节点为 None
+        assert!(subplan.tail().is_some()); // 尾节点不为 None，应该是IndexScan
         
-        // 验证根节点类型
+        // 验证根节点类型 - 对于有标签的单节点，应该使用IndexScan
         if let Some(root) = &subplan.root {
-            assert_eq!(root.kind(), PlanNodeKind::Traverse);
+            assert_eq!(root.kind(), PlanNodeKind::IndexScan);
+        }
+        
+        // 验证尾节点类型 - 应该是IndexScan
+        if let Some(tail) = &subplan.tail {
+            assert_eq!(tail.kind(), PlanNodeKind::IndexScan);
         }
     }
 }

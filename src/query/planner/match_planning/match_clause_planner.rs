@@ -44,6 +44,23 @@ impl CypherClausePlanner for MatchClausePlanner {
         // 所有在当前MATCH子句中见过的节点别名
         let mut node_aliases_seen = HashSet::new();
 
+        // 如果没有路径，创建一个基本的Start节点
+        if match_clause_ctx.paths.is_empty() {
+            use crate::query::planner::plan::plan_node::{PlanNodeKind, SingleDependencyNode};
+            let start_node = Box::new(SingleDependencyNode {
+                id: -1,
+                kind: PlanNodeKind::Start,
+                dependencies: vec![],
+                output_var: None,
+                col_names: vec![],
+                cost: 0.0,
+            }) as Box<dyn crate::query::planner::plan::PlanNode>;
+            
+            match_clause_plan.root = Some(start_node.clone_plan_node());
+            match_clause_plan.tail = Some(start_node);
+            return Ok(match_clause_plan);
+        }
+
         // 重建图并找到所有连通分量
         // 这有助于优化路径连接顺序，减少中间结果集大小
         let connected_components = Self::find_connected_components(&match_clause_ctx.paths);
@@ -328,11 +345,16 @@ mod tests {
         
         let result = planner.transform(&clause_ctx);
         
-        // 空路径应该成功，但返回的计划应该没有根节点
+        // 空路径应该成功，现在会创建一个基本的Start节点
         assert!(result.is_ok());
         let subplan = result.unwrap();
-        assert!(subplan.root.is_none());
-        assert!(subplan.tail.is_none());
+        assert!(subplan.root.is_some());
+        assert!(subplan.tail.is_some());
+        
+        // 验证根节点类型是Start
+        if let Some(root) = &subplan.root {
+            assert_eq!(root.kind(), PlanNodeKind::Start);
+        }
     }
 
     #[test]

@@ -4,12 +4,14 @@
 use crate::query::context::AstContext;
 use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::match_planning::match_clause_planner::MatchClausePlanner;
+use crate::query::planner::match_planning::order_by_clause_planner::OrderByClausePlanner;
+use crate::query::planner::match_planning::pagination_planner::PaginationPlanner;
 use crate::query::planner::match_planning::return_clause_planner::ReturnClausePlanner;
 use crate::query::planner::match_planning::segments_connector::SegmentsConnector;
 use crate::query::planner::match_planning::unwind_clause_planner::UnwindClausePlanner;
 use crate::query::planner::match_planning::with_clause_planner::WithClausePlanner;
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::{PlanNodeKind, SingleDependencyNode};
+use crate::query::planner::plan::{PlanNode, PlanNodeKind, SingleDependencyNode, SingleInputNode};
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::validator::structs::{
     alias_structs::QueryPart,
@@ -60,6 +62,10 @@ impl MatchPlanner {
                 let mut planner = MatchClausePlanner::new();
                 planner.transform(clause_ctx)
             }
+            CypherClauseKind::Where => {
+                let mut planner = crate::query::planner::match_planning::where_clause_planner::WhereClausePlanner::new(false);
+                planner.transform(clause_ctx)
+            }
             CypherClauseKind::Unwind => {
                 let mut planner = UnwindClausePlanner::new();
                 planner.transform(clause_ctx)
@@ -70,6 +76,14 @@ impl MatchPlanner {
             }
             CypherClauseKind::Return => {
                 let mut planner = ReturnClausePlanner::new();
+                planner.transform(clause_ctx)
+            }
+            CypherClauseKind::OrderBy => {
+                let mut planner = OrderByClausePlanner::new();
+                planner.transform(clause_ctx)
+            }
+            CypherClauseKind::Pagination => {
+                let mut planner = PaginationPlanner::new();
                 planner.transform(clause_ctx)
             }
             _ => Err(PlannerError::UnsupportedOperation(
@@ -213,6 +227,29 @@ impl MatchPlanner {
                 let connector = SegmentsConnector::new();
                 *query_plan = connector.add_input(boundary_plan, query_plan.clone(), false);
             }
+
+            // 处理 WITH/UNWIND 子句中的 ORDER BY 和 Pagination
+            match boundary {
+                crate::query::validator::structs::alias_structs::BoundaryClauseContext::With(with_ctx) => {
+                    // 处理 ORDER BY 子句
+                    if let Some(order_by_ctx) = &with_ctx.order_by {
+                        let order_plan = self.gen_plan(&CypherClauseContext::OrderBy(order_by_ctx.clone()))?;
+                        let connector = SegmentsConnector::new();
+                        *query_plan = connector.add_input(order_plan, query_plan.clone(), true);
+                    }
+
+                    // 处理分页子句 (SKIP/LIMIT)
+                    if let Some(pagination_ctx) = &with_ctx.pagination {
+                        let pagination_plan = self.gen_plan(&CypherClauseContext::Pagination(pagination_ctx.clone()))?;
+                        let connector = SegmentsConnector::new();
+                        *query_plan = connector.add_input(pagination_plan, query_plan.clone(), true);
+                    }
+                }
+                crate::query::validator::structs::alias_structs::BoundaryClauseContext::Unwind(_unwind_ctx) => {
+                    // UNWIND 子句不支持 ORDER BY 和 PAGINATION
+                    // 这些功能在 WITH 子句中支持
+                }
+            }
         }
 
         // 为所有查询计划尾部生成变量
@@ -249,12 +286,12 @@ impl Planner for MatchPlanner {
             ));
         }
 
-        // 从AST上下文中提取Cypher上下文
-        // 这里需要解析AST并构建相应的Cypher上下文结构
-        // 在实际实现中，应该根据AST内容构建CypherContext
-        // 由于当前简化实现，我们创建一个基本的查询计划
-        
+        // 创建一个空的查询计划
         let mut query_plan = SubPlan::new(None, None);
+
+        // 从AST上下文中提取Cypher上下文结构
+        // 在实际实现中，我们会在这里构建Cypher上下文
+        // 但现在为了演示目的，我们创建一个简化的查询计划
 
         // 创建起始节点
         let start_node = Box::new(SingleDependencyNode {
@@ -264,17 +301,13 @@ impl Planner for MatchPlanner {
             output_var: None,
             col_names: vec![],
             cost: 0.0,
-        });
+        }) as Box<dyn PlanNode>;
 
-        // 创建获取邻居节点
-        let get_neighbors_node = Box::new(SingleDependencyNode {
-            id: -1,
-            kind: PlanNodeKind::GetNeighbors,
-            dependencies: vec![start_node],
-            output_var: None,
-            col_names: vec!["vertex".to_string()],
-            cost: 1.0,
-        });
+        // 创建一个GetNeighbors节点作为示例
+        let get_neighbors_node = Box::new(SingleInputNode::new(
+            PlanNodeKind::GetNeighbors,
+            start_node,
+        ));
 
         query_plan.root = Some(get_neighbors_node.clone());
         query_plan.tail = Some(get_neighbors_node);
@@ -529,14 +562,22 @@ mod tests {
     fn test_gen_plan_unsupported() {
         let mut planner = MatchPlanner::new();
         
-        let where_ctx = crate::query::validator::structs::WhereClauseContext {
-            filter: None,
+        let yield_ctx = crate::query::validator::structs::YieldClauseContext {
+            yield_columns: vec![],
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),
+            distinct: false,
+            has_agg: false,
+            group_keys: vec![],
+            group_items: vec![],
+            need_gen_project: false,
+            agg_output_column_names: vec![],
+            proj_output_column_names: vec![],
+            proj_cols: vec![],
             paths: vec![],
         };
         
-        let clause_ctx = CypherClauseContext::Where(where_ctx);
+        let clause_ctx = CypherClauseContext::Yield(yield_ctx);
         
         let result = planner.gen_plan(&clause_ctx);
         

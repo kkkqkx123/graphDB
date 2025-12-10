@@ -56,14 +56,22 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
         left_dataset: &DataSet,
         right_dataset: &DataSet,
     ) -> Result<DataSet, QueryError> {
+        // 解析键索引
+        let left_key_idx = self.base_executor.get_hash_keys()[0]
+            .parse::<usize>()
+            .map_err(|_| QueryError::ExecutionError("无效的左键索引".to_string()))?;
+        let right_key_idx = self.base_executor.get_probe_keys()[0]
+            .parse::<usize>()
+            .map_err(|_| QueryError::ExecutionError("无效的右键索引".to_string()))?;
+
         // 决定是否交换左右输入以优化性能
-        let (build_dataset, probe_dataset, build_key_idx, probe_key_idx, exchange) = 
+        let (build_dataset, probe_dataset, build_key_idx, probe_key_idx, exchange) =
             if self.base_executor.should_exchange(left_dataset.rows.len(), right_dataset.rows.len()) {
                 // 交换：右表作为构建表，左表作为探测表
-                (right_dataset, left_dataset, 1, 0, true)
+                (right_dataset, left_dataset, right_key_idx, left_key_idx, true)
             } else {
                 // 不交换：左表作为构建表，右表作为探测表
-                (left_dataset, right_dataset, 0, 1, false)
+                (left_dataset, right_dataset, left_key_idx, right_key_idx, false)
             };
 
         // 构建哈希表
@@ -354,7 +362,12 @@ mod tests {
         // 验证结果
         match result {
             ExecutionResult::Values(values) => {
+                println!("连接结果: {}个值", values.len());
                 if let Some(Value::DataSet(dataset)) = values.first() {
+                    println!("数据集行数: {}", dataset.rows.len());
+                    for (i, row) in dataset.rows.iter().enumerate() {
+                        println!("行{}: {:?}", i, row);
+                    }
                     assert_eq!(dataset.rows.len(), 1); // 只有一个匹配
                     assert_eq!(dataset.rows[0], vec![
                         Value::Int(1),

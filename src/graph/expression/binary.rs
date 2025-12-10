@@ -53,10 +53,10 @@ pub fn evaluate_binary_op(
         BinaryOperator::Mod => mod_values(left_val, right_val),
         BinaryOperator::Eq => Ok(Value::Bool(left_val == right_val)),
         BinaryOperator::Ne => Ok(Value::Bool(left_val != right_val)),
-        BinaryOperator::Lt => cmp_values(left_val, right_val, |a, b| a < b),
-        BinaryOperator::Le => cmp_values(left_val, right_val, |a, b| a <= b),
-        BinaryOperator::Gt => cmp_values(left_val, right_val, |a, b| a > b),
-        BinaryOperator::Ge => cmp_values(left_val, right_val, |a, b| a >= b),
+        BinaryOperator::Lt => cmp_values(left_val, right_val, |a, b| a.less_than(&b)),
+        BinaryOperator::Le => cmp_values(left_val, right_val, |a, b| a.less_than_equal(&b)),
+        BinaryOperator::Gt => cmp_values(left_val, right_val, |a, b| a.greater_than(&b)),
+        BinaryOperator::Ge => cmp_values(left_val, right_val, |a, b| a.greater_than_equal(&b)),
         BinaryOperator::And => and_values(left_val, right_val),
         BinaryOperator::Or => or_values(left_val, right_val),
         BinaryOperator::Xor => xor_values(left_val, right_val),
@@ -116,9 +116,9 @@ pub fn div_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
 
 pub fn cmp_values<F>(left: Value, right: Value, cmp_fn: F) -> Result<Value, ExpressionError>
 where
-    F: Fn(&Value, &Value) -> bool,
+    F: Fn(Value, Value) -> bool,
 {
-    Ok(Value::Bool(cmp_fn(&left, &right)))
+    Ok(Value::Bool(cmp_fn(left, right)))
 }
 
 pub fn and_values(left: Value, right: Value) -> Result<Value, ExpressionError> {

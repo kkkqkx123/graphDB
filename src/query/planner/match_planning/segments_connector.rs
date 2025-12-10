@@ -2,6 +2,7 @@
 //! 连接多个计划段形成完整的执行计划
 
 use crate::query::planner::plan::{SubPlan, PlanNodeKind, BinaryInputNode};
+use crate::query::planner::plan::plan_node::PlanNode;
 use std::collections::HashSet;
 
 /// 计划段连接器
@@ -34,7 +35,8 @@ impl SegmentsConnector {
         // TODO: 设置连接键（hash keys 和 probe keys）
         // 这里需要根据 intersected_aliases 创建相应的表达式
 
-        SubPlan::new(Some(inner_join_node), None)
+        // 使用新创建的节点作为根节点和尾节点
+        SubPlan::new(Some(inner_join_node.clone_plan_node()), Some(inner_join_node))
     }
 
     /// 左连接两个计划
@@ -59,7 +61,8 @@ impl SegmentsConnector {
         // TODO: 设置连接键（hash keys 和 probe keys）
         // 这里需要根据 intersected_aliases 创建相应的表达式
 
-        SubPlan::new(Some(left_join_node), None)
+        // 使用新创建的节点作为根节点和尾节点
+        SubPlan::new(Some(left_join_node.clone_plan_node()), Some(left_join_node))
     }
 
     /// 笛卡尔积
@@ -78,7 +81,8 @@ impl SegmentsConnector {
             right_root,
         ));
 
-        SubPlan::new(Some(cartesian_node), None)
+        // 使用新创建的节点作为根节点和尾节点
+        SubPlan::new(Some(cartesian_node.clone_plan_node()), Some(cartesian_node))
     }
 
     /// 添加输入

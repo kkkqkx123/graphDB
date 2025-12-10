@@ -63,8 +63,8 @@ impl SequentialPlanner {
         registry.add_planner(
             "MATCH".to_string(),
             MatchAndInstantiate {
-                match_func: crate::query::planner::match_planner::MatchPlanner::match_ast_ctx,
-                instantiate_func: crate::query::planner::match_planner::MatchPlanner::make,
+                match_func: crate::query::planner::match_planning::MatchPlanner::match_ast_ctx,
+                instantiate_func: crate::query::planner::match_planning::MatchPlanner::make,
             },
         );
 

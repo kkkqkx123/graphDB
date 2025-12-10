@@ -5,9 +5,6 @@
 pub mod plan;
 pub mod planner;
 
-// 查询特定的规划器
-pub mod match_planner;
-
 // NGQL特定的规划器（旧位置，兼容性）
 pub mod go_planner;
 pub mod lookup_planner;

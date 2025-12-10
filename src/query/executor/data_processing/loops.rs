@@ -232,6 +232,12 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LoopExecutor<S> {
 
         // 执行循环
         while self.should_continue() {
+            // 首先设置迭代变量
+            self.loop_context.set_variable(
+                "__iteration".to_string(),
+                Value::Int(self.current_iteration as i64),
+            );
+
             // 评估循环条件
             let should_continue = match self.evaluate_condition().await {
                 Ok(continue_flag) => continue_flag,
@@ -584,13 +590,19 @@ mod tests {
         // 执行循环
         let result = executor.execute().await.unwrap();
 
+        // 调试信息
+        println!("Loop result: {:?}", result);
+        println!("Current iteration: {}", executor.inner.current_iteration());
+        println!("Loop state: {:?}", executor.inner.loop_state());
+
         // 验证结果
         match result {
             ExecutionResult::Values(values) => {
+                println!("Values: {:?}", values);
                 assert_eq!(values.len(), 3); // 应该执行3次
                 assert_eq!(values, vec![Value::Int(1), Value::Int(2), Value::Int(3),]);
             }
-            _ => panic!("Expected Values result"),
+            _ => panic!("Expected Values result, got: {:?}", result),
         }
 
         assert_eq!(executor.inner.current_iteration(), 3);

@@ -3,7 +3,7 @@
 //! 负责规划LIMIT和OFFSET子句
 
 use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePlanner;
-use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::{PlanNode, PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 
@@ -15,6 +15,30 @@ pub struct PaginationPlanner;
 impl PaginationPlanner {
     pub fn new() -> Self {
         Self
+    }
+
+    /// 构建分页节点
+    fn build_limit(&mut self, pagination_ctx: &crate::query::validator::structs::PaginationContext, mut subplan: SubPlan) -> Result<SubPlan, PlannerError> {
+        let current_root = subplan.root.take().unwrap_or_else(|| create_empty_node().unwrap());
+
+        // 创建Limit节点
+        let mut limit_node = SingleInputNode::new(
+            PlanNodeKind::Limit,
+            current_root,
+        );
+
+        // 将skip和limit值存储在列名中，供执行器使用
+        let col_names = vec![
+            format!("skip_{}", pagination_ctx.skip),
+            format!("limit_{}", pagination_ctx.limit)
+        ];
+        limit_node.set_col_names(col_names);
+
+        // 更新子计划的根和尾节点
+        subplan.root = Some(Box::new(limit_node));
+        subplan.tail = Some(subplan.root.as_ref().unwrap().clone_plan_node());
+
+        Ok(subplan)
     }
 }
 
@@ -35,49 +59,11 @@ impl CypherClausePlanner for PaginationPlanner {
             }
         };
 
-        let mut plan = SubPlan::new(None, None);
+        // 创建一个空的子计划
+        let empty_subplan = SubPlan::new(None, None);
 
-        // 处理OFFSET（跳过）
-        if pagination_ctx.skip > 0 {
-            // 创建OFFSET节点
-            let offset_node = Box::new(SingleInputNode::new(
-                PlanNodeKind::Limit, // 使用Limit节点处理OFFSET
-                create_empty_node()?,
-            ));
-
-            // TODO: 设置OFFSET值
-            // 这里需要设置跳过的行数
-
-            plan.root = Some(offset_node.clone());
-            plan.tail = Some(offset_node);
-        }
-
-        // 处理LIMIT（限制）
-        if pagination_ctx.limit < i64::MAX && pagination_ctx.limit > 0 {
-            // 创建LIMIT节点
-            let limit_node = Box::new(SingleInputNode::new(
-                PlanNodeKind::Limit,
-                create_empty_node()?,
-            ));
-
-            // TODO: 设置LIMIT值
-            // 这里需要设置返回的最大行数
-
-            if plan.root.is_none() {
-                plan.root = Some(limit_node.clone());
-                plan.tail = Some(limit_node);
-            } else {
-                // 将LIMIT节点连接到现有计划的尾部
-                let connector = crate::query::planner::match_planning::segments_connector::SegmentsConnector::new();
-                plan = connector.add_input(
-                    SubPlan::new(Some(limit_node.clone()), Some(limit_node)),
-                    plan,
-                    true,
-                );
-            }
-        }
-
-        Ok(plan)
+        // 构建分页计划
+        self.build_limit(pagination_ctx, empty_subplan)
     }
 }
 

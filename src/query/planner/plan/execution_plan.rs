@@ -77,11 +77,10 @@ pub struct SubPlan {
 
 impl Clone for SubPlan {
     fn clone(&self) -> Self {
-        // 创建一个基本SubPlan，不包含节点引用
-        // 这是一个临时解决方案
+        // 正确克隆SubPlan，保留节点引用
         Self {
-            root: None, // 克隆时清空节点引用
-            tail: None, // 克隆时清空节点引用
+            root: self.root.as_ref().map(|node| node.clone_plan_node()),
+            tail: self.tail.as_ref().map(|node| node.clone_plan_node()),
         }
     }
 }
