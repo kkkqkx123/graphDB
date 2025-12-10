@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Condvar};
 use async_trait::async_trait;
 
-use crate::query::executor::{Executor, ExecutionContext, ExecutionResult};
+use crate::query::executor::{ExecutionContext, ExecutionResult};
 use crate::storage::StorageEngine;
 use crate::query::QueryError;
 use super::types::QueryScheduler;
@@ -48,11 +48,11 @@ impl ExecutionState {
 
 // Implementation of the AsyncMsgNotifyBasedScheduler in Rust
 pub struct AsyncMsgNotifyBasedScheduler<S: StorageEngine> {
-    #[allow(dead_code)]
     storage: Arc<Mutex<S>>,
-    #[allow(dead_code)]
     execution_context: Arc<Mutex<ExecutionContext>>,
     execution_state: Arc<Mutex<ExecutionState>>,
+    // 用于同步等待执行完成
+    completion_notifier: Arc<(Mutex<bool>, Condvar)>,
 }
 
 impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
@@ -61,26 +61,30 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             storage,
             execution_context: Arc::new(Mutex::new(ExecutionContext::new())),
             execution_state: Arc::new(Mutex::new(ExecutionState::new())),
+            completion_notifier: Arc::new((Mutex::new(false), Condvar::new())),
         }
     }
 
     // Execute a single executor
-    #[allow(dead_code)]
-    async fn execute_executor(&self, executor: &mut Box<dyn Executor<S>>) -> Result<ExecutionResult, QueryError> {
+    async fn execute_executor(&self, executor_id: usize, plan: &mut ExecutionPlan<S>) -> Result<ExecutionResult, QueryError> {
+        // 从计划中获取执行器
+        let mut executor = plan.executors.remove(&executor_id)
+            .ok_or_else(|| QueryError::InvalidQuery(format!("Executor {} not found", executor_id)))?;
+
         {
             let mut state = self.execution_state.lock().unwrap();
-            state.executing_executors.insert(executor.id());
+            state.executing_executors.insert(executor_id);
         }
 
         let result = executor.execute().await;
 
         {
             let mut state = self.execution_state.lock().unwrap();
-            state.executing_executors.remove(&executor.id());
+            state.executing_executors.remove(&executor_id);
 
             match &result {
                 Ok(res) => {
-                    state.execution_results.insert(executor.id(), res.clone());
+                    state.execution_results.insert(executor_id, res.clone());
                 },
                 Err(e) => {
                     state.set_failure(e.clone());
@@ -88,17 +92,33 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             }
         }
 
+        // 将执行器放回计划中
+        plan.executors.insert(executor_id, executor);
+
         result
     }
 
     // Get executable executors (those with all dependencies satisfied)
-    #[allow(dead_code)]
     fn get_executable_executors(&self, plan: &ExecutionPlan<S>) -> Vec<usize> {
         let state = self.execution_state.lock().unwrap();
         plan.get_executable_executors(&state.execution_results)
             .into_iter()
             .filter(|id| !state.is_executor_executing(*id))
             .collect()
+    }
+
+    // 通知执行器完成
+    fn notify_completion(&self) {
+        let (ref lock, ref cvar) = *self.completion_notifier;
+        let mut completed = lock.lock().unwrap();
+        *completed = true;
+        cvar.notify_all();
+    }
+
+    // 检查是否所有执行器都已完成
+    fn all_executors_completed(&self) -> bool {
+        let state = self.execution_state.lock().unwrap();
+        state.executing_executors.is_empty()
     }
 
     // Check if there are any failures
@@ -108,17 +128,18 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
 
     // Wait for all executors to finish
     async fn wait_for_completion(&self) -> Result<(), QueryError> {
-        loop {
-            {
-                let state = self.execution_state.lock().unwrap();
-                if state.executing_executors.is_empty() {
-                    break;
-                }
-            } // state is dropped here
+        // 使用条件变量进行同步等待
+        let (ref lock, ref cvar) = *self.completion_notifier;
+        let mut completed = lock.lock().unwrap();
+        
+        while !*completed && !self.all_executors_completed() {
+            completed = cvar.wait(completed).unwrap();
+        }
 
-            // In a real async implementation, we'd use proper async waiting
-            // For now, just yield to the task scheduler
-            tokio::task::yield_now().await;
+        // 检查是否有执行失败
+        let state = self.execution_state.lock().unwrap();
+        if let Some(ref error) = state.failed_status {
+            return Err(error.clone());
         }
 
         Ok(())
@@ -135,56 +156,75 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
 
         // Create tasks for parallel execution
         for &executor_id in executor_ids {
+            // 从计划中取出执行器
             if let Some(mut executor) = plan.executors.remove(&executor_id) {
                 let state = self.execution_state.clone();
                 
                 let task = tokio::spawn(async move {
-                    // Execute the executor
-                    let result = executor.execute().await;
-                    
-                    // Update state
+                    // 标记执行器正在执行
                     {
                         let mut state_lock = state.lock().unwrap();
-                        state_lock.executing_executors.remove(&executor_id);
-                        
-                        match result {
-                            Ok(ref res) => {
-                                state_lock.execution_results.insert(executor_id, res.clone());
-                            },
-                            Err(ref e) => {
-                                state_lock.set_failure(e.clone());
-                            }
-                        }
+                        state_lock.executing_executors.insert(executor_id);
                     }
                     
+                    // 执行执行器
+                    let result = executor.execute().await;
+                    
+                    // 返回执行器、ID和结果
                     (executor_id, executor, result)
                 });
                 
                 tasks.push(task);
+            } else {
+                return Err(QueryError::InvalidQuery(format!("Executor {} not found in plan", executor_id)));
             }
         }
 
-        // Wait for all tasks to complete
+        // 等待所有任务完成并收集结果
+        let mut results = Vec::new();
         for task in tasks {
             match task.await {
                 Ok((executor_id, executor, result)) => {
-                    // Put the executor back
+                    // 将执行器放回计划中
                     plan.executors.insert(executor_id, executor);
-                    
-                    // If execution was successful, add successors to next batch
-                    if result.is_ok() {
-                        let successors = plan.get_successors(executor_id);
-                        for successor_id in successors {
-                            if plan.are_dependencies_satisfied(successor_id, &self.execution_state.lock().unwrap().execution_results) {
-                                next_executors.push(successor_id);
-                            }
-                        }
-                    }
+                    results.push((executor_id, result));
                 },
                 Err(e) => {
                     return Err(QueryError::InvalidQuery(format!("Task execution failed: {}", e)));
                 }
             }
+        }
+
+        // 更新状态并收集下一个批次的执行器
+        {
+            let mut state = self.execution_state.lock().unwrap();
+            for (executor_id, result) in results {
+                state.executing_executors.remove(&executor_id);
+                
+                match result {
+                    Ok(execution_result) => {
+                        state.execution_results.insert(executor_id, execution_result);
+                        
+                        // 添加后继执行器到下一个批次
+                        let successors = plan.get_successors(executor_id);
+                        for successor_id in successors {
+                            if plan.are_dependencies_satisfied(successor_id, &state.execution_results) {
+                                next_executors.push(successor_id);
+                            }
+                        }
+                    },
+                    Err(error) => {
+                        // 设置失败状态
+                        state.set_failure(error.clone());
+                        return Err(error);
+                    }
+                }
+            }
+        }
+
+        // 如果没有执行器在运行，通知完成
+        if self.all_executors_completed() {
+            self.notify_completion();
         }
 
         Ok(next_executors)
@@ -194,6 +234,21 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBasedScheduler<S> {
     async fn schedule(&mut self, mut execution_plan: ExecutionPlan<S>) -> Result<ExecutionResult, QueryError> {
+        // 重置完成通知器
+        {
+            let (ref lock, _) = *self.completion_notifier;
+            let mut completed = lock.lock().unwrap();
+            *completed = false;
+        }
+
+        // 重置执行状态
+        {
+            let mut state = self.execution_state.lock().unwrap();
+            state.executing_executors.clear();
+            state.execution_results.clear();
+            state.failed_status = None;
+        }
+
         // Validate the execution plan
         execution_plan.validate()?;
 
@@ -222,20 +277,22 @@ impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBase
         }
     }
 
-    fn add_dependency(&mut self, _from: usize, _to: usize) -> Result<(), QueryError> {
-        // This would be used during plan construction, not during execution
-        // For now, just return OK - dependencies should be set up in the ExecutionPlan
-        Ok(())
-    }
-
     fn wait_finish(&mut self) -> Result<(), QueryError> {
-        // This is a synchronous version, but in practice we'd use the async version
-        // For now, just check if there are any executing executors
-        let state = self.execution_state.lock().unwrap();
-        if state.executing_executors.is_empty() {
-            Ok(())
-        } else {
-            Err(QueryError::InvalidQuery("Executors are still running".to_string()))
+        // 同步版本的等待完成
+        // 使用条件变量等待所有执行器完成
+        let (ref lock, ref cvar) = *self.completion_notifier;
+        let mut completed = lock.lock().unwrap();
+        
+        while !*completed && !self.all_executors_completed() {
+            completed = cvar.wait(completed).unwrap();
         }
+
+        // 检查是否有执行失败
+        let state = self.execution_state.lock().unwrap();
+        if let Some(ref error) = state.failed_status {
+            return Err(error.clone());
+        }
+
+        Ok(())
     }
 }

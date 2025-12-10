@@ -183,12 +183,18 @@ impl AliasValidationStrategy {
             | Expression::UUID
             | Expression::Variable(_)
             | Expression::Label(_) => Ok(()),
-            Expression::TypeCasting { expr: _, target_type: _ } => todo!(),
+            Expression::TypeCasting { expr, target_type: _ } => {
+                // 类型转换表达式需要验证其子表达式
+                self.validate_expression_aliases(expr, aliases)
+            },
             Expression::Aggregate {
                 func: _,
-                arg: _,
+                arg,
                 distinct: _,
-            } => todo!(),
+            } => {
+                // 聚合函数表达式需要验证其参数表达式
+                self.validate_expression_aliases(arg, aliases)
+            },
         }
     }
 
