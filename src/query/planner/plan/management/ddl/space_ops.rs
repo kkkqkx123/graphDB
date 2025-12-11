@@ -1,77 +1,41 @@
-//! 系统管理相关的计划节点
-//! 包括提交任务、创建快照等维护操作
+//! 空间操作相关的计划节点
+//! 包括创建/删除空间等操作
 
 use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, SingleDependencyNode, PlanNodeVisitor, PlanNodeVisitError};
 use crate::query::validator::Variable;
+use std::collections::HashMap;
 
-// 任务类型枚举
+// 基础创建节点结构
 #[derive(Debug, Clone)]
-pub enum JobType {
-    Compaction,
-    Flush,
-    Stats,
-    DataBalance,
-    ZoneBalance,
-}
-
-/// 提交任务计划节点
-#[derive(Debug)]
-pub struct SubmitJob {
+pub struct CreateNode {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub job_type: JobType,       // 任务类型
-    pub parameters: Vec<String>, // 任务参数
+    pub if_not_exist: bool,  // 是否使用IF NOT EXISTS
 }
 
-impl SubmitJob {
-    pub fn new(id: i64, job_type: JobType, parameters: Vec<String>) -> Self {
+impl CreateNode {
+    pub fn new(id: i64, kind: PlanNodeKind, if_not_exist: bool) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::SubmitJob,
+            kind,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec![
-                "JobId".to_string(),
-                "Type".to_string(),
-                "Status".to_string(),
-                "Start Time".to_string(),
-                "Stop Time".to_string(),
-            ],
+            col_names: Vec::new(),
             cost: 0.0,
-            job_type,
-            parameters,
+            if_not_exist,
         }
     }
 
-    pub fn job_type(&self) -> &JobType {
-        &self.job_type
-    }
-
-    pub fn parameters(&self) -> &Vec<String> {
-        &self.parameters
+    pub fn if_not_exist(&self) -> bool {
+        self.if_not_exist
     }
 }
 
-impl Clone for SubmitJob {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            job_type: self.job_type.clone(),
-            parameters: self.parameters.clone(),
-        }
-    }
-}
-
-impl BasePlanNode for SubmitJob {
+impl BasePlanNode for CreateNode {
     fn id(&self) -> i64 {
         self.id
     }
@@ -123,58 +87,37 @@ impl BasePlanNode for SubmitJob {
     }
 }
 
-/// 创建快照计划节点
-#[derive(Debug)]
-pub struct CreateSnapshot {
+// 基础删除节点结构
+#[derive(Debug, Clone)]
+pub struct DropNode {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub name: String,            // 快照名称
-    pub comment: Option<String>, // 快照说明
+    pub if_exist: bool,  // 是否使用IF EXISTS
 }
 
-impl CreateSnapshot {
-    pub fn new(id: i64, name: &str, comment: Option<String>) -> Self {
+impl DropNode {
+    pub fn new(id: i64, kind: PlanNodeKind, if_exist: bool) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::CreateSnapshot,
+            kind,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec!["Result".to_string()],
+            col_names: Vec::new(),
             cost: 0.0,
-            name: name.to_string(),
-            comment,
+            if_exist,
         }
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn comment(&self) -> &Option<String> {
-        &self.comment
+    pub fn if_exist(&self) -> bool {
+        self.if_exist
     }
 }
 
-impl Clone for CreateSnapshot {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            name: self.name.clone(),
-            comment: self.comment.clone(),
-        }
-    }
-}
-
-impl BasePlanNode for CreateSnapshot {
+impl BasePlanNode for DropNode {
     fn id(&self) -> i64 {
         self.id
     }
@@ -226,37 +169,59 @@ impl BasePlanNode for CreateSnapshot {
     }
 }
 
-/// 删除快照计划节点
+// 元数据定义相关结构
+#[derive(Debug, Clone)]
+pub struct Schema {
+    pub fields: Vec<SchemaField>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SchemaField {
+    pub name: String,
+    pub field_type: String,  // 简化为字符串，实际可能是复杂类型
+    pub nullable: bool,
+    pub default_value: Option<String>,
+}
+
+/// 创建空间计划节点
 #[derive(Debug)]
-pub struct DropSnapshot {
+pub struct CreateSpace {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub name: String, // 快照名称
+    pub if_not_exist: bool,
+    pub space_name: String,
+    pub partition_num: i32,
+    pub replica_factor: i32,
 }
 
-impl DropSnapshot {
-    pub fn new(id: i64, name: &str) -> Self {
+impl CreateSpace {
+    pub fn new(
+        id: i64,
+        if_not_exist: bool,
+        space_name: &str,
+        partition_num: i32,
+        replica_factor: i32,
+    ) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::DropSnapshot,
+            kind: PlanNodeKind::CreateSpace,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec!["Result".to_string()],
+            col_names: Vec::new(),
             cost: 0.0,
-            name: name.to_string(),
+            if_not_exist,
+            space_name: space_name.to_string(),
+            partition_num,
+            replica_factor,
         }
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
     }
 }
 
-impl Clone for DropSnapshot {
+impl Clone for CreateSpace {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -265,12 +230,15 @@ impl Clone for DropSnapshot {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            name: self.name.clone(),
+            if_not_exist: self.if_not_exist,
+            space_name: self.space_name.clone(),
+            partition_num: self.partition_num,
+            replica_factor: self.replica_factor,
         }
     }
 }
 
-impl BasePlanNode for DropSnapshot {
+impl BasePlanNode for CreateSpace {
     fn id(&self) -> i64 {
         self.id
     }
@@ -322,9 +290,193 @@ impl BasePlanNode for DropSnapshot {
     }
 }
 
-/// 显示快照计划节点
+/// 描述空间计划节点
 #[derive(Debug)]
-pub struct ShowSnapshots {
+pub struct DescSpace {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub space_name: String,
+}
+
+impl DescSpace {
+    pub fn new(id: i64, space_name: &str) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::DescSpace,
+            deps: Vec::new(),
+            output_var: None,
+            col_names: vec!["Name".to_string(), "Space(space_id)".to_string(), "Charset".to_string(), "Collate".to_string(), "Partition Number".to_string(), "Replica Factor".to_string(), "Vid Type".to_string(), "Atomic Edge".to_string()],
+            cost: 0.0,
+            space_name: space_name.to_string(),
+        }
+    }
+}
+
+impl Clone for DescSpace {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(), // 克隆时不包含依赖
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            space_name: self.space_name.clone(),
+        }
+    }
+}
+
+impl BasePlanNode for DescSpace {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+
+    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
+        &self.deps
+    }
+
+    fn output_var(&self) -> &Option<Variable> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &Vec<String> {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
+        Box::new(self.clone())
+    }
+
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
+        self.deps = deps;
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn set_cost(&mut self, cost: f64) {
+        self.cost = cost;
+    }
+}
+
+/// 显示创建空间计划节点
+#[derive(Debug)]
+pub struct ShowCreateSpace {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub space_name: String,
+}
+
+impl ShowCreateSpace {
+    pub fn new(id: i64, space_name: &str) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::ShowCreateSpace,
+            deps: Vec::new(),
+            output_var: None,
+            col_names: vec!["Space".to_string(), "Create Space".to_string()],
+            cost: 0.0,
+            space_name: space_name.to_string(),
+        }
+    }
+}
+
+impl Clone for ShowCreateSpace {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(), // 克隆时不包含依赖
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            space_name: self.space_name.clone(),
+        }
+    }
+}
+
+impl BasePlanNode for ShowCreateSpace {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+
+    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
+        &self.deps
+    }
+
+    fn output_var(&self) -> &Option<Variable> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &Vec<String> {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
+        Box::new(self.clone())
+    }
+
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
+        self.deps = deps;
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn set_cost(&mut self, cost: f64) {
+        self.cost = cost;
+    }
+}
+
+/// 显示空间列表计划节点
+#[derive(Debug)]
+pub struct ShowSpaces {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
@@ -333,24 +485,20 @@ pub struct ShowSnapshots {
     pub cost: f64,
 }
 
-impl ShowSnapshots {
+impl ShowSpaces {
     pub fn new(id: i64) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::ShowSnapshots,
+            kind: PlanNodeKind::ShowSpaces,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec![
-                "Name".to_string(),
-                "Status".to_string(),
-                "Hosts".to_string(),
-            ],
+            col_names: vec!["Name".to_string()],
             cost: 0.0,
         }
     }
 }
 
-impl Clone for ShowSnapshots {
+impl Clone for ShowSpaces {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -363,7 +511,7 @@ impl Clone for ShowSnapshots {
     }
 }
 
-impl BasePlanNode for ShowSnapshots {
+impl BasePlanNode for ShowSpaces {
     fn id(&self) -> i64 {
         self.id
     }
@@ -415,44 +563,33 @@ impl BasePlanNode for ShowSnapshots {
     }
 }
 
-/// 显示配置计划节点
+/// 切换空间计划节点
 #[derive(Debug)]
-pub struct ShowConfigs {
+pub struct SwitchSpace {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub module: Option<String>, // 模块名称（可选）
+    pub space_name: String,
 }
 
-impl ShowConfigs {
-    pub fn new(id: i64, module: Option<String>) -> Self {
+impl SwitchSpace {
+    pub fn new(id: i64, space_name: &str) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::ShowConfigs,
+            kind: PlanNodeKind::SwitchSpace,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec![
-                "Module".to_string(),
-                "Name".to_string(),
-                "Value".to_string(),
-                "DefaultValue".to_string(),
-                "Type".to_string(),
-                "Mode".to_string(),
-            ],
+            col_names: vec!["Session space changed to".to_string()],
             cost: 0.0,
-            module,
+            space_name: space_name.to_string(),
         }
-    }
-
-    pub fn module(&self) -> &Option<String> {
-        &self.module
     }
 }
 
-impl Clone for ShowConfigs {
+impl Clone for SwitchSpace {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -461,110 +598,12 @@ impl Clone for ShowConfigs {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            module: self.module.clone(),
+            space_name: self.space_name.clone(),
         }
     }
 }
 
-impl BasePlanNode for ShowConfigs {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
-    }
-
-    fn col_names(&self) -> &Vec<String> {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
-    }
-
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
-    }
-
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
-}
-
-/// 设置配置计划节点
-#[derive(Debug)]
-pub struct SetConfig {
-    pub id: i64,
-    pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
-    pub output_var: Option<Variable>,
-    pub col_names: Vec<String>,
-    pub cost: f64,
-    pub module: String, // 模块名称
-    pub name: String,   // 配置名称
-    pub value: String,  // 配置值
-}
-
-impl SetConfig {
-    pub fn new(id: i64, module: &str, name: &str, value: &str) -> Self {
-        Self {
-            id,
-            kind: PlanNodeKind::SetConfig,
-            deps: Vec::new(),
-            output_var: None,
-            col_names: vec!["Result".to_string()],
-            cost: 0.0,
-            module: module.to_string(),
-            name: name.to_string(),
-            value: value.to_string(),
-        }
-    }
-}
-
-impl Clone for SetConfig {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            module: self.module.clone(),
-            name: self.name.clone(),
-            value: self.value.clone(),
-        }
-    }
-}
-
-impl BasePlanNode for SetConfig {
+impl BasePlanNode for SwitchSpace {
     fn id(&self) -> i64 {
         self.id
     }
