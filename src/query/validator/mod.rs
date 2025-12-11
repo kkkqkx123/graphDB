@@ -13,11 +13,6 @@ mod match_validator;
 mod validate_context;
 mod validation_factory;
 mod validation_interface;
-mod aggregate_validator;
-mod alias_validator;
-mod clause_validator;
-mod expression_validator;
-mod pagination_validator;
 
 pub mod strategies;
 pub mod structs;
@@ -31,11 +26,3 @@ pub use validation_factory::ValidationFactory;
 pub use strategies::*;
 // 导出结构模块
 pub use structs::*;
-
-// 为了向后兼容，保留旧的导出
-// 这些将在重构完成后被移除
-pub use crate::query::validator::aggregate_validator::AggregateValidator;
-pub use crate::query::validator::alias_validator::AliasValidator;
-pub use crate::query::validator::clause_validator::ClauseValidator;
-pub use crate::query::validator::expression_validator::ExpressionValidator;
-pub use crate::query::validator::pagination_validator::PaginationValidator;

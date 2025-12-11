@@ -62,14 +62,14 @@ impl MatchValidator {
         exprs: &[Expression],
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        use super::alias_strategy::AliasValidationStrategy;
+        use super::strategies::AliasValidationStrategy;
         let strategy = AliasValidationStrategy::new();
         strategy.validate_aliases(exprs, aliases)
     }
 
     /// 检查表达式是否包含聚合函数（委托给AggregateValidationStrategy）
     pub fn has_aggregate_expr(&self, expr: &Expression) -> bool {
-        use super::aggregate_strategy::AggregateValidationStrategy;
+        use super::strategies::AggregateValidationStrategy;
         let strategy = AggregateValidationStrategy::new();
         strategy.has_aggregate_expr(expr)
     }
@@ -81,14 +81,14 @@ impl MatchValidator {
         limit_expr: Option<&Expression>,
         context: &PaginationContext,
     ) -> Result<(), ValidationError> {
-        use super::pagination_strategy::PaginationValidationStrategy;
+        use super::strategies::PaginationValidationStrategy;
         let strategy = PaginationValidationStrategy::new();
         strategy.validate_pagination(skip_expr, limit_expr, context)
     }
 
     /// 验证步数范围（委托给PaginationValidationStrategy）
     pub fn validate_step_range(&self, range: &MatchStepRange) -> Result<(), ValidationError> {
-        use super::pagination_strategy::PaginationValidationStrategy;
+        use super::strategies::PaginationValidationStrategy;
         let strategy = PaginationValidationStrategy::new();
         strategy.validate_step_range(range)
     }
@@ -99,7 +99,7 @@ impl MatchValidator {
         filter: &Expression,
         context: &WhereClauseContext,
     ) -> Result<(), ValidationError> {
-        use super::expression_strategy::ExpressionValidationStrategy;
+        use super::strategies::ExpressionValidationStrategy;
         let strategy = ExpressionValidationStrategy::new();
         strategy.validate_filter(filter, context)
     }
@@ -111,7 +111,7 @@ impl MatchValidator {
         query_parts: &[QueryPart],
         context: &ReturnClauseContext,
     ) -> Result<(), ValidationError> {
-        use super::expression_strategy::ExpressionValidationStrategy;
+        use super::strategies::ExpressionValidationStrategy;
         let strategy = ExpressionValidationStrategy::new();
         strategy.validate_return(return_expr, query_parts, context)
     }
@@ -123,7 +123,7 @@ impl MatchValidator {
         query_parts: &[QueryPart],
         context: &WithClauseContext,
     ) -> Result<(), ValidationError> {
-        use super::expression_strategy::ExpressionValidationStrategy;
+        use super::strategies::ExpressionValidationStrategy;
         let strategy = ExpressionValidationStrategy::new();
         strategy.validate_with(with_expr, query_parts, context)
     }
@@ -134,14 +134,14 @@ impl MatchValidator {
         unwind_expr: &Expression,
         context: &UnwindClauseContext,
     ) -> Result<(), ValidationError> {
-        use super::expression_strategy::ExpressionValidationStrategy;
+        use super::strategies::ExpressionValidationStrategy;
         let strategy = ExpressionValidationStrategy::new();
         strategy.validate_unwind(unwind_expr, context)
     }
 
     /// 验证Yield子句（委托给ClauseValidationStrategy）
     pub fn validate_yield(&mut self, context: &YieldClauseContext) -> Result<(), ValidationError> {
-        use super::clause_strategy::ClauseValidationStrategy;
+        use super::strategies::ClauseValidationStrategy;
         let strategy = ClauseValidationStrategy::new();
         strategy.validate_yield_clause(context)
     }
@@ -152,7 +152,7 @@ impl MatchValidator {
         query_parts: &[QueryPart],
         columns: &mut Vec<YieldColumn>,
     ) -> Result<(), ValidationError> {
-        use super::clause_strategy::ClauseValidationStrategy;
+        use super::strategies::ClauseValidationStrategy;
         let strategy = ClauseValidationStrategy::new();
         strategy.build_columns_for_all_named_aliases(query_parts, columns)
     }
@@ -163,14 +163,14 @@ impl MatchValidator {
         cur_aliases: &mut HashMap<String, AliasType>,
         last_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        use super::alias_strategy::AliasValidationStrategy;
+        use super::strategies::AliasValidationStrategy;
         let strategy = AliasValidationStrategy::new();
         strategy.combine_aliases(cur_aliases, last_aliases)
     }
 
     /// 构建输出（委托给ClauseValidationStrategy）
     pub fn build_outputs(&mut self, paths: &mut Vec<Path>) -> Result<(), ValidationError> {
-        use super::clause_strategy::ClauseValidationStrategy;
+        use super::strategies::ClauseValidationStrategy;
         let strategy = ClauseValidationStrategy::new();
         strategy.build_outputs(paths)
     }
@@ -181,7 +181,7 @@ impl MatchValidator {
         ref_expr: &Expression,
         aliases_available: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        use super::alias_strategy::AliasValidationStrategy;
+        use super::strategies::AliasValidationStrategy;
         let strategy = AliasValidationStrategy::new();
         strategy.check_alias(ref_expr, aliases_available)
     }
