@@ -18,3 +18,42 @@ pub use plan_node::{PlanNode, PlanNodeKind, SingleDependencyNode, SingleInputNod
 pub use execution_plan::{ExecutionPlan, SubPlan};
 pub use plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
 pub use nodes::*;
+
+// 导出逻辑节点
+pub use logic_nodes::{
+    StartNode, SelectNode, LoopNode, PassThroughNode, ArgumentNode, BinarySelectNode
+};
+
+// 导出管理节点
+pub use admin_nodes::{
+    CreateNode, DropNode, CreateSpace, CreateTag, CreateEdge, DescSpace,
+    ShowCreateSpace, DescTag, ShowSpaces, SwitchSpace, CreateUser, DropUser
+};
+
+// 导出算法节点
+pub use algo_nodes::{
+    MultiShortestPath, BFSShortest, AllPaths, ShortestPath
+};
+
+// 导出数据修改节点
+pub use mutate_nodes::{
+    InsertVertices, InsertEdges, UpdateVertex, UpdateEdge,
+    DeleteVertices, DeleteEdges, DeleteTags, NewVertex, NewTag, NewProp, NewEdge
+};
+
+// 导出维护节点
+pub use maintain_nodes::{
+    SubmitJob, CreateSnapshot, DropSnapshot, ShowSnapshots,
+    ShowConfigs, SetConfig, JobType
+};
+
+// 导出查询节点
+pub use query_nodes::{
+    GetNeighbors, Traverse, AppendVertices, Union, Unwind,
+    Aggregate, HashJoin, Sort, Limit, TopN, Sample, DataCollect
+};
+
+// 导出扫描节点
+pub use scan_nodes::{
+    ScanVertices, ScanEdges, IndexScan, FulltextIndexScan
+};

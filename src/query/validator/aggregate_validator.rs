@@ -2,6 +2,7 @@
 //! 负责验证聚合函数的使用和检查表达式是否包含聚合
 
 use crate::graph::expression::expr_type::Expression;
+use crate::query::validator::strategies::agg_functions::AggFunctionMeta;
 
 /// 聚合验证器
 pub struct AggregateValidator;
@@ -71,15 +72,41 @@ impl AggregateValidator {
 
     /// 验证聚合表达式的合法性
     pub fn validate_aggregate_expr(&self, expr: &Expression) -> Result<(), String> {
-        // 这里可以添加更详细的聚合函数验证逻辑
-        // 例如检查聚合函数的参数类型、嵌套使用等
+        // 如果表达式不是聚合表达式，直接返回成功
+        if !self.has_aggregate_expr(expr) {
+            return Ok(());
+        }
 
-        if self.has_aggregate_expr(expr) {
-            // 检查聚合函数的使用是否合法
-            // 在实际实现中，这里会进行更详细的验证
+        // 仅当表达式是聚合表达式时才进行详细验证
+        if let Expression::Aggregate { func, arg, distinct: _ } = expr {
+            // 1. 验证聚合函数名称
+            let meta = AggFunctionMeta::get(func)
+                .ok_or_else(|| format!("未知的聚合函数: {}", func))?;
+
+            // 2. 检查嵌套聚合：参数中不能包含聚合函数
+            if self.has_aggregate_expr(arg) {
+                return Err(format!("聚合函数不允许嵌套使用: {}", func));
+            }
+
+            // 3. 检查通配符属性限制
+            if self.is_wildcard_property(arg) && !meta.allow_wildcard {
+                return Err(format!("聚合函数 {} 不能应用于通配符属性", func));
+            }
+
+            // 4. 参数类型检查（可选，暂不实现）
+            // 可以根据 meta.require_numeric 进行类型检查，但需要类型推导信息
         }
 
         Ok(())
+    }
+
+    /// 检查表达式是否为通配符属性（InputProperty("*") 或 VariableProperty { prop: "*" }）
+    fn is_wildcard_property(&self, expr: &Expression) -> bool {
+        match expr {
+            Expression::InputProperty(prop) => prop == "*",
+            Expression::VariableProperty { prop, .. } => prop == "*",
+            _ => false,
+        }
     }
 }
 
@@ -135,9 +162,71 @@ mod tests {
         let non_agg_expr = Expression::Constant(crate::core::Value::Int(1));
         assert!(validator.validate_aggregate_expr(&non_agg_expr).is_ok());
 
-        // 测试聚合表达式
-        // 注意：这里需要一个聚合表达式实例
-        // 暂时跳过这个测试，因为需要特定的聚合表达式构造
+        // 测试有效的聚合表达式：COUNT(*)
+        let count_star = Expression::Aggregate {
+            func: "COUNT".to_string(),
+            arg: Box::new(Expression::InputProperty("*".to_string())),
+            distinct: false,
+        };
+        assert!(validator.validate_aggregate_expr(&count_star).is_ok());
+
+        // 测试无效的聚合函数名
+        let unknown_agg = Expression::Aggregate {
+            func: "UNKNOWN".to_string(),
+            arg: Box::new(Expression::Constant(crate::core::Value::Int(1))),
+            distinct: false,
+        };
+        assert!(validator.validate_aggregate_expr(&unknown_agg).is_err());
+
+        // 测试嵌套聚合：SUM(COUNT(*))
+        let nested_agg = Expression::Aggregate {
+            func: "SUM".to_string(),
+            arg: Box::new(Expression::Aggregate {
+                func: "COUNT".to_string(),
+                arg: Box::new(Expression::InputProperty("*".to_string())),
+                distinct: false,
+            }),
+            distinct: false,
+        };
+        assert!(validator.validate_aggregate_expr(&nested_agg).is_err());
+
+        // 测试通配符属性限制：SUM(*) 应该失败
+        let sum_star = Expression::Aggregate {
+            func: "SUM".to_string(),
+            arg: Box::new(Expression::InputProperty("*".to_string())),
+            distinct: false,
+        };
+        assert!(validator.validate_aggregate_expr(&sum_star).is_err());
+
+        // 测试非通配符属性：SUM($-.prop) 应该成功（假设属性存在）
+        let sum_prop = Expression::Aggregate {
+            func: "SUM".to_string(),
+            arg: Box::new(Expression::InputProperty("prop".to_string())),
+            distinct: false,
+        };
+        assert!(validator.validate_aggregate_expr(&sum_prop).is_ok());
+
+        // 测试 VariableProperty 通配符
+        let var_star = Expression::Aggregate {
+            func: "AVG".to_string(),
+            arg: Box::new(Expression::VariableProperty {
+                var: "var".to_string(),
+                prop: "*".to_string(),
+            }),
+            distinct: false,
+        };
+        assert!(validator.validate_aggregate_expr(&var_star).is_err());
+
+        // 测试 COUNT 允许通配符 VariableProperty
+        let count_var_star = Expression::Aggregate {
+            func: "COUNT".to_string(),
+            arg: Box::new(Expression::VariableProperty {
+                var: "var".to_string(),
+                prop: "*".to_string(),
+            }),
+            distinct: false,
+        };
+        assert!(validator.validate_aggregate_expr(&count_var_star).is_ok());
     }
 
     #[test]

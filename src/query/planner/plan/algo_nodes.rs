@@ -1,3 +1,497 @@
 //! 算法相关的计划节点
 //! 如ShortestPath、BFSShortest、AllPaths等
 //! 包括最短路径、BFS最短路径、所有路径等算法节点
+
+use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind, BinaryInputNode};
+use crate::query::validator::Variable;
+use super::plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
+
+/// 多源最短路径计划节点
+#[derive(Debug)]
+pub struct MultiShortestPath {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub steps: usize,
+    pub left_vid_var: String,      // 左输入顶点变量
+    pub right_vid_var: String,     // 右输入顶点变量
+    pub termination_var: String,   // 终止条件变量
+    pub single_shortest: bool,     // 是否为单最短路径
+}
+
+impl MultiShortestPath {
+    pub fn new(id: i64, left: Box<dyn BasePlanNode>, right: Box<dyn BasePlanNode>, steps: usize) -> Self {
+        let mut result = Self {
+            id,
+            kind: PlanNodeKind::MultiShortestPath,
+            deps: vec![left, right],
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 0.0,
+            steps,
+            left_vid_var: String::new(),
+            right_vid_var: String::new(),
+            termination_var: String::new(),
+            single_shortest: false,
+        };
+        result.col_names = vec!["path".to_string()];
+        result
+    }
+
+    pub fn steps(&self) -> usize {
+        self.steps
+    }
+
+    pub fn left_vid_var(&self) -> &str {
+        &self.left_vid_var
+    }
+
+    pub fn right_vid_var(&self) -> &str {
+        &self.right_vid_var
+    }
+
+    pub fn termination_var(&self) -> &str {
+        &self.termination_var
+    }
+
+    pub fn single_shortest(&self) -> bool {
+        self.single_shortest
+    }
+
+    pub fn set_left_vid_var(&mut self, var: &str) {
+        self.left_vid_var = var.to_string();
+    }
+
+    pub fn set_right_vid_var(&mut self, var: &str) {
+        self.right_vid_var = var.to_string();
+    }
+}
+
+impl Clone for MultiShortestPath {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(), // 克隆时不包含依赖
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            steps: self.steps,
+            left_vid_var: self.left_vid_var.clone(),
+            right_vid_var: self.right_vid_var.clone(),
+            termination_var: self.termination_var.clone(),
+            single_shortest: self.single_shortest,
+        }
+    }
+}
+
+impl BasePlanNode for MultiShortestPath {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+
+    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
+        &self.deps
+    }
+
+    fn output_var(&self) -> &Option<Variable> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &Vec<String> {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
+        Box::new(self.clone())
+    }
+
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
+        self.deps = deps;
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn set_cost(&mut self, cost: f64) {
+        self.cost = cost;
+    }
+}
+
+/// BFS最短路径计划节点
+#[derive(Debug)]
+pub struct BFSShortest {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub steps: usize,
+    pub edge_types: Vec<String>,     // 边类型
+    pub no_loop: bool,              // 是否无环
+    pub reverse: bool,              // 是否反向搜索
+}
+
+impl BFSShortest {
+    pub fn new(id: i64, dep: Box<dyn BasePlanNode>, steps: usize, edge_types: Vec<String>, no_loop: bool) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::BFSShortest,
+            deps: vec![dep],
+            output_var: None,
+            col_names: vec!["path".to_string()],
+            cost: 0.0,
+            steps,
+            edge_types,
+            no_loop,
+            reverse: false,
+        }
+    }
+
+    pub fn set_reverse(&mut self, reverse: bool) {
+        self.reverse = reverse;
+    }
+
+    pub fn steps(&self) -> usize {
+        self.steps
+    }
+}
+
+impl Clone for BFSShortest {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(), // 克隆时不包含依赖
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            steps: self.steps,
+            edge_types: self.edge_types.clone(),
+            no_loop: self.no_loop,
+            reverse: self.reverse,
+        }
+    }
+}
+
+impl BasePlanNode for BFSShortest {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+
+    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
+        &self.deps
+    }
+
+    fn output_var(&self) -> &Option<Variable> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &Vec<String> {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
+        Box::new(self.clone())
+    }
+
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
+        self.deps = deps;
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn set_cost(&mut self, cost: f64) {
+        self.cost = cost;
+    }
+}
+
+/// 所有路径计划节点
+#[derive(Debug)]
+pub struct AllPaths {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub steps: usize,
+    pub edge_types: Vec<String>,
+    pub min_hop: usize,            // 最小跳数
+    pub max_hop: usize,            // 最大跳数
+    pub acyclic: bool,             // 是否无环
+    pub has_step_limit: bool,      // 是否有步数限制
+}
+
+impl AllPaths {
+    pub fn new(
+        id: i64,
+        left: Box<dyn BasePlanNode>,
+        right: Box<dyn BasePlanNode>,
+        steps: usize,
+        edge_types: Vec<String>,
+        min_hop: usize,
+        max_hop: usize,
+        acyclic: bool,
+    ) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::AllPaths,
+            deps: vec![left, right],
+            output_var: None,
+            col_names: vec!["path".to_string()],
+            cost: 0.0,
+            steps,
+            edge_types,
+            min_hop,
+            max_hop,
+            acyclic,
+            has_step_limit: true,
+        }
+    }
+
+    pub fn min_hop(&self) -> usize {
+        self.min_hop
+    }
+
+    pub fn max_hop(&self) -> usize {
+        self.max_hop
+    }
+
+    pub fn is_acyclic(&self) -> bool {
+        self.acyclic
+    }
+}
+
+impl Clone for AllPaths {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(), // 克隆时不包含依赖
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            steps: self.steps,
+            edge_types: self.edge_types.clone(),
+            min_hop: self.min_hop,
+            max_hop: self.max_hop,
+            acyclic: self.acyclic,
+            has_step_limit: self.has_step_limit,
+        }
+    }
+}
+
+impl BasePlanNode for AllPaths {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+
+    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
+        &self.deps
+    }
+
+    fn output_var(&self) -> &Option<Variable> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &Vec<String> {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
+        Box::new(self.clone())
+    }
+
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
+        self.deps = deps;
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn set_cost(&mut self, cost: f64) {
+        self.cost = cost;
+    }
+}
+
+/// 最短路径计划节点
+#[derive(Debug)]
+pub struct ShortestPath {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub edge_types: Vec<String>,
+    pub max_step: usize,           // 最大步数
+    pub weight_expr: Option<String>, // 权重表达式
+    pub no_reverse: bool,          // 是否不允许反向
+}
+
+impl ShortestPath {
+    pub fn new(
+        id: i64,
+        left: Box<dyn BasePlanNode>,
+        right: Box<dyn BasePlanNode>,
+        edge_types: Vec<String>,
+        max_step: usize,
+    ) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::ShortestPath,
+            deps: vec![left, right],
+            output_var: None,
+            col_names: vec!["path".to_string()],
+            cost: 0.0,
+            edge_types,
+            max_step,
+            weight_expr: None,
+            no_reverse: false,
+        }
+    }
+
+    pub fn max_step(&self) -> usize {
+        self.max_step
+    }
+
+    pub fn set_weight_expr(&mut self, expr: String) {
+        self.weight_expr = Some(expr);
+    }
+
+    pub fn weight_expr(&self) -> &Option<String> {
+        &self.weight_expr
+    }
+}
+
+impl Clone for ShortestPath {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(), // 克隆时不包含依赖
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            edge_types: self.edge_types.clone(),
+            max_step: self.max_step,
+            weight_expr: self.weight_expr.clone(),
+            no_reverse: self.no_reverse,
+        }
+    }
+}
+
+impl BasePlanNode for ShortestPath {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+
+    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
+        &self.deps
+    }
+
+    fn output_var(&self) -> &Option<Variable> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &Vec<String> {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
+        Box::new(self.clone())
+    }
+
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
+        self.deps = deps;
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn set_cost(&mut self, cost: f64) {
+        self.cost = cost;
+    }
+}

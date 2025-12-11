@@ -113,4 +113,4 @@ It is not recommended to run all tests in one time.
 - The project utilises Rust version 2021, employing the ownership system to ensure memory safety
 - Does not include distributed functionality, focusing instead on single-machine performance and simplicity
 - The architecture aims to minimise external dependencies, leveraging the security and performance of the Rust ecosystem
-- Due to the excessive length of cargo command output, always execute commands in the format: `<cargo command> 2>&1 | Select-Object -Last 30`(or more line. When use `cargo check`, use `-First` instead to capture errors first)
+- Due to the excessive length of cargo command output, always execute commands in the format: `<cargo command> 2>&1 | Tail 30`(or more line. When use `cargo check`, use `-head` instead to capture errors first)

@@ -43,6 +43,7 @@ pub enum PlanNodeKind {
     Subgraph,
     DataCollect,
     InnerJoin,
+    HashJoin,
     HashLeftJoin,
     HashInnerJoin,
     CrossJoin,
@@ -284,6 +285,7 @@ impl PlanNode for SingleDependencyNode {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
+        visitor.visit_plan_node(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -386,6 +388,7 @@ impl PlanNode for SingleInputNode {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
+        visitor.visit_plan_node(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -488,6 +491,7 @@ impl PlanNode for BinaryInputNode {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
+        visitor.visit_plan_node(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -594,6 +598,7 @@ impl PlanNode for VariableDependencyNode {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
+        visitor.visit_plan_node(self)?;
         visitor.post_visit()?;
         Ok(())
     }
