@@ -21,6 +21,11 @@ pub enum Statement {
     Use(UseStatement),
     Show(ShowStatement),
     Explain(ExplainStatement),
+    Go(GoStatement),
+    FetchVertices(FetchVerticesStatement),
+    FetchEdges(FetchEdgesStatement),
+    Lookup(LookupStatement),
+    FindPath(FindPathStatement),
     // Add more statement types as needed
 }
 
@@ -207,6 +212,67 @@ pub struct SessionOptions {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExplainStatement {
     pub stmt: Box<Statement>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GoStatement {
+    pub steps: GoSteps,
+    pub over: OverClause,
+    pub from: Vec<Expression>,
+    pub where_clause: Option<Expression>,
+    pub yield_clause: YieldClause,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum GoSteps {
+    Exact(Expression),
+    Range(Option<Expression>, Option<Expression>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OverClause {
+    pub edge_types: Vec<Identifier>,
+    pub direction: EdgeDirection,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FetchVerticesStatement {
+    pub from: Vec<Expression>,
+    pub properties: Vec<PropertyRef>,
+    pub where_clause: Option<Expression>,
+    pub yield_clause: Option<YieldClause>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FetchEdgesStatement {
+    pub from: Vec<Expression>,
+    pub properties: Vec<PropertyRef>,
+    pub where_clause: Option<Expression>,
+    pub yield_clause: Option<YieldClause>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LookupStatement {
+    pub schema_name: Identifier,
+    pub where_clause: Option<Expression>,
+    pub yield_clause: YieldClause,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PathType {
+    Shortest,
+    AllShortest,
+    Single,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FindPathStatement {
+    pub path_type: PathType,
+    pub src: Expression,
+    pub dst: Expression,
+    pub min_hop: Option<u32>,
+    pub max_hop: Option<u32>,
+    pub edge_types: Vec<Identifier>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

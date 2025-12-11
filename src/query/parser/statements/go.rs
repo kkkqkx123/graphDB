@@ -1,0 +1,148 @@
+//! GO语句解析器
+
+use crate::query::parser::core::{ParseError, Token, TokenKind};
+use crate::query::parser::ast::*;
+use crate::query::parser::expressions::ExpressionParser;
+
+pub trait GoStatementParser: ExpressionParser {
+    /// 解析GO语句
+    fn parse_go_statement(&mut self) -> Result<Option<Statement>, ParseError> {
+        // 解析 STEPS
+        let steps = if self.current_token().kind == TokenKind::Step {
+            self.next_token();
+            if self.current_token().kind == TokenKind::Upto {
+                // 解析 M TO N STEPS形式
+                self.next_token();
+                // 这里应该解析具体的步骤数，现在简化处理
+                let from_step = self.parse_expression()?;
+                self.expect_token(TokenKind::To)?;
+                let to_step = self.parse_expression()?;
+                GoSteps::Range(Some(from_step), Some(to_step))
+            } else {
+                // 解析 N STEPS形式
+                let step_expr = self.parse_expression()?;
+                GoSteps::Exact(step_expr)
+            }
+        } else {
+            GoSteps::Exact(Expression::Constant(crate::core::Value::Int(1))) // 默认1步
+        };
+
+        // 解析 OVER
+        self.expect_token(TokenKind::Over)?;
+        let over_clause = self.parse_over_clause()?;
+
+        // 解析 FROM
+        self.expect_token(TokenKind::From)?;
+        let from_list = self.parse_vertex_list()?;
+
+        // 解析 WHERE (可选)
+        let where_clause = if self.current_token().kind == TokenKind::Where {
+            self.next_token();
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+
+        // 解析 YIELD
+        self.expect_token(TokenKind::Yield)?;
+        let yield_clause = self.parse_yield_clause()?;
+
+        Ok(Some(Statement::Go(GoStatement {
+            steps,
+            over: over_clause,
+            from: from_list,
+            where_clause,
+            yield_clause,
+        })))
+    }
+
+    fn parse_over_clause(&mut self) -> Result<OverClause, ParseError> {
+        // 解析边类型列表
+        let edge_types = if self.current_token().kind == TokenKind::Star {
+            self.next_token();
+            vec!["*".to_string()] // 表示所有边类型
+        } else {
+            let mut types = Vec::new();
+            types.push(self.parse_identifier()?);
+            
+            while self.current_token().kind == TokenKind::Comma {
+                self.next_token(); // 跳过逗号
+                types.push(self.parse_identifier()?);
+            }
+            types
+        };
+
+        // 解析方向 (可选，默认OUT)
+        let direction = if self.current_token().kind == TokenKind::Colon {
+            self.next_token();
+            match self.current_token().kind {
+                TokenKind::Out => {
+                    self.next_token();
+                    EdgeDirection::Outbound
+                }
+                TokenKind::In => {
+                    self.next_token();
+                    EdgeDirection::Inbound
+                }
+                TokenKind::Both => {
+                    self.next_token();
+                    EdgeDirection::Bidirectional
+                }
+                _ => return Err(ParseError::syntax_error(
+                    format!("Expected direction (OUT, IN, or BOTH), got {:?}", self.current_token().kind),
+                    self.current_token().line,
+                    self.current_token().column,
+                ))
+            }
+        } else {
+            EdgeDirection::Outbound // 默认方向
+        };
+
+        Ok(OverClause {
+            edge_types,
+            direction,
+        })
+    }
+
+    fn parse_vertex_list(&mut self) -> Result<Vec<Expression>, ParseError> {
+        let mut vertices = Vec::new();
+        
+        vertices.push(self.parse_expression()?);
+        
+        while self.current_token().kind == TokenKind::Comma {
+            self.next_token();
+            vertices.push(self.parse_expression()?);
+        }
+        
+        Ok(vertices)
+    }
+
+    fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError>;
+    fn parse_expression(&mut self) -> Result<Expression, ParseError>;
+    fn parse_identifier(&mut self) -> Result<String, ParseError>;
+    fn expect_token(&mut self, expected: TokenKind) -> Result<Token, ParseError>;
+    fn current_token(&self) -> &Token;
+    fn next_token(&mut self);
+}
+
+// 在AST中需要定义新的结构，但这里我们使用trait来模拟
+#[derive(Debug, Clone, PartialEq)]
+pub enum GoSteps {
+    Exact(Expression),
+    Range(Option<Expression>, Option<Expression>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GoStatement {
+    pub steps: GoSteps,
+    pub over: OverClause,
+    pub from: Vec<Expression>,
+    pub where_clause: Option<Expression>,
+    pub yield_clause: YieldClause,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OverClause {
+    pub edge_types: Vec<String>,
+    pub direction: EdgeDirection,
+}

@@ -231,8 +231,8 @@ impl<S: StorageEngine> QueryExecutor<S> {
     }
 }
 
-use crate::query::parser::parser::{Parser as NewParser};
-use crate::query::parser::ast::{Statement, Expression as AstExpression};
+use crate::query::parser::parser::parser::{Parser as NewParser};
+use crate::query::parser::ast::ast::{Statement, Expression as AstExpression};
 
 pub struct QueryParser;
 
@@ -250,11 +250,11 @@ impl QueryParser {
         // Convert the first statement to our Query type
         // For now, we'll handle only simple cases and extend as needed
         match &statements[0] {
-            Statement::Match(match_stmt) => self.convert_match_statement(&match_stmt),
-            Statement::CreateNode(create_node_stmt) => self.convert_create_node_statement(&create_node_stmt),
-            Statement::CreateEdge(create_edge_stmt) => self.convert_create_edge_statement(&create_edge_stmt),
-            Statement::Delete(delete_stmt) => self.convert_delete_statement(&delete_stmt),
-            Statement::Update(update_stmt) => self.convert_update_statement(&update_stmt),
+            crate::query::parser::ast::ast::Statement::Match(match_stmt) => self.convert_match_statement(&match_stmt),
+            crate::query::parser::ast::ast::Statement::CreateNode(create_node_stmt) => self.convert_create_node_statement(&create_node_stmt),
+            crate::query::parser::ast::ast::Statement::CreateEdge(create_edge_stmt) => self.convert_create_edge_statement(&create_edge_stmt),
+            crate::query::parser::ast::ast::Statement::Delete(delete_stmt) => self.convert_delete_statement(&delete_stmt),
+            crate::query::parser::ast::ast::Statement::Update(update_stmt) => self.convert_update_statement(&update_stmt),
             // Add more statement types as needed
             _ => Err(QueryError::ParseError(format!("Unsupported statement type: {:?}", statements[0])))
         }
@@ -262,8 +262,10 @@ impl QueryParser {
 
     fn convert_match_statement(
         &self,
-        match_stmt: &crate::query::parser::ast::MatchStatement,
+        match_stmt: &crate::query::parser::ast::ast::MatchStatement,
     ) -> Result<Query, QueryError> {
+        use crate::query::parser::ast::ast::{MatchClause, MatchPathSegment};
+
         // For now, we'll implement a basic conversion
         // We'll extract WHERE conditions and any specified tags
 
@@ -273,11 +275,11 @@ impl QueryParser {
         // Process clauses to extract tags and conditions
         for clause in &match_stmt.clauses {
             match clause {
-                crate::query::parser::ast::MatchClause::Match(match_detail) => {
+                MatchClause::Match(match_detail) => {
                     // Extract tag information from patterns
                     for path in &match_detail.patterns {
                         for segment in &path.path {
-                            if let crate::query::parser::ast::MatchPathSegment::Node(node) = segment {
+                            if let MatchPathSegment::Node(node) = segment {
                                 if !node.labels.is_empty() {
                                     let tag_names: Vec<String> = node.labels.iter()
                                         .map(|label| label.name.clone())
@@ -295,7 +297,7 @@ impl QueryParser {
                         }
                     }
                 }
-                crate::query::parser::ast::MatchClause::Where(where_clause) => {
+                MatchClause::Where(where_clause) => {
                     if let Ok(condition) = self.convert_expression(&where_clause.condition) {
                         conditions.push(condition);
                     }
@@ -312,11 +314,13 @@ impl QueryParser {
 
     fn convert_create_node_statement(
         &self,
-        create_node_stmt: &crate::query::parser::ast::CreateNodeStatement,
+        create_node_stmt: &crate::query::parser::ast::ast::CreateNodeStatement,
     ) -> Result<Query, QueryError> {
+        use crate::query::parser::ast::ast::TagIdentifier;
+
         // Convert tags
         let tags: Vec<Tag> = create_node_stmt.tags.iter()
-            .map(|tag_id| {
+            .map(|tag_id: &TagIdentifier| {
                 let properties = match &tag_id.properties {
                     Some(props) => {
                         let mut map = HashMap::new();
@@ -342,7 +346,7 @@ impl QueryParser {
 
     fn convert_create_edge_statement(
         &self,
-        create_edge_stmt: &crate::query::parser::ast::CreateEdgeStatement,
+        create_edge_stmt: &crate::query::parser::ast::ast::CreateEdgeStatement,
     ) -> Result<Query, QueryError> {
         // Convert source and destination expressions to values
         let src = self.convert_ast_expression_to_value(&create_edge_stmt.src)?;
@@ -367,7 +371,7 @@ impl QueryParser {
 
     fn convert_delete_statement(
         &self,
-        delete_stmt: &crate::query::parser::ast::DeleteStatement,
+        delete_stmt: &crate::query::parser::ast::ast::DeleteStatement,
     ) -> Result<Query, QueryError> {
         if !delete_stmt.delete_vertices {
             return Err(QueryError::ParseError("Deleting edges not supported in this model".to_string()));
@@ -385,8 +389,10 @@ impl QueryParser {
 
     fn convert_update_statement(
         &self,
-        update_stmt: &crate::query::parser::ast::UpdateStatement,
+        update_stmt: &crate::query::parser::ast::ast::UpdateStatement,
     ) -> Result<Query, QueryError> {
+        use crate::query::parser::ast::ast::PropertyRef;
+
         if !update_stmt.update_vertices {
             return Err(QueryError::ParseError("Updating edges not supported in this model".to_string()));
         }
@@ -401,14 +407,14 @@ impl QueryParser {
         let mut tags = Vec::new();
         for assignment in &update_stmt.update_items {
             match &assignment.prop {
-                crate::query::parser::ast::PropertyRef::InlineProp(prop_name) => {
+                PropertyRef::InlineProp(prop_name) => {
                     // For now, we'll create a default tag with the updated properties
                     let value = self.convert_ast_expression_to_value(&assignment.value)?;
                     let mut properties = HashMap::new();
                     properties.insert(prop_name.clone(), value);
                     tags.push(Tag::new("UpdatedTag".to_string(), properties));
                 }
-                crate::query::parser::ast::PropertyRef::Prop(tag_name, prop_name) => {
+                PropertyRef::Prop(tag_name, prop_name) => {
                     let value = self.convert_ast_expression_to_value(&assignment.value)?;
                     let mut properties = HashMap::new();
                     properties.insert(prop_name.clone(), value);
@@ -422,52 +428,58 @@ impl QueryParser {
 
     fn convert_expression(
         &self,
-        expr: &crate::query::parser::ast::Expression,
+        expr: &crate::query::parser::ast::ast::Expression,
     ) -> Result<Condition, QueryError> {
+        use crate::query::parser::ast::ast::{Expression, RelationalOp};
+
         // Convert AST expression to our Condition type
         // This is a simplified implementation
         match expr {
-            crate::query::parser::ast::Expression::Relational(left, op, right) => {
+            Expression::Relational(left, op, right) => {
                 // Convert left and right expressions to property names and values
                 let prop_name = self.extract_property_name(left)?;
                 let value = self.convert_ast_expression_to_value(right)?;
 
                 match op {
-                    crate::query::parser::ast::RelationalOp::Eq => Ok(Condition::PropertyEquals(prop_name, value)),
-                    crate::query::parser::ast::RelationalOp::Ne => Err(QueryError::ParseError("Not equal operator not supported yet".to_string())),
-                    crate::query::parser::ast::RelationalOp::Lt => Ok(Condition::PropertyLessThan(prop_name, value)),
-                    crate::query::parser::ast::RelationalOp::Le => Err(QueryError::ParseError("Less than or equal operator not supported yet".to_string())),
-                    crate::query::parser::ast::RelationalOp::Gt => Ok(Condition::PropertyGreaterThan(prop_name, value)),
-                    crate::query::parser::ast::RelationalOp::Ge => Err(QueryError::ParseError("Greater than or equal operator not supported yet".to_string())),
-                    crate::query::parser::ast::RelationalOp::Regex => Err(QueryError::ParseError("Regex operator not supported yet".to_string())),
+                    RelationalOp::Eq => Ok(Condition::PropertyEquals(prop_name, value)),
+                    RelationalOp::Ne => Err(QueryError::ParseError("Not equal operator not supported yet".to_string())),
+                    RelationalOp::Lt => Ok(Condition::PropertyLessThan(prop_name, value)),
+                    RelationalOp::Le => Err(QueryError::ParseError("Less than or equal operator not supported yet".to_string())),
+                    RelationalOp::Gt => Ok(Condition::PropertyGreaterThan(prop_name, value)),
+                    RelationalOp::Ge => Err(QueryError::ParseError("Greater than or equal operator not supported yet".to_string())),
+                    RelationalOp::Regex => Err(QueryError::ParseError("Regex operator not supported yet".to_string())),
                 }
             }
             _ => Err(QueryError::ParseError("Unsupported expression type for condition".to_string())),
         }
     }
 
-    fn extract_property_name(&self, expr: &crate::query::parser::ast::Expression) -> Result<String, QueryError> {
+    fn extract_property_name(&self, expr: &crate::query::parser::ast::ast::Expression) -> Result<String, QueryError> {
+        use crate::query::parser::ast::ast::Expression;
+
         // Extract the property name from an expression
         match expr {
-            crate::query::parser::ast::Expression::PropertyAccess(_, prop_name) => Ok(prop_name.clone()),
-            crate::query::parser::ast::Expression::Variable(name) => Ok(name.clone()),
+            Expression::PropertyAccess(_, prop_name) => Ok(prop_name.clone()),
+            Expression::Variable(name) => Ok(name.clone()),
             _ => Err(QueryError::ParseError("Could not extract property name from expression".to_string())),
         }
     }
 
     fn convert_ast_expression_to_value(
         &self,
-        expr: &crate::query::parser::ast::Expression,
+        expr: &crate::query::parser::ast::ast::Expression,
     ) -> Result<Value, QueryError> {
+        use crate::query::parser::ast::ast::Expression;
+
         // Convert an AST expression to a Value
         match expr {
-            crate::query::parser::ast::Expression::Constant(value) => Ok(value.clone()),
-            crate::query::parser::ast::Expression::Variable(name) => {
+            Expression::Constant(value) => Ok(value.clone()),
+            Expression::Variable(name) => {
                 // In a real implementation, this would look up the variable in the execution context
                 // For now, we'll return a string representation
                 Ok(Value::String(name.clone()))
             }
-            crate::query::parser::ast::Expression::FunctionCall(func) => {
+            Expression::FunctionCall(func) => {
                 // Function calls would need to be evaluated in the execution context
                 Err(QueryError::ParseError("Function calls in expressions not supported in parsing".to_string()))
             }
