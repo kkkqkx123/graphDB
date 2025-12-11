@@ -171,8 +171,8 @@ mod parser_tests {
     
     #[test]
     fn test_lexer_functionality() {
-        use crate::query::parser::lexer::Lexer;
-        use crate::query::parser::token::TokenKind;
+        use crate::query::parser::lexer::lexer::Lexer;
+        use crate::query::parser::core::token::TokenKind;
         
         let input = "CREATE (n:Person {name: 'John'}) RETURN n.name";
         let mut lexer = Lexer::new(input);

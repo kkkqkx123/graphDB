@@ -1,8 +1,9 @@
 //! GO语句解析器
 
-use crate::query::parser::core::{ParseError, Token, TokenKind};
+use crate::query::parser::core::error::ParseError;
+use crate::query::parser::core::token::{Token, TokenKind};
 use crate::query::parser::ast::*;
-use crate::query::parser::expressions::ExpressionParser;
+use crate::query::parser::expressions::{ExpressionParser, TokenParser};
 
 pub trait GoStatementParser: ExpressionParser {
     /// 解析GO语句
@@ -118,31 +119,6 @@ pub trait GoStatementParser: ExpressionParser {
     }
 
     fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError>;
-    fn parse_expression(&mut self) -> Result<Expression, ParseError>;
-    fn parse_identifier(&mut self) -> Result<String, ParseError>;
-    fn expect_token(&mut self, expected: TokenKind) -> Result<Token, ParseError>;
-    fn current_token(&self) -> &Token;
-    fn next_token(&mut self);
+    fn add_error(&mut self, error: ParseError);
 }
 
-// 在AST中需要定义新的结构，但这里我们使用trait来模拟
-#[derive(Debug, Clone, PartialEq)]
-pub enum GoSteps {
-    Exact(Expression),
-    Range(Option<Expression>, Option<Expression>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct GoStatement {
-    pub steps: GoSteps,
-    pub over: OverClause,
-    pub from: Vec<Expression>,
-    pub where_clause: Option<Expression>,
-    pub yield_clause: YieldClause,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct OverClause {
-    pub edge_types: Vec<String>,
-    pub direction: EdgeDirection,
-}

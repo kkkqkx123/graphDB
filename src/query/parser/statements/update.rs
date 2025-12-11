@@ -1,8 +1,9 @@
 //! UPDATE语句解析器
 
-use crate::query::parser::core::{ParseError, Token, TokenKind};
+use crate::query::parser::core::error::ParseError;
+use crate::query::parser::core::token::{Token, TokenKind};
 use crate::query::parser::ast::*;
-use crate::query::parser::expressions::ExpressionParser;
+use crate::query::parser::expressions::{ExpressionParser, TokenParser};
 
 pub trait UpdateStatementParser: ExpressionParser {
     /// 解析UPDATE语句
@@ -72,9 +73,4 @@ pub trait UpdateStatementParser: ExpressionParser {
     fn parse_where_clause(&mut self) -> Result<WhereClause, ParseError>;
     fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError>;
     fn parse_property_ref(&mut self) -> Result<PropertyRef, ParseError>;
-    fn parse_expression(&mut self) -> Result<Expression, ParseError>;
-    fn parse_identifier(&mut self) -> Result<String, ParseError>;
-    fn expect_token(&mut self, expected: TokenKind) -> Result<Token, ParseError>;
-    fn current_token(&self) -> &Token;
-    fn next_token(&mut self);
 }

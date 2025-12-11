@@ -2,7 +2,7 @@
 //!
 //! This module implements a lexical analyzer that converts input query strings into tokens.
 
-use crate::query::parser::token::{Token, TokenKind};
+use crate::query::parser::core::token::{Token, TokenKind};
 
 pub struct Lexer {
     input: Vec<char>,

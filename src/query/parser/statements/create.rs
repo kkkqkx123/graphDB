@@ -1,8 +1,9 @@
 //! CREATE语句解析器
 
-use crate::query::parser::core::{ParseError, Token, TokenKind};
+use crate::query::parser::core::error::ParseError;
+use crate::query::parser::core::token::{Token, TokenKind};
 use crate::query::parser::ast::*;
-use crate::query::parser::expressions::ExpressionParser;
+use crate::query::parser::expressions::{ExpressionParser, TokenParser};
 use std::collections::HashMap;
 
 pub trait CreateStatementParser: ExpressionParser {
@@ -121,10 +122,6 @@ pub trait CreateStatementParser: ExpressionParser {
     fn parse_tag_list(&mut self) -> Result<Vec<TagIdentifier>, ParseError>;
     fn parse_property_list(&mut self) -> Result<Vec<Property>, ParseError>;
     fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError>;
-    fn parse_identifier(&mut self) -> Result<String, ParseError>;
     fn check_and_skip_keyword(&mut self, keyword: TokenKind) -> bool;
-    fn expect_token(&mut self, expected: TokenKind) -> Result<Token, ParseError>;
     fn add_error(&mut self, error: ParseError);
-    fn current_token(&self) -> &Token;
-    fn next_token(&mut self);
 }
