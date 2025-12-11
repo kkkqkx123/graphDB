@@ -5,6 +5,7 @@ pub mod unary;
 pub mod function;
 pub mod container;
 pub mod aggregate;
+pub mod aggregate_functions;
 pub mod context;
 pub mod evaluator;
 pub mod visitor;

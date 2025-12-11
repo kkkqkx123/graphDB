@@ -12,6 +12,8 @@ pub mod cross_join;
 pub mod hash_table;
 pub mod inner_join;
 pub mod left_join;
+pub mod right_join;
+pub mod full_outer_join;
 
 // 重新导出主要类型
 pub use base_join::{
@@ -25,6 +27,8 @@ pub use hash_table::{
 };
 pub use inner_join::{HashInnerJoinExecutor, InnerJoinExecutor};
 pub use left_join::{HashLeftJoinExecutor, LeftJoinExecutor};
+pub use right_join::RightJoinExecutor;
+pub use full_outer_join::FullOuterJoinExecutor;
 
 /// Join操作的类型枚举
 #[derive(Debug, Clone, PartialEq)]
@@ -33,9 +37,9 @@ pub enum JoinType {
     Inner,
     /// 左外连接
     Left,
-    /// 右外连接（暂未实现）
+    /// 右外连接
     Right,
-    /// 全外连接（暂未实现）
+    /// 全外连接
     Full,
     /// 笛卡尔积
     Cross,
@@ -186,6 +190,30 @@ impl JoinExecutorFactory {
                         config.output_columns,
                     )))
                 }
+            }
+            JoinType::Right => {
+                // 右外连接
+                Ok(Box::new(RightJoinExecutor::new(
+                    id,
+                    storage,
+                    config.left_var,
+                    config.right_var,
+                    config.left_keys,
+                    config.right_keys,
+                    config.output_columns,
+                )))
+            }
+            JoinType::Full => {
+                // 全外连接
+                Ok(Box::new(FullOuterJoinExecutor::new(
+                    id,
+                    storage,
+                    config.left_var,
+                    config.right_var,
+                    config.left_keys,
+                    config.right_keys,
+                    config.output_columns,
+                )))
             }
             JoinType::Cross => {
                 // 笛卡尔积需要特殊处理，因为可能有多个输入

@@ -13,7 +13,7 @@ use crate::storage::StorageEngine;
 
 /// Join执行器的基础结构
 pub struct BaseJoinExecutor<S: StorageEngine> {
-    base: BaseExecutor<S>,
+    pub base: BaseExecutor<S>,
     /// 左侧输入变量名
     left_var: String,
     /// 右侧输入变量名
@@ -256,6 +256,46 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     /// 获取可变的基础执行器
     pub fn get_base_mut(&mut self) -> &mut BaseExecutor<S> {
         &mut self.base
+    }
+
+    /// 获取执行器ID
+    pub fn id(&self) -> usize {
+        self.base.id
+    }
+
+    /// 获取执行器名称
+    pub fn name(&self) -> &str {
+        &self.base.name
+    }
+
+    /// 获取执行上下文的可变引用
+    pub fn context_mut(&mut self) -> &mut crate::query::executor::base::ExecutionContext {
+        &mut self.base.context
+    }
+
+    /// 获取左表变量名
+    pub fn left_var(&self) -> &str {
+        &self.left_var
+    }
+
+    /// 获取右表变量名
+    pub fn right_var(&self) -> &str {
+        &self.right_var
+    }
+
+    /// 获取哈希键列表
+    pub fn hash_keys(&self) -> &Vec<String> {
+        &self.hash_keys
+    }
+
+    /// 获取探测键列表
+    pub fn probe_keys(&self) -> &Vec<String> {
+        &self.probe_keys
+    }
+
+    /// 获取列名列表
+    pub fn col_names(&self) -> &Vec<String> {
+        &self.col_names
     }
 }
 

@@ -38,6 +38,10 @@ pub use set_operations::{
 
 // JOIN 执行器
 pub mod join;
+pub use join::{
+    InnerJoinExecutor, LeftJoinExecutor, RightJoinExecutor, FullOuterJoinExecutor,
+    CrossJoinExecutor, JoinConfig, JoinType
+};
 
 // 数据转换执行器
 pub mod transformations;
@@ -45,6 +49,20 @@ pub use transformations::{
     AssignExecutor, UnwindExecutor, AppendVerticesExecutor,
     PatternApplyExecutor, RollUpApplyExecutor, PatternType, EdgeDirection
 };
+
+// 聚合操作执行器
+pub mod aggregation;
+pub use aggregation::{
+    GroupByExecutor, AggregateExecutor, HavingExecutor, GroupAggregateState, AggregateState as SingleAggregateState
+};
+
+// 排序操作执行器
+pub mod sort;
+pub use sort::{SortExecutor, SortKey, SortOrder};
+
+// 分页操作执行器
+pub mod pagination;
+pub use pagination::LimitExecutor;
 
 // 循环控制
 pub mod loops;
