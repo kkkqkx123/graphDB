@@ -2,7 +2,10 @@
 //! 处理FETCH EDGES查询的规划
 
 use crate::query::context::{AstContext, FetchEdgesContext};
-use crate::query::planner::plan::nodes::*;
+use crate::query::planner::plan::common::EdgeProp;
+use crate::query::planner::plan::graph_scan::GetEdges;
+use crate::query::planner::plan::data_ops::Project;
+use crate::query::planner::plan::other_ops::{Argument, Dedup};
 use crate::query::planner::plan::plan_node::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};

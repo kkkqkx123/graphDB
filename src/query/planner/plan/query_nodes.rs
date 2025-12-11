@@ -1,7 +1,6 @@
 //! 查询操作相关的计划节点
 //! 如GetNeighbors、GetVertices、GetEdges等
 
-use std::fmt;
 use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind};
 use crate::query::validator::Variable;
 use super::plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
@@ -1179,5 +1178,3 @@ impl BasePlanNode for DataCollect {
     }
 }
 
-// 需要定义TagProp和EdgeProp类型，也可以从nodes中导入
-use crate::query::planner::plan::nodes::{TagProp, EdgeProp};

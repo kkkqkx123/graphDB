@@ -3,7 +3,12 @@
 
 use crate::query::validator::Variable;
 use crate::query::context::{AstContext, GoContext};
-use crate::query::planner::plan::nodes::*;
+use crate::query::planner::plan::common::{TagProp, EdgeProp};
+use crate::query::planner::plan::graph_scan::{GetEdges, GetVertices};
+use crate::query::planner::plan::traverse_ops::{Expand, ExpandAll};
+use crate::query::planner::plan::data_ops::{Filter, Project};
+use crate::query::planner::plan::other_ops::{Start, Argument, Dedup};
+use crate::query::planner::plan::join_ops::{HashLeftJoin};
 use crate::query::planner::plan::plan_node::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};

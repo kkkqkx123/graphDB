@@ -1,46 +1,37 @@
-//! 扫描相关的计划节点
-//! 如ScanVertices、ScanEdges、IndexScan等
-//! 包括顶点扫描、边扫描、索引扫描等操作
-
+//! 连接操作计划节点定义
 use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind};
+use super::plan_node_visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::validator::Variable;
-use super::plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
 
-// 扫描顶点的计划节点
+// 哈希左连接计划节点
 #[derive(Debug)]
-pub struct ScanVertices {
+pub struct HashLeftJoin {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub space_id: i32,
-    pub tag_id: Option<i32>,  // 特定标签ID，如果为空则扫描所有标签
-    pub limit: Option<i64>,
-    pub filter: Option<String>,
-    pub props: Vec<TagProp>,
+    pub hash_keys: Vec<String>,
+    pub probe_keys: Vec<String>,
 }
 
-impl ScanVertices {
-    pub fn new(id: i64, space_id: i32) -> Self {
+impl HashLeftJoin {
+    pub fn new(id: i64, hash_keys: Vec<String>, probe_keys: Vec<String>) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::ScanVertices,
+            kind: PlanNodeKind::HashLeftJoin,
             deps: Vec::new(),
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            space_id,
-            tag_id: None,
-            limit: None,
-            filter: None,
-            props: Vec::new(),
+            hash_keys,
+            probe_keys,
         }
     }
 }
 
-impl Clone for ScanVertices {
+impl Clone for HashLeftJoin {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -49,16 +40,13 @@ impl Clone for ScanVertices {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            space_id: self.space_id,
-            tag_id: self.tag_id,
-            limit: self.limit,
-            filter: self.filter.clone(),
-            props: self.props.clone(),
+            hash_keys: self.hash_keys.clone(),
+            probe_keys: self.probe_keys.clone(),
         }
     }
 }
 
-impl BasePlanNode for ScanVertices {
+impl BasePlanNode for HashLeftJoin {
     fn id(&self) -> i64 {
         self.id
     }
@@ -89,7 +77,7 @@ impl BasePlanNode for ScanVertices {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_scan_vertices(self)?;
+        visitor.visit_hash_left_join(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -111,41 +99,35 @@ impl BasePlanNode for ScanVertices {
     }
 }
 
-// 扫描边的计划节点
+// 哈希内连接计划节点
 #[derive(Debug)]
-pub struct ScanEdges {
+pub struct HashInnerJoin {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub space_id: i32,
-    pub edge_type: String,
-    pub limit: Option<i64>,
-    pub filter: Option<String>,
-    pub props: Vec<EdgeProp>,
+    pub hash_keys: Vec<String>,
+    pub probe_keys: Vec<String>,
 }
 
-impl ScanEdges {
-    pub fn new(id: i64, space_id: i32, edge_type: &str) -> Self {
+impl HashInnerJoin {
+    pub fn new(id: i64, hash_keys: Vec<String>, probe_keys: Vec<String>) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::ScanEdges,
+            kind: PlanNodeKind::HashInnerJoin,
             deps: Vec::new(),
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            space_id,
-            edge_type: edge_type.to_string(),
-            limit: None,
-            filter: None,
-            props: Vec::new(),
+            hash_keys,
+            probe_keys,
         }
     }
 }
 
-impl Clone for ScanEdges {
+impl Clone for HashInnerJoin {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -154,16 +136,13 @@ impl Clone for ScanEdges {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            space_id: self.space_id,
-            edge_type: self.edge_type.clone(),
-            limit: self.limit,
-            filter: self.filter.clone(),
-            props: self.props.clone(),
+            hash_keys: self.hash_keys.clone(),
+            probe_keys: self.probe_keys.clone(),
         }
     }
 }
 
-impl BasePlanNode for ScanEdges {
+impl BasePlanNode for HashInnerJoin {
     fn id(&self) -> i64 {
         self.id
     }
@@ -194,7 +173,7 @@ impl BasePlanNode for ScanEdges {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_scan_edges(self)?;
+        visitor.visit_hash_inner_join(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -216,52 +195,35 @@ impl BasePlanNode for ScanEdges {
     }
 }
 
-// 索引扫描的计划节点
+// 哈希连接节点
 #[derive(Debug)]
-pub struct IndexScan {
+pub struct HashJoin {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub space_id: i32,
-    pub tag_id: i32,
-    pub index_id: i32,
-    pub scan_type: String,  // "RANGE", "PREFIX", "UNIQUE"等
-    pub scan_limits: Vec<IndexLimit>,  // 索引扫描限制
-    pub filter: Option<String>,
-    pub return_columns: Vec<String>,
+    pub left_keys: Vec<String>,
+    pub right_keys: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
-pub struct IndexLimit {
-    pub column: String,
-    pub begin_value: Option<String>,
-    pub end_value: Option<String>,
-}
-
-impl IndexScan {
-    pub fn new(id: i64, space_id: i32, tag_id: i32, index_id: i32, scan_type: &str) -> Self {
+impl HashJoin {
+    pub fn new(id: i64, left_keys: Vec<String>, right_keys: Vec<String>) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::IndexScan,
+            kind: PlanNodeKind::HashJoin,
             deps: Vec::new(),
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            space_id,
-            tag_id,
-            index_id,
-            scan_type: scan_type.to_string(),
-            scan_limits: Vec::new(),
-            filter: None,
-            return_columns: Vec::new(),
+            left_keys,
+            right_keys,
         }
     }
 }
 
-impl Clone for IndexScan {
+impl Clone for HashJoin {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -270,18 +232,13 @@ impl Clone for IndexScan {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            space_id: self.space_id,
-            tag_id: self.tag_id,
-            index_id: self.index_id,
-            scan_type: self.scan_type.clone(),
-            scan_limits: self.scan_limits.clone(),
-            filter: self.filter.clone(),
-            return_columns: self.return_columns.clone(),
+            left_keys: self.left_keys.clone(),
+            right_keys: self.right_keys.clone(),
         }
     }
 }
 
-impl BasePlanNode for IndexScan {
+impl BasePlanNode for HashJoin {
     fn id(&self) -> i64 {
         self.id
     }
@@ -312,7 +269,7 @@ impl BasePlanNode for IndexScan {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_index_scan(self)?;
+        visitor.visit_hash_join(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -334,39 +291,31 @@ impl BasePlanNode for IndexScan {
     }
 }
 
-// 全文索引扫描的计划节点
+// 交叉连接节点
 #[derive(Debug)]
-pub struct FulltextIndexScan {
+pub struct CrossJoin {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub space_id: i32,
-    pub index_name: String,
-    pub query: String,  // 全文检索查询
-    pub limit: Option<i64>,
 }
 
-impl FulltextIndexScan {
-    pub fn new(id: i64, space_id: i32, index_name: &str, query: &str) -> Self {
+impl CrossJoin {
+    pub fn new(id: i64) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::FulltextIndexScan,
+            kind: PlanNodeKind::CrossJoin,
             deps: Vec::new(),
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            space_id,
-            index_name: index_name.to_string(),
-            query: query.to_string(),
-            limit: None,
         }
     }
 }
 
-impl Clone for FulltextIndexScan {
+impl Clone for CrossJoin {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -375,15 +324,11 @@ impl Clone for FulltextIndexScan {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            space_id: self.space_id,
-            index_name: self.index_name.clone(),
-            query: self.query.clone(),
-            limit: self.limit,
         }
     }
 }
 
-impl BasePlanNode for FulltextIndexScan {
+impl BasePlanNode for CrossJoin {
     fn id(&self) -> i64 {
         self.id
     }
@@ -414,7 +359,7 @@ impl BasePlanNode for FulltextIndexScan {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_fulltext_index_scan(self)?;
+        visitor.visit_cross_join(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -435,4 +380,3 @@ impl BasePlanNode for FulltextIndexScan {
         self.cost = cost;
     }
 }
-

@@ -6,7 +6,10 @@ use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::plan::plan_node::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::validator::Variable;
-use crate::query::planner::plan::nodes::*;
+use crate::query::planner::plan::graph_scan::{GetEdges, GetVertices};
+use crate::query::planner::plan::data_ops::Filter;
+use crate::query::planner::plan::other_ops::Dedup;
+use crate::query::planner::plan::data_ops::Project;
 
 /// LOOKUP查询规划器
 /// 负责将LOOKUP语句转换为执行计划

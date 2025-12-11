@@ -1,46 +1,36 @@
-//! 扫描相关的计划节点
-//! 如ScanVertices、ScanEdges、IndexScan等
-//! 包括顶点扫描、边扫描、索引扫描等操作
-
+//! 数据操作计划节点定义
 use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind};
+use super::plan_node_visitor::{PlanNodeVisitError, PlanNodeVisitor};
+use super::common::{TagProp, EdgeProp};
 use crate::query::validator::Variable;
-use super::plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
 
-// 扫描顶点的计划节点
+// 投影计划节点
 #[derive(Debug)]
-pub struct ScanVertices {
+pub struct Project {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub space_id: i32,
-    pub tag_id: Option<i32>,  // 特定标签ID，如果为空则扫描所有标签
-    pub limit: Option<i64>,
-    pub filter: Option<String>,
-    pub props: Vec<TagProp>,
+    pub yield_expr: String, // 投影表达式
 }
 
-impl ScanVertices {
-    pub fn new(id: i64, space_id: i32) -> Self {
+impl Project {
+    pub fn new(id: i64, yield_expr: &str) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::ScanVertices,
+            kind: PlanNodeKind::Project,
             deps: Vec::new(),
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            space_id,
-            tag_id: None,
-            limit: None,
-            filter: None,
-            props: Vec::new(),
+            yield_expr: yield_expr.to_string(),
         }
     }
 }
 
-impl Clone for ScanVertices {
+impl Clone for Project {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -49,16 +39,12 @@ impl Clone for ScanVertices {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            space_id: self.space_id,
-            tag_id: self.tag_id,
-            limit: self.limit,
-            filter: self.filter.clone(),
-            props: self.props.clone(),
+            yield_expr: self.yield_expr.clone(),
         }
     }
 }
 
-impl BasePlanNode for ScanVertices {
+impl BasePlanNode for Project {
     fn id(&self) -> i64 {
         self.id
     }
@@ -89,7 +75,7 @@ impl BasePlanNode for ScanVertices {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_scan_vertices(self)?;
+        visitor.visit_project(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -111,41 +97,33 @@ impl BasePlanNode for ScanVertices {
     }
 }
 
-// 扫描边的计划节点
+// 过滤计划节点
 #[derive(Debug)]
-pub struct ScanEdges {
+pub struct Filter {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub space_id: i32,
-    pub edge_type: String,
-    pub limit: Option<i64>,
-    pub filter: Option<String>,
-    pub props: Vec<EdgeProp>,
+    pub condition: String, // 过滤条件
 }
 
-impl ScanEdges {
-    pub fn new(id: i64, space_id: i32, edge_type: &str) -> Self {
+impl Filter {
+    pub fn new(id: i64, condition: &str) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::ScanEdges,
+            kind: PlanNodeKind::Filter,
             deps: Vec::new(),
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            space_id,
-            edge_type: edge_type.to_string(),
-            limit: None,
-            filter: None,
-            props: Vec::new(),
+            condition: condition.to_string(),
         }
     }
 }
 
-impl Clone for ScanEdges {
+impl Clone for Filter {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -154,16 +132,12 @@ impl Clone for ScanEdges {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            space_id: self.space_id,
-            edge_type: self.edge_type.clone(),
-            limit: self.limit,
-            filter: self.filter.clone(),
-            props: self.props.clone(),
+            condition: self.condition.clone(),
         }
     }
 }
 
-impl BasePlanNode for ScanEdges {
+impl BasePlanNode for Filter {
     fn id(&self) -> i64 {
         self.id
     }
@@ -194,7 +168,7 @@ impl BasePlanNode for ScanEdges {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_scan_edges(self)?;
+        visitor.visit_filter(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -216,52 +190,35 @@ impl BasePlanNode for ScanEdges {
     }
 }
 
-// 索引扫描的计划节点
+// Unwind节点
 #[derive(Debug)]
-pub struct IndexScan {
+pub struct Unwind {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub space_id: i32,
-    pub tag_id: i32,
-    pub index_id: i32,
-    pub scan_type: String,  // "RANGE", "PREFIX", "UNIQUE"等
-    pub scan_limits: Vec<IndexLimit>,  // 索引扫描限制
-    pub filter: Option<String>,
-    pub return_columns: Vec<String>,
+    pub alias: String,
+    pub list_expr: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct IndexLimit {
-    pub column: String,
-    pub begin_value: Option<String>,
-    pub end_value: Option<String>,
-}
-
-impl IndexScan {
-    pub fn new(id: i64, space_id: i32, tag_id: i32, index_id: i32, scan_type: &str) -> Self {
+impl Unwind {
+    pub fn new(id: i64, alias: &str, list_expr: &str) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::IndexScan,
+            kind: PlanNodeKind::Unwind,
             deps: Vec::new(),
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            space_id,
-            tag_id,
-            index_id,
-            scan_type: scan_type.to_string(),
-            scan_limits: Vec::new(),
-            filter: None,
-            return_columns: Vec::new(),
+            alias: alias.to_string(),
+            list_expr: list_expr.to_string(),
         }
     }
 }
 
-impl Clone for IndexScan {
+impl Clone for Unwind {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -270,18 +227,13 @@ impl Clone for IndexScan {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            space_id: self.space_id,
-            tag_id: self.tag_id,
-            index_id: self.index_id,
-            scan_type: self.scan_type.clone(),
-            scan_limits: self.scan_limits.clone(),
-            filter: self.filter.clone(),
-            return_columns: self.return_columns.clone(),
+            alias: self.alias.clone(),
+            list_expr: self.list_expr.clone(),
         }
     }
 }
 
-impl BasePlanNode for IndexScan {
+impl BasePlanNode for Unwind {
     fn id(&self) -> i64 {
         self.id
     }
@@ -312,7 +264,7 @@ impl BasePlanNode for IndexScan {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_index_scan(self)?;
+        visitor.visit_unwind(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -334,39 +286,35 @@ impl BasePlanNode for IndexScan {
     }
 }
 
-// 全文索引扫描的计划节点
+// RollUpApply节点
 #[derive(Debug)]
-pub struct FulltextIndexScan {
+pub struct RollUpApply {
     pub id: i64,
     pub kind: PlanNodeKind,
     pub deps: Vec<Box<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub space_id: i32,
-    pub index_name: String,
-    pub query: String,  // 全文检索查询
-    pub limit: Option<i64>,
+    pub collect_exprs: Vec<String>,
+    pub lambda_vars: Vec<String>,
 }
 
-impl FulltextIndexScan {
-    pub fn new(id: i64, space_id: i32, index_name: &str, query: &str) -> Self {
+impl RollUpApply {
+    pub fn new(id: i64, collect_exprs: Vec<String>, lambda_vars: Vec<String>) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::FulltextIndexScan,
+            kind: PlanNodeKind::RollUpApply,
             deps: Vec::new(),
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            space_id,
-            index_name: index_name.to_string(),
-            query: query.to_string(),
-            limit: None,
+            collect_exprs,
+            lambda_vars,
         }
     }
 }
 
-impl Clone for FulltextIndexScan {
+impl Clone for RollUpApply {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -375,15 +323,13 @@ impl Clone for FulltextIndexScan {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            space_id: self.space_id,
-            index_name: self.index_name.clone(),
-            query: self.query.clone(),
-            limit: self.limit,
+            collect_exprs: self.collect_exprs.clone(),
+            lambda_vars: self.lambda_vars.clone(),
         }
     }
 }
 
-impl BasePlanNode for FulltextIndexScan {
+impl BasePlanNode for RollUpApply {
     fn id(&self) -> i64 {
         self.id
     }
@@ -414,7 +360,7 @@ impl BasePlanNode for FulltextIndexScan {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_fulltext_index_scan(self)?;
+        visitor.visit_roll_up_apply(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -436,3 +382,98 @@ impl BasePlanNode for FulltextIndexScan {
     }
 }
 
+// PatternApply节点
+#[derive(Debug)]
+pub struct PatternApply {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub pattern: String,
+    pub join_type: String,
+}
+
+impl PatternApply {
+    pub fn new(id: i64, pattern: &str, join_type: &str) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::PatternApply,
+            deps: Vec::new(),
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 0.0,
+            pattern: pattern.to_string(),
+            join_type: join_type.to_string(),
+        }
+    }
+}
+
+impl Clone for PatternApply {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(), // 克隆时不包含依赖
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            pattern: self.pattern.clone(),
+            join_type: self.join_type.clone(),
+        }
+    }
+}
+
+impl BasePlanNode for PatternApply {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+
+    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
+        &self.deps
+    }
+
+    fn output_var(&self) -> &Option<Variable> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &Vec<String> {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
+        Box::new(self.clone())
+    }
+
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.visit_pattern_apply(self)?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+
+    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
+        self.deps = deps;
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn set_cost(&mut self, cost: f64) {
+        self.cost = cost;
+    }
+}
