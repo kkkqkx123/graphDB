@@ -1,12 +1,8 @@
 //! PlanNode特征和基础实现
 //! 定义执行计划节点的通用接口和各种基础节点类型
 
-use crate::query::planner::plan::core::visitor::{PlanNodeVisitError, PlanNodeVisitor};
-use crate::query::planner::plan::core::PlanNodeKind;
+use super::plan_node_kind::PlanNodeKind;
 use crate::query::validator::Variable;
-
-// 重新导出PlanNodeKind供此模块使用
-// pub use crate::query::planner::plan::core::PlanNodeKind;
 
 /// PlanNode特征，所有计划节点都应实现该特征
 pub trait PlanNode: std::fmt::Debug {

@@ -7,9 +7,9 @@ use crate::query::planner::plan::plan_node::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::validator::Variable;
 use crate::query::planner::plan::common::{TagProp, EdgeProp};
-use crate::query::planner::plan::traverse_ops::{Expand, ExpandAll};
-use crate::query::planner::plan::data_ops::{Filter, Project};
-use crate::query::planner::plan::other_ops::{Argument, Dedup};
+use crate::query::planner::plan::operations::traversal::{Expand, ExpandAll};
+use crate::query::planner::plan::operations::data_processing::{Filter, Project, Dedup};
+use crate::query::planner::plan::operations::control_flow::{Argument};
 
 /// SUBGRAPH查询规划器
 /// 负责将SUBGRAPH查询转换为执行计划

@@ -6,8 +6,8 @@ use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::plan::plan_node::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::validator::Variable;
-use crate::query::planner::plan::data_ops::Project;
-use crate::query::planner::plan::other_ops::Argument;
+use crate::query::planner::plan::operations::data_processing::Project;
+use crate::query::planner::plan::operations::control_flow::Argument;
 
 /// 维护操作规划器
 /// 负责将维护操作转换为执行计划

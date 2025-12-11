@@ -3,9 +3,9 @@
 
 use crate::query::context::{AstContext, FetchEdgesContext};
 use crate::query::planner::plan::common::EdgeProp;
-use crate::query::planner::plan::data_ops::{Filter, Project};
+use crate::query::planner::plan::operations::data_processing::{Filter, Project, Dedup};
 use crate::query::planner::plan::graph_scan::GetEdges;
-use crate::query::planner::plan::other_ops::{Argument, Dedup};
+use crate::query::planner::plan::operations::control_flow::Argument;
 use crate::query::planner::plan::plan_node::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
