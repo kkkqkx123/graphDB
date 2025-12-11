@@ -7,7 +7,13 @@ use crate::query::parser::core::token::{Token, TokenKind};
 use crate::query::parser::ast::*;
 use crate::query::parser::core::error::{ParseError, ParseErrors};
 
-impl super::parser::Parser {
+pub struct Parser {
+    pub lexer: Lexer,
+    pub current_token: Token,
+    pub errors: ParseErrors,
+}
+
+impl Parser {
     pub fn new(input: &str) -> Self {
         let mut lexer = Lexer::new(input);
         let current_token = lexer.next_token();
@@ -23,10 +29,11 @@ impl super::parser::Parser {
         self.current_token = self.lexer.next_token();
     }
 
-    pub fn peek_token(&self) -> TokenKind {
-        // Simplified peek implementation - just return current token for now
-        // In a real implementation, we would need proper lookahead
-        self.current_token.kind.clone()
+    pub fn peek_token(&mut self) -> TokenKind {
+        // Create a copy of the current lexer to peek ahead without changing state
+        let mut temp_lexer = self.lexer.clone();
+        let next_token = temp_lexer.next_token();
+        next_token.kind
     }
 
     pub fn expect_token(&mut self, expected: TokenKind) -> Result<Token, ParseError> {

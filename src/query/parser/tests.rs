@@ -173,10 +173,10 @@ mod parser_tests {
     fn test_lexer_functionality() {
         use crate::query::parser::lexer::lexer::Lexer;
         use crate::query::parser::core::token::TokenKind;
-        
+
         let input = "CREATE (n:Person {name: 'John'}) RETURN n.name";
         let mut lexer = Lexer::new(input);
-        
+
         let tokens: Vec<_> = std::iter::from_fn(|| {
             let token = lexer.next_token();
             if token.kind == TokenKind::Eof {
@@ -185,22 +185,22 @@ mod parser_tests {
                 Some(token)
             }
         }).collect();
-        
+
         // Check that the first token is CREATE
         assert_eq!(tokens[0].kind, TokenKind::Create);
         assert_eq!(tokens[0].lexeme, "CREATE");
-        
+
         // Check parentheses
         assert_eq!(tokens[1].kind, TokenKind::LParen);
         assert_eq!(tokens[2].kind, TokenKind::Identifier("n".to_string()));
         assert_eq!(tokens[3].kind, TokenKind::Colon);
         assert_eq!(tokens[4].kind, TokenKind::Identifier("Person".to_string()));
-        
-        // Check string literal
-        if let TokenKind::StringLiteral(s) = &tokens[tokens.len()-2].kind {
+
+        // Check the string literal 'John' which should be at index 8
+        if let TokenKind::StringLiteral(s) = &tokens[8].kind {
             assert_eq!(s, "John");
         } else {
-            panic!("Expected string literal");
+            panic!("Expected string literal 'John' at index 8");
         }
     }
 }

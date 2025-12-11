@@ -1,7 +1,5 @@
 //! Statement AST definitions for the query parser
 
-use crate::core::Value;
-use std::collections::HashMap;
 use super::{expression::*, pattern::*, types::*};
 
 #[derive(Debug, Clone, PartialEq)]

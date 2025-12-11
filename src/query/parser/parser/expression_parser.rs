@@ -81,7 +81,7 @@ impl super::Parser {
 
     /// 解析加法表达式
     fn parse_addition(&mut self) -> Result<Expression, ParseError> {
-        let mut expr = self.parse_multiplication()?;
+        let mut expr = self.parse_exponentiation()?;
 
         loop {
             let op = match self.current_token.kind {
@@ -90,7 +90,7 @@ impl super::Parser {
                 _ => break,
             };
 
-            let right = self.parse_multiplication()?;
+            let right = self.parse_exponentiation()?;
             expr = Expression::Arithmetic(Box::new(expr), op, Box::new(right));
         }
 
@@ -99,7 +99,7 @@ impl super::Parser {
 
     /// 解析乘法表达式
     fn parse_multiplication(&mut self) -> Result<Expression, ParseError> {
-        let mut expr = self.parse_unary()?;
+        let mut expr = self.parse_exponentiation()?;
 
         loop {
             let op = match self.current_token.kind {
@@ -109,7 +109,7 @@ impl super::Parser {
                 _ => break,
             };
 
-            let right = self.parse_unary()?;
+            let right = self.parse_exponentiation()?;
             expr = Expression::Arithmetic(Box::new(expr), op, Box::new(right));
         }
 
@@ -126,11 +126,13 @@ impl super::Parser {
             }
             TokenKind::Plus => {
                 self.next_token();
+                // 对于一元加号，需要获取它作用的表达式，这应该是指数表达式
                 let expr = self.parse_exponentiation()?;
                 Ok(Expression::Unary(UnaryOp::Plus, Box::new(expr)))
             }
             TokenKind::Minus => {
                 self.next_token();
+                // 对于一元减号，需要获取它作用的表达式，这应该是指数表达式
                 let expr = self.parse_exponentiation()?;
                 Ok(Expression::Unary(UnaryOp::Minus, Box::new(expr)))
             }
@@ -140,34 +142,39 @@ impl super::Parser {
 
     /// 解析指数表达式
     fn parse_exponentiation(&mut self) -> Result<Expression, ParseError> {
-        let mut expr = self.parse_primary()?;
+        let mut expr = self.parse_unary()?;
 
-        // For now, we don't have exponentiation in our grammar
-        // This function can be extended later if needed
-
-        Ok(expr)
+        // 指数运算是右结合的，所以需要特殊处理
+        if self.current_token.kind == TokenKind::Exp {
+            self.next_token();
+            let right = self.parse_exponentiation()?; // 递归解析右侧（右结合）
+            Ok(Expression::Arithmetic(Box::new(expr), ArithmeticOp::Exp, Box::new(right)))
+        } else {
+            Ok(expr)
+        }
     }
 
     /// 解析基本表达式
     fn parse_primary(&mut self) -> Result<Expression, ParseError> {
-        let expr = match &self.current_token.kind {
+        // 检查当前token类型并进行相应处理
+        let expr = match self.current_token.kind.clone() { // 这里clone token kind避免引用
             TokenKind::IntegerLiteral(n) => {
-                let value = crate::core::Value::Int(*n);
+                let value = crate::core::Value::Int(n);
                 self.next_token();
                 Expression::Constant(value)
             }
             TokenKind::FloatLiteral(n) => {
-                let value = crate::core::Value::Float(*n);
+                let value = crate::core::Value::Float(n);
                 self.next_token();
                 Expression::Constant(value)
             }
             TokenKind::StringLiteral(s) => {
-                let value = crate::core::Value::String(s.clone());
+                let value = crate::core::Value::String(s);
                 self.next_token();
                 Expression::Constant(value)
             }
             TokenKind::BooleanLiteral(b) => {
-                let value = crate::core::Value::Bool(*b);
+                let value = crate::core::Value::Bool(b);
                 self.next_token();
                 Expression::Constant(value)
             }
@@ -221,11 +228,14 @@ impl super::Parser {
                 Expression::Map(pairs)
             }
             TokenKind::Identifier(name) => {
-                // Check if it's a function call
-                if self.peek_token() == TokenKind::LParen {
-                    let func_name = name.clone();
-                    self.next_token(); // Skip identifier
-                    self.expect_token(TokenKind::LParen)?;
+                // 首先获取下一个token的类型，以判断是函数调用还是变量/属性访问
+                let next_token_kind = self.peek_token();
+                self.next_token(); // 消费当前的identifier token
+
+                if next_token_kind == TokenKind::LParen {
+                    // 这是一个函数调用
+                    let func_name = name;
+                    self.expect_token(TokenKind::LParen)?; // 现在消费 '('
 
                     let mut args = Vec::new();
                     if self.current_token.kind != TokenKind::RParen {
@@ -245,11 +255,10 @@ impl super::Parser {
                         distinct: false, // For now, no DISTINCT
                     })
                 } else {
-                    // It's a variable or property access
-                    let var_name = name.clone();
-                    self.next_token(); // Skip identifier
+                    // 这是一个变量或属性访问
+                    let var_name = name;
 
-                    // Check if it's followed by a dot for property access
+                    // 检查是否跟着点号进行属性访问
                     if self.current_token.kind == TokenKind::Dot {
                         self.next_token();
                         let prop_name = self.parse_identifier()?;

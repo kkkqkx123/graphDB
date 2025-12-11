@@ -247,7 +247,7 @@ impl<S: StorageEngine> QueryExecutor<S> {
 }
 
 use crate::query::parser::ast::{Expression as AstExpression, Statement};
-use crate::query::parser::parser::parser::Parser as NewParser;
+use crate::query::parser::parser::utils::Parser as NewParser;
 
 pub struct QueryParser;
 

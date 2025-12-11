@@ -187,6 +187,24 @@ pub enum TokenKind {
     Sign,
     Service,
 
+    // 扩展的关键词
+    Count,
+    Sum,
+    Avg,
+    Min,
+    Max,
+    NotIn,
+    IsNull,
+    IsNotNull,
+    IsEmpty,
+    IsNotEmpty,
+    Outbound,
+    Inbound,
+    Source,
+    Destination,
+    Rank,
+    Input,
+
     // Literals
     Identifier(String),
     StringLiteral(String),
@@ -200,6 +218,7 @@ pub enum TokenKind {
     Star,        // *
     Div,         // /
     Mod,         // %
+    Exp,         // **
     Eq,          // ==
     Assign,      // =
     Ne,          // !=
@@ -235,6 +254,11 @@ pub enum TokenKind {
     SrcIdProp,   // _src
     DstIdProp,   // _dst
     RankProp,    // _rank
+
+    // Graph reference identifiers
+    DstRef,      // $$
+    SrcRef,      // $^
+    InputRef,    // $-
 
     // End of input
     Eof,

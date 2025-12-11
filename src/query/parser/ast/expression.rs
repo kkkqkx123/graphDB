@@ -39,6 +39,7 @@ pub enum ArithmeticOp {
     Mul,
     Div,
     Mod,
+    Exp,  // 指数运算
 }
 
 #[derive(Debug, Clone, PartialEq)]

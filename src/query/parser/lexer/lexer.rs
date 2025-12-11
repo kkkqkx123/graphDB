@@ -4,6 +4,7 @@
 
 use crate::query::parser::core::token::{Token, TokenKind};
 
+#[derive(Clone)]
 pub struct Lexer {
     input: Vec<char>,
     position: usize,      // Current position in input
@@ -288,6 +289,17 @@ impl Lexer {
             "CLIENTS" => TokenKind::Clients,
             "SIGN" => TokenKind::Sign,
             "SERVICE" => TokenKind::Service,
+
+            // 扩展的关键词
+            "COUNT" => TokenKind::Count,
+            "SUM" => TokenKind::Sum,
+            "AVG" => TokenKind::Avg,
+            "MIN" => TokenKind::Min,
+            "MAX" => TokenKind::Max,
+            "SOURCE" => TokenKind::Source,
+            "DESTINATION" => TokenKind::Destination,
+            "RANK" => TokenKind::Rank,
+            "INPUT" => TokenKind::Input,
             _ => TokenKind::Identifier(identifier.to_string()),
         }
     }
@@ -313,7 +325,14 @@ impl Lexer {
                     Token::new(TokenKind::Minus, "-".to_string(), self.line, self.column)
                 }
             }
-            Some('*') => Token::new(TokenKind::Star, "*".to_string(), self.line, self.column),
+            Some('*') => {
+                if self.peek_char() == Some('*') {
+                    self.read_char(); // Skip the second '*'
+                    Token::new(TokenKind::Exp, "**".to_string(), self.line, self.column)
+                } else {
+                    Token::new(TokenKind::Star, "*".to_string(), self.line, self.column)
+                }
+            }
             Some('/') => Token::new(TokenKind::Div, "/".to_string(), self.line, self.column),
             Some('%') => Token::new(TokenKind::Mod, "%".to_string(), self.line, self.column),
             Some('!') => {
@@ -383,7 +402,24 @@ impl Lexer {
             Some('?') => Token::new(TokenKind::QMark, "?".to_string(), self.line, self.column),
             Some('|') => Token::new(TokenKind::Pipe, "|".to_string(), self.line, self.column),
             Some('@') => Token::new(TokenKind::At, "@".to_string(), self.line, self.column),
-            Some('$') => Token::new(TokenKind::Dollar, "$".to_string(), self.line, self.column),
+            Some('$') => {
+                // Check for special property identifiers like $$, $^, $-
+                match self.peek_char() {
+                    Some('$') => {
+                        self.read_char(); // Read the next '$'
+                        Token::new(TokenKind::DstRef, "$$".to_string(), self.line, self.column)
+                    }
+                    Some('^') => {
+                        self.read_char(); // Read the '^'
+                        Token::new(TokenKind::SrcRef, "$^".to_string(), self.line, self.column)
+                    }
+                    Some('-') => {
+                        self.read_char(); // Read the '-'
+                        Token::new(TokenKind::InputRef, "$-".to_string(), self.line, self.column)
+                    }
+                    _ => Token::new(TokenKind::Dollar, "$".to_string(), self.line, self.column),
+                }
+            }
             Some('"') | Some('\'') => {
                 let literal = self.read_string();
                 Token::new(
@@ -418,8 +454,61 @@ impl Lexer {
             }
             Some(ch) if ch.is_alphabetic() || ch == '_' => {
                 let literal = self.read_identifier();
-                let token_kind = self.lookup_keyword(&literal);
-                Token::new(token_kind, literal, self.line, self.column)
+
+                // Check for special property identifiers
+                match literal.as_str() {
+                    "_id" => Token::new(TokenKind::IdProp, literal, self.line, self.column),
+                    "_type" => Token::new(TokenKind::TypeProp, literal, self.line, self.column),
+                    "_src" => Token::new(TokenKind::SrcIdProp, literal, self.line, self.column),
+                    "_dst" => Token::new(TokenKind::DstIdProp, literal, self.line, self.column),
+                    "_rank" => Token::new(TokenKind::RankProp, literal, self.line, self.column),
+                    _ => {
+                        // Check if it's a multi-word keyword that needs to be looked ahead
+                        let token_kind = self.lookup_keyword(&literal);
+                        match token_kind {
+                            // For certain keywords, check if the next token would make it a multi-word keyword
+                            TokenKind::Not => {
+                                // Check if the next word is "IN"
+                                if self.peek_next_word() == "IN" {
+                                    // Skip the next word and return "NOT IN"
+                                    self.skip_next_word();
+                                    Token::new(TokenKind::NotIn, "NOT IN".to_string(), self.line, self.column)
+                                } else {
+                                    Token::new(token_kind, literal, self.line, self.column)
+                                }
+                            },
+                            TokenKind::Is => {
+                                // Check if the next word is "NULL" or "NOT NULL", etc.
+                                match self.peek_next_word().as_str() {
+                                    "NULL" => {
+                                        self.skip_next_word();
+                                        Token::new(TokenKind::IsNull, "IS NULL".to_string(), self.line, self.column)
+                                    },
+                                    "NOT" => {
+                                        // Check if after "NOT" comes "NULL"
+                                        if self.peek_word_after_next() == "NULL" {
+                                            self.skip_next_word(); // skip "NOT"
+                                            self.skip_next_word(); // skip "NULL"
+                                            Token::new(TokenKind::IsNotNull, "IS NOT NULL".to_string(), self.line, self.column)
+                                        } else if self.peek_word_after_next() == "EMPTY" {
+                                            self.skip_next_word(); // skip "NOT"
+                                            self.skip_next_word(); // skip "EMPTY"
+                                            Token::new(TokenKind::IsNotEmpty, "IS NOT EMPTY".to_string(), self.line, self.column)
+                                        } else {
+                                            Token::new(token_kind, literal, self.line, self.column)
+                                        }
+                                    },
+                                    "EMPTY" => {
+                                        self.skip_next_word();
+                                        Token::new(TokenKind::IsEmpty, "IS EMPTY".to_string(), self.line, self.column)
+                                    },
+                                    _ => Token::new(token_kind, literal, self.line, self.column)
+                                }
+                            },
+                            _ => Token::new(token_kind, literal, self.line, self.column)
+                        }
+                    }
+                }
             }
             None => Token::new(TokenKind::Eof, "".to_string(), self.line, self.column),
             Some(other) => {
@@ -435,14 +524,78 @@ impl Lexer {
             }
         };
 
-        self.read_char();
+        // Only advance the position for single-character tokens
+        // For multi-word tokens, identifiers and literals, we've already advanced the lexer position
+        if !self.is_multitoken_keyword(&token) &&
+           !matches!(token.kind, TokenKind::Identifier(_) | TokenKind::StringLiteral(_) | TokenKind::IntegerLiteral(_) | TokenKind::FloatLiteral(_) | TokenKind::BooleanLiteral(_)) {
+            self.read_char();
+        }
         token
+    }
+    // Helper methods for multi-word token detection
+    fn peek_next_word(&self) -> String {
+        // Create a temporary lexer to peek ahead
+        let mut temp_lexer = Lexer::new(&self.get_remaining_input());
+        // Skip the current token by reading and discarding it
+        temp_lexer.next_token();
+        // Get the next token and return its lexeme if it's an identifier
+        let next_token = temp_lexer.next_token();
+        match next_token.kind {
+            TokenKind::Identifier(s) => s,
+            _ => next_token.lexeme,
+        }
+    }
+
+    fn peek_word_after_next(&self) -> String {
+        // Create a temporary lexer to peek ahead
+        let mut temp_lexer = Lexer::new(&self.get_remaining_input());
+        // Skip the current and next token
+        temp_lexer.next_token();
+        temp_lexer.next_token();
+        // Get the token after that and return its lexeme if it's an identifier
+        let next_token = temp_lexer.next_token();
+        match next_token.kind {
+            TokenKind::Identifier(s) => s,
+            _ => next_token.lexeme,
+        }
+    }
+
+    fn skip_next_word(&mut self) {
+        // Skip whitespace
+        self.skip_whitespace();
+        // Read an identifier or keyword
+        if let Some(ch) = self.ch {
+            if ch.is_alphabetic() || ch == '_' {
+                // Skip the identifier
+                while let Some(inner_ch) = self.ch {
+                    if inner_ch.is_alphanumeric() || inner_ch == '_' {
+                        self.read_char();
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    fn get_remaining_input(&self) -> String {
+        // Get the remaining input from current position
+        self.input[self.position..].iter().collect()
+    }
+
+    fn is_multitoken_keyword(&self, token: &Token) -> bool {
+        matches!(token.kind, TokenKind::NotIn | TokenKind::IsNull | TokenKind::IsNotNull | TokenKind::IsEmpty | TokenKind::IsNotEmpty)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn assert_token(token: &Token, expected_kind: TokenKind, expected_lexeme: &str) {
+        assert_eq!(token.kind, expected_kind, "Token kind mismatch. Expected: {:?}, Got: {:?}", expected_kind, token.kind);
+        assert_eq!(token.lexeme, expected_lexeme, "Lexeme mismatch for token {:?}. Expected: '{}', Got: '{}'", expected_kind, expected_lexeme, token.lexeme);
+    }
 
     #[test]
     fn test_simple_identifiers() {
@@ -535,4 +688,67 @@ mod tests {
         assert_eq!(tokens[0].kind, TokenKind::Arrow);
         assert_eq!(tokens[1].kind, TokenKind::BackArrow);
     }
+
+    #[test]
+    fn test_special_properties() {
+        let input = "_id _type _src _dst _rank";
+        let mut lexer = Lexer::new(input);
+
+        assert_token(&lexer.next_token(), TokenKind::IdProp, "_id");
+        assert_token(&lexer.next_token(), TokenKind::TypeProp, "_type");
+        assert_token(&lexer.next_token(), TokenKind::SrcIdProp, "_src");
+        assert_token(&lexer.next_token(), TokenKind::DstIdProp, "_dst");
+        assert_token(&lexer.next_token(), TokenKind::RankProp, "_rank");
+        assert_token(&lexer.next_token(), TokenKind::Eof, "");
+    }
+
+    #[test]
+    fn test_graph_reference_identifiers() {
+        let input = "$$ $^ $-";
+        let mut lexer = Lexer::new(input);
+
+        assert_token(&lexer.next_token(), TokenKind::DstRef, "$$");
+        assert_token(&lexer.next_token(), TokenKind::SrcRef, "$^");
+        assert_token(&lexer.next_token(), TokenKind::InputRef, "$-");
+        assert_token(&lexer.next_token(), TokenKind::Eof, "");
+    }
+
+    #[test]
+    fn test_aggregation_functions() {
+        let input = "COUNT SUM AVG MIN MAX";
+        let mut lexer = Lexer::new(input);
+
+        assert_token(&lexer.next_token(), TokenKind::Count, "COUNT");
+        assert_token(&lexer.next_token(), TokenKind::Sum, "SUM");
+        assert_token(&lexer.next_token(), TokenKind::Avg, "AVG");
+        assert_token(&lexer.next_token(), TokenKind::Min, "MIN");
+        assert_token(&lexer.next_token(), TokenKind::Max, "MAX");
+        assert_token(&lexer.next_token(), TokenKind::Eof, "");
+    }
+
+    #[test]
+    fn test_new_keywords() {
+        let input = "SOURCE DESTINATION RANK INPUT";
+        let mut lexer = Lexer::new(input);
+
+        assert_token(&lexer.next_token(), TokenKind::Source, "SOURCE");
+        assert_token(&lexer.next_token(), TokenKind::Destination, "DESTINATION");
+        assert_token(&lexer.next_token(), TokenKind::Rank, "RANK");
+        assert_token(&lexer.next_token(), TokenKind::Input, "INPUT");
+        assert_token(&lexer.next_token(), TokenKind::Eof, "");
+    }
+
+    #[test]
+    fn test_basic_functionality() {
+        // Test that basic functionality still works after our enhancements
+        let input = "CREATE (n:Person {name: 'John'}) RETURN n.name";
+        let mut lexer = Lexer::new(input);
+
+        assert_token(&lexer.next_token(), TokenKind::Create, "CREATE");
+        assert_token(&lexer.next_token(), TokenKind::LParen, "(");
+        assert_token(&lexer.next_token(), TokenKind::Identifier("n".to_string()), "n");
+        assert_token(&lexer.next_token(), TokenKind::Colon, ":");
+        assert_token(&lexer.next_token(), TokenKind::Identifier("Person".to_string()), "Person");
+    }
 }
+
