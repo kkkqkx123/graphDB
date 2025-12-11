@@ -2,7 +2,7 @@
 //! 包括创建新顶点、标签和属性的操作
 
 use crate::query::planner::plan::core::{
-    PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor, SingleInputNode,
+    PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
 use crate::query::validator::Variable;
 

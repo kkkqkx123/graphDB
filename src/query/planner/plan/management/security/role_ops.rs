@@ -1,10 +1,10 @@
 //! 角色操作相关的计划节点
 //! 包括创建/删除角色、授权/撤销权限等操作
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, SingleDependencyNode, PlanNodeVisitor, PlanNodeVisitError};
+use crate::query::planner::plan::core::{
+    PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use crate::query::validator::Variable;
-use std::collections::HashMap;
-use super::super::ddl::space_ops::{CreateNode, DropNode};
 
 // 定义角色类型
 #[derive(Debug, Clone)]
@@ -423,7 +423,11 @@ impl ShowRoles {
             kind: PlanNodeKind::ShowRoles,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec!["Account".to_string(), "Space".to_string(), "Role".to_string()],
+            col_names: vec![
+                "Account".to_string(),
+                "Space".to_string(),
+                "Role".to_string(),
+            ],
             cost: 0.0,
             username: username.to_string(),
         }

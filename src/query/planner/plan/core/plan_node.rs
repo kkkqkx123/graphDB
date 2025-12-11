@@ -2,6 +2,7 @@
 //! 定义执行计划节点的通用接口和各种基础节点类型
 
 use super::plan_node_kind::PlanNodeKind;
+use crate::query::planner::plan::core::{PlanNodeVisitor, PlanNodeVisitError};
 use crate::query::validator::Variable;
 
 /// PlanNode特征，所有计划节点都应实现该特征

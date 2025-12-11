@@ -3,12 +3,9 @@
 
 use crate::query::validator::Variable;
 use crate::query::context::{AstContext, PathContext};
-use crate::query::planner::plan::common::{TagProp, EdgeProp};
-use crate::query::planner::plan::graph_scan::GetVertices;
-use crate::query::planner::plan::operations::traversal::{Expand, ExpandAll};
-use crate::query::planner::plan::operations::data_processing::{Filter, Project, Dedup};
-use crate::query::planner::plan::operations::control_flow::{Argument};
-use crate::query::planner::plan::plan_node::PlanNode;
+use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
+use crate::query::planner::plan::{GetVertices, Expand, ExpandAll, Filter, Project, Dedup, Argument};
+use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 
@@ -83,15 +80,19 @@ impl Planner for PathPlanner {
             .collect();
 
         // 3. 创建扩展节点进行路径搜索
-        let mut expand_node = Box::new(Expand::new(4, 1, path_ctx.steps.m_steps, false));
+        let expand_direction = if path_ctx.over.direction == "both" {
+            "both"
+        } else if path_ctx.over.direction == "in" {
+            "in"
+        } else {
+            "out"
+        };
+        let mut expand_node = Box::new(Expand::new(4, 1, path_ctx.over.edge_types.clone(), expand_direction));
         expand_node.set_dependencies(vec![get_vertices_node.clone_plan_node()]);
         expand_node.set_output_var(Variable {
             name: "expanded_path".to_string(),
             columns: vec![],
         });
-
-        // 设置边类型
-        expand_node.edge_types = path_ctx.over.edge_types.clone();
 
         // 4. 如果是双向边，设置方向
         if path_ctx.over.direction == "both" {
@@ -108,12 +109,18 @@ impl Planner for PathPlanner {
         }
 
         // 5. 创建ExpandAll节点进行多步扩展
+        let expand_all_direction = if path_ctx.over.direction == "both" {
+            "both"
+        } else if path_ctx.over.direction == "in" {
+            "in"
+        } else {
+            "out"
+        };
         let mut expand_all_node = Box::new(ExpandAll::new(
             5,
             1,
-            path_ctx.steps.m_steps,
-            path_ctx.steps.n_steps,
-            false,
+            path_ctx.over.edge_types.clone(),
+            expand_all_direction,
         ));
         expand_all_node.set_dependencies(vec![expand_node.clone_plan_node()]);
         expand_all_node.set_output_var(Variable {
@@ -144,9 +151,9 @@ impl Planner for PathPlanner {
                 name: "filtered_path".to_string(),
                 columns: vec![],
             });
-            filter as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            filter
         } else {
-            expand_all_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            expand_all_node
         };
 
         // 7. 创建投影节点
@@ -167,9 +174,9 @@ impl Planner for PathPlanner {
                 name: "shortest_path_result".to_string(),
                 columns: vec![],
             });
-            dedup_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            dedup_node
         } else {
-            project_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            project_node
         };
 
         // 创建SubPlan

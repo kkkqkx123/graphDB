@@ -3,11 +3,10 @@
 
 use crate::query::context::{AstContext, MaintainContext};
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::planner::plan::plan_node::PlanNode;
+use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::validator::Variable;
-use crate::query::planner::plan::operations::data_processing::Project;
-use crate::query::planner::plan::operations::control_flow::Argument;
+use crate::query::planner::plan::{Project, Argument};
 
 /// 维护操作规划器
 /// 负责将维护操作转换为执行计划
@@ -68,18 +67,18 @@ impl Planner for MaintainPlanner {
         });
 
         // 3. 不同类型的操作可能需要不同处理
-        let final_node: Box<dyn crate::query::planner::plan::plan_node::PlanNode> = if stmt_type == "SUBMIT JOB" {
+        let final_node = if stmt_type == "SUBMIT JOB" {
             // 提交作业类型的维护操作
-            project_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            project_node
         } else if stmt_type.starts_with("CREATE") {
             // 创建类型的操作
-            project_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            project_node
         } else if stmt_type.starts_with("DROP") {
             // 删除类型的操作
-            project_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            project_node
         } else {
             // 其他类型的维护操作
-            project_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            project_node
         };
 
         // 创建SubPlan

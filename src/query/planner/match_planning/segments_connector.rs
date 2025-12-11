@@ -2,7 +2,7 @@
 //! 连接多个计划段形成完整的执行计划
 
 use crate::query::planner::plan::{SubPlan, PlanNodeKind, BinaryInputNode};
-use crate::query::planner::plan::plan_node::PlanNode;
+use crate::query::planner::plan::PlanNode;
 use std::collections::HashSet;
 
 /// 计划段连接器

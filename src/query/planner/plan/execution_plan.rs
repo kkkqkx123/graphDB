@@ -1,7 +1,7 @@
 //! 执行计划结构定义
 //! 包含ExecutionPlan和SubPlan结构
 
-use super::plan_node::PlanNode;
+use crate::query::planner::plan::core::PlanNode;
 
 /// 执行计划结构
 /// 表示完整的可执行计划，包含根节点和计划ID

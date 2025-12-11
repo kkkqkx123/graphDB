@@ -1,7 +1,7 @@
 //! 数据插入操作相关的计划节点
 //! 包括插入顶点和边的操作
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError, SingleInputNode};
+use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError};
 use crate::query::validator::Variable;
 
 /// 插入顶点计划节点

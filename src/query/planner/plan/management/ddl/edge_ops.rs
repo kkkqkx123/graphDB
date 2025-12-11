@@ -1,10 +1,9 @@
 //! 边操作相关的计划节点
 //! 包括创建/删除边等操作
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, SingleDependencyNode, PlanNodeVisitor, PlanNodeVisitError};
+use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError};
 use crate::query::validator::Variable;
-use std::collections::HashMap;
-use super::space_ops::{CreateNode, DropNode, Schema, SchemaField};
+use super::space_ops::Schema;
 
 /// 创建边计划节点
 #[derive(Debug)]

@@ -3,7 +3,7 @@
 //! 负责规划基于标签索引的查找操作
 
 use crate::graph::expression::expr_type::Expression;
-use crate::query::planner::plan::plan_node::PlanNode;
+use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;

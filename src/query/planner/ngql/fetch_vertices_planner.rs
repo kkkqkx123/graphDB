@@ -1,15 +1,13 @@
 //! FETCH VERTICES查询规划器
 //! 处理FETCH VERTICES查询的规划
 
-use crate::query::validator::Variable;
 use crate::query::context::{AstContext, FetchVerticesContext};
-use crate::query::planner::plan::common::TagProp;
-use crate::query::planner::plan::graph_scan::GetVertices;
-use crate::query::planner::plan::operations::data_processing::{Project, Dedup};
-use crate::query::planner::plan::operations::control_flow::Argument;
-use crate::query::planner::plan::plan_node::PlanNode;
+use crate::query::planner::plan::core::common::TagProp;
+use crate::query::planner::plan::core::plan_node::PlanNode;
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::{Argument, Dedup, GetVertices, Project};
 use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::validator::Variable;
 
 /// FETCH VERTICES查询规划器
 /// 负责将FETCH VERTICES查询转换为执行计划

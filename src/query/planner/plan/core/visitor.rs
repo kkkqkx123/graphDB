@@ -2,18 +2,20 @@
 //! 用于遍历和处理计划树
 
 use super::plan_node::PlanNode as BasePlanNode;
-use super::common::{TagProp, EdgeProp};
 use crate::query::planner::plan::operations::{
-    graph_scan::{GetNeighbors, GetEdges, GetVertices, ScanVertices, ScanEdges},
-    traversal::{Traverse, AppendVertices, Expand, ExpandAll},
-    data_processing::{Filter, Project, Unwind, DataCollect},
-    aggregation::Aggregate,
-    sorting::{Sort, Limit, TopN, Sample},
-    join::{HashJoin, HashLeftJoin, HashInnerJoin, CrossJoin},
-    control_flow::{Start, Argument},
+    GetNeighbors, GetEdges, GetVertices, ScanVertices, ScanEdges,
+    Traverse, AppendVertices, Expand, ExpandAll,
+    Filter, Project, Unwind, DataCollect, RollUpApply, PatternApply, Dedup, Union,
+    Aggregate,
+    Sort, Limit, TopN, Sample,
+    HashJoin, HashLeftJoin, HashInnerJoin, CrossJoin,
+    Start, Argument,
 };
-use crate::query::planner::plan::operations::data_processing::{RollUpApply, PatternApply, Dedup, Union};
-use crate::query::planner::plan::algorithms::search::{IndexScan, FulltextIndexScan};
+use crate::query::planner::plan::management::dml::{
+    InsertVertices, InsertEdges, UpdateVertex, UpdateEdge, DeleteVertices, DeleteEdges, DeleteTags,
+    NewVertex, NewTag, NewProp, NewEdge,
+};
+use crate::query::planner::plan::algorithms::{IndexScan, FulltextIndexScan};
 use std::fmt;
 
 /// 计划节点访问者特征
@@ -182,6 +184,61 @@ pub trait PlanNodeVisitor: std::fmt::Debug {
         Ok(())
     }
 
+    /// 访问InsertVertices节点
+    fn visit_insert_vertices(&mut self, _node: &InsertVertices) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问InsertEdges节点
+    fn visit_insert_edges(&mut self, _node: &InsertEdges) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问UpdateVertex节点
+    fn visit_update_vertex(&mut self, _node: &UpdateVertex) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问UpdateEdge节点
+    fn visit_update_edge(&mut self, _node: &UpdateEdge) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问DeleteVertices节点
+    fn visit_delete_vertices(&mut self, _node: &DeleteVertices) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问DeleteEdges节点
+    fn visit_delete_edges(&mut self, _node: &DeleteEdges) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问DeleteTags节点
+    fn visit_delete_tags(&mut self, _node: &DeleteTags) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问NewVertex节点
+    fn visit_new_vertex(&mut self, _node: &NewVertex) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问NewTag节点
+    fn visit_new_tag(&mut self, _node: &NewTag) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问NewProp节点
+    fn visit_new_prop(&mut self, _node: &NewProp) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问NewEdge节点
+    fn visit_new_edge(&mut self, _node: &NewEdge) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
     /// 在访问节点后调用的方法
     fn post_visit(&mut self) -> Result<(), PlanNodeVisitError> {
         Ok(())
@@ -346,6 +403,50 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
     }
 
     fn visit_hash_inner_join(&mut self, _node: &HashInnerJoin) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_insert_vertices(&mut self, _node: &InsertVertices) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_insert_edges(&mut self, _node: &InsertEdges) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_update_vertex(&mut self, _node: &UpdateVertex) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_update_edge(&mut self, _node: &UpdateEdge) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_delete_vertices(&mut self, _node: &DeleteVertices) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_delete_edges(&mut self, _node: &DeleteEdges) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_delete_tags(&mut self, _node: &DeleteTags) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_new_vertex(&mut self, _node: &NewVertex) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_new_tag(&mut self, _node: &NewTag) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_new_prop(&mut self, _node: &NewProp) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_new_edge(&mut self, _node: &NewEdge) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 

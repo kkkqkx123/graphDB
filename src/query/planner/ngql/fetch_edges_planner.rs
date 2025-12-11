@@ -2,12 +2,10 @@
 //! 处理FETCH EDGES查询的规划
 
 use crate::query::context::{AstContext, FetchEdgesContext};
-use crate::query::planner::plan::common::EdgeProp;
-use crate::query::planner::plan::operations::data_processing::{Filter, Project, Dedup};
-use crate::query::planner::plan::graph_scan::GetEdges;
-use crate::query::planner::plan::operations::control_flow::Argument;
-use crate::query::planner::plan::plan_node::PlanNode;
-use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::core::PlanNode;
+use crate::query::planner::plan::core::common::EdgeProp;
+use crate::query::planner::plan::operations::{Filter, Project, Dedup, GetEdges, Argument};
+use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::validator::{Column, Variable};
 
@@ -124,9 +122,9 @@ impl Planner for FetchEdgesPlanner {
                 name: "dedup_result".to_string(),
                 columns: vec![],
             });
-            dedup_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            dedup_node
         } else {
-            project_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            project_node
         };
 
         // 创建SubPlan

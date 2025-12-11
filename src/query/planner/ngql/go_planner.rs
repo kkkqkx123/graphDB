@@ -3,13 +3,9 @@
 
 use crate::query::validator::Variable;
 use crate::query::context::{AstContext, GoContext};
-use crate::query::planner::plan::common::{TagProp, EdgeProp};
-use crate::query::planner::plan::graph_scan::{GetEdges, GetVertices};
-use crate::query::planner::plan::operations::traversal::{Expand, ExpandAll};
-use crate::query::planner::plan::operations::data_processing::{Filter, Project, Dedup};
-use crate::query::planner::plan::operations::control_flow::{Start, Argument};
-use crate::query::planner::plan::operations::join::{HashLeftJoin};
-use crate::query::planner::plan::plan_node::PlanNode;
+use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
+use crate::query::planner::plan::{GetEdges, GetVertices, Expand, ExpandAll, Filter, Project, Dedup, Start, Argument, HashLeftJoin};
+use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 
@@ -67,8 +63,8 @@ impl Planner for GoPlanner {
         let mut expand_node = Box::new(Expand::new(
             3,
             go_ctx.base.statement_type().parse().unwrap_or(1),
-            go_ctx.steps.m_steps,
-            go_ctx.random,
+            go_ctx.over.edge_types.clone(),
+            "out",
         ));
         expand_node.set_dependencies(vec![arg_node.clone_plan_node()]);
         expand_node.set_output_var(Variable {
@@ -94,12 +90,18 @@ impl Planner for GoPlanner {
         }
 
         // 4. 创建ExpandAll节点进行多步扩展
+        let direction = if go_ctx.over.direction == "both" {
+            "both"
+        } else if go_ctx.over.direction == "in" {
+            "in"
+        } else {
+            "out"
+        };
         let mut expand_all_node = Box::new(ExpandAll::new(
             4,
             go_ctx.base.statement_type().parse().unwrap_or(1),
-            go_ctx.steps.m_steps,
-            go_ctx.steps.n_steps,
-            go_ctx.random,
+            go_ctx.over.edge_types.clone(),
+            direction,
         ));
         expand_all_node.set_dependencies(vec![expand_node.clone_plan_node()]);
         expand_all_node.set_output_var(Variable {
@@ -125,11 +127,7 @@ impl Planner for GoPlanner {
 
         // 5. 如果有JOIN操作，创建JOIN节点
         let mut join_node = if go_ctx.join_dst {
-            let mut join = Box::new(HashLeftJoin::new(
-                5,
-                vec!["JOIN_DST_VID".to_string()],
-                vec!["DST_VID".to_string()],
-            ));
+            let mut join = Box::new(HashLeftJoin::new(5));
             join.set_dependencies(vec![expand_all_node.clone_plan_node()]);
             join.set_output_var(Variable {
                 name: "joined_result".to_string(),
@@ -143,7 +141,7 @@ impl Planner for GoPlanner {
         // 6. 创建过滤节点（如果有过滤条件）
         let mut filter_node = if let Some(ref condition) = go_ctx.filter {
             let mut filter = Box::new(Filter::new(6, condition));
-            let dependency_node: &dyn crate::query::planner::plan::plan_node::PlanNode = if let Some(ref join_ref) = join_node {
+            let dependency_node: &dyn crate::query::planner::plan::PlanNode = if let Some(ref join_ref) = join_node {
                 join_ref.as_ref()
             } else {
                 expand_all_node.as_ref()
@@ -163,7 +161,7 @@ impl Planner for GoPlanner {
             7,
             &go_ctx.yield_expr.clone().unwrap_or("DEFAULT".to_string()),
         ));
-        let last_node_ref: &dyn crate::query::planner::plan::plan_node::PlanNode = if let Some(ref filter_ref) = filter_node {
+        let last_node_ref: &dyn crate::query::planner::plan::PlanNode = if let Some(ref filter_ref) = filter_node {
             filter_ref.as_ref()
         } else if let Some(ref join_ref) = join_node {
             join_ref.as_ref()
@@ -194,9 +192,9 @@ impl Planner for GoPlanner {
                 name: "dedup_result".to_string(),
                 columns: vec![],
             });
-            dedup_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            dedup_node
         } else {
-            project_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            project_node
         };
 
         // 创建SubPlan

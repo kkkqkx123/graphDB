@@ -47,7 +47,7 @@ impl CypherClausePlanner for MatchClausePlanner {
         // 如果没有路径，创建一个基本的Start节点
         if match_clause_ctx.paths.is_empty() {
             use crate::query::planner::plan::core::PlanNodeKind;
-            use crate::query::planner::plan::plan_node::SingleDependencyNode;
+            use crate::query::planner::plan::SingleDependencyNode;
             let start_node = Box::new(SingleDependencyNode {
                 id: -1,
                 kind: PlanNodeKind::Start,
@@ -241,7 +241,7 @@ mod tests {
     use super::*;
     use crate::graph::expression::expr_type::Expression;
     use crate::query::planner::plan::core::PlanNodeKind;
-    use crate::query::planner::plan::plan_node::VariableDependencyNode;
+    use crate::query::planner::plan::VariableDependencyNode;
     use crate::query::validator::structs::{
         CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
     };

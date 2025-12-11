@@ -1,10 +1,8 @@
 //! 配置操作相关的计划节点
 //! 包括显示、设置和获取配置等操作
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, SingleDependencyNode, PlanNodeVisitor, PlanNodeVisitError};
+use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError};
 use crate::query::validator::Variable;
-use std::collections::HashMap;
-use super::super::ddl::space_ops::{CreateNode, DropNode};
 
 /// 配置参数类型
 #[derive(Debug, Clone)]

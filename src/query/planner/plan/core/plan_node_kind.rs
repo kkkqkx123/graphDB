@@ -1,5 +1,5 @@
 //! 计划节点类型枚举定义
-//! 
+//!
 //! 定义了执行计划中所有可能的操作节点类型，包括：
 //! - 查询节点：获取顶点、边、邻接信息等
 //! - 数据处理节点：过滤、投影、聚合等
@@ -105,6 +105,11 @@ pub enum PlanNodeKind {
     InsertEdges,
     SubmitJob,
     ShowHosts,
+    ShowHostsStatus,
+    CreateIndex,
+    DropIndex,
+    ShowIndexes,
+    DescIndex,
 
     // 用户相关节点
     CreateUser,
@@ -117,6 +122,9 @@ pub enum PlanNodeKind {
     ListUsers,
     ListRoles,
     DescribeUser,
+    CreateRole,
+    DropRole,
+    ShowRoles,
 
     // 快照节点
     CreateSnapshot,
@@ -129,6 +137,12 @@ pub enum PlanNodeKind {
     UpdateVertex,
     DeleteTags,
     UpdateEdge,
+    
+    // 数据构造器节点
+    NewVertex,
+    NewTag,
+    NewProp,
+    NewEdge,
 
     // 显示节点
     ShowParts,
@@ -267,6 +281,11 @@ impl PlanNodeKind {
             PlanNodeKind::InsertEdges => "InsertEdges",
             PlanNodeKind::SubmitJob => "SubmitJob",
             PlanNodeKind::ShowHosts => "ShowHosts",
+            PlanNodeKind::ShowHostsStatus => "ShowHostsStatus",
+            PlanNodeKind::CreateIndex => "CreateIndex",
+            PlanNodeKind::DropIndex => "DropIndex",
+            PlanNodeKind::ShowIndexes => "ShowIndexes",
+            PlanNodeKind::DescIndex => "DescIndex",
 
             // 用户相关节点
             PlanNodeKind::CreateUser => "CreateUser",
@@ -279,6 +298,9 @@ impl PlanNodeKind {
             PlanNodeKind::ListUsers => "ListUsers",
             PlanNodeKind::ListRoles => "ListRoles",
             PlanNodeKind::DescribeUser => "DescribeUser",
+            PlanNodeKind::CreateRole => "CreateRole",
+            PlanNodeKind::DropRole => "DropRole",
+            PlanNodeKind::ShowRoles => "ShowRoles",
 
             // 快照节点
             PlanNodeKind::CreateSnapshot => "CreateSnapshot",
@@ -291,6 +313,12 @@ impl PlanNodeKind {
             PlanNodeKind::UpdateVertex => "UpdateVertex",
             PlanNodeKind::DeleteTags => "DeleteTags",
             PlanNodeKind::UpdateEdge => "UpdateEdge",
+            
+            // 数据构造器节点
+            PlanNodeKind::NewVertex => "NewVertex",
+            PlanNodeKind::NewTag => "NewTag",
+            PlanNodeKind::NewProp => "NewProp",
+            PlanNodeKind::NewEdge => "NewEdge",
 
             // 显示节点
             PlanNodeKind::ShowParts => "ShowParts",
@@ -532,7 +560,7 @@ mod tests {
         let mut set = HashSet::new();
         set.insert(PlanNodeKind::GetVertices);
         set.insert(PlanNodeKind::Filter);
-        
+
         assert!(set.contains(&PlanNodeKind::GetVertices));
         assert_eq!(set.len(), 2);
     }

@@ -1,10 +1,8 @@
 //! 用户操作相关的计划节点
 //! 包括创建/删除用户等操作
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, SingleDependencyNode, PlanNodeVisitor, PlanNodeVisitError};
+use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError};
 use crate::query::validator::Variable;
-use std::collections::HashMap;
-use super::super::ddl::space_ops::{CreateNode, DropNode};
 
 /// 创建用户计划节点
 #[derive(Debug)]

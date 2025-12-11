@@ -1,5 +1,5 @@
-use clap::Parser;
 use anyhow::Result;
+use clap::Parser;
 
 // 导入库模块
 use graphdb::api;
@@ -22,21 +22,21 @@ enum Cli {
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
-    
+
     let cli = Cli::parse();
-    
+
     match cli {
         Cli::Serve { config } => {
             println!("Starting GraphDB service with config: {}", config);
             // Initialize and start the service
             api::start_service(config).await?;
-        },
+        }
         Cli::Query { query } => {
             println!("Executing query: {}", query);
             // Execute the query directly
             api::execute_query(&query).await?;
         }
     }
-    
+
     Ok(())
 }

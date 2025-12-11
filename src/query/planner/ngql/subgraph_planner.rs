@@ -2,14 +2,12 @@
 //! 处理Nebula SUBGRAPH查询的规划
 
 use crate::query::context::{AstContext, SubgraphContext};
-use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::planner::plan::plan_node::PlanNode;
+use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
+use crate::query::planner::plan::operations::{Argument, Dedup, Filter, Project, Expand, ExpandAll};
+use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::validator::Variable;
-use crate::query::planner::plan::common::{TagProp, EdgeProp};
-use crate::query::planner::plan::operations::traversal::{Expand, ExpandAll};
-use crate::query::planner::plan::operations::data_processing::{Filter, Project, Dedup};
-use crate::query::planner::plan::operations::control_flow::{Argument};
 
 /// SUBGRAPH查询规划器
 /// 负责将SUBGRAPH查询转换为执行计划
@@ -70,11 +68,19 @@ impl Planner for SubgraphPlanner {
 
         // 如果需要双向扩展
         if subgraph_ctx.bi_direct_edge_types.len() > 0 {
-            expand_node.edge_types.extend(subgraph_ctx.bi_direct_edge_types.clone());
+            expand_node
+                .edge_types
+                .extend(subgraph_ctx.bi_direct_edge_types.clone());
         }
 
         // 3. 创建ExpandAll节点进行多步扩展
-        let mut expand_all_node = Box::new(ExpandAll::new(3, 1, subgraph_ctx.steps.m_steps, subgraph_ctx.steps.n_steps, false));
+        let mut expand_all_node = Box::new(ExpandAll::new(
+            3,
+            1,
+            subgraph_ctx.steps.m_steps,
+            subgraph_ctx.steps.n_steps,
+            false,
+        ));
         expand_all_node.set_dependencies(vec![expand_node.clone_plan_node()]);
         expand_all_node.set_output_var(Variable {
             name: "expanded_all_subgraph".to_string(),
@@ -82,11 +88,17 @@ impl Planner for SubgraphPlanner {
         });
 
         // 设置边属性和顶点属性
-        expand_all_node.edge_props = subgraph_ctx.expr_props.edge_props.iter()
+        expand_all_node.edge_props = subgraph_ctx
+            .expr_props
+            .edge_props
+            .iter()
             .map(|(edge_type, props)| EdgeProp::new(edge_type, props.clone()))
             .collect();
 
-        expand_all_node.vertex_props = subgraph_ctx.expr_props.src_tag_props.iter()
+        expand_all_node.vertex_props = subgraph_ctx
+            .expr_props
+            .src_tag_props
+            .iter()
             .map(|(tag, props)| TagProp::new(tag, props.clone()))
             .collect();
 
@@ -98,9 +110,9 @@ impl Planner for SubgraphPlanner {
                 name: "filtered_subgraph".to_string(),
                 columns: vec![],
             });
-            filter as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            filter
         } else {
-            expand_all_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            expand_all_node
         };
 
         // 5. 如果有标签过滤，添加额外过滤
@@ -111,9 +123,9 @@ impl Planner for SubgraphPlanner {
                 name: "tag_filtered_subgraph".to_string(),
                 columns: vec![],
             });
-            filter as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            filter
         } else {
-            filter_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            filter_node
         };
 
         // 6. 如果有边过滤，添加额外过滤
@@ -124,9 +136,9 @@ impl Planner for SubgraphPlanner {
                 name: "edge_filtered_subgraph".to_string(),
                 columns: vec![],
             });
-            filter as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            filter
         } else {
-            tag_filter_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            tag_filter_node
         };
 
         // 7. 创建投影节点
@@ -149,7 +161,7 @@ impl Planner for SubgraphPlanner {
 
         // 创建SubPlan
         let sub_plan = SubPlan {
-            root: Some(project_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>),
+            root: Some(project_node),
             tail: Some(arg_node.clone_plan_node()),
         };
 

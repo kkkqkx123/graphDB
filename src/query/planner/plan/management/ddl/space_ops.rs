@@ -1,12 +1,11 @@
 //! 空间操作相关的计划节点
 //! 包括创建/删除空间等操作
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, SingleDependencyNode, PlanNodeVisitor, PlanNodeVisitError};
+use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError};
 use crate::query::validator::Variable;
-use std::collections::HashMap;
 
 // 基础创建节点结构
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CreateNode {
     pub id: i64,
     pub kind: PlanNodeKind,
@@ -15,6 +14,20 @@ pub struct CreateNode {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub if_not_exist: bool,  // 是否使用IF NOT EXISTS
+}
+
+impl Clone for CreateNode {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(), // 克隆时不包含依赖
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            if_not_exist: self.if_not_exist,
+        }
+    }
 }
 
 impl CreateNode {
@@ -88,7 +101,7 @@ impl BasePlanNode for CreateNode {
 }
 
 // 基础删除节点结构
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DropNode {
     pub id: i64,
     pub kind: PlanNodeKind,
@@ -97,6 +110,20 @@ pub struct DropNode {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub if_exist: bool,  // 是否使用IF EXISTS
+}
+
+impl Clone for DropNode {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(), // 克隆时不包含依赖
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            if_exist: self.if_exist,
+        }
+    }
 }
 
 impl DropNode {

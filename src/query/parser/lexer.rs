@@ -207,7 +207,6 @@ impl Lexer {
             "ROLE" => TokenKind::Role,
             "ROLES" => TokenKind::Roles,
             "GOD" => TokenKind::God,
-            "ADMIN" => TokenKind::AdminRole,
             "DBA" => TokenKind::Dba,
             "GUEST" => TokenKind::Guest,
             "COMMENT" => TokenKind::Comment,

@@ -17,8 +17,7 @@ pub trait CypherClausePlanner: std::fmt::Debug {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::plan_node::SingleInputNode;
-    use crate::query::planner::plan::core::PlanNodeKind;
+    use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, VariableDependencyNode};
     use crate::query::planner::planner::PlannerError;
     use crate::query::validator::structs::common_structs::CypherClauseContext;
 
@@ -55,7 +54,7 @@ mod tests {
                 let test_node = SingleInputNode::new(
                     PlanNodeKind::Project,
                     Box::new(
-                        crate::query::planner::plan::plan_node::VariableDependencyNode::new(
+                        VariableDependencyNode::new(
                             PlanNodeKind::Start,
                         ),
                     ),
@@ -147,10 +146,7 @@ mod tests {
 
     #[test]
     fn test_subplan_creation() {
-        use crate::query::planner::plan::plan_node::{
-            PlanNode, VariableDependencyNode,
-        };
-        use crate::query::planner::plan::core::PlanNodeKind;
+        use crate::query::planner::plan::{PlanNode, PlanNodeKind, VariableDependencyNode};
 
         let start_node = VariableDependencyNode::new(PlanNodeKind::Start);
         let subplan =
@@ -166,10 +162,7 @@ mod tests {
 
     #[test]
     fn test_subplan_from_root() {
-        use crate::query::planner::plan::plan_node::{
-            PlanNode, VariableDependencyNode,
-        };
-        use crate::query::planner::plan::core::PlanNodeKind;
+        use crate::query::planner::plan::{PlanNode, PlanNodeKind, VariableDependencyNode};
 
         let start_node = VariableDependencyNode::new(PlanNodeKind::Start);
         let subplan = crate::query::planner::plan::SubPlan::from_root(start_node.clone_plan_node());

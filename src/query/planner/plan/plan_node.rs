@@ -5,9 +5,6 @@ use crate::query::planner::plan::core::visitor::{PlanNodeVisitError, PlanNodeVis
 use crate::query::planner::plan::core::PlanNodeKind;
 use crate::query::validator::Variable;
 
-// 重新导出PlanNodeKind供此模块使用
-pub use crate::query::planner::plan::core::PlanNodeKind;
-
 /// PlanNode特征，所有计划节点都应实现该特征
 pub trait PlanNode: std::fmt::Debug {
     /// 获取节点的唯一ID

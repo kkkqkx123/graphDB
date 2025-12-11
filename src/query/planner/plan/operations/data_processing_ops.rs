@@ -3,7 +3,6 @@
 
 use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError};
 use crate::query::validator::Variable;
-use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
 
 // 过滤计划节点
 #[derive(Debug)]

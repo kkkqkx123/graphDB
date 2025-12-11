@@ -3,7 +3,7 @@
 //! 负责规划路径模式的匹配
 
 use crate::query::planner::plan::{SubPlan, PlanNodeKind, SingleInputNode};
-use crate::query::planner::plan::plan_node::PlanNode;
+use crate::query::planner::plan::PlanNode;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
     MatchClauseContext, Path, WhereClauseContext,

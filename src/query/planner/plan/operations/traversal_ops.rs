@@ -2,6 +2,7 @@
 //! 包含Expand、ExpandAll、Traverse等图遍历相关的计划节点
 
 use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError};
+use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
 use crate::query::validator::Variable;
 
 // 扩展节点
@@ -119,6 +120,8 @@ pub struct ExpandAll {
     pub edge_types: Vec<String>,  // 边类型
     pub direction: String,        // 方向 (IN/OUT/BOTH)
     pub step_limit: Option<u32>,  // 步数限制
+    pub edge_props: Vec<EdgeProp>, // 边属性
+    pub vertex_props: Vec<TagProp>, // 顶点属性
 }
 
 impl ExpandAll {
@@ -134,6 +137,8 @@ impl ExpandAll {
             edge_types,
             direction: direction.to_string(),
             step_limit: None,
+            edge_props: Vec::new(),
+            vertex_props: Vec::new(),
         }
     }
 }
@@ -151,6 +156,8 @@ impl Clone for ExpandAll {
             edge_types: self.edge_types.clone(),
             direction: self.direction.clone(),
             step_limit: self.step_limit,
+            edge_props: self.edge_props.clone(),
+            vertex_props: self.vertex_props.clone(),
         }
     }
 }

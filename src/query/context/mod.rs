@@ -17,8 +17,6 @@ pub mod request_context;
 pub mod query_context;
 pub mod execution_context;
 pub mod expression_context;
-
-pub use ast_context::*;
 pub use validate::*;
 pub use request_context::RequestContext;
 pub use query_context::{QueryContext, SchemaManager};

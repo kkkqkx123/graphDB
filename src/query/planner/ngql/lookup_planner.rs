@@ -3,11 +3,10 @@
 
 use crate::query::context::{AstContext, LookupContext};
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::planner::plan::plan_node::PlanNode;
+use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::validator::Variable;
-use crate::query::planner::plan::graph_scan::{GetEdges, GetVertices};
-use crate::query::planner::plan::operations::data_processing::{Filter, Project, Dedup};
+use crate::query::planner::plan::{GetEdges, GetVertices, Filter, Project, Dedup};
 
 /// LOOKUP查询规划器
 /// 负责将LOOKUP语句转换为执行计划
@@ -55,7 +54,7 @@ impl Planner for LookupPlanner {
                 name: "index_scanned_edges".to_string(),
                 columns: vec![],
             });
-            get_edges_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            get_edges_node
         } else {
             // 如果是顶点的查找，创建GetVertices节点
             let mut get_vertices_node = Box::new(GetVertices::new(1, 1, ""));
@@ -63,7 +62,7 @@ impl Planner for LookupPlanner {
                 name: "index_scanned_vertices".to_string(),
                 columns: vec![],
             });
-            get_vertices_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            get_vertices_node
         };
 
         // 2. 创建过滤节点（基于索引搜索条件）
@@ -83,7 +82,7 @@ impl Planner for LookupPlanner {
                 }
             }
 
-            index_scan_node = filter_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>;
+            index_scan_node = filter_node;
         }
 
         // 3. 创建投影节点
@@ -108,9 +107,9 @@ impl Planner for LookupPlanner {
                 name: "dedup_result".to_string(),
                 columns: vec![],
             });
-            dedup_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            dedup_node
         } else {
-            project_node as Box<dyn crate::query::planner::plan::plan_node::PlanNode>
+            project_node
         };
 
         // 创建SubPlan

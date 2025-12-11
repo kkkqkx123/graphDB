@@ -4,7 +4,6 @@
 use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, SingleDependencyNode, PlanNodeVisitor, PlanNodeVisitError};
 use crate::query::validator::Variable;
 use std::collections::HashMap;
-use super::super::ddl::space_ops::{CreateNode, DropNode};
 
 // 主机信息结构
 #[derive(Debug, Clone)]
