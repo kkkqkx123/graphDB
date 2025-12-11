@@ -3,7 +3,9 @@
 //! 用于在验证过程中存储和管理验证相关的信息
 
 use crate::core::{Value, ValueTypeDef};
-use crate::query::validator::validation_interface::{ValidationContext as ValidationContextTrait, ValidationError};
+use crate::query::validator::validation_interface::{
+    ValidationContext as ValidationContextTrait, ValidationError,
+};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -23,6 +25,16 @@ pub struct Column {
 pub struct Variable {
     pub name: String,
     pub columns: Vec<Column>,
+}
+
+impl Variable {
+    /// 创建一个新的变量（仅包含名称，列为空）
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            columns: Vec::new(),
+        }
+    }
 }
 
 pub struct ValidateContext {
@@ -138,10 +150,14 @@ impl ValidationContextTrait for ValidateContext {
         &[]
     }
 
-    fn get_aliases(&self) -> &std::collections::HashMap<String, crate::query::validator::structs::AliasType> {
+    fn get_aliases(
+        &self,
+    ) -> &std::collections::HashMap<String, crate::query::validator::structs::AliasType> {
         // ValidateContext 目前没有存储别名类型信息，返回静态空映射
         use std::sync::OnceLock;
-        static EMPTY_MAP: OnceLock<std::collections::HashMap<String, crate::query::validator::structs::AliasType>> = OnceLock::new();
+        static EMPTY_MAP: OnceLock<
+            std::collections::HashMap<String, crate::query::validator::structs::AliasType>,
+        > = OnceLock::new();
         EMPTY_MAP.get_or_init(|| std::collections::HashMap::new())
     }
 

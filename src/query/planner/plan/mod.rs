@@ -23,7 +23,7 @@ pub mod other_ops;
 // 重新导出主要的类型
 pub use plan_node::{PlanNode, PlanNodeKind, SingleDependencyNode, SingleInputNode, BinaryInputNode, VariableDependencyNode};
 pub use execution_plan::{ExecutionPlan, SubPlan};
-pub use plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
+pub use plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError, DefaultPlanNodeVisitor};
 
 // 导出新拆分的节点类型
 pub use common::*;
@@ -71,5 +71,5 @@ pub use query_nodes::{
 
 // 导出扫描节点
 pub use scan_nodes::{
-    ScanVertices, ScanEdges, IndexScan, FulltextIndexScan
+    ScanVertices, IndexScan, FulltextIndexScan
 };
