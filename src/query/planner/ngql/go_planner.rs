@@ -4,7 +4,7 @@
 use crate::query::validator::Variable;
 use crate::query::context::{AstContext, GoContext};
 use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
-use crate::query::planner::plan::{GetEdges, GetVertices, Expand, ExpandAll, Filter, Project, Dedup, Start, Argument, HashLeftJoin};
+use crate::query::planner::plan::{Expand, ExpandAll, Filter, Project, Dedup, Start, Argument, HashLeftJoin};
 use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -185,7 +185,7 @@ impl Planner for GoPlanner {
         project_node.set_col_names(go_ctx.col_names.clone());
 
         // 8. 如果需要去重，创建去重节点
-        let final_node = if go_ctx.distinct {
+        let final_node: Box<dyn crate::query::planner::plan::core::PlanNode> = if go_ctx.distinct {
             let mut dedup_node = Box::new(Dedup::new(8));
             dedup_node.set_dependencies(vec![project_node.clone_plan_node()]);
             dedup_node.set_output_var(Variable {

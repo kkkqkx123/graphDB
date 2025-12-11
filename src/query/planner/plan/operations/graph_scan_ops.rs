@@ -1,8 +1,10 @@
 //! 图扫描操作节点
 //! 包含获取顶点、边和邻居节点的计划节点
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError};
-use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
+use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
+use crate::query::planner::plan::core::{
+    PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use crate::query::validator::Variable;
 
 // 获取顶点的计划节点
@@ -517,7 +519,7 @@ impl BasePlanNode for ScanEdges {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_scan_edges(self)?;
+        visitor.visit_plan_node(self)?;
         visitor.post_visit()?;
         Ok(())
     }

@@ -3,7 +3,7 @@
 
 use crate::query::context::{AstContext, SubgraphContext};
 use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
-use crate::query::planner::plan::operations::{Argument, Dedup, Filter, Project, Expand, ExpandAll};
+use crate::query::planner::plan::operations::{Argument, Filter, Project, Expand, ExpandAll};
 use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -56,7 +56,7 @@ impl Planner for SubgraphPlanner {
         });
 
         // 2. 创建扩展节点进行子图扩展
-        let mut expand_node = Box::new(Expand::new(2, 1, subgraph_ctx.steps.m_steps, false));
+        let mut expand_node = Box::new(Expand::new(2, 1, subgraph_ctx.edge_types.clone(), "out"));
         expand_node.set_dependencies(vec![arg_node.clone_plan_node()]);
         expand_node.set_output_var(Variable {
             name: "expanded_subgraph".to_string(),
@@ -77,9 +77,8 @@ impl Planner for SubgraphPlanner {
         let mut expand_all_node = Box::new(ExpandAll::new(
             3,
             1,
-            subgraph_ctx.steps.m_steps,
-            subgraph_ctx.steps.n_steps,
-            false,
+            subgraph_ctx.edge_types.clone(),
+            "out"
         ));
         expand_all_node.set_dependencies(vec![expand_node.clone_plan_node()]);
         expand_all_node.set_output_var(Variable {
@@ -103,7 +102,7 @@ impl Planner for SubgraphPlanner {
             .collect();
 
         // 4. 创建过滤节点（如果有过滤条件）
-        let mut filter_node = if let Some(ref condition) = subgraph_ctx.filter {
+        let mut filter_node: Box<dyn crate::query::planner::plan::core::PlanNode> = if let Some(ref condition) = subgraph_ctx.filter {
             let mut filter = Box::new(Filter::new(4, condition));
             filter.set_dependencies(vec![expand_all_node.clone_plan_node()]);
             filter.set_output_var(Variable {

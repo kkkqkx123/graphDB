@@ -9,7 +9,7 @@ use crate::query::planner::plan::operations::{
     Aggregate,
     Sort, Limit, TopN, Sample,
     HashJoin, HashLeftJoin, HashInnerJoin, CrossJoin,
-    Start, Argument,
+    Start, Argument, StartNode, ArgumentNode,
 };
 use crate::query::planner::plan::management::dml::{
     InsertVertices, InsertEdges, UpdateVertex, UpdateEdge, DeleteVertices, DeleteEdges, DeleteTags,
@@ -139,8 +139,18 @@ pub trait PlanNodeVisitor: std::fmt::Debug {
         Ok(())
     }
 
+    /// 访问StartNode节点
+    fn visit_start_node(&mut self, _node: &StartNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
     /// 访问Argument节点
     fn visit_argument(&mut self, _node: &Argument) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问ArgumentNode节点
+    fn visit_argument_node(&mut self, _node: &ArgumentNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
@@ -176,6 +186,11 @@ pub trait PlanNodeVisitor: std::fmt::Debug {
 
     /// 访问ScanEdges节点
     fn visit_scan_edges(&mut self, _node: &ScanEdges) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    /// 访问ScanEdges节点（graph_scan_ops模块）
+    fn visit_scan_edges_node(&mut self, _node: &ScanEdges) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
@@ -331,6 +346,10 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
 
+    fn visit_scan_edges_node(&mut self, _node: &ScanEdges) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
     fn visit_hash_join(&mut self, _node: &HashJoin) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
@@ -394,7 +413,15 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
 
+    fn visit_start_node(&mut self, _node: &StartNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
     fn visit_argument(&mut self, _node: &Argument) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_argument_node(&mut self, _node: &ArgumentNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 

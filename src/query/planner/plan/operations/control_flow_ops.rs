@@ -259,7 +259,7 @@ impl BasePlanNode for StartNode {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_start(self)?;
+        visitor.visit_start_node(self)?;
         visitor.post_visit()?;
         Ok(())
     }
@@ -367,7 +367,7 @@ impl BasePlanNode for ArgumentNode {
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_argument(self)?;
+        visitor.visit_argument_node(self)?;
         visitor.post_visit()?;
         Ok(())
     }

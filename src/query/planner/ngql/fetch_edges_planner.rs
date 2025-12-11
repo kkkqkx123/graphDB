@@ -2,10 +2,10 @@
 //! 处理FETCH EDGES查询的规划
 
 use crate::query::context::{AstContext, FetchEdgesContext};
-use crate::query::planner::plan::core::PlanNode;
 use crate::query::planner::plan::core::common::EdgeProp;
-use crate::query::planner::plan::operations::{Filter, Project, Dedup, GetEdges, Argument};
+use crate::query::planner::plan::core::PlanNode;
 use crate::query::planner::plan::execution_plan::SubPlan;
+use crate::query::planner::plan::operations::{Argument, Dedup, Filter, GetEdges, Project};
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::validator::{Column, Variable};
 
@@ -115,7 +115,8 @@ impl Planner for FetchEdgesPlanner {
         });
 
         // 5. 如果需要去重，创建去重节点
-        let final_node = if fetch_ctx.distinct {
+        let final_node: Box<dyn crate::query::planner::plan::core::PlanNode> = if fetch_ctx.distinct
+        {
             let mut dedup_node = Box::new(Dedup::new(5));
             dedup_node.set_dependencies(vec![project_node.clone_plan_node()]);
             dedup_node.set_output_var(Variable {

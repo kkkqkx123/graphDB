@@ -38,22 +38,18 @@ fn test_create_space_node_creation() {
 
 #[test]
 fn test_insert_vertices_node_creation() {
-    let vertices = vec![];
-    let tag_prop_names = std::collections::HashMap::new();
-
     let insert_vertices = InsertVertices::new(
         1,
         1001, // space_id
-        vertices,
-        tag_prop_names,
-        true,  // if_not_exists
-        false, // ignore_existed_index
+        101, // tag_id
+        Vec::new(), // props
+        true, // insertable
     );
 
     assert_eq!(insert_vertices.id(), 1);
     assert_eq!(insert_vertices.kind(), PlanNodeKind::InsertVertices);
-    assert_eq!(insert_vertices.get_space(), 1001);
-    assert_eq!(insert_vertices.get_if_not_exists(), true);
+    assert_eq!(insert_vertices.space_id, 1001);
+    assert_eq!(insert_vertices.insertable, true);
 }
 
 #[test]
@@ -85,20 +81,17 @@ fn test_submit_job_node_creation() {
 
 #[test]
 fn test_update_vertex_node_creation() {
-    let updated_props = std::collections::HashMap::new();
-
     let update_vertex = UpdateVertex::new(
         1,
         1001, // space_id
-        "vertex123",
         101, // tag_id
-        updated_props,
-        None, // condition
+        None, // filter
+        Vec::new(), // update_props
         true, // insertable
     );
 
     assert_eq!(update_vertex.id(), 1);
     assert_eq!(update_vertex.kind(), PlanNodeKind::UpdateVertex);
-    assert_eq!(update_vertex.vid, "vertex123");
+    assert_eq!(update_vertex.space_id, 1001);
     assert_eq!(update_vertex.tag_id, 101);
 }

@@ -4,7 +4,7 @@
 use crate::query::validator::Variable;
 use crate::query::context::{AstContext, PathContext};
 use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
-use crate::query::planner::plan::{GetVertices, Expand, ExpandAll, Filter, Project, Dedup, Argument};
+use crate::query::planner::plan::{Expand, ExpandAll, Filter, Project, Dedup, Argument};
 use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -64,7 +64,7 @@ impl Planner for PathPlanner {
 
         // 2. 创建GetVertices节点来获取顶点
         let mut get_vertices_node =
-            Box::new(GetVertices::new(3, 1, &path_ctx.from.user_defined_var_name));
+            Box::new(crate::query::planner::plan::GetVertices::new(3, 1, &path_ctx.from.user_defined_var_name));
         get_vertices_node.set_dependencies(vec![start_arg_node.clone_plan_node()]);
         get_vertices_node.set_output_var(Variable {
             name: "path_vertices".to_string(),
@@ -144,7 +144,7 @@ impl Planner for PathPlanner {
             .collect();
 
         // 6. 创建过滤节点（如果有过滤条件）
-        let mut filter_node = if let Some(ref condition) = path_ctx.filter {
+        let mut filter_node: Box<dyn crate::query::planner::plan::core::PlanNode> = if let Some(ref condition) = path_ctx.filter {
             let mut filter = Box::new(Filter::new(6, condition));
             filter.set_dependencies(vec![expand_all_node.clone_plan_node()]);
             filter.set_output_var(Variable {
@@ -166,7 +166,7 @@ impl Planner for PathPlanner {
         project_node.set_col_names(path_ctx.col_names.clone());
 
         // 8. 如果是查找最短路径，可能需要额外的处理
-        let final_node = if path_ctx.is_shortest {
+        let final_node: Box<dyn crate::query::planner::plan::core::PlanNode> = if path_ctx.is_shortest {
             // 需要额外的节点来处理最短路径算法
             let mut dedup_node = Box::new(Dedup::new(8));
             dedup_node.set_dependencies(vec![project_node.clone_plan_node()]);
