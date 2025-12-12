@@ -125,18 +125,18 @@ impl From<crate::graph::expression::ExpressionError> for DBError {
     }
 }
 
-impl From<crate::query::planner::plan::plan_node_visitor::PlanNodeVisitError> for DBError {
-    fn from(err: crate::query::planner::plan::plan_node_visitor::PlanNodeVisitError) -> Self {
+impl From<crate::query::planner::plan::core::visitor::PlanNodeVisitError> for DBError {
+    fn from(err: crate::query::planner::plan::core::visitor::PlanNodeVisitError) -> Self {
         match err {
-            crate::query::planner::plan::plan_node_visitor::PlanNodeVisitError::VisitError(msg) => DBError::Plan(PlanNodeVisitError::VisitError(msg)),
-            crate::query::planner::plan::plan_node_visitor::PlanNodeVisitError::TraversalError(msg) => DBError::Plan(PlanNodeVisitError::TraversalError(msg)),
-            crate::query::planner::plan::plan_node_visitor::PlanNodeVisitError::ValidationError(msg) => DBError::Plan(PlanNodeVisitError::ValidationError(msg)),
+            crate::query::planner::plan::core::visitor::PlanNodeVisitError::VisitError(msg) => DBError::Plan(PlanNodeVisitError::VisitError(msg)),
+            crate::query::planner::plan::core::visitor::PlanNodeVisitError::TraversalError(msg) => DBError::Plan(PlanNodeVisitError::TraversalError(msg)),
+            crate::query::planner::plan::core::visitor::PlanNodeVisitError::ValidationError(msg) => DBError::Plan(PlanNodeVisitError::ValidationError(msg)),
         }
     }
 }
 
-impl From<crate::query::visitor::deduce_type_visitor::TypeDeductionError> for DBError {
-    fn from(err: crate::query::visitor::deduce_type_visitor::TypeDeductionError) -> Self {
+impl From<crate::query::visitor::TypeDeductionError> for DBError {
+    fn from(err: crate::query::visitor::TypeDeductionError) -> Self {
         DBError::TypeDeduction(err.to_string())
     }
 }

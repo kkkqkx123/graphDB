@@ -1,0 +1,449 @@
+//! 额外的访问者实现
+//!
+//! 这个模块提供了更多的访问者实现，用于不同的 Value 操作
+//! 
+//! 注意：此文件已被重构为模块化结构，请使用 `src/core/visitor/mod.rs` 中的新实现
+//! 此文件保留是为了向后兼容，建议迁移到新的模块化结构
+
+// 重新导出新模块化结构的内容，保持向后兼容性
+pub use crate::core::visitor::{
+    DeepCloneVisitor, SizeCalculatorVisitor, HashCalculatorVisitor, TypeConversionVisitor, TransformationError,
+    deep_clone, calculate_size, calculate_hash, convert_type,
+};
+
+// 为了向后兼容，保留一些旧的类型别名
+#[deprecated(note = "使用新的模块化结构 `crate::core::visitor`")]
+pub mod legacy {
+    //! 旧版访问者实现，保留用于向后兼容
+    //! 建议使用新的模块化结构
+    
+    use crate::core::visitor::ValueVisitor;
+    use crate::core::value::{Value, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, DataSet};
+    use crate::core::vertex_edge_path::{Vertex, Edge, Path};
+    use std::collections::HashMap;
+
+    /// 旧版深度克隆访问者
+    #[derive(Debug, Default)]
+    pub struct DeepCloneVisitor;
+
+    impl DeepCloneVisitor {
+        pub fn new() -> Self {
+            Self
+        }
+
+        pub fn clone_value(value: &Value) -> Value {
+            let mut visitor = Self::new();
+            value.accept(&mut visitor)
+        }
+    }
+
+    impl ValueVisitor for DeepCloneVisitor {
+        type Result = Value;
+
+        fn visit_bool(&mut self, value: bool) -> Self::Result {
+            Value::Bool(value)
+        }
+
+        fn visit_int(&mut self, value: i64) -> Self::Result {
+            Value::Int(value)
+        }
+
+        fn visit_float(&mut self, value: f64) -> Self::Result {
+            Value::Float(value)
+        }
+
+        fn visit_string(&mut self, value: &str) -> Self::Result {
+            Value::String(value.to_string())
+        }
+
+        fn visit_date(&mut self, value: &DateValue) -> Self::Result {
+            Value::Date(value.clone())
+        }
+
+        fn visit_time(&mut self, value: &TimeValue) -> Self::Result {
+            Value::Time(value.clone())
+        }
+
+        fn visit_datetime(&mut self, value: &DateTimeValue) -> Self::Result {
+            Value::DateTime(value.clone())
+        }
+
+        fn visit_vertex(&mut self, value: &Vertex) -> Self::Result {
+            Value::Vertex(Box::new(value.clone()))
+        }
+
+        fn visit_edge(&mut self, value: &Edge) -> Self::Result {
+            Value::Edge(value.clone())
+        }
+
+        fn visit_path(&mut self, value: &Path) -> Self::Result {
+            Value::Path(value.clone())
+        }
+
+        fn visit_list(&mut self, value: &[Value]) -> Self::Result {
+            let cloned_list: Vec<Value> = value.iter().map(|v| Self::clone_value(v)).collect();
+            Value::List(cloned_list)
+        }
+
+        fn visit_map(&mut self, value: &HashMap<String, Value>) -> Self::Result {
+            let cloned_map: HashMap<String, Value> = value
+                .iter()
+                .map(|(k, v)| (k.clone(), Self::clone_value(v)))
+                .collect();
+            Value::Map(cloned_map)
+        }
+
+        fn visit_set(&mut self, value: &std::collections::HashSet<Value>) -> Self::Result {
+            let cloned_set: std::collections::HashSet<Value> = value
+                .iter()
+                .map(|v| Self::clone_value(v))
+                .collect();
+            Value::Set(cloned_set)
+        }
+
+        fn visit_geography(&mut self, value: &GeographyValue) -> Self::Result {
+            Value::Geography(value.clone())
+        }
+
+        fn visit_duration(&mut self, value: &DurationValue) -> Self::Result {
+            Value::Duration(value.clone())
+        }
+
+        fn visit_dataset(&mut self, value: &DataSet) -> Self::Result {
+            Value::DataSet(value.clone())
+        }
+
+        fn visit_null(&mut self, null_type: &NullType) -> Self::Result {
+            Value::Null(null_type.clone())
+        }
+
+        fn visit_empty(&mut self) -> Self::Result {
+            Value::Empty
+        }
+    }
+
+    /// 旧版大小计算访问者
+    #[derive(Debug, Default)]
+    pub struct SizeCalculatorVisitor {
+        size: usize,
+    }
+
+    impl SizeCalculatorVisitor {
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        pub fn calculate_size(value: &Value) -> usize {
+            let mut visitor = Self::new();
+            value.accept(&mut visitor);
+            visitor.size
+        }
+    }
+
+    impl ValueVisitor for SizeCalculatorVisitor {
+        type Result = ();
+
+        fn visit_bool(&mut self, _value: bool) -> Self::Result {
+            self.size += std::mem::size_of::<bool>();
+        }
+
+        fn visit_int(&mut self, _value: i64) -> Self::Result {
+            self.size += std::mem::size_of::<i64>();
+        }
+
+        fn visit_float(&mut self, _value: f64) -> Self::Result {
+            self.size += std::mem::size_of::<f64>();
+        }
+
+        fn visit_string(&mut self, value: &str) -> Self::Result {
+            self.size += std::mem::size_of::<String>() + value.len();
+        }
+
+        fn visit_date(&mut self, _value: &DateValue) -> Self::Result {
+            self.size += std::mem::size_of::<DateValue>();
+        }
+
+        fn visit_time(&mut self, _value: &TimeValue) -> Self::Result {
+            self.size += std::mem::size_of::<TimeValue>();
+        }
+
+        fn visit_datetime(&mut self, _value: &DateTimeValue) -> Self::Result {
+            self.size += std::mem::size_of::<DateTimeValue>();
+        }
+
+        fn visit_vertex(&mut self, value: &Vertex) -> Self::Result {
+            self.size += std::mem::size_of::<Vertex>();
+            // 递归计算顶点内容的大小
+            self.size += std::mem::size_of_val(value.id());
+            for tag in value.tags() {
+                self.size += std::mem::size_of::<crate::core::vertex_edge_path::Tag>();
+                self.size += tag.name.len();
+                for (prop_name, prop_value) in &tag.properties {
+                    self.size += prop_name.len();
+                    self.size += Self::calculate_size(prop_value);
+                }
+            }
+            for (prop_name, prop_value) in value.vertex_properties() {
+                self.size += prop_name.len();
+                self.size += Self::calculate_size(prop_value);
+            }
+        }
+
+        fn visit_edge(&mut self, value: &Edge) -> Self::Result {
+            self.size += std::mem::size_of::<Edge>();
+            self.size += std::mem::size_of_val(value.src());
+            self.size += std::mem::size_of_val(value.dst());
+            self.size += value.edge_type().len();
+            for (prop_name, prop_value) in value.get_all_properties() {
+                self.size += prop_name.len();
+                self.size += Self::calculate_size(prop_value);
+            }
+        }
+
+        fn visit_path(&mut self, value: &Path) -> Self::Result {
+            self.size += std::mem::size_of::<Path>();
+            self.size += Self::calculate_size(value.src());
+            for step in &value.steps {
+                self.size += std::mem::size_of::<crate::core::vertex_edge_path::Step>();
+                self.size += Self::calculate_size(step.dst.as_ref());
+                self.size += Self::calculate_size(step.edge.as_ref());
+            }
+        }
+
+        fn visit_list(&mut self, value: &[Value]) -> Self::Result {
+            self.size += std::mem::size_of::<Vec<Value>>();
+            for item in value {
+                self.size += Self::calculate_size(item);
+            }
+        }
+
+        fn visit_map(&mut self, value: &HashMap<String, Value>) -> Self::Result {
+            self.size += std::mem::size_of::<HashMap<String, Value>>();
+            for (key, val) in value {
+                self.size += key.len();
+                self.size += Self::calculate_size(val);
+            }
+        }
+
+        fn visit_set(&mut self, value: &std::collections::HashSet<Value>) -> Self::Result {
+            self.size += std::mem::size_of::<std::collections::HashSet<Value>>();
+            for item in value {
+                self.size += Self::calculate_size(item);
+            }
+        }
+
+        fn visit_geography(&mut self, value: &GeographyValue) -> Self::Result {
+            self.size += std::mem::size_of::<GeographyValue>();
+            // 计算地理数据的大小
+            if let Some(_) = value.point {
+                self.size += std::mem::size_of::<(f64, f64)>();
+            }
+            if let Some(ref line) = value.linestring {
+                self.size += std::mem::size_of::<Vec<(f64, f64)>>() + line.len() * std::mem::size_of::<(f64, f64)>();
+            }
+            if let Some(ref poly) = value.polygon {
+                self.size += std::mem::size_of::<Vec<Vec<(f64, f64)>>>();
+                for ring in poly {
+                    self.size += std::mem::size_of::<Vec<(f64, f64)>>() + ring.len() * std::mem::size_of::<(f64, f64)>();
+                }
+            }
+        }
+
+        fn visit_duration(&mut self, _value: &DurationValue) -> Self::Result {
+            self.size += std::mem::size_of::<DurationValue>();
+        }
+
+        fn visit_dataset(&mut self, value: &DataSet) -> Self::Result {
+            self.size += std::mem::size_of::<DataSet>();
+            self.size += value.col_names.len() * std::mem::size_of::<String>();
+            for row in &value.rows {
+                self.size += std::mem::size_of::<Vec<Value>>();
+                for cell in row {
+                    self.size += Self::calculate_size(cell);
+                }
+            }
+        }
+
+        fn visit_null(&mut self, _null_type: &NullType) -> Self::Result {
+            self.size += std::mem::size_of::<NullType>();
+        }
+
+        fn visit_empty(&mut self) -> Self::Result {
+            self.size += std::mem::size_of::<Value>();
+        }
+    }
+
+    /// 旧版哈希计算访问者
+    #[derive(Debug, Default)]
+    pub struct HashCalculatorVisitor {
+        hasher: std::collections::hash_map::DefaultHasher,
+    }
+
+    impl HashCalculatorVisitor {
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        pub fn calculate_hash(value: &Value) -> u64 {
+            let mut visitor = Self::new();
+            value.accept(&mut visitor);
+            visitor.hasher.finish()
+        }
+    }
+
+    impl ValueVisitor for HashCalculatorVisitor {
+        type Result = ();
+
+        fn visit_bool(&mut self, value: bool) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_int(&mut self, value: i64) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_float(&mut self, value: f64) -> Self::Result {
+            // 特殊处理浮点数的哈希
+            if value.is_nan() {
+                (0x7ff80000u32 as u64).hash(&mut self.hasher);
+            } else if value == 0.0 {
+                0.0_f64.to_bits().hash(&mut self.hasher);
+            } else {
+                value.to_bits().hash(&mut self.hasher);
+            }
+        }
+
+        fn visit_string(&mut self, value: &str) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_date(&mut self, value: &DateValue) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_time(&mut self, value: &TimeValue) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_datetime(&mut self, value: &DateTimeValue) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_vertex(&mut self, value: &Vertex) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_edge(&mut self, value: &Edge) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_path(&mut self, value: &Path) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_list(&mut self, value: &[Value]) -> Self::Result {
+            value.len().hash(&mut self.hasher);
+            for item in value {
+                Self::calculate_hash(item);
+            }
+        }
+
+        fn visit_map(&mut self, value: &HashMap<String, Value>) -> Self::Result {
+            value.len().hash(&mut self.hasher);
+            // 对键值对进行排序以确保一致的哈希
+            let mut pairs: Vec<_> = value.iter().collect();
+            pairs.sort_by_key(|&(k, _)| k);
+            for (k, v) in pairs {
+                k.hash(&mut self.hasher);
+                Self::calculate_hash(v);
+            }
+        }
+
+        fn visit_set(&mut self, value: &std::collections::HashSet<Value>) -> Self::Result {
+            value.len().hash(&mut self.hasher);
+            // 对集合元素进行排序以确保一致的哈希
+            let mut items: Vec<_> = value.iter().collect();
+            items.sort();
+            for item in items {
+                Self::calculate_hash(item);
+            }
+        }
+
+        fn visit_geography(&mut self, value: &GeographyValue) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_duration(&mut self, value: &DurationValue) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_dataset(&mut self, value: &DataSet) -> Self::Result {
+            value.hash(&mut self.hasher);
+        }
+
+        fn visit_null(&mut self, null_type: &NullType) -> Self::Result {
+            null_type.hash(&mut self.hasher);
+        }
+
+        fn visit_empty(&mut self) -> Self::Result {
+            0u8.hash(&mut self.hasher);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::value::Value;
+
+    #[test]
+    fn test_backward_compatibility() {
+        // 测试向后兼容性
+        let original = Value::List(vec![
+            Value::Int(42),
+            Value::String("test".to_string()),
+            Value::Map(std::collections::HashMap::from([
+                ("key".to_string(), Value::Bool(true))
+            ])),
+        ]);
+
+        let cloned = DeepCloneVisitor::clone_value(&original);
+        assert_eq!(original, cloned);
+
+        let value = Value::String("test".to_string());
+        let size = SizeCalculatorVisitor::calculate_size(&value);
+        assert!(size > std::mem::size_of::<String>());
+
+        let value1 = Value::Int(42);
+        let value2 = Value::Int(42);
+        let hash1 = HashCalculatorVisitor::calculate_hash(&value1);
+        let hash2 = HashCalculatorVisitor::calculate_hash(&value2);
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_new_api_compatibility() {
+        // 测试新 API 的兼容性
+        let original = Value::List(vec![
+            Value::Int(42),
+            Value::String("test".to_string()),
+            Value::Map(std::collections::HashMap::from([
+                ("key".to_string(), Value::Bool(true))
+            ])),
+        ]);
+
+        // 使用新的便捷函数
+        let cloned = deep_clone(&original).unwrap();
+        assert_eq!(original, cloned);
+
+        let value = Value::String("test".to_string());
+        let size = calculate_size(&value).unwrap();
+        assert!(size > std::mem::size_of::<String>());
+
+        let value1 = Value::Int(42);
+        let value2 = Value::Int(42);
+        let hash1 = calculate_hash(&value1).unwrap();
+        let hash2 = calculate_hash(&value2).unwrap();
+        assert_eq!(hash1, hash2);
+    }
+}

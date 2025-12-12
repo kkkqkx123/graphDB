@@ -158,9 +158,7 @@ impl DataSet {
 
 impl List {
     pub fn new() -> Self {
-        Self {
-            values: Vec::new(),
-        }
+        Self { values: Vec::new() }
     }
 }
 
@@ -548,7 +546,7 @@ impl Value {
                 } else {
                     Err("Cannot cast string to bool".to_string())
                 }
-            },
+            }
             Value::Empty => Ok(Value::Bool(false)),
             Value::Null(_) => Ok(Value::Bool(false)),
             _ => Err("Cannot cast to bool".to_string()),
@@ -559,11 +557,9 @@ impl Value {
         match self {
             Value::Int(i) => Ok(Value::Int(*i)),
             Value::Float(f) => Ok(Value::Int(*f as i64)),
-            Value::String(s) => {
-                match s.parse::<i64>() {
-                    Ok(i) => Ok(Value::Int(i)),
-                    Err(_) => Err("Cannot cast string to int".to_string()),
-                }
+            Value::String(s) => match s.parse::<i64>() {
+                Ok(i) => Ok(Value::Int(i)),
+                Err(_) => Err("Cannot cast string to int".to_string()),
             },
             Value::Bool(b) => Ok(Value::Int(if *b { 1 } else { 0 })),
             Value::Empty => Ok(Value::Int(0)),
@@ -576,11 +572,9 @@ impl Value {
         match self {
             Value::Float(f) => Ok(Value::Float(*f)),
             Value::Int(i) => Ok(Value::Float(*i as f64)),
-            Value::String(s) => {
-                match s.parse::<f64>() {
-                    Ok(f) => Ok(Value::Float(f)),
-                    Err(_) => Err("Cannot cast string to float".to_string()),
-                }
+            Value::String(s) => match s.parse::<f64>() {
+                Ok(f) => Ok(Value::Float(f)),
+                Err(_) => Err("Cannot cast string to float".to_string()),
             },
             Value::Bool(b) => Ok(Value::Float(if *b { 1.0 } else { 0.0 })),
             Value::Empty => Ok(Value::Float(0.0)),
@@ -594,7 +588,11 @@ impl Value {
             Value::String(s) => Ok(Value::String(s.clone())),
             Value::Int(i) => Ok(Value::String(i.to_string())),
             Value::Float(f) => Ok(Value::String(f.to_string())),
-            Value::Bool(b) => Ok(Value::String(if *b { "true".to_string() } else { "false".to_string() })),
+            Value::Bool(b) => Ok(Value::String(if *b {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            })),
             Value::Empty => Ok(Value::String("".to_string())),
             Value::Null(_) => Ok(Value::String("null".to_string())),
             _ => Err("Cannot cast to string".to_string()),
@@ -608,17 +606,25 @@ impl Value {
                 // Parse date string in format "YYYY-MM-DD"
                 let parts: Vec<&str> = s.split('-').collect();
                 if parts.len() == 3 {
-                    match (parts[0].parse::<i32>(), parts[1].parse::<u32>(), parts[2].parse::<u32>()) {
+                    match (
+                        parts[0].parse::<i32>(),
+                        parts[1].parse::<u32>(),
+                        parts[2].parse::<u32>(),
+                    ) {
                         (Ok(year), Ok(month), Ok(day)) => {
                             Ok(Value::Date(DateValue { year, month, day }))
-                        },
+                        }
                         _ => Err("Invalid date format".to_string()),
                     }
                 } else {
                     Err("Date string must be in YYYY-MM-DD format".to_string())
                 }
-            },
-            Value::Empty => Ok(Value::Date(DateValue { year: 1, month: 1, day: 1 })),
+            }
+            Value::Empty => Ok(Value::Date(DateValue {
+                year: 1,
+                month: 1,
+                day: 1,
+            })),
             _ => Err("Cannot cast to date".to_string()),
         }
     }
@@ -630,17 +636,29 @@ impl Value {
                 // Parse time string in format "HH:MM:SS"
                 let parts: Vec<&str> = s.split(':').collect();
                 if parts.len() == 3 {
-                    match (parts[0].parse::<u32>(), parts[1].parse::<u32>(), parts[2].parse::<u32>()) {
-                        (Ok(hour), Ok(minute), Ok(sec)) => {
-                            Ok(Value::Time(TimeValue { hour, minute, sec, microsec: 0 }))
-                        },
+                    match (
+                        parts[0].parse::<u32>(),
+                        parts[1].parse::<u32>(),
+                        parts[2].parse::<u32>(),
+                    ) {
+                        (Ok(hour), Ok(minute), Ok(sec)) => Ok(Value::Time(TimeValue {
+                            hour,
+                            minute,
+                            sec,
+                            microsec: 0,
+                        })),
                         _ => Err("Invalid time format".to_string()),
                     }
                 } else {
                     Err("Time string must be in HH:MM:SS format".to_string())
                 }
-            },
-            Value::Empty => Ok(Value::Time(TimeValue { hour: 0, minute: 0, sec: 0, microsec: 0 })),
+            }
+            Value::Empty => Ok(Value::Time(TimeValue {
+                hour: 0,
+                minute: 0,
+                sec: 0,
+                microsec: 0,
+            })),
             _ => Err("Cannot cast to time".to_string()),
         }
     }
@@ -665,13 +683,19 @@ impl Value {
                             date_parts[2].parse::<u32>(),
                             time_parts[0].parse::<u32>(),
                             time_parts[1].parse::<u32>(),
-                            time_parts[2].parse::<u32>()
+                            time_parts[2].parse::<u32>(),
                         ) {
                             (Ok(year), Ok(month), Ok(day), Ok(hour), Ok(minute), Ok(sec)) => {
                                 Ok(Value::DateTime(DateTimeValue {
-                                    year, month, day, hour, minute, sec, microsec: 0
+                                    year,
+                                    month,
+                                    day,
+                                    hour,
+                                    minute,
+                                    sec,
+                                    microsec: 0,
                                 }))
-                            },
+                            }
                             _ => Err("Invalid datetime format".to_string()),
                         }
                     } else {
@@ -680,9 +704,15 @@ impl Value {
                 } else {
                     Err("Datetime string must be in YYYY-MM-DD HH:MM:SS format".to_string())
                 }
-            },
+            }
             Value::Empty => Ok(Value::DateTime(DateTimeValue {
-                year: 1, month: 1, day: 1, hour: 0, minute: 0, sec: 0, microsec: 0
+                year: 1,
+                month: 1,
+                day: 1,
+                hour: 0,
+                minute: 0,
+                sec: 0,
+                microsec: 0,
             })),
             _ => Err("Cannot cast to datetime".to_string()),
         }
@@ -815,6 +845,30 @@ impl Value {
             Value::Map(m) => Ok(Value::Int(m.len() as i64)),
             Value::Set(s) => Ok(Value::Int(s.len() as i64)),
             _ => Err("Cannot get length".to_string()),
+        }
+    }
+
+    /// 接受访问者进行访问
+    pub fn accept<V: crate::core::visitor::ValueVisitor>(&self, visitor: &mut V) -> V::Result {
+        match self {
+            Value::Bool(b) => visitor.visit_bool(*b),
+            Value::Int(i) => visitor.visit_int(*i),
+            Value::Float(f) => visitor.visit_float(*f),
+            Value::String(s) => visitor.visit_string(s),
+            Value::Date(d) => visitor.visit_date(d),
+            Value::Time(t) => visitor.visit_time(t),
+            Value::DateTime(dt) => visitor.visit_datetime(dt),
+            Value::Vertex(v) => visitor.visit_vertex(v),
+            Value::Edge(e) => visitor.visit_edge(e),
+            Value::Path(p) => visitor.visit_path(p),
+            Value::List(l) => visitor.visit_list(l),
+            Value::Map(m) => visitor.visit_map(m),
+            Value::Set(s) => visitor.visit_set(s),
+            Value::Geography(g) => visitor.visit_geography(g),
+            Value::Duration(d) => visitor.visit_duration(d),
+            Value::DataSet(ds) => visitor.visit_dataset(ds),
+            Value::Null(nt) => visitor.visit_null(nt),
+            Value::Empty => visitor.visit_empty(),
         }
     }
 }

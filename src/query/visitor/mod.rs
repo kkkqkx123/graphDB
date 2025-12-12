@@ -9,7 +9,7 @@ mod evaluable_expr_visitor;
 mod fold_constant_expr_visitor;
 mod find_visitor;
 
-pub use deduce_type_visitor::DeduceTypeVisitor;
+pub use deduce_type_visitor::{DeduceTypeVisitor, TypeDeductionError};
 pub use deduce_props_visitor::DeducePropsVisitor;
 pub use extract_filter_expr_visitor::ExtractFilterExprVisitor;
 pub use evaluable_expr_visitor::EvaluableExprVisitor;
