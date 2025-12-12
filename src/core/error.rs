@@ -1,63 +1,206 @@
-//! Error handling system for GraphDB
+//! 统一错误处理系统 for GraphDB
 //!
-//! This module provides error types similar to NebulaGraph's Status/StatusOr system
+//! 这个模块提供了统一的错误类型，整合了所有子系统的错误
 
 use std::fmt;
+use thiserror::Error;
 
-/// Represents various error codes similar to NebulaGraph's Status
+/// 统一的数据库错误类型
+#[derive(Error, Debug)]
+pub enum DBError {
+    #[error("存储错误: {0}")]
+    Storage(#[from] StorageError),
+    
+    #[error("查询错误: {0}")]
+    Query(#[from] QueryError),
+    
+    #[error("表达式错误: {0}")]
+    Expression(#[from] ExpressionError),
+    
+    #[error("计划节点访问错误: {0}")]
+    Plan(#[from] PlanNodeVisitError),
+    
+    #[error("验证错误: {0}")]
+    Validation(String),
+    
+    #[error("IO错误: {0}")]
+    Io(#[from] std::io::Error),
+    
+    #[error("类型推导错误: {0}")]
+    TypeDeduction(String),
+    
+    #[error("序列化错误: {0}")]
+    Serialization(String),
+    
+    #[error("内部错误: {0}")]
+    Internal(String),
+}
+
+/// 统一的结果类型
+pub type DBResult<T> = Result<T, DBError>;
+
+// 存储错误类型（从 storage/storage_error.rs 移动过来）
+#[derive(Error, Debug, Clone)]
+pub enum StorageError {
+    #[error("数据库错误: {0}")]
+    DbError(String),
+    #[error("序列化错误: {0}")]
+    SerializationError(String),
+    #[error("节点未找到: {0:?}")]
+    NodeNotFound(crate::core::Value),
+    #[error("边未找到: {0:?}")]
+    EdgeNotFound(crate::core::Value),
+    #[error("事务错误: {0}")]
+    TransactionError(String),
+}
+
+// 查询错误类型（从 query/mod.rs 移动过来）
+#[derive(Error, Debug, Clone)]
+pub enum QueryError {
+    #[error("解析错误: {0}")]
+    ParseError(String),
+    #[error("无效查询: {0}")]
+    InvalidQuery(String),
+    #[error("执行错误: {0}")]
+    ExecutionError(String),
+}
+
+// 表达式错误类型（从 graph/expression/error.rs 移动过来）
+#[derive(Error, Debug, Clone)]
+pub enum ExpressionError {
+    #[error("类型错误: {0}")]
+    TypeError(String),
+    #[error("属性未找到: {0}")]
+    PropertyNotFound(String),
+    #[error("函数错误: {0}")]
+    FunctionError(String),
+    #[error("无效操作: {0}")]
+    InvalidOperation(String),
+}
+
+// 计划节点访问错误类型（从 query/planner/plan/plan_node_visitor.rs 移动过来）
+#[derive(Error, Debug, Clone)]
+pub enum PlanNodeVisitError {
+    #[error("访问错误: {0}")]
+    VisitError(String),
+    #[error("遍历错误: {0}")]
+    TraversalError(String),
+    #[error("验证错误: {0}")]
+    ValidationError(String),
+}
+
+// 为现有错误类型实现转换
+impl From<crate::storage::StorageError> for DBError {
+    fn from(err: crate::storage::StorageError) -> Self {
+        match err {
+            crate::storage::StorageError::DbError(msg) => DBError::Storage(StorageError::DbError(msg)),
+            crate::storage::StorageError::SerializationError(msg) => DBError::Storage(StorageError::SerializationError(msg)),
+            crate::storage::StorageError::NodeNotFound(value) => DBError::Storage(StorageError::NodeNotFound(value)),
+            crate::storage::StorageError::EdgeNotFound(value) => DBError::Storage(StorageError::EdgeNotFound(value)),
+            crate::storage::StorageError::TransactionError(msg) => DBError::Storage(StorageError::TransactionError(msg)),
+        }
+    }
+}
+
+impl From<crate::query::QueryError> for DBError {
+    fn from(err: crate::query::QueryError) -> Self {
+        match err {
+            crate::query::QueryError::StorageError(storage_err) => DBError::Storage(StorageError::DbError(storage_err.to_string())),
+            crate::query::QueryError::ParseError(msg) => DBError::Query(QueryError::ParseError(msg)),
+            crate::query::QueryError::InvalidQuery(msg) => DBError::Query(QueryError::InvalidQuery(msg)),
+            crate::query::QueryError::ExecutionError(msg) => DBError::Query(QueryError::ExecutionError(msg)),
+            crate::query::QueryError::ExpressionError(msg) => DBError::Expression(ExpressionError::InvalidOperation(msg)),
+        }
+    }
+}
+
+impl From<crate::graph::expression::ExpressionError> for DBError {
+    fn from(err: crate::graph::expression::ExpressionError) -> Self {
+        match err {
+            crate::graph::expression::ExpressionError::TypeError(msg) => DBError::Expression(ExpressionError::TypeError(msg)),
+            crate::graph::expression::ExpressionError::PropertyNotFound(msg) => DBError::Expression(ExpressionError::PropertyNotFound(msg)),
+            crate::graph::expression::ExpressionError::FunctionError(msg) => DBError::Expression(ExpressionError::FunctionError(msg)),
+            crate::graph::expression::ExpressionError::InvalidOperation(msg) => DBError::Expression(ExpressionError::InvalidOperation(msg)),
+        }
+    }
+}
+
+impl From<crate::query::planner::plan::plan_node_visitor::PlanNodeVisitError> for DBError {
+    fn from(err: crate::query::planner::plan::plan_node_visitor::PlanNodeVisitError) -> Self {
+        match err {
+            crate::query::planner::plan::plan_node_visitor::PlanNodeVisitError::VisitError(msg) => DBError::Plan(PlanNodeVisitError::VisitError(msg)),
+            crate::query::planner::plan::plan_node_visitor::PlanNodeVisitError::TraversalError(msg) => DBError::Plan(PlanNodeVisitError::TraversalError(msg)),
+            crate::query::planner::plan::plan_node_visitor::PlanNodeVisitError::ValidationError(msg) => DBError::Plan(PlanNodeVisitError::ValidationError(msg)),
+        }
+    }
+}
+
+impl From<crate::query::visitor::deduce_type_visitor::TypeDeductionError> for DBError {
+    fn from(err: crate::query::visitor::deduce_type_visitor::TypeDeductionError) -> Self {
+        DBError::TypeDeduction(err.to_string())
+    }
+}
+
+impl From<serde_json::Error> for DBError {
+    fn from(err: serde_json::Error) -> Self {
+        DBError::Serialization(err.to_string())
+    }
+}
+
+// 为了向后兼容，保留旧的 Status 类型
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Status {
-    /// Operation was successful
+    /// 操作成功
     Ok,
-    /// Value was inserted
+    /// 值已插入
     Inserted,
-    /// General error with message
+    /// 一般错误
     Error(String),
-    /// File not found
+    /// 文件未找到
     NoSuchFile(String),
-    /// Feature not supported
+    /// 不支持的功能
     NotSupported(String),
-    /// Syntax error in query
+    /// 查询语法错误
     SyntaxError(String),
-    /// Semantic error in query
+    /// 查询语义错误
     SemanticError(String),
-    /// Graph memory exceeded
+    /// 图内存超出
     GraphMemoryExceeded,
-    /// No statement to execute
+    /// 没有语句可执行
     StatementEmpty,
-    /// Key not found in storage
+    /// 存储中未找到键
     KeyNotFound,
-    /// Partial success in operation
+    /// 部分成功
     PartialSuccess,
-    /// Storage memory exceeded
+    /// 存储内存超出
     StorageMemoryExceeded,
-    /// Space not found
+    /// 空间未找到
     SpaceNotFound,
-    /// Host not found
+    /// 主机未找到
     HostNotFound,
-    /// Tag not found
+    /// 标签未找到
     TagNotFound,
-    /// Edge not found
+    /// 边未找到
     EdgeNotFound,
-    /// User not found
+    /// 用户未找到
     UserNotFound,
-    /// Index not found
+    /// 索引未找到
     IndexNotFound,
-    /// Group not found
+    /// 组未找到
     GroupNotFound,
-    /// Zone not found
+    /// 区域未找到
     ZoneNotFound,
-    /// Leader changed
+    /// 领导者已更改
     LeaderChanged,
-    /// Balanced
+    /// 已平衡
     Balanced,
-    /// Part not found
+    /// 分区未找到
     PartNotFound,
-    /// Listener not found
+    /// 监听器未找到
     ListenerNotFound,
-    /// Session not found
+    /// 会话未找到
     SessionNotFound,
-    /// Permission error
+    /// 权限错误
     PermissionError,
 }
 
@@ -96,84 +239,44 @@ impl fmt::Display for Status {
 
 impl std::error::Error for Status {}
 
-impl Status {
-    /// Create an OK status
-    pub fn ok() -> Self {
-        Status::Ok
-    }
-
-    /// Check if the status is OK
-    pub fn is_ok(&self) -> bool {
-        matches!(self, Status::Ok)
-    }
-
-    /// Create an error status
-    pub fn error(msg: impl Into<String>) -> Self {
-        Status::Error(msg.into())
-    }
-
-    /// Create a syntax error status
-    pub fn syntax_error(msg: impl Into<String>) -> Self {
-        Status::SyntaxError(msg.into())
-    }
-
-    /// Create a semantic error status
-    pub fn semantic_error(msg: impl Into<String>) -> Self {
-        Status::SemanticError(msg.into())
-    }
-
-    /// Create a not supported status
-    pub fn not_supported(feature: impl Into<String>) -> Self {
-        Status::NotSupported(feature.into())
-    }
-
-    /// Create a key not found status
-    pub fn key_not_found() -> Self {
-        Status::KeyNotFound
-    }
-
-    /// Get the error message if this is an error status
-    pub fn message(&self) -> String {
-        format!("{}", self)
+impl From<Status> for DBError {
+    fn from(status: Status) -> Self {
+        match status {
+            Status::Error(msg) => DBError::Internal(msg),
+            Status::SyntaxError(msg) => DBError::Query(QueryError::ParseError(msg)),
+            Status::SemanticError(msg) => DBError::Query(QueryError::InvalidQuery(msg)),
+            Status::KeyNotFound => DBError::Storage(StorageError::NodeNotFound(crate::core::Value::Null(crate::core::NullType::Null))),
+            _ => DBError::Internal(format!("Status error: {}", status)),
+        }
     }
 }
 
-/// Type alias for a result that contains either a value or a Status
+/// 类型别名，用于向后兼容
 pub type StatusOr<T> = Result<T, Status>;
-
-/// Legacy type alias for compatibility
-pub type GraphDBResult<T> = StatusOr<T>;
+pub type GraphDBResult<T> = DBResult<T>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_status_creation() {
-        let ok_status = Status::ok();
-        assert!(ok_status.is_ok());
-
-        let error_status = Status::error("Something went wrong");
-        assert_eq!(format!("{}", error_status), "Error: Something went wrong");
-
-        let syntax_error = Status::syntax_error("Invalid syntax");
-        assert_eq!(format!("{}", syntax_error), "Syntax error: Invalid syntax");
+    fn test_dberror_creation() {
+        let storage_err = StorageError::NodeNotFound(crate::core::Value::Int(42));
+        let db_err: DBError = storage_err.into();
+        assert!(matches!(db_err, DBError::Storage(_)));
     }
 
     #[test]
-    fn test_statusor_usage() {
-        let success: StatusOr<i32> = Ok(42);
-        let error: StatusOr<i32> = Err(Status::KeyNotFound);
+    fn test_error_conversion() {
+        let query_err = QueryError::ParseError("test error".to_string());
+        let db_err: DBError = query_err.into();
+        assert!(matches!(db_err, DBError::Query(_)));
+    }
 
-        assert!(success.is_ok());
-        assert!(error.is_err());
-
-        if let Ok(value) = success {
-            assert_eq!(value, 42);
-        }
-
-        if let Err(status) = error {
-            assert_eq!(status, Status::KeyNotFound);
-        }
+    #[test]
+    fn test_status_to_dberror() {
+        let status = Status::SyntaxError("test syntax error".to_string());
+        let db_err: DBError = status.into();
+        assert!(matches!(db_err, DBError::Query(_)));
     }
 }

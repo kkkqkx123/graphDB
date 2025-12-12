@@ -81,6 +81,26 @@ impl Vertex {
         self.tags.push(tag);
     }
 
+    /// Get vertex ID
+    pub fn id(&self) -> &Value {
+        &self.vid
+    }
+
+    /// Get all tags
+    pub fn tags(&self) -> &[Tag] {
+        &self.tags
+    }
+
+    /// Check if vertex has a specific tag
+    pub fn has_tag(&self, tag_name: &str) -> bool {
+        self.tags.iter().any(|tag| tag.name == tag_name)
+    }
+
+    /// Get a specific tag by name
+    pub fn get_tag(&self, tag_name: &str) -> Option<&Tag> {
+        self.tags.iter().find(|tag| tag.name == tag_name)
+    }
+
     /// Get property value by tag name and property name
     pub fn get_property(&self, tag_name: &str, prop_name: &str) -> Option<&Value> {
         for tag in &self.tags {
@@ -89,6 +109,61 @@ impl Vertex {
             }
         }
         None
+    }
+
+    /// Get property value from any tag (searches all tags)
+    pub fn get_property_any(&self, prop_name: &str) -> Option<&Value> {
+        for tag in &self.tags {
+            if let Some(value) = tag.properties.get(prop_name) {
+                return Some(value);
+            }
+        }
+        // Also check vertex-level properties
+        self.properties.get(prop_name)
+    }
+
+    /// Get all properties from all tags and vertex-level properties
+    pub fn get_all_properties(&self) -> HashMap<String, &Value> {
+        let mut all_props = HashMap::new();
+        
+        // Add vertex-level properties
+        for (name, value) in &self.properties {
+            all_props.insert(name.clone(), value);
+        }
+        
+        // Add tag properties (later tags override earlier ones)
+        for tag in &self.tags {
+            for (name, value) in &tag.properties {
+                all_props.insert(name.clone(), value);
+            }
+        }
+        
+        all_props
+    }
+
+    /// Get vertex-level properties
+    pub fn vertex_properties(&self) -> &HashMap<String, Value> {
+        &self.properties
+    }
+
+    /// Set a vertex-level property
+    pub fn set_vertex_property(&mut self, name: String, value: Value) {
+        self.properties.insert(name, value);
+    }
+
+    /// Remove a vertex-level property
+    pub fn remove_vertex_property(&mut self, name: &str) -> Option<Value> {
+        self.properties.remove(name)
+    }
+
+    /// Get the number of tags
+    pub fn tag_count(&self) -> usize {
+        self.tags.len()
+    }
+
+    /// Check if vertex has any properties
+    pub fn has_properties(&self) -> bool {
+        !self.properties.is_empty() || self.tags.iter().any(|tag| !tag.properties.is_empty())
     }
 }
 
@@ -117,6 +192,85 @@ impl Edge {
     /// 获取边的属性
     pub fn properties(&self) -> &HashMap<String, Value> {
         &self.props
+    }
+
+    /// Get source vertex ID
+    pub fn src(&self) -> &Value {
+        &self.src
+    }
+
+    /// Get destination vertex ID
+    pub fn dst(&self) -> &Value {
+        &self.dst
+    }
+
+    /// Get edge type name
+    pub fn edge_type(&self) -> &str {
+        &self.edge_type
+    }
+
+    /// Get edge ranking
+    pub fn ranking(&self) -> i64 {
+        self.ranking
+    }
+
+    /// Get all edge properties
+    pub fn get_all_properties(&self) -> &HashMap<String, Value> {
+        &self.props
+    }
+
+    /// Get a specific property by name
+    pub fn get_property(&self, name: &str) -> Option<&Value> {
+        self.props.get(name)
+    }
+
+    /// Set a property value
+    pub fn set_property(&mut self, name: String, value: Value) {
+        self.props.insert(name, value);
+    }
+
+    /// Remove a property
+    pub fn remove_property(&mut self, name: &str) -> Option<Value> {
+        self.props.remove(name)
+    }
+
+    /// Check if edge has a specific property
+    pub fn has_property(&self, name: &str) -> bool {
+        self.props.contains_key(name)
+    }
+
+    /// Get the number of properties
+    pub fn property_count(&self) -> usize {
+        self.props.len()
+    }
+
+    /// Check if edge has any properties
+    pub fn has_properties(&self) -> bool {
+        !self.props.is_empty()
+    }
+
+    /// Create a new edge with empty properties
+    pub fn new_empty(
+        src: Value,
+        dst: Value,
+        edge_type: String,
+        ranking: i64,
+    ) -> Self {
+        Self {
+            src: Box::new(src),
+            dst: Box::new(dst),
+            edge_type,
+            ranking,
+            props: HashMap::new(),
+        }
+    }
+
+    /// Get a string representation of the edge for debugging
+    pub fn debug_string(&self) -> String {
+        format!(
+            "Edge({:?} -> {:?}, type: {}, ranking: {})",
+            self.src, self.dst, self.edge_type, self.ranking
+        )
     }
 }
 

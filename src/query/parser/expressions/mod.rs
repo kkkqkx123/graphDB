@@ -47,3 +47,9 @@ pub trait ExpressionParser: TokenParser {
 
     fn parse_identifier(&mut self) -> Result<String, ParseError>;
 }
+
+// 包含表达式转换器
+pub mod expression_converter;
+
+// 重新导出表达式转换器的公共函数
+pub use expression_converter::{convert_ast_to_graph_expression, parse_expression_from_string};

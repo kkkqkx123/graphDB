@@ -6,4 +6,4 @@ mod index_scan;
 
 // 重新导出算法节点类型
 pub use path_algorithms::{ShortestPath, BFSShortest, AllPaths, MultiShortestPath};
-pub use index_scan::{IndexScan, FulltextIndexScan};
+pub use index_scan::{IndexScan, FulltextIndexScan, IndexLimit};
