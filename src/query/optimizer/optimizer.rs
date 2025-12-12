@@ -240,6 +240,10 @@ impl PlanNode for DummyPlanNode {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl Default for OptGroupNode {
@@ -496,29 +500,41 @@ impl Optimizer {
     // Create a default optimizer with commonly used rule sets
     pub fn default() -> Self {
         let mut logical_rules = RuleSet::new("logical");
+        // 谓词下推规则
         logical_rules.add_rule(Box::new(super::FilterPushDownRule));
-        logical_rules.add_rule(Box::new(super::DedupEliminationRule));
-        logical_rules.add_rule(Box::new(super::ProjectionPushDownRule));
         logical_rules.add_rule(Box::new(super::PredicatePushDownRule));
+        logical_rules.add_rule(Box::new(super::PushFilterDownTraverseRule));
+        logical_rules.add_rule(Box::new(super::PushFilterDownExpandRule));
+        logical_rules.add_rule(Box::new(super::PushFilterDownInnerJoinRule));
+        logical_rules.add_rule(Box::new(super::PushFilterDownHashInnerJoinRule));
+        logical_rules.add_rule(Box::new(super::PushFilterDownHashLeftJoinRule));
+        
+        // 投影下推规则
+        logical_rules.add_rule(Box::new(super::ProjectionPushDownRule));
+        logical_rules.add_rule(Box::new(super::PushProjectDownRule));
+        
+        // 操作合并规则
         logical_rules.add_rule(Box::new(super::CombineFilterRule));
-        logical_rules.add_rule(Box::new(super::EliminateFilterRule));
         logical_rules.add_rule(Box::new(super::CollapseProjectRule));
+        logical_rules.add_rule(Box::new(super::MergeGetVerticesAndProjectRule));
+        logical_rules.add_rule(Box::new(super::MergeGetVerticesAndDedupRule));
+        logical_rules.add_rule(Box::new(super::MergeGetNbrsAndDedupRule));
+        logical_rules.add_rule(Box::new(super::MergeGetNbrsAndProjectRule));
+        
+        // 消除规则
+        logical_rules.add_rule(Box::new(super::DedupEliminationRule));
+        logical_rules.add_rule(Box::new(super::EliminateFilterRule));
+        logical_rules.add_rule(Box::new(super::RemoveNoopProjectRule));
+        logical_rules.add_rule(Box::new(super::EliminateAppendVerticesRule));
+        logical_rules.add_rule(Box::new(super::RemoveAppendVerticesBelowJoinRule));
+        logical_rules.add_rule(Box::new(super::TopNRule));
 
         let mut physical_rules = RuleSet::new("physical");
+        // 连接优化规则
         physical_rules.add_rule(Box::new(super::JoinOptimizationRule));
-        physical_rules.add_rule(Box::new(super::LimitOptimizationRule));
-        physical_rules.add_rule(Box::new(super::PushFilterDownTraverseRule));
+        
+        // LIMIT下推规则
         physical_rules.add_rule(Box::new(super::PushLimitDownRule));
-        physical_rules.add_rule(Box::new(super::IndexScanRule));
-        physical_rules.add_rule(Box::new(super::EdgeIndexFullScanRule));
-        physical_rules.add_rule(Box::new(super::TagIndexFullScanRule));
-        physical_rules.add_rule(Box::new(super::PushFilterDownInnerJoinRule));
-        physical_rules.add_rule(Box::new(super::PushFilterDownHashInnerJoinRule));
-        physical_rules.add_rule(Box::new(super::PushFilterDownHashLeftJoinRule));
-        physical_rules.add_rule(Box::new(super::MergeGetVerticesAndDedupRule));
-        physical_rules.add_rule(Box::new(super::MergeGetVerticesAndProjectRule));
-        physical_rules.add_rule(Box::new(super::MergeGetNbrsAndDedupRule));
-        physical_rules.add_rule(Box::new(super::MergeGetNbrsAndProjectRule));
         physical_rules.add_rule(Box::new(super::PushLimitDownGetVerticesRule));
         physical_rules.add_rule(Box::new(super::PushLimitDownGetNeighborsRule));
         physical_rules.add_rule(Box::new(super::PushLimitDownGetEdgesRule));
@@ -526,14 +542,20 @@ impl Optimizer {
         physical_rules.add_rule(Box::new(super::PushLimitDownScanEdgesRule));
         physical_rules.add_rule(Box::new(super::PushLimitDownIndexScanRule));
         physical_rules.add_rule(Box::new(super::PushLimitDownProjectRule));
-        // Adding new rules that were moved to appropriate modules
+        // 注释掉使用不存在的 AllPaths 和 ExpandAll 类型的规则
+        // physical_rules.add_rule(Box::new(super::PushLimitDownAllPathsRule));
+        // physical_rules.add_rule(Box::new(super::PushLimitDownExpandAllRule));
+        
+        // 扫描优化规则
         physical_rules.add_rule(Box::new(super::ScanWithFilterOptimizationRule));
-        physical_rules.add_rule(Box::new(super::PushFilterDownExpandRule));
-        physical_rules.add_rule(Box::new(super::EliminateAppendVerticesRule));
-        physical_rules.add_rule(Box::new(super::MergeGetVerticesAndProjectRule));
-        physical_rules.add_rule(Box::new(super::PushProjectDownRule));
         physical_rules.add_rule(Box::new(super::IndexFullScanRule));
-        physical_rules.add_rule(Box::new(super::TopNRule));
+        
+        // 索引优化规则
+        physical_rules.add_rule(Box::new(super::IndexScanRule));
+        physical_rules.add_rule(Box::new(super::EdgeIndexFullScanRule));
+        physical_rules.add_rule(Box::new(super::TagIndexFullScanRule));
+        physical_rules.add_rule(Box::new(super::UnionAllEdgeIndexScanRule));
+        physical_rules.add_rule(Box::new(super::UnionAllTagIndexScanRule));
         physical_rules.add_rule(Box::new(super::OptimizeEdgeIndexScanByFilterRule));
         physical_rules.add_rule(Box::new(super::OptimizeTagIndexScanByFilterRule));
 
