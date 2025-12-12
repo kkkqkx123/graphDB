@@ -106,6 +106,10 @@ impl BasePlanNode for DeleteVertices {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 删除边计划节点
@@ -214,6 +218,10 @@ impl BasePlanNode for DeleteEdges {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 删除标签计划节点
@@ -313,5 +321,9 @@ impl BasePlanNode for DeleteTags {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

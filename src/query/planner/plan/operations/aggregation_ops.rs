@@ -96,4 +96,8 @@ impl BasePlanNode for Aggregate {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }

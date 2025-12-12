@@ -109,6 +109,10 @@ impl BasePlanNode for CreateIndex {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 删除索引计划节点
@@ -204,6 +208,10 @@ impl BasePlanNode for DropIndex {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 显示索引计划节点
@@ -296,6 +304,10 @@ impl BasePlanNode for ShowIndexes {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 描述索引计划节点
@@ -387,5 +399,9 @@ impl BasePlanNode for DescIndex {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

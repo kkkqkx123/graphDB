@@ -110,6 +110,10 @@ impl BasePlanNode for InsertVertices {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 插入边计划节点
@@ -217,5 +221,9 @@ impl BasePlanNode for InsertEdges {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

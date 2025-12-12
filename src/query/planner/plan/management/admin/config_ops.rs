@@ -115,6 +115,10 @@ impl BasePlanNode for ShowConfigs {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 设置配置计划节点
@@ -213,6 +217,10 @@ impl BasePlanNode for SetConfig {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 获取配置计划节点
@@ -307,5 +315,9 @@ impl BasePlanNode for GetConfig {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

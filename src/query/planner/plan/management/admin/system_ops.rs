@@ -121,6 +121,10 @@ impl BasePlanNode for SubmitJob {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 创建快照计划节点
@@ -224,6 +228,10 @@ impl BasePlanNode for CreateSnapshot {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 删除快照计划节点
@@ -320,6 +328,10 @@ impl BasePlanNode for DropSnapshot {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 显示快照计划节点
@@ -412,5 +424,9 @@ impl BasePlanNode for ShowSnapshots {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

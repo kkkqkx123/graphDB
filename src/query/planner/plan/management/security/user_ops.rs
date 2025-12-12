@@ -100,6 +100,10 @@ impl BasePlanNode for CreateUser {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 删除用户计划节点
@@ -195,6 +199,10 @@ impl BasePlanNode for DropUser {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 修改用户密码计划节点
@@ -289,5 +297,9 @@ impl BasePlanNode for UpdateUser {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

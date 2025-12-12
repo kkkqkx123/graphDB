@@ -100,6 +100,10 @@ impl BasePlanNode for NewVertex {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 创建新标签计划节点
@@ -195,6 +199,10 @@ impl BasePlanNode for NewTag {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -292,6 +300,10 @@ impl BasePlanNode for NewProp {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 创建新边计划节点
@@ -387,5 +399,9 @@ impl BasePlanNode for NewEdge {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

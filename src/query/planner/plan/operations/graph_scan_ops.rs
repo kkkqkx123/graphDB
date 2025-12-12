@@ -110,6 +110,10 @@ impl BasePlanNode for GetVertices {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 获取边的计划节点
@@ -224,6 +228,10 @@ impl BasePlanNode for GetEdges {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 获取邻居节点
@@ -335,6 +343,10 @@ impl BasePlanNode for GetNeighbors {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 扫描顶点节点
@@ -433,6 +445,10 @@ impl BasePlanNode for ScanVertices {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -538,5 +554,9 @@ impl BasePlanNode for ScanEdges {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

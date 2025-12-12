@@ -95,6 +95,10 @@ impl BasePlanNode for Project {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 过滤计划节点
@@ -193,7 +197,6 @@ impl BasePlanNode for Filter {
         self
     }
 }
-}
 
 // Unwind节点
 #[derive(Debug)]
@@ -288,6 +291,10 @@ impl BasePlanNode for Unwind {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -385,6 +392,10 @@ impl BasePlanNode for RollUpApply {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // PatternApply节点
@@ -480,5 +491,9 @@ impl BasePlanNode for PatternApply {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

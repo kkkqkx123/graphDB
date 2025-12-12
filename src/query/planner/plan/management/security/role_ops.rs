@@ -111,6 +111,10 @@ impl BasePlanNode for CreateRole {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 删除角色计划节点
@@ -205,6 +209,10 @@ impl BasePlanNode for DropRole {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -304,6 +312,10 @@ impl BasePlanNode for GrantRole {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 撤销角色计划节点
@@ -402,6 +414,10 @@ impl BasePlanNode for RevokeRole {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 显示用户角色计划节点
@@ -497,5 +513,9 @@ impl BasePlanNode for ShowRoles {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

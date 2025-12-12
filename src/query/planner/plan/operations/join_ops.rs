@@ -92,6 +92,10 @@ impl BasePlanNode for HashJoin {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 哈希左连接节点
@@ -181,6 +185,10 @@ impl BasePlanNode for HashLeftJoin {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -272,6 +280,10 @@ impl BasePlanNode for HashInnerJoin {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 交叉连接节点
@@ -361,5 +373,9 @@ impl BasePlanNode for CrossJoin {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

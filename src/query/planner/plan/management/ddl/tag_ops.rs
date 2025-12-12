@@ -101,6 +101,10 @@ impl BasePlanNode for CreateTag {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 描述标签计划节点
@@ -192,5 +196,9 @@ impl BasePlanNode for DescTag {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

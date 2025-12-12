@@ -257,6 +257,10 @@ impl PlanNode for SingleInputNode {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 二元输入节点 - 具有两个依赖的计划节点
@@ -359,6 +363,10 @@ impl PlanNode for BinaryInputNode {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -466,5 +474,9 @@ impl PlanNode for VariableDependencyNode {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

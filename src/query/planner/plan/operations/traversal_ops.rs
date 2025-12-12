@@ -105,6 +105,10 @@ impl BasePlanNode for Expand {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 扩展全部节点
@@ -213,6 +217,10 @@ impl BasePlanNode for ExpandAll {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 遍历节点
@@ -318,6 +326,10 @@ impl BasePlanNode for Traverse {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 追加顶点节点
@@ -416,6 +428,10 @@ impl BasePlanNode for AppendVertices {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -521,5 +537,9 @@ impl BasePlanNode for ScanEdges {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

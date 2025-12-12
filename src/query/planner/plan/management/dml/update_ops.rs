@@ -114,6 +114,10 @@ impl BasePlanNode for UpdateVertex {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 更新边计划节点
@@ -225,5 +229,9 @@ impl BasePlanNode for UpdateEdge {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

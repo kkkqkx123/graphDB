@@ -105,6 +105,10 @@ impl BasePlanNode for AddHosts {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 删除主机计划节点
@@ -197,6 +201,10 @@ impl BasePlanNode for DropHosts {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 显示主机计划节点
@@ -286,6 +294,10 @@ impl BasePlanNode for ShowHosts {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 显示主机状态计划节点
@@ -374,5 +386,9 @@ impl BasePlanNode for ShowHostsStatus {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

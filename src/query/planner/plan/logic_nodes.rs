@@ -93,6 +93,10 @@ impl BasePlanNode for StartNode {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 二元选择节点 - 用于Select和Loop节点的基础
@@ -184,6 +188,10 @@ impl BasePlanNode for BinarySelectNode {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -299,6 +307,10 @@ impl BasePlanNode for SelectNode {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Loop节点 - 在运行时多次执行分支
@@ -402,6 +414,10 @@ impl BasePlanNode for LoopNode {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// PassThrough节点 - 用于透传情况的节点
@@ -490,6 +506,10 @@ impl BasePlanNode for PassThroughNode {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -597,5 +617,9 @@ impl BasePlanNode for ArgumentNode {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

@@ -136,6 +136,10 @@ impl BasePlanNode for MultiShortestPath {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// BFS最短路径计划节点
@@ -244,6 +248,10 @@ impl BasePlanNode for BFSShortest {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -373,6 +381,10 @@ impl BasePlanNode for AllPaths {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 最短路径计划节点
@@ -491,5 +503,9 @@ impl BasePlanNode for ShortestPath {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
