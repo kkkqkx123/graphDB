@@ -107,7 +107,19 @@ impl super::Parser {
 
         // Parse SET clause
         self.expect_token(TokenKind::Set)?;
-        let properties = self.parse_property_list()?;
+
+        // Properties can be in two forms: SET prop = value or SET {prop: value}
+        let properties = if self.current_token.kind == TokenKind::LBrace {
+            // Handle SET {prop: value} form
+            let map = self.parse_property_map()?;
+            // Convert HashMap to Vec<Property>
+            map.into_iter()
+                .map(|(name, value)| Property { name, value })
+                .collect()
+        } else {
+            // Handle SET prop = value form
+            self.parse_property_list()?
+        };
 
         // Optionally parse YIELD clause
         let yield_clause = if self.current_token.kind == TokenKind::Yield {

@@ -11,6 +11,8 @@ pub struct Parser {
     pub lexer: Lexer,
     pub current_token: Token,
     pub errors: ParseErrors,
+    recursion_depth: usize,
+    max_recursion_depth: usize,
 }
 
 impl Parser {
@@ -22,6 +24,8 @@ impl Parser {
             lexer,
             current_token,
             errors: ParseErrors::new(),
+            recursion_depth: 0,
+            max_recursion_depth: 100,  // 设置合理的递归深度限制
         }
     }
 
@@ -57,6 +61,25 @@ impl Parser {
 
     pub fn is_at_end(&self) -> bool {
         matches!(self.current_token.kind, TokenKind::Eof)
+    }
+
+    pub fn enter_recursion(&mut self) -> Result<(), ParseError> {
+        self.recursion_depth += 1;
+        if self.recursion_depth > self.max_recursion_depth {
+            Err(ParseError::syntax_error(
+                "Recursion limit exceeded".to_string(),
+                self.current_token.line,
+                self.current_token.column,
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn exit_recursion(&mut self) {
+        if self.recursion_depth > 0 {
+            self.recursion_depth -= 1;
+        }
     }
 
     pub fn parse_identifier(&mut self) -> Result<String, ParseError> {

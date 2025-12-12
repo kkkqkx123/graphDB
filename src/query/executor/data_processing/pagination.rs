@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
 
-use crate::core::{Value, DataSet};
-use crate::query::executor::base::{Executor, ExecutionResult, BaseExecutor};
+use crate::core::{DataSet, Value};
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -18,12 +18,7 @@ pub struct LimitExecutor<S: StorageEngine + Send + 'static> {
 }
 
 impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        limit: Option<usize>,
-        offset: usize,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>, limit: Option<usize>, offset: usize) -> Self {
         Self {
             base: BaseExecutor::new(id, "LimitExecutor".to_string(), storage),
             limit,
@@ -33,20 +28,12 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
     }
 
     /// 仅设置LIMIT
-    pub fn with_limit(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        limit: usize,
-    ) -> Self {
+    pub fn with_limit(id: usize, storage: Arc<Mutex<S>>, limit: usize) -> Self {
         Self::new(id, storage, Some(limit), 0)
     }
 
     /// 仅设置OFFSET
-    pub fn with_offset(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        offset: usize,
-    ) -> Self {
+    pub fn with_offset(id: usize, storage: Arc<Mutex<S>>, offset: usize) -> Self {
         Self::new(id, storage, None, offset)
     }
 
@@ -54,7 +41,7 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
     async fn process_input(&mut self) -> Result<DataSet, QueryError> {
         if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute().await?;
-            
+
             match input_result {
                 ExecutionResult::DataSet(mut data_set) => {
                     // 应用偏移量
@@ -65,12 +52,12 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
                             data_set.rows.clear();
                         }
                     }
-                    
+
                     // 应用限制
                     if let Some(limit) = self.limit {
                         data_set.rows.truncate(limit);
                     }
-                    
+
                     Ok(data_set)
                 }
                 ExecutionResult::Values(mut values) => {
@@ -82,11 +69,11 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
                             values.clear();
                         }
                     }
-                    
+
                     if let Some(limit) = self.limit {
                         values.truncate(limit);
                     }
-                    
+
                     Ok(DataSet {
                         col_names: vec!["_value".to_string()], // 单列数据
                         rows: values.into_iter().map(|v| vec![v]).collect(),
@@ -101,16 +88,17 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
                             vertices.clear();
                         }
                     }
-                    
+
                     if let Some(limit) = self.limit {
                         vertices.truncate(limit);
                     }
-                    
+
                     // 将顶点转换为数据集
-                    let rows: Vec<Vec<Value>> = vertices.into_iter()
+                    let rows: Vec<Vec<Value>> = vertices
+                        .into_iter()
                         .map(|v| vec![Value::Vertex(Box::new(v))])
                         .collect();
-                    
+
                     Ok(DataSet {
                         col_names: vec!["_vertex".to_string()],
                         rows,
@@ -125,25 +113,28 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
                             edges.clear();
                         }
                     }
-                    
+
                     if let Some(limit) = self.limit {
                         edges.truncate(limit);
                     }
-                    
+
                     // 将边转换为数据集
-                    let rows: Vec<Vec<Value>> = edges.into_iter()
-                        .map(|e| vec![Value::Edge(e)])
-                        .collect();
-                    
+                    let rows: Vec<Vec<Value>> =
+                        edges.into_iter().map(|e| vec![Value::Edge(e)]).collect();
+
                     Ok(DataSet {
                         col_names: vec!["_edge".to_string()],
                         rows,
                     })
                 }
-                _ => Err(QueryError::ExecutionError("Limit executor expects DataSet, Values, Vertices, or Edges input".to_string())),
+                _ => Err(QueryError::ExecutionError(
+                    "Limit executor expects DataSet, Values, Vertices, or Edges input".to_string(),
+                )),
             }
         } else {
-            Err(QueryError::ExecutionError("Limit executor requires input executor".to_string()))
+            Err(QueryError::ExecutionError(
+                "Limit executor requires input executor".to_string(),
+            ))
         }
     }
 }
@@ -178,7 +169,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LimitExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::base::InputExecutor<S> for LimitExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::base::InputExecutor<S>
+    for LimitExecutor<S>
+{
     fn set_input(&mut self, input: Box<dyn Executor<S>>) {
         self.input_executor = Some(input);
     }

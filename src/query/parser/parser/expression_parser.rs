@@ -11,39 +11,42 @@ use crate::core::Value;
 impl super::Parser {
     /// 解析表达式
     pub fn parse_expression(&mut self) -> Result<Expression, ParseError> {
-        self.parse_logical_or()
+        self.enter_recursion()?;
+        let result = self.parse_logical_or();
+        self.exit_recursion();
+        result
     }
 
     /// 解析逻辑或表达式
     fn parse_logical_or(&mut self) -> Result<Expression, ParseError> {
+        self.enter_recursion()?;
         let mut expr = self.parse_logical_and()?;
-
         while self.current_token.kind == TokenKind::Or {
             self.next_token();
             let right = self.parse_logical_and()?;
             expr = Expression::Logical(Box::new(expr), LogicalOp::Or, Box::new(right));
         }
-
+        self.exit_recursion();
         Ok(expr)
     }
 
     /// 解析逻辑与表达式
     fn parse_logical_and(&mut self) -> Result<Expression, ParseError> {
+        self.enter_recursion()?;
         let mut expr = self.parse_equality()?;
-
         while self.current_token.kind == TokenKind::And {
             self.next_token();
             let right = self.parse_equality()?;
             expr = Expression::Logical(Box::new(expr), LogicalOp::And, Box::new(right));
         }
-
+        self.exit_recursion();
         Ok(expr)
     }
 
     /// 解析相等性表达式
     fn parse_equality(&mut self) -> Result<Expression, ParseError> {
+        self.enter_recursion()?;
         let mut expr = self.parse_comparison()?;
-
         loop {
             let op = match self.current_token.kind {
                 TokenKind::Eq => { self.next_token(); RelationalOp::Eq },
@@ -54,7 +57,7 @@ impl super::Parser {
             let right = self.parse_comparison()?;
             expr = Expression::Relational(Box::new(expr), op, Box::new(right));
         }
-
+        self.exit_recursion();
         Ok(expr)
     }
 
@@ -144,14 +147,24 @@ impl super::Parser {
     fn parse_exponentiation(&mut self) -> Result<Expression, ParseError> {
         let mut expr = self.parse_unary()?;
 
-        // 指数运算是右结合的，所以需要特殊处理
+        // 指数运算是右结合的，使用迭代方法处理，避免递归导致栈溢出
         if self.current_token.kind == TokenKind::Exp {
-            self.next_token();
-            let right = self.parse_exponentiation()?; // 递归解析右侧（右结合）
-            Ok(Expression::Arithmetic(Box::new(expr), ArithmeticOp::Exp, Box::new(right)))
-        } else {
-            Ok(expr)
+            // 收集所有连续的指数操作
+            let mut right_operands = Vec::new();
+
+            while self.current_token.kind == TokenKind::Exp {
+                self.next_token(); // consume '^'
+                right_operands.push(self.parse_unary()?);
+            }
+
+            // 从最右边开始构建表达式树（右结合性）
+            // 例如 a^b^c 应该被解释为 a^(b^c)，而不是 (a^b)^c
+            for operand in right_operands.into_iter().rev() {
+                expr = Expression::Arithmetic(Box::new(expr), ArithmeticOp::Exp, Box::new(operand));
+            }
         }
+
+        Ok(expr)
     }
 
     /// 解析基本表达式

@@ -1,12 +1,11 @@
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use async_trait::async_trait;
 
-use crate::core::{Value, DataSet};
-use crate::query::executor::base::{Executor, ExecutionResult};
+use crate::core::{DataSet, Value};
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::data_processing::join::{
-    base_join::BaseJoinExecutor,
-    hash_table::JoinKey,
+    base_join::BaseJoinExecutor, hash_table::JoinKey,
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -28,30 +27,64 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
         output_columns: Vec<String>,
     ) -> Self {
         Self {
-            base: BaseJoinExecutor::new(id, storage, left_var, right_var, left_keys, right_keys, output_columns),
+            base: BaseJoinExecutor::new(
+                id,
+                storage,
+                left_var,
+                right_var,
+                left_keys,
+                right_keys,
+                output_columns,
+            ),
         }
     }
 
     /// 执行右外连接
     async fn execute_right_join(&mut self) -> Result<ExecutionResult, QueryError> {
         // 获取左右输入结果
-        let left_result = self.base.base.context.get_result(self.base.left_var())
-            .ok_or_else(|| QueryError::ExecutionError(format!("Left input variable '{}' not found", self.base.left_var())))?
+        let left_result = self
+            .base
+            .base
+            .context
+            .get_result(self.base.left_var())
+            .ok_or_else(|| {
+                QueryError::ExecutionError(format!(
+                    "Left input variable '{}' not found",
+                    self.base.left_var()
+                ))
+            })?
             .clone();
 
-        let right_result = self.base.base.context.get_result(self.base.right_var())
-            .ok_or_else(|| QueryError::ExecutionError(format!("Right input variable '{}' not found", self.base.right_var())))?
+        let right_result = self
+            .base
+            .base
+            .context
+            .get_result(self.base.right_var())
+            .ok_or_else(|| {
+                QueryError::ExecutionError(format!(
+                    "Right input variable '{}' not found",
+                    self.base.right_var()
+                ))
+            })?
             .clone();
 
         // 转换为数据集
         let left_dataset = match left_result {
             ExecutionResult::DataSet(ds) => ds,
-            _ => return Err(QueryError::ExecutionError("Left input must be a DataSet".to_string())),
+            _ => {
+                return Err(QueryError::ExecutionError(
+                    "Left input must be a DataSet".to_string(),
+                ))
+            }
         };
 
         let right_dataset = match right_result {
             ExecutionResult::DataSet(ds) => ds,
-            _ => return Err(QueryError::ExecutionError("Right input must be a DataSet".to_string())),
+            _ => {
+                return Err(QueryError::ExecutionError(
+                    "Right input must be a DataSet".to_string(),
+                ))
+            }
         };
 
         // 构建左表哈希表：以左表连接键作为键，行索引作为值
@@ -62,7 +95,11 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
 
             // 根据连接键提取值
             for key_idx in 0..self.base.hash_keys().len() {
-                if let Some(key_pos) = left_dataset.col_names.iter().position(|r| r == &self.base.hash_keys()[key_idx]) {
+                if let Some(key_pos) = left_dataset
+                    .col_names
+                    .iter()
+                    .position(|r| r == &self.base.hash_keys()[key_idx])
+                {
                     if key_pos < row.len() {
                         key_parts.push(row[key_pos].clone());
                     } else {
@@ -80,7 +117,10 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
             }
 
             let key = JoinKey::new(key_parts);
-            left_hash_table.entry(key).or_insert_with(Vec::new).push(idx);
+            left_hash_table
+                .entry(key)
+                .or_insert_with(Vec::new)
+                .push(idx);
         }
 
         // 构建结果数据集
@@ -95,7 +135,11 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
 
             // 根据连接键提取值
             for key_idx in 0..self.base.probe_keys().len() {
-                if let Some(key_pos) = right_dataset.col_names.iter().position(|r| r == &self.base.probe_keys()[key_idx]) {
+                if let Some(key_pos) = right_dataset
+                    .col_names
+                    .iter()
+                    .position(|r| r == &self.base.probe_keys()[key_idx])
+                {
                     if key_pos < right_row.len() {
                         right_key_parts.push(right_row[key_pos].clone());
                     } else {

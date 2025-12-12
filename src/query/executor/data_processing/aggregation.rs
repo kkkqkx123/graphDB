@@ -1,6 +1,9 @@
-//! 聚合执行器
+//! 聚合操作执行器模块
 //!
-//! AggregateExecutor - COUNT, SUM, AVG, MAX, MIN 等聚合函数
+//! 包含聚合操作相关的执行器，包括：
+//! - GroupBy（分组聚合）
+//! - Aggregate（整体聚合）
+//! - Having（分组后过滤）
 
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -415,37 +418,152 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for AggregateExecutor<S> {
     }
 }
 
+/// GroupByExecutor - 分组聚合执行器
+///
+/// 实现 GROUP BY 操作
+pub struct GroupByExecutor<S: StorageEngine> {
+    aggregate_executor: AggregateExecutor<S>,
+}
+
+impl<S: StorageEngine> GroupByExecutor<S> {
+    pub fn new(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        group_keys: Vec<String>,
+        aggregate_functions: Vec<AggregateFunction>,
+    ) -> Self {
+        Self {
+            aggregate_executor: AggregateExecutor::new(id, storage, group_keys, aggregate_functions),
+        }
+    }
+}
+
+impl<S: StorageEngine> InputExecutor<S> for GroupByExecutor<S> {
+    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
+        self.aggregate_executor.set_input(input);
+    }
+
+    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
+        self.aggregate_executor.get_input()
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for GroupByExecutor<S> {
+    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        self.aggregate_executor.execute().await
+    }
+
+    fn open(&mut self) -> Result<(), QueryError> {
+        self.aggregate_executor.open()
+    }
+
+    fn close(&mut self) -> Result<(), QueryError> {
+        self.aggregate_executor.close()
+    }
+
+    fn id(&self) -> usize {
+        self.aggregate_executor.id()
+    }
+
+    fn name(&self) -> &str {
+        "GroupByExecutor"
+    }
+}
+
+/// HavingExecutor - HAVING 子句执行器
+///
+/// 实现 HAVING 子句，对分组后的结果进行过滤
+pub struct HavingExecutor<S: StorageEngine> {
+    base: BaseExecutor<S>,
+    input_executor: Option<Box<dyn Executor<S>>>,
+    // 条件表达式（简化实现）
+    condition: String,
+}
+
+impl<S: StorageEngine> HavingExecutor<S> {
+    pub fn new(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        condition: String,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "HavingExecutor".to_string(), storage),
+            input_executor: None,
+            condition,
+        }
+    }
+}
+
+impl<S: StorageEngine> InputExecutor<S> for HavingExecutor<S> {
+    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
+        self.input_executor = Some(input);
+    }
+
+    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
+        self.input_executor.as_ref()
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for HavingExecutor<S> {
+    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        // 首先执行输入执行器（如果存在）
+        let input_result = if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.execute().await?
+        } else {
+            // 如果没有输入执行器，返回空结果
+            ExecutionResult::DataSet(crate::core::value::DataSet::new())
+        };
+
+        // 在实际实现中，这里会评估 HAVING 条件
+        // 暂时返回原始结果
+        Ok(input_result)
+    }
+
+    fn open(&mut self) -> Result<(), QueryError> {
+        if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.open()?;
+        }
+        Ok(())
+    }
+
+    fn close(&mut self) -> Result<(), QueryError> {
+        if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.close()?;
+        }
+        Ok(())
+    }
+
+    fn id(&self) -> usize {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+}
+
+/// 聚合状态
+#[derive(Debug, Clone)]
+pub struct AggregateState {
+    pub count: usize,
+    pub sum: Option<Value>,
+    pub avg: Option<Value>,
+    pub max: Option<Value>,
+    pub min: Option<Value>,
+}
+
+/// 分组聚合状态
+#[derive(Debug, Clone)]
+pub struct GroupAggregateState {
+    pub groups: HashMap<Vec<Value>, AggregateState>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::value::DataSet;
-    use crate::storage::StorageEngine;
 
-    // #[tokio::test]
-    // async fn test_count_star() {
-    //     let storage = Arc::new(Mutex::new(MockStorageEngine::new()));
-    //     let executor = AggregateExecutor::new(
-    //         1,
-    //         storage,
-    //         vec![], // 无分组键
-    //         vec![AggregateFunction::Count],
-    //     );
-
-    //     // 测试 COUNT(*) 功能
-    //     // 这里需要模拟输入数据
-    // }
-
-    // #[tokio::test]
-    // async fn test_group_by_sum() {
-    //     let storage = Arc::new(Mutex::new(MockStorageEngine::new()));
-    //     let executor = AggregateExecutor::new(
-    //         1,
-    //         storage,
-    //         vec!["group_col".to_string()], // 分组键
-    //         vec![AggregateFunction::Sum("value_col".to_string())],
-    //     );
-
-    //     // 测试分组求和功能
-    //     // 这里需要模拟输入数据
-    // }
+    // 测试用例稍后添加
 }

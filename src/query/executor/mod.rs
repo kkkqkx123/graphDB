@@ -35,5 +35,5 @@ pub use data_modification::{
 
 // Re-export result processing executors
 pub use result_processing::{
-    LimitExecutor, OffsetExecutor, DistinctExecutor, SampleExecutor, TopNExecutor
+    TopNExecutor
 };
