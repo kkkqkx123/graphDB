@@ -2,8 +2,10 @@
 //! These rules optimize index operations based on NebulaGraph's implementation
 
 use super::optimizer::OptimizerError;
-use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern, MatchedResult};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
+use crate::query::optimizer::optimizer::{
+    MatchedResult, OptContext, OptGroupNode, OptRule, Pattern,
+};
+use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 use std::any::Any;
 
 // Rule to optimize edge index scan by filter
@@ -120,15 +122,18 @@ impl OptRule for PushLimitDownRule {
 
                 // Try to push the limit down based on child node type
                 match child.plan_node().kind() {
-                    PlanNodeKind::IndexScan | PlanNodeKind::GetVertices | PlanNodeKind::GetEdges |
-                    PlanNodeKind::ScanVertices | PlanNodeKind::ScanEdges => {
+                    PlanNodeKind::IndexScan
+                    | PlanNodeKind::GetVertices
+                    | PlanNodeKind::GetEdges
+                    | PlanNodeKind::ScanVertices
+                    | PlanNodeKind::ScanEdges => {
                         // For scan operations, pushing down limit can improve performance
                         Ok(Some(node.clone()))
-                    },
+                    }
                     PlanNodeKind::Sort => {
                         // For sort followed by limit (top-N queries), we might optimize differently
                         Ok(Some(node.clone()))
-                    },
+                    }
                     _ => {
                         // For other nodes, we might still be able to push the limit down
                         Ok(Some(node.clone()))
@@ -150,10 +155,10 @@ impl OptRule for PushLimitDownRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::{PlanNodeKind, PlanNode};
     use crate::query::context::QueryContext;
+    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::{IndexScan, Limit};
+    use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())

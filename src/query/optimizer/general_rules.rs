@@ -414,7 +414,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // Create a sort node (placeholder for index scan)
-        let sort_node = Box::new(Sort::new(1));
+        let sort_node = Box::new(Sort::new(1, vec![]));
         let opt_node = OptGroupNode::new(1, sort_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -427,7 +427,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // Create a sort node
-        let sort_node = Box::new(Sort::new(1));
+        let sort_node = Box::new(Sort::new(1, vec![]));
         let opt_node = OptGroupNode::new(1, sort_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -440,7 +440,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // Create a scan vertices node
-        let scan_node = Box::new(ScanVertices::new(1));
+        let scan_node = Box::new(ScanVertices::new(1, 0));
         let opt_node = OptGroupNode::new(1, scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
