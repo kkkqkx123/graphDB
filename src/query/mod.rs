@@ -349,26 +349,32 @@ impl QueryParser {
         use crate::query::parser::ast::TagIdentifier;
 
         // Convert tags
-        let tags: Vec<Tag> = create_node_stmt
-            .tags
-            .iter()
-            .map(|tag_id: &TagIdentifier| {
-                let properties = match &tag_id.properties {
-                    Some(props) => {
-                        let mut map = HashMap::new();
-                        for (key, value_expr) in props {
-                            if let Ok(value) = self.convert_ast_expression_to_value(value_expr) {
-                                map.insert(key.clone(), value);
-                            }
-                        }
-                        map
-                    }
-                    None => HashMap::new(),
-                };
+        let mut tags: Vec<Tag> = Vec::new();
 
-                Tag::new(tag_id.name.clone(), properties)
-            })
-            .collect();
+        // Process each tag identifier
+        for tag_id in &create_node_stmt.tags {
+            // Start with properties defined inline with the tag
+            let mut properties = match &tag_id.properties {
+                Some(props) => {
+                    let mut map = HashMap::new();
+                    for (key, value_expr) in props {
+                        if let Ok(value) = self.convert_ast_expression_to_value(value_expr) {
+                            map.insert(key.clone(), value);
+                        }
+                    }
+                    map
+                }
+                None => HashMap::new(),
+            };
+
+            // Add properties from the SET clause to all tags
+            for prop in &create_node_stmt.properties {
+                let value = self.convert_ast_expression_to_value(&prop.value)?;
+                properties.insert(prop.name.clone(), value);
+            }
+
+            tags.push(Tag::new(tag_id.name.clone(), properties));
+        }
 
         Ok(Query::CreateNode {
             id: None, // ID will be generated

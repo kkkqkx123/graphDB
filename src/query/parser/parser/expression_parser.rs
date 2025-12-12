@@ -63,6 +63,7 @@ impl super::Parser {
 
     /// 解析比较表达式
     fn parse_comparison(&mut self) -> Result<Expression, ParseError> {
+        self.enter_recursion()?;
         let mut expr = self.parse_addition()?;
 
         loop {
@@ -79,11 +80,13 @@ impl super::Parser {
             expr = Expression::Relational(Box::new(expr), op, Box::new(right));
         }
 
+        self.exit_recursion();
         Ok(expr)
     }
 
     /// 解析加法表达式
     fn parse_addition(&mut self) -> Result<Expression, ParseError> {
+        self.enter_recursion()?;
         let mut expr = self.parse_exponentiation()?;
 
         loop {
@@ -97,11 +100,13 @@ impl super::Parser {
             expr = Expression::Arithmetic(Box::new(expr), op, Box::new(right));
         }
 
+        self.exit_recursion();
         Ok(expr)
     }
 
     /// 解析乘法表达式
     fn parse_multiplication(&mut self) -> Result<Expression, ParseError> {
+        self.enter_recursion()?;
         let mut expr = self.parse_exponentiation()?;
 
         loop {
@@ -116,35 +121,40 @@ impl super::Parser {
             expr = Expression::Arithmetic(Box::new(expr), op, Box::new(right));
         }
 
+        self.exit_recursion();
         Ok(expr)
     }
 
     /// 解析一元表达式
     fn parse_unary(&mut self) -> Result<Expression, ParseError> {
-        match self.current_token.kind {
+        self.enter_recursion()?;
+        let result = match self.current_token.kind {
             TokenKind::NotOp => {
                 self.next_token();
-                let expr = self.parse_exponentiation()?;
+                let expr = self.parse_unary()?;
                 Ok(Expression::Unary(UnaryOp::Not, Box::new(expr)))
             }
             TokenKind::Plus => {
                 self.next_token();
-                // 对于一元加号，需要获取它作用的表达式，这应该是指数表达式
-                let expr = self.parse_exponentiation()?;
+                // 对于一元加号，需要获取它作用的表达式，这应该是一元表达式（处理多重符号，如 ++a, +-b等）
+                let expr = self.parse_unary()?;
                 Ok(Expression::Unary(UnaryOp::Plus, Box::new(expr)))
             }
             TokenKind::Minus => {
                 self.next_token();
-                // 对于一元减号，需要获取它作用的表达式，这应该是指数表达式
-                let expr = self.parse_exponentiation()?;
+                // 对于一元减号，需要获取它作用的表达式，这应该是一元表达式（处理多重符号，如 --a, -+b等）
+                let expr = self.parse_unary()?;
                 Ok(Expression::Unary(UnaryOp::Minus, Box::new(expr)))
             }
-            _ => self.parse_exponentiation(),
-        }
+            _ => self.parse_primary(),  // 当前token不是一元操作符，解析基本表达式
+        };
+        self.exit_recursion();
+        result
     }
 
     /// 解析指数表达式
     fn parse_exponentiation(&mut self) -> Result<Expression, ParseError> {
+        self.enter_recursion()?;
         let mut expr = self.parse_unary()?;
 
         // 指数运算是右结合的，使用迭代方法处理，避免递归导致栈溢出
@@ -164,11 +174,13 @@ impl super::Parser {
             }
         }
 
+        self.exit_recursion();
         Ok(expr)
     }
 
     /// 解析基本表达式
     fn parse_primary(&mut self) -> Result<Expression, ParseError> {
+        self.enter_recursion()?;
         // 检查当前token类型并进行相应处理
         let expr = match self.current_token.kind.clone() { // 这里clone token kind避免引用
             TokenKind::IntegerLiteral(n) => {
@@ -285,6 +297,7 @@ impl super::Parser {
                 }
             }
             _ => {
+                self.exit_recursion();
                 return Err(ParseError::syntax_error(
                     format!("Unexpected token in expression: {:?}", self.current_token.kind),
                     self.current_token.line,
@@ -292,6 +305,7 @@ impl super::Parser {
                 ));
             }
         };
+        self.exit_recursion();
 
         Ok(expr)
     }
