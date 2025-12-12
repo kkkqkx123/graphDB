@@ -23,8 +23,8 @@ impl OptRule for EdgeIndexFullScanRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(Pattern::new(PlanNodeKind::IndexScan)) // Specifically for edge index scans
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::IndexScan) // Specifically for edge index scans
     }
 }
 
@@ -46,8 +46,8 @@ impl OptRule for TagIndexFullScanRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(Pattern::new(PlanNodeKind::IndexScan)) // Specifically for tag index scans
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::IndexScan) // Specifically for tag index scans
     }
 }
 
@@ -69,8 +69,8 @@ impl OptRule for IndexScanRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(Pattern::new(PlanNodeKind::IndexScan))
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::IndexScan)
     }
 }
 
@@ -92,8 +92,8 @@ impl OptRule for UnionAllEdgeIndexScanRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(Pattern::new(PlanNodeKind::IndexScan)) // For union all edge index scans
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::IndexScan) // For union all edge index scans
     }
 }
 
@@ -115,7 +115,7 @@ impl OptRule for UnionAllTagIndexScanRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(Pattern::new(PlanNodeKind::IndexScan)) // For union all tag index scans
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::IndexScan) // For union all tag index scans
     }
 }

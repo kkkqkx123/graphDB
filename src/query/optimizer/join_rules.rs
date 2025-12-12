@@ -23,11 +23,9 @@ impl OptRule for PushFilterDownHashInnerJoinRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(
-            Pattern::new(PlanNodeKind::Filter)
-                .with_dependency(Pattern::new(PlanNodeKind::HashInnerJoin)),
-        )
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::Filter)
+            .with_dependency(Pattern::new(PlanNodeKind::HashInnerJoin))
     }
 }
 
@@ -49,11 +47,9 @@ impl OptRule for PushFilterDownHashLeftJoinRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(
-            Pattern::new(PlanNodeKind::Filter)
-                .with_dependency(Pattern::new(PlanNodeKind::HashLeftJoin)),
-        )
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::Filter)
+            .with_dependency(Pattern::new(PlanNodeKind::HashLeftJoin))
     }
 }
 
@@ -75,11 +71,9 @@ impl OptRule for PushFilterDownInnerJoinRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(
-            Pattern::new(PlanNodeKind::Filter)
-                .with_dependency(Pattern::new(PlanNodeKind::InnerJoin)),
-        )
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::Filter)
+            .with_dependency(Pattern::new(PlanNodeKind::InnerJoin))
     }
 }
 
@@ -101,11 +95,9 @@ impl OptRule for MergeGetVerticesAndDedupRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(
-            Pattern::new(PlanNodeKind::GetVertices)
-                .with_dependency(Pattern::new(PlanNodeKind::Dedup)),
-        )
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::GetVertices)
+            .with_dependency(Pattern::new(PlanNodeKind::Dedup))
     }
 }
 
@@ -127,11 +119,9 @@ impl OptRule for MergeGetVerticesAndProjectRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(
-            Pattern::new(PlanNodeKind::GetVertices)
-                .with_dependency(Pattern::new(PlanNodeKind::Project)),
-        )
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::GetVertices)
+            .with_dependency(Pattern::new(PlanNodeKind::Project))
     }
 }
 
@@ -153,11 +143,9 @@ impl OptRule for MergeGetNbrsAndDedupRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(
-            Pattern::new(PlanNodeKind::GetNeighbors)
-                .with_dependency(Pattern::new(PlanNodeKind::Dedup)),
-        )
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::GetNeighbors)
+            .with_dependency(Pattern::new(PlanNodeKind::Dedup))
     }
 }
 
@@ -179,11 +167,9 @@ impl OptRule for MergeGetNbrsAndProjectRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(
-            Pattern::new(PlanNodeKind::GetNeighbors)
-                .with_dependency(Pattern::new(PlanNodeKind::Project)),
-        )
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::GetNeighbors)
+            .with_dependency(Pattern::new(PlanNodeKind::Project))
     }
 }
 
@@ -205,10 +191,8 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
         Ok(None)
     }
 
-    fn pattern(&self) -> Box<Pattern> {
-        Box::new(
-            Pattern::new(PlanNodeKind::AppendVertices)
-                .with_dependency(Pattern::new(PlanNodeKind::InnerJoin)),
-        ) // Or other join types
-    }
+    fn pattern(&self) -> Pattern {
+        Pattern::new(PlanNodeKind::AppendVertices)
+            .with_dependency(Pattern::new(PlanNodeKind::InnerJoin))
+    } // Or other join types
 }
