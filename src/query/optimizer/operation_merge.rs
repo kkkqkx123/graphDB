@@ -2,11 +2,11 @@
 //! 这些规则负责合并多个连续的相同类型操作，以减少中间结果和执行开销
 
 use super::optimizer::OptimizerError;
-use super::rule_traits::{BaseOptRule, MergeRule, combine_conditions};
-use super::rule_patterns::{PatternBuilder, CommonPatterns};
+use super::rule_patterns::{CommonPatterns, PatternBuilder};
+use super::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
 use crate::query::planner::plan::operations::Filter as FilterPlanNode;
+use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
 /// 合并多个过滤操作的规则
 #[derive(Debug)]
@@ -36,30 +36,30 @@ impl OptRule for CombineFilterRule {
                     // 将两个连续的过滤节点合并为一个
                     if let (Some(top_filter), Some(child_filter)) = (
                         node.plan_node.as_any().downcast_ref::<FilterPlanNode>(),
-                        child.plan_node().as_any().downcast_ref::<FilterPlanNode>()
+                        child.plan_node().as_any().downcast_ref::<FilterPlanNode>(),
                     ) {
                         let top_condition = &top_filter.condition;
                         let child_condition = &child_filter.condition;
 
                         // 合并两个过滤条件，使用AND连接
                         let combined_condition = combine_conditions(top_condition, child_condition);
-                        
+
                         // 创建一个新的过滤节点，包含合并后的条件
                         let mut combined_filter_node = top_filter.clone();
                         combined_filter_node.condition = combined_condition;
-                        
+
                         // 设置子过滤节点的依赖作为新过滤节点的依赖
                         // combined_filter_node.deps = child_filter.deps.clone();
-                        
+
                         // 创建一个新的OptGroupNode
                         let mut combined_filter_opt_node = node.clone();
                         combined_filter_opt_node.plan_node = Box::new(combined_filter_node);
-                        
+
                         // 设置依赖关系
                         if !child.node.dependencies.is_empty() {
                             combined_filter_opt_node.dependencies = child.node.dependencies.clone();
                         }
-                        
+
                         return Ok(Some(combined_filter_opt_node));
                     }
                 }
@@ -78,30 +78,36 @@ impl BaseOptRule for CombineFilterRule {}
 
 impl MergeRule for CombineFilterRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::Filter && child.plan_node.kind() == PlanNodeKind::Filter
+        node.plan_node.kind() == PlanNodeKind::Filter
+            && child.plan_node.kind() == PlanNodeKind::Filter
     }
 
-    fn create_merged_node(&self, _ctx: &mut OptContext, node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_merged_node(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+        child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         if let (Some(top_filter), Some(child_filter)) = (
             node.plan_node.as_any().downcast_ref::<FilterPlanNode>(),
-            child.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+            child.plan_node.as_any().downcast_ref::<FilterPlanNode>(),
         ) {
             let top_condition = &top_filter.condition;
             let child_condition = &child_filter.condition;
 
             let combined_condition = combine_conditions(top_condition, child_condition);
-            
+
             let mut combined_filter_node = top_filter.clone();
             combined_filter_node.condition = combined_condition;
             // combined_filter_node.deps = child_filter.deps.clone();
-            
+
             let mut combined_filter_opt_node = node.clone();
             combined_filter_opt_node.plan_node = Box::new(combined_filter_node);
-            
+
             if !child.dependencies.is_empty() {
                 combined_filter_opt_node.dependencies = child.dependencies.clone();
             }
-            
+
             Ok(Some(combined_filter_opt_node))
         } else {
             Ok(None)
@@ -157,10 +163,16 @@ impl BaseOptRule for CollapseProjectRule {}
 
 impl MergeRule for CollapseProjectRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::Project && child.plan_node.kind() == PlanNodeKind::Project
+        node.plan_node.kind() == PlanNodeKind::Project
+            && child.plan_node.kind() == PlanNodeKind::Project
     }
 
-    fn create_merged_node(&self, _ctx: &mut OptContext, node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_merged_node(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建合并后的投影节点
         // 目前简化实现，返回原始节点
         Ok(Some(node.clone()))
@@ -215,10 +227,16 @@ impl BaseOptRule for MergeGetVerticesAndProjectRule {}
 
 impl MergeRule for MergeGetVerticesAndProjectRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::GetVertices && child.plan_node.kind() == PlanNodeKind::Project
+        node.plan_node.kind() == PlanNodeKind::GetVertices
+            && child.plan_node.kind() == PlanNodeKind::Project
     }
 
-    fn create_merged_node(&self, _ctx: &mut OptContext, node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_merged_node(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建合并后的获取顶点节点
         // 包含投影信息，以直接获取所需的属性
         Ok(Some(node.clone()))
@@ -273,10 +291,16 @@ impl BaseOptRule for MergeGetVerticesAndDedupRule {}
 
 impl MergeRule for MergeGetVerticesAndDedupRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::GetVertices && child.plan_node.kind() == PlanNodeKind::Dedup
+        node.plan_node.kind() == PlanNodeKind::GetVertices
+            && child.plan_node.kind() == PlanNodeKind::Dedup
     }
 
-    fn create_merged_node(&self, _ctx: &mut OptContext, node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_merged_node(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建合并后的获取顶点节点
         // 包含去重信息，以直接获取唯一的结果
         Ok(Some(node.clone()))
@@ -331,10 +355,16 @@ impl BaseOptRule for MergeGetNbrsAndDedupRule {}
 
 impl MergeRule for MergeGetNbrsAndDedupRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::GetNeighbors && child.plan_node.kind() == PlanNodeKind::Dedup
+        node.plan_node.kind() == PlanNodeKind::GetNeighbors
+            && child.plan_node.kind() == PlanNodeKind::Dedup
     }
 
-    fn create_merged_node(&self, _ctx: &mut OptContext, node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_merged_node(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建合并后的获取邻居节点
         // 包含去重信息，以直接获取唯一的结果
         Ok(Some(node.clone()))
@@ -389,10 +419,16 @@ impl BaseOptRule for MergeGetNbrsAndProjectRule {}
 
 impl MergeRule for MergeGetNbrsAndProjectRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::GetNeighbors && child.plan_node.kind() == PlanNodeKind::Project
+        node.plan_node.kind() == PlanNodeKind::GetNeighbors
+            && child.plan_node.kind() == PlanNodeKind::Project
     }
 
-    fn create_merged_node(&self, _ctx: &mut OptContext, node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_merged_node(
+        &self,
+        _ctx: &mut OptContext,
+        node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建合并后的获取邻居节点
         // 包含投影信息，以直接获取所需的属性
         Ok(Some(node.clone()))
@@ -404,7 +440,7 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::{Filter, Project, GetVertices, GetNeighbors, Dedup};
+    use crate::query::planner::plan::{Dedup, Filter, GetNeighbors, GetVertices, Project};
     use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
     fn create_test_context() -> OptContext {
@@ -431,7 +467,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = Box::new(Project::new(1, vec![]));
+        let project_node = Box::new(Project::new(1, ""));
         let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -445,7 +481,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取顶点节点
-        let get_vertices_node = Box::new(GetVertices::new(1));
+        let get_vertices_node = Box::new(GetVertices::new(1, 1, ""));
         let opt_node = OptGroupNode::new(1, get_vertices_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -459,7 +495,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取顶点节点
-        let get_vertices_node = Box::new(GetVertices::new(1));
+        let get_vertices_node = Box::new(GetVertices::new(1, 1, ""));
         let opt_node = OptGroupNode::new(1, get_vertices_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -473,7 +509,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取邻居节点
-        let get_nbrs_node = Box::new(GetNeighbors::new(1));
+        let get_nbrs_node = Box::new(GetNeighbors::new(1, 1, ""));
         let opt_node = OptGroupNode::new(1, get_nbrs_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -487,7 +523,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取邻居节点
-        let get_nbrs_node = Box::new(GetNeighbors::new(1));
+        let get_nbrs_node = Box::new(GetNeighbors::new(1, 1, ""));
         let opt_node = OptGroupNode::new(1, get_nbrs_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -500,10 +536,10 @@ mod tests {
         // 测试辅助函数
         let result = combine_conditions("age > 18", "name = 'test'");
         assert_eq!(result, "(age > 18) AND (name = 'test')");
-        
+
         let result = combine_conditions("", "name = 'test'");
         assert_eq!(result, "name = 'test'");
-        
+
         let result = combine_conditions("age > 18", "");
         assert_eq!(result, "age > 18");
     }

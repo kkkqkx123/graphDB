@@ -5,7 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use super::rule_patterns::PatternBuilder;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
+use crate::query::planner::plan::PlanNodeKind;
 
 /// 投影下推规则
 #[derive(Debug)]
@@ -105,8 +105,7 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::{Project};
-    use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+    use crate::query::planner::plan::Project;
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())
@@ -118,7 +117,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = Box::new(Project::new(1, vec![]));
+        let project_node = Box::new(Project::new(1, ""));
         let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -132,7 +131,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = Box::new(Project::new(1, vec![]));
+        let project_node = Box::new(Project::new(1, ""));
         let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

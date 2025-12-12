@@ -2,10 +2,10 @@
 //! 这些规则负责优化索引操作，包括基于过滤条件的索引扫描优化和索引扫描操作本身的优化
 
 use super::optimizer::OptimizerError;
-use super::rule_traits::{BaseOptRule};
 use super::rule_patterns::PatternBuilder;
+use super::rule_traits::BaseOptRule;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode, IndexScan as IndexScanPlanNode};
+use crate::query::planner::plan::{IndexScan as IndexScanPlanNode, PlanNode, PlanNodeKind};
 
 /// 基于过滤条件优化边索引扫描的规则
 #[derive(Debug)]
@@ -32,7 +32,11 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                 if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(*dep_id) {
                     if dep_node.plan_node.kind() == PlanNodeKind::Filter {
                         // 检查过滤条件是否可以推入到索引扫描中
-                        if let Some(filter_node) = dep_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Filter>() {
+                        if let Some(filter_node) = dep_node
+                            .plan_node
+                            .as_any()
+                            .downcast_ref::<crate::query::planner::plan::operations::Filter>(
+                        ) {
                             // 在完整实现中，我们会将过滤条件合并到索引扫描中
                             // 以减少从索引检索的行数
                             // 这里我们简单地返回当前节点，实际实现中需要修改索引扫描计划
@@ -77,7 +81,11 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                 if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(*dep_id) {
                     if dep_node.plan_node.kind() == PlanNodeKind::Filter {
                         // 检查过滤条件是否可以推入到索引扫描中
-                        if let Some(filter_node) = dep_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Filter>() {
+                        if let Some(filter_node) = dep_node
+                            .plan_node
+                            .as_any()
+                            .downcast_ref::<crate::query::planner::plan::operations::Filter>(
+                        ) {
                             // 在完整实现中，我们会将过滤条件合并到索引扫描中
                             // 以减少从索引检索的行数
                             // 这里我们简单地返回当前节点，实际实现中需要修改索引扫描计划
@@ -311,7 +319,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Box::new(IndexScan::new(1, "edge_type", vec!["prop1".to_string()], None, None));
+        let index_scan_node = Box::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -324,7 +332,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Box::new(IndexScan::new(1, "tag1", vec!["prop1".to_string()], None, None));
+        let index_scan_node = Box::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -337,7 +345,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Box::new(IndexScan::new(1, "edge_type", vec!["prop1".to_string()], None, None));
+        let index_scan_node = Box::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -350,7 +358,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Box::new(IndexScan::new(1, "tag1", vec!["prop1".to_string()], None, None));
+        let index_scan_node = Box::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -363,7 +371,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Box::new(IndexScan::new(1, "tag1", vec!["prop1".to_string()], None, None));
+        let index_scan_node = Box::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -376,7 +384,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Box::new(IndexScan::new(1, "edge_type", vec!["prop1".to_string()], None, None));
+        let index_scan_node = Box::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -389,7 +397,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Box::new(IndexScan::new(1, "tag1", vec!["prop1".to_string()], None, None));
+        let index_scan_node = Box::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

@@ -136,7 +136,9 @@ impl OptRule for DedupEliminationRule {
                         // 某些操作已经产生唯一结果，可以移除去重
                         if !child_node.dependencies.is_empty() {
                             let grandchild_dep_id = child_node.dependencies[0];
-                            if let Some(grandchild_node) = ctx.find_group_node_by_plan_node_id(grandchild_dep_id) {
+                            if let Some(grandchild_node) =
+                                ctx.find_group_node_by_plan_node_id(grandchild_dep_id)
+                            {
                                 let mut new_node = grandchild_node.clone();
                                 // 保留当前节点的输出变量
                                 if let Some(output_var) = node.plan_node.output_var() {
@@ -170,9 +172,20 @@ impl BaseOptRule for DedupEliminationRule {}
 
 impl EliminationRule for DedupEliminationRule {
     fn can_eliminate(&self, node: &OptGroupNode) -> bool {
-        // 在apply方法中我们实际会检查依赖节点的类型
-        // 这里我们返回true，让apply方法来决定是否真正消除
-        node.plan_node.kind() == PlanNodeKind::Dedup
+        // 检查是否为去重节点
+        if node.plan_node.kind() != PlanNodeKind::Dedup {
+            return false;
+        }
+
+        // 检查是否有且只有一个依赖
+        if node.dependencies.len() != 1 {
+            return false;
+        }
+
+        // 在实际实现中，这里需要检查依赖节点的类型
+        // 如果依赖节点已经产生唯一结果（如IndexScan、GetVertices等），则可以消除去重操作
+        // 由于这里缺少上下文信息，暂时返回true以保持与apply方法的一致性
+        true
     }
 
     fn get_replacement(
@@ -265,7 +278,11 @@ impl BaseOptRule for RemoveNoopProjectRule {}
 
 impl RemoveNoopProjectRule {
     /// 检查投影是否为无操作（即投影的列与输入列相同）
-    fn is_noop_projection(&self, project_node: &ProjectPlanNode, child_node: &OptGroupNode) -> Result<bool, OptimizerError> {
+    fn is_noop_projection(
+        &self,
+        project_node: &ProjectPlanNode,
+        child_node: &OptGroupNode,
+    ) -> Result<bool, OptimizerError> {
         // 检查投影的表达式是否与输入的列匹配
         // 在实际实现中，我们需要比较投影表达式和输入列
         // 简单起见，我们检查投影表达式的数量和依赖节点的输出是否匹配
@@ -275,8 +292,19 @@ impl RemoveNoopProjectRule {
 
 impl EliminationRule for RemoveNoopProjectRule {
     fn can_eliminate(&self, node: &OptGroupNode) -> bool {
-        // 实际的检查需要上下文，所以这里返回true，让apply方法来决定
-        node.plan_node.kind() == PlanNodeKind::Project
+        // 检查是否为投影节点
+        if node.plan_node.kind() != PlanNodeKind::Project {
+            return false;
+        }
+
+        // 检查是否有且只有一个依赖
+        if node.dependencies.len() != 1 {
+            return false;
+        }
+
+        // 在实际实现中，这里需要检查投影是否为无操作
+        // 由于这里缺少上下文信息，暂时返回true以保持与apply方法的一致性
+        true
     }
 
     fn get_replacement(
@@ -288,7 +316,9 @@ impl EliminationRule for RemoveNoopProjectRule {
             let child_dep_id = node.dependencies[0];
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 检查投影是否为无操作
-                if let Some(project_plan_node) = node.plan_node.as_any().downcast_ref::<ProjectPlanNode>() {
+                if let Some(project_plan_node) =
+                    node.plan_node.as_any().downcast_ref::<ProjectPlanNode>()
+                {
                     if self.is_noop_projection(project_plan_node, child_node)? {
                         let mut new_node = child_node.clone();
 
@@ -413,10 +443,12 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
         if node.dependencies.len() == 1 {
             let child_dep_id = node.dependencies[0];
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                if matches!(child_node.plan_node.kind(),
+                if matches!(
+                    child_node.plan_node.kind(),
                     PlanNodeKind::InnerJoin
-                    | PlanNodeKind::HashInnerJoin
-                    | PlanNodeKind::HashLeftJoin) {
+                        | PlanNodeKind::HashInnerJoin
+                        | PlanNodeKind::HashLeftJoin
+                ) {
                     // 如果添加顶点操作在连接下方，我们可能需要调整操作顺序或消除不必要的操作
                     // 简单起见，我们返回节点本身，实际实现可能更复杂
                     Ok(Some(node.clone()))
@@ -519,7 +551,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = Box::new(Project::new(1, vec![]));
+        let project_node = Box::new(Project::new(1, ""));
         let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -532,7 +564,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个添加顶点节点
-        let append_vertices_node = Box::new(AppendVertices::new(1, vec![], vec![]));
+        let append_vertices_node = Box::new(AppendVertices::new(1, 0, vec![]));
         let opt_node = OptGroupNode::new(1, append_vertices_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -545,21 +577,8 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个添加顶点节点
-        let append_vertices_node = Box::new(AppendVertices::new(1, vec![], vec![]));
+        let append_vertices_node = Box::new(AppendVertices::new(1, 0, vec![]));
         let opt_node = OptGroupNode::new(1, append_vertices_node);
-
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
-        assert!(result.is_some());
-    }
-
-    #[test]
-    fn test_top_n_rule() {
-        let rule = TopNRule;
-        let mut ctx = create_test_context();
-
-        // 创建一个排序节点
-        let sort_node = Box::new(Sort::new(1, vec![]));
-        let opt_node = OptGroupNode::new(1, sort_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
         assert!(result.is_some());

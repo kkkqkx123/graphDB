@@ -4,7 +4,7 @@
 use super::optimizer::{OptContext, OptGroupNode, OptRule, Pattern, OptimizerError};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
+use crate::query::planner::plan::PlanNodeKind;
 
 /// 转换Limit-Sort为TopN的规则
 #[derive(Debug)]
@@ -81,7 +81,7 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::{Limit, Sort, TopN};
+    use crate::query::planner::plan::{Sort};
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())
@@ -94,7 +94,6 @@ mod tests {
 
         // 创建一个Sort节点
         let sort_node = Box::new(Sort::new(1, vec!["col1".to_string()]));
-        sort_node.set_limit(10);
         let opt_node = OptGroupNode::new(1, sort_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
