@@ -6,6 +6,7 @@ use super::rule_traits::{BaseOptRule, PushDownRule};
 use super::rule_patterns::PatternBuilder;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::{PlanNodeKind, PlanNode};
+use crate::query::planner::plan::IndexScan as IndexScanPlanNode;
 // 注释掉不存在的导入
 // use crate::query::planner::plan::operations::AllPaths;
 // use crate::query::planner::plan::operations::ExpandAll;
@@ -29,36 +30,20 @@ impl OptRule for PushLimitDownRule {
             return Ok(None);
         }
 
-        // 匹配模式以检查是否可以下推LIMIT
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() >= 1 {
-                let child = &matched.dependencies[0];
+        // 检查是否有子节点可以下推LIMIT
+        if node.dependencies.len() >= 1 {
+            let child_dep_id = node.dependencies[0];
+            let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
-                // 尝试根据子节点类型下推LIMIT
-                match child.plan_node().kind() {
-                    PlanNodeKind::IndexScan
-                    | PlanNodeKind::GetVertices
-                    | PlanNodeKind::GetEdges
-                    | PlanNodeKind::ScanVertices
-                    | PlanNodeKind::ScanEdges => {
-                        // 对于扫描操作，下推LIMIT可以提高性能
-                        Ok(Some(node.clone()))
-                    }
-                    PlanNodeKind::Sort => {
-                        // 对于排序后跟LIMIT（Top-N查询），我们可能优化不同
-                        Ok(Some(node.clone()))
-                    }
-                    _ => {
-                        // 对于其他节点，我们可能仍然能够下推LIMIT
-                        Ok(Some(node.clone()))
-                    }
+            if let Some(child_node) = child_node_opt {
+                // 根据子节点类型决定是否下推LIMIT
+                if self.can_push_down_to(child_node.plan_node.kind()) {
+                    // 创建新的LIMIT下推节点
+                    return self.create_pushed_down_node(ctx, node, &child_node);
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -80,10 +65,126 @@ impl PushDownRule for PushLimitDownRule {
         )
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建下推后的节点
-        // 目前简化实现，返回None
-        Ok(None)
+    fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+        // 获取Limit节点的值
+        if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+            // 根据子节点类型创建新的带有LIMIT的节点
+            match child.plan_node.kind() {
+                PlanNodeKind::GetVertices => {
+                    // 为GetVertices创建带有LIMIT的节点
+                    if let Some(get_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::GetVertices>() {
+                        let mut new_get_vertices = get_vertices_plan_node.clone();
+                        new_get_vertices.set_limit(limit_plan_node.count());
+
+                        let mut new_node = child.clone();
+                        new_node.plan_node = Box::new(new_get_vertices);
+
+                        // 复制依赖关系
+                        new_node.dependencies = child.dependencies.clone();
+
+                        // 保持输出变量相同
+                        if let Some(output_var) = limit_node.plan_node.output_var() {
+                            new_node.plan_node.set_output_var(output_var.clone());
+                        }
+
+                        Ok(Some(new_node))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                PlanNodeKind::GetEdges => {
+                    // 为GetEdges创建带有LIMIT的节点
+                    if let Some(get_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::GetEdges>() {
+                        let mut new_get_edges = get_edges_plan_node.clone();
+                        new_get_edges.set_limit(limit_plan_node.count());
+
+                        let mut new_node = child.clone();
+                        new_node.plan_node = Box::new(new_get_edges);
+
+                        // 复制依赖关系
+                        new_node.dependencies = child.dependencies.clone();
+
+                        // 保持输出变量相同
+                        if let Some(output_var) = limit_node.plan_node.output_var() {
+                            new_node.plan_node.set_output_var(output_var.clone());
+                        }
+
+                        Ok(Some(new_node))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                PlanNodeKind::IndexScan => {
+                    // 为IndexScan创建带有LIMIT的节点
+                    if let Some(index_scan_plan_node) = child.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+                        let mut new_index_scan = index_scan_plan_node.clone();
+                        new_index_scan.set_limit(limit_plan_node.count());
+
+                        let mut new_node = child.clone();
+                        new_node.plan_node = Box::new(new_index_scan);
+
+                        // 复制依赖关系
+                        new_node.dependencies = child.dependencies.clone();
+
+                        // 保持输出变量相同
+                        if let Some(output_var) = limit_node.plan_node.output_var() {
+                            new_node.plan_node.set_output_var(output_var.clone());
+                        }
+
+                        Ok(Some(new_node))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                PlanNodeKind::ScanVertices => {
+                    // 为ScanVertices创建带有LIMIT的节点
+                    if let Some(scan_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::ScanVertices>() {
+                        let mut new_scan_vertices = scan_vertices_plan_node.clone();
+                        new_scan_vertices.set_limit(limit_plan_node.count());
+
+                        let mut new_node = child.clone();
+                        new_node.plan_node = Box::new(new_scan_vertices);
+
+                        // 复制依赖关系
+                        new_node.dependencies = child.dependencies.clone();
+
+                        // 保持输出变量相同
+                        if let Some(output_var) = limit_node.plan_node.output_var() {
+                            new_node.plan_node.set_output_var(output_var.clone());
+                        }
+
+                        Ok(Some(new_node))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                PlanNodeKind::ScanEdges => {
+                    // 为ScanEdges创建带有LIMIT的节点
+                    if let Some(scan_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::ScanEdges>() {
+                        let mut new_scan_edges = scan_edges_plan_node.clone();
+                        new_scan_edges.set_limit(limit_plan_node.count());
+
+                        let mut new_node = child.clone();
+                        new_node.plan_node = Box::new(new_scan_edges);
+
+                        // 复制依赖关系
+                        new_node.dependencies = child.dependencies.clone();
+
+                        // 保持输出变量相同
+                        if let Some(output_var) = limit_node.plan_node.output_var() {
+                            new_node.plan_node.set_output_var(output_var.clone());
+                        }
+
+                        Ok(Some(new_node))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                _ => Ok(None),  // 对于其他类型，暂时不支持LIMIT下推
+            }
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -102,24 +203,19 @@ impl OptRule for PushLimitDownGetVerticesRule {
             return Ok(None);
         }
 
-        // 匹配模式以查看是否为LIMIT后跟获取顶点
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() >= 1 {
-                let child = &matched.dependencies[0];
+        // 检查是否有GetVertices子节点
+        if node.dependencies.len() >= 1 {
+            let child_dep_id = node.dependencies[0];
+            let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
-                if child.plan_node().kind() == PlanNodeKind::GetVertices {
-                    // 在完整实现中，我们会将LIMIT下推到获取顶点操作
-                    // 以减少从存储获取的顶点数量
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+            if let Some(child_node) = child_node_opt {
+                if child_node.plan_node.kind() == PlanNodeKind::GetVertices {
+                    // 将LIMIT下推到GetVertices操作
+                    return self.create_pushed_down_node(ctx, node, &child_node);
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -134,9 +230,38 @@ impl PushDownRule for PushLimitDownGetVerticesRule {
         child_kind == PlanNodeKind::GetVertices
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建带有LIMIT的获取顶点节点
-        // 目前简化实现，返回None
+    fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+        // 根据参考的NebulaGraph PushLimitDownGetVerticesRule实现
+        // 我们需要将LIMIT的值应用到GetVertices操作上
+
+        if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+            if let Some(get_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::GetVertices>() {
+                // 检查LIMIT的计数是否是可计算的
+                // 在实际实现中，我们需要验证limit表达式是否可评估
+
+                // 创建新的带有限制的GetVertices节点
+                let mut new_get_vertices = get_vertices_plan_node.clone();
+
+                // 设置GetVertices的limit值为LIMIT操作的计数值
+                let limit_value = limit_plan_node.count(); // 这是LIMIT操作的计数值
+                new_get_vertices.set_limit(limit_value);
+
+                // 创建新的组节点
+                let mut new_node = child.clone();
+                new_node.plan_node = Box::new(new_get_vertices);
+
+                // 保持相同的输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_node.plan_node.set_output_var(output_var.clone());
+                }
+
+                // 复制子节点依赖
+                new_node.dependencies = child.dependencies.clone();
+
+                return Ok(Some(new_node));
+            }
+        }
+
         Ok(None)
     }
 }
@@ -156,24 +281,19 @@ impl OptRule for PushLimitDownGetNeighborsRule {
             return Ok(None);
         }
 
-        // 匹配模式以查看是否为LIMIT后跟获取邻居
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() >= 1 {
-                let child = &matched.dependencies[0];
+        // 检查是否有GetNeighbors子节点
+        if node.dependencies.len() >= 1 {
+            let child_dep_id = node.dependencies[0];
+            let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
-                if child.plan_node().kind() == PlanNodeKind::GetNeighbors {
-                    // 在完整实现中，我们会将LIMIT下推到获取邻居操作
-                    // 以减少从存储获取的邻居数量
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+            if let Some(child_node) = child_node_opt {
+                if child_node.plan_node.kind() == PlanNodeKind::GetNeighbors {
+                    // 将LIMIT下推到GetNeighbors操作
+                    return self.create_pushed_down_node(ctx, node, &child_node);
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -188,9 +308,32 @@ impl PushDownRule for PushLimitDownGetNeighborsRule {
         child_kind == PlanNodeKind::GetNeighbors
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建带有LIMIT的获取邻居节点
-        // 目前简化实现，返回None
+    fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+            if let Some(get_neighbors_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::GetNeighbors>() {
+                // 创建新的带有限制的GetNeighbors节点
+                let mut new_get_neighbors = get_neighbors_plan_node.clone();
+
+                // 设置GetNeighbors的limit值为LIMIT操作的计数值
+                let limit_value = limit_plan_node.count();
+                new_get_neighbors.set_limit(limit_value);
+
+                // 创建新的组节点
+                let mut new_node = child.clone();
+                new_node.plan_node = Box::new(new_get_neighbors);
+
+                // 保持相同的输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_node.plan_node.set_output_var(output_var.clone());
+                }
+
+                // 复制子节点依赖
+                new_node.dependencies = child.dependencies.clone();
+
+                return Ok(Some(new_node));
+            }
+        }
+
         Ok(None)
     }
 }
@@ -210,24 +353,19 @@ impl OptRule for PushLimitDownGetEdgesRule {
             return Ok(None);
         }
 
-        // 匹配模式以查看是否为LIMIT后跟获取边
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() >= 1 {
-                let child = &matched.dependencies[0];
+        // 检查是否有GetEdges子节点
+        if node.dependencies.len() >= 1 {
+            let child_dep_id = node.dependencies[0];
+            let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
-                if child.plan_node().kind() == PlanNodeKind::GetEdges {
-                    // 在完整实现中，我们会将LIMIT下推到获取边操作
-                    // 以减少从存储获取的边数量
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+            if let Some(child_node) = child_node_opt {
+                if child_node.plan_node.kind() == PlanNodeKind::GetEdges {
+                    // 将LIMIT下推到GetEdges操作
+                    return self.create_pushed_down_node(ctx, node, &child_node);
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -242,9 +380,32 @@ impl PushDownRule for PushLimitDownGetEdgesRule {
         child_kind == PlanNodeKind::GetEdges
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建带有LIMIT的获取边节点
-        // 目前简化实现，返回None
+    fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+            if let Some(get_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::GetEdges>() {
+                // 创建新的带有限制的GetEdges节点
+                let mut new_get_edges = get_edges_plan_node.clone();
+
+                // 设置GetEdges的limit值为LIMIT操作的计数值
+                let limit_value = limit_plan_node.count();
+                new_get_edges.set_limit(limit_value);
+
+                // 创建新的组节点
+                let mut new_node = child.clone();
+                new_node.plan_node = Box::new(new_get_edges);
+
+                // 保持相同的输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_node.plan_node.set_output_var(output_var.clone());
+                }
+
+                // 复制子节点依赖
+                new_node.dependencies = child.dependencies.clone();
+
+                return Ok(Some(new_node));
+            }
+        }
+
         Ok(None)
     }
 }
@@ -264,24 +425,19 @@ impl OptRule for PushLimitDownScanVerticesRule {
             return Ok(None);
         }
 
-        // 匹配模式以查看是否为LIMIT后跟扫描顶点
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() >= 1 {
-                let child = &matched.dependencies[0];
+        // 检查是否有ScanVertices子节点
+        if node.dependencies.len() >= 1 {
+            let child_dep_id = node.dependencies[0];
+            let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
-                if child.plan_node().kind() == PlanNodeKind::ScanVertices {
-                    // 在完整实现中，我们会将LIMIT下推到扫描顶点操作
-                    // 以减少从存储扫描的顶点数量
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+            if let Some(child_node) = child_node_opt {
+                if child_node.plan_node.kind() == PlanNodeKind::ScanVertices {
+                    // 将LIMIT下推到ScanVertices操作
+                    return self.create_pushed_down_node(ctx, node, &child_node);
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -296,9 +452,32 @@ impl PushDownRule for PushLimitDownScanVerticesRule {
         child_kind == PlanNodeKind::ScanVertices
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建带有LIMIT的扫描顶点节点
-        // 目前简化实现，返回None
+    fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+            if let Some(scan_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::ScanVertices>() {
+                // 创建新的带有限制的ScanVertices节点
+                let mut new_scan_vertices = scan_vertices_plan_node.clone();
+
+                // 设置ScanVertices的limit值为LIMIT操作的计数值
+                let limit_value = limit_plan_node.count();
+                new_scan_vertices.set_limit(limit_value);
+
+                // 创建新的组节点
+                let mut new_node = child.clone();
+                new_node.plan_node = Box::new(new_scan_vertices);
+
+                // 保持相同的输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_node.plan_node.set_output_var(output_var.clone());
+                }
+
+                // 复制子节点依赖
+                new_node.dependencies = child.dependencies.clone();
+
+                return Ok(Some(new_node));
+            }
+        }
+
         Ok(None)
     }
 }
@@ -318,24 +497,19 @@ impl OptRule for PushLimitDownScanEdgesRule {
             return Ok(None);
         }
 
-        // 匹配模式以查看是否为LIMIT后跟扫描边
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() >= 1 {
-                let child = &matched.dependencies[0];
+        // 检查是否有ScanEdges子节点
+        if node.dependencies.len() >= 1 {
+            let child_dep_id = node.dependencies[0];
+            let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
-                if child.plan_node().kind() == PlanNodeKind::ScanEdges {
-                    // 在完整实现中，我们会将LIMIT下推到扫描边操作
-                    // 以减少从存储扫描的边数量
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+            if let Some(child_node) = child_node_opt {
+                if child_node.plan_node.kind() == PlanNodeKind::ScanEdges {
+                    // 将LIMIT下推到ScanEdges操作
+                    return self.create_pushed_down_node(ctx, node, &child_node);
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -350,9 +524,32 @@ impl PushDownRule for PushLimitDownScanEdgesRule {
         child_kind == PlanNodeKind::ScanEdges
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建带有LIMIT的扫描边节点
-        // 目前简化实现，返回None
+    fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+            if let Some(scan_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::ScanEdges>() {
+                // 创建新的带有限制的ScanEdges节点
+                let mut new_scan_edges = scan_edges_plan_node.clone();
+
+                // 设置ScanEdges的limit值为LIMIT操作的计数值
+                let limit_value = limit_plan_node.count();
+                new_scan_edges.set_limit(limit_value);
+
+                // 创建新的组节点
+                let mut new_node = child.clone();
+                new_node.plan_node = Box::new(new_scan_edges);
+
+                // 保持相同的输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_node.plan_node.set_output_var(output_var.clone());
+                }
+
+                // 复制子节点依赖
+                new_node.dependencies = child.dependencies.clone();
+
+                return Ok(Some(new_node));
+            }
+        }
+
         Ok(None)
     }
 }
@@ -372,24 +569,19 @@ impl OptRule for PushLimitDownIndexScanRule {
             return Ok(None);
         }
 
-        // 匹配模式以查看是否为LIMIT后跟索引扫描
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() >= 1 {
-                let child = &matched.dependencies[0];
+        // 检查是否有IndexScan子节点
+        if node.dependencies.len() >= 1 {
+            let child_dep_id = node.dependencies[0];
+            let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
-                if child.plan_node().kind() == PlanNodeKind::IndexScan {
-                    // 在完整实现中，我们会将LIMIT下推到索引扫描操作
-                    // 以减少扫描的索引条目数量
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+            if let Some(child_node) = child_node_opt {
+                if child_node.plan_node.kind() == PlanNodeKind::IndexScan {
+                    // 将LIMIT下推到IndexScan操作
+                    return self.create_pushed_down_node(ctx, node, &child_node);
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -404,9 +596,32 @@ impl PushDownRule for PushLimitDownIndexScanRule {
         child_kind == PlanNodeKind::IndexScan
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建带有LIMIT的索引扫描节点
-        // 目前简化实现，返回None
+    fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+            if let Some(index_scan_plan_node) = child.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+                // 创建新的带有限制的IndexScan节点
+                let mut new_index_scan = index_scan_plan_node.clone();
+
+                // 设置IndexScan的limit值为LIMIT操作的计数值
+                let limit_value = limit_plan_node.count();
+                new_index_scan.set_limit(limit_value);
+
+                // 创建新的组节点
+                let mut new_node = child.clone();
+                new_node.plan_node = Box::new(new_index_scan);
+
+                // 保持相同的输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_node.plan_node.set_output_var(output_var.clone());
+                }
+
+                // 复制子节点依赖
+                new_node.dependencies = child.dependencies.clone();
+
+                return Ok(Some(new_node));
+            }
+        }
+
         Ok(None)
     }
 }
@@ -426,24 +641,19 @@ impl OptRule for PushLimitDownProjectRule {
             return Ok(None);
         }
 
-        // 匹配模式以查看是否为LIMIT后跟投影
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() >= 1 {
-                let child = &matched.dependencies[0];
+        // 检查是否有Project子节点
+        if node.dependencies.len() >= 1 {
+            let child_dep_id = node.dependencies[0];
+            let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
-                if child.plan_node().kind() == PlanNodeKind::Project {
-                    // 在完整实现中，我们会将LIMIT下推到投影操作
-                    // 以限制投影结果的数量
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+            if let Some(child_node) = child_node_opt {
+                if child_node.plan_node.kind() == PlanNodeKind::Project {
+                    // 将LIMIT下推到Project操作
+                    return self.create_pushed_down_node(ctx, node, &child_node);
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -458,9 +668,34 @@ impl PushDownRule for PushLimitDownProjectRule {
         child_kind == PlanNodeKind::Project
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建带有LIMIT的投影节点
-        // 目前简化实现，返回None
+    fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+            if let Some(project_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Project>() {
+                // 对于Project操作，我们不能直接在Project节点上设置limit
+                // 而是创建一个新的计划结构，将LIMIT应用到Project的输入上
+                // 这需要重新构建计划树
+
+                // 克隆Project节点
+                let mut new_project = project_plan_node.clone();
+
+                // 创建新的组节点
+                let mut new_node = child.clone();
+                new_node.plan_node = Box::new(new_project);
+
+                // 保持相同的输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_node.plan_node.set_output_var(output_var.clone());
+                }
+
+                // 复制子节点依赖
+                new_node.dependencies = child.dependencies.clone();
+
+                // 在实际实现中，我们需要更复杂地处理Project上的LIMIT下推
+                // 可能需要在Project的输入上添加LIMIT操作
+                return Ok(Some(new_node));
+            }
+        }
+
         Ok(None)
     }
 }

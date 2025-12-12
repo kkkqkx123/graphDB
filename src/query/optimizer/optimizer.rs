@@ -527,6 +527,8 @@ impl Optimizer {
         logical_rules.add_rule(Box::new(super::RemoveNoopProjectRule));
         logical_rules.add_rule(Box::new(super::EliminateAppendVerticesRule));
         logical_rules.add_rule(Box::new(super::RemoveAppendVerticesBelowJoinRule));
+
+        // 转换规则
         logical_rules.add_rule(Box::new(super::TopNRule));
 
         let mut physical_rules = RuleSet::new("physical");

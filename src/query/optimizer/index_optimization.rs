@@ -5,7 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_traits::{BaseOptRule};
 use super::rule_patterns::PatternBuilder;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
+use crate::query::planner::plan::{PlanNodeKind, PlanNode, IndexScan as IndexScanPlanNode};
 
 /// 基于过滤条件优化边索引扫描的规则
 #[derive(Debug)]
@@ -26,24 +26,23 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
             return Ok(None);
         }
 
-        // 匹配模式以确定这是否为带有适用过滤器的边索引扫描
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() >= 1 {
-                // 检查是否有可以推入索引扫描的适用过滤器
-                for dep in &matched.dependencies {
-                    if dep.plan_node().kind() == PlanNodeKind::Filter {
-                        // 在完整实现中，我们会将过滤条件合并到索引扫描中
-                        // 以减少从索引检索的行数
-                        break; // 只检查是否有过滤
+        // 查找依赖中的过滤操作
+        if node.dependencies.len() >= 1 {
+            for dep_id in &node.dependencies {
+                if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(*dep_id) {
+                    if dep_node.plan_node.kind() == PlanNodeKind::Filter {
+                        // 检查过滤条件是否可以推入到索引扫描中
+                        if let Some(filter_node) = dep_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Filter>() {
+                            // 在完整实现中，我们会将过滤条件合并到索引扫描中
+                            // 以减少从索引检索的行数
+                            // 这里我们简单地返回当前节点，实际实现中需要修改索引扫描计划
+                            return Ok(Some(node.clone()));
+                        }
                     }
                 }
-                Ok(Some(node.clone()))
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -72,24 +71,23 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
             return Ok(None);
         }
 
-        // 匹配模式以确定这是否为带有适用过滤器的标签索引扫描
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() >= 1 {
-                // 检查是否有可以推入索引扫描的适用过滤器
-                for dep in &matched.dependencies {
-                    if dep.plan_node().kind() == PlanNodeKind::Filter {
-                        // 在完整实现中，我们会将过滤条件合并到索引扫描中
-                        // 以减少从索引检索的行数
-                        break; // 只检查是否有过滤
+        // 查找依赖中的过滤操作
+        if node.dependencies.len() >= 1 {
+            for dep_id in &node.dependencies {
+                if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(*dep_id) {
+                    if dep_node.plan_node.kind() == PlanNodeKind::Filter {
+                        // 检查过滤条件是否可以推入到索引扫描中
+                        if let Some(filter_node) = dep_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Filter>() {
+                            // 在完整实现中，我们会将过滤条件合并到索引扫描中
+                            // 以减少从索引检索的行数
+                            // 这里我们简单地返回当前节点，实际实现中需要修改索引扫描计划
+                            return Ok(Some(node.clone()));
+                        }
                     }
                 }
-                Ok(Some(node.clone()))
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -118,16 +116,18 @@ impl OptRule for EdgeIndexFullScanRule {
             return Ok(None);
         }
 
-        // 匹配模式以确定这是否为边索引扫描
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            // 在完整实现中，我们会检查这是否为全索引扫描
-            // （扫描整个索引而不带条件）并可能优化它
-            // 例如，如果索引扫描覆盖所有数据而没有益处，我们可能
-            // 将其转换为可能更高效的全表扫描
-            Ok(Some(node.clone()))
-        } else {
-            Ok(None)
+        // 检查是否没有有效的过滤条件，这可能意味着全扫描
+        // 在完整实现中，我们需要检查索引扫描的条件
+        // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
+        if let Some(index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+            // 如果索引扫描没有有效的过滤条件，可能是全扫描
+            if !index_scan_node.has_effective_filter() {
+                // 根据具体情况，我们可能将其转换为更高效的操作
+                // 简单起见，目前我们返回原节点
+                return Ok(Some(node.clone()));
+            }
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -156,16 +156,18 @@ impl OptRule for TagIndexFullScanRule {
             return Ok(None);
         }
 
-        // 匹配模式以确定这是否为标签索引扫描
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            // 在完整实现中，我们会检查这是否为全索引扫描
-            // （扫描整个索引而不带条件）并可能优化它
-            // 例如，如果索引扫描覆盖所有数据而没有益处，我们可能
-            // 将其转换为可能更高效的全表扫描
-            Ok(Some(node.clone()))
-        } else {
-            Ok(None)
+        // 检查是否没有有效的过滤条件，这可能意味着全扫描
+        // 在完整实现中，我们需要检查索引扫描的条件
+        // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
+        if let Some(index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+            // 如果索引扫描没有有效的过滤条件，可能是全扫描
+            if !index_scan_node.has_effective_filter() {
+                // 根据具体情况，我们可能将其转换为更高效的操作
+                // 简单起见，目前我们返回原节点
+                return Ok(Some(node.clone()));
+            }
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -194,13 +196,14 @@ impl OptRule for IndexScanRule {
             return Ok(None);
         }
 
-        // 匹配模式并在可能时优化索引扫描
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            // 在完整实现中，我们会基于各种因素优化索引扫描：
-            // - 索引选择性
-            // - 数据分布
-            // - 可用内存
-            // 目前，我们只返回原始节点
+        // 在完整实现中，我们会基于各种因素优化索引扫描：
+        // - 索引选择性
+        // - 数据分布
+        // - 可用内存
+        // 这里，我们基于NebulaGraph的IndexScanRule实现，检查索引扫描的查询上下文
+        if let Some(index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+            // 实际优化逻辑可能会根据索引条件创建更优化的索引扫描计划
+            // 暂时返回当前节点
             Ok(Some(node.clone()))
         } else {
             Ok(None)
@@ -233,10 +236,12 @@ impl OptRule for UnionAllEdgeIndexScanRule {
             return Ok(None);
         }
 
-        // 匹配模式以识别边索引扫描的UNION ALL
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            // 在完整实现中，我们会优化涉及边索引扫描的UNION ALL操作
-            // 通过可能合并或重新排序它们
+        // 在完整实现中，我们会优化涉及边索引扫描的UNION ALL操作
+        // 通过可能合并或重新排序它们
+        // 这里我们检查节点是否有多个依赖（表示UNION操作）
+        if node.dependencies.len() > 1 {
+            // 这可能是一个UNION ALL操作，我们可以尝试优化
+            // 暂时返回当前节点
             Ok(Some(node.clone()))
         } else {
             Ok(None)
@@ -269,10 +274,12 @@ impl OptRule for UnionAllTagIndexScanRule {
             return Ok(None);
         }
 
-        // 匹配模式以识别标签索引扫描的UNION ALL
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            // 在完整实现中，我们会优化涉及标签索引扫描的UNION ALL操作
-            // 通过可能合并或重新排序它们
+        // 在完整实现中，我们会优化涉及标签索引扫描的UNION ALL操作
+        // 通过可能合并或重新排序它们
+        // 这里我们检查节点是否有多个依赖（表示UNION操作）
+        if node.dependencies.len() > 1 {
+            // 这可能是一个UNION ALL操作，我们可以尝试优化
+            // 暂时返回当前节点
             Ok(Some(node.clone()))
         } else {
             Ok(None)

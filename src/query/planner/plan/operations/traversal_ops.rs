@@ -467,6 +467,14 @@ impl ScanEdges {
             props: Vec::new(),
         }
     }
+
+    pub fn set_limit(&mut self, limit: i64) {
+        self.limit = Some(limit);
+    }
+
+    pub fn has_effective_filter(&self) -> bool {
+        self.filter.is_some()
+    }
 }
 
 impl Clone for ScanEdges {

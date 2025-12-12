@@ -5,6 +5,13 @@ use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, 
 use crate::query::validator::Variable;
 use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
 
+#[derive(Debug, Clone)]
+pub struct IndexLimit {
+    pub column: String,
+    pub begin_value: Option<String>,
+    pub end_value: Option<String>,
+}
+
 // 索引扫描的计划节点
 #[derive(Debug)]
 pub struct IndexScan {
@@ -21,13 +28,7 @@ pub struct IndexScan {
     pub scan_limits: Vec<IndexLimit>,  // 索引扫描限制
     pub filter: Option<String>,
     pub return_columns: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct IndexLimit {
-    pub column: String,
-    pub begin_value: Option<String>,
-    pub end_value: Option<String>,
+    pub limit: Option<i64>,           // 限制返回的记录数量
 }
 
 impl IndexScan {
@@ -46,7 +47,16 @@ impl IndexScan {
             scan_limits: Vec::new(),
             filter: None,
             return_columns: Vec::new(),
+            limit: None,
         }
+    }
+
+    pub fn set_limit(&mut self, limit: i64) {
+        self.limit = Some(limit);
+    }
+
+    pub fn has_effective_filter(&self) -> bool {
+        self.filter.is_some() || !self.scan_limits.is_empty()
     }
 }
 
@@ -66,6 +76,7 @@ impl Clone for IndexScan {
             scan_limits: self.scan_limits.clone(),
             filter: self.filter.clone(),
             return_columns: self.return_columns.clone(),
+            limit: self.limit,
         }
     }
 }

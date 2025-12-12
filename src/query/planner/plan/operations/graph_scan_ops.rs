@@ -21,6 +21,7 @@ pub struct GetVertices {
     pub tag_props: Vec<TagProp>, // 标签属性
     pub expr: Option<String>,    // 过滤表达式
     pub dedup: bool,             // 是否去重
+    pub limit: Option<i64>,      // 限制返回的顶点数量
 }
 
 impl GetVertices {
@@ -37,7 +38,16 @@ impl GetVertices {
             tag_props: Vec::new(),
             expr: None,
             dedup: false,
+            limit: None,
         }
+    }
+
+    pub fn set_limit(&mut self, limit: i64) {
+        self.limit = Some(limit);
+    }
+
+    pub fn has_effective_filter(&self) -> bool {
+        self.expr.is_some()
     }
 }
 
@@ -55,6 +65,7 @@ impl Clone for GetVertices {
             tag_props: self.tag_props.clone(),
             expr: self.expr.clone(),
             dedup: self.dedup,
+            limit: self.limit,
         }
     }
 }
@@ -133,6 +144,7 @@ pub struct GetEdges {
     pub edge_props: Vec<EdgeProp>, // 边属性
     pub expr: Option<String>,      // 过滤表达式
     pub dedup: bool,               // 是否去重
+    pub limit: Option<i64>,        // 限制返回的边数量
 }
 
 impl GetEdges {
@@ -152,7 +164,16 @@ impl GetEdges {
             edge_props: Vec::new(),
             expr: None,
             dedup: false,
+            limit: None,
         }
+    }
+
+    pub fn set_limit(&mut self, limit: i64) {
+        self.limit = Some(limit);
+    }
+
+    pub fn has_effective_filter(&self) -> bool {
+        self.expr.is_some()
     }
 }
 
@@ -173,6 +194,7 @@ impl Clone for GetEdges {
             edge_props: self.edge_props.clone(),
             expr: self.expr.clone(),
             dedup: self.dedup,
+            limit: self.limit,
         }
     }
 }
@@ -250,6 +272,7 @@ pub struct GetNeighbors {
     pub edge_props: Vec<EdgeProp>, // 边属性
     pub expr: Option<String>,      // 过滤表达式
     pub dedup: bool,               // 是否去重
+    pub limit: Option<i64>,        // 限制返回的邻居数量
 }
 
 impl GetNeighbors {
@@ -268,7 +291,16 @@ impl GetNeighbors {
             edge_props: Vec::new(),
             expr: None,
             dedup: false,
+            limit: None,
         }
+    }
+
+    pub fn set_limit(&mut self, limit: i64) {
+        self.limit = Some(limit);
+    }
+
+    pub fn has_effective_filter(&self) -> bool {
+        self.expr.is_some()
     }
 }
 
@@ -288,6 +320,7 @@ impl Clone for GetNeighbors {
             edge_props: self.edge_props.clone(),
             expr: self.expr.clone(),
             dedup: self.dedup,
+            limit: self.limit,
         }
     }
 }
@@ -361,6 +394,7 @@ pub struct ScanVertices {
     pub space_id: i32,
     pub tag_filter: Option<String>,
     pub vertex_filter: Option<String>,
+    pub limit: Option<i64>,        // 限制返回的顶点数量
 }
 
 impl ScanVertices {
@@ -375,7 +409,16 @@ impl ScanVertices {
             space_id,
             tag_filter: None,
             vertex_filter: None,
+            limit: None,
         }
+    }
+
+    pub fn set_limit(&mut self, limit: i64) {
+        self.limit = Some(limit);
+    }
+
+    pub fn has_effective_filter(&self) -> bool {
+        self.tag_filter.is_some() || self.vertex_filter.is_some()
     }
 }
 
@@ -391,6 +434,7 @@ impl Clone for ScanVertices {
             space_id: self.space_id,
             tag_filter: self.tag_filter.clone(),
             vertex_filter: self.vertex_filter.clone(),
+            limit: self.limit,
         }
     }
 }
@@ -483,6 +527,14 @@ impl ScanEdges {
             filter: None,
             props: Vec::new(),
         }
+    }
+
+    pub fn set_limit(&mut self, limit: i64) {
+        self.limit = Some(limit);
+    }
+
+    pub fn has_effective_filter(&self) -> bool {
+        self.filter.is_some()
     }
 }
 

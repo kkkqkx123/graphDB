@@ -14,16 +14,20 @@ pub mod projection_pushdown;
 pub mod scan_optimization;
 pub mod index_optimization;
 pub mod join_optimization;
+pub mod transformation_rules;
 pub mod optimizer;
 
 // Re-export all rule structs for convenient access
 pub use elimination_rules::{
     EliminateFilterRule, DedupEliminationRule, RemoveNoopProjectRule,
-    EliminateAppendVerticesRule, RemoveAppendVerticesBelowJoinRule, TopNRule
+    EliminateAppendVerticesRule, RemoveAppendVerticesBelowJoinRule
 };
 pub use operation_merge::{
     CombineFilterRule, CollapseProjectRule, MergeGetVerticesAndProjectRule,
     MergeGetVerticesAndDedupRule, MergeGetNbrsAndDedupRule, MergeGetNbrsAndProjectRule
+};
+pub use transformation_rules::{
+    TopNRule
 };
 pub use predicate_pushdown::{
     FilterPushDownRule, PushFilterDownTraverseRule, PushFilterDownExpandRule,

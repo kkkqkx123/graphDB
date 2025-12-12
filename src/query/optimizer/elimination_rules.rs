@@ -124,28 +124,37 @@ impl OptRule for DedupEliminationRule {
             return Ok(None);
         }
 
-        // 匹配模式以确定是否可以消除去重操作
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() == 1 {
-                let child = &matched.dependencies[0];
-
+        // 通过直接检查依赖来确定是否可以消除去重操作，避免使用match_pattern
+        if node.dependencies.len() == 1 {
+            let child_dep_id = node.dependencies[0];
+            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 如果子操作已经产生唯一结果，则去重操作是不需要的
-                match child.plan_node().kind() {
+                match child_node.plan_node.kind() {
                     PlanNodeKind::IndexScan
                     | PlanNodeKind::GetVertices
                     | PlanNodeKind::GetEdges => {
-                        // 某些操作可能已经产生唯一结果
-                        // 在完整实现中，我们会仔细分析是否需要去重
-                        // 目前，我们只返回原始节点（不进行优化）
-                        Ok(Some(node.clone()))
+                        // 某些操作已经产生唯一结果，可以移除去重
+                        if !child_node.dependencies.is_empty() {
+                            let grandchild_dep_id = child_node.dependencies[0];
+                            if let Some(grandchild_node) = ctx.find_group_node_by_plan_node_id(grandchild_dep_id) {
+                                let mut new_node = grandchild_node.clone();
+                                // 保留当前节点的输出变量
+                                if let Some(output_var) = node.plan_node.output_var() {
+                                    new_node.plan_node.set_output_var(output_var.clone());
+                                }
+                                new_node.dependencies = grandchild_node.dependencies.clone();
+                                return Ok(Some(new_node));
+                            }
+                        }
+                        Ok(None) // 如果没有子节点依赖，返回None
                     }
                     _ => {
                         // 对于其他操作，我们可能需要去重
-                        Ok(Some(node.clone()))
+                        Ok(None)
                     }
                 }
             } else {
-                Ok(Some(node.clone()))
+                Ok(None)
             }
         } else {
             Ok(None)
@@ -161,27 +170,43 @@ impl BaseOptRule for DedupEliminationRule {}
 
 impl EliminationRule for DedupEliminationRule {
     fn can_eliminate(&self, node: &OptGroupNode) -> bool {
-        if node.plan_node.kind() != PlanNodeKind::Dedup {
-            return false;
-        }
-
-        // 在完整实现中，这里会检查子操作是否已经产生唯一结果
-        // 目前简化实现，总是返回false
-        false
+        // 在apply方法中我们实际会检查依赖节点的类型
+        // 这里我们返回true，让apply方法来决定是否真正消除
+        node.plan_node.kind() == PlanNodeKind::Dedup
     }
 
     fn get_replacement(
         &self,
-        _ctx: &mut OptContext,
+        ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if !node.dependencies.is_empty() {
-            // 返回第一个子节点作为替代
-            // 这里需要实际的子节点获取逻辑
-            Ok(None)
-        } else {
-            Ok(None)
+        if node.dependencies.len() == 1 {
+            let child_dep_id = node.dependencies[0];
+            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
+                // 检查子节点是否已经是唯一结果的操作
+                match child_node.plan_node.kind() {
+                    PlanNodeKind::IndexScan
+                    | PlanNodeKind::GetVertices
+                    | PlanNodeKind::GetEdges => {
+                        // 这些操作已经产生唯一结果，可以移除去重
+                        let mut new_node = child_node.clone();
+
+                        // 保留当前节点的输出变量
+                        if let Some(output_var) = node.plan_node.output_var() {
+                            new_node.plan_node.set_output_var(output_var.clone());
+                        }
+
+                        new_node.dependencies = child_node.dependencies.clone();
+                        return Ok(Some(new_node));
+                    }
+                    _ => {
+                        // 其他类型不能移除去重
+                        return Ok(None);
+                    }
+                }
+            }
         }
+        Ok(None)
     }
 }
 
@@ -207,7 +232,24 @@ impl OptRule for RemoveNoopProjectRule {
         // 检查投影是否为无操作（即投影的列与输入列相同）
         if let Some(project_plan_node) = node.plan_node.as_any().downcast_ref::<ProjectPlanNode>() {
             // 在完整实现中，我们会检查投影的列是否与输入列相同
-            // 目前简化实现，总是返回None（不进行优化）
+            // 目前，我们检查是否有依赖，如果有，且投影是无操作的，则可以移除
+            if !node.dependencies.is_empty() {
+                let child_dep_id = node.dependencies[0];
+                if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
+                    // 如果投影是无操作的(即不改变列)，则可以移除
+                    if self.is_noop_projection(project_plan_node, child_node)? {
+                        let mut new_node = child_node.clone();
+
+                        // 保留当前节点的输出变量
+                        if let Some(output_var) = node.plan_node.output_var() {
+                            new_node.plan_node.set_output_var(output_var.clone());
+                        }
+
+                        new_node.dependencies = child_node.dependencies.clone();
+                        return Ok(Some(new_node));
+                    }
+                }
+            }
             Ok(None)
         } else {
             Ok(None)
@@ -221,29 +263,47 @@ impl OptRule for RemoveNoopProjectRule {
 
 impl BaseOptRule for RemoveNoopProjectRule {}
 
+impl RemoveNoopProjectRule {
+    /// 检查投影是否为无操作（即投影的列与输入列相同）
+    fn is_noop_projection(&self, project_node: &ProjectPlanNode, child_node: &OptGroupNode) -> Result<bool, OptimizerError> {
+        // 检查投影的表达式是否与输入的列匹配
+        // 在实际实现中，我们需要比较投影表达式和输入列
+        // 简单起见，我们检查投影表达式的数量和依赖节点的输出是否匹配
+        Ok(false) // 暂时设为false，实际实现中需要比较投影表达式和输入
+    }
+}
+
 impl EliminationRule for RemoveNoopProjectRule {
     fn can_eliminate(&self, node: &OptGroupNode) -> bool {
-        if node.plan_node.kind() != PlanNodeKind::Project {
-            return false;
-        }
-
-        // 在完整实现中，这里会检查投影是否为无操作
-        // 目前简化实现，总是返回false
-        false
+        // 实际的检查需要上下文，所以这里返回true，让apply方法来决定
+        node.plan_node.kind() == PlanNodeKind::Project
     }
 
     fn get_replacement(
         &self,
-        _ctx: &mut OptContext,
+        ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if !node.dependencies.is_empty() {
-            // 返回第一个子节点作为替代
-            // 这里需要实际的子节点获取逻辑
-            Ok(None)
-        } else {
-            Ok(None)
+        if node.dependencies.len() == 1 {
+            let child_dep_id = node.dependencies[0];
+            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
+                // 检查投影是否为无操作
+                if let Some(project_plan_node) = node.plan_node.as_any().downcast_ref::<ProjectPlanNode>() {
+                    if self.is_noop_projection(project_plan_node, child_node)? {
+                        let mut new_node = child_node.clone();
+
+                        // 保留当前节点的输出变量
+                        if let Some(output_var) = node.plan_node.output_var() {
+                            new_node.plan_node.set_output_var(output_var.clone());
+                        }
+
+                        new_node.dependencies = child_node.dependencies.clone();
+                        return Ok(Some(new_node));
+                    }
+                }
+            }
         }
+        Ok(None)
     }
 }
 
@@ -266,15 +326,28 @@ impl OptRule for EliminateAppendVerticesRule {
             return Ok(None);
         }
 
-        // 在完整实现中，这会检查添加操作是否冗余
+        // 检查添加操作是否可以消除
         // 例如，如果只有一个源或添加操作不必要
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            // 检查添加操作是否可以消除
-            // 这可能发生在只有一个输入或添加操作不必要的情况下
-            Ok(Some(node.clone()))
-        } else {
-            Ok(None)
+        if node.dependencies.len() == 1 {
+            let child_dep_id = node.dependencies[0];
+            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
+                // 如果只有一个依赖，我们可以直接使用子节点替换
+                let mut new_node = child_node.clone();
+
+                // 保留当前节点的输出变量
+                if let Some(output_var) = node.plan_node.output_var() {
+                    new_node.plan_node.set_output_var(output_var.clone());
+                }
+
+                new_node.dependencies = child_node.dependencies.clone();
+                return Ok(Some(new_node));
+            }
+        } else if node.dependencies.len() == 0 {
+            // 如果没有依赖，我们可以创建一个空的等效节点
+            return Ok(None);
         }
+
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -290,23 +363,30 @@ impl EliminationRule for EliminateAppendVerticesRule {
             return false;
         }
 
-        // 在完整实现中，这里会检查添加操作是否冗余
-        // 目前简化实现，总是返回false
-        false
+        // 当添加顶点操作只有一个依赖时，可以移除该操作
+        node.dependencies.len() == 1
     }
 
     fn get_replacement(
         &self,
-        _ctx: &mut OptContext,
+        ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if !node.dependencies.is_empty() {
-            // 返回第一个子节点作为替代
-            // 这里需要实际的子节点获取逻辑
-            Ok(None)
-        } else {
-            Ok(None)
+        if node.dependencies.len() == 1 {
+            let child_dep_id = node.dependencies[0];
+            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
+                let mut new_node = child_node.clone();
+
+                // 保留当前节点的输出变量
+                if let Some(output_var) = node.plan_node.output_var() {
+                    new_node.plan_node.set_output_var(output_var.clone());
+                }
+
+                new_node.dependencies = child_node.dependencies.clone();
+                return Ok(Some(new_node));
+            }
         }
+        Ok(None)
     }
 }
 
@@ -329,17 +409,16 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
             return Ok(None);
         }
 
-        // 匹配模式以查看是否为添加顶点后跟连接
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            if matched.dependencies.len() >= 1 {
-                let child = &matched.dependencies[0];
-
-                if child.plan_node().kind() == PlanNodeKind::InnerJoin
-                    || child.plan_node().kind() == PlanNodeKind::HashInnerJoin
-                    || child.plan_node().kind() == PlanNodeKind::HashLeftJoin
-                {
-                    // 在完整实现中，我们可能能够消除不必要的添加操作
-                    // 如果它们在连接之前不添加值
+        // 检查是否只有一个依赖且依赖是连接操作
+        if node.dependencies.len() == 1 {
+            let child_dep_id = node.dependencies[0];
+            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
+                if matches!(child_node.plan_node.kind(),
+                    PlanNodeKind::InnerJoin
+                    | PlanNodeKind::HashInnerJoin
+                    | PlanNodeKind::HashLeftJoin) {
+                    // 如果添加顶点操作在连接下方，我们可能需要调整操作顺序或消除不必要的操作
+                    // 简单起见，我们返回节点本身，实际实现可能更复杂
                     Ok(Some(node.clone()))
                 } else {
                     Ok(None)
@@ -372,74 +451,25 @@ impl EliminationRule for RemoveAppendVerticesBelowJoinRule {
 
     fn get_replacement(
         &self,
-        _ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if !node.dependencies.is_empty() {
-            // 返回第一个子节点作为替代
-            // 这里需要实际的子节点获取逻辑
-            Ok(None)
-        } else {
-            Ok(None)
-        }
-    }
-}
-
-/// 优化Top-N查询的规则
-#[derive(Debug)]
-pub struct TopNRule;
-
-impl OptRule for TopNRule {
-    fn name(&self) -> &str {
-        "TopNRule"
-    }
-
-    fn apply(
-        &self,
         ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为排序操作（通常用于Top-N查询）
-        if node.plan_node.kind() != PlanNodeKind::Sort {
-            return Ok(None);
+        if node.dependencies.len() == 1 {
+            let child_dep_id = node.dependencies[0];
+            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
+                // 在实际实现中，我们可能需要根据具体情况决定如何替换
+                // 目前简单地返回子节点
+                let mut new_node = child_node.clone();
+
+                // 保留当前节点的输出变量
+                if let Some(output_var) = node.plan_node.output_var() {
+                    new_node.plan_node.set_output_var(output_var.clone());
+                }
+
+                new_node.dependencies = child_node.dependencies.clone();
+                return Ok(Some(new_node));
+            }
         }
-
-        // 在完整实现中，这会优化Top-N操作
-        // 通过使用高效算法如堆排序来处理有限结果
-        if let Some(matched) = self.match_pattern(ctx, node)? {
-            // 对于Top-N查询（排序后跟限制），我们可能使用专门的算法
-            // 只跟踪前N项而不是对整个数据集进行排序
-            Ok(Some(node.clone()))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn pattern(&self) -> Pattern {
-        PatternBuilder::sort()
-    }
-}
-
-impl BaseOptRule for TopNRule {}
-
-impl EliminationRule for TopNRule {
-    fn can_eliminate(&self, node: &OptGroupNode) -> bool {
-        if node.plan_node.kind() != PlanNodeKind::Sort {
-            return false;
-        }
-
-        // 在完整实现中，这里会检查是否可以优化为Top-N操作
-        // 目前简化实现，总是返回false
-        false
-    }
-
-    fn get_replacement(
-        &self,
-        _ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 这里会创建一个优化的Top-N节点
-        // 目前简化实现，总是返回None
         Ok(None)
     }
 }

@@ -130,6 +130,10 @@ impl Limit {
             count,
         }
     }
+
+    pub fn count(&self) -> i64 {
+        self.count
+    }
 }
 
 impl Clone for Limit {
