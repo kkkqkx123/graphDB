@@ -121,6 +121,10 @@ impl BasePlanNode for IndexScan {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 全文索引扫描的计划节点
@@ -222,5 +226,9 @@ impl BasePlanNode for FulltextIndexScan {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

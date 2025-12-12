@@ -4,9 +4,10 @@
 use crate::query::planner::plan::core::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::planner::plan::core::PlanNodeKind;
 use crate::query::validator::Variable;
+use std::any::Any;
 
 /// PlanNode特征，所有计划节点都应实现该特征
-pub trait PlanNode: std::fmt::Debug {
+pub trait PlanNode: std::fmt::Debug + Send + Sync {
     /// 获取节点的唯一ID
     fn id(&self) -> i64;
 
@@ -42,6 +43,9 @@ pub trait PlanNode: std::fmt::Debug {
 
     /// 设置成本
     fn set_cost(&mut self, cost: f64);
+
+    /// 以Any类型返回节点，以支持downcast
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// 单一依赖节点 - 具有一个依赖的计划节点

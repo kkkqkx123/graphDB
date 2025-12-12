@@ -188,6 +188,10 @@ impl BasePlanNode for Project {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // Unwind节点
@@ -374,6 +378,10 @@ impl BasePlanNode for Dedup {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 联合节点
@@ -466,6 +474,10 @@ impl BasePlanNode for Union {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -563,6 +575,10 @@ impl BasePlanNode for RollUpApply {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // PatternApply节点
@@ -658,6 +674,10 @@ impl BasePlanNode for PatternApply {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
