@@ -151,7 +151,7 @@ impl<S: StorageEngine> ExecutorMetadata for TopNExecutor<S> {
     }
 
     fn name(&self) -> &str {
-        self.base.name
+        &self.base.name
     }
 
     fn description(&self) -> &str {

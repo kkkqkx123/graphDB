@@ -3,7 +3,7 @@
 //! 负责规划基于标签索引的查找操作
 
 use crate::graph::expression::expr_type::Expression;
-use crate::query::planner::plan::PlanNode;
+use crate::query::planner::plan::core::{PlanNode, PlanNodeMutable};
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
@@ -95,7 +95,7 @@ impl LabelIndexSeek {
             name: var_name,
             columns: vec![crate::query::context::validate::types::Column {
                 name: "vid".to_string(),
-                type_: crate::core::ValueTypeDef::Vertex,
+                type_: "Vertex".to_string(),
             }],
         };
         
@@ -130,7 +130,7 @@ impl LabelIndexSeek {
                 name: filter_var_name,
                 columns: vec![crate::query::context::validate::types::Column {
                     name: "vid".to_string(),
-                    type_: crate::core::ValueTypeDef::Vertex,
+                    type_: "Vertex".to_string(),
                 }],
             };
             

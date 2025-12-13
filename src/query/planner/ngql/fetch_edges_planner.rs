@@ -3,11 +3,10 @@
 
 use crate::query::context::{AstContext, FetchEdgesContext};
 use crate::query::planner::plan::core::common::EdgeProp;
-use crate::query::planner::plan::core::plan_node_traits::{PlanNode, PlanNodeClonable, PlanNodeMutable};
+use crate::query::planner::plan::core::plan_node_traits::{PlanNode, PlanNodeClonable, PlanNodeMutable, PlanNodeDependencies};
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::plan::operations::{Argument, Dedup, Filter, GetEdges, Project};
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::validator::Column;
 use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
@@ -66,7 +65,7 @@ impl Planner for FetchEdgesPlanner {
             &fetch_ctx.rank.clone().unwrap_or_default(),
             &fetch_ctx.dst.clone().unwrap_or_default(),
         ));
-        std::sync::Arc::get_mut(&mut get_edges_node).unwrap().set_dependencies(vec![arg_node.clone_plan_node()]);
+        std::sync::Arc::get_mut(&mut get_edges_node).unwrap().add_dependency(arg_node.clone_plan_node());
         std::sync::Arc::get_mut(&mut get_edges_node).unwrap().set_output_var(Variable {
             name: "fetched_edges".to_string(),
             columns: vec![],
@@ -87,7 +86,7 @@ impl Planner for FetchEdgesPlanner {
             3,
             &format!("{} IS NOT EMPTY", fetch_ctx.edge_name),
         ));
-        std::sync::Arc::get_mut(&mut filter_node).unwrap().set_dependencies(vec![get_edges_node.clone_plan_node()]);
+        std::sync::Arc::get_mut(&mut filter_node).unwrap().add_dependency(get_edges_node.clone_plan_node());
         std::sync::Arc::get_mut(&mut filter_node).unwrap().set_output_var(Variable {
             name: "filtered_edges".to_string(),
             columns: vec![],
@@ -98,19 +97,19 @@ impl Planner for FetchEdgesPlanner {
             4,
             &fetch_ctx.yield_expr.clone().unwrap_or("*".to_string()),
         ));
-        std::sync::Arc::get_mut(&mut project_node).unwrap().set_dependencies(vec![filter_node.clone_plan_node()]);
-        let result_columns: Vec<Column> = vec![
-            Column {
+        std::sync::Arc::get_mut(&mut project_node).unwrap().add_dependency(filter_node.clone_plan_node());
+        let result_columns: Vec<crate::query::context::validate::types::Column> = vec![
+            crate::query::context::validate::types::Column {
                 name: "src".to_string(),
-                type_: crate::core::ValueTypeDef::String, // 使用正确的类型
+                type_: "STRING".to_string(),
             },
-            Column {
+            crate::query::context::validate::types::Column {
                 name: "dst".to_string(),
-                type_: crate::core::ValueTypeDef::String, // 使用正确的类型
+                type_: "STRING".to_string(),
             },
-            Column {
+            crate::query::context::validate::types::Column {
                 name: "rank".to_string(),
-                type_: crate::core::ValueTypeDef::Int, // 使用正确的类型
+                type_: "INT".to_string(),
             },
         ];
         std::sync::Arc::get_mut(&mut project_node).unwrap().set_output_var(Variable {
@@ -122,7 +121,7 @@ impl Planner for FetchEdgesPlanner {
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if fetch_ctx.distinct
         {
             let mut dedup_node = Arc::new(Dedup::new(5));
-            std::sync::Arc::get_mut(&mut dedup_node).unwrap().set_dependencies(vec![project_node.clone_plan_node()]);
+            std::sync::Arc::get_mut(&mut dedup_node).unwrap().add_dependency(project_node.clone_plan_node());
             std::sync::Arc::get_mut(&mut dedup_node).unwrap().set_output_var(Variable {
                 name: "dedup_result".to_string(),
                 columns: vec![],

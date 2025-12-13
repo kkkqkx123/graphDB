@@ -7,8 +7,7 @@ use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::{Project, Argument};
-use crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable;
-use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
+use crate::query::planner::plan::core::plan_node_traits::{PlanNodeClonable, PlanNodeMutable, PlanNodeDependencies};
 use std::sync::Arc;
 
 /// 维护操作规划器
@@ -63,7 +62,7 @@ impl Planner for MaintainPlanner {
 
         // 2. 根据不同类型创建相应的计划节点
         let mut project_node = Arc::new(Project::new(2, &format!("MAINTAIN_{}", stmt_type)));
-        std::sync::Arc::get_mut(&mut project_node).unwrap().set_dependencies(vec![arg_node.clone_plan_node()]);
+        std::sync::Arc::get_mut(&mut project_node).unwrap().add_dependency(arg_node.clone_plan_node());
         std::sync::Arc::get_mut(&mut project_node).unwrap().set_output_var(Variable {
             name: "maintain_result".to_string(),
             columns: vec![],

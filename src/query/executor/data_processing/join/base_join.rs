@@ -323,6 +323,16 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     pub fn col_names(&self) -> &Vec<String> {
         &self.col_names
     }
+
+    /// 获取描述
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    /// 获取存储引擎引用
+    pub fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
+    }
 }
 
 /// Join操作的通用trait

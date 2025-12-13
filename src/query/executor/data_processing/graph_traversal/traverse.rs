@@ -16,7 +16,6 @@ use crate::storage::StorageEngine;
 ///
 /// 执行完整的图遍历操作，支持多跳和条件过滤
 /// 结合了 ExpandExecutor 的功能，支持更复杂的遍历需求
-#[derive(Debug)]
 pub struct TraverseExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
@@ -32,6 +31,25 @@ pub struct TraverseExecutor<S: StorageEngine> {
     // 遍历配置
     track_prev_path: bool,
     generate_path: bool,
+}
+
+// Manual Debug implementation for TraverseExecutor to avoid requiring Debug trait for Executor trait object
+impl<S: StorageEngine> std::fmt::Debug for TraverseExecutor<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TraverseExecutor")
+            .field("base", &"BaseExecutor")
+            .field("edge_direction", &self.edge_direction)
+            .field("edge_types", &self.edge_types)
+            .field("max_depth", &self.max_depth)
+            .field("conditions", &self.conditions)
+            .field("input_executor", &"Option<Box<dyn Executor<S>>>")
+            .field("current_paths", &self.current_paths)
+            .field("completed_paths", &self.completed_paths)
+            .field("visited_nodes", &self.visited_nodes)
+            .field("track_prev_path", &self.track_prev_path)
+            .field("generate_path", &self.generate_path)
+            .finish()
+    }
 }
 
 impl<S: StorageEngine> TraverseExecutor<S> {

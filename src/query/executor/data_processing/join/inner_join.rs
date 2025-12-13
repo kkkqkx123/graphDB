@@ -16,7 +16,6 @@ use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::data_processing::join::hash_table::{HashTableBuilder, HashTableProbe, SingleKeyHashTable, MultiKeyHashTable};
 
 /// 内连接执行器
-#[derive(Debug)]
 pub struct InnerJoinExecutor<S: StorageEngine> {
     base_executor: BaseJoinExecutor<S>,
     /// 哈希表（用于单键连接）
@@ -25,6 +24,18 @@ pub struct InnerJoinExecutor<S: StorageEngine> {
     multi_key_hash_table: Option<MultiKeyHashTable>,
     /// 是否使用多键连接
     use_multi_key: bool,
+}
+
+// Manual Debug implementation for InnerJoinExecutor to avoid requiring Debug trait for BaseJoinExecutor
+impl<S: StorageEngine> std::fmt::Debug for InnerJoinExecutor<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InnerJoinExecutor")
+            .field("base_executor", &"BaseJoinExecutor<S>")
+            .field("single_key_hash_table", &self.single_key_hash_table)
+            .field("multi_key_hash_table", &self.multi_key_hash_table)
+            .field("use_multi_key", &self.use_multi_key)
+            .finish()
+    }
 }
 
 impl<S: StorageEngine> InnerJoinExecutor<S> {

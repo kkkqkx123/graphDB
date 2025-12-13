@@ -3,6 +3,7 @@
 
 use crate::query::planner::plan::{SubPlan, PlanNodeKind, BinaryInputNode};
 use crate::query::planner::plan::PlanNode;
+use crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable;
 use std::collections::HashSet;
 use std::sync::Arc;
 

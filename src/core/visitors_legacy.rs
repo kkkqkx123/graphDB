@@ -363,12 +363,12 @@ pub mod legacy {
         }
 
         fn visit_map(&mut self, value: &HashMap<String, Value>) -> Self::Result {
+            use std::hash::Hash;
             value.len().hash(&mut self.hasher);
             // 对键值对进行排序以确保一致的哈希
             let mut pairs: Vec<_> = value.iter().collect();
             pairs.sort_by_key(|&(k, _)| k);
             for (k, v) in pairs {
-                use std::hash::Hash;
                 k.hash(&mut self.hasher);
                 let _ = Self::calculate_hash(v);
             }
@@ -432,18 +432,32 @@ mod tests {
             ])),
         ]);
 
-        let cloned = DeepCloneVisitor::clone_value(&original);
+        let cloned = deep_clone(&original).expect("克隆失败");
         assert_eq!(original, cloned);
 
         let value = Value::String("test".to_string());
-        let size = SizeCalculatorVisitor::calculate_size(&value);
+        let size = calculate_size(&value).expect("大小计算失败");
         assert!(size > std::mem::size_of::<String>());
 
         let value1 = Value::Int(42);
         let value2 = Value::Int(42);
-        let hash1 = HashCalculatorVisitor::calculate_hash(&value1);
-        let hash2 = HashCalculatorVisitor::calculate_hash(&value2);
+        let hash1 = calculate_hash(&value1).expect("哈希计算失败");
+        let hash2 = calculate_hash(&value2).expect("哈希计算失败");
         assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_edge_src_dst() {
+        // 测试边的 src 和 dst 访问
+        use crate::core::vertex_edge_path::Edge;
+        use crate::core::Value;
+        
+        let src_id = Value::Int(1);
+        let dst_id = Value::Int(2);
+        let edge = Edge::new(src_id, dst_id, "关系".to_string(), 0, std::collections::HashMap::new());
+        
+        let _src = &edge.src;
+        let _dst = &edge.dst;
     }
 
     #[test]

@@ -6,7 +6,9 @@ use super::rule_traits::{BaseOptRule, PushDownRule};
 use super::rule_patterns::PatternBuilder;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::{PlanNodeKind, PlanNode};
+use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
 use crate::query::planner::plan::IndexScan as IndexScanPlanNode;
+use std::sync::Arc;
 // 注释掉不存在的导入
 // use crate::query::planner::plan::operations::AllPaths;
 // use crate::query::planner::plan::operations::ExpandAll;
@@ -72,20 +74,21 @@ impl PushDownRule for PushLimitDownRule {
             match child.plan_node.kind() {
                 PlanNodeKind::GetVertices => {
                     // 为GetVertices创建带有LIMIT的节点
-                    if let Some(get_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::GetVertices>() {
+                    if let Some(get_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::GetVertices>() {
+                        // 克隆节点并设置限制和输出变量
                         let mut new_get_vertices = get_vertices_plan_node.clone();
                         new_get_vertices.set_limit(limit_plan_node.count());
+                        
+                        // 设置输出变量
+                        if let Some(output_var) = limit_node.plan_node.output_var() {
+                            new_get_vertices.set_output_var(output_var.clone());
+                        }
 
                         let mut new_node = child.clone();
-                        new_node.plan_node = Box::new(new_get_vertices);
+                        new_node.plan_node = Arc::new(new_get_vertices);
 
                         // 复制依赖关系
                         new_node.dependencies = child.dependencies.clone();
-
-                        // 保持输出变量相同
-                        if let Some(output_var) = limit_node.plan_node.output_var() {
-                            new_node.plan_node.set_output_var(output_var.clone());
-                        }
 
                         Ok(Some(new_node))
                     } else {
@@ -94,20 +97,21 @@ impl PushDownRule for PushLimitDownRule {
                 }
                 PlanNodeKind::GetEdges => {
                     // 为GetEdges创建带有LIMIT的节点
-                    if let Some(get_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::GetEdges>() {
+                    if let Some(get_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::GetEdges>() {
+                        // 克隆节点并设置限制和输出变量
                         let mut new_get_edges = get_edges_plan_node.clone();
                         new_get_edges.set_limit(limit_plan_node.count());
+                        
+                        // 设置输出变量
+                        if let Some(output_var) = limit_node.plan_node.output_var() {
+                            new_get_edges.set_output_var(output_var.clone());
+                        }
 
                         let mut new_node = child.clone();
-                        new_node.plan_node = Box::new(new_get_edges);
+                        new_node.plan_node = Arc::new(new_get_edges);
 
                         // 复制依赖关系
                         new_node.dependencies = child.dependencies.clone();
-
-                        // 保持输出变量相同
-                        if let Some(output_var) = limit_node.plan_node.output_var() {
-                            new_node.plan_node.set_output_var(output_var.clone());
-                        }
 
                         Ok(Some(new_node))
                     } else {
@@ -117,19 +121,20 @@ impl PushDownRule for PushLimitDownRule {
                 PlanNodeKind::IndexScan => {
                     // 为IndexScan创建带有LIMIT的节点
                     if let Some(index_scan_plan_node) = child.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+                        // 克隆节点并设置限制和输出变量
                         let mut new_index_scan = index_scan_plan_node.clone();
                         new_index_scan.set_limit(limit_plan_node.count());
+                        
+                        // 设置输出变量
+                        if let Some(output_var) = limit_node.plan_node.output_var() {
+                            new_index_scan.set_output_var(output_var.clone());
+                        }
 
                         let mut new_node = child.clone();
-                        new_node.plan_node = Box::new(new_index_scan);
+                        new_node.plan_node = Arc::new(new_index_scan);
 
                         // 复制依赖关系
                         new_node.dependencies = child.dependencies.clone();
-
-                        // 保持输出变量相同
-                        if let Some(output_var) = limit_node.plan_node.output_var() {
-                            new_node.plan_node.set_output_var(output_var.clone());
-                        }
 
                         Ok(Some(new_node))
                     } else {
@@ -138,20 +143,21 @@ impl PushDownRule for PushLimitDownRule {
                 }
                 PlanNodeKind::ScanVertices => {
                     // 为ScanVertices创建带有LIMIT的节点
-                    if let Some(scan_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::ScanVertices>() {
+                    if let Some(scan_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::ScanVertices>() {
+                        // 克隆节点并设置限制和输出变量
                         let mut new_scan_vertices = scan_vertices_plan_node.clone();
                         new_scan_vertices.set_limit(limit_plan_node.count());
+                        
+                        // 设置输出变量
+                        if let Some(output_var) = limit_node.plan_node.output_var() {
+                            new_scan_vertices.set_output_var(output_var.clone());
+                        }
 
                         let mut new_node = child.clone();
-                        new_node.plan_node = Box::new(new_scan_vertices);
+                        new_node.plan_node = Arc::new(new_scan_vertices);
 
                         // 复制依赖关系
                         new_node.dependencies = child.dependencies.clone();
-
-                        // 保持输出变量相同
-                        if let Some(output_var) = limit_node.plan_node.output_var() {
-                            new_node.plan_node.set_output_var(output_var.clone());
-                        }
 
                         Ok(Some(new_node))
                     } else {
@@ -160,20 +166,21 @@ impl PushDownRule for PushLimitDownRule {
                 }
                 PlanNodeKind::ScanEdges => {
                     // 为ScanEdges创建带有LIMIT的节点
-                    if let Some(scan_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::ScanEdges>() {
+                    if let Some(scan_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::ScanEdges>() {
+                        // 克隆节点并设置限制和输出变量
                         let mut new_scan_edges = scan_edges_plan_node.clone();
                         new_scan_edges.set_limit(limit_plan_node.count());
+                        
+                        // 设置输出变量
+                        if let Some(output_var) = limit_node.plan_node.output_var() {
+                            new_scan_edges.set_output_var(output_var.clone());
+                        }
 
                         let mut new_node = child.clone();
-                        new_node.plan_node = Box::new(new_scan_edges);
+                        new_node.plan_node = Arc::new(new_scan_edges);
 
                         // 复制依赖关系
                         new_node.dependencies = child.dependencies.clone();
-
-                        // 保持输出变量相同
-                        if let Some(output_var) = limit_node.plan_node.output_var() {
-                            new_node.plan_node.set_output_var(output_var.clone());
-                        }
 
                         Ok(Some(new_node))
                     } else {
@@ -235,7 +242,7 @@ impl PushDownRule for PushLimitDownGetVerticesRule {
         // 我们需要将LIMIT的值应用到GetVertices操作上
 
         if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
-            if let Some(get_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::GetVertices>() {
+            if let Some(get_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::GetVertices>() {
                 // 检查LIMIT的计数是否是可计算的
                 // 在实际实现中，我们需要验证limit表达式是否可评估
 
@@ -245,15 +252,15 @@ impl PushDownRule for PushLimitDownGetVerticesRule {
                 // 设置GetVertices的limit值为LIMIT操作的计数值
                 let limit_value = limit_plan_node.count(); // 这是LIMIT操作的计数值
                 new_get_vertices.set_limit(limit_value);
+                
+                // 设置输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_get_vertices.set_output_var(output_var.clone());
+                }
 
                 // 创建新的组节点
                 let mut new_node = child.clone();
-                new_node.plan_node = Box::new(new_get_vertices);
-
-                // 保持相同的输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
-                    new_node.plan_node.set_output_var(output_var.clone());
-                }
+                new_node.plan_node = Arc::new(new_get_vertices);
 
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
@@ -310,22 +317,22 @@ impl PushDownRule for PushLimitDownGetNeighborsRule {
 
     fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
-            if let Some(get_neighbors_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::GetNeighbors>() {
+            if let Some(get_neighbors_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::GetNeighbors>() {
                 // 创建新的带有限制的GetNeighbors节点
                 let mut new_get_neighbors = get_neighbors_plan_node.clone();
 
                 // 设置GetNeighbors的limit值为LIMIT操作的计数值
                 let limit_value = limit_plan_node.count();
                 new_get_neighbors.set_limit(limit_value);
+                
+                // 设置输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_get_neighbors.set_output_var(output_var.clone());
+                }
 
                 // 创建新的组节点
                 let mut new_node = child.clone();
-                new_node.plan_node = Box::new(new_get_neighbors);
-
-                // 保持相同的输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
-                    new_node.plan_node.set_output_var(output_var.clone());
-                }
+                new_node.plan_node = Arc::new(new_get_neighbors);
 
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
@@ -382,22 +389,22 @@ impl PushDownRule for PushLimitDownGetEdgesRule {
 
     fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
-            if let Some(get_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::GetEdges>() {
+            if let Some(get_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::GetEdges>() {
                 // 创建新的带有限制的GetEdges节点
                 let mut new_get_edges = get_edges_plan_node.clone();
 
                 // 设置GetEdges的limit值为LIMIT操作的计数值
                 let limit_value = limit_plan_node.count();
                 new_get_edges.set_limit(limit_value);
+                
+                // 设置输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_get_edges.set_output_var(output_var.clone());
+                }
 
                 // 创建新的组节点
                 let mut new_node = child.clone();
-                new_node.plan_node = Box::new(new_get_edges);
-
-                // 保持相同的输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
-                    new_node.plan_node.set_output_var(output_var.clone());
-                }
+                new_node.plan_node = Arc::new(new_get_edges);
 
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
@@ -454,22 +461,22 @@ impl PushDownRule for PushLimitDownScanVerticesRule {
 
     fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
-            if let Some(scan_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::ScanVertices>() {
+            if let Some(scan_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::ScanVertices>() {
                 // 创建新的带有限制的ScanVertices节点
                 let mut new_scan_vertices = scan_vertices_plan_node.clone();
 
                 // 设置ScanVertices的limit值为LIMIT操作的计数值
                 let limit_value = limit_plan_node.count();
                 new_scan_vertices.set_limit(limit_value);
+                
+                // 设置输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_scan_vertices.set_output_var(output_var.clone());
+                }
 
                 // 创建新的组节点
                 let mut new_node = child.clone();
-                new_node.plan_node = Box::new(new_scan_vertices);
-
-                // 保持相同的输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
-                    new_node.plan_node.set_output_var(output_var.clone());
-                }
+                new_node.plan_node = Arc::new(new_scan_vertices);
 
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
@@ -526,22 +533,22 @@ impl PushDownRule for PushLimitDownScanEdgesRule {
 
     fn create_pushed_down_node(&self, ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         if let Some(limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
-            if let Some(scan_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::ScanEdges>() {
+            if let Some(scan_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::ScanEdges>() {
                 // 创建新的带有限制的ScanEdges节点
                 let mut new_scan_edges = scan_edges_plan_node.clone();
 
                 // 设置ScanEdges的limit值为LIMIT操作的计数值
                 let limit_value = limit_plan_node.count();
                 new_scan_edges.set_limit(limit_value);
+                
+                // 设置输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_scan_edges.set_output_var(output_var.clone());
+                }
 
                 // 创建新的组节点
                 let mut new_node = child.clone();
-                new_node.plan_node = Box::new(new_scan_edges);
-
-                // 保持相同的输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
-                    new_node.plan_node.set_output_var(output_var.clone());
-                }
+                new_node.plan_node = Arc::new(new_scan_edges);
 
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
@@ -605,15 +612,15 @@ impl PushDownRule for PushLimitDownIndexScanRule {
                 // 设置IndexScan的limit值为LIMIT操作的计数值
                 let limit_value = limit_plan_node.count();
                 new_index_scan.set_limit(limit_value);
+                
+                // 设置输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_index_scan.set_output_var(output_var.clone());
+                }
 
                 // 创建新的组节点
                 let mut new_node = child.clone();
-                new_node.plan_node = Box::new(new_index_scan);
-
-                // 保持相同的输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
-                    new_node.plan_node.set_output_var(output_var.clone());
-                }
+                new_node.plan_node = Arc::new(new_index_scan);
 
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
@@ -675,17 +682,17 @@ impl PushDownRule for PushLimitDownProjectRule {
                 // 而是创建一个新的计划结构，将LIMIT应用到Project的输入上
                 // 这需要重新构建计划树
 
-                // 克隆Project节点
+                // 克隆Project节点并设置输出变量
                 let mut new_project = project_plan_node.clone();
+                
+                // 设置输出变量
+                if let Some(output_var) = limit_node.plan_node.output_var() {
+                    new_project.set_output_var(output_var.clone());
+                }
 
                 // 创建新的组节点
                 let mut new_node = child.clone();
-                new_node.plan_node = Box::new(new_project);
-
-                // 保持相同的输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
-                    new_node.plan_node.set_output_var(output_var.clone());
-                }
+                new_node.plan_node = Arc::new(new_project);
 
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
@@ -829,7 +836,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Box::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -843,7 +850,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Box::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -857,7 +864,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Box::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -871,7 +878,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Box::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -885,7 +892,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Box::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -899,7 +906,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Box::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -913,7 +920,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Box::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -927,7 +934,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Box::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

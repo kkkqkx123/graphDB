@@ -15,11 +15,20 @@ use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
 /// 笛卡尔积执行器
-#[derive(Debug)]
 pub struct CrossJoinExecutor<S: StorageEngine> {
     base_executor: BaseJoinExecutor<S>,
     /// 输入变量列表（支持多表）
     input_vars: Vec<String>,
+}
+
+// Manual Debug implementation for CrossJoinExecutor to avoid requiring Debug trait for BaseJoinExecutor
+impl<S: StorageEngine> std::fmt::Debug for CrossJoinExecutor<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CrossJoinExecutor")
+            .field("base_executor", &"BaseJoinExecutor<S>")
+            .field("input_vars", &self.input_vars)
+            .finish()
+    }
 }
 
 impl<S: StorageEngine> CrossJoinExecutor<S> {

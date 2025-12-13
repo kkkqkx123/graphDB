@@ -1,7 +1,7 @@
 //! 操作节点模块
 //! 包含各种图数据库操作的计划节点
 
-mod graph_scan_ops;
+pub mod graph_scan_ops;
 mod traversal_ops;
 mod data_processing_ops;
 mod join_ops;

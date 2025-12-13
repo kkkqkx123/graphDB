@@ -106,7 +106,8 @@ impl BasicValidationVisitor {
     pub fn validate(value: &Value) -> Result<(), ValidationError> {
         let config = ValidationConfig::default();
         let mut visitor = Self::new(config);
-        match utils::visit_recursive(value, &mut visitor, 0, visitor.config.max_depth) {
+        let max_depth = visitor.config.max_depth;
+        match utils::visit_recursive(value, &mut visitor, 0, max_depth) {
             Ok(_) => {},
             Err(e) => return Err(ValidationError::from(e)),
         }
@@ -455,6 +456,7 @@ impl ValueVisitor for BasicValidationVisitor {
 #[derive(Debug)]
 pub struct TypeValidationVisitor {
     expected_type: Option<crate::core::value::ValueTypeDef>,
+    #[allow(dead_code)]
     strict_mode: bool,
 }
 
@@ -741,6 +743,7 @@ mod tests {
             hour: 14,
             minute: 30,
             sec: 45,
+            microsec: 0,
         });
         assert!(BasicValidationVisitor::validate(&valid_time).is_ok());
         
@@ -748,6 +751,7 @@ mod tests {
             hour: 25, // 无效小时
             minute: 30,
             sec: 45,
+            microsec: 0,
         });
         assert!(BasicValidationVisitor::validate(&invalid_time).is_err());
     }

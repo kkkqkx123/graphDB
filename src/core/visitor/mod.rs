@@ -186,7 +186,7 @@ mod tests {
         let long_string = Value::String("this is too long".to_string());
         assert!(validate_with_config(&long_string, config.clone()).is_err());
         
-        let null_value = Value::Null(crate::core::value::NullType::__NULL__);
+        let null_value = Value::Null(crate::core::value::NullType::Null);
         assert!(validate_with_config(&null_value, config).is_err());
     }
 }

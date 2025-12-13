@@ -309,7 +309,7 @@ impl<S: StorageEngine + Send> ExecutorMetadata for UnwindExecutor<S> {
     }
 
     fn name(&self) -> &str {
-        self.base.name
+        &self.base.name
     }
 
     fn description(&self) -> &str {

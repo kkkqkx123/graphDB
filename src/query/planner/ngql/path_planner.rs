@@ -8,6 +8,8 @@ use crate::query::planner::plan::{Expand, ExpandAll, Filter, Project, Dedup, Arg
 use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::plan::core::plan_node_traits::{PlanNodeMutable, PlanNodeIdentifiable, PlanNodeDependencies, PlanNodeClonable};
+use std::sync::Arc;
 
 /// PATH查询规划器
 /// 负责将PATH查询转换为执行计划
@@ -48,31 +50,35 @@ impl Planner for PathPlanner {
         println!("Processing PATH query planning: {:?}", path_ctx);
 
         // 1. 创建参数节点，获取起始和结束顶点
-        let mut start_arg_node = Box::new(Argument::new(1, &path_ctx.from.user_defined_var_name));
-        start_arg_node.set_col_names(vec!["start_vid".to_string()]);
-        start_arg_node.set_output_var(Variable {
+        let mut start_arg_node = Arc::new(Argument::new(1, &path_ctx.from.user_defined_var_name));
+        let mut start_arg_node_mut = Arc::get_mut(&mut start_arg_node).unwrap();
+        start_arg_node_mut.set_col_names(vec!["start_vid".to_string()]);
+        start_arg_node_mut.set_output_var(Variable {
             name: path_ctx.from_vids_var.clone(),
             columns: vec![],
         });
 
-        let mut end_arg_node = Box::new(Argument::new(2, &path_ctx.to.user_defined_var_name));
-        end_arg_node.set_col_names(vec!["end_vid".to_string()]);
-        end_arg_node.set_output_var(Variable {
+        let mut end_arg_node = Arc::new(Argument::new(2, &path_ctx.to.user_defined_var_name));
+        let mut end_arg_node_mut = Arc::get_mut(&mut end_arg_node).unwrap();
+        end_arg_node_mut.set_col_names(vec!["end_vid".to_string()]);
+        end_arg_node_mut.set_output_var(Variable {
             name: path_ctx.to_vids_var.clone(),
             columns: vec![],
         });
 
         // 2. 创建GetVertices节点来获取顶点
         let mut get_vertices_node =
-            Box::new(crate::query::planner::plan::GetVertices::new(3, 1, &path_ctx.from.user_defined_var_name));
-        get_vertices_node.set_dependencies(vec![start_arg_node.clone_plan_node()]);
-        get_vertices_node.set_output_var(Variable {
+            Arc::new(crate::query::planner::plan::GetVertices::new(3, 1, &path_ctx.from.user_defined_var_name));
+        let mut get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
+        get_vertices_node_mut.add_dependency(start_arg_node.clone_plan_node());
+        get_vertices_node_mut.set_output_var(Variable {
             name: "path_vertices".to_string(),
             columns: vec![],
         });
 
         // 设置顶点属性
-        get_vertices_node.tag_props = path_ctx
+        let mut get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
+        get_vertices_node_mut.tag_props = path_ctx
             .expr_props
             .src_tag_props
             .iter()
@@ -87,20 +93,22 @@ impl Planner for PathPlanner {
         } else {
             "out"
         };
-        let mut expand_node = Box::new(Expand::new(4, 1, path_ctx.over.edge_types.clone(), expand_direction));
-        expand_node.set_dependencies(vec![get_vertices_node.clone_plan_node()]);
-        expand_node.set_output_var(Variable {
+        let mut expand_node = Arc::new(Expand::new(4, 1, path_ctx.over.edge_types.clone(), expand_direction));
+        let mut expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
+        expand_node_mut.add_dependency(get_vertices_node.clone_plan_node());
+        expand_node_mut.set_output_var(Variable {
             name: "expanded_path".to_string(),
             columns: vec![],
         });
 
         // 4. 如果是双向边，设置方向
+        let mut expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
         if path_ctx.over.direction == "both" {
-            expand_node
+            expand_node_mut
                 .edge_types
                 .extend(path_ctx.over.edge_types.iter().map(|et| format!("-{}", et)));
         } else if path_ctx.over.direction == "in" {
-            expand_node.edge_types = path_ctx
+            expand_node_mut.edge_types = path_ctx
                 .over
                 .edge_types
                 .iter()
@@ -116,27 +124,29 @@ impl Planner for PathPlanner {
         } else {
             "out"
         };
-        let mut expand_all_node = Box::new(ExpandAll::new(
+        let mut expand_all_node = Arc::new(ExpandAll::new(
             5,
             1,
             path_ctx.over.edge_types.clone(),
             expand_all_direction,
         ));
-        expand_all_node.set_dependencies(vec![expand_node.clone_plan_node()]);
-        expand_all_node.set_output_var(Variable {
+        let mut expand_all_node_mut = Arc::get_mut(&mut expand_all_node).unwrap();
+        expand_all_node_mut.add_dependency(expand_node.clone_plan_node());
+        expand_all_node_mut.set_output_var(Variable {
             name: "expanded_all_path".to_string(),
             columns: vec![],
         });
 
         // 设置边属性和顶点属性
-        expand_all_node.edge_props = path_ctx
+        let mut expand_all_node_mut = Arc::get_mut(&mut expand_all_node).unwrap();
+        expand_all_node_mut.edge_props = path_ctx
             .expr_props
             .edge_props
             .iter()
             .map(|(edge_type, props)| EdgeProp::new(edge_type, props.clone()))
             .collect();
 
-        expand_all_node.vertex_props = path_ctx
+        expand_all_node_mut.vertex_props = path_ctx
             .expr_props
             .src_tag_props
             .iter()
@@ -144,10 +154,11 @@ impl Planner for PathPlanner {
             .collect();
 
         // 6. 创建过滤节点（如果有过滤条件）
-        let mut filter_node: Box<dyn crate::query::planner::plan::core::PlanNode> = if let Some(ref condition) = path_ctx.filter {
-            let mut filter = Box::new(Filter::new(6, condition));
-            filter.set_dependencies(vec![expand_all_node.clone_plan_node()]);
-            filter.set_output_var(Variable {
+        let mut filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if let Some(ref condition) = path_ctx.filter {
+            let mut filter = Arc::new(Filter::new(6, condition));
+            let mut filter_mut = Arc::get_mut(&mut filter).unwrap();
+            filter_mut.add_dependency(expand_all_node.clone_plan_node());
+            filter_mut.set_output_var(Variable {
                 name: "filtered_path".to_string(),
                 columns: vec![],
             });
@@ -157,20 +168,22 @@ impl Planner for PathPlanner {
         };
 
         // 7. 创建投影节点
-        let mut project_node = Box::new(Project::new(7, &"DEFAULT".to_string()));
-        project_node.set_dependencies(vec![filter_node.clone_plan_node()]);
-        project_node.set_output_var(Variable {
+        let mut project_node = Arc::new(Project::new(7, &"DEFAULT".to_string()));
+        let mut project_node_mut = Arc::get_mut(&mut project_node).unwrap();
+        project_node_mut.add_dependency(filter_node.clone_plan_node());
+        project_node_mut.set_output_var(Variable {
             name: "projected_path".to_string(),
             columns: vec![],
         });
-        project_node.set_col_names(path_ctx.col_names.clone());
+        project_node_mut.set_col_names(path_ctx.col_names.clone());
 
         // 8. 如果是查找最短路径，可能需要额外的处理
-        let final_node: Box<dyn crate::query::planner::plan::core::PlanNode> = if path_ctx.is_shortest {
+        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if path_ctx.is_shortest {
             // 需要额外的节点来处理最短路径算法
-            let mut dedup_node = Box::new(Dedup::new(8));
-            dedup_node.set_dependencies(vec![project_node.clone_plan_node()]);
-            dedup_node.set_output_var(Variable {
+            let mut dedup_node = Arc::new(Dedup::new(8));
+            let mut dedup_node_mut = Arc::get_mut(&mut dedup_node).unwrap();
+            dedup_node_mut.add_dependency(project_node.clone_plan_node());
+            dedup_node_mut.set_output_var(Variable {
                 name: "shortest_path_result".to_string(),
                 columns: vec![],
             });
@@ -182,7 +195,7 @@ impl Planner for PathPlanner {
         // 创建SubPlan
         let sub_plan = SubPlan {
             root: Some(final_node),
-            tail: Some(start_arg_node.clone_plan_node()),
+            tail: Some(start_arg_node),
         };
 
         Ok(sub_plan)

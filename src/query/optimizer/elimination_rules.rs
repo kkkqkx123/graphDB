@@ -7,9 +7,14 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{create_basic_pattern, is_tautology, BaseOptRule, EliminationRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::operations::Filter as FilterPlanNode;
-use crate::query::planner::plan::operations::Project as ProjectPlanNode;
+use crate::query::planner::plan::operations::{Filter, Project, Dedup, Unwind, DataCollect, RollUpApply, PatternApply};
 use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+use crate::query::planner::plan::core::plan_node_traits::{PlanNodeIdentifiable, PlanNodeMutable};
+use crate::query::planner::plan::operations::{Sort, Limit};
+use crate::query::planner::plan::operations::{ScanVertices, GetVertices, GetEdges, ScanEdges};
+use crate::query::planner::plan::operations::{AppendVertices, ScanEdges as TraversalScanEdges};
+use crate::query::planner::plan::algorithms::IndexScan;
+use crate::query::planner::plan::operations::{HashInnerJoin, HashLeftJoin};
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -51,7 +56,7 @@ impl EliminationRule for EliminateFilterRule {
             return false;
         }
 
-        if let Some(filter_plan_node) = node.plan_node.as_any().downcast_ref::<FilterPlanNode>() {
+        if let Some(filter_plan_node) = node.plan_node.as_any().downcast_ref::<Filter>() {
             let condition = &filter_plan_node.condition;
             is_tautology(condition)
         } else {
@@ -247,7 +252,7 @@ impl RemoveNoopProjectRule {
     /// 检查投影是否为无操作（即投影的列与输入列相同）
     fn is_noop_projection(
         &self,
-        project_node: &ProjectPlanNode,
+        project_node: &Project,
         child_node: &OptGroupNode,
     ) -> Result<bool, OptimizerError> {
         // 获取投影表达式
@@ -354,7 +359,7 @@ impl EliminationRule for RemoveNoopProjectRule {
         }
 
         // 检查投影是否为无操作
-        if let Some(project_plan_node) = node.plan_node.as_any().downcast_ref::<ProjectPlanNode>() {
+        if let Some(project_plan_node) = node.plan_node.as_any().downcast_ref::<Project>() {
             let child_dep_id = node.dependencies[0];
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 在实际实现中，需要比较投影表达式和输入列
@@ -378,7 +383,7 @@ impl EliminationRule for RemoveNoopProjectRule {
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 检查投影是否为无操作
                 if let Some(project_plan_node) =
-                    node.plan_node.as_any().downcast_ref::<ProjectPlanNode>()
+                    node.plan_node.as_any().downcast_ref::<Project>()
                 {
                     if self.is_noop_projection(project_plan_node, child_node)? {
                         let new_plan_node = child_node.plan_node.clone_plan_node();
@@ -696,7 +701,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个添加顶点节点
-        let append_vertices_node = Arc::new(AppendVertices::new(1, 1, vec![]));
+        let append_vertices_node = Arc::new(AppendVertices::new(1, 1, vec![], vec![]));
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
 
         // 添加一个子节点作为依赖
@@ -715,7 +720,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个添加顶点节点
-        let append_vertices_node = Arc::new(AppendVertices::new(1, 1, vec![]));
+        let append_vertices_node = Arc::new(AppendVertices::new(1, 1, vec![], vec![]));
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
 
         // 添加一个HashInnerJoin子节点作为依赖
@@ -761,7 +766,7 @@ fn create_plan_node_with_output_var(
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(sort_node) = plan_node.as_any().downcast_ref::<Sort>() {
-        let mut new_node = Sort::new(sort_node.id());
+        let mut new_node = Sort::new(sort_node.id(), sort_node.sort_items.clone());
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(limit_node) = plan_node.as_any().downcast_ref::<Limit>() {
@@ -778,7 +783,7 @@ fn create_plan_node_with_output_var(
             index_scan_node.space_id,
             index_scan_node.tag_id,
             index_scan_node.index_id,
-            &index_scan_node.filter,
+            &index_scan_node.scan_type,
         );
         new_node.set_output_var(output_var);
         Arc::new(new_node)
@@ -787,18 +792,19 @@ fn create_plan_node_with_output_var(
             append_vertices_node.id(),
             append_vertices_node.space_id,
             append_vertices_node.vids.clone(),
+            append_vertices_node.tag_ids.clone(),
         );
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(scan_edges_node) = plan_node.as_any().downcast_ref::<ScanEdges>() {
-        let mut new_node = ScanEdges::new(scan_edges_node.id(), scan_edges_node.space_id);
+        let mut new_node = ScanEdges::new(scan_edges_node.id(), scan_edges_node.space_id, &scan_edges_node.edge_type);
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(get_vertices_node) = plan_node.as_any().downcast_ref::<GetVertices>() {
         let mut new_node = GetVertices::new(
             get_vertices_node.id(),
             get_vertices_node.space_id,
-            get_vertices_node.src_ref.clone(),
+            &get_vertices_node.src_vids,
         );
         new_node.set_output_var(output_var);
         Arc::new(new_node)
@@ -806,21 +812,20 @@ fn create_plan_node_with_output_var(
         let mut new_node = GetEdges::new(
             get_edges_node.id(),
             get_edges_node.space_id,
-            get_edges_node.edge_ref.clone(),
+            &get_edges_node.src,
+            &get_edges_node.edge_type,
+            &get_edges_node.rank,
+            &get_edges_node.dst,
         );
         new_node.set_output_var(output_var);
         Arc::new(new_node)
-    } else if let Some(inner_join_node) = plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::HashInnerJoin>() {
-        let mut new_node = crate::query::planner::plan::operations::HashInnerJoin::new(inner_join_node.id());
-        new_node.set_output_var(output_var.clone());
-        Arc::new(new_node)
     } else if let Some(hash_inner_join_node) = plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::HashInnerJoin>() {
         let mut new_node = crate::query::planner::plan::operations::HashInnerJoin::new(hash_inner_join_node.id());
-        new_node.set_output_var(output_var.clone());
+        new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(hash_left_join_node) = plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::HashLeftJoin>() {
         let mut new_node = crate::query::planner::plan::operations::HashLeftJoin::new(hash_left_join_node.id());
-        new_node.set_output_var(output_var.clone());
+        new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else {
         // 如果无法识别具体类型，则返回原节点的克隆（不改变输出变量）

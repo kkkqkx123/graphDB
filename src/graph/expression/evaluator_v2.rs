@@ -373,7 +373,7 @@ impl DefaultExpressionEvaluator {
             (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a + *b as f64)),
             (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
             _ => Err(DBError::Expression(
-                "Invalid operands for addition".to_string(),
+                crate::core::error::ExpressionError::TypeError("Invalid operands for addition".to_string()),
             )),
         }
     }
@@ -385,7 +385,7 @@ impl DefaultExpressionEvaluator {
             (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 - b)),
             (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a - *b as f64)),
             _ => Err(DBError::Expression(
-                "Invalid operands for subtraction".to_string(),
+                crate::core::error::ExpressionError::TypeError("Invalid operands for subtraction".to_string()),
             )),
         }
     }
@@ -397,7 +397,7 @@ impl DefaultExpressionEvaluator {
             (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 * b)),
             (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a * *b as f64)),
             _ => Err(DBError::Expression(
-                "Invalid operands for multiplication".to_string(),
+                crate::core::error::ExpressionError::TypeError("Invalid operands for multiplication".to_string()),
             )),
         }
     }
@@ -601,7 +601,7 @@ impl DefaultExpressionEvaluator {
         match operand {
             Value::Int(_) | Value::Float(_) => Ok(operand.clone()),
             _ => Err(DBError::Expression(
-                "Invalid operand for unary plus".to_string(),
+                crate::core::error::ExpressionError::TypeError("Invalid operand for unary plus".to_string()),
             )),
         }
     }
@@ -611,7 +611,7 @@ impl DefaultExpressionEvaluator {
             Value::Int(a) => Ok(Value::Int(-a)),
             Value::Float(a) => Ok(Value::Float(-a)),
             _ => Err(DBError::Expression(
-                "Invalid operand for unary minus".to_string(),
+                crate::core::error::ExpressionError::TypeError("Invalid operand for unary minus".to_string()),
             )),
         }
     }
@@ -622,7 +622,7 @@ impl DefaultExpressionEvaluator {
             Value::Int(a) => Ok(Value::Int(-a)),
             Value::Float(a) => Ok(Value::Float(-a)),
             _ => Err(DBError::Expression(
-                "Invalid operand for negate operation".to_string(),
+                crate::core::error::ExpressionError::TypeError("Invalid operand for negate operation".to_string()),
             )),
         }
     }
@@ -733,7 +733,7 @@ mod tests {
 
         fn get_property(&self, _object: &Value, _property: &str) -> DBResult<&Value> {
             Err(DBError::Expression(
-                "Property access not supported in test context".to_string(),
+                crate::core::error::ExpressionError::TypeError("Property access not supported in test context".to_string()),
             ))
         }
 

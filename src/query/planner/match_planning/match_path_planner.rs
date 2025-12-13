@@ -2,12 +2,13 @@
 //! 处理路径模式的规划
 //! 负责规划路径模式的匹配
 
+use crate::query::planner::plan::core::{PlanNode, PlanNodeMutable};
 use crate::query::planner::plan::{SubPlan, PlanNodeKind, SingleInputNode};
-use crate::query::planner::plan::PlanNode;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
     MatchClauseContext, Path, WhereClauseContext,
 };
+use crate::query::context::validate::types::Variable;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -80,11 +81,11 @@ impl MatchPathPlanner {
             // 检查节点是否在已见别名中
             if all_aliases_seen.contains(&node_info.alias) && !node_info.anonymous {
                 // 创建参数节点
-                let variable = crate::query::validator::Variable {
+                let variable = Variable {
                     name: node_info.alias.clone(),
-                    columns: vec![crate::query::validator::Column {
+                    columns: vec![crate::query::context::validate::types::Column {
                         name: node_info.alias.clone(),
-                        type_: crate::core::ValueTypeDef::Vertex,
+                        type_: "Vertex".to_string(),
                     }],
                 };
                 let arg_node = Arc::new(SingleInputNode::new(
@@ -108,16 +109,16 @@ impl MatchPathPlanner {
             if !edge_info.types.is_empty() {
                 // 创建边索引扫描节点
                 let var_name = format!("edge_scan_{}", edge_info.types.join("_"));
-                let variable = crate::query::validator::Variable {
+                let variable = Variable {
                     name: var_name,
                     columns: vec![
-                        crate::query::validator::Column {
+                        crate::query::context::validate::types::Column {
                             name: "src".to_string(),
-                            type_: crate::core::ValueTypeDef::Vertex,
+                            type_: "Vertex".to_string(),
                         },
-                        crate::query::validator::Column {
+                        crate::query::context::validate::types::Column {
                             name: "dst".to_string(),
-                            type_: crate::core::ValueTypeDef::Vertex,
+                            type_: "Vertex".to_string(),
                         },
                     ],
                 };
@@ -197,16 +198,16 @@ impl MatchPathPlanner {
             
             // 设置遍历参数
             let var_name = format!("traverse_{}_{}", node.alias, dst.alias);
-            let variable = crate::query::validator::Variable {
+            let variable = Variable {
                 name: var_name,
                 columns: vec![
-                    crate::query::validator::Column {
+                    crate::query::context::validate::types::Column {
                         name: dst.alias.clone(),
-                        type_: crate::core::ValueTypeDef::Vertex,
+                        type_: "Vertex".to_string(),
                     },
-                    crate::query::validator::Column {
+                    crate::query::context::validate::types::Column {
                         name: "edge".to_string(),
-                        type_: crate::core::ValueTypeDef::Edge,
+                        type_: "Edge".to_string(),
                     },
                 ],
             };
@@ -230,11 +231,11 @@ impl MatchPathPlanner {
             // 处理节点过滤
             if let Some(_filter) = &node.filter {
                 let var_name = format!("node_filter_{}", node.alias);
-                let variable = crate::query::validator::Variable {
+                let variable = Variable {
                     name: var_name,
-                    columns: vec![crate::query::validator::Column {
+                    columns: vec![crate::query::context::validate::types::Column {
                         name: node.alias.clone(),
-                        type_: crate::core::ValueTypeDef::Vertex,
+                        type_: "Vertex".to_string(),
                     }],
                 };
                 let filter_node = Arc::new(SingleInputNode::new(
@@ -254,11 +255,11 @@ impl MatchPathPlanner {
             // 处理边过滤
             if let Some(_filter) = &edge.filter {
                 let var_name = format!("edge_filter_{}", edge.alias);
-                let variable = crate::query::validator::Variable {
+                let variable = Variable {
                     name: var_name,
-                    columns: vec![crate::query::validator::Column {
+                    columns: vec![crate::query::context::validate::types::Column {
                         name: edge.alias.clone(),
-                        type_: crate::core::ValueTypeDef::Edge,
+                        type_: "Edge".to_string(),
                     }],
                 };
                 let filter_node = Arc::new(SingleInputNode::new(
@@ -281,11 +282,11 @@ impl MatchPathPlanner {
         let last_node = &node_infos[node_infos.len() - 1];
         if !node_aliases_seen_in_pattern.contains(&last_node.alias) {
             let var_name = format!("append_{}", last_node.alias);
-            let variable = crate::query::validator::Variable {
+            let variable = Variable {
                 name: var_name,
-                columns: vec![crate::query::validator::Column {
+                columns: vec![crate::query::context::validate::types::Column {
                     name: last_node.alias.clone(),
-                    type_: crate::core::ValueTypeDef::Vertex,
+                    type_: "Vertex".to_string(),
                 }],
             };
             let append_node = Arc::new(SingleInputNode::new(
@@ -327,16 +328,16 @@ impl MatchPathPlanner {
             
             // 设置遍历参数
             let var_name = format!("traverse_{}_{}", node.alias, dst.alias);
-            let variable = crate::query::validator::Variable {
+            let variable = Variable {
                 name: var_name,
                 columns: vec![
-                    crate::query::validator::Column {
+                    crate::query::context::validate::types::Column {
                         name: dst.alias.clone(),
-                        type_: crate::core::ValueTypeDef::Vertex,
+                        type_: "Vertex".to_string(),
                     },
-                    crate::query::validator::Column {
+                    crate::query::context::validate::types::Column {
                         name: "edge".to_string(),
-                        type_: crate::core::ValueTypeDef::Edge,
+                        type_: "Edge".to_string(),
                     },
                 ],
             };
@@ -360,11 +361,11 @@ impl MatchPathPlanner {
             // 处理节点过滤
             if let Some(_filter) = &node.filter {
                 let var_name = format!("node_filter_{}", node.alias);
-                let variable = crate::query::validator::Variable {
+                let variable = Variable {
                     name: var_name,
-                    columns: vec![crate::query::validator::Column {
+                    columns: vec![crate::query::context::validate::types::Column {
                         name: node.alias.clone(),
-                        type_: crate::core::ValueTypeDef::Vertex,
+                        type_: "Vertex".to_string(),
                     }],
                 };
                 let filter_node = Arc::new(SingleInputNode::new(
@@ -384,11 +385,11 @@ impl MatchPathPlanner {
             // 处理边过滤
             if let Some(_filter) = &edge.filter {
                 let var_name = format!("edge_filter_{}", edge.alias);
-                let variable = crate::query::validator::Variable {
+                let variable = Variable {
                     name: var_name,
-                    columns: vec![crate::query::validator::Column {
+                    columns: vec![crate::query::context::validate::types::Column {
                         name: edge.alias.clone(),
-                        type_: crate::core::ValueTypeDef::Edge,
+                        type_: "Edge".to_string(),
                     }],
                 };
                 let filter_node = Arc::new(SingleInputNode::new(
@@ -411,11 +412,11 @@ impl MatchPathPlanner {
         let first_node = &node_infos[0];
         if !node_aliases_seen_in_pattern.contains(&first_node.alias) {
             let var_name = format!("append_{}", first_node.alias);
-            let variable = crate::query::validator::Variable {
+            let variable = Variable {
                 name: var_name,
-                columns: vec![crate::query::validator::Column {
+                columns: vec![crate::query::context::validate::types::Column {
                     name: first_node.alias.clone(),
-                    type_: crate::core::ValueTypeDef::Vertex,
+                    type_: "Vertex".to_string(),
                 }],
             };
             let append_node = Arc::new(SingleInputNode::new(
@@ -459,7 +460,7 @@ impl MatchPathPlanner {
                 col_names.push(edge_info.alias.clone());
             }
         }
-        let variable = crate::query::validator::Variable {
+        let variable = Variable {
             name: "project".to_string(),
             columns: vec![],
         };
@@ -497,6 +498,7 @@ mod tests {
     use crate::query::validator::structs::{
         MatchClauseContext, Path, NodeInfo, PathType
     };
+    use crate::query::context::validate::types::Variable;
     use std::collections::HashMap;
 
     /// 创建测试用的节点信息

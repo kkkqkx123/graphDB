@@ -7,6 +7,7 @@ pub mod operations;
 pub mod management;
 pub mod algorithms;
 pub mod common;
+pub mod scan_nodes;
 
 // 重新导出主要的类型
 pub use core::{PlanNode, SingleDependencyNode, SingleInputNode, BinaryInputNode, VariableDependencyNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError, DefaultPlanNodeVisitor};
@@ -17,3 +18,4 @@ pub use operations::*;
 pub use management::*;
 pub use algorithms::*;
 pub use common::*;
+pub use scan_nodes::{IndexScan, FulltextIndexScan};

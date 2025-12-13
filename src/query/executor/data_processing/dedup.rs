@@ -8,7 +8,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
-use crate::query::executor::traits::{ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
+use crate::query::executor::traits::{
+    DBResult, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -28,13 +30,25 @@ pub enum DedupStrategy {
 /// DedupExecutor - 去重执行器
 ///
 /// 实现数据去重功能，支持多种去重策略
-#[derive(Debug)]
 pub struct DedupExecutor<S: StorageEngine + Send + 'static> {
     base: BaseExecutor<S>,
     input_executor: Option<Box<dyn crate::query::executor::traits::Executor<S>>>,
     strategy: DedupStrategy,
     memory_limit: usize, // 内存限制（字节）
     current_memory_usage: usize,
+}
+
+// Manual Debug implementation for DedupExecutor to avoid requiring Debug trait for Executor trait object
+impl<S: StorageEngine + Send + 'static> std::fmt::Debug for DedupExecutor<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DedupExecutor")
+            .field("base", &"BaseExecutor")
+            .field("input_executor", &"Option<Box<dyn Executor<S>>>")
+            .field("strategy", &self.strategy)
+            .field("memory_limit", &self.memory_limit)
+            .field("current_memory_usage", &self.current_memory_usage)
+            .finish()
+    }
 }
 
 impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
@@ -289,7 +303,11 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for DedupExecutor<S> {
         };
 
         // 执行去重操作
-        self.execute_dedup(input_result).await.map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))
+        self.execute_dedup(input_result).await.map_err(|e| {
+            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
+                e.to_string(),
+            ))
+        })
     }
 }
 
@@ -334,7 +352,9 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for DedupExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for DedupExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
+    for DedupExecutor<S>
+{
     fn storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage
     }
@@ -435,7 +455,7 @@ mod tests {
     async fn test_dedup_executor_full_strategy() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = DedupExecutor::new(1, storage, DedupStrategy::Full, None);
+        let mut executor = DedupExecutor::new(1, storage.clone(), DedupStrategy::Full, None);
 
         // 设置测试数据（包含重复值）
         let test_data = vec![
@@ -451,16 +471,17 @@ mod tests {
         // 创建模拟输入执行器
         struct MockInputExecutor {
             result: ExecutionResult,
+            storage: Arc<Mutex<MockStorage>>,
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> ExecutorCore for MockInputExecutor {
+        impl ExecutorCore for MockInputExecutor {
             async fn execute(&mut self) -> DBResult<ExecutionResult> {
                 Ok(self.result.clone())
             }
         }
 
-        impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for MockInputExecutor {
+        impl ExecutorLifecycle for MockInputExecutor {
             fn open(&mut self) -> DBResult<()> {
                 Ok(())
             }
@@ -472,7 +493,7 @@ mod tests {
             }
         }
 
-        impl<S: StorageEngine + Send + 'static> ExecutorMetadata for MockInputExecutor {
+        impl ExecutorMetadata for MockInputExecutor {
             fn id(&self) -> usize {
                 0
             }
@@ -485,14 +506,15 @@ mod tests {
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for MockInputExecutor {
-            fn storage(&self) -> &Arc<Mutex<S>> {
+        impl crate::query::executor::traits::Executor<MockStorage> for MockInputExecutor {
+            fn storage(&self) -> &Arc<Mutex<MockStorage>> {
                 &self.storage
             }
         }
 
         let input_executor = MockInputExecutor {
             result: input_result,
+            storage,
         };
 
         executor.set_input(Box::new(input_executor));
@@ -524,7 +546,7 @@ mod tests {
 
         let mut executor = DedupExecutor::new(
             1,
-            storage,
+            storage.clone(),
             DedupStrategy::ByKeys(vec!["id".to_string()]),
             None,
         );
@@ -550,16 +572,17 @@ mod tests {
         // 创建模拟输入执行器
         struct MockInputExecutor {
             result: ExecutionResult,
+            storage: Arc<Mutex<MockStorage>>,
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> ExecutorCore for MockInputExecutor {
+        impl ExecutorCore for MockInputExecutor {
             async fn execute(&mut self) -> DBResult<ExecutionResult> {
                 Ok(self.result.clone())
             }
         }
 
-        impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for MockInputExecutor {
+        impl ExecutorLifecycle for MockInputExecutor {
             fn open(&mut self) -> DBResult<()> {
                 Ok(())
             }
@@ -571,7 +594,7 @@ mod tests {
             }
         }
 
-        impl<S: StorageEngine + Send + 'static> ExecutorMetadata for MockInputExecutor {
+        impl ExecutorMetadata for MockInputExecutor {
             fn id(&self) -> usize {
                 0
             }
@@ -584,14 +607,15 @@ mod tests {
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for MockInputExecutor {
-            fn storage(&self) -> &Arc<Mutex<S>> {
+        impl crate::query::executor::traits::Executor<MockStorage> for MockInputExecutor {
+            fn storage(&self) -> &Arc<Mutex<MockStorage>> {
                 &self.storage
             }
         }
 
         let input_executor = MockInputExecutor {
             result: input_result,
+            storage,
         };
 
         executor.set_input(Box::new(input_executor));

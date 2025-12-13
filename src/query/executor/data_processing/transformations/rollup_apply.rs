@@ -405,7 +405,7 @@ impl<S: StorageEngine + Send> ExecutorMetadata for RollUpApplyExecutor<S> {
     }
 
     fn name(&self) -> &str {
-        self.base.name
+        &self.base.name
     }
 
     fn description(&self) -> &str {

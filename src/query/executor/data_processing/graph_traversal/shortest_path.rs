@@ -27,7 +27,6 @@ pub enum ShortestPathAlgorithm {
 ///
 /// 计算两个节点之间的最短路径，支持多种算法
 /// 适用于社交网络、路线规划等场景
-#[derive(Debug)]
 pub struct ShortestPathExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     start_vertex_ids: Vec<Value>,
@@ -42,6 +41,25 @@ pub struct ShortestPathExecutor<S: StorageEngine> {
     visited_nodes: HashSet<Value>,
     distance_map: HashMap<Value, f64>,
     previous_map: HashMap<Value, (Value, Edge)>, // node -> (previous_node, edge)
+}
+
+// Manual Debug implementation for ShortestPathExecutor to avoid requiring Debug trait for Executor trait object
+impl<S: StorageEngine> std::fmt::Debug for ShortestPathExecutor<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ShortestPathExecutor")
+            .field("base", &"BaseExecutor")
+            .field("start_vertex_ids", &self.start_vertex_ids)
+            .field("end_vertex_ids", &self.end_vertex_ids)
+            .field("edge_direction", &self.edge_direction)
+            .field("edge_types", &self.edge_types)
+            .field("algorithm", &self.algorithm)
+            .field("input_executor", &"Option<Box<dyn Executor<S>>>")
+            .field("shortest_paths", &self.shortest_paths)
+            .field("visited_nodes", &self.visited_nodes)
+            .field("distance_map", &"HashMap<Value, f64>")
+            .field("previous_map", &"HashMap<Value, (Value, Edge)>")
+            .finish()
+    }
 }
 
 impl<S: StorageEngine> ShortestPathExecutor<S> {

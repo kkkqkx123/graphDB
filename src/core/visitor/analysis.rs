@@ -2,9 +2,11 @@
 //!
 //! 这个模块提供了用于分析 Value 类型的访问者实现
 
+use crate::core::value::{
+    DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
+};
+use crate::core::vertex_edge_path::{Edge, Path, Vertex};
 use crate::core::visitor::core::ValueVisitor;
-use crate::core::value::{Value, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, DataSet};
-use crate::core::vertex_edge_path::{Vertex, Edge, Path};
 use std::collections::HashMap;
 
 /// Value 类型分类
@@ -175,6 +177,14 @@ impl ComplexityAnalyzerVisitor {
                 0.0
             },
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.depth = 0;
+        self.max_depth = 0;
+        self.total_nodes = 0;
+        self.container_nodes = 0;
+        self.primitive_nodes = 0;
     }
 
     fn update_depth(&mut self, new_depth: usize) {
@@ -349,12 +359,12 @@ mod tests {
     #[test]
     fn test_type_checker_visitor() {
         let mut visitor = TypeCheckerVisitor::new();
-        
+
         let int_value = Value::Int(42);
         int_value.accept(&mut visitor);
         assert!(visitor.has_category(TypeCategory::Numeric));
         assert_eq!(visitor.get_type_name(), "Numeric");
-        
+
         visitor.reset();
         let string_value = Value::String("test".to_string());
         string_value.accept(&mut visitor);
@@ -365,19 +375,20 @@ mod tests {
     #[test]
     fn test_complexity_analyzer() {
         let mut visitor = ComplexityAnalyzerVisitor::new();
-        
+
         let simple_value = Value::Int(42);
         simple_value.accept(&mut visitor);
         let metrics = visitor.analyze();
         assert!(metrics.is_simple());
-        
+
         visitor.reset();
         let complex_value = Value::List(vec![
             Value::Int(1),
             Value::String("test".to_string()),
-            Value::Map(std::collections::HashMap::from([
-                ("key".to_string(), Value::Bool(true))
-            ])),
+            Value::Map(std::collections::HashMap::from([(
+                "key".to_string(),
+                Value::Bool(true),
+            )])),
         ]);
         complex_value.accept(&mut visitor);
         let metrics = visitor.analyze();

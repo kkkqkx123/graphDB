@@ -3,7 +3,7 @@
 
 use crate::query::context::{AstContext, FetchVerticesContext};
 use crate::query::planner::plan::core::common::TagProp;
-use crate::query::planner::plan::core::plan_node_traits::{PlanNode, PlanNodeClonable, PlanNodeMutable};
+use crate::query::planner::plan::core::plan_node_traits::{PlanNode, PlanNodeClonable, PlanNodeMutable, PlanNodeDependencies};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::{Argument, Dedup, GetVertices, Project};
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -61,7 +61,7 @@ impl Planner for FetchVerticesPlanner {
             1,
             &fetch_ctx.from.user_defined_var_name,
         ));
-        std::sync::Arc::get_mut(&mut get_vertices_node).unwrap().set_dependencies(vec![arg_node.clone_plan_node()]);
+        std::sync::Arc::get_mut(&mut get_vertices_node).unwrap().add_dependency(arg_node.clone_plan_node());
         std::sync::Arc::get_mut(&mut get_vertices_node).unwrap().set_output_var(Variable {
             name: "fetched_vertices".to_string(),
             columns: vec![],
@@ -82,14 +82,14 @@ impl Planner for FetchVerticesPlanner {
             3,
             &fetch_ctx.yield_expr.clone().unwrap_or("*".to_string()),
         ));
-        std::sync::Arc::get_mut(&mut project_node).unwrap().set_dependencies(vec![get_vertices_node.clone_plan_node()]);
+        std::sync::Arc::get_mut(&mut project_node).unwrap().add_dependency(get_vertices_node.clone_plan_node());
         let result_columns: Vec<Column> = fetch_ctx
             .from
             .vids
             .iter()
             .map(|vid| Column {
                 name: vid.clone(),
-                type_: crate::core::ValueTypeDef::String, // 使用正确的类型
+                type_: "STRING".to_string(),
             })
             .collect();
         std::sync::Arc::get_mut(&mut project_node).unwrap().set_output_var(Variable {
@@ -101,7 +101,7 @@ impl Planner for FetchVerticesPlanner {
         // 4. 如果需要去重，创建去重节点
         let final_node: std::sync::Arc<dyn PlanNode> = if fetch_ctx.distinct {
             let mut dedup_node = std::sync::Arc::new(Dedup::new(4));
-            std::sync::Arc::get_mut(&mut dedup_node).unwrap().set_dependencies(vec![project_node.clone_plan_node()]);
+            std::sync::Arc::get_mut(&mut dedup_node).unwrap().add_dependency(project_node.clone_plan_node());
             std::sync::Arc::get_mut(&mut dedup_node).unwrap().set_output_var(Variable {
                 name: "dedup_result".to_string(),
                 columns: vec![],

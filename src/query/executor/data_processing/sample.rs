@@ -31,7 +31,6 @@ pub enum SampleMethod {
 /// SampleExecutor - 采样执行器
 ///
 /// 实现数据采样功能，支持多种采样算法
-#[derive(Debug)]
 pub struct SampleExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     input_executor: Option<Box<dyn crate::query::executor::traits::Executor<S>>>,
@@ -39,6 +38,20 @@ pub struct SampleExecutor<S: StorageEngine> {
     method: SampleMethod,   // 采样方法
     seed: Option<u64>,      // 随机种子（用于可重现的采样）
     evaluator: ExpressionEvaluator,
+}
+
+// Manual Debug implementation for SampleExecutor to avoid requiring Debug trait for Executor trait object and ExpressionEvaluator
+impl<S: StorageEngine> std::fmt::Debug for SampleExecutor<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SampleExecutor")
+            .field("base", &"BaseExecutor")
+            .field("input_executor", &"Option<Box<dyn Executor<S>>>")
+            .field("count_expr", &self.count_expr)
+            .field("method", &self.method)
+            .field("seed", &self.seed)
+            .field("evaluator", &"ExpressionEvaluator")
+            .finish()
+    }
 }
 
 impl<S: StorageEngine> SampleExecutor<S> {

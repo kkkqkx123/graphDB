@@ -16,7 +16,6 @@ use crate::storage::StorageEngine;
 ///
 /// 返回从当前节点出发的所有可能的路径，而不仅仅是下一跳节点
 /// 通常用于路径探索查询
-#[derive(Debug)]
 pub struct ExpandAllExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
@@ -27,6 +26,21 @@ pub struct ExpandAllExecutor<S: StorageEngine> {
     path_cache: Vec<Path>,
     // 已访问节点集合，用于避免循环
     visited_nodes: HashSet<Value>,
+}
+
+// Manual Debug implementation for ExpandAllExecutor to avoid requiring Debug trait for Executor trait object
+impl<S: StorageEngine> std::fmt::Debug for ExpandAllExecutor<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExpandAllExecutor")
+            .field("base", &"BaseExecutor")
+            .field("edge_direction", &self.edge_direction)
+            .field("edge_types", &self.edge_types)
+            .field("max_depth", &self.max_depth)
+            .field("input_executor", &"Option<Box<dyn Executor<S>>>")
+            .field("path_cache", &self.path_cache)
+            .field("visited_nodes", &self.visited_nodes)
+            .finish()
+    }
 }
 
 impl<S: StorageEngine + Send> ExpandAllExecutor<S> {

@@ -25,7 +25,7 @@ pub struct FilterExecutor<S: StorageEngine> {
 impl<S: StorageEngine> std::fmt::Debug for FilterExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FilterExecutor")
-            .field("base", &self.base)
+            .field("base", &"BaseExecutor")
             .field("condition", &"Expression")
             .field("input_executor", &"Box<dyn Executor<S>>")
             .field("evaluator", &"ExpressionEvaluator")
@@ -51,7 +51,7 @@ impl<S: StorageEngine> FilterExecutor<S> {
         let result = self
             .evaluator
             .evaluate(&self.condition, context)
-            .map_err(|e| crate::core::error::QueryError::ExpressionError(e.to_string()))?;
+            .map_err(|e| crate::core::error::QueryError::ExecutionError(e.to_string()))?;
 
         // 转换为布尔值
         Ok(self.value_to_bool(&result))

@@ -5,6 +5,7 @@ use super::optimizer::{OptContext, OptGroupNode, OptRule, Pattern, OptimizerErro
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::planner::plan::PlanNodeKind;
+use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
 
 /// 转换Limit-Sort为TopN的规则
 #[derive(Debug)]
@@ -42,12 +43,20 @@ impl OptRule for TopNRule {
                             
                             // 创建新的OptGroupNode
                             let mut new_node = child_node.clone(); // 从Sort节点克隆
-                            new_node.plan_node = Box::new(topn_node);
+                            
+                            // 创建TopN节点并设置输出变量
+                            let mut topn_node = crate::query::planner::plan::operations::TopN::new(
+                                node.plan_node.id(), // 使用Limit节点的ID
+                                sort_plan_node.sort_items.clone(), // 使用Sort的排序项
+                                limit_plan_node.count(), // 使用Limit的计数值作为TopN的限制
+                            );
                             
                             // 保持输出变量不变
                             if let Some(output_var) = node.plan_node.output_var() {
-                                new_node.plan_node.set_output_var(output_var.clone());
+                                topn_node.set_output_var(output_var.clone());
                             }
+                            
+                            new_node.plan_node = std::sync::Arc::new(topn_node);
                             
                             // 保持原始Sort节点的依赖（即TopN的输入）
                             if !child_node.dependencies.is_empty() {

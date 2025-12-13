@@ -15,7 +15,6 @@ use crate::storage::StorageEngine;
 ///
 /// 从当前节点按照指定的边类型和方向扩展一步，获取相邻节点
 /// 通常用于图遍历和路径查询
-#[derive(Debug)]
 pub struct ExpandExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
@@ -26,6 +25,21 @@ pub struct ExpandExecutor<S: StorageEngine> {
     visited_nodes: HashSet<Value>,
     // 邻接关系缓存
     adjacency_cache: HashMap<Value, Vec<Value>>,
+}
+
+// Manual Debug implementation for ExpandExecutor to avoid requiring Debug trait for Executor trait object
+impl<S: StorageEngine> std::fmt::Debug for ExpandExecutor<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExpandExecutor")
+            .field("base", &"BaseExecutor")
+            .field("edge_direction", &self.edge_direction)
+            .field("edge_types", &self.edge_types)
+            .field("max_depth", &self.max_depth)
+            .field("input_executor", &"Option<Box<dyn Executor<S>>>")
+            .field("visited_nodes", &self.visited_nodes)
+            .field("adjacency_cache", &"HashMap<Value, Vec<Value>>")
+            .finish()
+    }
 }
 
 impl<S: StorageEngine> ExpandExecutor<S> {

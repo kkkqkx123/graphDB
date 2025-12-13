@@ -6,11 +6,11 @@ use crate::core::visitor::core::{ValueVisitor, utils};
 use crate::core::value::{Value, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, DataSet};
 use crate::core::vertex_edge_path::{Vertex, Edge, Path, Tag, Step};
 use std::collections::HashMap;
-use std::hash::Hash;
 
 /// 深度克隆访问者 - 创建 Value 的深度副本
 #[derive(Debug, Default)]
 pub struct DeepCloneVisitor {
+    #[allow(dead_code)]
     max_depth: usize,
 }
 
@@ -167,7 +167,7 @@ impl ValueVisitor for DeepCloneVisitor {
     }
 
     fn visit_dataset(&mut self, value: &DataSet) -> Self::Result {
-        let mut cloned_col_names = value.col_names.clone();
+        let cloned_col_names = value.col_names.clone();
         let mut cloned_rows = Vec::with_capacity(value.rows.len());
 
         for row in &value.rows {
@@ -223,7 +223,8 @@ impl SizeCalculatorVisitor {
 
     pub fn calculate_size(value: &Value) -> Result<usize, TransformationError> {
         let mut visitor = Self::new();
-        utils::visit_recursive(value, &mut visitor, 0, visitor.max_depth)?;
+        let max_depth = visitor.max_depth;
+        let _ = utils::visit_recursive(value, &mut visitor, 0, max_depth)?;
         Ok(visitor.size)
     }
 }
@@ -404,7 +405,8 @@ impl HashCalculatorVisitor {
 
     pub fn calculate_hash(value: &Value) -> Result<u64, TransformationError> {
         let mut visitor = Self::new();
-        utils::visit_recursive(value, &mut visitor, 0, visitor.max_depth)?;
+        let max_depth = visitor.max_depth;
+        let _ = utils::visit_recursive(value, &mut visitor, 0, max_depth)?;
         use std::hash::Hasher;
         Ok(visitor.hasher.finish())
     }
@@ -883,7 +885,7 @@ mod tests {
 
     #[test]
     fn test_type_conversion_visitor() {
-        let string_value = Value::String("123");
+        let string_value = Value::String("123".to_string());
         let int_value = TypeConversionVisitor::convert(&string_value, ValueTypeDef::Int).unwrap();
         assert_eq!(int_value, Value::Int(123));
         
