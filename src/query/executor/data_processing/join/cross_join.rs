@@ -6,7 +6,8 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
-use crate::query::executor::base::{ExecutionResult, Executor};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -232,7 +233,7 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for CrossJoinExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 根据输入数量选择实现方式
         let result = if self.input_vars.len() == 2 {
@@ -300,7 +301,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
 
         Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for CrossJoinExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         // 初始化资源
         Ok(())
@@ -311,12 +314,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base_executor.get_base().is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for CrossJoinExecutor<S> {
     fn id(&self) -> usize {
         self.base_executor.get_base().id
     }
 
     fn name(&self) -> &str {
         "CrossJoinExecutor"
+    }
+
+    fn description(&self) -> &str {
+        &self.base_executor.get_base().description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CrossJoinExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base_executor.get_base().storage
     }
 }
 

@@ -143,7 +143,7 @@ impl JoinExecutorFactory {
         id: usize,
         storage: std::sync::Arc<std::sync::Mutex<S>>,
         config: JoinConfig,
-    ) -> Result<Box<dyn crate::query::executor::base::Executor<S>>, crate::query::QueryError> {
+    ) -> Result<Box<dyn crate::query::executor::traits::Executor<S>>, crate::query::QueryError> {
         match config.join_type {
             JoinType::Inner => {
                 if config.enable_parallel {

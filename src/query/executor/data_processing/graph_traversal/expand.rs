@@ -4,8 +4,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
 use crate::query::executor::base::{
-    BaseExecutor, EdgeDirection, ExecutionResult, Executor, InputExecutor,
+    BaseExecutor, EdgeDirection, InputExecutor,
 };
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -154,7 +155,7 @@ impl<S: StorageEngine> InputExecutor<S> for ExpandExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
@@ -197,7 +198,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandExecutor<S> {
         // 构建结果
         Ok(self.build_expansion_result(expanded_nodes))
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for ExpandExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         // 初始化扩展所需的任何资源
         self.visited_nodes.clear();
@@ -220,11 +223,28 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for ExpandExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ExpandExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base.storage
     }
 }

@@ -7,7 +7,8 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
 use crate::core::{Value, DataSet, List};
-use crate::query::executor::base::{Executor, ExecutionResult, BaseExecutor};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::graph::expression::{Expression, ExpressionContext, InputPropertyExpression};
@@ -367,7 +368,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for RollUpApplyExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for RollUpApplyExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 执行RollUpApply操作
         let dataset = self.execute_rollup_apply()?;
@@ -379,7 +380,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for RollUpApplyExecutor<S> {
         
         Ok(ExecutionResult::Values(values))
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for RollUpApplyExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         // 初始化资源
         Ok(())
@@ -390,12 +393,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for RollUpApplyExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for RollUpApplyExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        self.base.name
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RollUpApplyExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base.storage
     }
 }
 

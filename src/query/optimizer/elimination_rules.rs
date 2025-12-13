@@ -8,6 +8,7 @@ use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Patt
 use crate::query::planner::plan::operations::Filter as FilterPlanNode;
 use crate::query::planner::plan::operations::Project as ProjectPlanNode;
 use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+use std::sync::Arc;
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -66,13 +67,31 @@ impl EliminationRule for EliminateFilterRule {
             let child_dep_id = node.dependencies[0];
 
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                let mut new_node = child_node.clone();
+                // 创建一个全新的节点，而不是修改现有的节点
+                let new_plan_node = child_node.plan_node.clone_plan_node();
 
+                // 创建新的OptGroupNode
+                let mut new_node = OptGroupNode {
+                    id: child_node.id,
+                    plan_node: new_plan_node,
+                    dependencies: child_node.dependencies.clone(),
+                    cost: child_node.cost,
+                    properties: child_node.properties.clone(),
+                    explored_rules: child_node.explored_rules.clone(),
+                    group_id: child_node.group_id,
+                };
+
+                // 尝试设置输出变量
                 if let Some(output_var) = node.plan_node.output_var() {
-                    new_node.plan_node.set_output_var(output_var.clone());
+                    // 创建一个新的计划节点并设置输出变量
+                    // 由于Arc<dyn PlanNode>是不可变的，我们需要基于原节点创建一个新节点
+                    // 这需要PlanNode有具体类型才能设置输出变量
+                    let new_plan_node_with_output = create_plan_node_with_output_var(
+                        &child_node.plan_node,
+                        output_var.clone()
+                    );
+                    new_node.plan_node = new_plan_node_with_output;
                 }
-
-                new_node.dependencies = child_node.dependencies.clone();
 
                 return Ok(Some(new_node));
             }
@@ -155,14 +174,27 @@ impl EliminationRule for DedupEliminationRule {
                     | PlanNodeKind::GetVertices
                     | PlanNodeKind::GetEdges => {
                         // 这些操作已经产生唯一结果，可以移除去重
-                        let mut new_node = child_node.clone();
+                        let new_plan_node = child_node.plan_node.clone_plan_node();
+
+                        // 创建新的OptGroupNode
+                        let mut new_node = OptGroupNode {
+                            id: child_node.id,
+                            plan_node: new_plan_node,
+                            dependencies: child_node.dependencies.clone(),
+                            cost: child_node.cost,
+                            properties: child_node.properties.clone(),
+                            explored_rules: child_node.explored_rules.clone(),
+                            group_id: child_node.group_id,
+                        };
 
                         // 保留当前节点的输出变量
                         if let Some(output_var) = node.plan_node.output_var() {
-                            new_node.plan_node.set_output_var(output_var.clone());
+                            new_node.plan_node = create_plan_node_with_output_var(
+                                &child_node.plan_node,
+                                output_var.clone()
+                            );
                         }
 
-                        new_node.dependencies = child_node.dependencies.clone();
                         return Ok(Some(new_node));
                     }
                     _ => {
@@ -348,14 +380,27 @@ impl EliminationRule for RemoveNoopProjectRule {
                     node.plan_node.as_any().downcast_ref::<ProjectPlanNode>()
                 {
                     if self.is_noop_projection(project_plan_node, child_node)? {
-                        let mut new_node = child_node.clone();
+                        let new_plan_node = child_node.plan_node.clone_plan_node();
+
+                        // 创建新的OptGroupNode
+                        let mut new_node = OptGroupNode {
+                            id: child_node.id,
+                            plan_node: new_plan_node,
+                            dependencies: child_node.dependencies.clone(),
+                            cost: child_node.cost,
+                            properties: child_node.properties.clone(),
+                            explored_rules: child_node.explored_rules.clone(),
+                            group_id: child_node.group_id,
+                        };
 
                         // 保留当前节点的输出变量
                         if let Some(output_var) = node.plan_node.output_var() {
-                            new_node.plan_node.set_output_var(output_var.clone());
+                            new_node.plan_node = create_plan_node_with_output_var(
+                                &child_node.plan_node,
+                                output_var.clone()
+                            );
                         }
 
-                        new_node.dependencies = child_node.dependencies.clone();
                         return Ok(Some(new_node));
                     }
                 }
@@ -417,14 +462,27 @@ impl EliminationRule for EliminateAppendVerticesRule {
         if node.dependencies.len() == 1 {
             let child_dep_id = node.dependencies[0];
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                let mut new_node = child_node.clone();
+                let new_plan_node = child_node.plan_node.clone_plan_node();
+
+                // 创建新的OptGroupNode
+                let mut new_node = OptGroupNode {
+                    id: child_node.id,
+                    plan_node: new_plan_node,
+                    dependencies: child_node.dependencies.clone(),
+                    cost: child_node.cost,
+                    properties: child_node.properties.clone(),
+                    explored_rules: child_node.explored_rules.clone(),
+                    group_id: child_node.group_id,
+                };
 
                 // 保留当前节点的输出变量
                 if let Some(output_var) = node.plan_node.output_var() {
-                    new_node.plan_node.set_output_var(output_var.clone());
+                    new_node.plan_node = create_plan_node_with_output_var(
+                        &child_node.plan_node,
+                        output_var.clone()
+                    );
                 }
 
-                new_node.dependencies = child_node.dependencies.clone();
                 return Ok(Some(new_node));
             }
         }
@@ -498,14 +556,27 @@ impl EliminationRule for RemoveAppendVerticesBelowJoinRule {
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 在实际实现中，我们可能需要根据具体情况决定如何替换
                 // 目前简单地返回子节点
-                let mut new_node = child_node.clone();
+                let new_plan_node = child_node.plan_node.clone_plan_node();
+
+                // 创建新的OptGroupNode
+                let mut new_node = OptGroupNode {
+                    id: child_node.id,
+                    plan_node: new_plan_node,
+                    dependencies: child_node.dependencies.clone(),
+                    cost: child_node.cost,
+                    properties: child_node.properties.clone(),
+                    explored_rules: child_node.explored_rules.clone(),
+                    group_id: child_node.group_id,
+                };
 
                 // 保留当前节点的输出变量
                 if let Some(output_var) = node.plan_node.output_var() {
-                    new_node.plan_node.set_output_var(output_var.clone());
+                    new_node.plan_node = create_plan_node_with_output_var(
+                        &child_node.plan_node,
+                        output_var.clone()
+                    );
                 }
 
-                new_node.dependencies = child_node.dependencies.clone();
                 return Ok(Some(new_node));
             }
         }
@@ -662,5 +733,95 @@ mod tests {
         assert!(is_tautology("TRUE"));
         assert!(is_tautology("True"));
         assert!(!is_tautology("age > 18"));
+    }
+}
+
+/// 创建具有指定输出变量的PlanNode副本
+fn create_plan_node_with_output_var(
+    plan_node: &Arc<dyn PlanNode>,
+    output_var: crate::query::context::validate::types::Variable,
+) -> Arc<dyn PlanNode> {
+    use crate::query::planner::plan::operations::*;
+    use crate::query::planner::plan::*;
+
+    // 尝试将plan_node向下转换为具体类型，并创建带有新输出变量的新实例
+    // 这里我们只处理一些常见的节点类型作为示例，实际中需要处理所有类型
+    if let Some(filter_node) = plan_node.as_any().downcast_ref::<Filter>() {
+        let mut new_node = Filter::new(filter_node.id(), &filter_node.condition);
+        new_node.set_output_var(output_var);
+        Arc::new(new_node)
+    } else if let Some(project_node) = plan_node.as_any().downcast_ref::<Project>() {
+        let mut new_node = Project::new(project_node.id(), &project_node.yield_expr);
+        new_node.set_output_var(output_var);
+        Arc::new(new_node)
+    } else if let Some(dedup_node) = plan_node.as_any().downcast_ref::<Dedup>() {
+        let mut new_node = Dedup::new(dedup_node.id());
+        new_node.set_output_var(output_var);
+        Arc::new(new_node)
+    } else if let Some(sort_node) = plan_node.as_any().downcast_ref::<Sort>() {
+        let mut new_node = Sort::new(sort_node.id());
+        new_node.set_output_var(output_var);
+        Arc::new(new_node)
+    } else if let Some(limit_node) = plan_node.as_any().downcast_ref::<Limit>() {
+        let mut new_node = Limit::new(limit_node.id(), limit_node.offset, limit_node.count);
+        new_node.set_output_var(output_var);
+        Arc::new(new_node)
+    } else if let Some(scan_vertices_node) = plan_node.as_any().downcast_ref::<ScanVertices>() {
+        let mut new_node = ScanVertices::new(scan_vertices_node.id(), scan_vertices_node.space_id);
+        new_node.set_output_var(output_var);
+        Arc::new(new_node)
+    } else if let Some(index_scan_node) = plan_node.as_any().downcast_ref::<IndexScan>() {
+        let mut new_node = IndexScan::new(
+            index_scan_node.id(),
+            index_scan_node.space_id,
+            index_scan_node.tag_id,
+            index_scan_node.index_id,
+            &index_scan_node.filter,
+        );
+        new_node.set_output_var(output_var);
+        Arc::new(new_node)
+    } else if let Some(append_vertices_node) = plan_node.as_any().downcast_ref::<AppendVertices>() {
+        let mut new_node = AppendVertices::new(
+            append_vertices_node.id(),
+            append_vertices_node.space_id,
+            append_vertices_node.vids.clone(),
+        );
+        new_node.set_output_var(output_var);
+        Arc::new(new_node)
+    } else if let Some(scan_edges_node) = plan_node.as_any().downcast_ref::<ScanEdges>() {
+        let mut new_node = ScanEdges::new(scan_edges_node.id(), scan_edges_node.space_id);
+        new_node.set_output_var(output_var);
+        Arc::new(new_node)
+    } else if let Some(get_vertices_node) = plan_node.as_any().downcast_ref::<GetVertices>() {
+        let mut new_node = GetVertices::new(
+            get_vertices_node.id(),
+            get_vertices_node.space_id,
+            get_vertices_node.src_ref.clone(),
+        );
+        new_node.set_output_var(output_var);
+        Arc::new(new_node)
+    } else if let Some(get_edges_node) = plan_node.as_any().downcast_ref::<GetEdges>() {
+        let mut new_node = GetEdges::new(
+            get_edges_node.id(),
+            get_edges_node.space_id,
+            get_edges_node.edge_ref.clone(),
+        );
+        new_node.set_output_var(output_var);
+        Arc::new(new_node)
+    } else if let Some(inner_join_node) = plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::InnerJoin>() {
+        let mut new_node = crate::query::planner::plan::operations::InnerJoin::new(inner_join_node.id());
+        new_node.set_output_var(output_var.clone());
+        Arc::new(new_node)
+    } else if let Some(hash_inner_join_node) = plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::HashInnerJoin>() {
+        let mut new_node = crate::query::planner::plan::operations::HashInnerJoin::new(hash_inner_join_node.id());
+        new_node.set_output_var(output_var.clone());
+        Arc::new(new_node)
+    } else if let Some(hash_left_join_node) = plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::HashLeftJoin>() {
+        let mut new_node = crate::query::planner::plan::operations::HashLeftJoin::new(hash_left_join_node.id());
+        new_node.set_output_var(output_var.clone());
+        Arc::new(new_node)
+    } else {
+        // 如果无法识别具体类型，则返回原节点的克隆（不改变输出变量）
+        plan_node.clone_plan_node()
     }
 }

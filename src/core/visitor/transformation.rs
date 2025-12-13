@@ -86,7 +86,7 @@ impl ValueVisitor for DeepCloneVisitor {
         }
         
         Ok(Value::Vertex(Box::new(Vertex::new_with_properties(
-            *value.id(),
+            value.id().clone(),
             cloned_tags,
             cloned_vertex_props,
         ))))
@@ -99,8 +99,8 @@ impl ValueVisitor for DeepCloneVisitor {
         }
         
         Ok(Value::Edge(Edge::new(
-            *value.src(),
-            *value.dst(),
+            value.src().clone(),
+            value.dst().clone(),
             value.edge_type().to_string(),
             value.ranking(),
             cloned_props,
@@ -702,7 +702,7 @@ impl ValueVisitor for TypeConversionVisitor {
             }
             _ => Ok(Value::List(
                 value.iter()
-                    .map(|v| Self::convert(v, self.target_type.unwrap()))
+                    .map(|v| Self::convert(v, self.target_type.clone().unwrap()))
                     .collect::<Result<Vec<_>, _>>()?,
             )),
         }
@@ -727,7 +727,7 @@ impl ValueVisitor for TypeConversionVisitor {
                 value
                     .iter()
                     .map(|(k, v)| {
-                        (k.clone(), Self::convert(v, self.target_type.unwrap()))
+                        (k.clone(), Self::convert(v, self.target_type.clone().unwrap()))
                     })
                     .collect::<Result<HashMap<_, _>, _>>()?,
             )),
@@ -751,7 +751,7 @@ impl ValueVisitor for TypeConversionVisitor {
             _ => Ok(Value::Set(
                 value
                     .iter()
-                    .map(|v| Self::convert(v, self.target_type.unwrap()))
+                    .map(|v| Self::convert(v, self.target_type.clone().unwrap()))
                     .collect::<Result<std::collections::HashSet<_>, _>>()?,
             )),
         }

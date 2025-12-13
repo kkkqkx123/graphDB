@@ -1,15 +1,19 @@
 //! 用户操作相关的计划节点
 //! 包括创建/删除用户等操作
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError};
+use crate::query::planner::plan::core::{
+    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
+    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
+};
 use crate::query::validator::Variable;
+use std::sync::Arc;
 
 /// 创建用户计划节点
 #[derive(Debug)]
 pub struct CreateUser {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -50,7 +54,7 @@ impl Clone for CreateUser {
     }
 }
 
-impl BasePlanNode for CreateUser {
+impl PlanNodeIdentifiable for CreateUser {
     fn id(&self) -> i64 {
         self.id
     }
@@ -58,11 +62,9 @@ impl BasePlanNode for CreateUser {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for CreateUser {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -74,21 +76,32 @@ impl BasePlanNode for CreateUser {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for CreateUser {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for CreateUser {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -100,7 +113,23 @@ impl BasePlanNode for CreateUser {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for CreateUser {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for CreateUser {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for CreateUser {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -111,7 +140,7 @@ impl BasePlanNode for CreateUser {
 pub struct DropUser {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -149,7 +178,7 @@ impl Clone for DropUser {
     }
 }
 
-impl BasePlanNode for DropUser {
+impl PlanNodeIdentifiable for DropUser {
     fn id(&self) -> i64 {
         self.id
     }
@@ -157,11 +186,9 @@ impl BasePlanNode for DropUser {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for DropUser {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -173,21 +200,32 @@ impl BasePlanNode for DropUser {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for DropUser {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for DropUser {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -199,7 +237,23 @@ impl BasePlanNode for DropUser {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for DropUser {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for DropUser {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for DropUser {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -210,7 +264,7 @@ impl BasePlanNode for DropUser {
 pub struct UpdateUser {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -248,7 +302,7 @@ impl Clone for UpdateUser {
     }
 }
 
-impl BasePlanNode for UpdateUser {
+impl PlanNodeIdentifiable for UpdateUser {
     fn id(&self) -> i64 {
         self.id
     }
@@ -256,11 +310,9 @@ impl BasePlanNode for UpdateUser {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for UpdateUser {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -272,21 +324,32 @@ impl BasePlanNode for UpdateUser {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for UpdateUser {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for UpdateUser {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -298,7 +361,23 @@ impl BasePlanNode for UpdateUser {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for UpdateUser {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for UpdateUser {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for UpdateUser {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

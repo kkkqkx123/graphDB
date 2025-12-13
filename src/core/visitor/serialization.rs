@@ -248,8 +248,8 @@ impl ValueVisitor for JsonSerializationVisitor {
         }
 
         self.start_object();
-        let mut pairs = value.iter().collect::<Vec<_>>();
-        pairs.sort_by_key(|(k, _)| k);
+        let mut pairs: Vec<(&String, &Value)> = value.iter().collect();
+        pairs.sort_by_key(|&(k, _)| k);
         
         for (i, (key, val)) in pairs.iter().enumerate() {
             self.result.push('"');

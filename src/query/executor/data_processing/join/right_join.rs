@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
-use crate::query::executor::base::{ExecutionResult, Executor};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor, hash_table::JoinKey,
 };
@@ -187,11 +188,13 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for RightJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for RightJoinExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         self.execute_right_join().await
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for RightJoinExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         Ok(())
     }
@@ -200,11 +203,28 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for RightJoinExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base.base.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for RightJoinExecutor<S> {
     fn id(&self) -> usize {
         self.base.id()
     }
 
     fn name(&self) -> &str {
         self.base.name()
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description()
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RightJoinExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base.storage()
     }
 }

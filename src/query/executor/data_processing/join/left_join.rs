@@ -7,7 +7,8 @@ use async_trait::async_trait;
 
 use crate::core::{Value, DataSet, NullType};
 use crate::storage::StorageEngine;
-use crate::query::executor::base::{Executor, ExecutionResult};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::data_processing::join::hash_table::{HashTableBuilder, HashTableProbe, SingleKeyHashTable, MultiKeyHashTable};
@@ -185,7 +186,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for LeftJoinExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 检查输入数据集
         let (left_dataset, right_dataset) = self.base_executor.check_input_datasets()?;
@@ -225,7 +226,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
 
         Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for LeftJoinExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         // 初始化资源
         Ok(())
@@ -238,12 +241,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base_executor.get_base().is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for LeftJoinExecutor<S> {
     fn id(&self) -> usize {
         self.base_executor.get_base().id
     }
 
     fn name(&self) -> &str {
         &self.base_executor.get_base().name
+    }
+
+    fn description(&self) -> &str {
+        &self.base_executor.get_base().description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LeftJoinExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base_executor.get_base().storage
     }
 }
 
@@ -277,12 +297,14 @@ impl<S: StorageEngine> HashLeftJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for HashLeftJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for HashLeftJoinExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 目前与普通左连接相同，后续可以添加并行处理逻辑
         self.inner.execute().await
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for HashLeftJoinExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         self.inner.open()
     }
@@ -291,12 +313,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for HashLeftJoinExecutor<S> 
         self.inner.close()
     }
 
+    fn is_open(&self) -> bool {
+        self.inner.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for HashLeftJoinExecutor<S> {
     fn id(&self) -> usize {
         self.inner.id()
     }
 
     fn name(&self) -> &str {
         "HashLeftJoinExecutor"
+    }
+
+    fn description(&self) -> &str {
+        &self.inner.description()
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HashLeftJoinExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.inner.storage()
     }
 }
 

@@ -9,7 +9,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Edge, Value, Vertex};
 use crate::graph::expression::{EvalContext, Expression, ExpressionEvaluator};
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, InputExecutor};
+use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::traits::{ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
 use crate::query::QueryError;
 use crate::storage::Row;
 use crate::storage::StorageEngine;
@@ -32,7 +33,7 @@ pub enum SampleMethod {
 /// 实现数据采样功能，支持多种采样算法
 pub struct SampleExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<dyn crate::query::executor::traits::Executor<S>>>,
     count_expr: Expression, // 采样数量表达式
     method: SampleMethod,   // 采样方法
     seed: Option<u64>,      // 随机种子（用于可重现的采样）
@@ -433,18 +434,18 @@ impl<S: StorageEngine> SampleExecutor<S> {
 }
 
 impl<S: StorageEngine> InputExecutor<S> for SampleExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
+    fn set_input(&mut self, input: Box<dyn crate::query::executor::traits::Executor<S>>) {
         self.input_executor = Some(input);
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
+    fn get_input(&self) -> Option<&Box<dyn crate::query::executor::traits::Executor<S>>> {
         self.input_executor.as_ref()
     }
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for SampleExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for SampleExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -454,10 +455,12 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for SampleExecutor<S> {
         };
 
         // 执行采样操作
-        self.execute_sample(input_result).await
+        self.execute_sample(input_result).await.map_err(|e| crate::core::error::DBError::Query(e))
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for SampleExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化采样所需的任何资源
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
@@ -465,7 +468,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for SampleExecutor<S> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;
@@ -473,12 +476,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for SampleExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+}
+
+impl<S: StorageEngine + Send + 'static> ExecutorMetadata for SampleExecutor<S> {
     fn id(&self) -> usize {
-        self.base.id
+        self.base.id()
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        self.base.name()
+    }
+
+    fn description(&self) -> &str {
+        self.base.description()
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for SampleExecutor<S> {
+    fn storage(&self) -> &S {
+        self.base.storage()
     }
 }
 
@@ -603,22 +623,40 @@ mod tests {
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> Executor<S> for MockInputExecutor {
-            async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        impl<S: StorageEngine + Send + 'static> ExecutorCore for MockInputExecutor {
+            async fn execute(&mut self) -> DBResult<ExecutionResult> {
                 Ok(self.result.clone())
             }
+        }
 
-            fn open(&mut self) -> Result<(), QueryError> {
+        impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for MockInputExecutor {
+            fn open(&mut self) -> DBResult<()> {
                 Ok(())
             }
-            fn close(&mut self) -> Result<(), QueryError> {
+            fn close(&mut self) -> DBResult<()> {
                 Ok(())
             }
+            fn is_open(&self) -> bool {
+                true
+            }
+        }
+
+        impl<S: StorageEngine + Send + 'static> ExecutorMetadata for MockInputExecutor {
             fn id(&self) -> usize {
                 0
             }
             fn name(&self) -> &str {
                 "MockInputExecutor"
+            }
+            fn description(&self) -> &str {
+                "Mock input executor for testing"
+            }
+        }
+
+        #[async_trait]
+        impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for MockInputExecutor {
+            fn storage(&self) -> &S {
+                panic!("MockInputExecutor does not have storage")
             }
         }
 
@@ -676,22 +714,40 @@ mod tests {
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> Executor<S> for MockInputExecutor {
-            async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        impl<S: StorageEngine + Send + 'static> ExecutorCore for MockInputExecutor {
+            async fn execute(&mut self) -> DBResult<ExecutionResult> {
                 Ok(self.result.clone())
             }
+        }
 
-            fn open(&mut self) -> Result<(), QueryError> {
+        impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for MockInputExecutor {
+            fn open(&mut self) -> DBResult<()> {
                 Ok(())
             }
-            fn close(&mut self) -> Result<(), QueryError> {
+            fn close(&mut self) -> DBResult<()> {
                 Ok(())
             }
+            fn is_open(&self) -> bool {
+                true
+            }
+        }
+
+        impl<S: StorageEngine + Send + 'static> ExecutorMetadata for MockInputExecutor {
             fn id(&self) -> usize {
                 0
             }
             fn name(&self) -> &str {
                 "MockInputExecutor"
+            }
+            fn description(&self) -> &str {
+                "Mock input executor for testing"
+            }
+        }
+
+        #[async_trait]
+        impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for MockInputExecutor {
+            fn storage(&self) -> &S {
+                panic!("MockInputExecutor does not have storage")
             }
         }
 

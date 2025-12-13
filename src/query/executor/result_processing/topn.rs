@@ -1,9 +1,8 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::query::executor::base::{
-    BaseExecutor, ExecutionResult, Executor, InputExecutor,
-};
+use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -48,7 +47,7 @@ impl<S: StorageEngine> InputExecutor<S> for TopNExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for TopNExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for TopNExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
@@ -121,7 +120,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for TopNExecutor<S> {
 
         Ok(top_n_result)
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for TopNExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         // 初始化 TopN 操作所需的任何资源
         if let Some(ref mut input_exec) = self.input_executor {
@@ -138,11 +139,28 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for TopNExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for TopNExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        self.base.name
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base.storage
     }
 }

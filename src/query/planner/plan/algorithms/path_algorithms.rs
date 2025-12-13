@@ -1,15 +1,19 @@
 //! 路径查找算法相关的计划节点
 //! 包含最短路径、所有路径等算法相关的计划节点
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError, BinaryInputNode};
+use crate::query::planner::plan::core::{
+    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
+    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
+};
 use crate::query::validator::Variable;
+use std::sync::Arc;
 
 /// 多源最短路径计划节点
 #[derive(Debug)]
 pub struct MultiShortestPath {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -21,7 +25,7 @@ pub struct MultiShortestPath {
 }
 
 impl MultiShortestPath {
-    pub fn new(id: i64, left: Box<dyn BasePlanNode>, right: Box<dyn BasePlanNode>, steps: usize) -> Self {
+    pub fn new(id: i64, left: Arc<dyn PlanNode>, right: Arc<dyn PlanNode>, steps: usize) -> Self {
         let mut result = Self {
             id,
             kind: PlanNodeKind::MultiShortestPath,
@@ -86,7 +90,7 @@ impl Clone for MultiShortestPath {
     }
 }
 
-impl BasePlanNode for MultiShortestPath {
+impl PlanNodeIdentifiable for MultiShortestPath {
     fn id(&self) -> i64 {
         self.id
     }
@@ -94,11 +98,9 @@ impl BasePlanNode for MultiShortestPath {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for MultiShortestPath {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -110,21 +112,32 @@ impl BasePlanNode for MultiShortestPath {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for MultiShortestPath {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for MultiShortestPath {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -136,7 +149,23 @@ impl BasePlanNode for MultiShortestPath {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for MultiShortestPath {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for MultiShortestPath {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for MultiShortestPath {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -147,7 +176,7 @@ impl BasePlanNode for MultiShortestPath {
 pub struct BFSShortest {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -158,7 +187,7 @@ pub struct BFSShortest {
 }
 
 impl BFSShortest {
-    pub fn new(id: i64, dep: Box<dyn BasePlanNode>, steps: usize, edge_types: Vec<String>, no_loop: bool) -> Self {
+    pub fn new(id: i64, dep: Arc<dyn PlanNode>, steps: usize, edge_types: Vec<String>, no_loop: bool) -> Self {
         Self {
             id,
             kind: PlanNodeKind::BFSShortest,
@@ -199,7 +228,7 @@ impl Clone for BFSShortest {
     }
 }
 
-impl BasePlanNode for BFSShortest {
+impl PlanNodeIdentifiable for BFSShortest {
     fn id(&self) -> i64 {
         self.id
     }
@@ -207,11 +236,9 @@ impl BasePlanNode for BFSShortest {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for BFSShortest {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -223,21 +250,32 @@ impl BasePlanNode for BFSShortest {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for BFSShortest {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for BFSShortest {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -249,7 +287,23 @@ impl BasePlanNode for BFSShortest {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for BFSShortest {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for BFSShortest {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for BFSShortest {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -260,7 +314,7 @@ impl BasePlanNode for BFSShortest {
 pub struct AllPaths {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -275,8 +329,8 @@ pub struct AllPaths {
 impl AllPaths {
     pub fn new(
         id: i64,
-        left: Box<dyn BasePlanNode>,
-        right: Box<dyn BasePlanNode>,
+        left: Arc<dyn PlanNode>,
+        right: Arc<dyn PlanNode>,
         steps: usize,
         edge_types: Vec<String>,
         min_hop: usize,
@@ -331,7 +385,7 @@ impl Clone for AllPaths {
     }
 }
 
-impl BasePlanNode for AllPaths {
+impl PlanNodeIdentifiable for AllPaths {
     fn id(&self) -> i64 {
         self.id
     }
@@ -339,11 +393,9 @@ impl BasePlanNode for AllPaths {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for AllPaths {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -355,21 +407,32 @@ impl BasePlanNode for AllPaths {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for AllPaths {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for AllPaths {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -381,7 +444,23 @@ impl BasePlanNode for AllPaths {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for AllPaths {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for AllPaths {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for AllPaths {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -392,7 +471,7 @@ impl BasePlanNode for AllPaths {
 pub struct ShortestPath {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -405,8 +484,8 @@ pub struct ShortestPath {
 impl ShortestPath {
     pub fn new(
         id: i64,
-        left: Box<dyn BasePlanNode>,
-        right: Box<dyn BasePlanNode>,
+        left: Arc<dyn PlanNode>,
+        right: Arc<dyn PlanNode>,
         edge_types: Vec<String>,
         max_step: usize,
     ) -> Self {
@@ -454,7 +533,7 @@ impl Clone for ShortestPath {
     }
 }
 
-impl BasePlanNode for ShortestPath {
+impl PlanNodeIdentifiable for ShortestPath {
     fn id(&self) -> i64 {
         self.id
     }
@@ -462,11 +541,9 @@ impl BasePlanNode for ShortestPath {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for ShortestPath {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -478,21 +555,32 @@ impl BasePlanNode for ShortestPath {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for ShortestPath {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for ShortestPath {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -504,7 +592,23 @@ impl BasePlanNode for ShortestPath {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for ShortestPath {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for ShortestPath {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for ShortestPath {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

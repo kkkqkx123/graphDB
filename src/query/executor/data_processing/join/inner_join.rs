@@ -7,7 +7,8 @@ use async_trait::async_trait;
 
 use crate::core::{Value, DataSet};
 use crate::storage::StorageEngine;
-use crate::query::executor::base::{Executor, ExecutionResult};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::data_processing::join::hash_table::{HashTableBuilder, HashTableProbe, SingleKeyHashTable, MultiKeyHashTable};
@@ -162,7 +163,7 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for InnerJoinExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 检查输入数据集
         let (left_dataset, right_dataset) = self.base_executor.check_input_datasets()?;
@@ -185,7 +186,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
 
         Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for InnerJoinExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         // 初始化资源
         Ok(())
@@ -198,12 +201,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base_executor.get_base().is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for InnerJoinExecutor<S> {
     fn id(&self) -> usize {
         self.base_executor.get_base().id
     }
 
     fn name(&self) -> &str {
         &self.base_executor.get_base().name
+    }
+
+    fn description(&self) -> &str {
+        &self.base_executor.get_base().description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for InnerJoinExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base_executor.get_base().storage
     }
 }
 
@@ -237,12 +257,14 @@ impl<S: StorageEngine> HashInnerJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for HashInnerJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for HashInnerJoinExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 目前与普通内连接相同，后续可以添加并行处理逻辑
         self.inner.execute().await
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for HashInnerJoinExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         self.inner.open()
     }
@@ -251,12 +273,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for HashInnerJoinExecutor<S>
         self.inner.close()
     }
 
+    fn is_open(&self) -> bool {
+        self.inner.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for HashInnerJoinExecutor<S> {
     fn id(&self) -> usize {
         self.inner.id()
     }
 
     fn name(&self) -> &str {
         "HashInnerJoinExecutor"
+    }
+
+    fn description(&self) -> &str {
+        &self.inner.description()
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HashInnerJoinExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.inner.storage()
     }
 }
 
@@ -328,7 +367,7 @@ mod tests {
             vec!["0".to_string()], // 右表第0列作为键
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
         );
-
+        
         // 设置执行上下文
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
@@ -337,7 +376,7 @@ mod tests {
                 vec![Value::Int(2), Value::String("Bob".to_string())],
             ],
         };
-
+        
         let right_dataset = DataSet {
             col_names: vec!["id".to_string(), "age".to_string()],
             rows: vec![
@@ -345,20 +384,20 @@ mod tests {
                 vec![Value::Int(3), Value::Int(35)],
             ],
         };
-
+        
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
         );
-
+        
         executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
-
+        
         // 执行连接
         let result = executor.execute().await.unwrap();
-
+        
         // 验证结果
         match result {
             ExecutionResult::Values(values) => {

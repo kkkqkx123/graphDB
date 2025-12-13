@@ -6,7 +6,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
-use crate::query::executor::base::{BaseExecutor, ExecutionResult};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::ExecutionResult;
 use crate::query::executor::data_processing::join::hash_table::JoinKey;
 use crate::query::QueryError;
 use crate::storage::StorageEngine;

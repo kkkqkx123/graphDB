@@ -475,7 +475,7 @@ impl ValueVisitor for TypeValidationVisitor {
     type Result = Result<(), ValidationError>;
 
     fn visit_bool(&mut self, _value: bool) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Bool) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -486,7 +486,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_int(&mut self, _value: i64) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Int) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -497,7 +497,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_float(&mut self, _value: f64) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Float) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -508,7 +508,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_string(&mut self, _value: &str) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::String) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -519,7 +519,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_date(&mut self, _value: &DateValue) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Date) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -530,7 +530,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_time(&mut self, _value: &TimeValue) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Time) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -541,7 +541,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_datetime(&mut self, _value: &DateTimeValue) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::DateTime) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -552,7 +552,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_vertex(&mut self, _value: &Vertex) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Vertex) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -563,7 +563,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_edge(&mut self, _value: &Edge) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Edge) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -574,7 +574,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_path(&mut self, _value: &Path) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Path) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -585,7 +585,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_list(&mut self, _value: &[Value]) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::List) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -596,7 +596,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_map(&mut self, _value: &HashMap<String, Value>) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Map) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -607,7 +607,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_set(&mut self, _value: &std::collections::HashSet<Value>) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Set) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -618,7 +618,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_geography(&mut self, _value: &GeographyValue) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Geography) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -629,7 +629,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_duration(&mut self, _value: &DurationValue) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Duration) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -640,7 +640,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_dataset(&mut self, _value: &DataSet) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::DataSet) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -651,7 +651,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_null(&mut self, _null_type: &NullType) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Null) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),
@@ -662,7 +662,7 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 
     fn visit_empty(&mut self) -> Self::Result {
-        match self.expected_type {
+        match &self.expected_type {
             Some(crate::core::value::ValueTypeDef::Empty) => Ok(()),
             Some(expected) => Err(ValidationError::TypeMismatch {
                 expected: format!("{:?}", expected),

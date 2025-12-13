@@ -1,15 +1,19 @@
 //! 连接操作节点
 //! 包含HashJoin、CrossJoin等连接操作相关的计划节点
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError};
+use crate::query::planner::plan::core::{
+    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
+    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
+};
 use crate::query::validator::Variable;
+use std::sync::Arc;
 
 // 哈希连接节点
 #[derive(Debug)]
 pub struct HashJoin {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -41,7 +45,7 @@ impl Clone for HashJoin {
     }
 }
 
-impl BasePlanNode for HashJoin {
+impl PlanNodeIdentifiable for HashJoin {
     fn id(&self) -> i64 {
         self.id
     }
@@ -49,11 +53,9 @@ impl BasePlanNode for HashJoin {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for HashJoin {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -65,22 +67,32 @@ impl BasePlanNode for HashJoin {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for HashJoin {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_hash_join(self)?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for HashJoin {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -92,7 +104,24 @@ impl BasePlanNode for HashJoin {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for HashJoin {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for HashJoin {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.visit_hash_join(self)?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for HashJoin {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -103,7 +132,7 @@ impl BasePlanNode for HashJoin {
 pub struct HashLeftJoin {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -135,7 +164,7 @@ impl Clone for HashLeftJoin {
     }
 }
 
-impl BasePlanNode for HashLeftJoin {
+impl PlanNodeIdentifiable for HashLeftJoin {
     fn id(&self) -> i64 {
         self.id
     }
@@ -143,11 +172,9 @@ impl BasePlanNode for HashLeftJoin {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for HashLeftJoin {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -159,22 +186,32 @@ impl BasePlanNode for HashLeftJoin {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for HashLeftJoin {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_hash_left_join(self)?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for HashLeftJoin {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -186,7 +223,24 @@ impl BasePlanNode for HashLeftJoin {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for HashLeftJoin {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for HashLeftJoin {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.visit_hash_left_join(self)?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for HashLeftJoin {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -197,7 +251,7 @@ impl BasePlanNode for HashLeftJoin {
 pub struct HashInnerJoin {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -229,7 +283,7 @@ impl Clone for HashInnerJoin {
     }
 }
 
-impl BasePlanNode for HashInnerJoin {
+impl PlanNodeIdentifiable for HashInnerJoin {
     fn id(&self) -> i64 {
         self.id
     }
@@ -237,11 +291,9 @@ impl BasePlanNode for HashInnerJoin {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for HashInnerJoin {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -253,22 +305,32 @@ impl BasePlanNode for HashInnerJoin {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for HashInnerJoin {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_hash_inner_join(self)?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for HashInnerJoin {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -280,7 +342,24 @@ impl BasePlanNode for HashInnerJoin {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for HashInnerJoin {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for HashInnerJoin {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.visit_hash_inner_join(self)?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for HashInnerJoin {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -291,7 +370,7 @@ impl BasePlanNode for HashInnerJoin {
 pub struct CrossJoin {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -323,7 +402,7 @@ impl Clone for CrossJoin {
     }
 }
 
-impl BasePlanNode for CrossJoin {
+impl PlanNodeIdentifiable for CrossJoin {
     fn id(&self) -> i64 {
         self.id
     }
@@ -331,11 +410,9 @@ impl BasePlanNode for CrossJoin {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for CrossJoin {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -347,22 +424,32 @@ impl BasePlanNode for CrossJoin {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for CrossJoin {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_cross_join(self)?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for CrossJoin {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -374,7 +461,24 @@ impl BasePlanNode for CrossJoin {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for CrossJoin {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for CrossJoin {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.visit_cross_join(self)?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for CrossJoin {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

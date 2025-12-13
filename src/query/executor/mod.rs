@@ -14,7 +14,6 @@ pub use traits::{
 
 // Re-export the base types
 pub use base::{
-    ExecutionResult as OldExecutionResult, 
     ExecutionContext, BaseExecutor,
     InputExecutor, ChainableExecutor, EdgeDirection, StartExecutor
 };

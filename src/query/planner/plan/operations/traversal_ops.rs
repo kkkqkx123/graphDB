@@ -1,16 +1,20 @@
 //! 图遍历操作节点
 //! 包含Expand、ExpandAll、Traverse等图遍历相关的计划节点
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError};
+use crate::query::planner::plan::core::{
+    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
+    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
+};
 use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
 use crate::query::validator::Variable;
+use std::sync::Arc;
 
 // 扩展节点
 #[derive(Debug)]
 pub struct Expand {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -54,7 +58,7 @@ impl Clone for Expand {
     }
 }
 
-impl BasePlanNode for Expand {
+impl PlanNodeIdentifiable for Expand {
     fn id(&self) -> i64 {
         self.id
     }
@@ -62,11 +66,9 @@ impl BasePlanNode for Expand {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for Expand {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -78,22 +80,32 @@ impl BasePlanNode for Expand {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for Expand {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_expand(self)?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for Expand {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -105,7 +117,24 @@ impl BasePlanNode for Expand {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for Expand {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for Expand {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.visit_expand(self)?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for Expand {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -116,7 +145,7 @@ impl BasePlanNode for Expand {
 pub struct ExpandAll {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -166,7 +195,7 @@ impl Clone for ExpandAll {
     }
 }
 
-impl BasePlanNode for ExpandAll {
+impl PlanNodeIdentifiable for ExpandAll {
     fn id(&self) -> i64 {
         self.id
     }
@@ -174,11 +203,9 @@ impl BasePlanNode for ExpandAll {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for ExpandAll {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -190,22 +217,32 @@ impl BasePlanNode for ExpandAll {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for ExpandAll {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_expand_all(self)?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for ExpandAll {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -217,7 +254,24 @@ impl BasePlanNode for ExpandAll {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for ExpandAll {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for ExpandAll {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.visit_expand_all(self)?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for ExpandAll {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -228,7 +282,7 @@ impl BasePlanNode for ExpandAll {
 pub struct Traverse {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -275,7 +329,7 @@ impl Clone for Traverse {
     }
 }
 
-impl BasePlanNode for Traverse {
+impl PlanNodeIdentifiable for Traverse {
     fn id(&self) -> i64 {
         self.id
     }
@@ -283,11 +337,9 @@ impl BasePlanNode for Traverse {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for Traverse {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -299,22 +351,32 @@ impl BasePlanNode for Traverse {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for Traverse {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_traverse(self)?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for Traverse {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -326,7 +388,24 @@ impl BasePlanNode for Traverse {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for Traverse {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for Traverse {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.visit_traverse(self)?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for Traverse {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -337,7 +416,7 @@ impl BasePlanNode for Traverse {
 pub struct AppendVertices {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -378,7 +457,7 @@ impl Clone for AppendVertices {
     }
 }
 
-impl BasePlanNode for AppendVertices {
+impl PlanNodeIdentifiable for AppendVertices {
     fn id(&self) -> i64 {
         self.id
     }
@@ -386,11 +465,9 @@ impl BasePlanNode for AppendVertices {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for AppendVertices {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -402,22 +479,32 @@ impl BasePlanNode for AppendVertices {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for AppendVertices {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_append_vertices(self)?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for AppendVertices {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -429,7 +516,24 @@ impl BasePlanNode for AppendVertices {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for AppendVertices {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for AppendVertices {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.visit_append_vertices(self)?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for AppendVertices {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -440,7 +544,7 @@ impl BasePlanNode for AppendVertices {
 pub struct ScanEdges {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -495,7 +599,7 @@ impl Clone for ScanEdges {
     }
 }
 
-impl BasePlanNode for ScanEdges {
+impl PlanNodeIdentifiable for ScanEdges {
     fn id(&self) -> i64 {
         self.id
     }
@@ -503,11 +607,9 @@ impl BasePlanNode for ScanEdges {
     fn kind(&self) -> PlanNodeKind {
         self.kind.clone()
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
-        &self.deps
-    }
-
+impl PlanNodeProperties for ScanEdges {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -519,22 +621,32 @@ impl BasePlanNode for ScanEdges {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+impl PlanNodeDependencies for ScanEdges {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &self.deps
     }
 
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_scan_edges(self)?;
-        visitor.post_visit()?;
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
-        self.deps = deps;
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeMutable for ScanEdges {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -546,7 +658,24 @@ impl BasePlanNode for ScanEdges {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl PlanNodeClonable for ScanEdges {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PlanNodeVisitable for ScanEdges {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.visit_scan_edges(self)?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for ScanEdges {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

@@ -2,7 +2,8 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -140,12 +141,14 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for LimitExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for LimitExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         let dataset = self.process_input().await?;
         Ok(ExecutionResult::DataSet(dataset))
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for LimitExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
@@ -160,12 +163,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LimitExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for LimitExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        self.base.name
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LimitExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base.storage
     }
 }
 

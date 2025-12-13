@@ -7,7 +7,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
 use crate::graph::expression::{Expression, ExpressionContext};
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -268,7 +269,7 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for UnwindExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for UnwindExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 执行展开操作
         let dataset = self.execute_unwind()?;
@@ -278,7 +279,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UnwindExecutor<S> {
             dataset.rows.into_iter().flatten().collect(),
         ))
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for UnwindExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         // 初始化资源
         Ok(())
@@ -289,12 +292,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UnwindExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for UnwindExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        self.base.name
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for UnwindExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base.storage
     }
 }
 

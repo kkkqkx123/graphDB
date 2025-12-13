@@ -3,7 +3,8 @@ use async_trait::async_trait;
 
 use crate::core::{Value, DataSet};
 use crate::graph::expression::{Expression, ExpressionContext};
-use crate::query::executor::base::{Executor, ExecutionResult, BaseExecutor};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -161,12 +162,14 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for SortExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for SortExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         let dataset = self.process_input().await?;
         Ok(ExecutionResult::DataSet(dataset))
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for SortExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
@@ -181,12 +184,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for SortExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for SortExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        self.base.name
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for SortExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base.storage
     }
 }
 

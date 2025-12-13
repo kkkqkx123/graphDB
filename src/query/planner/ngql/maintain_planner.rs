@@ -5,8 +5,11 @@ use crate::query::context::{AstContext, MaintainContext};
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::{Project, Argument};
+use crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable;
+use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
+use std::sync::Arc;
 
 /// 维护操作规划器
 /// 负责将维护操作转换为执行计划
@@ -57,6 +60,7 @@ impl Planner for MaintainPlanner {
             name: "maintain_args".to_string(),
             columns: vec![],
         });
+        let arg_node: std::sync::Arc<dyn PlanNode> = std::sync::Arc::new(*arg_node);
 
         // 2. 根据不同类型创建相应的计划节点
         let mut project_node = Box::new(Project::new(2, &format!("MAINTAIN_{}", stmt_type)));
@@ -84,7 +88,7 @@ impl Planner for MaintainPlanner {
         // 创建SubPlan
         let sub_plan = SubPlan {
             root: Some(final_node),
-            tail: Some(arg_node.clone_plan_node()),
+            tail: Some(arg_node),
         };
 
         Ok(sub_plan)

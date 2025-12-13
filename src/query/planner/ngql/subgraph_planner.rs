@@ -7,7 +7,8 @@ use crate::query::planner::plan::operations::{Argument, Filter, Project, Expand,
 use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::plan_node_traits::{PlanNodeClonable, PlanNodeMutable};
 
 /// SUBGRAPH查询规划器
 /// 负责将SUBGRAPH查询转换为执行计划

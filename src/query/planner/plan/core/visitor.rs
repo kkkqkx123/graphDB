@@ -1,7 +1,7 @@
 //! PlanNode访问者模式的定义
 //! 用于遍历和处理计划树
 
-use super::plan_node::PlanNode as BasePlanNode;
+use super::plan_node_traits::PlanNode as BasePlanNode;
 use crate::query::planner::plan::operations::{
     GetNeighbors, GetEdges, GetVertices, ScanVertices, ScanEdges,
     Traverse, AppendVertices, Expand, ExpandAll,

@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
 use crate::core::{Value, DataSet};
-use crate::query::executor::{Executor, ExecutionResult};
+use crate::query::executor::traits::{ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -72,9 +72,9 @@ impl<S: StorageEngine> UnionExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for UnionExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
-        let dataset = self.execute_union().await?;
+impl<S: StorageEngine + Send + 'static> ExecutorCore for UnionExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let dataset = self.execute_union().await.map_err(|e| crate::core::error::DBError::Query(e))?;
         
         // 将DataSet转换为Values结果
         let values: Vec<Value> = dataset.rows.into_iter()
@@ -83,21 +83,40 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UnionExecutor<S> {
 
         Ok(ExecutionResult::Values(values))
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for UnionExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         self.set_executor.open()
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         self.set_executor.close()
     }
 
+    fn is_open(&self) -> bool {
+        self.set_executor.is_open()
+    }
+}
+
+impl<S: StorageEngine + Send + 'static> ExecutorMetadata for UnionExecutor<S> {
     fn id(&self) -> usize {
         self.set_executor.id()
     }
 
     fn name(&self) -> &str {
         self.set_executor.name()
+    }
+
+    fn description(&self) -> &str {
+        self.set_executor.description()
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for UnionExecutor<S> {
+    fn storage(&self) -> &S {
+        self.set_executor.storage()
     }
 }
 

@@ -66,7 +66,7 @@ impl OptContext {
         self.plan_node_to_group_node.get(&plan_node_id)
     }
 
-    pub fn get_group_node_from_pool(&mut self, id: usize, plan_node: Box<dyn PlanNode>) -> OptGroupNode {
+    pub fn get_group_node_from_pool(&mut self, id: usize, plan_node: std::sync::Arc<dyn PlanNode>) -> OptGroupNode {
         let mut node = self.object_pool.acquire();
         node.id = id;
         node.plan_node = plan_node;
@@ -165,7 +165,7 @@ impl OptGroup {
 #[derive(Debug)]
 pub struct OptGroupNode {
     pub id: usize,
-    pub plan_node: Box<dyn PlanNode>,
+    pub plan_node: std::sync::Arc<dyn PlanNode>,
     pub dependencies: Vec<usize>, // IDs of dependency groups
     pub cost: f64,
     pub properties: PlanNodeProperties,
@@ -179,13 +179,13 @@ use crate::query::validator::Variable;
 #[derive(Debug, Default)]
 struct DummyPlanNode {
     id: i64,
-    dependencies: Vec<Box<dyn PlanNode>>,
+    dependencies: Vec<std::sync::Arc<dyn PlanNode>>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
 }
 
-impl PlanNode for DummyPlanNode {
+impl crate::query::planner::plan::core::plan_node_traits::PlanNodeIdentifiable for DummyPlanNode {
     fn id(&self) -> i64 {
         self.id
     }
@@ -193,11 +193,9 @@ impl PlanNode for DummyPlanNode {
     fn kind(&self) -> PlanNodeKind {
         PlanNodeKind::Unknown
     }
+}
 
-    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> {
-        &self.dependencies
-    }
-
+impl crate::query::planner::plan::core::plan_node_traits::PlanNodeProperties for DummyPlanNode {
     fn output_var(&self) -> &Option<Variable> {
         &self.output_var
     }
@@ -209,26 +207,32 @@ impl PlanNode for DummyPlanNode {
     fn cost(&self) -> f64 {
         self.cost
     }
+}
 
-    fn clone_plan_node(&self) -> Box<dyn PlanNode> {
-        Box::new(DummyPlanNode {
-            id: self.id,
-            dependencies: Vec::new(), // Don't clone dependencies to avoid infinite recursion
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-        })
+impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies for DummyPlanNode {
+    fn dependencies(&self) -> &[std::sync::Arc<dyn PlanNode>] {
+        &self.dependencies
     }
 
-    fn accept(&self, _visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        // For the dummy node, we don't implement the visitor pattern
-        Ok(())
+    fn dependencies_mut(&mut self) -> &mut Vec<std::sync::Arc<dyn PlanNode>> {
+        &mut self.dependencies
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>) {
-        self.dependencies = deps;
+    fn add_dependency(&mut self, dep: std::sync::Arc<dyn PlanNode>) {
+        self.dependencies.push(dep);
     }
 
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
+            self.dependencies.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable for DummyPlanNode {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -240,7 +244,28 @@ impl PlanNode for DummyPlanNode {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+}
 
+impl crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable for DummyPlanNode {
+    fn clone_plan_node(&self) -> std::sync::Arc<dyn PlanNode> {
+        std::sync::Arc::new(DummyPlanNode {
+            id: self.id,
+            dependencies: Vec::new(), // Don't clone dependencies to avoid infinite recursion
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        })
+    }
+}
+
+impl crate::query::planner::plan::core::plan_node_traits::PlanNodeVisitable for DummyPlanNode {
+    fn accept(&self, _visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        // For the dummy node, we don't implement the visitor pattern
+        Ok(())
+    }
+}
+
+impl crate::query::planner::plan::core::plan_node_traits::PlanNode for DummyPlanNode {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -250,7 +275,7 @@ impl Default for OptGroupNode {
     fn default() -> Self {
         Self {
             id: 0,
-            plan_node: Box::new(DummyPlanNode::default()),
+            plan_node: std::sync::Arc::new(DummyPlanNode::default()),
             dependencies: Vec::new(),
             cost: 0.0,
             properties: PlanNodeProperties::default(),
@@ -261,7 +286,7 @@ impl Default for OptGroupNode {
 }
 
 impl OptGroupNode {
-    pub fn new(id: usize, plan_node: Box<dyn PlanNode>) -> Self {
+    pub fn new(id: usize, plan_node: std::sync::Arc<dyn PlanNode>) -> Self {
         Self {
             id,
             plan_node,

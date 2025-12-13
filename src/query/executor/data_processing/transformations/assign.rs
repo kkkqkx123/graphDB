@@ -6,7 +6,8 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
 use crate::core::Value;
-use crate::query::executor::base::{Executor, ExecutionResult, BaseExecutor};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::graph::expression::{Expression, ExpressionContext};
@@ -84,7 +85,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for AssignExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for AssignExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 执行赋值操作
         self.execute_assign()?;
@@ -92,7 +93,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for AssignExecutor<S> {
         // AssignExecutor通常返回Success，表示赋值操作完成
         Ok(ExecutionResult::Success)
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for AssignExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         // 初始化资源
         Ok(())
@@ -103,12 +106,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for AssignExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for AssignExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AssignExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base.storage
     }
 }
 

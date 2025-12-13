@@ -7,7 +7,8 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
 use crate::core::{Value, Vertex, Edge, Path, DataSet};
-use crate::query::executor::base::{Executor, ExecutionResult, BaseExecutor};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::graph::expression::{Expression, ExpressionContext};
@@ -329,7 +330,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for PatternApplyExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for PatternApplyExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 执行模式匹配操作
         let dataset = self.execute_pattern_apply()?;
@@ -341,7 +342,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for PatternApplyExecutor<S> 
         
         Ok(ExecutionResult::Values(values))
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for PatternApplyExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         // 初始化资源
         Ok(())
@@ -352,12 +355,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for PatternApplyExecutor<S> 
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for PatternApplyExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        self.base.name
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for PatternApplyExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base.storage
     }
 }
 

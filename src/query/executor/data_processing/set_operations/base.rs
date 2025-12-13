@@ -248,14 +248,6 @@ impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor
         // This needs to be implemented based on the actual storage access pattern
         panic!("SetExecutor storage access not implemented")
     }
-
-    fn id(&self) -> usize {
-        self.base.id
-    }
-
-    fn name(&self) -> &str {
-        &self.base.name
-    }
 }
 
 #[cfg(test)]

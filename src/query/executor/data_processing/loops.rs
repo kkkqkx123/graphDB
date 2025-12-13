@@ -7,7 +7,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
 use crate::graph::expression::{EvalContext, Expression, ExpressionEvaluator};
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -221,7 +222,7 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for LoopExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for LoopExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         self.loop_state = LoopState::Running;
         self.results.clear();
@@ -274,7 +275,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LoopExecutor<S> {
         // 返回收集的结果
         Ok(self.collect_results())
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for LoopExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         // 初始化循环状态
         self.loop_state = LoopState::NotStarted;
@@ -298,12 +301,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LoopExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for LoopExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        self.base.name
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.base.storage
     }
 }
 
@@ -329,11 +349,13 @@ impl<S: StorageEngine + Send + 'static> WhileLoopExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for WhileLoopExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for WhileLoopExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         self.inner.execute().await
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for WhileLoopExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         self.inner.open()
     }
@@ -342,12 +364,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for WhileLoopExecutor<S> {
         self.inner.close()
     }
 
+    fn is_open(&self) -> bool {
+        self.inner.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for WhileLoopExecutor<S> {
     fn id(&self) -> usize {
         self.inner.id()
     }
 
     fn name(&self) -> &str {
         "WhileLoopExecutor"
+    }
+
+    fn description(&self) -> &str {
+        &self.inner.description()
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for WhileLoopExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.inner.storage()
     }
 }
 
@@ -394,7 +433,7 @@ impl<S: StorageEngine + Send + 'static> ForLoopExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for ForLoopExecutor<S> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for ForLoopExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
         // 初始化循环
         self.inner.open()?;
@@ -423,7 +462,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ForLoopExecutor<S> {
         self.inner.results = results;
         Ok(self.inner.collect_results())
     }
+}
 
+impl<S: StorageEngine> ExecutorLifecycle for ForLoopExecutor<S> {
     fn open(&mut self) -> Result<(), QueryError> {
         self.inner.open()
     }
@@ -432,12 +473,29 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ForLoopExecutor<S> {
         self.inner.close()
     }
 
+    fn is_open(&self) -> bool {
+        self.inner.is_open()
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for ForLoopExecutor<S> {
     fn id(&self) -> usize {
         self.inner.id()
     }
 
     fn name(&self) -> &str {
         "ForLoopExecutor"
+    }
+
+    fn description(&self) -> &str {
+        &self.inner.description()
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S> {
+    fn storage(&self) -> &S {
+        &self.inner.storage()
     }
 }
 
@@ -539,7 +597,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl<S: StorageEngine + Send + 'static> Executor<S> for CountExecutor {
+    impl<S: StorageEngine + Send + 'static> ExecutorCore for CountExecutor {
         async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
             if self.count < self.max_count {
                 self.count += 1;
@@ -548,18 +606,36 @@ mod tests {
                 Ok(ExecutionResult::Success)
             }
         }
+    }
 
+    impl<S: StorageEngine> ExecutorLifecycle for CountExecutor {
         fn open(&mut self) -> Result<(), QueryError> {
             Ok(())
         }
         fn close(&mut self) -> Result<(), QueryError> {
             Ok(())
         }
+        fn is_open(&self) -> bool {
+            true
+        }
+    }
+
+    impl<S: StorageEngine> ExecutorMetadata for CountExecutor {
         fn id(&self) -> usize {
             0
         }
         fn name(&self) -> &str {
             "CountExecutor"
+        }
+        fn description(&self) -> &str {
+            "CountExecutor"
+        }
+    }
+
+    #[async_trait]
+    impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CountExecutor {
+        fn storage(&self) -> &S {
+            panic!("CountExecutor doesn't use storage")
         }
     }
 
