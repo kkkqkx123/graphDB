@@ -12,8 +12,6 @@ pub mod signal_handler;
 pub mod value;
 pub mod vertex_edge_path;
 pub mod visitor;
-// pub mod visitors; // 已迁移到 visitor 模块
-pub mod visitor_legacy;
 pub mod visitors_legacy;
 
 pub use result::*;
@@ -22,7 +20,5 @@ pub use schema::*;
 pub use value::*;
 pub use vertex_edge_path::*;
 pub use visitor::*;
-// pub use visitors::*; // 已迁移到 visitor 模块
-pub use visitor_legacy::*;
 pub use visitors_legacy::*;
 pub use error::{DBError, DBResult};

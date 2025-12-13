@@ -10,28 +10,28 @@ use thiserror::Error;
 pub enum DBError {
     #[error("存储错误: {0}")]
     Storage(#[from] StorageError),
-    
+
     #[error("查询错误: {0}")]
     Query(#[from] QueryError),
-    
+
     #[error("表达式错误: {0}")]
     Expression(#[from] ExpressionError),
-    
+
     #[error("计划节点访问错误: {0}")]
     Plan(#[from] PlanNodeVisitError),
-    
+
     #[error("验证错误: {0}")]
     Validation(String),
-    
+
     #[error("IO错误: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("类型推导错误: {0}")]
     TypeDeduction(String),
-    
+
     #[error("序列化错误: {0}")]
     Serialization(String),
-    
+
     #[error("内部错误: {0}")]
     Internal(String),
 }
@@ -93,11 +93,21 @@ pub enum PlanNodeVisitError {
 impl From<crate::storage::StorageError> for DBError {
     fn from(err: crate::storage::StorageError) -> Self {
         match err {
-            crate::storage::StorageError::DbError(msg) => DBError::Storage(StorageError::DbError(msg)),
-            crate::storage::StorageError::SerializationError(msg) => DBError::Storage(StorageError::SerializationError(msg)),
-            crate::storage::StorageError::NodeNotFound(value) => DBError::Storage(StorageError::NodeNotFound(value)),
-            crate::storage::StorageError::EdgeNotFound(value) => DBError::Storage(StorageError::EdgeNotFound(value)),
-            crate::storage::StorageError::TransactionError(msg) => DBError::Storage(StorageError::TransactionError(msg)),
+            crate::storage::StorageError::DbError(msg) => {
+                DBError::Storage(StorageError::DbError(msg.to_string()))
+            }
+            crate::storage::StorageError::SerializationError(msg) => {
+                DBError::Storage(StorageError::SerializationError(msg))
+            }
+            crate::storage::StorageError::NodeNotFound(value) => {
+                DBError::Storage(StorageError::NodeNotFound(value))
+            }
+            crate::storage::StorageError::EdgeNotFound(value) => {
+                DBError::Storage(StorageError::EdgeNotFound(value))
+            }
+            crate::storage::StorageError::InvalidOperation(msg) => {
+                DBError::Storage(StorageError::DbError(msg))
+            }
         }
     }
 }
@@ -105,11 +115,21 @@ impl From<crate::storage::StorageError> for DBError {
 impl From<crate::query::QueryError> for DBError {
     fn from(err: crate::query::QueryError) -> Self {
         match err {
-            crate::query::QueryError::StorageError(storage_err) => DBError::Storage(StorageError::DbError(storage_err.to_string())),
-            crate::query::QueryError::ParseError(msg) => DBError::Query(QueryError::ParseError(msg)),
-            crate::query::QueryError::InvalidQuery(msg) => DBError::Query(QueryError::InvalidQuery(msg)),
-            crate::query::QueryError::ExecutionError(msg) => DBError::Query(QueryError::ExecutionError(msg)),
-            crate::query::QueryError::ExpressionError(msg) => DBError::Expression(ExpressionError::InvalidOperation(msg)),
+            crate::query::QueryError::StorageError(storage_err) => {
+                DBError::Storage(StorageError::DbError(storage_err.to_string()))
+            }
+            crate::query::QueryError::ParseError(msg) => {
+                DBError::Query(QueryError::ParseError(msg))
+            }
+            crate::query::QueryError::InvalidQuery(msg) => {
+                DBError::Query(QueryError::InvalidQuery(msg))
+            }
+            crate::query::QueryError::ExecutionError(msg) => {
+                DBError::Query(QueryError::ExecutionError(msg))
+            }
+            crate::query::QueryError::ExpressionError(msg) => {
+                DBError::Expression(ExpressionError::InvalidOperation(msg))
+            }
         }
     }
 }
@@ -117,10 +137,18 @@ impl From<crate::query::QueryError> for DBError {
 impl From<crate::graph::expression::ExpressionError> for DBError {
     fn from(err: crate::graph::expression::ExpressionError) -> Self {
         match err {
-            crate::graph::expression::ExpressionError::TypeError(msg) => DBError::Expression(ExpressionError::TypeError(msg)),
-            crate::graph::expression::ExpressionError::PropertyNotFound(msg) => DBError::Expression(ExpressionError::PropertyNotFound(msg)),
-            crate::graph::expression::ExpressionError::FunctionError(msg) => DBError::Expression(ExpressionError::FunctionError(msg)),
-            crate::graph::expression::ExpressionError::InvalidOperation(msg) => DBError::Expression(ExpressionError::InvalidOperation(msg)),
+            crate::graph::expression::ExpressionError::TypeError(msg) => {
+                DBError::Expression(ExpressionError::TypeError(msg))
+            }
+            crate::graph::expression::ExpressionError::PropertyNotFound(msg) => {
+                DBError::Expression(ExpressionError::PropertyNotFound(msg))
+            }
+            crate::graph::expression::ExpressionError::FunctionError(msg) => {
+                DBError::Expression(ExpressionError::FunctionError(msg))
+            }
+            crate::graph::expression::ExpressionError::InvalidOperation(msg) => {
+                DBError::Expression(ExpressionError::InvalidOperation(msg))
+            }
         }
     }
 }
@@ -128,9 +156,15 @@ impl From<crate::graph::expression::ExpressionError> for DBError {
 impl From<crate::query::planner::plan::core::visitor::PlanNodeVisitError> for DBError {
     fn from(err: crate::query::planner::plan::core::visitor::PlanNodeVisitError) -> Self {
         match err {
-            crate::query::planner::plan::core::visitor::PlanNodeVisitError::VisitError(msg) => DBError::Plan(PlanNodeVisitError::VisitError(msg)),
-            crate::query::planner::plan::core::visitor::PlanNodeVisitError::TraversalError(msg) => DBError::Plan(PlanNodeVisitError::TraversalError(msg)),
-            crate::query::planner::plan::core::visitor::PlanNodeVisitError::ValidationError(msg) => DBError::Plan(PlanNodeVisitError::ValidationError(msg)),
+            crate::query::planner::plan::core::visitor::PlanNodeVisitError::VisitError(msg) => {
+                DBError::Plan(PlanNodeVisitError::VisitError(msg))
+            }
+            crate::query::planner::plan::core::visitor::PlanNodeVisitError::TraversalError(msg) => {
+                DBError::Plan(PlanNodeVisitError::TraversalError(msg))
+            }
+            crate::query::planner::plan::core::visitor::PlanNodeVisitError::ValidationError(
+                msg,
+            ) => DBError::Plan(PlanNodeVisitError::ValidationError(msg)),
         }
     }
 }
@@ -245,7 +279,9 @@ impl From<Status> for DBError {
             Status::Error(msg) => DBError::Internal(msg),
             Status::SyntaxError(msg) => DBError::Query(QueryError::ParseError(msg)),
             Status::SemanticError(msg) => DBError::Query(QueryError::InvalidQuery(msg)),
-            Status::KeyNotFound => DBError::Storage(StorageError::NodeNotFound(crate::core::Value::Null(crate::core::NullType::Null))),
+            Status::KeyNotFound => DBError::Storage(StorageError::NodeNotFound(
+                crate::core::Value::Null(crate::core::NullType::Null),
+            )),
             _ => DBError::Internal(format!("Status error: {}", status)),
         }
     }
