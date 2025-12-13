@@ -245,9 +245,8 @@ impl<S: StorageEngine> crate::query::executor::traits::ExecutorMetadata for SetE
 impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
     for SetExecutor<S>
 {
-    fn storage(&self) -> &S {
-        // This needs to be implemented based on the actual storage access pattern
-        panic!("SetExecutor storage access not implemented")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 

@@ -104,10 +104,8 @@ impl<S: StorageEngine> ExecutorMetadata for GetVerticesExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for GetVerticesExecutor<S> {
-    fn storage(&self) -> &S {
-        // We can't directly return a reference to S from Arc<Mutex<S>>
-        // This is a design limitation that should be addressed in the future
-        panic!("GetVerticesExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 
@@ -171,8 +169,8 @@ impl<S: StorageEngine> ExecutorMetadata for GetEdgesExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for GetEdgesExecutor<S> {
-    fn storage(&self) -> &S {
-        panic!("GetEdgesExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 
@@ -248,8 +246,8 @@ impl<S: StorageEngine> ExecutorMetadata for GetNeighborsExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for GetNeighborsExecutor<S> {
-    fn storage(&self) -> &S {
-        panic!("GetNeighborsExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 
@@ -325,7 +323,7 @@ impl<S: StorageEngine> ExecutorMetadata for GetPropExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for GetPropExecutor<S> {
-    fn storage(&self) -> &S {
-        panic!("GetPropExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }

@@ -5,7 +5,7 @@ use super::StorageError;
 pub type TransactionId = u64;
 
 /// Storage engine trait defining the interface for graph storage
-pub trait StorageEngine {
+pub trait StorageEngine: Send + Sync {
     fn insert_node(&mut self, vertex: Vertex) -> Result<Value, StorageError>;
     fn get_node(&self, id: &Value) -> Result<Option<Vertex>, StorageError>;
     fn update_node(&mut self, vertex: Vertex) -> Result<(), StorageError>;

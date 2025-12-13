@@ -335,8 +335,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for DedupExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for DedupExecutor<S> {
-    fn storage(&self) -> &S {
-        self.base.storage()
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 
@@ -486,8 +486,8 @@ mod tests {
 
         #[async_trait]
         impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for MockInputExecutor {
-            fn storage(&self) -> &S {
-                panic!("MockInputExecutor does not have storage")
+            fn storage(&self) -> &Arc<Mutex<S>> {
+                &self.storage
             }
         }
 
@@ -585,8 +585,8 @@ mod tests {
 
         #[async_trait]
         impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for MockInputExecutor {
-            fn storage(&self) -> &S {
-                panic!("MockInputExecutor does not have storage")
+            fn storage(&self) -> &Arc<Mutex<S>> {
+                &self.storage
             }
         }
 

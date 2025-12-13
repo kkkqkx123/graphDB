@@ -239,7 +239,7 @@ impl<S: StorageEngine + Send> ExecutorMetadata for FullOuterJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for FullOuterJoinExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage()
     }
 }

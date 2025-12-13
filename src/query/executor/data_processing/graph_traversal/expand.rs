@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
 use crate::core::error::{DBError, DBResult};
+use crate::query::{QueryError};
 use crate::query::executor::base::{
     BaseExecutor, EdgeDirection, InputExecutor,
 };
@@ -53,7 +54,7 @@ impl<S: StorageEngine> ExpandExecutor<S> {
         // 获取节点的所有边
         let edges = storage
             .get_node_edges(node_id, crate::core::Direction::Both)
-            .map_err(|e| QueryError::StorageError(e))?;
+            .map_err(|e| QueryError::StorageError(e.into()))?;
 
         // 过滤边类型
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
@@ -245,7 +246,7 @@ impl<S: StorageEngine> ExecutorMetadata for ExpandExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ExpandExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage
     }
 }

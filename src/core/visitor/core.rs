@@ -108,17 +108,17 @@ pub mod utils {
             return Err(RecursionError::MaxDepthExceeded);
         }
         
-        let result = match value {
-            Value::Bool(b) => visitor.visit_bool(*b),
-            Value::Int(i) => visitor.visit_int(*i),
-            Value::Float(f) => visitor.visit_float(*f),
-            Value::String(s) => visitor.visit_string(s),
-            Value::Date(d) => visitor.visit_date(d),
-            Value::Time(t) => visitor.visit_time(t),
-            Value::DateTime(dt) => visitor.visit_datetime(dt),
-            Value::Vertex(v) => visitor.visit_vertex(v),
-            Value::Edge(e) => visitor.visit_edge(e),
-            Value::Path(p) => visitor.visit_path(p),
+        match value {
+            Value::Bool(b) => Ok(visitor.visit_bool(*b)),
+            Value::Int(i) => Ok(visitor.visit_int(*i)),
+            Value::Float(f) => Ok(visitor.visit_float(*f)),
+            Value::String(s) => Ok(visitor.visit_string(s)),
+            Value::Date(d) => Ok(visitor.visit_date(d)),
+            Value::Time(t) => Ok(visitor.visit_time(t)),
+            Value::DateTime(dt) => Ok(visitor.visit_datetime(dt)),
+            Value::Vertex(v) => Ok(visitor.visit_vertex(v)),
+            Value::Edge(e) => Ok(visitor.visit_edge(e)),
+            Value::Path(p) => Ok(visitor.visit_path(p)),
             Value::List(l) => {
                 let mut results = Vec::with_capacity(l.len());
                 for item in l {
@@ -129,11 +129,15 @@ pub mod utils {
             }
             Value::Map(m) => {
                 let mut results = Vec::with_capacity(m.len());
-                for (k, v) in m {
-                    results.push((k.clone(), visit_recursive(v, visitor, depth + 1, max_depth)?));
-                }
-                // 对于映射访问者，需要特殊处理
-                Ok(visitor.visit_map(&results.into_iter().collect()))
+                let map_results: Result<HashMap<std::string::String, V::Result>, _> = m
+                    .iter()
+                    .map(|(k, v)| {
+                        let res = visit_recursive(v, visitor, depth + 1, max_depth)?;
+                        Ok((k.clone(), res))
+                    })
+                    .collect();
+                let map_results = map_results?;
+                Ok(visitor.visit_map(&map_results))
             }
             Value::Set(s) => {
                 let mut results = Vec::with_capacity(s.len());
@@ -141,16 +145,14 @@ pub mod utils {
                     results.push(visit_recursive(item, visitor, depth + 1, max_depth)?);
                 }
                 // 对于集合访问者，需要特殊处理
-                Ok(visitor.visit_set(&results.into_iter().collect()))
+                Ok(visitor.visit_set(&results))
             }
-            Value::Geography(g) => visitor.visit_geography(g),
-            Value::Duration(d) => visitor.visit_duration(d),
-            Value::DataSet(ds) => visitor.visit_dataset(ds),
-            Value::Null(nt) => visitor.visit_null(nt),
-            Value::Empty => visitor.visit_empty(),
-        };
-        
-        result
+            Value::Geography(g) => Ok(visitor.visit_geography(g)),
+            Value::Duration(d) => Ok(visitor.visit_duration(d)),
+            Value::DataSet(ds) => Ok(visitor.visit_dataset(ds)),
+            Value::Null(nt) => Ok(visitor.visit_null(nt)),
+            Value::Empty => Ok(visitor.visit_empty()),
+        }
     }
     
     /// 递归错误类型

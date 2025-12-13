@@ -306,7 +306,7 @@ impl<S: StorageEngine> ExecutorMetadata for ProjectExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage
     }
 }

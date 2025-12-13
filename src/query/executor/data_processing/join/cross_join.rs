@@ -338,7 +338,7 @@ impl<S: StorageEngine> ExecutorMetadata for CrossJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CrossJoinExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         &self.base_executor.get_base().storage
     }
 }

@@ -205,10 +205,8 @@ impl<S: StorageEngine> ExecutorMetadata for StartExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
-    fn storage(&self) -> &S {
-        // This is a bit tricky because we have Arc<Mutex<S>>
-        // For now, we'll panic if called, but this should be redesigned
-        panic!("StartExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 

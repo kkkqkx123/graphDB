@@ -76,7 +76,17 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             state.executing_executors.insert(executor_id);
         }
 
-        let result = executor.execute().await;
+        let result: Result<ExecutionResult, QueryError> = executor.execute().await.map_err(|e| {
+            // Convert DBError to QueryError
+            match e {
+                crate::core::error::DBError::StorageError(s) => QueryError::StorageError(s),
+                crate::core::error::DBError::QueryError(qe) => qe,
+                crate::core::error::DBError::ExecutionError(ee) => QueryError::ExecutionError(ee),
+                crate::core::error::DBError::ParseError(pe) => QueryError::ParseError(pe),
+                crate::core::error::DBError::InvalidQuery(iq) => QueryError::InvalidQuery(iq),
+                _ => QueryError::ExecutionError(e.to_string()),
+            }
+        });
 
         {
             let mut state = self.execution_state.lock().unwrap();
@@ -88,8 +98,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                 },
                 Err(e) => {
                     // Convert the error to QueryError for the state
-                    let query_error = QueryError::ExecutionError(e.to_string());
-                    state.set_failure(query_error);
+                    state.set_failure(e.clone());
                 }
             }
         }
@@ -217,8 +226,8 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                     },
                     Err(error) => {
                         // 设置失败状态
-                        state.set_failure(error.clone());
-                        return Err(error);
+                        state.set_failure(QueryError::ExecutionError(error.to_string()));
+                        return Err(QueryError::ExecutionError(error.to_string()));
                     }
                 }
             }

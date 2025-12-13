@@ -103,8 +103,8 @@ impl<S: StorageEngine> ExecutorMetadata for InsertExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
-    fn storage(&self) -> &S {
-        panic!("InsertExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 
@@ -215,8 +215,8 @@ impl<S: StorageEngine> ExecutorMetadata for UpdateExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
-    fn storage(&self) -> &S {
-        panic!("UpdateExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 
@@ -317,8 +317,8 @@ impl<S: StorageEngine> ExecutorMetadata for DeleteExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
-    fn storage(&self) -> &S {
-        panic!("DeleteExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 
@@ -404,8 +404,8 @@ impl<S: StorageEngine> ExecutorMetadata for CreateIndexExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
-    fn storage(&self) -> &S {
-        panic!("CreateIndexExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 
@@ -469,7 +469,7 @@ impl<S: StorageEngine> ExecutorMetadata for DropIndexExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for DropIndexExecutor<S> {
-    fn storage(&self) -> &S {
-        panic!("DropIndexExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }

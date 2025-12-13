@@ -360,8 +360,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for AggregateExecutor<S
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for AggregateExecutor<S> {
-    fn storage(&self) -> &S {
-        panic!("AggregateExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 
@@ -432,8 +432,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for GroupByExecutor<S> 
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for GroupByExecutor<S> {
-    fn storage(&self) -> &S {
-        panic!("GroupByExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.aggregate_executor.storage()
     }
 }
 
@@ -524,8 +524,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for HavingExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for HavingExecutor<S> {
-    fn storage(&self) -> &S {
-        panic!("HavingExecutor doesn't provide direct storage access")
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
     }
 }
 

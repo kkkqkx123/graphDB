@@ -1,11 +1,12 @@
 //! Executor trait 重构 - 拆分为多个小 trait
-//! 
+//!
 //! 这个模块将原来的 Executor trait 拆分为多个职责单一的小 trait，
 //! 遵循接口隔离原则，提高代码的可维护性和可扩展性。
 
 use crate::core::error::DBError;
 use crate::storage::StorageEngine;
 use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
 
 /// 执行核心 trait - 负责执行逻辑
 #[async_trait]
@@ -46,7 +47,7 @@ pub trait Executor<S: StorageEngine>: ExecutorCore
                                     + Send
                                     + Sync {
     /// 获取存储引擎引用
-    fn storage(&self) -> &S;
+    fn storage(&self) -> &Arc<Mutex<S>>;
 }
 
 /// 执行结果类型
@@ -92,7 +93,7 @@ pub type DBResult<T> = Result<T, DBError>;
 /// 基础执行器实现 - 提供默认的执行器行为
 #[derive(Debug)]
 pub struct BaseExecutor<S: StorageEngine> {
-    storage: S,
+    storage: Arc<Mutex<S>>,
     id: usize,
     name: String,
     description: String,
@@ -101,7 +102,7 @@ pub struct BaseExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> BaseExecutor<S> {
     /// 创建新的基础执行器
-    pub fn new(storage: S, id: usize, name: &str, description: &str) -> Self {
+    pub fn new(storage: Arc<Mutex<S>>, id: usize, name: &str, description: &str) -> Self {
         Self {
             storage,
             id,
@@ -110,10 +111,10 @@ impl<S: StorageEngine> BaseExecutor<S> {
             is_open: false,
         }
     }
-    
+
     /// 获取存储引擎的可变引用
-    pub fn storage_mut(&mut self) -> &mut S {
-        &mut self.storage
+    pub fn storage_mut(&mut self) -> &Arc<Mutex<S>> {
+        &self.storage
     }
 }
 

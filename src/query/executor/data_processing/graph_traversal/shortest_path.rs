@@ -442,7 +442,7 @@ impl<S: StorageEngine> ExecutorMetadata for ShortestPathExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShortestPathExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage
     }
 }

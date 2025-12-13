@@ -226,7 +226,7 @@ impl<S: StorageEngine + Send> ExecutorMetadata for RightJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RightJoinExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage()
     }
 }

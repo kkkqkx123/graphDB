@@ -134,7 +134,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for IntersectExecutor<S
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for IntersectExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         self.set_executor.storage()
     }
 }

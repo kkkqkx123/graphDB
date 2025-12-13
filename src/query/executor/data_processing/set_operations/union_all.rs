@@ -107,7 +107,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for UnionAllExecutor<S>
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for UnionAllExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         self.set_executor.storage()
     }
 }

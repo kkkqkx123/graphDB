@@ -6,13 +6,14 @@ use super::common::{EdgeProp, TagProp};
 use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind};
 use super::plan_node_visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
+use std::sync::Arc;
 
 // 扫描顶点的计划节点
 #[derive(Debug)]
 pub struct ScanVertices {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -68,7 +69,7 @@ impl BasePlanNode for ScanVertices {
         self.kind.clone()
     }
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
+    fn dependencies(&self) -> &Vec<Arc<dyn BasePlanNode>> {
         &self.deps
     }
 
@@ -84,8 +85,8 @@ impl BasePlanNode for ScanVertices {
         self.cost
     }
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+    fn clone_plan_node(&self) -> Arc<dyn BasePlanNode> {
+        Arc::new(self.clone())
     }
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
@@ -95,7 +96,7 @@ impl BasePlanNode for ScanVertices {
         Ok(())
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
+    fn set_dependencies(&mut self, deps: Vec<Arc<dyn BasePlanNode>>) {
         self.deps = deps;
     }
 
@@ -110,6 +111,10 @@ impl BasePlanNode for ScanVertices {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 索引扫描的计划节点
@@ -117,7 +122,7 @@ impl BasePlanNode for ScanVertices {
 pub struct IndexScan {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -197,7 +202,7 @@ impl BasePlanNode for IndexScan {
         self.kind.clone()
     }
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
+    fn dependencies(&self) -> &Vec<Arc<dyn BasePlanNode>> {
         &self.deps
     }
 
@@ -213,8 +218,8 @@ impl BasePlanNode for IndexScan {
         self.cost
     }
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+    fn clone_plan_node(&self) -> Arc<dyn BasePlanNode> {
+        Arc::new(self.clone())
     }
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
@@ -224,7 +229,7 @@ impl BasePlanNode for IndexScan {
         Ok(())
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
+    fn set_dependencies(&mut self, deps: Vec<Arc<dyn BasePlanNode>>) {
         self.deps = deps;
     }
 
@@ -239,6 +244,10 @@ impl BasePlanNode for IndexScan {
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // 全文索引扫描的计划节点
@@ -246,7 +255,7 @@ impl BasePlanNode for IndexScan {
 pub struct FulltextIndexScan {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Box<dyn BasePlanNode>>,
+    pub deps: Vec<Arc<dyn BasePlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -299,7 +308,7 @@ impl BasePlanNode for FulltextIndexScan {
         self.kind.clone()
     }
 
-    fn dependencies(&self) -> &Vec<Box<dyn BasePlanNode>> {
+    fn dependencies(&self) -> &Vec<Arc<dyn BasePlanNode>> {
         &self.deps
     }
 
@@ -315,8 +324,8 @@ impl BasePlanNode for FulltextIndexScan {
         self.cost
     }
 
-    fn clone_plan_node(&self) -> Box<dyn BasePlanNode> {
-        Box::new(self.clone())
+    fn clone_plan_node(&self) -> Arc<dyn BasePlanNode> {
+        Arc::new(self.clone())
     }
 
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
@@ -326,7 +335,7 @@ impl BasePlanNode for FulltextIndexScan {
         Ok(())
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn BasePlanNode>>) {
+    fn set_dependencies(&mut self, deps: Vec<Arc<dyn BasePlanNode>>) {
         self.deps = deps;
     }
 
@@ -340,5 +349,9 @@ impl BasePlanNode for FulltextIndexScan {
 
     fn set_cost(&mut self, cost: f64) {
         self.cost = cost;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

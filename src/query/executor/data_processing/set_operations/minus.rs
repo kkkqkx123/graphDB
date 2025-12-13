@@ -139,7 +139,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for MinusExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for MinusExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         self.set_executor.storage()
     }
 }

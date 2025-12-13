@@ -225,7 +225,7 @@ impl<S: StorageEngine> ExecutorMetadata for InnerJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for InnerJoinExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         &self.base_executor.get_base().storage
     }
 }
@@ -298,7 +298,7 @@ impl<S: StorageEngine> ExecutorMetadata for HashInnerJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HashInnerJoinExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         &self.inner.storage()
     }
 }

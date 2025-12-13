@@ -327,7 +327,7 @@ impl<S: StorageEngine> ExecutorMetadata for LoopExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage
     }
 }
@@ -390,7 +390,7 @@ impl<S: StorageEngine> ExecutorMetadata for WhileLoopExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for WhileLoopExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         &self.inner.storage()
     }
 }
@@ -499,7 +499,7 @@ impl<S: StorageEngine> ExecutorMetadata for ForLoopExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S> {
-    fn storage(&self) -> &S {
+    fn storage(&self) -> &Arc<Mutex<S>> {
         &self.inner.storage()
     }
 }
@@ -639,8 +639,8 @@ mod tests {
 
     #[async_trait]
     impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CountExecutor {
-        fn storage(&self) -> &S {
-            panic!("CountExecutor doesn't use storage")
+        fn storage(&self) -> &Arc<Mutex<S>> {
+            &self.base.storage
         }
     }
 
