@@ -1,7 +1,7 @@
 //! FoldConstantExprVisitor - 用于常量折叠的访问器
 //! 对应 NebulaGraph FoldConstantExprVisitor.h/.cpp 的功能
 
-use crate::graph::expression::expr_type::Expression;
+use crate::graph::expression::Expression;
 use crate::graph::expression::{BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use std::collections::HashMap;
@@ -26,58 +26,57 @@ impl FoldConstantExprVisitor {
     fn visit(&self, expr: &Expression) -> Expression {
         match expr {
             // 常量表达式直接返回
-            Expression::Constant(_) => expr.clone(),
+            Expression::Literal(_) => expr.clone(),
             
             // 变量表达式尝试替换为参数值
-            Expression::Property(name) => {
+            Expression::Variable(name) => {
                 if let Some(value) = self.parameters.get(name) {
-                    Expression::Constant(value.clone())
+                    Expression::literal(match value {
+                        crate::core::Value::Bool(b) => crate::graph::expression::LiteralValue::Bool(*b),
+                        crate::core::Value::Int(i) => crate::graph::expression::LiteralValue::Int(*i),
+                        crate::core::Value::Float(f) => crate::graph::expression::LiteralValue::Float(*f),
+                        crate::core::Value::String(s) => crate::graph::expression::LiteralValue::String(s.clone()),
+                        crate::core::Value::Null(_) => crate::graph::expression::LiteralValue::Null,
+                        _ => crate::graph::expression::LiteralValue::Null,
+                    })
                 } else {
                     expr.clone()
                 }
             },
             
             // 算术表达式尝试折叠常量
-            Expression::BinaryOp(left, op, right) => {
+            Expression::Binary { left, op, right } => {
                 let left_folded = self.visit(left);
                 let right_folded = self.visit(right);
                 
                 // 如果左右操作数都是常量，执行常量折叠
-                if let (Expression::Constant(left_val), Expression::Constant(right_val)) = 
+                if let (Expression::Literal(left_val), Expression::Literal(right_val)) =
                    (&left_folded, &right_folded) {
                     match self.evaluate_arithmetic(op, left_val, right_val) {
-                        Ok(result) => Expression::Constant(result),
-                        Err(_) => Expression::BinaryOp(
-                            Box::new(left_folded),
-                            op.clone(),
-                            Box::new(right_folded),
-                        ),
+                        Ok(result) => Expression::literal(result),
+                        Err(_) => Expression::binary(left_folded, op.clone(), right_folded),
                     }
                 } else {
-                    Expression::BinaryOp(
-                        Box::new(left_folded),
-                        op.clone(),
-                        Box::new(right_folded),
-                    )
+                    Expression::binary(left_folded, op.clone(), right_folded)
                 }
             },
             
             // 一元表达式尝试折叠常量
-            Expression::UnaryOp(op, operand) => {
+            Expression::Unary { op, operand } => {
                 let operand_folded = self.visit(operand);
                 
-                if let Expression::Constant(val) = &operand_folded {
+                if let Expression::Literal(val) = &operand_folded {
                     match self.evaluate_unary(op, val) {
-                        Ok(result) => Expression::Constant(result),
-                        Err(_) => Expression::UnaryOp(op.clone(), Box::new(operand_folded)),
+                        Ok(result) => Expression::literal(result),
+                        Err(_) => Expression::unary(op.clone(), operand_folded),
                     }
                 } else {
-                    Expression::UnaryOp(op.clone(), Box::new(operand_folded))
+                    Expression::unary(op.clone(), operand_folded)
                 }
             },
             
             // 函数调用 - 尝试对参数都是常量的函数调用求值
-            Expression::Function(name, args) => {
+            Expression::Function { name, args } => {
                 let mut folded_args = Vec::new();
                 for arg in args {
                     folded_args.push(self.visit(arg));
@@ -85,16 +84,16 @@ impl FoldConstantExprVisitor {
                 
                 // 检查是否所有参数都是常量
                 let all_constants = folded_args.iter()
-                    .all(|expr| matches!(expr, Expression::Constant(_)));
+                    .all(|expr| matches!(expr, Expression::Literal(_)));
                 
                 if all_constants {
                     // 尝试执行函数调用
                     match self.evaluate_function(name, &folded_args) {
-                        Ok(result) => Expression::Constant(result),
-                        Err(_) => Expression::Function(name.clone(), folded_args),
+                        Ok(result) => Expression::literal(result),
+                        Err(_) => Expression::function(name.clone(), folded_args),
                     }
                 } else {
-                    Expression::Function(name.clone(), folded_args)
+                    Expression::function(name.clone(), folded_args)
                 }
             },
             
@@ -103,12 +102,54 @@ impl FoldConstantExprVisitor {
         }
     }
 
-    fn evaluate_arithmetic(&self, op: &BinaryOperator, left: &Value, right: &Value) -> Result<Value, String> {
+    fn evaluate_arithmetic(&self, op: &BinaryOperator, left: &LiteralValue, right: &LiteralValue) -> Result<LiteralValue, String> {
+        use crate::core::Value;
+        
+        let left_val = match left {
+            LiteralValue::Bool(b) => Value::Bool(*b),
+            LiteralValue::Int(i) => Value::Int(*i),
+            LiteralValue::Float(f) => Value::Float(*f),
+            LiteralValue::String(s) => Value::String(s.clone()),
+            LiteralValue::Null => Value::Null(crate::core::NullType::Null),
+        };
+        
+        let right_val = match right {
+            LiteralValue::Bool(b) => Value::Bool(*b),
+            LiteralValue::Int(i) => Value::Int(*i),
+            LiteralValue::Float(f) => Value::Float(*f),
+            LiteralValue::String(s) => Value::String(s.clone()),
+            LiteralValue::Null => Value::Null(crate::core::NullType::Null),
+        };
+        
         match op {
-            BinaryOperator::Add => left.add(right),
-            BinaryOperator::Sub => left.sub(right),
-            BinaryOperator::Mul => left.mul(right),
-            BinaryOperator::Div => left.div(right),
+            BinaryOperator::Add => left_val.add(&right_val).map(|v| match v {
+                Value::Bool(b) => LiteralValue::Bool(b),
+                Value::Int(i) => LiteralValue::Int(i),
+                Value::Float(f) => LiteralValue::Float(f),
+                Value::String(s) => LiteralValue::String(s),
+                _ => LiteralValue::Null,
+            }),
+            BinaryOperator::Subtract => left_val.sub(&right_val).map(|v| match v {
+                Value::Bool(b) => LiteralValue::Bool(b),
+                Value::Int(i) => LiteralValue::Int(i),
+                Value::Float(f) => LiteralValue::Float(f),
+                Value::String(s) => LiteralValue::String(s),
+                _ => LiteralValue::Null,
+            }),
+            BinaryOperator::Multiply => left_val.mul(&right_val).map(|v| match v {
+                Value::Bool(b) => LiteralValue::Bool(b),
+                Value::Int(i) => LiteralValue::Int(i),
+                Value::Float(f) => LiteralValue::Float(f),
+                Value::String(s) => LiteralValue::String(s),
+                _ => LiteralValue::Null,
+            }),
+            BinaryOperator::Divide => left_val.div(&right_val).map(|v| match v {
+                Value::Bool(b) => LiteralValue::Bool(b),
+                Value::Int(i) => LiteralValue::Int(i),
+                Value::Float(f) => LiteralValue::Float(f),
+                Value::String(s) => LiteralValue::String(s),
+                _ => LiteralValue::Null,
+            }),
             _ => Err(format!("Unknown arithmetic operation: {:?}", op)),
         }
     }

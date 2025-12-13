@@ -1,12 +1,12 @@
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex, Condvar};
 use async_trait::async_trait;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Condvar, Mutex};
 
-use crate::query::executor::{ExecutionContext, ExecutionResult};
-use crate::storage::StorageEngine;
-use crate::query::QueryError;
-use super::types::QueryScheduler;
 use super::execution_plan::ExecutionPlan;
+use super::types::QueryScheduler;
+use crate::query::executor::{ExecutionContext, ExecutionResult};
+use crate::query::QueryError;
+use crate::storage::StorageEngine;
 
 // Execution state tracking
 #[derive(Debug)]
@@ -66,10 +66,15 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     }
 
     // Execute a single executor
-    async fn execute_executor(&self, executor_id: usize, plan: &mut ExecutionPlan<S>) -> Result<ExecutionResult, QueryError> {
+    async fn execute_executor(
+        &self,
+        executor_id: usize,
+        plan: &mut ExecutionPlan<S>,
+    ) -> Result<ExecutionResult, QueryError> {
         // 从计划中获取执行器
-        let mut executor = plan.executors.remove(&executor_id)
-            .ok_or_else(|| QueryError::InvalidQuery(format!("Executor {} not found", executor_id)))?;
+        let mut executor = plan.executors.remove(&executor_id).ok_or_else(|| {
+            QueryError::InvalidQuery(format!("Executor {} not found", executor_id))
+        })?;
 
         {
             let mut state = self.execution_state.lock().unwrap();
@@ -79,16 +84,25 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         let result: Result<ExecutionResult, QueryError> = executor.execute().await.map_err(|e| {
             // Convert DBError to QueryError
             match e {
-                crate::core::error::DBError::Storage(storage_err) => QueryError::ExecutionError(storage_err.to_string()),
-                crate::core::error::DBError::Query(qe) => QueryError::ExecutionError(qe.to_string()),
-                crate::core::error::DBError::Expression(expr_err) => QueryError::ExecutionError(expr_err.to_string()),
-                crate::core::error::DBError::Plan(plan_err) => QueryError::ExecutionError(plan_err.to_string()),
+                crate::core::error::DBError::Storage(storage_err) => {
+                    QueryError::ExecutionError(storage_err.to_string())
+                }
+                crate::core::error::DBError::Query(qe) => {
+                    QueryError::ExecutionError(qe.to_string())
+                }
+                crate::core::error::DBError::Expression(expr_err) => {
+                    QueryError::ExecutionError(expr_err.to_string())
+                }
+                crate::core::error::DBError::Plan(plan_err) => {
+                    QueryError::ExecutionError(plan_err.to_string())
+                }
                 crate::core::error::DBError::Validation(msg) => QueryError::InvalidQuery(msg),
-                crate::core::error::DBError::Io(io_err) => QueryError::ExecutionError(io_err.to_string()),
+                crate::core::error::DBError::Io(io_err) => {
+                    QueryError::ExecutionError(io_err.to_string())
+                }
                 crate::core::error::DBError::TypeDeduction(msg) => QueryError::ExecutionError(msg),
                 crate::core::error::DBError::Serialization(msg) => QueryError::ExecutionError(msg),
                 crate::core::error::DBError::Internal(msg) => QueryError::ExecutionError(msg),
-                _ => QueryError::ExecutionError(e.to_string()),
             }
         });
 
@@ -99,7 +113,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             match &result {
                 Ok(res) => {
                     state.execution_results.insert(executor_id, res.clone());
-                },
+                }
                 Err(e) => {
                     // Convert the error to QueryError for the state
                     state.set_failure(e.clone());
@@ -146,7 +160,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         // 使用条件变量进行同步等待
         let (ref lock, ref cvar) = *self.completion_notifier;
         let mut completed = lock.lock().unwrap();
-        
+
         while !*completed && !self.all_executors_completed() {
             completed = cvar.wait(completed).unwrap();
         }
@@ -174,24 +188,27 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             // 从计划中取出执行器
             if let Some(mut executor) = plan.executors.remove(&executor_id) {
                 let state = self.execution_state.clone();
-                
+
                 let task = tokio::spawn(async move {
                     // 标记执行器正在执行
                     {
                         let mut state_lock = state.lock().unwrap();
                         state_lock.executing_executors.insert(executor_id);
                     }
-                    
+
                     // 执行执行器
                     let result = executor.execute().await;
-                    
+
                     // 返回执行器、ID和结果
                     (executor_id, executor, result)
                 });
-                
+
                 tasks.push(task);
             } else {
-                return Err(QueryError::InvalidQuery(format!("Executor {} not found in plan", executor_id)));
+                return Err(QueryError::InvalidQuery(format!(
+                    "Executor {} not found in plan",
+                    executor_id
+                )));
             }
         }
 
@@ -203,9 +220,12 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                     // 将执行器放回计划中
                     plan.executors.insert(executor_id, executor);
                     results.push((executor_id, result));
-                },
+                }
                 Err(e) => {
-                    return Err(QueryError::InvalidQuery(format!("Task execution failed: {}", e)));
+                    return Err(QueryError::InvalidQuery(format!(
+                        "Task execution failed: {}",
+                        e
+                    )));
                 }
             }
         }
@@ -215,19 +235,23 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             let mut state = self.execution_state.lock().unwrap();
             for (executor_id, result) in results {
                 state.executing_executors.remove(&executor_id);
-                
+
                 match result {
                     Ok(execution_result) => {
-                        state.execution_results.insert(executor_id, execution_result);
-                        
+                        state
+                            .execution_results
+                            .insert(executor_id, execution_result);
+
                         // 添加后继执行器到下一个批次
                         let successors = plan.get_successors(executor_id);
                         for successor_id in successors {
-                            if plan.are_dependencies_satisfied(successor_id, &state.execution_results) {
+                            if plan
+                                .are_dependencies_satisfied(successor_id, &state.execution_results)
+                            {
                                 next_executors.push(successor_id);
                             }
                         }
-                    },
+                    }
                     Err(error) => {
                         // 设置失败状态
                         let query_error = QueryError::ExecutionError(error.to_string());
@@ -249,7 +273,10 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBasedScheduler<S> {
-    async fn schedule(&mut self, mut execution_plan: ExecutionPlan<S>) -> Result<ExecutionResult, QueryError> {
+    async fn schedule(
+        &mut self,
+        mut execution_plan: ExecutionPlan<S>,
+    ) -> Result<ExecutionResult, QueryError> {
         // 重置完成通知器
         {
             let (ref lock, _) = *self.completion_notifier;
@@ -274,7 +301,9 @@ impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBase
         // Execute the plan using a breadth-first approach
         while !current_executors.is_empty() && !self.has_failure() {
             // Execute all currently executable executors in parallel
-            current_executors = self.execute_executor_batch(&current_executors, &mut execution_plan).await?;
+            current_executors = self
+                .execute_executor_batch(&current_executors, &mut execution_plan)
+                .await?;
         }
 
         // Wait for all executors to finish
@@ -287,7 +316,10 @@ impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBase
         }
 
         // Return the result of the root executor
-        match state.execution_results.get(&execution_plan.root_executor_id) {
+        match state
+            .execution_results
+            .get(&execution_plan.root_executor_id)
+        {
             Some(result) => Ok(result.clone()),
             None => Ok(ExecutionResult::Success),
         }
@@ -298,7 +330,7 @@ impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBase
         // 使用条件变量等待所有执行器完成
         let (ref lock, ref cvar) = *self.completion_notifier;
         let mut completed = lock.lock().unwrap();
-        
+
         while !*completed && !self.all_executors_completed() {
             completed = cvar.wait(completed).unwrap();
         }

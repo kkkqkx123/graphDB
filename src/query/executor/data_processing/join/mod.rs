@@ -233,10 +233,6 @@ impl JoinExecutorFactory {
                     config.output_columns,
                 )))
             }
-            _ => Err(crate::query::QueryError::ExecutionError(format!(
-                "不支持的join类型: {:?}",
-                config.join_type
-            ))),
         }
     }
 }
