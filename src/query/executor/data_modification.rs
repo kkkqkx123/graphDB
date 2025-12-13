@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use super::base::{BaseExecutor, ExecutionResult, Executor};
+use super::base::BaseExecutor;
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, DBResult};
 use crate::core::{Edge, Value, Vertex};
-use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
 // Executor for inserting new vertices/edges
@@ -45,8 +45,8 @@ impl<S: StorageEngine> InsertExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for InsertExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut total_inserted = 0;
 
         // Insert vertices if provided
@@ -67,25 +67,44 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
             }
         }
 
-        Ok(ExecutionResult::Count(total_inserted))
+        Ok(ExecutionResult::Success)
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine> ExecutorLifecycle for InsertExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // Initialize any resources needed for insertion
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // Clean up any resources
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for InsertExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Insert executor - inserts vertices and edges into storage"
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
+    fn storage(&self) -> &S {
+        panic!("InsertExecutor doesn't provide direct storage access")
     }
 }
 
@@ -130,8 +149,8 @@ impl<S: StorageEngine> UpdateExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut total_updated = 0;
 
         // Update vertices if provided
@@ -160,25 +179,44 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
             }
         }
 
-        Ok(ExecutionResult::Count(total_updated))
+        Ok(ExecutionResult::Success)
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine> ExecutorLifecycle for UpdateExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // Initialize any resources needed for updating
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // Clean up any resources
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for UpdateExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Update executor - updates vertices and edges in storage"
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
+    fn storage(&self) -> &S {
+        panic!("UpdateExecutor doesn't provide direct storage access")
     }
 }
 
@@ -213,8 +251,8 @@ impl<S: StorageEngine> DeleteExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for DeleteExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut total_deleted = 0;
 
         // Delete vertices if provided
@@ -243,25 +281,44 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
             }
         }
 
-        Ok(ExecutionResult::Count(total_deleted))
+        Ok(ExecutionResult::Success)
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine> ExecutorLifecycle for DeleteExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // Initialize any resources needed for deletion
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // Clean up any resources
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for DeleteExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Delete executor - deletes vertices and edges from storage"
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
+    fn storage(&self) -> &S {
+        panic!("DeleteExecutor doesn't provide direct storage access")
     }
 }
 
@@ -304,8 +361,8 @@ impl<S: StorageEngine> CreateIndexExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for CreateIndexExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // In a real implementation, we would:
         // 1. Validate the index parameters
         // 2. Create the index in the storage engine
@@ -313,23 +370,42 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
         // For now, we'll just assume the index creation succeeds
         Ok(ExecutionResult::Success)
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine> ExecutorLifecycle for CreateIndexExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // Initialize any resources needed for index creation
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // Clean up any resources
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for CreateIndexExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Create index executor - creates indexes in storage"
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
+    fn storage(&self) -> &S {
+        panic!("CreateIndexExecutor doesn't provide direct storage access")
     }
 }
 
@@ -350,8 +426,8 @@ impl<S: StorageEngine> DropIndexExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for DropIndexExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for DropIndexExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // In a real implementation, we would:
         // 1. Check if the index exists
         // 2. Drop the index from the storage engine
@@ -359,22 +435,41 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DropIndexExecutor<S> {
         // For now, we'll just assume the index drop succeeds
         Ok(ExecutionResult::Success)
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine> ExecutorLifecycle for DropIndexExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // Initialize any resources needed for index dropping
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // Clean up any resources
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for DropIndexExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Drop index executor - drops indexes from storage"
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for DropIndexExecutor<S> {
+    fn storage(&self) -> &S {
+        panic!("DropIndexExecutor doesn't provide direct storage access")
     }
 }

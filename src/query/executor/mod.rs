@@ -1,39 +1,20 @@
 // Re-export all executor modules
+pub mod traits;
 pub mod base;
 pub mod data_access;
 pub mod data_processing;
 pub mod data_modification;
 pub mod result_processing;
 
+// Re-export the new trait types
+pub use traits::{
+    ExecutorCore, ExecutorLifecycle, ExecutorMetadata, Executor,
+    ExecutionResult, BaseExecutor as NewBaseExecutor
+};
+
 // Re-export the base types
 pub use base::{
-    Executor, ExecutionResult, ExecutionContext, BaseExecutor,
+    ExecutionResult as OldExecutionResult, 
+    ExecutionContext, BaseExecutor,
     InputExecutor, ChainableExecutor, EdgeDirection, StartExecutor
-};
-
-// Re-export data access executors
-pub use data_access::{
-    GetVerticesExecutor, GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor
-};
-
-// Re-export data processing executors
-pub use data_processing::{
-    FilterExecutor, graph_traversal::{
-        ExpandExecutor, ExpandAllExecutor, TraverseExecutor, ShortestPathExecutor,
-        ShortestPathAlgorithm
-    }, set_operations::{
-        SetExecutor, UnionExecutor, UnionAllExecutor,
-        IntersectExecutor, MinusExecutor
-    }
-};
-
-// Re-export data modification executors
-pub use data_modification::{
-    InsertExecutor, UpdateExecutor, DeleteExecutor,
-    CreateIndexExecutor, DropIndexExecutor, VertexUpdate, EdgeUpdate, IndexType
-};
-
-// Re-export result processing executors
-pub use result_processing::{
-    TopNExecutor
 };

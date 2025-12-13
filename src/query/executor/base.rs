@@ -5,40 +5,7 @@ use async_trait::async_trait;
 use crate::core::{Value, Vertex, Edge};
 use crate::storage::StorageEngine;
 use crate::query::QueryError;
-
-// Base executor trait that all executors should implement
-#[async_trait]
-pub trait Executor<S: StorageEngine + Send + 'static>: Send + Sync {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError>;
-
-    // Prepare for execution
-    fn open(&mut self) -> Result<(), QueryError> {
-        Ok(())
-    }
-
-    // Clean up after execution
-    fn close(&mut self) -> Result<(), QueryError> {
-        Ok(())
-    }
-
-    // Get the ID of this executor
-    fn id(&self) -> usize;
-
-    // Get the name of this executor
-    fn name(&self) -> &str;
-}
-
-// Result of executor execution
-#[derive(Debug, Clone)]
-pub enum ExecutionResult {
-    Vertices(Vec<Vertex>),
-    Edges(Vec<Edge>),
-    Values(Vec<Value>),
-    Paths(Vec<crate::core::vertex_edge_path::Path>),
-    DataSet(crate::core::value::DataSet),
-    Count(usize),
-    Success,
-}
+use crate::query::executor::traits::{Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
 
 // Context for execution - holds variables and intermediate results
 #[derive(Debug, Clone)]
@@ -139,23 +106,31 @@ impl<S: StorageEngine> StartExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for StartExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // StartExecutor typically produces an initial result set or provides a starting point
         // For initial implementation, we can return a simple success or empty result
         Ok(ExecutionResult::Success)
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine> ExecutorLifecycle for StartExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // Initialize any resources needed for the start executor
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // Clean up any resources
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for StartExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
@@ -163,31 +138,56 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
     fn name(&self) -> &str {
         &self.base.name
     }
+
+    fn description(&self) -> &str {
+        "Start executor - provides initial execution context"
+    }
 }
 
-// Helper functions for working with ExecutionResult
-impl ExecutionResult {
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
+    fn storage(&self) -> &S {
+        // This is a bit tricky because we have Arc<Mutex<S>>
+        // For now, we'll panic if called, but this should be redesigned
+        panic!("StartExecutor doesn't provide direct storage access")
+    }
+}
+
+// Legacy ExecutionResult for backward compatibility
+#[derive(Debug, Clone)]
+pub enum OldExecutionResult {
+    Vertices(Vec<Vertex>),
+    Edges(Vec<Edge>),
+    Values(Vec<Value>),
+    Paths(Vec<crate::core::vertex_edge_path::Path>),
+    DataSet(crate::core::value::DataSet),
+    Count(usize),
+    Success,
+}
+
+// Helper functions for working with OldExecutionResult
+impl OldExecutionResult {
     pub fn is_empty(&self) -> bool {
         match self {
-            ExecutionResult::Vertices(v) => v.is_empty(),
-            ExecutionResult::Edges(e) => e.is_empty(),
-            ExecutionResult::Values(v) => v.is_empty(),
-            ExecutionResult::Paths(p) => p.is_empty(),
-            ExecutionResult::DataSet(ds) => ds.rows.is_empty(),
-            ExecutionResult::Count(c) => *c == 0,
-            ExecutionResult::Success => false,
+            OldExecutionResult::Vertices(v) => v.is_empty(),
+            OldExecutionResult::Edges(e) => e.is_empty(),
+            OldExecutionResult::Values(v) => v.is_empty(),
+            OldExecutionResult::Paths(p) => p.is_empty(),
+            OldExecutionResult::DataSet(ds) => ds.rows.is_empty(),
+            OldExecutionResult::Count(c) => *c == 0,
+            OldExecutionResult::Success => false,
         }
     }
 
     pub fn len(&self) -> usize {
         match self {
-            ExecutionResult::Vertices(v) => v.len(),
-            ExecutionResult::Edges(e) => e.len(),
-            ExecutionResult::Values(v) => v.len(),
-            ExecutionResult::Paths(p) => p.len(),
-            ExecutionResult::DataSet(ds) => ds.rows.len(),
-            ExecutionResult::Count(c) => *c,
-            ExecutionResult::Success => 0,
+            OldExecutionResult::Vertices(v) => v.len(),
+            OldExecutionResult::Edges(e) => e.len(),
+            OldExecutionResult::Values(v) => v.len(),
+            OldExecutionResult::Paths(p) => p.len(),
+            OldExecutionResult::DataSet(ds) => ds.rows.len(),
+            OldExecutionResult::Count(c) => *c,
+            OldExecutionResult::Success => 0,
         }
     }
 

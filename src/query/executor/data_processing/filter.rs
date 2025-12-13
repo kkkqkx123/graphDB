@@ -2,9 +2,10 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::core::{Edge, Value, Vertex};
+use crate::core::Value;
 use crate::graph::expression::{EvalContext, Expression, ExpressionEvaluator};
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, InputExecutor};
+use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, DBResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -186,8 +187,8 @@ impl<S: StorageEngine> InputExecutor<S> for FilterExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for FilterExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for FilterExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 清空缓存，避免跨查询的缓存污染
         self.expression_cache.clear();
 
@@ -200,10 +201,12 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for FilterExecutor<S> {
         };
 
         // 应用过滤条件
-        self.apply_filter(input_result).await
+        self.apply_filter(input_result).await.map_err(|e| crate::core::error::DBError::QueryError(e.to_string()))
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for FilterExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化过滤所需的任何资源
         self.expression_cache.clear();
 
@@ -213,7 +216,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for FilterExecutor<S> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         self.expression_cache.clear();
 
@@ -223,12 +226,31 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for FilterExecutor<S> {
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine + Send + 'static> ExecutorMetadata for FilterExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "FilterExecutor - filters data based on conditions"
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for FilterExecutor<S> {
+    fn storage(&self) -> &S {
+        // This is a bit tricky because we have Arc<Mutex<S>>
+        // For now, we'll panic if called, but this should be redesigned
+        panic!("FilterExecutor doesn't provide direct storage access")
     }
 }
 

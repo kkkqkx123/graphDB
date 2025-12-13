@@ -2,18 +2,18 @@
 //!
 //! 提供所有集合操作执行器的通用功能和接口
 
+use async_trait::async_trait;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
-use async_trait::async_trait;
 
-use crate::core::{Value, DataSet};
-use crate::query::executor::{Executor, ExecutionResult, BaseExecutor};
+use crate::core::{DataSet, Value};
+use crate::query::executor::{BaseExecutor, ExecutionResult, Executor};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
 /// 集合操作执行器基类
-/// 
+///
 /// 提供所有集合操作（Union、Intersect、Minus等）的通用功能
 pub struct SetExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
@@ -67,15 +67,15 @@ impl<S: StorageEngine> SetExecutor<S> {
             }
             Some(_result) => {
                 // 其他类型的结果需要转换为DataSet
-                Err(QueryError::ExecutionError(
-                    format!("左输入变量 {} 不是有效的数据集", self.left_input_var)
-                ))
+                Err(QueryError::ExecutionError(format!(
+                    "左输入变量 {} 不是有效的数据集",
+                    self.left_input_var
+                )))
             }
-            None => {
-                Err(QueryError::ExecutionError(
-                    format!("左输入变量 {} 不存在", self.left_input_var)
-                ))
-            }
+            None => Err(QueryError::ExecutionError(format!(
+                "左输入变量 {} 不存在",
+                self.left_input_var
+            ))),
         }
     }
 
@@ -97,28 +97,33 @@ impl<S: StorageEngine> SetExecutor<S> {
             }
             Some(_result) => {
                 // 其他类型的结果需要转换为DataSet
-                Err(QueryError::ExecutionError(
-                    format!("右输入变量 {} 不是有效的数据集", self.right_input_var)
-                ))
+                Err(QueryError::ExecutionError(format!(
+                    "右输入变量 {} 不是有效的数据集",
+                    self.right_input_var
+                )))
             }
-            None => {
-                Err(QueryError::ExecutionError(
-                    format!("右输入变量 {} 不存在", self.right_input_var)
-                ))
-            }
+            None => Err(QueryError::ExecutionError(format!(
+                "右输入变量 {} 不存在",
+                self.right_input_var
+            ))),
         }
     }
 
     /// 检查输入数据集的有效性
-    /// 
+    ///
     /// 验证两个输入数据集的列名是否一致
-    pub fn check_input_data_sets(&mut self, left: &DataSet, right: &DataSet) -> Result<(), QueryError> {
+    pub fn check_input_data_sets(
+        &mut self,
+        left: &DataSet,
+        right: &DataSet,
+    ) -> Result<(), QueryError> {
         if left.col_names != right.col_names {
             let left_cols = left.col_names.join(",");
             let right_cols = right.col_names.join(",");
-            return Err(QueryError::ExecutionError(
-                format!("数据集列名不匹配: <{}> vs <{}>", left_cols, right_cols)
-            ));
+            return Err(QueryError::ExecutionError(format!(
+                "数据集列名不匹配: <{}> vs <{}>",
+                left_cols, right_cols
+            )));
         }
 
         // 保存列名供后续使用
@@ -140,7 +145,7 @@ impl<S: StorageEngine> SetExecutor<S> {
     pub fn hash_row(row: &[Value]) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::Hasher;
-        
+
         let mut hasher = DefaultHasher::new();
         for value in row {
             value.hash(&mut hasher);
@@ -182,30 +187,66 @@ impl<S: StorageEngine> SetExecutor<S> {
     pub fn concat_datasets(left: DataSet, right: DataSet) -> DataSet {
         let mut rows = left.rows;
         rows.extend(right.rows);
-        
+
         DataSet {
             col_names: left.col_names,
             rows,
         }
     }
-
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for SetExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::ExecutorCore
+    for SetExecutor<S>
+{
+    async fn execute(
+        &mut self,
+    ) -> crate::query::executor::traits::DBResult<crate::query::executor::traits::ExecutionResult>
+    {
         // 基类不直接执行，由子类实现具体逻辑
-        Err(QueryError::ExecutionError(
-            "SetExecutor是抽象基类，不能直接执行".to_string()
+        Err(crate::core::error::DBError::Query(
+            crate::query::QueryError::ExecutionError(
+                "SetExecutor是抽象基类，不能直接执行".to_string(),
+            ),
         ))
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine> crate::query::executor::traits::ExecutorLifecycle for SetExecutor<S> {
+    fn open(&mut self) -> crate::query::executor::traits::DBResult<()> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> crate::query::executor::traits::DBResult<()> {
         Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::traits::ExecutorMetadata for SetExecutor<S> {
+    fn id(&self) -> usize {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Set executor base class"
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
+    for SetExecutor<S>
+{
+    fn storage(&self) -> &S {
+        // This needs to be implemented based on the actual storage access pattern
+        panic!("SetExecutor storage access not implemented")
     }
 
     fn id(&self) -> usize {
@@ -228,10 +269,14 @@ mod tests {
         let row2 = vec![Value::Int(1), Value::String("test".to_string())];
         let row3 = vec![Value::Int(2), Value::String("test".to_string())];
 
-        assert_eq!(SetExecutor::<crate::storage::NativeStorage>::hash_row(&row1),
-                   SetExecutor::<crate::storage::NativeStorage>::hash_row(&row2));
-        assert_ne!(SetExecutor::<crate::storage::NativeStorage>::hash_row(&row1),
-                   SetExecutor::<crate::storage::NativeStorage>::hash_row(&row3));
+        assert_eq!(
+            SetExecutor::<crate::storage::NativeStorage>::hash_row(&row1),
+            SetExecutor::<crate::storage::NativeStorage>::hash_row(&row2)
+        );
+        assert_ne!(
+            SetExecutor::<crate::storage::NativeStorage>::hash_row(&row1),
+            SetExecutor::<crate::storage::NativeStorage>::hash_row(&row3)
+        );
     }
 
     #[test]
@@ -263,16 +308,12 @@ mod tests {
     fn test_concat_datasets() {
         let left = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
-            rows: vec![
-                vec![Value::Int(1), Value::String("Alice".to_string())],
-            ],
+            rows: vec![vec![Value::Int(1), Value::String("Alice".to_string())]],
         };
 
         let right = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
-            rows: vec![
-                vec![Value::Int(2), Value::String("Bob".to_string())],
-            ],
+            rows: vec![vec![Value::Int(2), Value::String("Bob".to_string())]],
         };
 
         let result = SetExecutor::<crate::storage::NativeStorage>::concat_datasets(left, right);

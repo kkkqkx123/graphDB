@@ -1,9 +1,11 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use super::base::{BaseExecutor, ExecutionResult, Executor};
+use super::base::BaseExecutor;
 use crate::core::Value;
-use crate::query::QueryError;
+use crate::query::executor::traits::{
+    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::storage::StorageEngine;
 
 // Implementation for a basic GetVertices executor
@@ -29,8 +31,8 @@ impl<S: StorageEngine> GetVerticesExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for GetVerticesExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let vertices = match &self.vertex_ids {
             Some(ids) => {
                 let mut result_vertices = Vec::new();
@@ -60,25 +62,51 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for GetVerticesExecutor<S> {
             }
         };
 
-        Ok(ExecutionResult::Vertices(vertices))
+        Ok(ExecutionResult::Values(
+            vertices
+                .into_iter()
+                .map(|v| crate::core::Value::Vertex(Box::new(v)))
+                .collect(),
+        ))
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine> ExecutorLifecycle for GetVerticesExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // Initialize any resources needed for vertex retrieval
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // Clean up any resources
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for GetVerticesExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Get vertices executor - retrieves vertices from storage"
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for GetVerticesExecutor<S> {
+    fn storage(&self) -> &S {
+        // We can't directly return a reference to S from Arc<Mutex<S>>
+        // This is a design limitation that should be addressed in the future
+        panic!("GetVerticesExecutor doesn't provide direct storage access")
     }
 }
 
@@ -99,31 +127,50 @@ impl<S: StorageEngine> GetEdgesExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for GetEdgesExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for GetEdgesExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // In a real implementation, this would fetch edges based on the edge_type
         // For now return empty list
-        let edges = Vec::new();
+        let edges: Vec<crate::core::Value> = Vec::new();
 
-        Ok(ExecutionResult::Edges(edges))
+        Ok(ExecutionResult::Values(edges))
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine> ExecutorLifecycle for GetEdgesExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // Initialize any resources needed for edge retrieval
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // Clean up any resources
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for GetEdgesExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Get edges executor - retrieves edges from storage"
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for GetEdgesExecutor<S> {
+    fn storage(&self) -> &S {
+        panic!("GetEdgesExecutor doesn't provide direct storage access")
     }
 }
 
@@ -156,31 +203,50 @@ impl<S: StorageEngine> GetNeighborsExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for GetNeighborsExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for GetNeighborsExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // In a real implementation, this would fetch neighboring vertices based on edges
         // For now return empty list
-        let neighbors = Vec::new();
+        let neighbors: Vec<crate::core::Value> = Vec::new();
 
-        Ok(ExecutionResult::Vertices(neighbors))
+        Ok(ExecutionResult::Values(neighbors))
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine> ExecutorLifecycle for GetNeighborsExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // Initialize any resources needed for neighbor retrieval
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // Clean up any resources
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for GetNeighborsExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Get neighbors executor - retrieves neighboring vertices"
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for GetNeighborsExecutor<S> {
+    fn storage(&self) -> &S {
+        panic!("GetNeighborsExecutor doesn't provide direct storage access")
     }
 }
 
@@ -213,30 +279,49 @@ impl<S: StorageEngine> GetPropExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for GetPropExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+impl<S: StorageEngine + Send + 'static> ExecutorCore for GetPropExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // In a real implementation, this would fetch specific properties from vertices or edges
         // For now, return empty list
-        let props = Vec::new();
+        let props: Vec<crate::core::Value> = Vec::new();
 
         Ok(ExecutionResult::Values(props))
     }
+}
 
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine> ExecutorLifecycle for GetPropExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // Initialize any resources needed for property retrieval
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // Clean up any resources
         Ok(())
     }
 
+    fn is_open(&self) -> bool {
+        true
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for GetPropExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }
 
     fn name(&self) -> &str {
         &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Get property executor - retrieves properties from vertices or edges"
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for GetPropExecutor<S> {
+    fn storage(&self) -> &S {
+        panic!("GetPropExecutor doesn't provide direct storage access")
     }
 }

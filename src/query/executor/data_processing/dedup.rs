@@ -7,7 +7,8 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{Edge, Value, Vertex};
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, InputExecutor};
+use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::traits::{Executor, ExecutionResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
