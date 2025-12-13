@@ -28,6 +28,7 @@ pub enum DedupStrategy {
 /// DedupExecutor - 去重执行器
 ///
 /// 实现数据去重功能，支持多种去重策略
+#[derive(Debug)]
 pub struct DedupExecutor<S: StorageEngine + Send + 'static> {
     base: BaseExecutor<S>,
     input_executor: Option<Box<dyn crate::query::executor::traits::Executor<S>>>,
@@ -288,7 +289,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for DedupExecutor<S> {
         };
 
         // 执行去重操作
-        self.execute_dedup(input_result).await.map_err(|e| crate::core::error::DBError::Query(e))
+        self.execute_dedup(input_result).await.map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))
     }
 }
 

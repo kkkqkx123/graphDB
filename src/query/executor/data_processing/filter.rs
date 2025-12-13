@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
-use crate::graph::expression::{EvalContext, Expression, ExpressionEvaluator};
+use crate::graph::expression::{EvalContext, ExpressionV1 as Expression, ExpressionEvaluator};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, DBResult};
 use crate::query::QueryError;
@@ -12,6 +12,7 @@ use crate::storage::StorageEngine;
 /// FilterExecutor - 条件过滤执行器
 ///
 /// 根据指定的条件对输入数据进行过滤，通常用于 WHERE 子句
+#[derive(Debug)]
 pub struct FilterExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     condition: Expression, // 条件表达式

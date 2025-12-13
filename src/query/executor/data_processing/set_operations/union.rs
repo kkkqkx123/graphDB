@@ -3,6 +3,7 @@
 //! 实现UNION操作，合并两个数据集并去除重复行
 
 use std::sync::{Arc, Mutex};
+use std::fmt;
 use async_trait::async_trait;
 
 use crate::core::{Value, DataSet};
@@ -16,6 +17,7 @@ use super::base::SetExecutor;
 ///
 /// 实现UNION操作，合并两个数据集并去除重复行
 /// 类似于SQL的UNION（不是UNION ALL）
+#[derive(Debug)]
 pub struct UnionExecutor<S: StorageEngine> {
     pub set_executor: SetExecutor<S>,
 }
@@ -74,7 +76,7 @@ impl<S: StorageEngine> UnionExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for UnionExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_union().await.map_err(|e| crate::core::error::DBError::Query(e))?;
+        let dataset = self.execute_union().await.map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
         
         // 将DataSet转换为Values结果
         let values: Vec<Value> = dataset.rows.into_iter()

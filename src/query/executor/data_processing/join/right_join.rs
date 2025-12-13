@@ -8,6 +8,7 @@ use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, Ex
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor, hash_table::JoinKey,
 };
+use crate::core::error::{DBError, DBResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -41,7 +42,7 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
     }
 
     /// 执行右外连接
-    async fn execute_right_join(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute_right_join(&mut self) -> DBResult<ExecutionResult> {
         // 获取左右输入结果
         let left_result = self
             .base
@@ -49,10 +50,10 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
             .context
             .get_result(self.base.left_var())
             .ok_or_else(|| {
-                QueryError::ExecutionError(format!(
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
                     "Left input variable '{}' not found",
                     self.base.left_var()
-                ))
+                )))
             })?
             .clone();
 
@@ -62,10 +63,10 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
             .context
             .get_result(self.base.right_var())
             .ok_or_else(|| {
-                QueryError::ExecutionError(format!(
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
                     "Right input variable '{}' not found",
                     self.base.right_var()
-                ))
+                )))
             })?
             .clone();
 
@@ -73,18 +74,18 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
         let left_dataset = match left_result {
             ExecutionResult::DataSet(ds) => ds,
             _ => {
-                return Err(QueryError::ExecutionError(
+                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
                     "Left input must be a DataSet".to_string(),
-                ))
+                )))
             }
         };
 
         let right_dataset = match right_result {
             ExecutionResult::DataSet(ds) => ds,
             _ => {
-                return Err(QueryError::ExecutionError(
+                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
                     "Right input must be a DataSet".to_string(),
-                ))
+                )))
             }
         };
 
@@ -189,17 +190,17 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for RightJoinExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.execute_right_join().await
     }
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for RightJoinExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         Ok(())
     }
 

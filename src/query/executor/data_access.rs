@@ -9,6 +9,7 @@ use crate::query::executor::traits::{
 use crate::storage::StorageEngine;
 
 // Implementation for a basic GetVertices executor
+#[derive(Debug)]
 pub struct GetVerticesExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
@@ -111,6 +112,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for GetVerticesExecutor<S> {
 }
 
 // Implementation for a basic GetEdges executor
+#[derive(Debug)]
 pub struct GetEdgesExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     #[allow(dead_code)]
@@ -175,6 +177,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for GetEdgesExecutor<S> {
 }
 
 // Implementation for a basic GetNeighbors executor
+#[derive(Debug)]
 pub struct GetNeighborsExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     #[allow(dead_code)]
@@ -251,6 +254,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for GetNeighborsExecutor<S> 
 }
 
 // Implementation for GetPropExecutor
+#[derive(Debug)]
 pub struct GetPropExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     #[allow(dead_code)]

@@ -9,7 +9,7 @@ use crate::query::planner::plan::core::{
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
 // 获取顶点的计划节点

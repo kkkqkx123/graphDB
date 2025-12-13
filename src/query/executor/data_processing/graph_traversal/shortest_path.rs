@@ -1,8 +1,10 @@
 use async_trait::async_trait;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
+use std::fmt;
 
 use crate::core::{Edge, Path, Step, Value};
+use crate::core::error::{DBError, DBResult};
 use crate::query::executor::base::{
     BaseExecutor, EdgeDirection, InputExecutor,
 };
@@ -25,6 +27,7 @@ pub enum ShortestPathAlgorithm {
 ///
 /// 计算两个节点之间的最短路径，支持多种算法
 /// 适用于社交网络、路线规划等场景
+#[derive(Debug)]
 pub struct ShortestPathExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     start_vertex_ids: Vec<Value>,
@@ -323,7 +326,7 @@ impl<S: StorageEngine> InputExecutor<S> for ShortestPathExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for ShortestPathExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -384,7 +387,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ShortestPathExecutor<S>
         self.end_vertex_ids = end_nodes;
 
         // 执行最短路径计算
-        self.compute_shortest_paths().await?;
+        self.compute_shortest_paths().await.map_err(DBError::from)?;
 
         // 构建结果
         Ok(self.build_result())
@@ -392,7 +395,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ShortestPathExecutor<S>
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for ShortestPathExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化最短路径计算所需的任何资源
         self.shortest_paths.clear();
         self.visited_nodes.clear();
@@ -405,7 +408,7 @@ impl<S: StorageEngine> ExecutorLifecycle for ShortestPathExecutor<S> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         self.shortest_paths.clear();
         self.visited_nodes.clear();

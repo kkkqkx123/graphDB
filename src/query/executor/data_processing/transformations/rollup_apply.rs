@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use crate::core::{Value, DataSet, List};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
+use crate::core::error::{DBError, DBResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::graph::expression::{Expression, ExpressionContext, InputPropertyExpression};
@@ -76,14 +77,14 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     }
 
     /// 检查双输入数据集
-    fn check_bi_input_data_sets(&self) -> Result<(), QueryError> {
+    fn check_bi_input_data_sets(&self) -> DBResult<()> {
         // 检查左输入
         let _left_result = self.base.context.get_result(&self.left_input_var)
-            .ok_or_else(|| QueryError::ExecutionError(format!("Left input variable '{}' not found", self.left_input_var)))?;
+            .ok_or_else(|| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Left input variable '{}' not found", self.left_input_var))))?;
 
         // 检查右输入
         let _right_result = self.base.context.get_result(&self.right_input_var)
-            .ok_or_else(|| QueryError::ExecutionError(format!("Right input variable '{}' not found", self.right_input_var)))?;
+            .ok_or_else(|| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Right input variable '{}' not found", self.right_input_var))))?;
 
         Ok(())
     }
@@ -96,7 +97,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         iter: &[Value],
         hash_table: &mut HashMap<List, List>,
         expr_context: &mut ExpressionContext,
-    ) -> Result<(), QueryError> {
+    ) -> DBResult<()> {
         for value in iter {
             // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
@@ -105,13 +106,13 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             let mut key_list = List { values: Vec::new() };
             for col in compare_cols {
                 let val = col.evaluate(expr_context)
-                    .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                 key_list.values.push(val);
             }
 
             // 获取收集列的值
             let collect_val = collect_col.evaluate(expr_context)
-                .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
             // 添加到哈希表
             let entry = hash_table.entry(key_list).or_insert_with(|| List { values: Vec::new() });
@@ -129,18 +130,18 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         iter: &[Value],
         hash_table: &mut HashMap<Value, List>,
         expr_context: &mut ExpressionContext,
-    ) -> Result<(), QueryError> {
+    ) -> DBResult<()> {
         for value in iter {
             // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
             
             // 获取键值
             let key_val = compare_col.evaluate(expr_context)
-                .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
             // 获取收集列的值
             let collect_val = collect_col.evaluate(expr_context)
-                .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
             // 添加到哈希表
             let entry = hash_table.entry(key_val).or_insert_with(|| List { values: Vec::new() });
@@ -157,7 +158,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         iter: &[Value],
         hash_table: &mut List,
         expr_context: &mut ExpressionContext,
-    ) -> Result<(), QueryError> {
+    ) -> DBResult<()> {
         hash_table.values.reserve(iter.len());
         
         for value in iter {
@@ -166,7 +167,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             
             // 获取收集列的值
             let collect_val = collect_col.evaluate(expr_context)
-                .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
             
             hash_table.values.push(collect_val);
         }
@@ -180,7 +181,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         probe_iter: &[Value],
         hash_table: &List,
         expr_context: &mut ExpressionContext,
-    ) -> Result<DataSet, QueryError> {
+    ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
             rows: Vec::new(),
@@ -214,7 +215,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         probe_iter: &[Value],
         hash_table: &HashMap<Value, List>,
         expr_context: &mut ExpressionContext,
-    ) -> Result<DataSet, QueryError> {
+    ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
             rows: Vec::new(),
@@ -228,7 +229,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             
             // 获取探测键值
             let key_val = probe_key.evaluate(expr_context)
-                .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
             // 查找哈希表
             let vals = hash_table.get(&key_val).cloned().unwrap_or(List { values: Vec::new() });
@@ -255,7 +256,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         probe_iter: &[Value],
         hash_table: &HashMap<List, List>,
         expr_context: &mut ExpressionContext,
-    ) -> Result<DataSet, QueryError> {
+    ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
             rows: Vec::new(),
@@ -271,7 +272,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             let mut key_list = List { values: Vec::new() };
             for col in probe_keys {
                 let val = col.evaluate(expr_context)
-                    .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                 key_list.values.push(val);
             }
 
@@ -294,7 +295,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     }
 
     /// 执行RollUpApply操作
-    fn execute_rollup_apply(&mut self) -> Result<DataSet, QueryError> {
+    fn execute_rollup_apply(&mut self) -> DBResult<DataSet> {
         // 检查输入数据集
         self.check_bi_input_data_sets()?;
 
@@ -311,7 +312,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             ExecutionResult::Edges(edges) => {
                 edges.iter().map(|e| Value::Edge(e.clone())).collect::<Vec<_>>()
             },
-            _ => return Err(QueryError::ExecutionError("Invalid left input result type".to_string())),
+            _ => return Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Invalid left input result type".to_string()))),
         };
 
         let right_values = match right_result {
@@ -322,7 +323,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             ExecutionResult::Edges(edges) => {
                 edges.iter().map(|e| Value::Edge(e.clone())).collect::<Vec<_>>()
             },
-            _ => return Err(QueryError::ExecutionError("Invalid right input result type".to_string())),
+            _ => return Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Invalid right input result type".to_string()))),
         };
 
         // 创建表达式上下文
@@ -369,7 +370,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for RollUpApplyExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 执行RollUpApply操作
         let dataset = self.execute_rollup_apply()?;
         
@@ -383,12 +384,12 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for RollUpApplyExecutor<S> 
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for RollUpApplyExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         Ok(())
     }

@@ -5,6 +5,7 @@ use crate::core::{Value, DataSet};
 use crate::graph::expression::{Expression, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
+use crate::core::error::{DBError, DBResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -79,7 +80,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
     }
 
     /// 处理输入数据并排序
-    async fn process_input(&mut self) -> Result<DataSet, QueryError> {
+    async fn process_input(&mut self) -> DBResult<DataSet> {
         if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute().await?;
             
@@ -95,15 +96,15 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
                     
                     Ok(data_set)
                 }
-                _ => Err(QueryError::ExecutionError("Sort executor expects DataSet input".to_string())),
+                _ => Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Sort executor expects DataSet input".to_string()))),
             }
         } else {
-            Err(QueryError::ExecutionError("Sort executor requires input executor".to_string()))
+            Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Sort executor requires input executor".to_string())))
         }
     }
 
     /// 对数据集进行排序
-    fn sort_dataset(&self, data_set: &mut DataSet) -> Result<(), QueryError> {
+    fn sort_dataset(&self, data_set: &mut DataSet) -> DBResult<()> {
         // 如果没有排序键，直接返回
         if self.sort_keys.is_empty() {
             return Ok(());
@@ -125,7 +126,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
             let mut sort_values = Vec::new();
             for sort_key in &self.sort_keys {
                 let sort_value = sort_key.expression.evaluate(&expr_context)
-                    .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                 sort_values.push(sort_value);
             }
 
@@ -163,21 +164,21 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for SortExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.process_input().await?;
         Ok(ExecutionResult::DataSet(dataset))
     }
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for SortExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
         }
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;
         }

@@ -40,6 +40,7 @@ impl ExecutionContext {
 }
 
 // Base executor with common functionality
+#[derive(Debug)]
 pub struct BaseExecutor<S: StorageEngine> {
     pub id: usize,
     pub name: String,
@@ -93,6 +94,7 @@ pub enum EdgeDirection {
 }
 
 // Implementation for StartExecutor
+#[derive(Debug)]
 pub struct StartExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
 }

@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
-use crate::graph::expression::{EvalContext, Expression, ExpressionEvaluator};
+use crate::graph::expression::{EvalContext, ExpressionV1 as Expression, ExpressionEvaluator};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};

@@ -41,12 +41,11 @@ pub trait ExecutorMetadata {
 
 /// 组合 Executor trait - 组合所有 Executor 相关 trait
 #[async_trait]
-pub trait Executor<S: StorageEngine>: ExecutorCore 
-                                    + ExecutorLifecycle 
-                                    + ExecutorMetadata 
-                                    + Send 
-                                    + Sync 
-                                    + fmt::Debug {
+pub trait Executor<S: StorageEngine>: ExecutorCore
+                                    + ExecutorLifecycle
+                                    + ExecutorMetadata
+                                    + Send
+                                    + Sync {
     /// 获取存储引擎引用
     fn storage(&self) -> &S;
 }
@@ -56,6 +55,12 @@ pub trait Executor<S: StorageEngine>: ExecutorCore
 pub enum ExecutionResult {
     /// 成功执行，返回数据
     Values(Vec<crate::core::Value>),
+    /// 成功执行，返回顶点数据
+    Vertices(Vec<crate::core::Vertex>),
+    /// 成功执行，返回边数据
+    Edges(Vec<crate::core::Edge>),
+    /// 成功执行，返回数据集
+    DataSet(crate::core::DataSet),
     /// 成功执行，无数据返回
     Success,
     /// 执行错误
@@ -69,6 +74,9 @@ impl ExecutionResult {
     pub fn count(&self) -> usize {
         match self {
             ExecutionResult::Values(v) => v.len(),
+            ExecutionResult::Vertices(v) => v.len(),
+            ExecutionResult::Edges(v) => v.len(),
+            ExecutionResult::DataSet(ds) => ds.len(),
             ExecutionResult::Count(c) => *c,
             ExecutionResult::Success => 0,
             ExecutionResult::Error(_) => 0,

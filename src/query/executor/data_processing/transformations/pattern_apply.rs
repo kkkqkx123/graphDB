@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use crate::core::{Value, Vertex, Edge, Path, DataSet};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
+use crate::core::error::{DBError, DBResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::graph::expression::{Expression, ExpressionContext};
@@ -109,7 +110,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     }
 
     /// 检查顶点是否匹配节点模式
-    fn match_node_pattern(&self, vertex: &Vertex, pattern: &PatternType, expr_context: &ExpressionContext) -> Result<bool, QueryError> {
+    fn match_node_pattern(&self, vertex: &Vertex, pattern: &PatternType, expr_context: &ExpressionContext) -> DBResult<bool> {
         if let PatternType::Node { labels, properties, .. } = pattern {
             // 检查标签
             if !labels.is_empty() {
@@ -139,7 +140,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                     
                     // 评估属性表达式
                     let result = prop_expr.evaluate(&temp_context)
-                        .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                     
                     // 如果结果是布尔值且为false，则不匹配
                     if let Value::Bool(false) = result {
@@ -155,7 +156,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     }
 
     /// 检查边是否匹配边模式
-    fn match_edge_pattern(&self, edge: &Edge, pattern: &PatternType, expr_context: &ExpressionContext) -> Result<bool, QueryError> {
+    fn match_edge_pattern(&self, edge: &Edge, pattern: &PatternType, expr_context: &ExpressionContext) -> DBResult<bool> {
         if let PatternType::Edge { edge_type, direction, properties, .. } = pattern {
             // 检查边类型
             if let Some(expected_type) = edge_type {
@@ -184,7 +185,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                     
                     // 评估属性表达式
                     let result = prop_expr.evaluate(&temp_context)
-                        .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                     
                     // 如果结果是布尔值且为false，则不匹配
                     if let Value::Bool(false) = result {
@@ -200,7 +201,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     }
 
     /// 检查路径是否匹配路径模式
-    fn match_path_pattern(&self, path: &Path, pattern: &PatternType, _expr_context: &ExpressionContext) -> Result<bool, QueryError> {
+    fn match_path_pattern(&self, path: &Path, pattern: &PatternType, _expr_context: &ExpressionContext) -> DBResult<bool> {
         if let PatternType::Path { length_range, .. } = pattern {
             // 检查路径长度
             let path_length = path.steps.len();
@@ -224,10 +225,10 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     }
 
     /// 执行模式匹配操作
-    fn execute_pattern_apply(&mut self) -> Result<DataSet, QueryError> {
+    fn execute_pattern_apply(&mut self) -> DBResult<DataSet> {
         // 获取输入结果
         let input_result = self.base.context.get_result(&self.input_var)
-            .ok_or_else(|| QueryError::ExecutionError(format!("Input variable '{}' not found", self.input_var)))?;
+            .ok_or_else(|| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Input variable '{}' not found", self.input_var))))?;
 
         // 创建表达式上下文
         let mut expr_context = ExpressionContext::new();
@@ -321,7 +322,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                 }
             },
             _ => {
-                return Err(QueryError::ExecutionError("Invalid input result type for PatternApply".to_string()));
+                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Invalid input result type for PatternApply".to_string())));
             }
         }
 
@@ -331,7 +332,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for PatternApplyExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 执行模式匹配操作
         let dataset = self.execute_pattern_apply()?;
         
@@ -345,12 +346,12 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for PatternApplyExecutor<S>
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for PatternApplyExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         Ok(())
     }

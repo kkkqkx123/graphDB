@@ -173,7 +173,7 @@ pub struct OptGroupNode {
     pub group_id: usize, // ID of the group this node belongs to
 }
 
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 
 // A dummy plan node for default implementation
 #[derive(Debug, Default)]

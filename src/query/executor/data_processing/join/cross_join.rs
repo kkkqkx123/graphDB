@@ -4,8 +4,10 @@
 
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
+use std::fmt;
 
 use crate::core::{DataSet, Value};
+use crate::core::error::{DBError, DBResult};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
@@ -13,6 +15,7 @@ use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
 /// 笛卡尔积执行器
+#[derive(Debug)]
 pub struct CrossJoinExecutor<S: StorageEngine> {
     base_executor: BaseJoinExecutor<S>,
     /// 输入变量列表（支持多表）
@@ -234,7 +237,7 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for CrossJoinExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 根据输入数量选择实现方式
         let result = if self.input_vars.len() == 2 {
             // 两表笛卡尔积
@@ -247,7 +250,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for CrossJoinExecutor<S> {
                 .context
                 .get_result(left_var)
                 .ok_or_else(|| {
-                    QueryError::ExecutionError(format!("找不到左输入变量: {}", left_var))
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(format!("找不到左输入变量: {}", left_var)))
                 })?;
 
             let right_result = self
@@ -256,7 +259,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for CrossJoinExecutor<S> {
                 .context
                 .get_result(right_var)
                 .ok_or_else(|| {
-                    QueryError::ExecutionError(format!("找不到右输入变量: {}", right_var))
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(format!("找不到右输入变量: {}", right_var)))
                 })?;
 
             let left_dataset = match left_result {
@@ -264,15 +267,15 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for CrossJoinExecutor<S> {
                     if let Some(Value::DataSet(dataset)) = values.first() {
                         dataset.clone()
                     } else {
-                        return Err(QueryError::ExecutionError(
+                        return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
                             "左输入不是有效的数据集".to_string(),
-                        ));
+                        )));
                     }
                 }
                 _ => {
-                    return Err(QueryError::ExecutionError(
+                    return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
                         "左输入不是有效的数据集".to_string(),
-                    ))
+                    )))
                 }
             };
 
@@ -281,22 +284,22 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for CrossJoinExecutor<S> {
                     if let Some(Value::DataSet(dataset)) = values.first() {
                         dataset.clone()
                     } else {
-                        return Err(QueryError::ExecutionError(
+                        return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
                             "右输入不是有效的数据集".to_string(),
-                        ));
+                        )));
                     }
                 }
                 _ => {
-                    return Err(QueryError::ExecutionError(
+                    return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
                         "右输入不是有效的数据集".to_string(),
-                    ))
+                    )))
                 }
             };
 
-            self.execute_two_way_cartesian_product(&left_dataset, &right_dataset)?
+            self.execute_two_way_cartesian_product(&left_dataset, &right_dataset).map_err(DBError::from)?
         } else {
             // 多表笛卡尔积
-            self.execute_optimized_cartesian_product()?
+            self.execute_optimized_cartesian_product().map_err(DBError::from)?
         };
 
         Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
@@ -304,12 +307,12 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for CrossJoinExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for CrossJoinExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         Ok(())
     }

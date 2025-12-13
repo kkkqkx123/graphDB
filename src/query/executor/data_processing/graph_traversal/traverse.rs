@@ -1,8 +1,10 @@
 use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
+use std::fmt;
 
 use crate::core::{Edge, Path, Step, Value, Vertex};
+use crate::core::error::{DBError, DBResult};
 use crate::query::executor::base::{
     BaseExecutor, EdgeDirection, InputExecutor,
 };
@@ -14,6 +16,7 @@ use crate::storage::StorageEngine;
 ///
 /// 执行完整的图遍历操作，支持多跳和条件过滤
 /// 结合了 ExpandExecutor 的功能，支持更复杂的遍历需求
+#[derive(Debug)]
 pub struct TraverseExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
@@ -269,7 +272,7 @@ impl<S: StorageEngine> InputExecutor<S> for TraverseExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for TraverseExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -327,14 +330,14 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for TraverseExecutor<S> {
         }
 
         // 初始化遍历
-        self.initialize_traversal(input_nodes).await?;
+        self.initialize_traversal(input_nodes).await.map_err(DBError::from)?;
 
         // 确定最大深度
         let max_depth = self.max_depth.unwrap_or(3); // 默认深度为3
 
         // 执行遍历
         for current_depth in 0..max_depth {
-            self.traverse_step(current_depth, max_depth).await?;
+            self.traverse_step(current_depth, max_depth).await.map_err(DBError::from)?;
 
             // 如果没有更多路径可以扩展，提前结束
             if self.current_paths.is_empty() {
@@ -351,7 +354,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for TraverseExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for TraverseExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化遍历所需的任何资源
         self.current_paths.clear();
         self.completed_paths.clear();
@@ -363,7 +366,7 @@ impl<S: StorageEngine> ExecutorLifecycle for TraverseExecutor<S> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         self.current_paths.clear();
         self.completed_paths.clear();

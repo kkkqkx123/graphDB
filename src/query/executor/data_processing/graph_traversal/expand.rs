@@ -1,8 +1,10 @@
 use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
+use std::fmt;
 
 use crate::core::Value;
+use crate::core::error::{DBError, DBResult};
 use crate::query::executor::base::{
     BaseExecutor, EdgeDirection, InputExecutor,
 };
@@ -14,6 +16,7 @@ use crate::storage::StorageEngine;
 ///
 /// 从当前节点按照指定的边类型和方向扩展一步，获取相邻节点
 /// 通常用于图遍历和路径查询
+#[derive(Debug)]
 pub struct ExpandExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
@@ -156,7 +159,7 @@ impl<S: StorageEngine> InputExecutor<S> for ExpandExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -193,7 +196,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandExecutor<S> {
         };
 
         // 执行扩展操作
-        let expanded_nodes = self.expand_step(input_nodes).await?;
+        let expanded_nodes = self.expand_step(input_nodes).await.map_err(DBError::from)?;
 
         // 构建结果
         Ok(self.build_expansion_result(expanded_nodes))
@@ -201,7 +204,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for ExpandExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化扩展所需的任何资源
         self.visited_nodes.clear();
         self.adjacency_cache.clear();
@@ -212,7 +215,7 @@ impl<S: StorageEngine> ExecutorLifecycle for ExpandExecutor<S> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         self.visited_nodes.clear();
         self.adjacency_cache.clear();

@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
+use std::fmt;
 
 use crate::core::{DataSet, Value};
 use crate::query::executor::{BaseExecutor, ExecutionResult, Executor};
@@ -15,6 +16,7 @@ use crate::storage::StorageEngine;
 /// 集合操作执行器基类
 ///
 /// 提供所有集合操作（Union、Intersect、Minus等）的通用功能
+#[derive(Debug)]
 pub struct SetExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     left_input_var: String,
@@ -205,7 +207,7 @@ impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor
     {
         // 基类不直接执行，由子类实现具体逻辑
         Err(crate::core::error::DBError::Query(
-            crate::query::QueryError::ExecutionError(
+            crate::core::error::QueryError::ExecutionError(
                 "SetExecutor是抽象基类，不能直接执行".to_string(),
             ),
         ))

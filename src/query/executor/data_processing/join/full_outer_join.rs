@@ -9,6 +9,7 @@ use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor,
     hash_table::JoinKey,
 };
+use crate::core::error::{DBError, DBResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -34,25 +35,25 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
     }
 
     /// 执行全外连接
-    async fn execute_full_outer_join(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute_full_outer_join(&mut self) -> DBResult<ExecutionResult> {
         // 获取左右输入结果
         let left_result = self.base.base.context.get_result(self.base.left_var())
-            .ok_or_else(|| QueryError::ExecutionError(format!("Left input variable '{}' not found", self.base.left_var())))?
+            .ok_or_else(|| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Left input variable '{}' not found", self.base.left_var()))))?
             .clone();
 
         let right_result = self.base.base.context.get_result(self.base.right_var())
-            .ok_or_else(|| QueryError::ExecutionError(format!("Right input variable '{}' not found", self.base.right_var())))?
+            .ok_or_else(|| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Right input variable '{}' not found", self.base.right_var()))))?
             .clone();
 
         // 转换为数据集
         let left_dataset = match left_result {
             ExecutionResult::DataSet(ds) => ds,
-            _ => return Err(QueryError::ExecutionError("Left input must be a DataSet".to_string())),
+            _ => return Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Left input must be a DataSet".to_string()))),
         };
 
         let right_dataset = match right_result {
             ExecutionResult::DataSet(ds) => ds,
-            _ => return Err(QueryError::ExecutionError("Right input must be a DataSet".to_string())),
+            _ => return Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Right input must be a DataSet".to_string()))),
         };
 
         // 构建左表哈希表：以左表连接键作为键，(行索引, 已匹配标志)作为值
@@ -203,17 +204,17 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for FullOuterJoinExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.execute_full_outer_join().await
     }
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for FullOuterJoinExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         Ok(())
     }
 

@@ -6,7 +6,7 @@ use crate::query::planner::plan::core::{
     PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
 };
 use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
 // 扩展节点

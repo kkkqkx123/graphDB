@@ -4,6 +4,7 @@
 
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
+use std::fmt;
 
 use crate::core::{DataSet, Value};
 use crate::query::executor::traits::{ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
@@ -16,6 +17,7 @@ use super::base::SetExecutor;
 ///
 /// 实现INTERSECT操作，返回两个数据集的交集
 /// 只返回同时存在于左右两个数据集中的行
+#[derive(Debug)]
 pub struct IntersectExecutor<S: StorageEngine> {
     pub set_executor: SetExecutor<S>,
 }
@@ -89,7 +91,7 @@ impl<S: StorageEngine> IntersectExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for IntersectExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_intersect().await.map_err(|e| crate::core::error::DBError::Query(e))?;
+        let dataset = self.execute_intersect().await.map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
         // 将DataSet转换为Values结果
         let values: Vec<Value> = dataset

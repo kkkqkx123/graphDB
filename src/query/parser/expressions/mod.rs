@@ -3,9 +3,9 @@
 //! This module defines the interface for expression parsing that can be
 //! implemented by different parser components.
 
+use crate::query::parser::ast::*;
 use crate::query::parser::core::error::{ParseError, ParseErrors};
 use crate::query::parser::core::token::{Token, TokenKind};
-use crate::query::parser::ast::*;
 
 pub trait TokenParser {
     fn expect_token(&mut self, expected: TokenKind) -> Result<Token, ParseError>;

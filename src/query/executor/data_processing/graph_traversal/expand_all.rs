@@ -1,8 +1,10 @@
 use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
+use std::fmt;
 
 use crate::core::{Edge, Path, Step, Value, Vertex};
+use crate::core::error::{DBError, DBResult};
 use crate::query::executor::base::{
     BaseExecutor, EdgeDirection, InputExecutor,
 };
@@ -14,6 +16,7 @@ use crate::storage::StorageEngine;
 ///
 /// 返回从当前节点出发的所有可能的路径，而不仅仅是下一跳节点
 /// 通常用于路径探索查询
+#[derive(Debug)]
 pub struct ExpandAllExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
@@ -220,7 +223,7 @@ impl<S: StorageEngine> InputExecutor<S> for ExpandAllExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandAllExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -291,7 +294,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandAllExecutor<S> {
             // 递归扩展路径
             let mut expanded_paths = self
                 .expand_paths_recursive(&mut initial_path, 0, max_depth)
-                .await?;
+                .await.map_err(DBError::from)?;
             self.path_cache.append(&mut expanded_paths);
         }
 
@@ -301,7 +304,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandAllExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for ExpandAllExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化扩展所需的任何资源
         self.path_cache.clear();
         self.visited_nodes.clear();
@@ -312,7 +315,7 @@ impl<S: StorageEngine> ExecutorLifecycle for ExpandAllExecutor<S> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         self.path_cache.clear();
         self.visited_nodes.clear();

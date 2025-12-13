@@ -8,7 +8,7 @@ use rand::{Rng, SeedableRng};
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Edge, Value, Vertex};
-use crate::graph::expression::{EvalContext, Expression, ExpressionEvaluator};
+use crate::graph::expression::{EvalContext, ExpressionV1 as Expression, ExpressionEvaluator};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
 use crate::query::QueryError;
@@ -31,6 +31,7 @@ pub enum SampleMethod {
 /// SampleExecutor - 采样执行器
 ///
 /// 实现数据采样功能，支持多种采样算法
+#[derive(Debug)]
 pub struct SampleExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     input_executor: Option<Box<dyn crate::query::executor::traits::Executor<S>>>,
@@ -455,7 +456,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for SampleExecutor<S> {
         };
 
         // 执行采样操作
-        self.execute_sample(input_result).await.map_err(|e| crate::core::error::DBError::Query(e))
+        self.execute_sample(input_result).await.map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))
     }
 }
 

@@ -3,6 +3,7 @@
 //! 实现MINUS操作，返回左数据集中存在但右数据集中不存在的行
 
 use std::sync::{Arc, Mutex};
+use std::fmt;
 use async_trait::async_trait;
 
 use crate::core::{Value, DataSet};
@@ -16,6 +17,7 @@ use super::base::SetExecutor;
 ///
 /// 实现MINUS操作，返回左数据集中存在但右数据集中不存在的行
 /// 类似于SQL的EXCEPT或MINUS
+#[derive(Debug)]
 pub struct MinusExecutor<S: StorageEngine> {
     pub set_executor: SetExecutor<S>,
 }
@@ -96,7 +98,7 @@ impl<S: StorageEngine> MinusExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for MinusExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_minus().await.map_err(|e| crate::core::error::DBError::Query(e))?;
+        let dataset = self.execute_minus().await.map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
         
         // 将DataSet转换为Values结果
         let values: Vec<Value> = dataset.rows.into_iter()

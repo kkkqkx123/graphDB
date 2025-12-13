@@ -9,6 +9,7 @@ use crate::core::{Value, DataSet, NullType};
 use crate::storage::StorageEngine;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
+use crate::core::error::{DBError, DBResult};
 use crate::query::QueryError;
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::data_processing::join::hash_table::{HashTableBuilder, HashTableProbe, SingleKeyHashTable, MultiKeyHashTable};
@@ -59,7 +60,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         &mut self,
         left_dataset: &DataSet,
         right_dataset: &DataSet,
-    ) -> Result<DataSet, QueryError> {
+    ) -> DBResult<DataSet> {
         // 记录右侧数据集的列数
         self.right_col_size = right_dataset.col_names.len();
 
@@ -71,7 +72,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
 
         // 构建哈希表
         let hash_table = HashTableBuilder::build_single_key_table(build_dataset, build_key_idx)
-            .map_err(|e| QueryError::ExecutionError(format!("构建哈希表失败: {}", e)))?;
+            .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("构建哈希表失败: {}", e))))?;
 
         // 探测哈希表
         let probe_results = HashTableProbe::probe_single_key(&hash_table, probe_dataset, probe_key_idx);
@@ -113,7 +114,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         &mut self,
         left_dataset: &DataSet,
         right_dataset: &DataSet,
-    ) -> Result<DataSet, QueryError> {
+    ) -> DBResult<DataSet> {
         // 记录右侧数据集的列数
         self.right_col_size = right_dataset.col_names.len();
 
@@ -123,13 +124,13 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
 
         for key in self.base_executor.get_hash_keys() {
             let idx = key.parse::<usize>()
-                .map_err(|_| QueryError::ExecutionError("无效的左键索引".to_string()))?;
+                .map_err(|_| DBError::Query(crate::core::error::QueryError::ExecutionError("无效的左键索引".to_string())))?;
             left_key_indices.push(idx);
         }
 
         for key in self.base_executor.get_probe_keys() {
             let idx = key.parse::<usize>()
-                .map_err(|_| QueryError::ExecutionError("无效的右键索引".to_string()))?;
+                .map_err(|_| DBError::Query(crate::core::error::QueryError::ExecutionError("无效的右键索引".to_string())))?;
             right_key_indices.push(idx);
         }
 
@@ -141,7 +142,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
 
         // 构建哈希表
         let hash_table = HashTableBuilder::build_multi_key_table(build_dataset, build_key_indices)
-            .map_err(|e| QueryError::ExecutionError(format!("构建多键哈希表失败: {}", e)))?;
+            .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("构建多键哈希表失败: {}", e))))?;
 
         // 探测哈希表
         let probe_results = HashTableProbe::probe_multi_key(&hash_table, probe_dataset, probe_key_indices);
@@ -187,7 +188,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for LeftJoinExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 检查输入数据集
         let (left_dataset, right_dataset) = self.base_executor.check_input_datasets()?;
 
@@ -229,12 +230,12 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for LeftJoinExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for LeftJoinExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         self.single_key_hash_table = None;
         self.multi_key_hash_table = None;
@@ -298,18 +299,18 @@ impl<S: StorageEngine> HashLeftJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for HashLeftJoinExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 目前与普通左连接相同，后续可以添加并行处理逻辑
         self.inner.execute().await
     }
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for HashLeftJoinExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         self.inner.open()
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         self.inner.close()
     }
 

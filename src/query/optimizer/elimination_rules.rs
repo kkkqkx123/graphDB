@@ -808,8 +808,8 @@ fn create_plan_node_with_output_var(
         );
         new_node.set_output_var(output_var);
         Arc::new(new_node)
-    } else if let Some(inner_join_node) = plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::InnerJoin>() {
-        let mut new_node = crate::query::planner::plan::operations::InnerJoin::new(inner_join_node.id());
+    } else if let Some(inner_join_node) = plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::HashInnerJoin>() {
+        let mut new_node = crate::query::planner::plan::operations::HashInnerJoin::new(inner_join_node.id());
         new_node.set_output_var(output_var.clone());
         Arc::new(new_node)
     } else if let Some(hash_inner_join_node) = plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::HashInnerJoin>() {

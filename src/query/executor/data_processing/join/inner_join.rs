@@ -3,9 +3,11 @@
 //! 实现基于哈希的内连接算法，支持单键和多键连接
 
 use std::sync::{Arc, Mutex};
+use std::fmt;
 use async_trait::async_trait;
 
 use crate::core::{Value, DataSet};
+use crate::core::error::{DBError, DBResult};
 use crate::storage::StorageEngine;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
@@ -14,6 +16,7 @@ use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::data_processing::join::hash_table::{HashTableBuilder, HashTableProbe, SingleKeyHashTable, MultiKeyHashTable};
 
 /// 内连接执行器
+#[derive(Debug)]
 pub struct InnerJoinExecutor<S: StorageEngine> {
     base_executor: BaseJoinExecutor<S>,
     /// 哈希表（用于单键连接）
@@ -164,9 +167,9 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for InnerJoinExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 检查输入数据集
-        let (left_dataset, right_dataset) = self.base_executor.check_input_datasets()?;
+        let (left_dataset, right_dataset) = self.base_executor.check_input_datasets().map_err(DBError::from)?;
 
         // 处理空集情况
         if left_dataset.rows.is_empty() || right_dataset.rows.is_empty() {
@@ -179,9 +182,9 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for InnerJoinExecutor<S> {
 
         // 根据键的数量选择连接算法
         let result = if self.use_multi_key {
-            self.execute_multi_key_join(&left_dataset, &right_dataset)?
+            self.execute_multi_key_join(&left_dataset, &right_dataset).map_err(DBError::from)?
         } else {
-            self.execute_single_key_join(&left_dataset, &right_dataset)?
+            self.execute_single_key_join(&left_dataset, &right_dataset).map_err(DBError::from)?
         };
 
         Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
@@ -189,12 +192,12 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for InnerJoinExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for InnerJoinExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         self.single_key_hash_table = None;
         self.multi_key_hash_table = None;
@@ -228,6 +231,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for InnerJoinExecutor
 }
 
 /// 哈希内连接执行器（并行版本）
+#[derive(Debug)]
 pub struct HashInnerJoinExecutor<S: StorageEngine> {
     inner: InnerJoinExecutor<S>,
 }
@@ -258,18 +262,18 @@ impl<S: StorageEngine> HashInnerJoinExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for HashInnerJoinExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 目前与普通内连接相同，后续可以添加并行处理逻辑
         self.inner.execute().await
     }
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for HashInnerJoinExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         self.inner.open()
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         self.inner.close()
     }
 

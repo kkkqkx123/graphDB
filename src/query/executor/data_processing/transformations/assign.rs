@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use crate::core::Value;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
+use crate::core::error::{DBError, DBResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::graph::expression::{Expression, ExpressionContext};
@@ -47,7 +48,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
     }
 
     /// 执行赋值操作
-    fn execute_assign(&mut self) -> Result<(), QueryError> {
+    fn execute_assign(&mut self) -> DBResult<()> {
         let mut expr_context = ExpressionContext::new();
         
         // 从执行上下文中设置变量
@@ -59,7 +60,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
         for (var_name, expr) in &self.assign_items {
             // 计算表达式的值
             let value = expr.evaluate(&expr_context)
-                .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
             // 根据值的类型设置到执行上下文中
             match &value {
@@ -86,7 +87,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for AssignExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 执行赋值操作
         self.execute_assign()?;
         
@@ -96,12 +97,12 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for AssignExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for AssignExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         Ok(())
     }

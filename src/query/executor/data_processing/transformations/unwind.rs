@@ -9,6 +9,7 @@ use crate::core::{DataSet, Value};
 use crate::graph::expression::{Expression, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
+use crate::core::error::{DBError, DBResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -77,14 +78,14 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
     }
 
     /// 执行展开操作
-    fn execute_unwind(&mut self) -> Result<DataSet, QueryError> {
+    fn execute_unwind(&mut self) -> DBResult<DataSet> {
         // 获取输入结果
         let input_result = self
             .base
             .context
             .get_result(&self.input_var)
             .ok_or_else(|| {
-                QueryError::ExecutionError(format!("Input variable '{}' not found", self.input_var))
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Input variable '{}' not found", self.input_var)))
             })?;
 
         // 创建表达式上下文
@@ -113,7 +114,7 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     let unwind_value = self
                         .unwind_expr
                         .evaluate(&expr_context)
-                        .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                     // 提取列表
                     let list_values = self.extract_list(&unwind_value);
@@ -143,7 +144,7 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     let unwind_value = self
                         .unwind_expr
                         .evaluate(&expr_context)
-                        .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                     let list_values = self.extract_list(&unwind_value);
 
@@ -169,7 +170,7 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     let unwind_value = self
                         .unwind_expr
                         .evaluate(&expr_context)
-                        .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                     let list_values = self.extract_list(&unwind_value);
 
@@ -194,7 +195,7 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                 let unwind_value = self
                     .unwind_expr
                     .evaluate(&expr_context)
-                    .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                 let list_values = self.extract_list(&unwind_value);
 
@@ -213,7 +214,7 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     let unwind_value = self
                         .unwind_expr
                         .evaluate(&expr_context)
-                        .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                     let list_values = self.extract_list(&unwind_value);
 
@@ -239,7 +240,7 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                         let unwind_value = self
                             .unwind_expr
                             .evaluate(&expr_context)
-                            .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                            .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                         let list_values = self.extract_list(&unwind_value);
 
@@ -258,9 +259,9 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                 }
             }
             ExecutionResult::Count(_) => {
-                return Err(QueryError::ExecutionError(
+                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
                     "Cannot unwind count result".to_string(),
-                ));
+                )));
             }
         }
 
@@ -270,7 +271,7 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for UnwindExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 执行展开操作
         let dataset = self.execute_unwind()?;
 
@@ -282,12 +283,12 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UnwindExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for UnwindExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         Ok(())
     }

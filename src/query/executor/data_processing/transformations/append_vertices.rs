@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use crate::core::{Value, Vertex, DataSet};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
+use crate::core::error::{DBError, DBResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::graph::expression::{Expression, ExpressionContext};
@@ -90,10 +91,10 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
     }
 
     /// 构建请求数据集
-    fn build_request_dataset(&mut self) -> Result<Vec<Value>, QueryError> {
+    fn build_request_dataset(&mut self) -> DBResult<Vec<Value>> {
         // 获取输入结果
         let input_result = self.base.context.get_result(&self.input_var)
-            .ok_or_else(|| QueryError::ExecutionError(format!("Input variable '{}' not found", self.input_var)))?;
+            .ok_or_else(|| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Input variable '{}' not found", self.input_var))))?;
 
         // 创建表达式上下文
         let mut expr_context = ExpressionContext::new();
@@ -115,7 +116,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     
                     // 计算源表达式获取顶点ID
                     let vid = self.src_expr.evaluate(&expr_context)
-                        .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                     
                     // 检查是否去重
                     if let Some(ref mut seen_map) = seen {
@@ -134,7 +135,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     expr_context.set_variable("_".to_string(), vertex_value.clone());
                     
                     let vid = self.src_expr.evaluate(&expr_context)
-                        .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                     
                     if let Some(ref mut seen_map) = seen {
                         if !seen_map.contains_key(&vid) {
@@ -152,7 +153,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     expr_context.set_variable("_".to_string(), edge_value.clone());
                     
                     let vid = self.src_expr.evaluate(&expr_context)
-                        .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                     
                     if let Some(ref mut seen_map) = seen {
                         if !seen_map.contains_key(&vid) {
@@ -165,7 +166,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                 }
             },
             _ => {
-                return Err(QueryError::ExecutionError("Invalid input result type for AppendVertices".to_string()));
+                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Invalid input result type for AppendVertices".to_string())));
             }
         }
 
@@ -173,7 +174,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
     }
 
     /// 处理空属性情况
-    fn handle_null_prop(&mut self, vids: Vec<Value>) -> Result<DataSet, QueryError> {
+    fn handle_null_prop(&mut self, vids: Vec<Value>) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
             rows: Vec::new(),
@@ -220,12 +221,12 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
     }
 
     /// 从存储中获取顶点属性
-    async fn fetch_vertices(&mut self, vids: Vec<Value>) -> Result<Vec<Vertex>, QueryError> {
+    async fn fetch_vertices(&mut self, vids: Vec<Value>) -> DBResult<Vec<Vertex>> {
         let mut vertices = Vec::new();
         
         // 获取存储引擎
         let storage = self.base.storage.lock()
-            .map_err(|_| QueryError::StorageError(crate::storage::StorageError::InvalidOperation("Failed to lock storage".to_string())))?;
+            .map_err(|_| DBError::Storage(crate::storage::StorageError::InvalidOperation("Failed to lock storage".to_string())))?;
 
         for vid in vids {
             if vid.is_empty() {
@@ -234,7 +235,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 
             // 从存储中获取顶点
             let vertex = storage.get_node(&vid)
-                .map_err(|e| QueryError::StorageError(e))?;
+                .map_err(|e| DBError::Storage(e))?;
 
             if let Some(vertex) = vertex {
                 vertices.push(vertex);
@@ -245,7 +246,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
     }
 
     /// 执行追加顶点操作
-    async fn execute_append_vertices(&mut self) -> Result<DataSet, QueryError> {
+    async fn execute_append_vertices(&mut self) -> DBResult<DataSet> {
         // 如果不需要获取属性，直接处理空属性情况
         if !self.need_fetch_prop {
             let vids = self.build_request_dataset()?;
@@ -287,7 +288,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
             // 如果有顶点过滤器，应用它
             if let Some(ref filter_expr) = self.v_filter {
                 let filter_result = filter_expr.evaluate(&expr_context)
-                    .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                 
                 if let Value::Bool(false) = filter_result {
                     continue; // 过滤掉这个顶点
@@ -315,7 +316,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for AppendVerticesExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 执行追加顶点操作
         let dataset = self.execute_append_vertices().await?;
         
@@ -329,12 +330,12 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for AppendVerticesExecutor<
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for AppendVerticesExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         Ok(())
     }
