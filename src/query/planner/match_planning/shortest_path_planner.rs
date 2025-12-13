@@ -8,6 +8,7 @@ use crate::query::validator::structs::{
     MatchClauseContext, Path, WhereClauseContext,
 };
 use std::collections::HashSet;
+use std::sync::Arc;
 
 /// 最短路径规划器
 /// 负责规划最短路径算法的执行
@@ -35,13 +36,13 @@ impl ShortestPathPlanner {
         // 这里应该根据路径类型构建相应的计划节点
         
         // 创建起始节点
-        let start_node = Box::new(SingleInputNode::new(
+        let start_node = Arc::new(SingleInputNode::new(
             PlanNodeKind::Start,
             create_empty_node()?,
         ));
 
         // 创建最短路径节点
-        let shortest_path_node = Box::new(SingleInputNode::new(
+        let shortest_path_node = Arc::new(SingleInputNode::new(
             PlanNodeKind::ShortestPath,
             start_node,
         ));
@@ -51,11 +52,11 @@ impl ShortestPathPlanner {
 }
 
 /// 创建空节点
-fn create_empty_node() -> Result<Box<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
+fn create_empty_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     use crate::query::planner::plan::SingleDependencyNode;
     
     // 创建一个空的计划节点作为占位符
-    Ok(Box::new(SingleDependencyNode {
+    Ok(Arc::new(SingleDependencyNode {
         id: -1,
         kind: PlanNodeKind::Start,
         dependencies: vec![],

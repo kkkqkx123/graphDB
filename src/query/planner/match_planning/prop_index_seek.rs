@@ -6,6 +6,7 @@ use crate::query::planner::plan::{PlanNode, SubPlan, PlanNodeKind, SingleInputNo
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
 use crate::graph::expression::expr_type::Expression;
+use std::sync::Arc;
 
 /// 属性索引查找规划器
 /// 负责规划基于属性索引的查找操作
@@ -36,7 +37,7 @@ impl PropIndexSeek {
         let start_node = self.create_start_node()?;
 
         // 创建索引扫描节点
-        let mut index_scan_node = SingleInputNode::new(
+        let index_scan_node = SingleInputNode::new(
             PlanNodeKind::IndexScan,
             start_node,
         );
@@ -47,10 +48,13 @@ impl PropIndexSeek {
             col_names.push(format!("label_{}", label));
         }
 
-        index_scan_node.set_col_names(col_names);
+        // 创建新的索引扫描节点并设置属性
+        let mut new_index_scan_node = index_scan_node.clone();
+        new_index_scan_node.set_col_names(col_names);
+        let index_scan_node = Arc::new(new_index_scan_node);
 
         let cloned_node = index_scan_node.clone_plan_node();
-        Ok(SubPlan::new(Some(Box::new(index_scan_node)), Some(cloned_node)))
+        Ok(SubPlan::new(Some(index_scan_node), Some(cloned_node)))
     }
 
     /// 检查是否可以使用属性索引查找
@@ -60,10 +64,10 @@ impl PropIndexSeek {
     }
 
     /// 创建起始节点
-    fn create_start_node(&self) -> Result<Box<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
+    fn create_start_node(&self) -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
         use crate::query::planner::plan::SingleDependencyNode;
 
-        Ok(Box::new(SingleDependencyNode {
+        Ok(Arc::new(SingleDependencyNode {
             id: -1,
             kind: PlanNodeKind::Start,
             dependencies: vec![],

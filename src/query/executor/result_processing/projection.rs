@@ -71,7 +71,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
             match evaluator.evaluate(&column.expression, &context) {
                 Ok(value) => projected_row.push(value),
                 Err(e) => {
-                    return Err(DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(format!(
+                    return Err(DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
                         "Failed to evaluate projection expression '{}': {}",
                         column.name, e
                     ))));
@@ -125,7 +125,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
                 match evaluator.evaluate(&column.expression, &context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
-                        return Err(DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(format!(
+                        return Err(DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
                             "Failed to evaluate projection expression '{}': {}",
                             column.name, e
                         ))));
@@ -165,7 +165,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
                 match evaluator.evaluate(&column.expression, &context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
-                        return Err(DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(format!(
+                        return Err(DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
                             "Failed to evaluate projection expression '{}': {}",
                             column.name, e
                         ))));
@@ -243,7 +243,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                         match evaluator.evaluate(&column.expression, &context) {
                             Ok(value) => projected_row.push(value),
                             Err(e) => {
-                                return Err(DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(format!(
+                                return Err(DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
                                     "Failed to evaluate projection expression '{}': {}",
                                     column.name, e
                                 ))));
@@ -262,6 +262,10 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                 ExecutionResult::DataSet(dataset)
             }
             ExecutionResult::Success => ExecutionResult::Success,
+            ExecutionResult::Error(_) => {
+                // 传播错误结果
+                input_result
+            }
         };
 
         Ok(projected_result)

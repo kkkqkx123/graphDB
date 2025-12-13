@@ -46,12 +46,12 @@ impl<S: StorageEngine> FilterExecutor<S> {
     }
 
     /// 评估条件表达式
-    async fn evaluate_condition(&mut self, context: &EvalContext<'_>) -> Result<bool, QueryError> {
+    async fn evaluate_condition(&mut self, context: &EvalContext<'_>) -> Result<bool, crate::core::error::QueryError> {
         // 评估表达式
         let result = self
             .evaluator
             .evaluate(&self.condition, context)
-            .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+            .map_err(|e| crate::core::error::QueryError::ExpressionError(e.to_string()))?;
 
         // 转换为布尔值
         Ok(self.value_to_bool(&result))
@@ -119,7 +119,7 @@ impl<S: StorageEngine> FilterExecutor<S> {
     async fn apply_filter(
         &mut self,
         input: ExecutionResult,
-    ) -> Result<ExecutionResult, QueryError> {
+    ) -> Result<ExecutionResult, crate::core::error::QueryError> {
         match input {
             ExecutionResult::Values(values) => {
                 let mut filtered_values = Vec::new();
@@ -214,7 +214,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for FilterExecutor<S> {
         };
 
         // 应用过滤条件
-        self.apply_filter(input_result).await.map_err(|e| crate::core::error::DBError::QueryError(e.to_string()))
+        self.apply_filter(input_result).await.map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))
     }
 }
 
@@ -389,22 +389,40 @@ mod tests {
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> Executor<S> for MockInputExecutor {
-            async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::ExecutorCore for MockInputExecutor {
+            async fn execute(&mut self) -> crate::query::executor::traits::DBResult<ExecutionResult> {
                 Ok(self.result.clone())
             }
-
-            fn open(&mut self) -> Result<(), QueryError> {
+        }
+        
+        impl<S: StorageEngine + Send> crate::query::executor::traits::ExecutorLifecycle for MockInputExecutor {
+            fn open(&mut self) -> crate::query::executor::traits::DBResult<()> {
                 Ok(())
             }
-            fn close(&mut self) -> Result<(), QueryError> {
+            fn close(&mut self) -> crate::query::executor::traits::DBResult<()> {
                 Ok(())
             }
+            fn is_open(&self) -> bool {
+                true
+            }
+        }
+        
+        impl<S: StorageEngine> crate::query::executor::traits::ExecutorMetadata for MockInputExecutor {
             fn id(&self) -> usize {
                 0
             }
             fn name(&self) -> &str {
                 "MockInputExecutor"
+            }
+            fn description(&self) -> &str {
+                "MockInputExecutor"
+            }
+        }
+        
+        #[async_trait::async_trait]
+        impl<S: StorageEngine + Send + Sync + 'static> crate::query::executor::traits::Executor<S> for MockInputExecutor {
+            fn storage(&self) -> &Arc<Mutex<S>> {
+                unimplemented!("MockInputExecutor doesn't use storage")
             }
         }
 

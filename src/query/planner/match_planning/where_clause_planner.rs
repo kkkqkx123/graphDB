@@ -8,6 +8,7 @@ use crate::query::planner::match_planning::segments_connector::SegmentsConnector
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
+use std::sync::Arc;
 
 /// WHERE子句规划器
 /// 负责规划WHERE子句中的过滤条件
@@ -82,7 +83,7 @@ impl CypherClausePlanner for WhereClausePlanner {
             let mut where_plan = SubPlan::new(None, None);
 
             // 创建过滤器节点
-            let filter_node = Box::new(SingleInputNode::new(
+            let filter_node = Arc::new(SingleInputNode::new(
                 PlanNodeKind::Filter,
                 create_empty_node()?,
             ));
@@ -106,11 +107,11 @@ impl CypherClausePlanner for WhereClausePlanner {
 }
 
 /// 创建空节点
-fn create_empty_node() -> Result<Box<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
+fn create_empty_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     use crate::query::planner::plan::SingleDependencyNode;
 
     // 创建一个空的计划节点作为占位符
-    Ok(Box::new(SingleDependencyNode {
+    Ok(Arc::new(SingleDependencyNode {
         id: -1,
         kind: PlanNodeKind::Start,
         dependencies: vec![],

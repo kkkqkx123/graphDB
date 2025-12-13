@@ -116,13 +116,13 @@ impl ExpressionEvaluator for DefaultExpressionEvaluator {
             Expression::Variable(name) => ctx
                 .get_variable(name)
                 .cloned()
-                .ok_or_else(|| DBError::Expression(crate::graph::expression::ExpressionError::PropertyNotFound(format!("Variable '{}' not found", name).into()))),
+                .ok_or_else(|| DBError::Expression(crate::core::error::ExpressionError::PropertyNotFound(format!("Variable '{}' not found", name)))),
 
             // 属性访问
             Expression::Property(name) => ctx
                 .get_variable(name)
                 .cloned()
-                .ok_or_else(|| DBError::Expression(crate::graph::expression::ExpressionError::PropertyNotFound(format!("Property '{}' not found", name).into()))),
+                .ok_or_else(|| DBError::Expression(crate::core::error::ExpressionError::PropertyNotFound(format!("Property '{}' not found", name)))),
 
             // 二元操作
             Expression::BinaryOp(left, op, right) => {
@@ -141,7 +141,7 @@ impl ExpressionEvaluator for DefaultExpressionEvaluator {
             Expression::Function(name, args) => {
                 let func = ctx
                     .get_function(name)
-                    .ok_or_else(|| DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(format!("Function '{}' not found", name).into())))?;
+                    .ok_or_else(|| DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!("Function '{}' not found", name))))?;
 
                 let mut arg_values = Vec::with_capacity(args.len());
                 for arg in args {
@@ -203,7 +203,7 @@ impl ExpressionEvaluator for DefaultExpressionEvaluator {
             }
 
             // 其他表达式类型的处理...
-            _ => Err(DBError::Expression(crate::graph::expression::ExpressionError::TypeError(format!(
+            _ => Err(DBError::Expression(crate::core::error::ExpressionError::TypeError(format!(
                 "Unsupported expression type: {:?}",
                 expr
             )))),
@@ -256,8 +256,8 @@ impl DefaultExpressionEvaluator {
             UnaryOperator::Minus => self.unary_minus(operand),
             UnaryOperator::Not => Ok(Value::Bool(!self.is_truthy(operand))),
             UnaryOperator::Negate => self.negate_value(operand),
-            UnaryOperator::Increment => Err(DBError::Expression(crate::graph::expression::ExpressionError::InvalidOperation("Increment operation not supported".to_string()))),
-            UnaryOperator::Decrement => Err(DBError::Expression(crate::graph::expression::ExpressionError::InvalidOperation("Decrement operation not supported".to_string()))),
+            UnaryOperator::Increment => Err(DBError::Expression(crate::core::error::ExpressionError::InvalidOperation("Increment operation not supported".to_string()))),
+            UnaryOperator::Decrement => Err(DBError::Expression(crate::core::error::ExpressionError::InvalidOperation("Decrement operation not supported".to_string()))),
         }
     }
 
@@ -356,7 +356,7 @@ impl DefaultExpressionEvaluator {
             "float" => Ok(Value::Float(self.to_number(value))),
             "string" => Ok(Value::String(self.to_string(value))),
             "bool" => Ok(Value::Bool(self.is_truthy(value))),
-            _ => Err(DBError::Expression(crate::graph::expression::ExpressionError::TypeError(format!(
+            _ => Err(DBError::Expression(crate::core::error::ExpressionError::TypeError(format!(
                 "Unsupported target type: {}",
                 target_type
             )))),

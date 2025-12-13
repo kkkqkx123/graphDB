@@ -6,6 +6,7 @@ use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePl
 use crate::query::planner::plan::{PlanNode, PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
+use std::sync::Arc;
 
 /// 分页规划器
 /// 负责规划LIMIT和OFFSET子句
@@ -22,7 +23,7 @@ impl PaginationPlanner {
         let current_root = subplan.root.take().unwrap_or_else(|| create_empty_node().unwrap());
 
         // 创建Limit节点
-        let mut limit_node = SingleInputNode::new(
+        let limit_node = SingleInputNode::new(
             PlanNodeKind::Limit,
             current_root,
         );
@@ -32,11 +33,15 @@ impl PaginationPlanner {
             format!("skip_{}", pagination_ctx.skip),
             format!("limit_{}", pagination_ctx.limit)
         ];
-        limit_node.set_col_names(col_names);
+        
+        // 创建新的Limit节点并设置属性
+        let mut new_limit_node = limit_node.clone();
+        new_limit_node.set_col_names(col_names);
+        let limit_node = Arc::new(new_limit_node);
 
         // 更新子计划的根和尾节点
-        subplan.root = Some(Box::new(limit_node));
-        subplan.tail = Some(subplan.root.as_ref().unwrap().clone_plan_node());
+        subplan.root = Some(limit_node.clone());
+        subplan.tail = Some(limit_node);
 
         Ok(subplan)
     }
@@ -68,11 +73,11 @@ impl CypherClausePlanner for PaginationPlanner {
 }
 
 /// 创建空节点
-fn create_empty_node() -> Result<Box<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
+fn create_empty_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     use crate::query::planner::plan::SingleDependencyNode;
 
     // 创建一个空的计划节点作为占位符
-    Ok(Box::new(SingleDependencyNode {
+    Ok(Arc::new(SingleDependencyNode {
         id: -1,
         kind: PlanNodeKind::Start,
         dependencies: vec![],

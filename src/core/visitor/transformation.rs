@@ -2,10 +2,11 @@
 //!
 //! 这个模块提供了用于转换 Value 的访问者实现
 
-use crate::core::visitor::core::{ValueVisitor, ValueAcceptor, utils};
+use crate::core::visitor::core::{ValueVisitor, utils};
 use crate::core::value::{Value, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, DataSet};
 use crate::core::vertex_edge_path::{Vertex, Edge, Path, Tag, Step};
 use std::collections::HashMap;
+use std::hash::Hash;
 
 /// 深度克隆访问者 - 创建 Value 的深度副本
 #[derive(Debug, Default)]
@@ -25,9 +26,7 @@ impl DeepCloneVisitor {
     }
 
     pub fn clone_value(value: &Value) -> Result<Value, TransformationError> {
-        let mut visitor = Self::new();
-        utils::visit_recursive(value, &mut visitor, 0, visitor.max_depth)?;
-        visitor.result
+        value.accept(&mut Self::new())
     }
 }
 
@@ -79,12 +78,12 @@ impl ValueVisitor for DeepCloneVisitor {
             }
             cloned_tags.push(Tag::new(tag.name.clone(), cloned_props));
         }
-        
+
         let mut cloned_vertex_props = HashMap::new();
         for (name, prop_value) in value.vertex_properties() {
             cloned_vertex_props.insert(name.clone(), Self::clone_value(prop_value)?);
         }
-        
+
         Ok(Value::Vertex(Box::new(Vertex::new_with_properties(
             value.id().clone(),
             cloned_tags,
@@ -97,10 +96,10 @@ impl ValueVisitor for DeepCloneVisitor {
         for (name, prop_value) in value.get_all_properties() {
             cloned_props.insert(name.clone(), Self::clone_value(prop_value)?);
         }
-        
+
         Ok(Value::Edge(Edge::new(
-            value.src().clone(),
-            value.dst().clone(),
+            (*value.src).clone(),
+            (*value.dst).clone(),
             value.edge_type().to_string(),
             value.ranking(),
             cloned_props,
@@ -108,20 +107,29 @@ impl ValueVisitor for DeepCloneVisitor {
     }
 
     fn visit_path(&mut self, value: &Path) -> Self::Result {
-        let cloned_src = Self::clone_value(value.src())?;
+        let cloned_src = Self::clone_value(&Value::Vertex(Box::new(value.src.as_ref().clone())))?;
         let mut cloned_steps = Vec::with_capacity(value.steps.len());
-        
+
         for step in &value.steps {
-            let cloned_dst = Self::clone_value(step.dst.as_ref())?;
-            let cloned_edge = Self::clone_value(step.edge.as_ref())?;
+            let cloned_dst = Self::clone_value(&Value::Vertex(Box::new(step.dst.as_ref().clone())))?;
+            let cloned_edge = Self::clone_value(&Value::Edge(step.edge.as_ref().clone()))?;
             cloned_steps.push(Step {
-                dst: Box::new(cloned_dst),
-                edge: Box::new(cloned_edge),
+                dst: Box::new(match cloned_dst {
+                    Value::Vertex(v) => *v,
+                    _ => return Err(TransformationError::Transformation("Expected vertex".to_string())),
+                }),
+                edge: Box::new(match cloned_edge {
+                    Value::Edge(e) => e,
+                    _ => return Err(TransformationError::Transformation("Expected edge".to_string())),
+                }),
             });
         }
-        
+
         Ok(Value::Path(Path {
-            src: Box::new(cloned_src),
+            src: Box::new(match cloned_src {
+                Value::Vertex(v) => *v,
+                _ => return Err(TransformationError::Transformation("Expected vertex".to_string())),
+            }),
             steps: cloned_steps,
         }))
     }
@@ -135,10 +143,10 @@ impl ValueVisitor for DeepCloneVisitor {
     }
 
     fn visit_map(&mut self, value: &HashMap<String, Value>) -> Self::Result {
-        let cloned_map: HashMap<String, Value> = value
-            .iter()
-            .map(|(k, v)| (k.clone(), Self::clone_value(v)))
-            .collect::<Result<HashMap<_, _>, _>>()?;
+        let mut cloned_map = HashMap::new();
+        for (k, v) in value {
+            cloned_map.insert(k.clone(), Self::clone_value(v)?);
+        }
         Ok(Value::Map(cloned_map))
     }
 
@@ -161,7 +169,7 @@ impl ValueVisitor for DeepCloneVisitor {
     fn visit_dataset(&mut self, value: &DataSet) -> Self::Result {
         let mut cloned_col_names = value.col_names.clone();
         let mut cloned_rows = Vec::with_capacity(value.rows.len());
-        
+
         for row in &value.rows {
             let cloned_row = row
                 .iter()
@@ -169,7 +177,7 @@ impl ValueVisitor for DeepCloneVisitor {
                 .collect::<Result<Vec<_>, _>>()?;
             cloned_rows.push(cloned_row);
         }
-        
+
         Ok(Value::DataSet(DataSet {
             col_names: cloned_col_names,
             rows: cloned_rows,
@@ -182,6 +190,15 @@ impl ValueVisitor for DeepCloneVisitor {
 
     fn visit_empty(&mut self) -> Self::Result {
         Ok(Value::Empty)
+    }
+}
+
+// Implement From trait for error conversion
+impl From<utils::RecursionError> for TransformationError {
+    fn from(err: utils::RecursionError) -> Self {
+        match err {
+            utils::RecursionError::MaxDepthExceeded => TransformationError::MaxDepthExceeded,
+        }
     }
 }
 
@@ -270,9 +287,9 @@ impl ValueVisitor for SizeCalculatorVisitor {
 
     fn visit_edge(&mut self, value: &Edge) -> Self::Result {
         self.size += std::mem::size_of::<Edge>();
-        self.size += std::mem::size_of_val(value.src());
-        self.size += std::mem::size_of_val(value.dst());
-        self.size += value.edge_type().len();
+        self.size += std::mem::size_of_val(&value.src);
+        self.size += std::mem::size_of_val(&value.dst);
+        self.size += value.edge_type.len();
         for (prop_name, prop_value) in value.get_all_properties() {
             self.size += prop_name.len();
             self.size += Self::calculate_size(prop_value)?;
@@ -282,11 +299,11 @@ impl ValueVisitor for SizeCalculatorVisitor {
 
     fn visit_path(&mut self, value: &Path) -> Self::Result {
         self.size += std::mem::size_of::<Path>();
-        self.size += Self::calculate_size(value.src())?;
+        self.size += Self::calculate_size(&Value::Vertex(Box::new(value.src.as_ref().clone())))?;
         for step in &value.steps {
             self.size += std::mem::size_of::<Step>();
-            self.size += Self::calculate_size(step.dst.as_ref())?;
-            self.size += Self::calculate_size(step.edge.as_ref())?;
+            self.size += Self::calculate_size(&Value::Vertex(Box::new(step.dst.as_ref().clone())))?;
+            self.size += Self::calculate_size(&Value::Edge(step.edge.as_ref().clone()))?;
         }
         Ok(())
     }
@@ -388,6 +405,7 @@ impl HashCalculatorVisitor {
     pub fn calculate_hash(value: &Value) -> Result<u64, TransformationError> {
         let mut visitor = Self::new();
         utils::visit_recursive(value, &mut visitor, 0, visitor.max_depth)?;
+        use std::hash::Hasher;
         Ok(visitor.hasher.finish())
     }
 }
@@ -396,16 +414,19 @@ impl ValueVisitor for HashCalculatorVisitor {
     type Result = Result<(), TransformationError>;
 
     fn visit_bool(&mut self, value: bool) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_int(&mut self, value: i64) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_float(&mut self, value: f64) -> Self::Result {
+        use std::hash::Hash;
         // 特殊处理浮点数的哈希
         if value.is_nan() {
             (0x7ff80000u32 as u64).hash(&mut self.hasher);
@@ -418,92 +439,112 @@ impl ValueVisitor for HashCalculatorVisitor {
     }
 
     fn visit_string(&mut self, value: &str) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_date(&mut self, value: &DateValue) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_time(&mut self, value: &TimeValue) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_datetime(&mut self, value: &DateTimeValue) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_vertex(&mut self, value: &Vertex) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_edge(&mut self, value: &Edge) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_path(&mut self, value: &Path) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_list(&mut self, value: &[Value]) -> Self::Result {
+        use std::hash::Hash;
         value.len().hash(&mut self.hasher);
         for item in value {
-            Self::calculate_hash(item)?;
+            HashCalculatorVisitor::calculate_hash(item)?;
         }
         Ok(())
     }
 
     fn visit_map(&mut self, value: &HashMap<String, Value>) -> Self::Result {
+        use std::hash::Hash;
         value.len().hash(&mut self.hasher);
         // 对键值对进行排序以确保一致的哈希
         let mut pairs: Vec<_> = value.iter().collect();
         pairs.sort_by_key(|&(k, _)| k);
         for (k, v) in pairs {
             k.hash(&mut self.hasher);
-            Self::calculate_hash(v)?;
+            HashCalculatorVisitor::calculate_hash(v)?;
         }
         Ok(())
     }
 
     fn visit_set(&mut self, value: &std::collections::HashSet<Value>) -> Self::Result {
+        use std::hash::Hash;
         value.len().hash(&mut self.hasher);
         // 对集合元素进行排序以确保一致的哈希
         let mut items: Vec<_> = value.iter().collect();
-        items.sort();
+        // Sort by hash of each item to ensure consistent ordering
+        items.sort_by(|a, b| {
+            let hash_a = HashCalculatorVisitor::calculate_hash(a).unwrap_or(0);
+            let hash_b = HashCalculatorVisitor::calculate_hash(b).unwrap_or(0);
+            hash_a.cmp(&hash_b)
+        });
         for item in items {
-            Self::calculate_hash(item)?;
+            HashCalculatorVisitor::calculate_hash(item)?;
         }
         Ok(())
     }
 
     fn visit_geography(&mut self, value: &GeographyValue) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_duration(&mut self, value: &DurationValue) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_dataset(&mut self, value: &DataSet) -> Self::Result {
+        use std::hash::Hash;
         value.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_null(&mut self, null_type: &NullType) -> Self::Result {
+        use std::hash::Hash;
         null_type.hash(&mut self.hasher);
         Ok(())
     }
 
     fn visit_empty(&mut self) -> Self::Result {
+        use std::hash::Hash;
         0u8.hash(&mut self.hasher);
         Ok(())
     }
@@ -540,7 +581,7 @@ impl ValueVisitor for TypeConversionVisitor {
     fn visit_bool(&mut self, value: bool) -> Self::Result {
         match self.target_type {
             Some(ValueTypeDef::String) => Ok(Value::String(value.to_string())),
-            Some(ValueTypeDef::Float) => Ok(Value::Float(value as f64)),
+            Some(ValueTypeDef::Float) => Ok(Value::Float(if value { 1.0 } else { 0.0 })),
             Some(ValueTypeDef::Int) => Ok(Value::Int(value as i64)),
             Some(ValueTypeDef::Bool) => Ok(Value::Bool(value)),
             _ => Ok(Value::Bool(value)),
@@ -658,7 +699,7 @@ impl ValueVisitor for TypeConversionVisitor {
                     value.id()
                 )))
             }
-            _ => Ok(Value::Vertex(value.clone())),
+            _ => Ok(Value::Vertex(Box::new(value.clone()))),
         }
     }
 
@@ -667,7 +708,7 @@ impl ValueVisitor for TypeConversionVisitor {
             Some(ValueTypeDef::String) => {
                 Ok(Value::String(format!(
                     "Edge({:?} -> {:?}, type: {})",
-                    value.src(), value.dst(), value.edge_type()
+                    &*value.src, &*value.dst, value.edge_type
                 )))
             }
             _ => Ok(Value::Edge(value.clone())),
@@ -727,7 +768,8 @@ impl ValueVisitor for TypeConversionVisitor {
                 value
                     .iter()
                     .map(|(k, v)| {
-                        (k.clone(), Self::convert(v, self.target_type.clone().unwrap()))
+                        let converted = Self::convert(v, self.target_type.clone().unwrap())?;
+                        Ok::<(String, Value), TransformationError>((k.clone(), converted))
                     })
                     .collect::<Result<HashMap<_, _>, _>>()?,
             )),
@@ -752,14 +794,14 @@ impl ValueVisitor for TypeConversionVisitor {
                 value
                     .iter()
                     .map(|v| Self::convert(v, self.target_type.clone().unwrap()))
-                    .collect::<Result<std::collections::HashSet<_>, _>>()?,
+                    .collect::<Result<std::collections::HashSet<_>, TransformationError>>()?,
             )),
         }
     }
 
     fn visit_geography(&mut self, value: &GeographyValue) -> Self::Result {
         match self.target_type {
-            Some(ValueTypeDef::String) => Ok(Value::String("\"geography\"")),
+            Some(ValueTypeDef::String) => Ok(Value::String("\"geography\"".to_string())),
             _ => Ok(Value::Geography(value.clone())),
         }
     }
@@ -791,14 +833,14 @@ impl ValueVisitor for TypeConversionVisitor {
 
     fn visit_null(&mut self, null_type: &NullType) -> Self::Result {
         match self.target_type {
-            Some(ValueTypeDef::String) => Ok(Value::String("null")),
+            Some(ValueTypeDef::String) => Ok(Value::String("null".to_string())),
             _ => Ok(Value::Null(null_type.clone())),
         }
     }
 
     fn visit_empty(&mut self) -> Self::Result {
         match self.target_type {
-            Some(ValueTypeDef::String) => Ok(Value::String("\"empty\"")),
+            Some(ValueTypeDef::String) => Ok(Value::String("\"empty\"".to_string())),
             _ => Ok(Value::Empty),
         }
     }

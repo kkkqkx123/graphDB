@@ -48,14 +48,15 @@ impl CypherClausePlanner for MatchClausePlanner {
         if match_clause_ctx.paths.is_empty() {
             use crate::query::planner::plan::core::PlanNodeKind;
             use crate::query::planner::plan::SingleDependencyNode;
-            let start_node = Box::new(SingleDependencyNode {
+            use std::sync::Arc;
+            let start_node = Arc::new(SingleDependencyNode {
                 id: -1,
                 kind: PlanNodeKind::Start,
                 dependencies: vec![],
                 output_var: None,
                 col_names: vec![],
                 cost: 0.0,
-            }) as Box<dyn crate::query::planner::plan::PlanNode>;
+            }) as Arc<dyn crate::query::planner::plan::PlanNode>;
 
             match_clause_plan.root = Some(start_node.clone_plan_node());
             match_clause_plan.tail = Some(start_node);
@@ -246,6 +247,7 @@ mod tests {
         CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
     };
     use std::collections::HashMap;
+    use std::sync::Arc;
 
     /// 创建测试用的节点信息
     fn create_test_node_info(alias: &str, anonymous: bool) -> NodeInfo {
@@ -399,7 +401,7 @@ mod tests {
         let match_clause_ctx = create_test_match_clause_context(vec![]);
 
         let subplan = SubPlan::new(
-            Some(Box::new(VariableDependencyNode::new(PlanNodeKind::Start))),
+            Some(Arc::new(VariableDependencyNode::new(PlanNodeKind::Start))),
             None,
         );
 
@@ -431,7 +433,7 @@ mod tests {
         );
 
         let existing_plan = SubPlan::new(
-            Some(Box::new(VariableDependencyNode::new(PlanNodeKind::Project))),
+            Some(Arc::new(VariableDependencyNode::new(PlanNodeKind::Project))),
             None,
         );
 
@@ -459,12 +461,12 @@ mod tests {
         let match_clause_ctx = create_test_match_clause_context(vec![]);
 
         let subplan = SubPlan::new(
-            Some(Box::new(VariableDependencyNode::new(PlanNodeKind::Start))),
+            Some(Arc::new(VariableDependencyNode::new(PlanNodeKind::Start))),
             None,
         );
 
         let existing_plan = SubPlan::new(
-            Some(Box::new(VariableDependencyNode::new(PlanNodeKind::Project))),
+            Some(Arc::new(VariableDependencyNode::new(PlanNodeKind::Project))),
             None,
         );
 
@@ -492,7 +494,7 @@ mod tests {
         let match_clause_ctx = create_test_match_clause_context(vec![]);
 
         let subplan = SubPlan::new(
-            Some(Box::new(VariableDependencyNode::new(PlanNodeKind::Start))),
+            Some(Arc::new(VariableDependencyNode::new(PlanNodeKind::Start))),
             None,
         );
 

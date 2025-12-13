@@ -3,6 +3,7 @@
 use super::plan::{ExecutionPlan, PlanNodeKind, SingleInputNode, SubPlan};
 use super::planner::{Planner, PlannerError};
 use crate::query::context::AstContext;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct LookupPlanner {
@@ -35,12 +36,9 @@ impl Planner for LookupPlanner {
         }
 
         // Create a plan node for the lookup operation
-        let lookup_node = Box::new(SingleInputNode::new(
+        let lookup_node = Arc::new(SingleInputNode::new(
             PlanNodeKind::IndexScan, // Using IndexScan as the base node for lookup
-            Box::new(SingleInputNode::new(
-                PlanNodeKind::Start,
-                create_empty_node()?,
-            )),
+            create_empty_node()?,
         ));
 
         // Create the execution plan
@@ -57,10 +55,11 @@ impl Planner for LookupPlanner {
 }
 
 // Helper function to create an empty start node
-fn create_empty_node() -> Result<Box<dyn super::plan::PlanNode>, PlannerError> {
+fn create_empty_node() -> Result<Arc<dyn super::plan::PlanNode>, PlannerError> {
     use super::plan::{PlanNodeKind, SingleDependencyNode};
+    use std::sync::Arc;
 
-    Ok(Box::new(SingleDependencyNode {
+    Ok(Arc::new(SingleDependencyNode {
         id: -1,
         kind: PlanNodeKind::Start,
         dependencies: vec![],

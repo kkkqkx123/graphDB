@@ -53,7 +53,7 @@ impl OptRule for CombineFilterRule {
 
                         // 创建一个新的OptGroupNode
                         let mut combined_filter_opt_node = node.clone();
-                        combined_filter_opt_node.plan_node = Box::new(combined_filter_node);
+                        combined_filter_opt_node.plan_node = std::sync::Arc::new(combined_filter_node);
 
                         // 设置依赖关系
                         if !child.node.dependencies.is_empty() {
@@ -102,7 +102,7 @@ impl MergeRule for CombineFilterRule {
             // combined_filter_node.deps = child_filter.deps.clone();
 
             let mut combined_filter_opt_node = node.clone();
-            combined_filter_opt_node.plan_node = Box::new(combined_filter_node);
+            combined_filter_opt_node.plan_node = std::sync::Arc::new(combined_filter_node);
 
             if !child.dependencies.is_empty() {
                 combined_filter_opt_node.dependencies = child.dependencies.clone();
@@ -453,7 +453,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = Box::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -467,7 +467,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = Box::new(Project::new(1, ""));
+        let project_node = std::sync::Arc::new(Project::new(1, ""));
         let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -481,7 +481,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取顶点节点
-        let get_vertices_node = Box::new(GetVertices::new(1, 1, ""));
+        let get_vertices_node = std::sync::Arc::new(GetVertices::new(1, 1, ""));
         let opt_node = OptGroupNode::new(1, get_vertices_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -495,7 +495,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取顶点节点
-        let get_vertices_node = Box::new(GetVertices::new(1, 1, ""));
+        let get_vertices_node = std::sync::Arc::new(GetVertices::new(1, 1, ""));
         let opt_node = OptGroupNode::new(1, get_vertices_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -509,7 +509,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取邻居节点
-        let get_nbrs_node = Box::new(GetNeighbors::new(1, 1, ""));
+        let get_nbrs_node = std::sync::Arc::new(GetNeighbors::new(1, 1, ""));
         let opt_node = OptGroupNode::new(1, get_nbrs_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -523,7 +523,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取邻居节点
-        let get_nbrs_node = Box::new(GetNeighbors::new(1, 1, ""));
+        let get_nbrs_node = std::sync::Arc::new(GetNeighbors::new(1, 1, ""));
         let opt_node = OptGroupNode::new(1, get_nbrs_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

@@ -2,10 +2,11 @@
 //!
 //! 这个模块提供了用于验证 Value 的访问者实现
 
-use crate::core::visitor::core::{ValueVisitor, ValueAcceptor, utils};
+use crate::core::visitor::core::{ValueVisitor, utils};
 use crate::core::value::{Value, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, DataSet};
 use crate::core::vertex_edge_path::{Vertex, Edge, Path};
 use std::collections::HashMap;
+use std::fmt;
 
 /// 验证错误类型
 #[derive(Debug, thiserror::Error)]
@@ -35,22 +36,28 @@ pub enum ValidationError {
 }
 
 /// 验证规则
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ValidationRule {
     pub name: String,
     pub description: String,
-    pub validator: Box<dyn Fn(&Value) -> Result<(), ValidationError>>,
+    pub validator: fn(&Value) -> Result<(), ValidationError>,
+}
+
+impl fmt::Debug for ValidationRule {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ValidationRule")
+            .field("name", &self.name)
+            .field("description", &self.description)
+            .finish()
+    }
 }
 
 impl ValidationRule {
-    pub fn new<F>(name: &str, description: &str, validator: F) -> Self
-    where
-        F: Fn(&Value) -> Result<(), ValidationError> + 'static,
-    {
+    pub fn new(name: &str, description: &str, validator: fn(&Value) -> Result<(), ValidationError>) -> Self {
         Self {
             name: name.to_string(),
             description: description.to_string(),
-            validator: Box::new(validator),
+            validator,
         }
     }
 }
@@ -99,30 +106,35 @@ impl BasicValidationVisitor {
     pub fn validate(value: &Value) -> Result<(), ValidationError> {
         let config = ValidationConfig::default();
         let mut visitor = Self::new(config);
-        utils::visit_recursive(value, &mut visitor, 0, visitor.config.max_depth)?;
+        match utils::visit_recursive(value, &mut visitor, 0, visitor.config.max_depth) {
+            Ok(_) => {},
+            Err(e) => return Err(ValidationError::from(e)),
+        }
         
         if visitor.errors.is_empty() {
             Ok(())
         } else {
             Err(ValidationError::Validation(format!(
-                "发现 {} 个验证错误: {:?}",
-                visitor.errors.len(),
-                visitor.errors
+                "发现 {} 个验证错误",
+                visitor.errors.len()
             )))
         }
     }
 
     pub fn validate_with_config(value: &Value, config: ValidationConfig) -> Result<(), ValidationError> {
+        let max_depth = config.max_depth;
         let mut visitor = Self::new(config);
-        utils::visit_recursive(value, &mut visitor, 0, visitor.config.max_depth)?;
+        match utils::visit_recursive(value, &mut visitor, 0, max_depth) {
+            Ok(_) => {},
+            Err(e) => return Err(ValidationError::from(e)),
+        }
         
         if visitor.errors.is_empty() {
             Ok(())
         } else {
             Err(ValidationError::Validation(format!(
-                "发现 {} 个验证错误: {:?}",
-                visitor.errors.len(),
-                visitor.errors
+                "发现 {} 个验证错误",
+                visitor.errors.len()
             )))
         }
     }
@@ -282,6 +294,7 @@ impl ValueVisitor for BasicValidationVisitor {
             hour: value.hour,
             minute: value.minute,
             sec: value.sec,
+            microsec: 0,
         })?;
         
         Ok(())
@@ -737,5 +750,14 @@ mod tests {
             sec: 45,
         });
         assert!(BasicValidationVisitor::validate(&invalid_time).is_err());
+    }
+}
+
+// Implement From trait for error conversion
+impl From<utils::RecursionError> for ValidationError {
+    fn from(err: utils::RecursionError) -> Self {
+        match err {
+            utils::RecursionError::MaxDepthExceeded => ValidationError::MaxDepthExceeded { depth: 0, max_depth: 0 },
+        }
     }
 }

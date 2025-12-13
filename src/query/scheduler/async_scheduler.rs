@@ -79,11 +79,15 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         let result: Result<ExecutionResult, QueryError> = executor.execute().await.map_err(|e| {
             // Convert DBError to QueryError
             match e {
-                crate::core::error::DBError::StorageError(s) => QueryError::StorageError(s),
-                crate::core::error::DBError::QueryError(qe) => qe,
-                crate::core::error::DBError::ExecutionError(ee) => QueryError::ExecutionError(ee),
-                crate::core::error::DBError::ParseError(pe) => QueryError::ParseError(pe),
-                crate::core::error::DBError::InvalidQuery(iq) => QueryError::InvalidQuery(iq),
+                crate::core::error::DBError::Storage(storage_err) => QueryError::ExecutionError(storage_err.to_string()),
+                crate::core::error::DBError::Query(qe) => QueryError::ExecutionError(qe.to_string()),
+                crate::core::error::DBError::Expression(expr_err) => QueryError::ExecutionError(expr_err.to_string()),
+                crate::core::error::DBError::Plan(plan_err) => QueryError::ExecutionError(plan_err.to_string()),
+                crate::core::error::DBError::Validation(msg) => QueryError::InvalidQuery(msg),
+                crate::core::error::DBError::Io(io_err) => QueryError::ExecutionError(io_err.to_string()),
+                crate::core::error::DBError::TypeDeduction(msg) => QueryError::ExecutionError(msg),
+                crate::core::error::DBError::Serialization(msg) => QueryError::ExecutionError(msg),
+                crate::core::error::DBError::Internal(msg) => QueryError::ExecutionError(msg),
                 _ => QueryError::ExecutionError(e.to_string()),
             }
         });
@@ -226,8 +230,9 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                     },
                     Err(error) => {
                         // 设置失败状态
-                        state.set_failure(QueryError::ExecutionError(error.to_string()));
-                        return Err(QueryError::ExecutionError(error.to_string()));
+                        let query_error = QueryError::ExecutionError(error.to_string());
+                        state.set_failure(query_error.clone());
+                        return Err(query_error);
                     }
                 }
             }

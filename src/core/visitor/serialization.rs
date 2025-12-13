@@ -183,11 +183,11 @@ impl ValueVisitor for JsonSerializationVisitor {
     fn visit_edge(&mut self, value: &Edge) -> Self::Result {
         self.start_object();
         self.result.push_str("\"src\": ");
-        self.result.push_str(&format!("{:?}", value.src()));
+        self.result.push_str(&format!("{:?}", value.src));
         self.add_comma();
         self.indent();
         self.result.push_str("\"dst\": ");
-        self.result.push_str(&format!("{:?}", value.dst()));
+        self.result.push_str(&format!("{:?}", value.dst));
         self.add_comma();
         self.indent();
         self.result.push_str("\"type\": \"");
@@ -219,7 +219,7 @@ impl ValueVisitor for JsonSerializationVisitor {
         self.add_comma();
         self.indent();
         self.result.push_str("\"src\": ");
-        self.result.push_str(&format!("{:?}", value.src()));
+        self.result.push_str(&format!("{:?}", value.src));
         self.end_object();
         Ok(())
     }
@@ -498,12 +498,12 @@ impl ValueVisitor for XmlSerializationVisitor {
         self.indent();
         self.result.push_str(&format!(
             "<src>{:?}</src>",
-            value.src()
+            value.src
         ));
         self.indent();
         self.result.push_str(&format!(
             "<dst>{:?}</dst>",
-            value.dst()
+            value.dst
         ));
         self.indent();
         self.result.push_str(&format!(

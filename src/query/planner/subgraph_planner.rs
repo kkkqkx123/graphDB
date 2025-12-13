@@ -3,6 +3,7 @@
 use crate::query::context::AstContext;
 use super::planner::{Planner, PlannerError};
 use super::plan::{SubPlan, PlanNodeKind, ExecutionPlan, SingleInputNode};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct SubgraphPlanner {
@@ -33,9 +34,9 @@ impl Planner for SubgraphPlanner {
         }
 
         // Create a plan node for the subgraph operation
-        let subgraph_node = Box::new(SingleInputNode::new(
+        let subgraph_node = Arc::new(SingleInputNode::new(
             PlanNodeKind::Subgraph, // Using Subgraph as the base node for subgraph queries
-            Box::new(SingleInputNode::new(PlanNodeKind::Start, create_empty_node()?))
+            create_empty_node()?
         ));
 
         // Create the execution plan
@@ -51,10 +52,10 @@ impl Planner for SubgraphPlanner {
 }
 
 // Helper function to create an empty start node
-fn create_empty_node() -> Result<Box<dyn super::plan::PlanNode>, PlannerError> {
+fn create_empty_node() -> Result<Arc<dyn super::plan::PlanNode>, PlannerError> {
     use super::plan::{SingleDependencyNode, PlanNodeKind};
 
-    Ok(Box::new(SingleDependencyNode {
+    Ok(Arc::new(SingleDependencyNode {
         id: -1,
         kind: PlanNodeKind::Start,
         dependencies: vec![],

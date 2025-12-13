@@ -202,11 +202,11 @@ pub mod legacy {
 
         fn visit_path(&mut self, value: &Path) -> Self::Result {
             self.size += std::mem::size_of::<Path>();
-            self.size += Self::calculate_size(value.src());
+            self.size += Self::calculate_size(&Value::Vertex(Box::new(value.src.as_ref().clone())));
             for step in &value.steps {
                 self.size += std::mem::size_of::<crate::core::vertex_edge_path::Step>();
-                self.size += Self::calculate_size(step.dst.as_ref());
-                self.size += Self::calculate_size(step.edge.as_ref());
+                self.size += Self::calculate_size(&Value::Vertex(Box::new(step.dst.as_ref().clone())));
+                self.size += Self::calculate_size(&Value::Edge(step.edge.as_ref().clone()));
             }
         }
 
@@ -287,6 +287,7 @@ pub mod legacy {
         pub fn calculate_hash(value: &Value) -> u64 {
             let mut visitor = Self::new();
             value.accept(&mut visitor);
+            use std::hash::Hasher;
             visitor.hasher.finish()
         }
     }
@@ -295,56 +296,69 @@ pub mod legacy {
         type Result = ();
 
         fn visit_bool(&mut self, value: bool) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_int(&mut self, value: i64) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_float(&mut self, value: f64) -> Self::Result {
             // 特殊处理浮点数的哈希
             if value.is_nan() {
+                use std::hash::Hash;
                 (0x7ff80000u32 as u64).hash(&mut self.hasher);
             } else if value == 0.0 {
+                use std::hash::Hash;
                 0.0_f64.to_bits().hash(&mut self.hasher);
             } else {
+                use std::hash::Hash;
                 value.to_bits().hash(&mut self.hasher);
             }
         }
 
         fn visit_string(&mut self, value: &str) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_date(&mut self, value: &DateValue) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_time(&mut self, value: &TimeValue) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_datetime(&mut self, value: &DateTimeValue) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_vertex(&mut self, value: &Vertex) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_edge(&mut self, value: &Edge) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_path(&mut self, value: &Path) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_list(&mut self, value: &[Value]) -> Self::Result {
+            use std::hash::Hash;
             value.len().hash(&mut self.hasher);
             for item in value {
-                Self::calculate_hash(item);
+                let _ = Self::calculate_hash(item);
             }
         }
 
@@ -354,38 +368,49 @@ pub mod legacy {
             let mut pairs: Vec<_> = value.iter().collect();
             pairs.sort_by_key(|&(k, _)| k);
             for (k, v) in pairs {
+                use std::hash::Hash;
                 k.hash(&mut self.hasher);
-                Self::calculate_hash(v);
+                let _ = Self::calculate_hash(v);
             }
         }
 
         fn visit_set(&mut self, value: &std::collections::HashSet<Value>) -> Self::Result {
+            use std::hash::Hash;
             value.len().hash(&mut self.hasher);
             // 对集合元素进行排序以确保一致的哈希
             let mut items: Vec<_> = value.iter().collect();
-            items.sort();
+            items.sort_by(|a, b| {
+                let hash_a = Self::calculate_hash(a);
+                let hash_b = Self::calculate_hash(b);
+                hash_a.cmp(&hash_b)
+            });
             for item in items {
-                Self::calculate_hash(item);
+                let _ = Self::calculate_hash(item);
             }
         }
 
         fn visit_geography(&mut self, value: &GeographyValue) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_duration(&mut self, value: &DurationValue) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_dataset(&mut self, value: &DataSet) -> Self::Result {
+            use std::hash::Hash;
             value.hash(&mut self.hasher);
         }
 
         fn visit_null(&mut self, null_type: &NullType) -> Self::Result {
+            use std::hash::Hash;
             null_type.hash(&mut self.hasher);
         }
 
         fn visit_empty(&mut self) -> Self::Result {
+            use std::hash::Hash;
             0u8.hash(&mut self.hasher);
         }
     }

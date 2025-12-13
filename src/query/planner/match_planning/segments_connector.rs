@@ -4,6 +4,7 @@
 use crate::query::planner::plan::{SubPlan, PlanNodeKind, BinaryInputNode};
 use crate::query::planner::plan::PlanNode;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 /// 计划段连接器
 /// 负责将多个计划段连接成完整的执行计划
@@ -26,7 +27,7 @@ impl SegmentsConnector {
         let right_root = right.root.unwrap();
 
         // 创建内连接节点
-        let inner_join_node = Box::new(BinaryInputNode::new(
+        let inner_join_node = Arc::new(BinaryInputNode::new(
             PlanNodeKind::HashInnerJoin,
             left_root,
             right_root,
@@ -52,7 +53,7 @@ impl SegmentsConnector {
         let right_root = right.root.unwrap();
 
         // 创建左连接节点
-        let left_join_node = Box::new(BinaryInputNode::new(
+        let left_join_node = Arc::new(BinaryInputNode::new(
             PlanNodeKind::HashLeftJoin,
             left_root,
             right_root,
@@ -75,7 +76,7 @@ impl SegmentsConnector {
         let right_root = right.root.unwrap();
 
         // 创建笛卡尔积节点
-        let cartesian_node = Box::new(BinaryInputNode::new(
+        let cartesian_node = Arc::new(BinaryInputNode::new(
             PlanNodeKind::CartesianProduct,
             left_root,
             right_root,
@@ -117,7 +118,7 @@ impl SegmentsConnector {
         let right_root = right.root.unwrap();
 
         // 创建模式应用节点
-        let pattern_apply_node = Box::new(BinaryInputNode::new(
+        let pattern_apply_node = Arc::new(BinaryInputNode::new(
             PlanNodeKind::PatternApply,
             left_root,
             right_root,
@@ -143,7 +144,7 @@ impl SegmentsConnector {
         let right_root = right.root.unwrap();
 
         // 创建卷起应用节点
-        let roll_up_apply_node = Box::new(BinaryInputNode::new(
+        let roll_up_apply_node = Arc::new(BinaryInputNode::new(
             PlanNodeKind::RollUpApply,
             left_root,
             right_root,

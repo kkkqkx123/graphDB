@@ -64,7 +64,7 @@ impl OptRule for FilterPushDownRule {
 
                                     // 创建带有修改后扫描节点的新OptGroupNode
                                     let mut new_scan_opt_node = child_node.node.clone();
-                                    new_scan_opt_node.plan_node = Box::new(new_scan_node);
+                                    new_scan_opt_node.plan_node = std::sync::Arc::new(new_scan_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
                                     if let Some(remaining_condition) = split_result.remaining_condition {
@@ -73,7 +73,7 @@ impl OptRule for FilterPushDownRule {
                                         // new_filter_node.deps = vec![new_scan_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = Box::new(new_filter_node);
+                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
                                         new_filter_opt_node.dependencies = vec![new_scan_opt_node.id];
 
                                         Ok(Some(new_filter_opt_node))
@@ -109,7 +109,7 @@ impl OptRule for FilterPushDownRule {
 
                                     // 创建带有修改后索引扫描节点的新OptGroupNode
                                     let mut new_index_scan_opt_node = child_node.node.clone();
-                                    new_index_scan_opt_node.plan_node = Box::new(new_index_scan_node);
+                                    new_index_scan_opt_node.plan_node = std::sync::Arc::new(new_index_scan_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
                                     if let Some(remaining_condition) = split_result.remaining_condition {
@@ -118,7 +118,7 @@ impl OptRule for FilterPushDownRule {
                                         // new_filter_node.deps = vec![new_index_scan_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = Box::new(new_filter_node);
+                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
                                         new_filter_opt_node.dependencies = vec![new_index_scan_opt_node.id];
 
                                         Ok(Some(new_filter_opt_node))
@@ -155,7 +155,7 @@ impl OptRule for FilterPushDownRule {
 
                                     // 创建带有修改后遍历节点的新OptGroupNode
                                     let mut new_traverse_opt_node = child_node.node.clone();
-                                    new_traverse_opt_node.plan_node = Box::new(new_traverse_node);
+                                    new_traverse_opt_node.plan_node = std::sync::Arc::new(new_traverse_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
                                     if let Some(remaining_condition) = split_result.remaining_condition {
@@ -164,7 +164,7 @@ impl OptRule for FilterPushDownRule {
                                         // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = Box::new(new_filter_node);
+                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
                                         new_filter_opt_node.dependencies = vec![new_traverse_opt_node.id];
 
                                         Ok(Some(new_filter_opt_node))
@@ -275,7 +275,7 @@ impl OptRule for PushFilterDownTraverseRule {
                                 
                                 // 创建带有修改后遍历节点的新OptGroupNode
                                 let mut new_traverse_opt_node = child.node.clone();
-                                new_traverse_opt_node.plan_node = Box::new(new_traverse_node);
+                                new_traverse_opt_node.plan_node = std::sync::Arc::new(new_traverse_node);
                                 
                                 // 如果有剩余的过滤条件，创建新的过滤节点
                                 if let Some(remaining_condition) = split_result.remaining_condition {
@@ -284,7 +284,7 @@ impl OptRule for PushFilterDownTraverseRule {
                                     // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
                                     
                                     let mut new_filter_opt_node = node.clone();
-                                    new_filter_opt_node.plan_node = Box::new(new_filter_node);
+                                    new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
                                     new_filter_opt_node.dependencies = vec![new_traverse_opt_node.id];
                                     
                                     Ok(Some(new_filter_opt_node))
@@ -378,7 +378,7 @@ impl OptRule for PushFilterDownExpandRule {
                                 // new_filter_node.deps = vec![child.plan_node().clone()];
                                 
                                 let mut new_filter_opt_node = node.clone();
-                                new_filter_opt_node.plan_node = Box::new(new_filter_node);
+                                new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
                                 new_filter_opt_node.dependencies = vec![child.node.id];
                                 
                                 // 如果有剩余的过滤条件，创建另一个过滤节点
@@ -388,7 +388,7 @@ impl OptRule for PushFilterDownExpandRule {
                                     // top_filter_node.deps = vec![new_filter_opt_node.plan_node.clone()];
                                     
                                     let mut top_filter_opt_node = node.clone();
-                                    top_filter_opt_node.plan_node = Box::new(top_filter_node);
+                                    top_filter_opt_node.plan_node = std::sync::Arc::new(top_filter_node);
                                     top_filter_opt_node.dependencies = vec![new_filter_opt_node.id];
                                     
                                     Ok(Some(top_filter_opt_node))
@@ -660,7 +660,7 @@ impl OptRule for PredicatePushDownRule {
                                     
                                     // 创建带有修改后扫描节点的新OptGroupNode
                                     let mut new_scan_opt_node = child.node.clone();
-                                    new_scan_opt_node.plan_node = Box::new(new_scan_node);
+                                    new_scan_opt_node.plan_node = std::sync::Arc::new(new_scan_node);
                                     
                                     // 如果有剩余的过滤条件，创建新的过滤节点
                                     if let Some(remaining_condition) = split_result.remaining_condition {
@@ -669,7 +669,7 @@ impl OptRule for PredicatePushDownRule {
                                         // new_filter_node.deps = vec![new_scan_opt_node.plan_node.clone()];
                                         
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = Box::new(new_filter_node);
+                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
                                         new_filter_opt_node.dependencies = vec![new_scan_opt_node.id];
                                         
                                         Ok(Some(new_filter_opt_node))
@@ -713,7 +713,7 @@ impl OptRule for PredicatePushDownRule {
                                     
                                     // 创建带有修改后边扫描节点的新OptGroupNode
                                     let mut new_scan_edges_opt_node = child.node.clone();
-                                    new_scan_edges_opt_node.plan_node = Box::new(new_scan_edges_node);
+                                    new_scan_edges_opt_node.plan_node = std::sync::Arc::new(new_scan_edges_node);
                                     
                                     // 如果有剩余的过滤条件，创建新的过滤节点
                                     if let Some(remaining_condition) = split_result.remaining_condition {
@@ -722,7 +722,7 @@ impl OptRule for PredicatePushDownRule {
                                         // new_filter_node.deps = vec![new_scan_edges_opt_node.plan_node.clone()];
                                         
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = Box::new(new_filter_node);
+                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
                                         new_filter_opt_node.dependencies = vec![new_scan_edges_opt_node.id];
                                         
                                         Ok(Some(new_filter_opt_node))
@@ -766,7 +766,7 @@ impl OptRule for PredicatePushDownRule {
                                     
                                     // 创建带有修改后索引扫描节点的新OptGroupNode
                                     let mut new_index_scan_opt_node = child.node.clone();
-                                    new_index_scan_opt_node.plan_node = Box::new(new_index_scan_node);
+                                    new_index_scan_opt_node.plan_node = std::sync::Arc::new(new_index_scan_node);
                                     
                                     // 如果有剩余的过滤条件，创建新的过滤节点
                                     if let Some(remaining_condition) = split_result.remaining_condition {
@@ -775,7 +775,7 @@ impl OptRule for PredicatePushDownRule {
                                         // new_filter_node.deps = vec![new_index_scan_opt_node.plan_node.clone()];
                                         
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = Box::new(new_filter_node);
+                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
                                         new_filter_opt_node.dependencies = vec![new_index_scan_opt_node.id];
                                         
                                         Ok(Some(new_filter_opt_node))
@@ -1046,7 +1046,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = Box::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1060,7 +1060,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = Box::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1074,7 +1074,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = Box::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1088,7 +1088,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = Box::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1102,7 +1102,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = Box::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1116,7 +1116,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = Box::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1130,7 +1130,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = Box::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

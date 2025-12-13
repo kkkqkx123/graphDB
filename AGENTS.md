@@ -70,7 +70,13 @@ installed targets: x86_64-pc-windows-msvc
    cargo build --release       # Release build (optimized for performance)
    ```
 
-3. **Run commands**:
+3. **Type check and compile check**
+```bash
+cargo check --message-format=short # Default Type check
+cargo check # Detailed Type check(Only use it when you need that. when use this, always add filter logic, like `cargo check 2>&1 | Select-String "error\[E" | Select-Object -First 10`)
+```   
+
+4. **Run commands**:
    ```bash
    # Start database service
    cargo run --release -- serve --config config.toml

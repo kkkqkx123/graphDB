@@ -77,7 +77,7 @@ impl LabelIndexSeek {
         }
 
         // 创建索引扫描节点
-        let mut index_scan_node = Arc::new(SingleInputNode::new(
+        let index_scan_node = Arc::new(SingleInputNode::new(
             PlanNodeKind::IndexScan,
             create_start_node()?,
         ));
@@ -91,15 +91,20 @@ impl LabelIndexSeek {
 
         // 设置IndexScan节点的输出变量
         let var_name = format!("index_scan_{}", label_name);
-        let variable = Variable {
+        let variable = crate::query::context::validate::types::Variable {
             name: var_name,
-            columns: vec![crate::query::validator::Column {
+            columns: vec![crate::query::context::validate::types::Column {
                 name: "vid".to_string(),
                 type_: crate::core::ValueTypeDef::Vertex,
             }],
         };
-        index_scan_node.set_output_var(variable);
-        index_scan_node.set_col_names(vec!["vid".to_string()]);
+        
+        // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+        // 我们需要创建一个新的节点来设置属性
+        let mut new_index_scan_node = (*index_scan_node).clone();
+        new_index_scan_node.set_output_var(variable);
+        new_index_scan_node.set_col_names(vec!["vid".to_string()]);
+        let index_scan_node = Arc::new(new_index_scan_node);
 
         // 构建索引元数据用于执行器
         let mut metadata =
@@ -114,22 +119,27 @@ impl LabelIndexSeek {
         // 处理节点过滤条件 - 创建独立的Filter节点而不是修改IndexScan
         if let Some(filter) = &self.node_info.filter {
             // 创建Filter节点来处理过滤条件
-            let mut filter_node = Arc::new(SingleInputNode::new(
+            let filter_node = Arc::new(SingleInputNode::new(
                 PlanNodeKind::Filter,
                 index_scan_node.clone(),
             ));
 
             // 设置Filter节点的输出变量
             let filter_var_name = format!("filtered_{}", label_name);
-            let filter_variable = Variable {
+            let filter_variable = crate::query::context::validate::types::Variable {
                 name: filter_var_name,
-                columns: vec![crate::query::validator::Column {
+                columns: vec![crate::query::context::validate::types::Column {
                     name: "vid".to_string(),
                     type_: crate::core::ValueTypeDef::Vertex,
                 }],
             };
-            std::sync::Arc::get_mut(&mut filter_node).unwrap().set_output_var(filter_variable);
-            std::sync::Arc::get_mut(&mut filter_node).unwrap().set_col_names(vec!["vid".to_string()]);
+            
+            // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+            // 我们需要创建一个新的节点来设置属性
+            let mut new_filter_node = (*filter_node).clone();
+            new_filter_node.set_output_var(filter_variable);
+            new_filter_node.set_col_names(vec!["vid".to_string()]);
+            let filter_node = Arc::new(new_filter_node);
 
             root = filter_node;
         }

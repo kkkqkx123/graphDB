@@ -78,7 +78,7 @@ impl ExecutionResult {
             ExecutionResult::Values(v) => v.len(),
             ExecutionResult::Vertices(v) => v.len(),
             ExecutionResult::Edges(v) => v.len(),
-            ExecutionResult::DataSet(ds) => ds.len(),
+            ExecutionResult::DataSet(ds) => ds.rows.len(),
             ExecutionResult::Count(c) => *c,
             ExecutionResult::Success => 0,
             ExecutionResult::Error(_) => 0,

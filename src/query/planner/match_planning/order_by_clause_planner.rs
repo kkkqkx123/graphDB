@@ -8,6 +8,7 @@ use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
     CypherClauseContext, CypherClauseKind,
 };
+use std::sync::Arc;
 
 /// ORDER BY子句规划器
 /// 负责规划ORDER BY子句中的排序操作
@@ -25,7 +26,7 @@ impl OrderByClausePlanner {
         let current_root = subplan.root.take().unwrap_or_else(|| create_empty_node().unwrap());
 
         // 创建排序节点，使用当前根节点作为输入
-        let mut sort_node = SingleInputNode::new(
+        let sort_node = SingleInputNode::new(
             PlanNodeKind::Sort,
             current_root,
         );
@@ -38,11 +39,15 @@ impl OrderByClausePlanner {
             // 使用特殊格式存储排序信息，供执行器使用
             col_names.push(format!("sort_factor_{}", idx));
         }
-        sort_node.set_col_names(col_names);
+        
+        // 创建新的排序节点并设置属性
+        let mut new_sort_node = sort_node.clone();
+        new_sort_node.set_col_names(col_names);
+        let sort_node = Arc::new(new_sort_node);
 
         // 更新子计划的根和尾节点
-        subplan.root = Some(Box::new(sort_node));
-        subplan.tail = Some(subplan.root.as_ref().unwrap().clone_plan_node());
+        subplan.root = Some(sort_node.clone());
+        subplan.tail = Some(sort_node);
 
         Ok(subplan)
     }
@@ -74,11 +79,11 @@ impl CypherClausePlanner for OrderByClausePlanner {
 }
 
 /// 创建空节点
-fn create_empty_node() -> Result<Box<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
+fn create_empty_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     use crate::query::planner::plan::SingleDependencyNode;
 
     // 创建一个空的计划节点作为占位符
-    Ok(Box::new(SingleDependencyNode {
+    Ok(Arc::new(SingleDependencyNode {
         id: -1,
         kind: PlanNodeKind::Start,
         dependencies: vec![],

@@ -107,7 +107,7 @@ pub mod utils {
         if depth > max_depth {
             return Err(RecursionError::MaxDepthExceeded);
         }
-        
+
         match value {
             Value::Bool(b) => Ok(visitor.visit_bool(*b)),
             Value::Int(i) => Ok(visitor.visit_int(*i)),
@@ -120,32 +120,16 @@ pub mod utils {
             Value::Edge(e) => Ok(visitor.visit_edge(e)),
             Value::Path(p) => Ok(visitor.visit_path(p)),
             Value::List(l) => {
-                let mut results = Vec::with_capacity(l.len());
-                for item in l {
-                    results.push(visit_recursive(item, visitor, depth + 1, max_depth)?);
-                }
-                // 对于列表访问者，需要特殊处理
-                Ok(visitor.visit_list(&results))
+                // For lists, we can't call visitor.visit_list directly on the results
+                // We need to transform the list first and then call visit_list
+                // This is handled by the specific visitor implementation
+                Ok(visitor.visit_list(l))
             }
             Value::Map(m) => {
-                let mut results = Vec::with_capacity(m.len());
-                let map_results: Result<HashMap<std::string::String, V::Result>, _> = m
-                    .iter()
-                    .map(|(k, v)| {
-                        let res = visit_recursive(v, visitor, depth + 1, max_depth)?;
-                        Ok((k.clone(), res))
-                    })
-                    .collect();
-                let map_results = map_results?;
-                Ok(visitor.visit_map(&map_results))
+                Ok(visitor.visit_map(m))
             }
             Value::Set(s) => {
-                let mut results = Vec::with_capacity(s.len());
-                for item in s {
-                    results.push(visit_recursive(item, visitor, depth + 1, max_depth)?);
-                }
-                // 对于集合访问者，需要特殊处理
-                Ok(visitor.visit_set(&results))
+                Ok(visitor.visit_set(s))
             }
             Value::Geography(g) => Ok(visitor.visit_geography(g)),
             Value::Duration(d) => Ok(visitor.visit_duration(d)),

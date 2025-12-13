@@ -9,6 +9,7 @@ use crate::query::validator::structs::{
     MatchClauseContext, Path, WhereClauseContext,
 };
 use std::collections::HashSet;
+use std::sync::Arc;
 
 /// 路径匹配规划器
 /// 负责规划路径模式的匹配
@@ -79,10 +80,6 @@ impl MatchPathPlanner {
             // 检查节点是否在已见别名中
             if all_aliases_seen.contains(&node_info.alias) && !node_info.anonymous {
                 // 创建参数节点
-                let mut arg_node = Box::new(SingleInputNode::new(
-                    PlanNodeKind::Argument,
-                    create_empty_node()?,
-                ));
                 let variable = crate::query::validator::Variable {
                     name: node_info.alias.clone(),
                     columns: vec![crate::query::validator::Column {
@@ -90,8 +87,16 @@ impl MatchPathPlanner {
                         type_: crate::core::ValueTypeDef::Vertex,
                     }],
                 };
-                arg_node.set_output_var(variable);
-                arg_node.set_col_names(vec![node_info.alias.clone()]);
+                let arg_node = Arc::new(SingleInputNode::new(
+                    PlanNodeKind::Argument,
+                    create_empty_node()?,
+                ));
+                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+                // 我们需要创建一个新的节点来设置属性
+                let mut new_arg_node = (*arg_node).clone();
+                new_arg_node.set_output_var(variable);
+                new_arg_node.set_col_names(vec![node_info.alias.clone()]);
+                let arg_node = Arc::new(new_arg_node);
                 let plan = SubPlan::new(Some(arg_node.clone()), None);
                 return Ok((i, false, plan));
             }
@@ -102,10 +107,6 @@ impl MatchPathPlanner {
             // 检查边是否可以使用索引查找
             if !edge_info.types.is_empty() {
                 // 创建边索引扫描节点
-                let mut edge_scan_node = Box::new(SingleInputNode::new(
-                    PlanNodeKind::IndexScan,
-                    create_empty_node()?,
-                ));
                 let var_name = format!("edge_scan_{}", edge_info.types.join("_"));
                 let variable = crate::query::validator::Variable {
                     name: var_name,
@@ -120,8 +121,16 @@ impl MatchPathPlanner {
                         },
                     ],
                 };
-                edge_scan_node.set_output_var(variable);
-                edge_scan_node.set_col_names(vec!["src".to_string(), "dst".to_string()]);
+                let edge_scan_node = Arc::new(SingleInputNode::new(
+                    PlanNodeKind::IndexScan,
+                    create_empty_node()?,
+                ));
+                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+                // 我们需要创建一个新的节点来设置属性
+                let mut new_edge_scan_node = (*edge_scan_node).clone();
+                new_edge_scan_node.set_output_var(variable);
+                new_edge_scan_node.set_col_names(vec!["src".to_string(), "dst".to_string()]);
+                let edge_scan_node = Arc::new(new_edge_scan_node);
                 let plan = SubPlan::new(Some(edge_scan_node.clone()), Some(edge_scan_node));
                 return Ok((i, true, plan));
             }
@@ -181,7 +190,7 @@ impl MatchPathPlanner {
             let edge = &edge_infos[i];
             
             // 创建遍历节点
-            let mut traverse_node = Box::new(SingleInputNode::new(
+            let traverse_node = Arc::new(SingleInputNode::new(
                 PlanNodeKind::Traverse,
                 subplan.root.take().unwrap_or_else(|| create_empty_node().unwrap()),
             ));
@@ -201,7 +210,6 @@ impl MatchPathPlanner {
                     },
                 ],
             };
-            traverse_node.set_output_var(variable);
             
             // 设置列名
             let mut col_names = if let Some(root) = &subplan.root {
@@ -211,14 +219,16 @@ impl MatchPathPlanner {
             };
             col_names.push(dst.alias.clone());
             col_names.push(edge.alias.clone());
-            traverse_node.set_col_names(col_names);
+            
+            // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+            // 我们需要创建一个新的节点来设置属性
+            let mut new_traverse_node = (*traverse_node).clone();
+            new_traverse_node.set_output_var(variable);
+            new_traverse_node.set_col_names(col_names);
+            let traverse_node = Arc::new(new_traverse_node);
             
             // 处理节点过滤
             if let Some(_filter) = &node.filter {
-                let mut filter_node = Box::new(SingleInputNode::new(
-                    PlanNodeKind::Filter,
-                    traverse_node,
-                ));
                 let var_name = format!("node_filter_{}", node.alias);
                 let variable = crate::query::validator::Variable {
                     name: var_name,
@@ -227,7 +237,15 @@ impl MatchPathPlanner {
                         type_: crate::core::ValueTypeDef::Vertex,
                     }],
                 };
-                filter_node.set_output_var(variable);
+                let filter_node = Arc::new(SingleInputNode::new(
+                    PlanNodeKind::Filter,
+                    traverse_node,
+                ));
+                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+                // 我们需要创建一个新的节点来设置属性
+                let mut new_filter_node = (*filter_node).clone();
+                new_filter_node.set_output_var(variable);
+                let filter_node = Arc::new(new_filter_node);
                 subplan.root = Some(filter_node);
             } else {
                 subplan.root = Some(traverse_node);
@@ -235,10 +253,6 @@ impl MatchPathPlanner {
             
             // 处理边过滤
             if let Some(_filter) = &edge.filter {
-                let mut filter_node = Box::new(SingleInputNode::new(
-                    PlanNodeKind::Filter,
-                    subplan.root.take().unwrap(),
-                ));
                 let var_name = format!("edge_filter_{}", edge.alias);
                 let variable = crate::query::validator::Variable {
                     name: var_name,
@@ -247,7 +261,15 @@ impl MatchPathPlanner {
                         type_: crate::core::ValueTypeDef::Edge,
                     }],
                 };
-                filter_node.set_output_var(variable);
+                let filter_node = Arc::new(SingleInputNode::new(
+                    PlanNodeKind::Filter,
+                    subplan.root.take().unwrap(),
+                ));
+                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+                // 我们需要创建一个新的节点来设置属性
+                let mut new_filter_node = (*filter_node).clone();
+                new_filter_node.set_output_var(variable);
+                let filter_node = Arc::new(new_filter_node);
                 subplan.root = Some(filter_node);
             }
             
@@ -258,10 +280,6 @@ impl MatchPathPlanner {
         // 处理最后一个节点
         let last_node = &node_infos[node_infos.len() - 1];
         if !node_aliases_seen_in_pattern.contains(&last_node.alias) {
-            let mut append_node = Box::new(SingleInputNode::new(
-                PlanNodeKind::AppendVertices,
-                subplan.root.take().unwrap(),
-            ));
             let var_name = format!("append_{}", last_node.alias);
             let variable = crate::query::validator::Variable {
                 name: var_name,
@@ -270,7 +288,15 @@ impl MatchPathPlanner {
                     type_: crate::core::ValueTypeDef::Vertex,
                 }],
             };
-            append_node.set_output_var(variable);
+            let append_node = Arc::new(SingleInputNode::new(
+                PlanNodeKind::AppendVertices,
+                subplan.root.take().unwrap(),
+            ));
+            // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+            // 我们需要创建一个新的节点来设置属性
+            let mut new_append_node = (*append_node).clone();
+            new_append_node.set_output_var(variable);
+            let append_node = Arc::new(new_append_node);
             subplan.root = Some(append_node);
         }
         
@@ -294,7 +320,7 @@ impl MatchPathPlanner {
             let edge = &edge_infos[i - 1];
             
             // 创建遍历节点
-            let mut traverse_node = Box::new(SingleInputNode::new(
+            let traverse_node = Arc::new(SingleInputNode::new(
                 PlanNodeKind::Traverse,
                 subplan.root.take().unwrap_or_else(|| create_empty_node().unwrap()),
             ));
@@ -314,7 +340,6 @@ impl MatchPathPlanner {
                     },
                 ],
             };
-            traverse_node.set_output_var(variable);
             
             // 设置列名
             let mut col_names = if let Some(root) = &subplan.root {
@@ -324,14 +349,16 @@ impl MatchPathPlanner {
             };
             col_names.push(dst.alias.clone());
             col_names.push(edge.alias.clone());
-            traverse_node.set_col_names(col_names);
+            
+            // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+            // 我们需要创建一个新的节点来设置属性
+            let mut new_traverse_node = (*traverse_node).clone();
+            new_traverse_node.set_output_var(variable);
+            new_traverse_node.set_col_names(col_names);
+            let traverse_node = Arc::new(new_traverse_node);
             
             // 处理节点过滤
             if let Some(_filter) = &node.filter {
-                let mut filter_node = Box::new(SingleInputNode::new(
-                    PlanNodeKind::Filter,
-                    traverse_node,
-                ));
                 let var_name = format!("node_filter_{}", node.alias);
                 let variable = crate::query::validator::Variable {
                     name: var_name,
@@ -340,7 +367,15 @@ impl MatchPathPlanner {
                         type_: crate::core::ValueTypeDef::Vertex,
                     }],
                 };
-                filter_node.set_output_var(variable);
+                let filter_node = Arc::new(SingleInputNode::new(
+                    PlanNodeKind::Filter,
+                    traverse_node,
+                ));
+                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+                // 我们需要创建一个新的节点来设置属性
+                let mut new_filter_node = (*filter_node).clone();
+                new_filter_node.set_output_var(variable);
+                let filter_node = Arc::new(new_filter_node);
                 subplan.root = Some(filter_node);
             } else {
                 subplan.root = Some(traverse_node);
@@ -348,10 +383,6 @@ impl MatchPathPlanner {
             
             // 处理边过滤
             if let Some(_filter) = &edge.filter {
-                let mut filter_node = Box::new(SingleInputNode::new(
-                    PlanNodeKind::Filter,
-                    subplan.root.take().unwrap(),
-                ));
                 let var_name = format!("edge_filter_{}", edge.alias);
                 let variable = crate::query::validator::Variable {
                     name: var_name,
@@ -360,7 +391,15 @@ impl MatchPathPlanner {
                         type_: crate::core::ValueTypeDef::Edge,
                     }],
                 };
-                filter_node.set_output_var(variable);
+                let filter_node = Arc::new(SingleInputNode::new(
+                    PlanNodeKind::Filter,
+                    subplan.root.take().unwrap(),
+                ));
+                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+                // 我们需要创建一个新的节点来设置属性
+                let mut new_filter_node = (*filter_node).clone();
+                new_filter_node.set_output_var(variable);
+                let filter_node = Arc::new(new_filter_node);
                 subplan.root = Some(filter_node);
             }
             
@@ -371,10 +410,6 @@ impl MatchPathPlanner {
         // 处理第一个节点
         let first_node = &node_infos[0];
         if !node_aliases_seen_in_pattern.contains(&first_node.alias) {
-            let mut append_node = Box::new(SingleInputNode::new(
-                PlanNodeKind::AppendVertices,
-                subplan.root.take().unwrap(),
-            ));
             let var_name = format!("append_{}", first_node.alias);
             let variable = crate::query::validator::Variable {
                 name: var_name,
@@ -383,7 +418,15 @@ impl MatchPathPlanner {
                     type_: crate::core::ValueTypeDef::Vertex,
                 }],
             };
-            append_node.set_output_var(variable);
+            let append_node = Arc::new(SingleInputNode::new(
+                PlanNodeKind::AppendVertices,
+                subplan.root.take().unwrap(),
+            ));
+            // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+            // 我们需要创建一个新的节点来设置属性
+            let mut new_append_node = (*append_node).clone();
+            new_append_node.set_output_var(variable);
+            let append_node = Arc::new(new_append_node);
             subplan.root = Some(append_node);
         }
         
@@ -399,7 +442,7 @@ impl MatchPathPlanner {
         }
         
         // 创建项目节点
-        let mut project_node = Box::new(SingleInputNode::new(
+        let project_node = Arc::new(SingleInputNode::new(
             PlanNodeKind::Project,
             subplan.root.take().unwrap(),
         ));
@@ -416,12 +459,17 @@ impl MatchPathPlanner {
                 col_names.push(edge_info.alias.clone());
             }
         }
-        project_node.set_col_names(col_names);
         let variable = crate::query::validator::Variable {
             name: "project".to_string(),
             columns: vec![],
         };
-        project_node.set_output_var(variable);
+        
+        // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
+        // 我们需要创建一个新的节点来设置属性
+        let mut new_project_node = (*project_node).clone();
+        new_project_node.set_col_names(col_names);
+        new_project_node.set_output_var(variable);
+        let project_node = Arc::new(new_project_node);
         
         subplan.root = Some(project_node);
         Ok(())
@@ -429,11 +477,11 @@ impl MatchPathPlanner {
 }
 
 /// 创建空节点
-fn create_empty_node() -> Result<Box<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
+fn create_empty_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     use crate::query::planner::plan::SingleDependencyNode;
     
     // 创建一个空的计划节点作为占位符
-    Ok(Box::new(SingleDependencyNode {
+    Ok(Arc::new(SingleDependencyNode {
         id: -1,
         kind: PlanNodeKind::Start,
         dependencies: vec![],

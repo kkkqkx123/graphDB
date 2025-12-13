@@ -8,6 +8,7 @@ use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
     CypherClauseContext, CypherClauseKind,
 };
+use std::sync::Arc;
 
 /// UNWIND子句规划器
 /// 负责规划UNWIND操作来展开集合
@@ -38,7 +39,7 @@ impl CypherClausePlanner for UnwindClausePlanner {
         };
 
         // 创建UNWIND节点
-        let unwind_node = Box::new(SingleInputNode::new(
+        let unwind_node = Arc::new(SingleInputNode::new(
             PlanNodeKind::Unwind,
             create_empty_node()?,
         ));
@@ -53,11 +54,11 @@ impl CypherClausePlanner for UnwindClausePlanner {
 }
 
 /// 创建空节点
-fn create_empty_node() -> Result<Box<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
+fn create_empty_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     use crate::query::planner::plan::SingleDependencyNode;
 
     // 创建一个空的计划节点作为占位符
-    Ok(Box::new(SingleDependencyNode {
+    Ok(Arc::new(SingleDependencyNode {
         id: -1,
         kind: PlanNodeKind::Start,
         dependencies: vec![],
