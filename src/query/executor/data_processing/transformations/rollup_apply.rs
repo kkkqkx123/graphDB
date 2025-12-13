@@ -383,7 +383,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for RollUpApplyExecutor<S> 
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for RollUpApplyExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for RollUpApplyExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
@@ -399,7 +399,7 @@ impl<S: StorageEngine> ExecutorLifecycle for RollUpApplyExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorMetadata for RollUpApplyExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorMetadata for RollUpApplyExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }

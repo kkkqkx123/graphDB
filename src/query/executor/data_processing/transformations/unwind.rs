@@ -282,7 +282,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UnwindExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for UnwindExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for UnwindExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
@@ -298,7 +298,7 @@ impl<S: StorageEngine> ExecutorLifecycle for UnwindExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorMetadata for UnwindExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorMetadata for UnwindExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }

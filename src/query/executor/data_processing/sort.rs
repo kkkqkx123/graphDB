@@ -170,7 +170,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for SortExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for SortExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for SortExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
@@ -190,7 +190,7 @@ impl<S: StorageEngine> ExecutorLifecycle for SortExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorMetadata for SortExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorMetadata for SortExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }

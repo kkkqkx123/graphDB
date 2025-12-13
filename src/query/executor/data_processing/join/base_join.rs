@@ -25,6 +25,8 @@ pub struct BaseJoinExecutor<S: StorageEngine> {
     probe_keys: Vec<String>,
     /// 输出列名
     col_names: Vec<String>,
+    /// 描述
+    description: String,
     /// 是否交换左右输入（优化用）
     #[allow(dead_code)]
     exchange: bool,
@@ -42,13 +44,36 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         probe_keys: Vec<String>,
         col_names: Vec<String>,
     ) -> Self {
-        Self {
-            base: BaseExecutor::new(id, "BaseJoinExecutor".to_string(), storage),
+        Self::with_description(
+            id,
+            storage,
             left_var,
             right_var,
             hash_keys,
             probe_keys,
             col_names,
+            String::new(),
+        )
+    }
+
+    pub fn with_description(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        left_var: String,
+        right_var: String,
+        hash_keys: Vec<String>,
+        probe_keys: Vec<String>,
+        col_names: Vec<String>,
+        description: String,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::with_description(id, "BaseJoinExecutor".to_string(), description.clone(), storage),
+            left_var,
+            right_var,
+            hash_keys,
+            probe_keys,
+            col_names,
+            description,
             exchange: false,
             rhs_output_col_idxs: None,
         }

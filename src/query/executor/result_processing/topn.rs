@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
-use crate::query::QueryError;
+use crate::core::error::{DBError, DBResult};
 use crate::storage::StorageEngine;
 
 /// TopNExecutor - TOP N 结果执行器
@@ -48,7 +48,7 @@ impl<S: StorageEngine> InputExecutor<S> for TopNExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for TopNExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -122,8 +122,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for TopNExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for TopNExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for TopNExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化 TopN 操作所需的任何资源
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
@@ -131,7 +131,7 @@ impl<S: StorageEngine> ExecutorLifecycle for TopNExecutor<S> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;

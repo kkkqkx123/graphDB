@@ -29,7 +29,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
         assign_items: Vec<(String, Expression)>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "AssignExecutor".to_string(), storage),
+            base: BaseExecutor::with_description(id, "AssignExecutor".to_string(), "Assign executor - assigns expression results to variables".to_string(), storage),
             assign_items,
         }
     }
@@ -42,7 +42,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
         context: crate::query::executor::base::ExecutionContext,
     ) -> Self {
         Self {
-            base: BaseExecutor::with_context(id, "AssignExecutor".to_string(), storage, context),
+            base: BaseExecutor::with_context_and_description(id, "AssignExecutor".to_string(), "Assign executor - assigns expression results to variables".to_string(), storage, context),
             assign_items,
         }
     }
@@ -96,7 +96,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for AssignExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for AssignExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for AssignExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
@@ -112,7 +112,7 @@ impl<S: StorageEngine> ExecutorLifecycle for AssignExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorMetadata for AssignExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorMetadata for AssignExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }

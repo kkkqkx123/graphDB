@@ -44,6 +44,7 @@ impl ExecutionContext {
 pub struct BaseExecutor<S: StorageEngine> {
     pub id: usize,
     pub name: String,
+    pub description: String,
     pub storage: Arc<Mutex<S>>,
     pub context: ExecutionContext,
 }
@@ -53,6 +54,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
         Self {
             id,
             name,
+            description: String::new(),
             storage,
             context: ExecutionContext::new(),
         }
@@ -62,6 +64,27 @@ impl<S: StorageEngine> BaseExecutor<S> {
         Self {
             id,
             name,
+            description: String::new(),
+            storage,
+            context,
+        }
+    }
+
+    pub fn with_description(id: usize, name: String, description: String, storage: Arc<Mutex<S>>) -> Self {
+        Self {
+            id,
+            name,
+            description,
+            storage,
+            context: ExecutionContext::new(),
+        }
+    }
+
+    pub fn with_context_and_description(id: usize, name: String, description: String, storage: Arc<Mutex<S>>, context: ExecutionContext) -> Self {
+        Self {
+            id,
+            name,
+            description,
             storage,
             context,
         }
@@ -102,7 +125,7 @@ pub struct StartExecutor<S: StorageEngine> {
 impl<S: StorageEngine> StartExecutor<S> {
     pub fn new(id: usize, storage: Arc<Mutex<S>>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "StartExecutor".to_string(), storage),
+            base: BaseExecutor::with_description(id, "StartExecutor".to_string(), "Start executor - provides initial execution context".to_string(), storage),
         }
     }
 }
@@ -142,7 +165,7 @@ impl<S: StorageEngine> ExecutorMetadata for StartExecutor<S> {
     }
 
     fn description(&self) -> &str {
-        "Start executor - provides initial execution context"
+        &self.base.description
     }
 }
 

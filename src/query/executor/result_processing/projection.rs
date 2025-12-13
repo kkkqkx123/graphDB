@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
 use crate::graph::expression::{EvalContext, ExpressionV1 as Expression, ExpressionEvaluator};
-use crate::query::QueryError;
+use crate::core::error::{DBError, DBResult};
 use crate::storage::StorageEngine;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
@@ -52,7 +52,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
         &self,
         row: &[Value],
         col_names: &[String],
-    ) -> Result<Vec<Value>, QueryError> {
+    ) -> DBResult<Vec<Value>> {
         let mut projected_row = Vec::new();
         let evaluator = ExpressionEvaluator;
 
@@ -71,10 +71,10 @@ impl<S: StorageEngine> ProjectExecutor<S> {
             match evaluator.evaluate(&column.expression, &context) {
                 Ok(value) => projected_row.push(value),
                 Err(e) => {
-                    return Err(QueryError::ExecutionError(format!(
+                    return Err(DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(format!(
                         "Failed to evaluate projection expression '{}': {}",
                         column.name, e
-                    )));
+                    ))));
                 }
             }
         }
@@ -86,7 +86,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
     fn project_dataset(
         &self,
         dataset: crate::core::value::DataSet,
-    ) -> Result<crate::core::value::DataSet, QueryError> {
+    ) -> DBResult<crate::core::value::DataSet> {
         let mut result_dataset = crate::core::value::DataSet::new();
 
         // 设置新的列名
@@ -105,7 +105,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
     fn project_vertices(
         &self,
         vertices: Vec<crate::core::Vertex>,
-    ) -> Result<crate::core::value::DataSet, QueryError> {
+    ) -> DBResult<crate::core::value::DataSet> {
         let mut result_dataset = crate::core::value::DataSet::new();
 
         // 设置列名
@@ -116,7 +116,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
         // 对每个顶点进行投影
         for vertex in vertices {
             let mut context = EvalContext::with_vertex(&vertex);
-            
+
             // 设置顶点ID作为变量
             context.set_variable("id".to_string(), *vertex.vid.clone());
 
@@ -125,10 +125,10 @@ impl<S: StorageEngine> ProjectExecutor<S> {
                 match evaluator.evaluate(&column.expression, &context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
-                        return Err(QueryError::ExecutionError(format!(
+                        return Err(DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(format!(
                             "Failed to evaluate projection expression '{}': {}",
                             column.name, e
-                        )));
+                        ))));
                     }
                 }
             }
@@ -142,7 +142,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
     fn project_edges(
         &self,
         edges: Vec<crate::core::Edge>,
-    ) -> Result<crate::core::value::DataSet, QueryError> {
+    ) -> DBResult<crate::core::value::DataSet> {
         let mut result_dataset = crate::core::value::DataSet::new();
 
         // 设置列名
@@ -153,7 +153,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
         // 对每个边进行投影
         for edge in edges {
             let mut context = EvalContext::with_edge(&edge);
-            
+
             // 设置边属性作为变量
             context.set_variable("src".to_string(), *edge.src.clone());
             context.set_variable("dst".to_string(), *edge.dst.clone());
@@ -165,10 +165,10 @@ impl<S: StorageEngine> ProjectExecutor<S> {
                 match evaluator.evaluate(&column.expression, &context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
-                        return Err(QueryError::ExecutionError(format!(
+                        return Err(DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(format!(
                             "Failed to evaluate projection expression '{}': {}",
                             column.name, e
-                        )));
+                        ))));
                     }
                 }
             }
@@ -191,7 +191,7 @@ impl<S: StorageEngine> InputExecutor<S> for ProjectExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -218,7 +218,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                 // 对于值列表，我们创建一个简单的数据集
                 let mut dataset = crate::core::value::DataSet::new();
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
-                
+
                 // 每个值作为一行
                 for value in values {
                     dataset.rows.push(vec![value]);
@@ -229,7 +229,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                 // 对于路径，我们创建一个包含路径信息的数据集
                 let mut dataset = crate::core::value::DataSet::new();
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
-                
+
                 let evaluator = ExpressionEvaluator;
 
                 for path in paths {
@@ -237,16 +237,16 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                     // 设置路径相关信息作为变量
                     context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
                     context.set_variable("src".to_string(), Value::String(path.src.vid.to_string()));
-                    
+
                     let mut projected_row = Vec::new();
                     for column in &self.columns {
                         match evaluator.evaluate(&column.expression, &context) {
                             Ok(value) => projected_row.push(value),
                             Err(e) => {
-                                return Err(QueryError::ExecutionError(format!(
+                                return Err(DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(format!(
                                     "Failed to evaluate projection expression '{}': {}",
                                     column.name, e
-                                )));
+                                ))));
                             }
                         }
                     }
@@ -268,8 +268,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for ProjectExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for ProjectExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化投影所需的任何资源
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
@@ -277,7 +277,7 @@ impl<S: StorageEngine> ExecutorLifecycle for ProjectExecutor<S> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 清理资源
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;

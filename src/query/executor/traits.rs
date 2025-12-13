@@ -67,6 +67,8 @@ pub enum ExecutionResult {
     Error(String),
     /// 返回计数
     Count(usize),
+    /// 返回路径
+    Paths(Vec<crate::core::vertex_edge_path::Path>),
 }
 
 impl ExecutionResult {
@@ -80,6 +82,7 @@ impl ExecutionResult {
             ExecutionResult::Count(c) => *c,
             ExecutionResult::Success => 0,
             ExecutionResult::Error(_) => 0,
+            ExecutionResult::Paths(p) => p.len(),
         }
     }
 }

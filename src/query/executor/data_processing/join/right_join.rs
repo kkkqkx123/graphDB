@@ -29,7 +29,7 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
         output_columns: Vec<String>,
     ) -> Self {
         Self {
-            base: BaseJoinExecutor::new(
+            base: BaseJoinExecutor::with_description(
                 id,
                 storage,
                 left_var,
@@ -37,6 +37,7 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
                 left_keys,
                 right_keys,
                 output_columns,
+                "Right join executor - performs right outer join".to_string(),
             ),
         }
     }
@@ -195,7 +196,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for RightJoinExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for RightJoinExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for RightJoinExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         Ok(())
     }
@@ -209,7 +210,7 @@ impl<S: StorageEngine> ExecutorLifecycle for RightJoinExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorMetadata for RightJoinExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorMetadata for RightJoinExecutor<S> {
     fn id(&self) -> usize {
         self.base.id()
     }

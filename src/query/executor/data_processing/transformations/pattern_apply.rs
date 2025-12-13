@@ -345,7 +345,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for PatternApplyExecutor<S>
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for PatternApplyExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for PatternApplyExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
@@ -361,7 +361,7 @@ impl<S: StorageEngine> ExecutorLifecycle for PatternApplyExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorMetadata for PatternApplyExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorMetadata for PatternApplyExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }

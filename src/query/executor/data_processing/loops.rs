@@ -9,7 +9,7 @@ use crate::core::Value;
 use crate::graph::expression::{EvalContext, ExpressionV1 as Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
-use crate::query::QueryError;
+use crate::core::error::{DBError, DBResult};
 use crate::storage::StorageEngine;
 
 /// 循环状态
@@ -62,13 +62,13 @@ impl<S: StorageEngine> LoopExecutor<S> {
 
 impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
     /// 评估循环条件
-    async fn evaluate_condition(&mut self) -> Result<bool, QueryError> {
+    async fn evaluate_condition(&mut self) -> DBResult<bool> {
         match &self.condition {
             Some(expr) => {
                 let result = self
                     .evaluator
                     .evaluate(expr, &self.loop_context)
-                    .map_err(|e| QueryError::ExpressionError(e.to_string()))?;
+                    .map_err(|e| DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(e.to_string())))?;
 
                 Ok(self.value_to_bool(&result))
             }
@@ -106,7 +106,7 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
     }
 
     /// 执行单次循环
-    async fn execute_iteration(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute_iteration(&mut self) -> DBResult<ExecutionResult> {
         self.current_iteration += 1;
 
         // 更新循环上下文中的迭代变量
@@ -223,7 +223,7 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for LoopExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.loop_state = LoopState::Running;
         self.results.clear();
         self.current_iteration = 0;
@@ -277,8 +277,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for LoopExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for LoopExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         // 初始化循环状态
         self.loop_state = LoopState::NotStarted;
         self.current_iteration = 0;
@@ -290,7 +290,7 @@ impl<S: StorageEngine> ExecutorLifecycle for LoopExecutor<S> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         // 关闭循环体执行器
         self.body_executor.close()?;
 
@@ -350,17 +350,17 @@ impl<S: StorageEngine + Send + 'static> WhileLoopExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for WhileLoopExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.inner.execute().await
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for WhileLoopExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for WhileLoopExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         self.inner.open()
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         self.inner.close()
     }
 
@@ -434,7 +434,7 @@ impl<S: StorageEngine + Send + 'static> ForLoopExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for ForLoopExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 初始化循环
         self.inner.open()?;
 
@@ -464,12 +464,12 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ForLoopExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for ForLoopExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for ForLoopExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
         self.inner.open()
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         self.inner.close()
     }
 

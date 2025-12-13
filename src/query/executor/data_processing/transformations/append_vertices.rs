@@ -226,7 +226,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         
         // 获取存储引擎
         let storage = self.base.storage.lock()
-            .map_err(|_| DBError::Storage(crate::storage::StorageError::InvalidOperation("Failed to lock storage".to_string())))?;
+            .map_err(|_| DBError::Storage(crate::core::error::StorageError::DbError("Failed to lock storage".to_string())))?;
 
         for vid in vids {
             if vid.is_empty() {
@@ -235,7 +235,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 
             // 从存储中获取顶点
             let vertex = storage.get_node(&vid)
-                .map_err(|e| DBError::Storage(e))?;
+                .map_err(|e| DBError::from(e))?;
 
             if let Some(vertex) = vertex {
                 vertices.push(vertex);
@@ -329,7 +329,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for AppendVerticesExecutor<
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for AppendVerticesExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for AppendVerticesExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         // 初始化资源
         Ok(())
@@ -345,7 +345,7 @@ impl<S: StorageEngine> ExecutorLifecycle for AppendVerticesExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorMetadata for AppendVerticesExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorMetadata for AppendVerticesExecutor<S> {
     fn id(&self) -> usize {
         self.base.id
     }

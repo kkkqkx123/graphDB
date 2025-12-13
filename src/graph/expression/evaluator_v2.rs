@@ -5,6 +5,8 @@
 use super::expr_type::Expression;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
+use super::binary::BinaryOperator;
+use super::unary::UnaryOperator;
 
 /// 表达式上下文访问接口
 ///
@@ -113,32 +115,32 @@ impl ExpressionEvaluator for DefaultExpressionEvaluator {
             Expression::Variable(name) => ctx
                 .get_variable(name)
                 .cloned()
-                .ok_or_else(|| DBError::Expression(format!("Variable '{}' not found", name))),
+                .ok_or_else(|| DBError::Expression(crate::graph::expression::ExpressionError::PropertyNotFound(format!("Variable '{}' not found", name).into()))),
 
             // 属性访问
-            Expression::Property { object, property } => {
-                let obj_value = self.evaluate(object, ctx)?;
-                ctx.get_property(&obj_value, property).cloned()
-            }
+            Expression::Property(name) => ctx
+                .get_variable(name)
+                .cloned()
+                .ok_or_else(|| DBError::Expression(crate::graph::expression::ExpressionError::PropertyNotFound(format!("Property '{}' not found", name).into()))),
 
             // 二元操作
-            Expression::Binary { left, op, right } => {
+            Expression::BinaryOp(left, op, right) => {
                 let left_val = self.evaluate(left, ctx)?;
                 let right_val = self.evaluate(right, ctx)?;
                 self.evaluate_binary_op(&left_val, op, &right_val)
             }
 
             // 一元操作
-            Expression::Unary { op, operand } => {
+            Expression::UnaryOp(op, operand) => {
                 let operand_val = self.evaluate(operand, ctx)?;
                 self.evaluate_unary_op(op, &operand_val)
             }
 
             // 函数调用
-            Expression::Function { name, args } => {
+            Expression::Function(name, args) => {
                 let func = ctx
                     .get_function(name)
-                    .ok_or_else(|| DBError::Expression(format!("Function '{}' not found", name)))?;
+                    .ok_or_else(|| DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(format!("Function '{}' not found", name).into())))?;
 
                 let mut arg_values = Vec::with_capacity(args.len());
                 for arg in args {
@@ -149,13 +151,10 @@ impl ExpressionEvaluator for DefaultExpressionEvaluator {
             }
 
             // 聚合函数
-            Expression::Aggregate {
-                func,
-                arg,
-                distinct,
-            } => {
+            Expression::Aggregate { func, arg, distinct } => {
+                let func_name = func.clone();  // 假设这里的 func 是 String 类型
                 let arg_val = self.evaluate(arg, ctx)?;
-                self.evaluate_aggregate(func, &arg_val, *distinct, ctx)
+                self.evaluate_aggregate_by_name(&func_name, &arg_val, *distinct, ctx)
             }
 
             // 列表
@@ -221,22 +220,31 @@ impl DefaultExpressionEvaluator {
     ) -> DBResult<Value> {
         match op {
             BinaryOperator::Add => self.add_values(left, right),
-            BinaryOperator::Subtract => self.subtract_values(left, right),
-            BinaryOperator::Multiply => self.multiply_values(left, right),
-            BinaryOperator::Divide => self.divide_values(left, right),
-            BinaryOperator::Modulo => self.modulo_values(left, right),
-            BinaryOperator::Equal => Ok(Value::Bool(self.equals_values(left, right))),
-            BinaryOperator::NotEqual => Ok(Value::Bool(!self.equals_values(left, right))),
-            BinaryOperator::LessThan => Ok(Value::Bool(self.less_than_values(left, right))),
-            BinaryOperator::LessThanOrEqual => {
+            BinaryOperator::Sub => self.subtract_values(left, right),
+            BinaryOperator::Mul => self.multiply_values(left, right),
+            BinaryOperator::Div => self.divide_values(left, right),
+            BinaryOperator::Mod => self.modulo_values(left, right),
+            BinaryOperator::Eq => Ok(Value::Bool(self.equals_values(left, right))),
+            BinaryOperator::Ne => Ok(Value::Bool(!self.equals_values(left, right))),
+            BinaryOperator::Lt => Ok(Value::Bool(self.less_than_values(left, right))),
+            BinaryOperator::Le => {
                 Ok(Value::Bool(self.less_than_or_equal_values(left, right)))
             }
-            BinaryOperator::GreaterThan => Ok(Value::Bool(self.greater_than_values(left, right))),
-            BinaryOperator::GreaterThanOrEqual => {
+            BinaryOperator::Gt => Ok(Value::Bool(self.greater_than_values(left, right))),
+            BinaryOperator::Ge => {
                 Ok(Value::Bool(self.greater_than_or_equal_values(left, right)))
             }
             BinaryOperator::And => Ok(Value::Bool(self.is_truthy(left) && self.is_truthy(right))),
             BinaryOperator::Or => Ok(Value::Bool(self.is_truthy(left) || self.is_truthy(right))),
+            // 处理其他二元操作符
+            BinaryOperator::Xor => Ok(Value::Bool(self.is_truthy(left) ^ self.is_truthy(right))),
+            BinaryOperator::In => self.in_values(left, right),
+            BinaryOperator::NotIn => self.not_in_values(left, right),
+            BinaryOperator::Subscript => self.subscript_values(left, right),
+            BinaryOperator::Attribute => self.attribute_values(left, right),
+            BinaryOperator::Contains => self.contains_values(left, right),
+            BinaryOperator::StartsWith => self.starts_with_values(left, right),
+            BinaryOperator::EndsWith => self.ends_with_values(left, right),
         }
     }
 
@@ -319,6 +327,26 @@ impl DefaultExpressionEvaluator {
         }
     }
 
+    /// 根据函数名求值聚合函数
+    fn evaluate_aggregate_by_name(
+        &self,
+        func_name: &str,
+        arg: &Value,
+        distinct: bool,
+        ctx: &dyn ExpressionContext,
+    ) -> DBResult<Value> {
+        let agg_func = match func_name.to_lowercase().as_str() {
+            "count" => AggregateFunction::Count,
+            "sum" => AggregateFunction::Sum,
+            "avg" => AggregateFunction::Avg,
+            "min" => AggregateFunction::Min,
+            "max" => AggregateFunction::Max,
+            _ => return Err(DBError::Expression(format!("Unknown aggregate function: {}", func_name))),
+        };
+
+        self.evaluate_aggregate(&agg_func, arg, distinct, ctx)
+    }
+
     /// 类型转换
     fn cast_to_type(&self, value: &Value, target_type: &str) -> DBResult<Value> {
         match target_type {
@@ -326,10 +354,10 @@ impl DefaultExpressionEvaluator {
             "float" => Ok(Value::Float(self.to_number(value))),
             "string" => Ok(Value::String(self.to_string(value))),
             "bool" => Ok(Value::Bool(self.is_truthy(value))),
-            _ => Err(DBError::Expression(format!(
+            _ => Err(DBError::Expression(crate::graph::expression::ExpressionError::TypeError(format!(
                 "Unsupported target type: {}",
                 target_type
-            ))),
+            )))),
         }
     }
 
@@ -369,6 +397,109 @@ impl DefaultExpressionEvaluator {
             _ => Err(DBError::Expression(
                 "Invalid operands for multiplication".to_string(),
             )),
+        }
+    }
+
+    // 添加缺失的二元操作方法
+    fn in_values(&self, left: &Value, right: &Value) -> DBResult<Value> {
+        match right {
+            Value::List(items) => {
+                let found = items.iter().any(|item| item == left);
+                Ok(Value::Bool(found))
+            },
+            Value::Set(items) => {
+                Ok(Value::Bool(items.contains(left)))
+            },
+            Value::Map(items) => {
+                if let Value::String(key) = left {
+                    Ok(Value::Bool(items.contains_key(key)))
+                } else {
+                    Err(DBError::Expression("Key for 'in' operation on map must be a string".to_string()))
+                }
+            },
+            _ => Err(DBError::Expression("Right operand of 'in' must be a list, set, or map".to_string())),
+        }
+    }
+
+    fn not_in_values(&self, left: &Value, right: &Value) -> DBResult<Value> {
+        match self.in_values(left, right) {
+            Ok(Value::Bool(b)) => Ok(Value::Bool(!b)),
+            Ok(_) => Err(DBError::Expression("in_values should return boolean".to_string())),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn subscript_values(&self, collection: &Value, index: &Value) -> DBResult<Value> {
+        match collection {
+            Value::List(items) => {
+                if let Value::Int(i) = index {
+                    if *i >= 0 && (*i as usize) < items.len() {
+                        Ok(items[*i as usize].clone())
+                    } else {
+                        Err(DBError::Expression("List index out of bounds".to_string()))
+                    }
+                } else {
+                    Err(DBError::Expression("List index must be an integer".to_string()))
+                }
+            },
+            Value::Map(items) => {
+                if let Value::String(key) = index {
+                    match items.get(key) {
+                        Some(value) => Ok(value.clone()),
+                        None => Ok(Value::Null(crate::core::NullType::Null)),
+                    }
+                } else {
+                    Err(DBError::Expression("Map key must be a string".to_string()))
+                }
+            },
+            _ => Err(DBError::Expression("Subscript operation requires a list or map".to_string())),
+        }
+    }
+
+    fn attribute_values(&self, left: &Value, right: &Value) -> DBResult<Value> {
+        // 对于简单情况，将其视为下标操作
+        match (left, right) {
+            (Value::Map(m), Value::String(key)) => {
+                match m.get(key) {
+                    Some(value) => Ok(value.clone()),
+                    None => Ok(Value::Null(crate::core::NullType::Null)),
+                }
+            },
+            _ => Err(DBError::Expression("Attribute access requires a map and string key".to_string())),
+        }
+    }
+
+    fn contains_values(&self, left: &Value, right: &Value) -> DBResult<Value> {
+        // 检查 'left' 是否包含 'right'
+        match (left, right) {
+            (Value::List(items), item) => {
+                Ok(Value::Bool(items.contains(item)))
+            },
+            (Value::Set(items), item) => {
+                Ok(Value::Bool(items.contains(item)))
+            },
+            (Value::String(s), Value::String(substring)) => {
+                Ok(Value::Bool(s.contains(substring)))
+            },
+            _ => Err(DBError::Expression("Contains operation not supported for these types".to_string())),
+        }
+    }
+
+    fn starts_with_values(&self, left: &Value, right: &Value) -> DBResult<Value> {
+        match (left, right) {
+            (Value::String(s), Value::String(prefix)) => {
+                Ok(Value::Bool(s.starts_with(prefix)))
+            },
+            _ => Err(DBError::Expression("Starts with operation requires string operands".to_string())),
+        }
+    }
+
+    fn ends_with_values(&self, left: &Value, right: &Value) -> DBResult<Value> {
+        match (left, right) {
+            (Value::String(s), Value::String(suffix)) => {
+                Ok(Value::Bool(s.ends_with(suffix)))
+            },
+            _ => Err(DBError::Expression("Ends with operation requires string operands".to_string())),
         }
     }
 
@@ -536,33 +667,6 @@ impl DefaultExpressionEvaluator {
             _ => "unknown".to_string(),
         }
     }
-}
-
-// 操作符类型定义（临时，后续会移到专门的模块）
-#[derive(Debug, Clone, PartialEq)]
-pub enum BinaryOperator {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
-    Equal,
-    NotEqual,
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-    And,
-    Or,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum UnaryOperator {
-    Plus,
-    Minus,
-    Not,
-    IsNull,
-    IsNotNull,
 }
 
 #[derive(Debug, Clone, PartialEq)]

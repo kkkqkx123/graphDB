@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
-use crate::query::QueryError;
+use crate::core::error::{DBError, DBResult};
 use crate::storage::StorageEngine;
 
 /// 限制执行器 - 实现LIMIT和OFFSET功能
@@ -39,7 +39,7 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
     }
 
     /// 处理输入数据并应用限制
-    async fn process_input(&mut self) -> Result<DataSet, QueryError> {
+    async fn process_input(&mut self) -> DBResult<DataSet> {
         if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute().await?;
 
@@ -128,35 +128,35 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
                         rows,
                     })
                 }
-                _ => Err(QueryError::ExecutionError(
+                _ => Err(DBError::Query(crate::query::QueryError::ExecutionError(
                     "Limit executor expects DataSet, Values, Vertices, or Edges input".to_string(),
-                )),
+                ))),
             }
         } else {
-            Err(QueryError::ExecutionError(
+            Err(DBError::Query(crate::query::QueryError::ExecutionError(
                 "Limit executor requires input executor".to_string(),
-            ))
+            )))
         }
     }
 }
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for LimitExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.process_input().await?;
         Ok(ExecutionResult::DataSet(dataset))
     }
 }
 
 impl<S: StorageEngine> ExecutorLifecycle for LimitExecutor<S> {
-    fn open(&mut self) -> Result<(), QueryError> {
+    fn open(&mut self) -> DBResult<()> {
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
         }
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), QueryError> {
+    fn close(&mut self) -> DBResult<()> {
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;
         }

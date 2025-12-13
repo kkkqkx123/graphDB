@@ -30,7 +30,7 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
         output_columns: Vec<String>,
     ) -> Self {
         Self {
-            base: BaseJoinExecutor::new(id, storage, left_var, right_var, left_keys, right_keys, output_columns),
+            base: BaseJoinExecutor::with_description(id, storage, left_var, right_var, left_keys, right_keys, output_columns, "Full outer join executor - performs full outer join".to_string()),
         }
     }
 
@@ -209,7 +209,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for FullOuterJoinExecutor<S
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for FullOuterJoinExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for FullOuterJoinExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         Ok(())
     }
@@ -223,7 +223,7 @@ impl<S: StorageEngine> ExecutorLifecycle for FullOuterJoinExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorMetadata for FullOuterJoinExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorMetadata for FullOuterJoinExecutor<S> {
     fn id(&self) -> usize {
         self.base.id()
     }

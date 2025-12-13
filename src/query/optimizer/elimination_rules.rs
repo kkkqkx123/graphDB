@@ -1,6 +1,8 @@
 //! 消除优化规则
 //! 这些规则负责消除冗余的操作，如永真式过滤、无操作投影、不必要的去重等
 
+use std::sync::Arc;
+
 use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{create_basic_pattern, is_tautology, BaseOptRule, EliminationRule};
@@ -8,7 +10,6 @@ use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Patt
 use crate::query::planner::plan::operations::Filter as FilterPlanNode;
 use crate::query::planner::plan::operations::Project as ProjectPlanNode;
 use crate::query::planner::plan::{PlanNode, PlanNodeKind};
-use std::sync::Arc;
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -603,11 +604,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个带有永真式条件的过滤节点
-        let filter_node = Box::new(Filter::new(1, "1 = 1"));
+        let filter_node = Arc::new(Filter::new(1, "1 = 1"));
         let mut opt_node = OptGroupNode::new(1, filter_node);
-        
+
         // 添加一个子节点作为依赖
-        let child_node = Box::new(crate::query::planner::plan::operations::ScanVertices::new(2, 1));
+        let child_node = Arc::new(crate::query::planner::plan::operations::ScanVertices::new(2, 1));
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
@@ -623,11 +624,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个去重节点
-        let dedup_node = Box::new(Dedup::new(1));
+        let dedup_node = Arc::new(Dedup::new(1));
         let mut opt_node = OptGroupNode::new(1, dedup_node);
-        
+
         // 添加一个IndexScan子节点作为依赖（IndexScan产生唯一结果）
-        let child_node = Box::new(IndexScan::new(2, 1, 1, 1, "UNIQUE"));
+        let child_node = Arc::new(IndexScan::new(2, 1, 1, 1, "UNIQUE"));
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
@@ -642,48 +643,49 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个子节点，设置输出列
-        let mut child_node = Box::new(crate::query::planner::plan::operations::ScanVertices::new(2, 1));
-        child_node.set_col_names(vec!["id".to_string(), "name".to_string(), "age".to_string()]);
+        let mut child_node = Arc::new(crate::query::planner::plan::operations::ScanVertices::new(2, 1));
+        // 注意：需要使用 PlanNode trait 中的 set_col_names 方法
+        std::sync::Arc::get_mut(&mut child_node).unwrap().set_col_names(vec!["id".to_string(), "name".to_string(), "age".to_string()]);
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
         // 测试1: 创建一个投影所有列的投影节点（应该被消除）
-        let project_node_all = Box::new(Project::new(1, "*"));
+        let project_node_all = Arc::new(Project::new(1, "*"));
         let mut opt_node_all = OptGroupNode::new(1, project_node_all);
         opt_node_all.dependencies.push(2);
-        
+
         let result_all = rule.apply(&mut ctx, &opt_node_all).unwrap();
         assert!(result_all.is_some(), "投影所有列的节点应该被消除");
 
         // 测试2: 创建一个投影相同列的投影节点（应该被消除）
-        let project_node_same = Box::new(Project::new(3, "id, name, age"));
+        let project_node_same = Arc::new(Project::new(3, "id, name, age"));
         let mut opt_node_same = OptGroupNode::new(3, project_node_same);
         opt_node_same.dependencies.push(2);
-        
+
         let result_same = rule.apply(&mut ctx, &opt_node_same).unwrap();
         assert!(result_same.is_some(), "投影相同列的节点应该被消除");
 
         // 测试3: 创建一个投影不同列的投影节点（不应该被消除）
-        let project_node_diff = Box::new(Project::new(4, "id, name"));
+        let project_node_diff = Arc::new(Project::new(4, "id, name"));
         let mut opt_node_diff = OptGroupNode::new(4, project_node_diff);
         opt_node_diff.dependencies.push(2);
-        
+
         let result_diff = rule.apply(&mut ctx, &opt_node_diff).unwrap();
         assert!(result_diff.is_none(), "投影不同列的节点不应该被消除");
 
         // 测试4: 创建一个投影带别名的节点（不应该被消除）
-        let project_node_alias = Box::new(Project::new(5, "id as vertex_id, name as vertex_name, age"));
+        let project_node_alias = Arc::new(Project::new(5, "id as vertex_id, name as vertex_name, age"));
         let mut opt_node_alias = OptGroupNode::new(5, project_node_alias);
         opt_node_alias.dependencies.push(2);
-        
+
         let result_alias = rule.apply(&mut ctx, &opt_node_alias).unwrap();
         assert!(result_alias.is_none(), "投影带别名的节点不应该被消除");
-        
+
         // 测试5: 创建一个投影包含表达式的节点（不应该被消除）
-        let project_node_expr = Box::new(Project::new(6, "id, name, age + 1"));
+        let project_node_expr = Arc::new(Project::new(6, "id, name, age + 1"));
         let mut opt_node_expr = OptGroupNode::new(6, project_node_expr);
         opt_node_expr.dependencies.push(2);
-        
+
         let result_expr = rule.apply(&mut ctx, &opt_node_expr).unwrap();
         assert!(result_expr.is_none(), "投影包含表达式的节点不应该被消除");
     }
@@ -694,11 +696,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个添加顶点节点
-        let append_vertices_node = Box::new(AppendVertices::new(1, 1, vec![]));
+        let append_vertices_node = Arc::new(AppendVertices::new(1, 1, vec![]));
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
-        
+
         // 添加一个子节点作为依赖
-        let child_node = Box::new(crate::query::planner::plan::operations::ScanVertices::new(2, 1));
+        let child_node = Arc::new(crate::query::planner::plan::operations::ScanVertices::new(2, 1));
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
@@ -713,11 +715,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个添加顶点节点
-        let append_vertices_node = Box::new(AppendVertices::new(1, 1, vec![]));
+        let append_vertices_node = Arc::new(AppendVertices::new(1, 1, vec![]));
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
-        
+
         // 添加一个HashInnerJoin子节点作为依赖
-        let child_node = Box::new(crate::query::planner::plan::operations::HashInnerJoin::new(2));
+        let child_node = Arc::new(crate::query::planner::plan::operations::HashInnerJoin::new(2));
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
