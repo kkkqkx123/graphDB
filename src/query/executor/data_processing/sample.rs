@@ -8,9 +8,11 @@ use rand::{Rng, SeedableRng};
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Edge, Value, Vertex};
-use crate::graph::expression::{EvalContext, ExpressionV1 as Expression, ExpressionEvaluator};
+use crate::graph::expression::{EvalContext, ExpressionEvaluator, ExpressionV1 as Expression};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
-use crate::query::executor::traits::{ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
+use crate::query::executor::traits::{
+    DBResult, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::query::QueryError;
 use crate::storage::Row;
 use crate::storage::StorageEngine;
@@ -469,7 +471,11 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for SampleExecutor<S> {
         };
 
         // 执行采样操作
-        self.execute_sample(input_result).await.map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))
+        self.execute_sample(input_result).await.map_err(|e| {
+            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
+                e.to_string(),
+            ))
+        })
     }
 }
 
@@ -510,7 +516,9 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for SampleExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for SampleExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
+    for SampleExecutor<S>
+{
     fn storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage
     }
@@ -637,13 +645,13 @@ mod tests {
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> ExecutorCore for MockInputExecutor {
+        impl ExecutorCore for MockInputExecutor {
             async fn execute(&mut self) -> DBResult<ExecutionResult> {
                 Ok(self.result.clone())
             }
         }
 
-        impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for MockInputExecutor {
+        impl ExecutorLifecycle for MockInputExecutor {
             fn open(&mut self) -> DBResult<()> {
                 Ok(())
             }
@@ -655,7 +663,7 @@ mod tests {
             }
         }
 
-        impl<S: StorageEngine + Send + 'static> ExecutorMetadata for MockInputExecutor {
+        impl ExecutorMetadata for MockInputExecutor {
             fn id(&self) -> usize {
                 0
             }
@@ -668,13 +676,13 @@ mod tests {
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for MockInputExecutor {
-            fn storage(&self) -> &Arc<Mutex<S>> {
-                &self.storage
+        impl crate::query::executor::traits::Executor<MockStorage> for MockInputExecutor {
+            fn storage(&self) -> &Arc<Mutex<MockStorage>> {
+                unimplemented!("MockInputExecutor doesn't use storage")
             }
         }
 
-        let mut input_executor = MockInputExecutor {
+        let input_executor = MockInputExecutor {
             result: input_result,
         };
 
@@ -728,13 +736,13 @@ mod tests {
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> ExecutorCore for MockInputExecutor {
+        impl ExecutorCore for MockInputExecutor {
             async fn execute(&mut self) -> DBResult<ExecutionResult> {
                 Ok(self.result.clone())
             }
         }
 
-        impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for MockInputExecutor {
+        impl ExecutorLifecycle for MockInputExecutor {
             fn open(&mut self) -> DBResult<()> {
                 Ok(())
             }
@@ -746,7 +754,7 @@ mod tests {
             }
         }
 
-        impl<S: StorageEngine + Send + 'static> ExecutorMetadata for MockInputExecutor {
+        impl ExecutorMetadata for MockInputExecutor {
             fn id(&self) -> usize {
                 0
             }
@@ -759,13 +767,13 @@ mod tests {
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for MockInputExecutor {
-            fn storage(&self) -> &Arc<Mutex<S>> {
-                &self.storage
+        impl crate::query::executor::traits::Executor<MockStorage> for MockInputExecutor {
+            fn storage(&self) -> &Arc<Mutex<MockStorage>> {
+                unimplemented!("MockInputExecutor doesn't use storage")
             }
         }
 
-        let mut input_executor = MockInputExecutor {
+        let input_executor = MockInputExecutor {
             result: input_result,
         };
 

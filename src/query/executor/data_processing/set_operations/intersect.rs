@@ -4,11 +4,10 @@
 
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
-use std::fmt;
 
 use crate::core::{DataSet, Value};
-use crate::query::executor::traits::{ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
 use crate::query::QueryError;
+use crate::query::executor::traits::{ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
 use crate::storage::StorageEngine;
 
 use super::base::SetExecutor;
@@ -474,7 +473,7 @@ mod tests {
         let result = executor.execute().await;
         assert!(result.is_err());
 
-        if let Err(QueryError::ExecutionError(msg)) = result {
+        if let Err(crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(msg))) = result {
             assert!(msg.contains("列名不匹配"));
         } else {
             panic!("期望列名不匹配错误");

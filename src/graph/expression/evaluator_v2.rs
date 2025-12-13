@@ -768,20 +768,20 @@ mod tests {
         let context = TestContext::new();
 
         // 测试加法
-        let expr = Expression::Binary {
-            left: Box::new(Expression::Constant(Value::Int(10))),
-            op: BinaryOperator::Add,
-            right: Box::new(Expression::Constant(Value::Int(20))),
-        };
+        let expr = Expression::BinaryOp(
+            Box::new(Expression::Constant(Value::Int(10))),
+            BinaryOperator::Add,
+            Box::new(Expression::Constant(Value::Int(20))),
+        );
         let result = evaluator.evaluate(&expr, &context).unwrap();
         assert_eq!(result, Value::Int(30));
 
         // 测试比较
-        let expr = Expression::Binary {
-            left: Box::new(Expression::Constant(Value::Int(10))),
-            op: BinaryOperator::LessThan,
-            right: Box::new(Expression::Constant(Value::Int(20))),
-        };
+        let expr = Expression::BinaryOp(
+            Box::new(Expression::Constant(Value::Int(10))),
+            BinaryOperator::Lt,
+            Box::new(Expression::Constant(Value::Int(20))),
+        );
         let result = evaluator.evaluate(&expr, &context).unwrap();
         assert_eq!(result, Value::Bool(true));
     }
@@ -792,18 +792,18 @@ mod tests {
         let context = TestContext::new();
 
         // 测试一元减
-        let expr = Expression::Unary {
-            op: UnaryOperator::Minus,
-            operand: Box::new(Expression::Constant(Value::Int(10))),
-        };
+        let expr = Expression::UnaryOp(
+            UnaryOperator::Minus,
+            Box::new(Expression::Constant(Value::Int(10))),
+        );
         let result = evaluator.evaluate(&expr, &context).unwrap();
         assert_eq!(result, Value::Int(-10));
 
         // 测试逻辑非
-        let expr = Expression::Unary {
-            op: UnaryOperator::Not,
-            operand: Box::new(Expression::Constant(Value::Bool(true))),
-        };
+        let expr = Expression::UnaryOp(
+            UnaryOperator::Not,
+            Box::new(Expression::Constant(Value::Bool(true))),
+        );
         let result = evaluator.evaluate(&expr, &context).unwrap();
         assert_eq!(result, Value::Bool(false));
     }
@@ -842,7 +842,7 @@ mod tests {
         ]);
 
         let expr = Expression::Aggregate {
-            func: AggregateFunction::Count,
+            func: "count".to_string(),
             arg: Box::new(list_expr),
             distinct: false,
         };

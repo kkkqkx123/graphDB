@@ -2,10 +2,10 @@
 //! 这些规则负责优化连接操作，专注于连接算法和策略优化
 
 use super::optimizer::OptimizerError;
-use super::rule_traits::{BaseOptRule};
 use super::rule_patterns::PatternBuilder;
+use super::rule_traits::BaseOptRule;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
+use crate::query::planner::plan::PlanNodeKind;
 
 /// 转换连接以获得更好性能的规则
 #[derive(Debug)]
@@ -22,9 +22,10 @@ impl OptRule for JoinOptimizationRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为连接操作
-        if node.plan_node.kind() != PlanNodeKind::InnerJoin &&
-           node.plan_node.kind() != PlanNodeKind::HashInnerJoin &&
-           node.plan_node.kind() != PlanNodeKind::HashLeftJoin {
+        if node.plan_node.kind() != PlanNodeKind::InnerJoin
+            && node.plan_node.kind() != PlanNodeKind::HashInnerJoin
+            && node.plan_node.kind() != PlanNodeKind::HashLeftJoin
+        {
             return Ok(None);
         }
 
@@ -36,7 +37,7 @@ impl OptRule for JoinOptimizationRule {
 
             if let (Some(left_node), Some(right_node)) = (
                 ctx.find_group_node_by_plan_node_id(left_dep_id),
-                ctx.find_group_node_by_plan_node_id(right_dep_id)
+                ctx.find_group_node_by_plan_node_id(right_dep_id),
             ) {
                 // 在实际实现中，我们会评估左右子树的大小
                 // 以决定是否需要更改连接算法
@@ -89,9 +90,11 @@ impl JoinOptimizationRule {
     fn should_optimize_join(&self, left_node: &OptGroupNode, right_node: &OptGroupNode) -> bool {
         // 简单的启发式：如果任一侧是索引扫描或者获取特定顶点/边的操作，
         // 可能意味着较小的结果集，适合使用哈希连接
-        matches!(left_node.plan_node.kind(),
+        matches!(
+            left_node.plan_node.kind(),
             PlanNodeKind::IndexScan | PlanNodeKind::GetVertices | PlanNodeKind::GetEdges
-        ) || matches!(right_node.plan_node.kind(),
+        ) || matches!(
+            right_node.plan_node.kind(),
             PlanNodeKind::IndexScan | PlanNodeKind::GetVertices | PlanNodeKind::GetEdges
         )
     }
@@ -102,8 +105,7 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::{Limit};
-    use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+    use crate::query::planner::plan::Limit;
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())
@@ -115,7 +117,8 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个连接节点（使用Limit作为占位符，因为我们没有特定的连接结构）
-        let join_node = Box::new(Limit::new(1, 10, 0));
+        let join_node = std::sync::Arc::new(Limit::new(1, 10, 0))
+            as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, join_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

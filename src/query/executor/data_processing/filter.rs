@@ -389,13 +389,13 @@ mod tests {
         }
 
         #[async_trait]
-        impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::ExecutorCore for MockInputExecutor {
+        impl crate::query::executor::traits::ExecutorCore for MockInputExecutor {
             async fn execute(&mut self) -> crate::query::executor::traits::DBResult<ExecutionResult> {
                 Ok(self.result.clone())
             }
         }
         
-        impl<S: StorageEngine + Send> crate::query::executor::traits::ExecutorLifecycle for MockInputExecutor {
+        impl crate::query::executor::traits::ExecutorLifecycle for MockInputExecutor {
             fn open(&mut self) -> crate::query::executor::traits::DBResult<()> {
                 Ok(())
             }
@@ -407,7 +407,7 @@ mod tests {
             }
         }
         
-        impl<S: StorageEngine> crate::query::executor::traits::ExecutorMetadata for MockInputExecutor {
+        impl crate::query::executor::traits::ExecutorMetadata for MockInputExecutor {
             fn id(&self) -> usize {
                 0
             }
@@ -420,8 +420,8 @@ mod tests {
         }
         
         #[async_trait::async_trait]
-        impl<S: StorageEngine + Send + Sync + 'static> crate::query::executor::traits::Executor<S> for MockInputExecutor {
-            fn storage(&self) -> &Arc<Mutex<S>> {
+        impl crate::query::executor::traits::Executor<MockStorage> for MockInputExecutor {
+            fn storage(&self) -> &Arc<Mutex<MockStorage>> {
                 unimplemented!("MockInputExecutor doesn't use storage")
             }
         }

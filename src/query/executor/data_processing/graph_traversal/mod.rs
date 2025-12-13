@@ -219,7 +219,8 @@ mod tests_impl {
     use super::*;
     use crate::config::test_config::test_config;
     use crate::core::{Edge, Value, Vertex};
-    use crate::query::executor::base::{EdgeDirection, Executor};
+    use crate::query::executor::base::EdgeDirection;
+    use crate::query::executor::traits::ExecutorMetadata;
     use crate::storage::{NativeStorage, StorageEngine};
     use std::sync::{Arc, Mutex};
 

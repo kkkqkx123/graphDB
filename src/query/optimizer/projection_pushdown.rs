@@ -117,7 +117,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = Box::new(Project::new(1, ""));
+        let project_node = std::sync::Arc::new(Project::new(1, "")) as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -131,7 +131,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = Box::new(Project::new(1, ""));
+        let project_node = std::sync::Arc::new(Project::new(1, "")) as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

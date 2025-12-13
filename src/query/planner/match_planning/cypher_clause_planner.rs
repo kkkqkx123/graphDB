@@ -18,6 +18,7 @@ pub trait CypherClausePlanner: std::fmt::Debug {
 mod tests {
     use super::*;
     use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, VariableDependencyNode};
+    use crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable;
     use crate::query::planner::planner::PlannerError;
     use crate::query::validator::structs::common_structs::CypherClauseContext;
 
@@ -51,16 +52,17 @@ mod tests {
                 ))
             } else {
                 // 创建一个简单的测试节点
+                use std::sync::Arc;
                 let test_node = SingleInputNode::new(
                     PlanNodeKind::Project,
-                    Box::new(
+                    Arc::new(
                         VariableDependencyNode::new(
                             PlanNodeKind::Start,
                         ),
                     ),
                 );
                 let subplan =
-                    crate::query::planner::plan::SubPlan::new(Some(Box::new(test_node)), None);
+                    crate::query::planner::plan::SubPlan::new(Some(Arc::new(test_node)), None);
                 Ok(subplan)
             }
         }

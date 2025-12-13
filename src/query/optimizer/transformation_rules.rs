@@ -34,13 +34,6 @@ impl OptRule for TopNRule {
                     // 根据NebulaGraph的实现，将Limit和Sort转换为TopN
                     if let Some(limit_plan_node) = node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
                         if let Some(sort_plan_node) = child_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Sort>() {
-                            // 创建TopN节点
-                            let topn_node = crate::query::planner::plan::operations::TopN::new(
-                                node.plan_node.id(), // 使用Limit节点的ID
-                                sort_plan_node.sort_items.clone(), // 使用Sort的排序项
-                                limit_plan_node.count(), // 使用Limit的计数值作为TopN的限制
-                            );
-                            
                             // 创建新的OptGroupNode
                             let mut new_node = child_node.clone(); // 从Sort节点克隆
                             
@@ -102,7 +95,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个Sort节点
-        let sort_node = Box::new(Sort::new(1, vec!["col1".to_string()]));
+        let sort_node = std::sync::Arc::new(Sort::new(1, vec!["col1".to_string()])) as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, sort_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

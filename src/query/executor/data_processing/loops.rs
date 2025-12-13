@@ -602,7 +602,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl<S: StorageEngine + Send + 'static> ExecutorCore for CountExecutor {
+    impl ExecutorCore for CountExecutor {
         async fn execute(&mut self) -> DBResult<ExecutionResult> {
             if self.count < self.max_count {
                 self.count += 1;
@@ -613,7 +613,7 @@ mod tests {
         }
     }
 
-    impl<S: StorageEngine> ExecutorLifecycle for CountExecutor {
+    impl ExecutorLifecycle for CountExecutor {
         fn open(&mut self) -> DBResult<()> {
             Ok(())
         }
@@ -625,7 +625,7 @@ mod tests {
         }
     }
 
-    impl<S: StorageEngine> ExecutorMetadata for CountExecutor {
+    impl ExecutorMetadata for CountExecutor {
         fn id(&self) -> usize {
             0
         }
@@ -638,8 +638,8 @@ mod tests {
     }
 
     #[async_trait]
-    impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CountExecutor {
-        fn storage(&self) -> &Arc<Mutex<S>> {
+    impl Executor<MockStorage> for CountExecutor {
+        fn storage(&self) -> &Arc<Mutex<MockStorage>> {
             // 需要添加base字段或者修改这个实现
             unimplemented!("需要添加base字段到CountExecutor")
         }

@@ -472,7 +472,7 @@ impl CompatibilityEvaluator {
     /// 求值旧表达式
     pub fn evaluate_old(
         &self,
-        old_expr: &OldExpression,
+        old_expr: &ExpressionV1,
         old_context: &crate::graph::expression::context::EvalContext,
     ) -> DBResult<Value> {
         // 暂时直接使用旧表达式求值逻辑
@@ -493,8 +493,8 @@ impl Default for CompatibilityEvaluator {
 
 #[cfg(test)]
 mod tests {
-    use crate::graph::expression::*;
     use crate::core::Value;
+    use crate::graph::expression::*;
     use std::collections::HashMap;
 
     #[test]

@@ -5,7 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_traits::{BaseOptRule};
 use super::rule_patterns::PatternBuilder;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
+use crate::query::planner::plan::PlanNodeKind;
 
 /// 优化索引全扫描为更高效的全表扫描的规则
 #[derive(Debug)]
@@ -27,8 +27,8 @@ impl OptRule for IndexFullScanRule {
         }
 
         // 在完整实现中，这会确定何时从索引扫描切换到全扫描
-        // 基于估计的选择性、数据分布等
-        if let Some(matched) = self.match_pattern(ctx, node)? {
+         // 基于估计的选择性、数据分布等
+         if let Some(_matched) = self.match_pattern(ctx, node)? {
             // 从索引扫描切换到全扫描的决策将基于：
             // - 索引条件的选择性
             // - 表的大小
@@ -98,8 +98,7 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::{ScanVertices, ScanEdges};
-    use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+    use crate::query::planner::plan::ScanVertices;
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())
@@ -111,7 +110,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个扫描节点（作为索引扫描的占位符）
-        let scan_node = Box::new(ScanVertices::new(1, 0));
+        let scan_node = std::sync::Arc::new(ScanVertices::new(1, 0)) as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -125,7 +124,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个扫描顶点节点
-        let scan_node = Box::new(ScanVertices::new(1, 0));
+        let scan_node = std::sync::Arc::new(ScanVertices::new(1, 0)) as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

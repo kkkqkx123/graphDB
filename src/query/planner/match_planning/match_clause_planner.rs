@@ -428,7 +428,7 @@ mod tests {
         let match_clause_ctx = create_test_match_clause_context(vec![]);
 
         let subplan = SubPlan::new(
-            Some(Box::new(VariableDependencyNode::new(PlanNodeKind::Start))),
+            Some(Arc::new(VariableDependencyNode::new(PlanNodeKind::Start))),
             None,
         );
 

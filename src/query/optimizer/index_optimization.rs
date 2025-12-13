@@ -1073,8 +1073,7 @@ mod tests {
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
-    use crate::query::planner::plan::{Limit, PlanNode, PlanNodeKind};
-    use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+    use crate::query::planner::plan::{Limit, PlanNodeKind};
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())
