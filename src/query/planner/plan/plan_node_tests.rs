@@ -6,7 +6,7 @@ mod plan_node_tests {
         ScanEdges, ScanVertices, IndexScan, FulltextIndexScan,
         PlanNodeVisitor, PlanNodeVisitError
     };
-    use crate::query::validator::Variable;
+    use crate::query::context::validate::types::Variable;
 
     // 简单的访问者实现用于测试
     #[derive(Debug)]

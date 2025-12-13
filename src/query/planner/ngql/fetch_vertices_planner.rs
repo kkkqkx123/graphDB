@@ -7,7 +7,7 @@ use crate::query::planner::plan::core::plan_node_traits::{PlanNode, PlanNodeClon
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::{Argument, Dedup, GetVertices, Project};
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::{Variable, Column};
 
 /// FETCH VERTICES查询规划器
 /// 负责将FETCH VERTICES查询转换为执行计划
@@ -48,68 +48,64 @@ impl Planner for FetchVerticesPlanner {
         println!("Processing FETCH VERTICES query planning: {:?}", fetch_ctx);
 
         // 1. 创建参数节点，获取顶点ID
-        let mut arg_node = Box::new(Argument::new(1, &fetch_ctx.from.user_defined_var_name));
-        arg_node.set_col_names(vec!["vid".to_string()]);
-        arg_node.set_output_var(Variable {
+        let mut arg_node = std::sync::Arc::new(Argument::new(1, &fetch_ctx.from.user_defined_var_name));
+        std::sync::Arc::get_mut(&mut arg_node).unwrap().set_col_names(vec!["vid".to_string()]);
+        std::sync::Arc::get_mut(&mut arg_node).unwrap().set_output_var(Variable {
             name: "vertex_ids".to_string(),
             columns: vec![],
         });
-        let arg_node: std::sync::Arc<dyn PlanNode> = std::sync::Arc::new(*arg_node);
 
         // 2. 创建获取顶点的节点
-        let mut temp_get_vertices_node = Box::new(GetVertices::new(
+        let mut get_vertices_node = std::sync::Arc::new(GetVertices::new(
             2,
             1,
             &fetch_ctx.from.user_defined_var_name,
         ));
-        temp_get_vertices_node.set_dependencies(vec![arg_node.clone_plan_node()]);
-        temp_get_vertices_node.set_output_var(Variable {
+        std::sync::Arc::get_mut(&mut get_vertices_node).unwrap().set_dependencies(vec![arg_node.clone_plan_node()]);
+        std::sync::Arc::get_mut(&mut get_vertices_node).unwrap().set_output_var(Variable {
             name: "fetched_vertices".to_string(),
             columns: vec![],
         });
 
         // 设置顶点属性
-        temp_get_vertices_node.tag_props = fetch_ctx
-            .expr_props
-            .tag_props
-            .iter()
-            .map(|(tag, props)| TagProp::new(tag, props.clone()))
-            .collect();
-
-        let get_vertices_node: std::sync::Arc<dyn PlanNode> = std::sync::Arc::new(*temp_get_vertices_node);
+        if let Some(node) = std::sync::Arc::get_mut(&mut get_vertices_node) {
+            node.tag_props = fetch_ctx
+                .expr_props
+                .tag_props
+                .iter()
+                .map(|(tag, props)| TagProp::new(tag, props.clone()))
+                .collect();
+        }
 
         // 3. 创建投影节点
-        let mut temp_project_node = Box::new(Project::new(
+        let mut project_node = std::sync::Arc::new(Project::new(
             3,
             &fetch_ctx.yield_expr.clone().unwrap_or("*".to_string()),
         ));
-        temp_project_node.set_dependencies(vec![get_vertices_node.clone_plan_node()]);
-        let result_columns: Vec<crate::query::validator::Column> = fetch_ctx
+        std::sync::Arc::get_mut(&mut project_node).unwrap().set_dependencies(vec![get_vertices_node.clone_plan_node()]);
+        let result_columns: Vec<Column> = fetch_ctx
             .from
             .vids
             .iter()
-            .map(|vid| crate::query::validator::Column {
+            .map(|vid| Column {
                 name: vid.clone(),
                 type_: crate::core::ValueTypeDef::String, // 使用正确的类型
             })
             .collect();
-        temp_project_node.set_output_var(Variable {
+        std::sync::Arc::get_mut(&mut project_node).unwrap().set_output_var(Variable {
             name: "project_result".to_string(),
             columns: result_columns,
         });
-        temp_project_node.set_col_names(fetch_ctx.from.vids.clone());
-
-        let project_node: std::sync::Arc<dyn PlanNode> = std::sync::Arc::new(*temp_project_node);
+        std::sync::Arc::get_mut(&mut project_node).unwrap().set_col_names(fetch_ctx.from.vids.clone());
 
         // 4. 如果需要去重，创建去重节点
         let final_node: std::sync::Arc<dyn PlanNode> = if fetch_ctx.distinct {
-            let mut temp_dedup_node = Box::new(Dedup::new(4));
-            temp_dedup_node.set_dependencies(vec![project_node.clone_plan_node()]);
-            temp_dedup_node.set_output_var(Variable {
+            let mut dedup_node = std::sync::Arc::new(Dedup::new(4));
+            std::sync::Arc::get_mut(&mut dedup_node).unwrap().set_dependencies(vec![project_node.clone_plan_node()]);
+            std::sync::Arc::get_mut(&mut dedup_node).unwrap().set_output_var(Variable {
                 name: "dedup_result".to_string(),
                 columns: vec![],
             });
-            let dedup_node: std::sync::Arc<dyn PlanNode> = std::sync::Arc::new(*temp_dedup_node);
             dedup_node
         } else {
             project_node

@@ -5,7 +5,7 @@ use crate::query::planner::plan::core::{
     plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
     PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
 };
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
 /// 多源最短路径计划节点

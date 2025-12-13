@@ -74,7 +74,7 @@ pub trait Function {
 /// 表达式求值器接口
 ///
 /// 定义了表达式求值的基本接口，支持不同的求值策略
-pub trait ExpressionEvaluator {
+pub trait ExpressionEvaluator: std::fmt::Debug {
     /// 求值表达式
     ///
     /// # 参数
@@ -90,6 +90,7 @@ pub trait ExpressionEvaluator {
 /// 默认表达式求值器实现
 ///
 /// 提供标准的表达式求值逻辑
+#[derive(Debug)]
 pub struct DefaultExpressionEvaluator;
 
 impl DefaultExpressionEvaluator {
@@ -202,10 +203,10 @@ impl ExpressionEvaluator for DefaultExpressionEvaluator {
             }
 
             // 其他表达式类型的处理...
-            _ => Err(DBError::Expression(format!(
+            _ => Err(DBError::Expression(crate::graph::expression::ExpressionError::TypeError(format!(
                 "Unsupported expression type: {:?}",
                 expr
-            ))),
+            )))),
         }
     }
 }
@@ -254,8 +255,9 @@ impl DefaultExpressionEvaluator {
             UnaryOperator::Plus => self.unary_plus(operand),
             UnaryOperator::Minus => self.unary_minus(operand),
             UnaryOperator::Not => Ok(Value::Bool(!self.is_truthy(operand))),
-            UnaryOperator::IsNull => Ok(Value::Bool(matches!(operand, Value::Null(_)))),
-            UnaryOperator::IsNotNull => Ok(Value::Bool(!matches!(operand, Value::Null(_)))),
+            UnaryOperator::Negate => self.negate_value(operand),
+            UnaryOperator::Increment => Err(DBError::Expression(crate::graph::expression::ExpressionError::InvalidOperation("Increment operation not supported".to_string()))),
+            UnaryOperator::Decrement => Err(DBError::Expression(crate::graph::expression::ExpressionError::InvalidOperation("Decrement operation not supported".to_string()))),
         }
     }
 
@@ -341,7 +343,7 @@ impl DefaultExpressionEvaluator {
             "avg" => AggregateFunction::Avg,
             "min" => AggregateFunction::Min,
             "max" => AggregateFunction::Max,
-            _ => return Err(DBError::Expression(format!("Unknown aggregate function: {}", func_name))),
+            _ => return Err(DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!("Unknown aggregate function: {}", func_name)))),
         };
 
         self.evaluate_aggregate(&agg_func, arg, distinct, ctx)
@@ -414,17 +416,17 @@ impl DefaultExpressionEvaluator {
                 if let Value::String(key) = left {
                     Ok(Value::Bool(items.contains_key(key)))
                 } else {
-                    Err(DBError::Expression("Key for 'in' operation on map must be a string".to_string()))
+                    Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Key for 'in' operation on map must be a string".to_string())))
                 }
             },
-            _ => Err(DBError::Expression("Right operand of 'in' must be a list, set, or map".to_string())),
+            _ => Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Right operand of 'in' must be a list, set, or map".to_string()))),
         }
     }
 
     fn not_in_values(&self, left: &Value, right: &Value) -> DBResult<Value> {
         match self.in_values(left, right) {
             Ok(Value::Bool(b)) => Ok(Value::Bool(!b)),
-            Ok(_) => Err(DBError::Expression("in_values should return boolean".to_string())),
+            Ok(_) => Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("in_values should return boolean".to_string()))),
             Err(e) => Err(e),
         }
     }
@@ -436,10 +438,10 @@ impl DefaultExpressionEvaluator {
                     if *i >= 0 && (*i as usize) < items.len() {
                         Ok(items[*i as usize].clone())
                     } else {
-                        Err(DBError::Expression("List index out of bounds".to_string()))
+                        Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("List index out of bounds".to_string())))
                     }
                 } else {
-                    Err(DBError::Expression("List index must be an integer".to_string()))
+                    Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("List index must be an integer".to_string())))
                 }
             },
             Value::Map(items) => {
@@ -449,10 +451,10 @@ impl DefaultExpressionEvaluator {
                         None => Ok(Value::Null(crate::core::NullType::Null)),
                     }
                 } else {
-                    Err(DBError::Expression("Map key must be a string".to_string()))
+                    Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Map key must be a string".to_string())))
                 }
             },
-            _ => Err(DBError::Expression("Subscript operation requires a list or map".to_string())),
+            _ => Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Subscript operation requires a list or map".to_string()))),
         }
     }
 
@@ -465,7 +467,7 @@ impl DefaultExpressionEvaluator {
                     None => Ok(Value::Null(crate::core::NullType::Null)),
                 }
             },
-            _ => Err(DBError::Expression("Attribute access requires a map and string key".to_string())),
+            _ => Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Attribute access requires a map and string key".to_string()))),
         }
     }
 
@@ -481,7 +483,7 @@ impl DefaultExpressionEvaluator {
             (Value::String(s), Value::String(substring)) => {
                 Ok(Value::Bool(s.contains(substring)))
             },
-            _ => Err(DBError::Expression("Contains operation not supported for these types".to_string())),
+            _ => Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Contains operation not supported for these types".to_string()))),
         }
     }
 
@@ -490,7 +492,7 @@ impl DefaultExpressionEvaluator {
             (Value::String(s), Value::String(prefix)) => {
                 Ok(Value::Bool(s.starts_with(prefix)))
             },
-            _ => Err(DBError::Expression("Starts with operation requires string operands".to_string())),
+            _ => Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Starts with operation requires string operands".to_string()))),
         }
     }
 
@@ -499,7 +501,7 @@ impl DefaultExpressionEvaluator {
             (Value::String(s), Value::String(suffix)) => {
                 Ok(Value::Bool(s.ends_with(suffix)))
             },
-            _ => Err(DBError::Expression("Ends with operation requires string operands".to_string())),
+            _ => Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Ends with operation requires string operands".to_string()))),
         }
     }
 
@@ -507,30 +509,30 @@ impl DefaultExpressionEvaluator {
         match (left, right) {
             (Value::Int(a), Value::Int(b)) => {
                 if *b == 0 {
-                    return Err(DBError::Expression("Division by zero".to_string()));
+                    return Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Division by zero".to_string())));
                 }
                 Ok(Value::Int(a / b))
             }
             (Value::Float(a), Value::Float(b)) => {
                 if *b == 0.0 {
-                    return Err(DBError::Expression("Division by zero".to_string()));
+                    return Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Division by zero".to_string())));
                 }
                 Ok(Value::Float(a / b))
             }
             (Value::Int(a), Value::Float(b)) => {
                 if *b == 0.0 {
-                    return Err(DBError::Expression("Division by zero".to_string()));
+                    return Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Division by zero".to_string())));
                 }
                 Ok(Value::Float(*a as f64 / b))
             }
             (Value::Float(a), Value::Int(b)) => {
                 if *b == 0 {
-                    return Err(DBError::Expression("Division by zero".to_string()));
+                    return Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Division by zero".to_string())));
                 }
                 Ok(Value::Float(a / *b as f64))
             }
             _ => Err(DBError::Expression(
-                "Invalid operands for division".to_string(),
+                crate::core::error::ExpressionError::TypeError("Invalid operands for division".to_string())
             )),
         }
     }
@@ -539,12 +541,12 @@ impl DefaultExpressionEvaluator {
         match (left, right) {
             (Value::Int(a), Value::Int(b)) => {
                 if *b == 0 {
-                    return Err(DBError::Expression("Modulo by zero".to_string()));
+                    return Err(DBError::Expression(crate::core::error::ExpressionError::TypeError("Modulo by zero".to_string())));
                 }
                 Ok(Value::Int(a % b))
             }
             _ => Err(DBError::Expression(
-                "Invalid operands for modulo".to_string(),
+                crate::core::error::ExpressionError::TypeError("Invalid operands for modulo".to_string())
             )),
         }
     }
@@ -610,6 +612,17 @@ impl DefaultExpressionEvaluator {
             Value::Float(a) => Ok(Value::Float(-a)),
             _ => Err(DBError::Expression(
                 "Invalid operand for unary minus".to_string(),
+            )),
+        }
+    }
+
+    fn negate_value(&self, operand: &Value) -> DBResult<Value> {
+        match operand {
+            Value::Bool(a) => Ok(Value::Bool(!a)),
+            Value::Int(a) => Ok(Value::Int(-a)),
+            Value::Float(a) => Ok(Value::Float(-a)),
+            _ => Err(DBError::Expression(
+                "Invalid operand for negate operation".to_string(),
             )),
         }
     }

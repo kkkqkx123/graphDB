@@ -3,11 +3,13 @@
 
 use crate::query::context::{AstContext, FetchEdgesContext};
 use crate::query::planner::plan::core::common::EdgeProp;
-use crate::query::planner::plan::core::PlanNode;
+use crate::query::planner::plan::core::plan_node_traits::{PlanNode, PlanNodeClonable, PlanNodeMutable};
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::plan::operations::{Argument, Dedup, Filter, GetEdges, Project};
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::validator::{Column, Variable};
+use crate::query::validator::Column;
+use crate::query::context::validate::types::Variable;
+use std::sync::Arc;
 
 /// FETCH EDGES查询规划器
 /// 负责将FETCH EDGES查询转换为执行计划
@@ -48,15 +50,15 @@ impl Planner for FetchEdgesPlanner {
         println!("Processing FETCH EDGES query planning: {:?}", fetch_ctx);
 
         // 1. 创建参数节点，获取边的条件
-        let mut arg_node = Box::new(Argument::new(1, &fetch_ctx.input_var_name));
-        arg_node.set_col_names(vec!["edge_condition".to_string()]);
-        arg_node.set_output_var(Variable {
+        let mut arg_node = Arc::new(Argument::new(1, &fetch_ctx.input_var_name));
+        std::sync::Arc::get_mut(&mut arg_node).unwrap().set_col_names(vec!["edge_condition".to_string()]);
+        std::sync::Arc::get_mut(&mut arg_node).unwrap().set_output_var(Variable {
             name: "edge_condition".to_string(),
             columns: vec![],
         });
 
         // 2. 创建获取边的节点
-        let mut get_edges_node = Box::new(GetEdges::new(
+        let mut get_edges_node = Arc::new(GetEdges::new(
             2,
             1,
             &fetch_ctx.src.clone().unwrap_or_default(),
@@ -64,37 +66,39 @@ impl Planner for FetchEdgesPlanner {
             &fetch_ctx.rank.clone().unwrap_or_default(),
             &fetch_ctx.dst.clone().unwrap_or_default(),
         ));
-        get_edges_node.set_dependencies(vec![arg_node.clone_plan_node()]);
-        get_edges_node.set_output_var(Variable {
+        std::sync::Arc::get_mut(&mut get_edges_node).unwrap().set_dependencies(vec![arg_node.clone_plan_node()]);
+        std::sync::Arc::get_mut(&mut get_edges_node).unwrap().set_output_var(Variable {
             name: "fetched_edges".to_string(),
             columns: vec![],
         });
 
         // 设置边属性
-        get_edges_node.edge_props = fetch_ctx
-            .expr_props
-            .edge_props
-            .iter()
-            .map(|(edge_type, props)| EdgeProp::new(edge_type, props.clone()))
-            .collect();
+        if let Some(mut_node) = std::sync::Arc::get_mut(&mut get_edges_node) {
+            mut_node.edge_props = fetch_ctx
+                .expr_props
+                .edge_props
+                .iter()
+                .map(|(edge_type, props)| EdgeProp::new(edge_type, props.clone()))
+                .collect();
+        }
 
         // 3. 创建过滤空边的节点
-        let mut filter_node = Box::new(Filter::new(
+        let mut filter_node = Arc::new(Filter::new(
             3,
             &format!("{} IS NOT EMPTY", fetch_ctx.edge_name),
         ));
-        filter_node.set_dependencies(vec![get_edges_node.clone_plan_node()]);
-        filter_node.set_output_var(Variable {
+        std::sync::Arc::get_mut(&mut filter_node).unwrap().set_dependencies(vec![get_edges_node.clone_plan_node()]);
+        std::sync::Arc::get_mut(&mut filter_node).unwrap().set_output_var(Variable {
             name: "filtered_edges".to_string(),
             columns: vec![],
         });
 
         // 4. 创建投影节点
-        let mut project_node = Box::new(Project::new(
+        let mut project_node = Arc::new(Project::new(
             4,
             &fetch_ctx.yield_expr.clone().unwrap_or("*".to_string()),
         ));
-        project_node.set_dependencies(vec![filter_node.clone_plan_node()]);
+        std::sync::Arc::get_mut(&mut project_node).unwrap().set_dependencies(vec![filter_node.clone_plan_node()]);
         let result_columns: Vec<Column> = vec![
             Column {
                 name: "src".to_string(),
@@ -109,17 +113,17 @@ impl Planner for FetchEdgesPlanner {
                 type_: crate::core::ValueTypeDef::Int, // 使用正确的类型
             },
         ];
-        project_node.set_output_var(Variable {
+        std::sync::Arc::get_mut(&mut project_node).unwrap().set_output_var(Variable {
             name: "project_result".to_string(),
             columns: result_columns,
         });
 
         // 5. 如果需要去重，创建去重节点
-        let final_node: Box<dyn crate::query::planner::plan::core::PlanNode> = if fetch_ctx.distinct
+        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if fetch_ctx.distinct
         {
-            let mut dedup_node = Box::new(Dedup::new(5));
-            dedup_node.set_dependencies(vec![project_node.clone_plan_node()]);
-            dedup_node.set_output_var(Variable {
+            let mut dedup_node = Arc::new(Dedup::new(5));
+            std::sync::Arc::get_mut(&mut dedup_node).unwrap().set_dependencies(vec![project_node.clone_plan_node()]);
+            std::sync::Arc::get_mut(&mut dedup_node).unwrap().set_output_var(Variable {
                 name: "dedup_result".to_string(),
                 columns: vec![],
             });

@@ -18,6 +18,7 @@ use crate::query::validator::structs::{
     CypherClauseKind,
 };
 use std::collections::HashSet;
+use std::sync::Arc;
 
 /// MATCH查询规划器
 /// 处理Cypher MATCH语句的转换为执行计划
@@ -303,18 +304,18 @@ impl Planner for MatchPlanner {
         // 但现在为了演示目的，我们创建一个简化的查询计划
 
         // 创建起始节点
-        let start_node = Box::new(SingleDependencyNode {
+        let start_node = Arc::new(SingleDependencyNode {
             id: -1,
             kind: PlanNodeKind::Start,
             dependencies: vec![],
             output_var: None,
             col_names: vec![],
             cost: 0.0,
-        }) as Box<dyn PlanNode>;
+        }) as Arc<dyn PlanNode>;
 
         // 创建一个GetNeighbors节点作为示例
         let get_neighbors_node =
-            Box::new(SingleInputNode::new(PlanNodeKind::GetNeighbors, start_node));
+            Arc::new(SingleInputNode::new(PlanNodeKind::GetNeighbors, start_node));
 
         query_plan.root = Some(get_neighbors_node.clone());
         query_plan.tail = Some(get_neighbors_node);
@@ -620,7 +621,7 @@ mod tests {
         let match_ctx = create_test_match_clause_context();
 
         let existing_plan = SubPlan::new(
-            Some(Box::new(SingleDependencyNode {
+            Some(Arc::new(SingleDependencyNode {
                 id: -1,
                 kind: PlanNodeKind::Start,
                 dependencies: vec![],
@@ -653,7 +654,7 @@ mod tests {
             .insert("n".to_string(), AliasType::Node);
 
         let existing_plan = SubPlan::new(
-            Some(Box::new(SingleDependencyNode {
+            Some(Arc::new(SingleDependencyNode {
                 id: -1,
                 kind: PlanNodeKind::Start,
                 dependencies: vec![],
@@ -698,7 +699,7 @@ mod tests {
         match_ctx.where_clause = Some(where_ctx);
 
         let existing_plan = SubPlan::new(
-            Some(Box::new(SingleDependencyNode {
+            Some(Arc::new(SingleDependencyNode {
                 id: -1,
                 kind: PlanNodeKind::Start,
                 dependencies: vec![],

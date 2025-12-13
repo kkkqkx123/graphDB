@@ -4,7 +4,7 @@
 
 use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind, SingleDependencyNode};
 use super::plan_node_visitor::{PlanNodeVisitError, PlanNodeVisitor};
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 
 // 任务类型枚举
 #[derive(Debug, Clone)]

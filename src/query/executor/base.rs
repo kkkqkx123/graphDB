@@ -4,7 +4,6 @@ use async_trait::async_trait;
 
 use crate::core::{Value, Vertex, Edge};
 use crate::storage::StorageEngine;
-use crate::query::QueryError;
 use crate::query::executor::traits::{Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
 
 // Context for execution - holds variables and intermediate results
@@ -47,6 +46,7 @@ pub struct BaseExecutor<S: StorageEngine> {
     pub description: String,
     pub storage: Arc<Mutex<S>>,
     pub context: ExecutionContext,
+    is_open: bool,
 }
 
 impl<S: StorageEngine> BaseExecutor<S> {
@@ -57,6 +57,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
             description: String::new(),
             storage,
             context: ExecutionContext::new(),
+            is_open: false,
         }
     }
 
@@ -67,6 +68,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
             description: String::new(),
             storage,
             context,
+            is_open: false,
         }
     }
 
@@ -77,6 +79,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
             description,
             storage,
             context: ExecutionContext::new(),
+            is_open: false,
         }
     }
 
@@ -87,7 +90,38 @@ impl<S: StorageEngine> BaseExecutor<S> {
             description,
             storage,
             context,
+            is_open: false,
         }
+    }
+}
+
+impl<S: StorageEngine> ExecutorLifecycle for BaseExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
+        self.is_open = true;
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        self.is_open = false;
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        self.is_open
+    }
+}
+
+impl<S: StorageEngine> ExecutorMetadata for BaseExecutor<S> {
+    fn id(&self) -> usize {
+        self.id
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn description(&self) -> &str {
+        &self.description
     }
 }
 

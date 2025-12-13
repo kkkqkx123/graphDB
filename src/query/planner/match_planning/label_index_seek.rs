@@ -7,7 +7,8 @@ use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
+use std::sync::Arc;
 
 /// 标签索引查找元数据
 /// 存储IndexScan节点执行所需的索引相关信息
@@ -76,7 +77,7 @@ impl LabelIndexSeek {
         }
 
         // 创建索引扫描节点
-        let mut index_scan_node = Box::new(SingleInputNode::new(
+        let mut index_scan_node = Arc::new(SingleInputNode::new(
             PlanNodeKind::IndexScan,
             create_start_node()?,
         ));
@@ -105,7 +106,7 @@ impl LabelIndexSeek {
             IndexScanMetadata::new(vec![label_id], vec![label_name.clone()], vec![index_id]);
 
         // 处理节点属性过滤
-        let mut root: Box<dyn PlanNode> = index_scan_node.clone();
+        let mut root: Arc<dyn PlanNode> = index_scan_node.clone();
         if let Some(props) = &self.node_info.props {
             metadata.set_property_filter(props.clone());
         }
@@ -113,7 +114,7 @@ impl LabelIndexSeek {
         // 处理节点过滤条件 - 创建独立的Filter节点而不是修改IndexScan
         if let Some(filter) = &self.node_info.filter {
             // 创建Filter节点来处理过滤条件
-            let mut filter_node = Box::new(SingleInputNode::new(
+            let mut filter_node = Arc::new(SingleInputNode::new(
                 PlanNodeKind::Filter,
                 index_scan_node.clone(),
             ));
@@ -127,8 +128,8 @@ impl LabelIndexSeek {
                     type_: crate::core::ValueTypeDef::Vertex,
                 }],
             };
-            filter_node.set_output_var(filter_variable);
-            filter_node.set_col_names(vec!["vid".to_string()]);
+            std::sync::Arc::get_mut(&mut filter_node).unwrap().set_output_var(filter_variable);
+            std::sync::Arc::get_mut(&mut filter_node).unwrap().set_col_names(vec!["vid".to_string()]);
 
             root = filter_node;
         }
@@ -173,10 +174,10 @@ impl LabelIndexSeek {
 }
 
 /// 创建起始节点
-fn create_start_node() -> Result<Box<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
+fn create_start_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     use crate::query::planner::plan::SingleDependencyNode;
 
-    Ok(Box::new(SingleDependencyNode {
+    Ok(Arc::new(SingleDependencyNode {
         id: -1,
         kind: PlanNodeKind::Start,
         dependencies: vec![],

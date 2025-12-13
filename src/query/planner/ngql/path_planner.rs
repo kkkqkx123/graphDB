@@ -1,7 +1,7 @@
 //! PATH查询规划器
 //! 处理Nebula PATH查询的规划
 
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 use crate::query::context::{AstContext, PathContext};
 use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
 use crate::query::planner::plan::{Expand, ExpandAll, Filter, Project, Dedup, Argument};

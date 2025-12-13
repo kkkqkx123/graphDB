@@ -6,10 +6,9 @@ use async_trait::async_trait;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
-use std::fmt;
 
 use crate::core::{DataSet, Value};
-use crate::query::executor::{BaseExecutor, ExecutionResult, Executor};
+use crate::query::executor::{BaseExecutor, ExecutionResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 

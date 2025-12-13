@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-use std::fmt;
 
 use crate::core::Value;
 use crate::core::error::{DBError, DBResult};
@@ -9,7 +8,6 @@ use crate::query::executor::base::{
     BaseExecutor, EdgeDirection, InputExecutor,
 };
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
-use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
 /// ExpandExecutor - 单步路径扩展执行器

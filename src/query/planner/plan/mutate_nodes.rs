@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind, SingleDependencyNode};
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 use super::plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
 
 // 存储层的新顶点结构

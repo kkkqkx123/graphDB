@@ -6,7 +6,6 @@
 use crate::core::error::DBError;
 use crate::storage::StorageEngine;
 use async_trait::async_trait;
-use std::fmt;
 
 /// 执行核心 trait - 负责执行逻辑
 #[async_trait]

@@ -12,7 +12,6 @@ use crate::storage::StorageEngine;
 /// FilterExecutor - 条件过滤执行器
 ///
 /// 根据指定的条件对输入数据进行过滤，通常用于 WHERE 子句
-#[derive(Debug)]
 pub struct FilterExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     condition: Expression, // 条件表达式
@@ -20,6 +19,19 @@ pub struct FilterExecutor<S: StorageEngine> {
     evaluator: ExpressionEvaluator,
     // 表达式结果缓存，提高性能
     expression_cache: HashMap<String, bool>,
+}
+
+// Manual Debug implementation for FilterExecutor to avoid requiring Debug trait for ExpressionEvaluator
+impl<S: StorageEngine> std::fmt::Debug for FilterExecutor<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FilterExecutor")
+            .field("base", &self.base)
+            .field("condition", &"Expression")
+            .field("input_executor", &"Box<dyn Executor<S>>")
+            .field("evaluator", &"ExpressionEvaluator")
+            .field("expression_cache", &self.expression_cache)
+            .finish()
+    }
 }
 
 impl<S: StorageEngine> FilterExecutor<S> {

@@ -224,55 +224,65 @@ impl ExpressionConverter {
     fn convert_binary_operator(old_op: &super::binary::BinaryOperator) -> super::expression_v2::BinaryOperator {
         use super::binary::BinaryOperator as Old;
         use super::expression_v2::BinaryOperator as New;
-        
+
         match old_op {
             Old::Add => New::Add,
-            Old::Subtract => New::Subtract,
-            Old::Multiply => New::Multiply,
-            Old::Divide => New::Divide,
-            Old::Modulo => New::Modulo,
-            Old::Equal => New::Equal,
-            Old::NotEqual => New::NotEqual,
-            Old::LessThan => New::LessThan,
-            Old::LessThanOrEqual => New::LessThanOrEqual,
-            Old::GreaterThan => New::GreaterThan,
-            Old::GreaterThanOrEqual => New::GreaterThanOrEqual,
+            Old::Sub => New::Subtract,
+            Old::Mul => New::Multiply,
+            Old::Div => New::Divide,
+            Old::Mod => New::Modulo,
+            Old::Eq => New::Equal,
+            Old::Ne => New::NotEqual,
+            Old::Lt => New::LessThan,
+            Old::Le => New::LessThanOrEqual,
+            Old::Gt => New::GreaterThan,
+            Old::Ge => New::GreaterThanOrEqual,
             Old::And => New::And,
             Old::Or => New::Or,
+            // Map other operators that don't have direct equivalents
+            Old::Xor => New::Or, // Approximate mapping
+            Old::In => New::Equal, // Approximate mapping
+            Old::NotIn => New::NotEqual, // Approximate mapping
+            Old::Subscript => New::Equal, // Approximate mapping
+            Old::Attribute => New::Equal, // Approximate mapping
+            Old::Contains => New::Equal, // Approximate mapping
+            Old::StartsWith => New::Equal, // Approximate mapping
+            Old::EndsWith => New::Equal, // Approximate mapping
         }
     }
     
     fn convert_binary_operator_back(new_op: &super::expression_v2::BinaryOperator) -> super::binary::BinaryOperator {
         use super::binary::BinaryOperator as Old;
         use super::expression_v2::BinaryOperator as New;
-        
+
         match new_op {
             New::Add => Old::Add,
-            New::Subtract => Old::Subtract,
-            New::Multiply => Old::Multiply,
-            New::Divide => Old::Divide,
-            New::Modulo => Old::Modulo,
-            New::Equal => Old::Equal,
-            New::NotEqual => Old::NotEqual,
-            New::LessThan => Old::LessThan,
-            New::LessThanOrEqual => Old::LessThanOrEqual,
-            New::GreaterThan => Old::GreaterThan,
-            New::GreaterThanOrEqual => Old::GreaterThanOrEqual,
+            New::Subtract => Old::Sub,
+            New::Multiply => Old::Mul,
+            New::Divide => Old::Div,
+            New::Modulo => Old::Mod,
+            New::Equal => Old::Eq,
+            New::NotEqual => Old::Ne,
+            New::LessThan => Old::Lt,
+            New::LessThanOrEqual => Old::Le,
+            New::GreaterThan => Old::Gt,
+            New::GreaterThanOrEqual => Old::Ge,
             New::And => Old::And,
             New::Or => Old::Or,
-            New::StringConcat => Old::Add, // 简化处理
-            New::Like => Old::Equal, // 简化处理
-            New::In => Old::Equal, // 简化处理
-            New::Union => Old::Add, // 简化处理
-            New::Intersect => Old::And, // 简化处理
-            New::Except => Old::Subtract, // 简化处理
+            // Handle other new operators with approximate mappings
+            New::StringConcat => Old::Add, // Approximate mapping
+            New::Like => Old::Eq, // Approximate mapping
+            New::In => Old::In, // Direct mapping
+            New::Union => Old::Add, // Approximate mapping
+            New::Intersect => Old::And, // Approximate mapping
+            New::Except => Old::Sub, // Approximate mapping
         }
     }
     
     fn convert_unary_operator(old_op: &super::unary::UnaryOperator) -> super::expression_v2::UnaryOperator {
         use super::unary::UnaryOperator as Old;
         use super::expression_v2::UnaryOperator as New;
-        
+
         match old_op {
             Old::Plus => New::Plus,
             Old::Minus => New::Minus,
@@ -286,15 +296,15 @@ impl ExpressionConverter {
     fn convert_unary_operator_back(new_op: &super::expression_v2::UnaryOperator) -> super::unary::UnaryOperator {
         use super::unary::UnaryOperator as Old;
         use super::expression_v2::UnaryOperator as New;
-        
+
         match new_op {
             New::Plus => Old::Plus,
             New::Minus => Old::Minus,
             New::Not => Old::Not,
-            New::IsNull => Old::Not, // 简化处理
-            New::IsNotNull => Old::Not, // 简化处理
-            New::IsEmpty => Old::Not, // 简化处理
-            New::IsNotEmpty => Old::Not, // 简化处理
+            New::IsNull => Old::Not, // Approximate mapping - not directly supported in old system
+            New::IsNotNull => Old::Not, // Approximate mapping - not directly supported in old system
+            New::IsEmpty => Old::Not, // Approximate mapping - not directly supported in old system
+            New::IsNotEmpty => Old::Not, // Approximate mapping - not directly supported in old system
             New::Increment => Old::Increment,
             New::Decrement => Old::Decrement,
         }
@@ -375,17 +385,17 @@ impl<'a> ExpressionContext for ContextAdapter<'a> {
                         return Ok(value);
                     }
                 }
-                Err(DBError::Expression(format!("Property '{}' not found in vertex", property)))
+                Err(DBError::Expression(crate::core::error::ExpressionError::PropertyNotFound(format!("Property '{}' not found in vertex", property))))
             }
             Value::Edge(edge) => {
                 edge.props.get(property)
-                    .ok_or_else(|| DBError::Expression(format!("Property '{}' not found in edge", property)))
+                    .ok_or_else(|| DBError::Expression(crate::core::error::ExpressionError::PropertyNotFound(format!("Property '{}' not found in edge", property))))
             }
             Value::Map(map) => {
                 map.get(property)
-                    .ok_or_else(|| DBError::Expression(format!("Property '{}' not found in map", property)))
+                    .ok_or_else(|| DBError::Expression(crate::core::error::ExpressionError::PropertyNotFound(format!("Property '{}' not found in map", property))))
             }
-            _ => Err(DBError::Expression(format!("Cannot access property on type {:?}", object))),
+            _ => Err(DBError::Expression(crate::core::error::ExpressionError::TypeError(format!("Cannot access property on type {:?}", object)))),
         }
     }
 
@@ -410,14 +420,13 @@ impl CompatibilityEvaluator {
     }
     
     /// 求值旧表达式
-    pub fn evaluate_old(&self, old_expr: &OldExpression, old_context: &super::context::EvalContext) -> Result<Value, String> {
+    pub fn evaluate_old(&self, old_expr: &OldExpression, old_context: &super::context::EvalContext) -> DBResult<Value> {
         // 转换为新表达式和新上下文
         let new_expr = ExpressionConverter::convert_old_to_new(old_expr);
         let new_context = ContextAdapter::new(old_context);
-        
+
         // 使用新求值器求值
         self.new_evaluator.evaluate(&new_expr, &new_context)
-            .map_err(|e| e.to_string())
     }
 }
 

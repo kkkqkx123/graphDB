@@ -2,7 +2,7 @@
 use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind};
 use super::plan_node_visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use super::common::{TagProp, EdgeProp};
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 
 // 获取顶点的计划节点
 #[derive(Debug)]

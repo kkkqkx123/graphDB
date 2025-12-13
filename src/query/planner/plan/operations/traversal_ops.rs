@@ -421,12 +421,13 @@ pub struct AppendVertices {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub space_id: i32,
+    pub vids: Vec<crate::core::Value>, // 顶点ID列表
     pub tag_ids: Vec<i32>,  // 标签ID列表
     pub filter: Option<String>,  // 过滤条件
 }
 
 impl AppendVertices {
-    pub fn new(id: i64, space_id: i32, tag_ids: Vec<i32>) -> Self {
+    pub fn new(id: i64, space_id: i32, vids: Vec<crate::core::Value>, tag_ids: Vec<i32>) -> Self {
         Self {
             id,
             kind: PlanNodeKind::AppendVertices,
@@ -435,6 +436,7 @@ impl AppendVertices {
             col_names: Vec::new(),
             cost: 0.0,
             space_id,
+            vids,
             tag_ids,
             filter: None,
         }
@@ -451,6 +453,7 @@ impl Clone for AppendVertices {
             col_names: self.col_names.clone(),
             cost: self.cost,
             space_id: self.space_id,
+            vids: self.vids.clone(),
             tag_ids: self.tag_ids.clone(),
             filter: self.filter.clone(),
         }

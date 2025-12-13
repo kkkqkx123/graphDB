@@ -2,10 +2,10 @@
 //! 如ScanVertices、ScanEdges、IndexScan等
 //! 包括顶点扫描、边扫描、索引扫描等操作
 
+use super::common::{EdgeProp, TagProp};
 use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind};
-use crate::query::validator::Variable;
-use super::plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
-use super::common::{TagProp, EdgeProp};
+use super::plan_node_visitor::{PlanNodeVisitError, PlanNodeVisitor};
+use crate::query::context::validate::types::Variable;
 
 // 扫描顶点的计划节点
 #[derive(Debug)]
@@ -17,7 +17,7 @@ pub struct ScanVertices {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub space_id: i32,
-    pub tag_id: Option<i32>,  // 特定标签ID，如果为空则扫描所有标签
+    pub tag_id: Option<i32>, // 特定标签ID，如果为空则扫描所有标签
     pub limit: Option<i64>,
     pub filter: Option<String>,
     pub props: Vec<TagProp>,
@@ -124,11 +124,11 @@ pub struct IndexScan {
     pub space_id: i32,
     pub tag_id: i32,
     pub index_id: i32,
-    pub scan_type: String,  // "RANGE", "PREFIX", "UNIQUE"等
-    pub scan_limits: Vec<IndexLimit>,  // 索引扫描限制
+    pub scan_type: String,            // "RANGE", "PREFIX", "UNIQUE"等
+    pub scan_limits: Vec<IndexLimit>, // 索引扫描限制
     pub filter: Option<String>,
     pub return_columns: Vec<String>,
-    pub limit: Option<i64>,           // 限制返回的记录数量
+    pub limit: Option<i64>, // 限制返回的记录数量
 }
 
 #[derive(Debug, Clone)]
@@ -252,7 +252,7 @@ pub struct FulltextIndexScan {
     pub cost: f64,
     pub space_id: i32,
     pub index_name: String,
-    pub query: String,  // 全文检索查询
+    pub query: String, // 全文检索查询
     pub limit: Option<i64>,
 }
 
@@ -342,4 +342,3 @@ impl BasePlanNode for FulltextIndexScan {
         self.cost = cost;
     }
 }
-

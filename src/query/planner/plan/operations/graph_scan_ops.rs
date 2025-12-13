@@ -22,6 +22,7 @@ pub struct GetVertices {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub space_id: i32,
+    pub src_ref: crate::graph::expression::expr_type::Expression, // 源引用
     pub src_vids: String,        // 源顶点表达式
     pub tag_props: Vec<TagProp>, // 标签属性
     pub expr: Option<String>,    // 过滤表达式
@@ -39,6 +40,7 @@ impl GetVertices {
             col_names: Vec::new(),
             cost: 0.0,
             space_id,
+            src_ref: crate::graph::expression::expr_type::Expression::Variable(src_vids.to_string()),
             src_vids: src_vids.to_string(),
             tag_props: Vec::new(),
             expr: None,
@@ -66,6 +68,7 @@ impl Clone for GetVertices {
             col_names: self.col_names.clone(),
             cost: self.cost,
             space_id: self.space_id,
+            src_ref: self.src_ref.clone(),
             src_vids: self.src_vids.clone(),
             tag_props: self.tag_props.clone(),
             expr: self.expr.clone(),
@@ -167,6 +170,7 @@ pub struct GetEdges {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub space_id: i32,
+    pub edge_ref: crate::graph::expression::expr_type::Expression, // 边引用
     pub src: String,               // 源顶点
     pub edge_type: String,         // 边类型
     pub rank: String,              // 排名
@@ -187,6 +191,7 @@ impl GetEdges {
             col_names: Vec::new(),
             cost: 0.0,
             space_id,
+            edge_ref: crate::graph::expression::expr_type::Expression::Variable(format!("{}->{}@{}", src, dst, edge_type)),
             src: src.to_string(),
             edge_type: edge_type.to_string(),
             rank: rank.to_string(),
@@ -217,6 +222,7 @@ impl Clone for GetEdges {
             col_names: self.col_names.clone(),
             cost: self.cost,
             space_id: self.space_id,
+            edge_ref: self.edge_ref.clone(),
             src: self.src.clone(),
             edge_type: self.edge_type.clone(),
             rank: self.rank.clone(),

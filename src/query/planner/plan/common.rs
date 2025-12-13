@@ -2,7 +2,7 @@
 
 use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind};
 use crate::query::planner::plan::core::visitor::{PlanNodeVisitError, PlanNodeVisitor};
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 
 // 标签属性结构
 #[derive(Debug, Clone)]

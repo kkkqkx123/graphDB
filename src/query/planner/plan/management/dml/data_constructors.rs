@@ -5,7 +5,7 @@ use crate::query::planner::plan::core::{
     plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
 /// 创建新顶点计划节点

@@ -128,12 +128,12 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
                         rows,
                     })
                 }
-                _ => Err(DBError::Query(crate::query::QueryError::ExecutionError(
+                _ => Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
                     "Limit executor expects DataSet, Values, Vertices, or Edges input".to_string(),
                 ))),
             }
         } else {
-            Err(DBError::Query(crate::query::QueryError::ExecutionError(
+            Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
                 "Limit executor requires input executor".to_string(),
             )))
         }

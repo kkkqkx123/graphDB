@@ -87,7 +87,9 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                     state.execution_results.insert(executor_id, res.clone());
                 },
                 Err(e) => {
-                    state.set_failure(e.clone());
+                    // Convert the error to QueryError for the state
+                    let query_error = QueryError::ExecutionError(e.to_string());
+                    state.set_failure(query_error);
                 }
             }
         }

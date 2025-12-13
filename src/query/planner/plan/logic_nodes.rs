@@ -3,7 +3,7 @@
 
 use std::fmt::Debug;
 use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind, SingleInputNode, SingleDependencyNode};
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 use super::plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
 
 /// StartNode - 一个特殊的叶子节点，帮助调度器正常工作

@@ -1,7 +1,7 @@
 //! 连接操作计划节点定义
 use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind};
 use super::plan_node_visitor::{PlanNodeVisitError, PlanNodeVisitor};
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 
 // 哈希左连接计划节点
 #[derive(Debug)]

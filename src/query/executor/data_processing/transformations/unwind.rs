@@ -263,6 +263,11 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     "Cannot unwind count result".to_string(),
                 )));
             }
+            ExecutionResult::Error(e) => {
+                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
+                    format!("Error in input result: {}", e),
+                )));
+            }
         }
 
         Ok(dataset)

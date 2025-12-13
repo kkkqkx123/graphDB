@@ -3,8 +3,9 @@
 
 use crate::query::planner::plan::core::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::planner::plan::core::PlanNodeKind;
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 use std::any::Any;
+use std::sync::Arc;
 
 /// PlanNode特征，所有计划节点都应实现该特征
 pub trait PlanNode: std::fmt::Debug + Send + Sync {
@@ -15,7 +16,7 @@ pub trait PlanNode: std::fmt::Debug + Send + Sync {
     fn kind(&self) -> PlanNodeKind;
 
     /// 获取节点的依赖节点列表
-    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>>;
+    fn dependencies(&self) -> &Vec<Arc<dyn PlanNode>>;
 
     /// 获取节点的输出变量
     fn output_var(&self) -> &Option<Variable>;
@@ -27,13 +28,13 @@ pub trait PlanNode: std::fmt::Debug + Send + Sync {
     fn cost(&self) -> f64;
 
     /// 克隆节点
-    fn clone_plan_node(&self) -> Box<dyn PlanNode>;
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode>;
 
     /// 使用访问者模式访问节点
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError>;
 
     /// 设置节点的依赖
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>);
+    fn set_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>);
 
     /// 设置节点的输出变量
     fn set_output_var(&mut self, var: Variable);
@@ -53,7 +54,7 @@ pub trait PlanNode: std::fmt::Debug + Send + Sync {
 pub struct SingleDependencyNode {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub dependencies: Vec<Box<dyn PlanNode>>,
+    pub dependencies: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -75,7 +76,7 @@ impl Clone for SingleDependencyNode {
 }
 
 impl SingleDependencyNode {
-    pub fn new(kind: PlanNodeKind, dep: Box<dyn PlanNode>) -> Self {
+    pub fn new(kind: PlanNodeKind, dep: Arc<dyn PlanNode>) -> Self {
         Self {
             id: -1, // 将在后续分配
             kind,
@@ -96,7 +97,7 @@ impl PlanNode for SingleDependencyNode {
         self.kind.clone()
     }
 
-    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> {
+    fn dependencies(&self) -> &Vec<Arc<dyn PlanNode>> {
         &self.dependencies
     }
 
@@ -112,8 +113,8 @@ impl PlanNode for SingleDependencyNode {
         self.cost
     }
 
-    fn clone_plan_node(&self) -> Box<dyn PlanNode> {
-        Box::new(SingleDependencyNode {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(SingleDependencyNode {
             id: self.id,
             kind: self.kind.clone(),
             dependencies: self
@@ -134,7 +135,7 @@ impl PlanNode for SingleDependencyNode {
         Ok(())
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>) {
+    fn set_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
         self.dependencies = deps;
     }
 
@@ -156,7 +157,7 @@ impl PlanNode for SingleDependencyNode {
 pub struct SingleInputNode {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub dependencies: Vec<Box<dyn PlanNode>>,
+    pub dependencies: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -178,7 +179,7 @@ impl Clone for SingleInputNode {
 }
 
 impl SingleInputNode {
-    pub fn new(kind: PlanNodeKind, dep: Box<dyn PlanNode>) -> Self {
+    pub fn new(kind: PlanNodeKind, dep: Arc<dyn PlanNode>) -> Self {
         Self {
             id: -1, // 将在后续分配
             kind,
@@ -199,7 +200,7 @@ impl PlanNode for SingleInputNode {
         self.kind.clone()
     }
 
-    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> {
+    fn dependencies(&self) -> &Vec<Arc<dyn PlanNode>> {
         &self.dependencies
     }
 
@@ -215,8 +216,8 @@ impl PlanNode for SingleInputNode {
         self.cost
     }
 
-    fn clone_plan_node(&self) -> Box<dyn PlanNode> {
-        Box::new(SingleInputNode {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(SingleInputNode {
             id: self.id,
             kind: self.kind.clone(),
             dependencies: self
@@ -237,7 +238,7 @@ impl PlanNode for SingleInputNode {
         Ok(())
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>) {
+    fn set_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
         self.dependencies = deps;
     }
 
@@ -259,7 +260,7 @@ impl PlanNode for SingleInputNode {
 pub struct BinaryInputNode {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub dependencies: Vec<Box<dyn PlanNode>>,
+    pub dependencies: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -281,7 +282,7 @@ impl Clone for BinaryInputNode {
 }
 
 impl BinaryInputNode {
-    pub fn new(kind: PlanNodeKind, left: Box<dyn PlanNode>, right: Box<dyn PlanNode>) -> Self {
+    pub fn new(kind: PlanNodeKind, left: Arc<dyn PlanNode>, right: Arc<dyn PlanNode>) -> Self {
         Self {
             id: -1, // 将在后续分配
             kind,
@@ -302,7 +303,7 @@ impl PlanNode for BinaryInputNode {
         self.kind.clone()
     }
 
-    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> {
+    fn dependencies(&self) -> &Vec<Arc<dyn PlanNode>> {
         &self.dependencies
     }
 
@@ -318,8 +319,8 @@ impl PlanNode for BinaryInputNode {
         self.cost
     }
 
-    fn clone_plan_node(&self) -> Box<dyn PlanNode> {
-        Box::new(BinaryInputNode {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(BinaryInputNode {
             id: self.id,
             kind: self.kind.clone(),
             dependencies: self
@@ -340,7 +341,7 @@ impl PlanNode for BinaryInputNode {
         Ok(())
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>) {
+    fn set_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
         self.dependencies = deps;
     }
 
@@ -362,7 +363,7 @@ impl PlanNode for BinaryInputNode {
 pub struct VariableDependencyNode {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub dependencies: Vec<Box<dyn PlanNode>>,
+    pub dependencies: Vec<Arc<dyn PlanNode>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -395,7 +396,7 @@ impl VariableDependencyNode {
         }
     }
 
-    pub fn add_dependency(&mut self, dep: Box<dyn PlanNode>) {
+    pub fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.dependencies.push(dep);
     }
 }
@@ -409,7 +410,7 @@ impl PlanNode for VariableDependencyNode {
         self.kind.clone()
     }
 
-    fn dependencies(&self) -> &Vec<Box<dyn PlanNode>> {
+    fn dependencies(&self) -> &Vec<Arc<dyn PlanNode>> {
         &self.dependencies
     }
 
@@ -425,8 +426,8 @@ impl PlanNode for VariableDependencyNode {
         self.cost
     }
 
-    fn clone_plan_node(&self) -> Box<dyn PlanNode> {
-        Box::new(VariableDependencyNode {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(VariableDependencyNode {
             id: self.id,
             kind: self.kind.clone(),
             dependencies: self
@@ -447,7 +448,7 @@ impl PlanNode for VariableDependencyNode {
         Ok(())
     }
 
-    fn set_dependencies(&mut self, deps: Vec<Box<dyn PlanNode>>) {
+    fn set_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
         self.dependencies = deps;
     }
 

@@ -54,24 +54,23 @@ impl Planner for MaintainPlanner {
         let stmt_type = maintain_ctx.base.statement_type().to_uppercase();
 
         // 1. 创建参数节点来接收操作参数
-        let mut arg_node = Box::new(Argument::new(1, "maintain_args"));
-        arg_node.set_col_names(vec!["args".to_string()]);
-        arg_node.set_output_var(Variable {
+        let mut arg_node = Arc::new(Argument::new(1, "maintain_args"));
+        std::sync::Arc::get_mut(&mut arg_node).unwrap().set_col_names(vec!["args".to_string()]);
+        std::sync::Arc::get_mut(&mut arg_node).unwrap().set_output_var(Variable {
             name: "maintain_args".to_string(),
             columns: vec![],
         });
-        let arg_node: std::sync::Arc<dyn PlanNode> = std::sync::Arc::new(*arg_node);
 
         // 2. 根据不同类型创建相应的计划节点
-        let mut project_node = Box::new(Project::new(2, &format!("MAINTAIN_{}", stmt_type)));
-        project_node.set_dependencies(vec![arg_node.clone_plan_node()]);
-        project_node.set_output_var(Variable {
+        let mut project_node = Arc::new(Project::new(2, &format!("MAINTAIN_{}", stmt_type)));
+        std::sync::Arc::get_mut(&mut project_node).unwrap().set_dependencies(vec![arg_node.clone_plan_node()]);
+        std::sync::Arc::get_mut(&mut project_node).unwrap().set_output_var(Variable {
             name: "maintain_result".to_string(),
             columns: vec![],
         });
 
         // 3. 不同类型的操作可能需要不同处理
-        let final_node = if stmt_type == "SUBMIT JOB" {
+        let final_node: Arc<dyn PlanNode> = if stmt_type == "SUBMIT JOB" {
             // 提交作业类型的维护操作
             project_node
         } else if stmt_type.starts_with("CREATE") {

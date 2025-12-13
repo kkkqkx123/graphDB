@@ -5,11 +5,13 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::Value;
-use crate::graph::expression::{EvalContext, ExpressionV1 as Expression, ExpressionEvaluator};
-use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
+use crate::core::Value;
+use crate::graph::expression::{EvalContext, ExpressionEvaluator, ExpressionV1 as Expression};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::storage::StorageEngine;
 
 /// 循环状态
@@ -68,7 +70,9 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
                 let result = self
                     .evaluator
                     .evaluate(expr, &self.loop_context)
-                    .map_err(|e| DBError::Expression(crate::graph::expression::ExpressionError::FunctionError(e.to_string())))?;
+                    .map_err(|e| {
+                        crate::graph::expression::ExpressionError::FunctionError(e.to_string()).into()
+                    })?;
 
                 Ok(self.value_to_bool(&result))
             }
@@ -147,6 +151,7 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
                 ExecutionResult::DataSet(dataset) => all_datasets.push(dataset.clone()),
                 ExecutionResult::Count(count) => all_values.push(Value::Int(*count as i64)),
                 ExecutionResult::Success => {}
+                ExecutionResult::Error(_) => {} // Ignore error results or handle as needed
             }
         }
 
@@ -598,7 +603,7 @@ mod tests {
 
     #[async_trait]
     impl<S: StorageEngine + Send + 'static> ExecutorCore for CountExecutor {
-        async fn execute(&mut self) -> Result<ExecutionResult, QueryError> {
+        async fn execute(&mut self) -> DBResult<ExecutionResult> {
             if self.count < self.max_count {
                 self.count += 1;
                 Ok(ExecutionResult::Values(vec![Value::Int(self.count)]))
@@ -609,10 +614,10 @@ mod tests {
     }
 
     impl<S: StorageEngine> ExecutorLifecycle for CountExecutor {
-        fn open(&mut self) -> Result<(), QueryError> {
+        fn open(&mut self) -> DBResult<()> {
             Ok(())
         }
-        fn close(&mut self) -> Result<(), QueryError> {
+        fn close(&mut self) -> DBResult<()> {
             Ok(())
         }
         fn is_open(&self) -> bool {

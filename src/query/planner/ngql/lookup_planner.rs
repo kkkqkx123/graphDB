@@ -5,7 +5,7 @@ use crate::query::context::{AstContext, LookupContext};
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::{Filter, Project, Dedup};
 
 /// LOOKUP查询规划器

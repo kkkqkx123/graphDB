@@ -116,6 +116,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for TopNExecutor<S> {
                 ExecutionResult::Count(std::cmp::min(count, self.n))
             }
             ExecutionResult::Success => ExecutionResult::Success,
+            ExecutionResult::Error(e) => ExecutionResult::Error(e),
         };
 
         Ok(top_n_result)

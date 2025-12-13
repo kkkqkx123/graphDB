@@ -1,7 +1,7 @@
 //! 排序和限制计划节点定义
 use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind};
 use super::plan_node_visitor::{PlanNodeVisitError, PlanNodeVisitor};
-use crate::query::validator::Variable;
+use crate::query::context::validate::types::Variable;
 
 // 排序节点
 #[derive(Debug)]
