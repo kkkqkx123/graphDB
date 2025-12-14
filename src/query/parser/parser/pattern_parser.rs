@@ -160,10 +160,10 @@ impl super::Parser {
     pub fn parse_where_clause(&mut self) -> Result<WhereClause, ParseError> {
         self.next_token(); // Skip WHERE
         let condition = self.parse_expression()?;
-        Ok(WhereClause { condition })
+        Ok(WhereClause { expression: condition })
     }
 
-    pub fn parse_return_clause(&mut self) -> Result<ReturnClause, ParseError> {
+    pub fn parse_return_clause(&mut self) -> Result<crate::query::parser::ast::compat::ReturnClause, ParseError> {
         self.next_token(); // Skip RETURN
 
         let distinct = if self.current_token.kind == TokenKind::Distinct {
@@ -184,7 +184,7 @@ impl super::Parser {
             }
 
             if self.current_token.kind == TokenKind::Star {
-                items.push(ReturnItem::Asterisk);
+                items.push(ReturnItem::All);
                 self.next_token();
             } else {
                 let expr = self.parse_expression()?;
@@ -208,31 +208,9 @@ impl super::Parser {
             self.next_token(); // Skip comma
         }
 
-        // Check for optional ORDER BY, LIMIT, SKIP
-        let order_by = if self.current_token.kind == TokenKind::Order {
-            Some(self.parse_order_by_clause()?)
-        } else {
-            None
-        };
-
-        let limit = if self.current_token.kind == TokenKind::Limit {
-            Some(self.parse_limit_clause()?)
-        } else {
-            None
-        };
-
-        let skip = if self.current_token.kind == TokenKind::Skip {
-            Some(self.parse_skip_clause()?)
-        } else {
-            None
-        };
-
         Ok(ReturnClause {
             distinct,
             items,
-            order_by,
-            limit,
-            skip,
         })
     }
 
@@ -247,15 +225,15 @@ impl super::Parser {
 
             let order = if self.current_token.kind == TokenKind::Asc || self.current_token.kind == TokenKind::Ascending {
                 self.next_token();
-                OrderType::Asc
+                "ASC"
             } else if self.current_token.kind == TokenKind::Desc || self.current_token.kind == TokenKind::Descending {
                 self.next_token();
-                OrderType::Desc
+                "DESC"
             } else {
-                OrderType::Asc // Default to ascending
+                "ASC" // Default to ascending
             };
 
-            items.push(OrderByItem { expr, order });
+            items.push(OrderByItem { expression: expr, ascending: order == "ASC" });
 
             if self.current_token.kind != TokenKind::Comma {
                 break;
@@ -266,15 +244,13 @@ impl super::Parser {
         Ok(OrderByClause { items })
     }
 
-    pub fn parse_limit_clause(&mut self) -> Result<LimitClause, ParseError> {
+    pub fn parse_limit_clause(&mut self) -> Result<Box<dyn Expression>, ParseError> {
         self.next_token(); // Skip LIMIT
-        let expr = self.parse_expression()?;
-        Ok(LimitClause { expr })
+        self.parse_expression()
     }
 
-    pub fn parse_skip_clause(&mut self) -> Result<SkipClause, ParseError> {
+    pub fn parse_skip_clause(&mut self) -> Result<Box<dyn Expression>, ParseError> {
         self.next_token(); // Skip SKIP
-        let expr = self.parse_expression()?;
-        Ok(SkipClause { expr })
+        self.parse_expression()
     }
 }

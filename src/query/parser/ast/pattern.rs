@@ -19,13 +19,35 @@ impl BasePattern {
 }
 
 /// 节点模式
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct NodePattern {
     pub base: BasePattern,
     pub identifier: Option<String>,
     pub labels: Vec<String>,
     pub properties: Option<Box<dyn Expression>>,
     pub predicates: Vec<Box<dyn Expression>>,
+}
+
+impl Clone for NodePattern {
+    fn clone(&self) -> Self {
+        Self {
+            base: self.base.clone(),
+            identifier: self.identifier.clone(),
+            labels: self.labels.clone(),
+            properties: self.properties.as_ref().map(|expr| super::Expression::clone_box(expr)),
+            predicates: self.predicates.iter().map(|expr| super::Expression::clone_box(expr)).collect(),
+        }
+    }
+}
+
+impl PartialEq for NodePattern {
+    fn eq(&self, other: &Self) -> bool {
+        self.base == other.base &&
+        self.identifier == other.identifier &&
+        self.labels == other.labels &&
+        self.properties.is_some() == other.properties.is_some() &&
+        self.predicates.len() == other.predicates.len()
+    }
 }
 
 impl NodePattern {
@@ -97,13 +119,17 @@ impl Pattern for NodePattern {
         self.base.pattern_type
     }
     
-    fn variables(&self) -> Vec<&str> {
-        self.identifier.as_ref().map(|id| id.as_str()).into_iter().collect()
+    fn variables(&self) -> Vec<String> {
+        self.identifier.as_ref().map(|id| id.clone()).into_iter().collect()
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
 /// 边模式
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct EdgePattern {
     pub base: BasePattern,
     pub identifier: Option<String>,
@@ -112,6 +138,32 @@ pub struct EdgePattern {
     pub properties: Option<Box<dyn Expression>>,
     pub predicates: Vec<Box<dyn Expression>>,
     pub range: Option<EdgeRange>,
+}
+
+impl Clone for EdgePattern {
+    fn clone(&self) -> Self {
+        Self {
+            base: self.base.clone(),
+            identifier: self.identifier.clone(),
+            edge_type: self.edge_type.clone(),
+            direction: self.direction.clone(),
+            properties: self.properties.as_ref().map(|expr| super::Expression::clone_box(expr)),
+            predicates: self.predicates.iter().map(|expr| super::Expression::clone_box(expr)).collect(),
+            range: self.range.clone(),
+        }
+    }
+}
+
+impl PartialEq for EdgePattern {
+    fn eq(&self, other: &Self) -> bool {
+        self.base == other.base &&
+        self.identifier == other.identifier &&
+        self.edge_type == other.edge_type &&
+        self.direction == other.direction &&
+        self.properties.is_some() == other.properties.is_some() &&
+        self.predicates.len() == other.predicates.len() &&
+        self.range == other.range
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -231,8 +283,12 @@ impl Pattern for EdgePattern {
         self.base.pattern_type
     }
     
-    fn variables(&self) -> Vec<&str> {
-        self.identifier.as_ref().map(|id| id.as_str()).into_iter().collect()
+    fn variables(&self) -> Vec<String> {
+        self.identifier.as_ref().map(|id| id.clone()).into_iter().collect()
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -250,6 +306,127 @@ pub enum PathElement {
     Alternative(Vec<PathPattern>), // (pattern1 | pattern2)
     Optional(Box<PathElement>),      // [pattern]
     Repeated(Box<PathElement>, RepetitionType), // pattern*
+}
+
+impl AstNode for PathElement {
+    fn span(&self) -> Span {
+        match self {
+            PathElement::Node(node) => node.span(),
+            PathElement::Edge(edge) => edge.span(),
+            PathElement::Alternative(patterns) => {
+                if let Some(first) = patterns.first() {
+                    first.span()
+                } else {
+                    Span::default()
+                }
+            }
+            PathElement::Optional(elem) => elem.span(),
+            PathElement::Repeated(elem, _) => elem.span(),
+        }
+    }
+
+    fn accept(&self, visitor: &mut dyn super::Visitor) -> super::VisitorResult {
+        match self {
+            PathElement::Node(node) => node.accept(visitor),
+            PathElement::Edge(edge) => edge.accept(visitor),
+            PathElement::Alternative(patterns) => {
+                for pattern in patterns {
+                    pattern.accept(visitor)?;
+                }
+                Ok(())
+            }
+            PathElement::Optional(elem) => elem.accept(visitor),
+            PathElement::Repeated(elem, _) => elem.accept(visitor),
+        }
+    }
+
+    fn node_type(&self) -> &'static str {
+        "PathElement"
+    }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
+
+    fn clone_box(&self) -> Box<dyn AstNode> {
+        Box::new(self.clone())
+    }
+}
+
+impl Pattern for PathElement {
+    fn pattern_type(&self) -> PatternType {
+        match self {
+            PathElement::Node(node) => node.pattern_type(),
+            PathElement::Edge(edge) => edge.pattern_type(),
+            PathElement::Alternative(patterns) => {
+                if let Some(first) = patterns.first() {
+                    first.pattern_type()
+                } else {
+                    PatternType::Path
+                }
+            }
+            PathElement::Optional(elem) => elem.pattern_type(),
+            PathElement::Repeated(elem, _) => elem.pattern_type(),
+        }
+    }
+
+    fn variables(&self) -> Vec<String> {
+        match self {
+            PathElement::Node(node) => node.variables(),
+            PathElement::Edge(edge) => edge.variables(),
+            PathElement::Alternative(patterns) => {
+                if let Some(first) = patterns.first() {
+                    first.variables()
+                } else {
+                    Vec::new()
+                }
+            }
+            PathElement::Optional(elem) => elem.variables(),
+            PathElement::Repeated(elem, _) => elem.variables(),
+        }
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+// 为 Box<PathElement> 实现 AstNode trait
+impl AstNode for Box<PathElement> {
+    fn span(&self) -> Span {
+        self.as_ref().span()
+    }
+
+    fn accept(&self, visitor: &mut dyn super::Visitor) -> super::VisitorResult {
+        self.as_ref().accept(visitor)
+    }
+
+    fn node_type(&self) -> &'static str {
+        self.as_ref().node_type()
+    }
+
+    fn to_string(&self) -> String {
+        super::AstNode::to_string(self.as_ref())
+    }
+
+    fn clone_box(&self) -> Box<dyn AstNode> {
+        Box::new(self.clone())
+    }
+}
+
+// 为 Box<PathElement> 实现 Pattern trait
+impl Pattern for Box<PathElement> {
+    fn pattern_type(&self) -> PatternType {
+        self.as_ref().pattern_type()
+    }
+
+    fn variables(&self) -> Vec<String> {
+        self.as_ref().variables()
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self.as_ref().as_any()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -296,7 +473,7 @@ impl AstNode for PathPattern {
     
     fn to_string(&self) -> String {
         self.elements.iter()
-            .map(|elem| elem.to_string())
+            .map(|elem| super::AstNode::to_string(elem))
             .collect::<Vec<_>>()
             .join("")
     }
@@ -311,7 +488,7 @@ impl Pattern for PathPattern {
         self.base.pattern_type
     }
     
-    fn variables(&self) -> Vec<&str> {
+    fn variables(&self) -> Vec<String> {
         let mut variables = Vec::new();
         
         for element in &self.elements {
@@ -339,6 +516,10 @@ impl Pattern for PathPattern {
         
         variables
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl fmt::Display for PathElement {
@@ -348,13 +529,13 @@ impl fmt::Display for PathElement {
             PathElement::Edge(edge) => write!(f, "{}", edge.to_string()),
             PathElement::Alternative(patterns) => {
                 let pattern_strs: Vec<String> = patterns.iter()
-                    .map(|p| p.to_string())
+                    .map(|p| super::AstNode::to_string(p))
                     .collect();
                 write!(f, "({})", pattern_strs.join(" | "))
             }
-            PathElement::Optional(elem) => write!(f, "[{}]", elem.to_string()),
+            PathElement::Optional(elem) => write!(f, "[{}]", super::AstNode::to_string(elem)),
             PathElement::Repeated(elem, rep_type) => {
-                write!(f, "{}{}", elem.to_string(), rep_type.to_string())
+                write!(f, "{}{}", super::AstNode::to_string(elem), rep_type.to_string())
             }
         }
     }
@@ -418,8 +599,12 @@ impl Pattern for VariablePattern {
         self.base.pattern_type
     }
     
-    fn variables(&self) -> Vec<&str> {
-        vec![self.name.as_str()]
+    fn variables(&self) -> Vec<String> {
+        vec![self.name.clone()]
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

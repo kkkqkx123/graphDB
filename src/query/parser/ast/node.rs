@@ -69,6 +69,14 @@ impl Expression for ConstantExpr {
     fn children(&self) -> Vec<Box<dyn Expression>> {
         vec![]
     }
+    
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Box::new(self.clone())
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 变量表达式节点
@@ -118,13 +126,21 @@ impl Expression for VariableExpr {
         false
     }
     
-    fn children(&self) -> Vec<&dyn Expression> {
+    fn children(&self) -> Vec<Box<dyn Expression>> {
         vec![]
+    }
+    
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Box::new(self.clone())
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
 /// 二元表达式节点
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct BinaryExpr {
     pub base: BaseNode,
     pub left: Box<dyn Expression>,
@@ -193,7 +209,7 @@ impl AstNode for BinaryExpr {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(self.clone())
+        super::AstNode::clone_box(self)
     }
 }
 
@@ -212,8 +228,21 @@ impl Expression for BinaryExpr {
         self.left.is_constant() && self.right.is_constant()
     }
     
-    fn children(&self) -> Vec<&dyn Expression> {
-        vec![self.left.as_ref(), self.right.as_ref()]
+    fn children(&self) -> Vec<Box<dyn Expression>> {
+        vec![super::Expression::clone_box(&*self.left), super::Expression::clone_box(&*self.right)]
+    }
+    
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Box::new(BinaryExpr {
+            base: self.base.clone(),
+            left: super::Expression::clone_box(&*self.left),
+            op: self.op,
+            right: super::Expression::clone_box(&*self.right),
+        })
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -246,7 +275,7 @@ impl fmt::Display for BinaryOp {
 }
 
 /// 一元表达式节点
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct UnaryExpr {
     pub base: BaseNode,
     pub op: UnaryOp,
@@ -292,7 +321,7 @@ impl AstNode for UnaryExpr {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(self.clone())
+        super::AstNode::clone_box(self)
     }
 }
 
@@ -305,8 +334,20 @@ impl Expression for UnaryExpr {
         self.operand.is_constant()
     }
     
-    fn children(&self) -> Vec<&dyn Expression> {
-        vec![self.operand.as_ref()]
+    fn children(&self) -> Vec<Box<dyn Expression>> {
+        vec![super::Expression::clone_box(&*self.operand)]
+    }
+    
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Box::new(UnaryExpr {
+            base: self.base.clone(),
+            op: self.op,
+            operand: super::Expression::clone_box(&*self.operand),
+        })
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -325,7 +366,7 @@ impl fmt::Display for UnaryOp {
 }
 
 /// 函数调用表达式节点
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct FunctionCallExpr {
     pub base: BaseNode,
     pub name: String,
@@ -371,7 +412,7 @@ impl AstNode for FunctionCallExpr {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(self.clone())
+        super::AstNode::clone_box(self)
     }
 }
 
@@ -384,13 +425,26 @@ impl Expression for FunctionCallExpr {
         false // 函数调用通常不是常量
     }
     
-    fn children(&self) -> Vec<&dyn Expression> {
-        self.args.iter().map(|arg| arg.as_ref()).collect()
+    fn children(&self) -> Vec<Box<dyn Expression>> {
+        self.args.iter().map(|arg| super::Expression::clone_box(&**arg)).collect()
+    }
+    
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Box::new(FunctionCallExpr {
+            base: self.base.clone(),
+            name: self.name.clone(),
+            args: self.args.iter().map(|arg| super::Expression::clone_box(&**arg)).collect(),
+            distinct: self.distinct,
+        })
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
 /// 属性访问表达式节点
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct PropertyAccessExpr {
     pub base: BaseNode,
     pub object: Box<dyn Expression>,
@@ -425,7 +479,7 @@ impl AstNode for PropertyAccessExpr {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(self.clone())
+        super::AstNode::clone_box(self)
     }
 }
 
@@ -438,13 +492,25 @@ impl Expression for PropertyAccessExpr {
         false
     }
     
-    fn children(&self) -> Vec<&dyn Expression> {
-        vec![self.object.as_ref()]
+    fn children(&self) -> Vec<Box<dyn Expression>> {
+        vec![super::Expression::clone_box(&*self.object)]
+    }
+    
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Box::new(PropertyAccessExpr {
+            base: self.base.clone(),
+            object: super::Expression::clone_box(&*self.object),
+            property: self.property.clone(),
+        })
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
 /// 列表表达式节点
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct ListExpr {
     pub base: BaseNode,
     pub elements: Vec<Box<dyn Expression>>,
@@ -481,7 +547,7 @@ impl AstNode for ListExpr {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(self.clone())
+        super::AstNode::clone_box(self)
     }
 }
 
@@ -494,13 +560,24 @@ impl Expression for ListExpr {
         self.elements.iter().all(|elem| elem.is_constant())
     }
     
-    fn children(&self) -> Vec<&dyn Expression> {
-        self.elements.iter().map(|elem| elem.as_ref()).collect()
+    fn children(&self) -> Vec<Box<dyn Expression>> {
+        self.elements.iter().map(|elem| super::Expression::clone_box(&**elem)).collect()
+    }
+    
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Box::new(ListExpr {
+            base: self.base.clone(),
+            elements: self.elements.iter().map(|elem| super::Expression::clone_box(&**elem)).collect(),
+        })
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
 /// 映射表达式节点
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct MapExpr {
     pub base: BaseNode,
     pub pairs: Vec<(String, Box<dyn Expression>)>,
@@ -537,7 +614,7 @@ impl AstNode for MapExpr {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(self.clone())
+        super::AstNode::clone_box(self)
     }
 }
 
@@ -550,13 +627,24 @@ impl Expression for MapExpr {
         self.pairs.iter().all(|(_, value)| value.is_constant())
     }
     
-    fn children(&self) -> Vec<&dyn Expression> {
-        self.pairs.iter().map(|(_, value)| value.as_ref()).collect()
+    fn children(&self) -> Vec<Box<dyn Expression>> {
+        self.pairs.iter().map(|(_, value)| super::Expression::clone_box(&**value)).collect()
+    }
+    
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Box::new(MapExpr {
+            base: self.base.clone(),
+            pairs: self.pairs.iter().map(|(k, v)| (k.clone(), super::Expression::clone_box(&**v))).collect(),
+        })
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
 /// CASE 表达式节点
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct CaseExpr {
     pub base: BaseNode,
     pub match_expr: Option<Box<dyn Expression>>,
@@ -613,7 +701,7 @@ impl AstNode for CaseExpr {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(self.clone())
+        super::AstNode::clone_box(self)
     }
 }
 
@@ -637,28 +725,43 @@ impl Expression for CaseExpr {
         all_when_constant && default_constant && match_constant
     }
     
-    fn children(&self) -> Vec<&dyn Expression> {
+    fn children(&self) -> Vec<Box<dyn Expression>> {
         let mut children = Vec::new();
         
         if let Some(ref expr) = self.match_expr {
-            children.push(expr.as_ref());
+            children.push(super::Expression::clone_box(&**expr));
         }
         
         for (when, then) in &self.when_then_pairs {
-            children.push(when.as_ref());
-            children.push(then.as_ref());
+            children.push(super::Expression::clone_box(&**when));
+            children.push(super::Expression::clone_box(&**then));
         }
         
         if let Some(ref default) = self.default {
-            children.push(default.as_ref());
+            children.push(super::Expression::clone_box(&**default));
         }
         
         children
     }
+    
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Box::new(CaseExpr {
+            base: self.base.clone(),
+            match_expr: self.match_expr.as_ref().map(|expr| super::Expression::clone_box(&**expr)),
+            when_then_pairs: self.when_then_pairs.iter()
+                .map(|(when, then)| (super::Expression::clone_box(&**when), super::Expression::clone_box(&**then)))
+                .collect(),
+            default: self.default.as_ref().map(|expr| super::Expression::clone_box(&**expr)),
+        })
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 下标表达式节点
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct SubscriptExpr {
     pub base: BaseNode,
     pub collection: Box<dyn Expression>,
@@ -693,7 +796,7 @@ impl AstNode for SubscriptExpr {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(self.clone())
+        super::AstNode::clone_box(self)
     }
 }
 
@@ -706,13 +809,25 @@ impl Expression for SubscriptExpr {
         self.collection.is_constant() && self.index.is_constant()
     }
     
-    fn children(&self) -> Vec<&dyn Expression> {
-        vec![self.collection.as_ref(), self.index.as_ref()]
+    fn children(&self) -> Vec<Box<dyn Expression>> {
+        vec![super::Expression::clone_box(&*self.collection), super::Expression::clone_box(&*self.index)]
+    }
+    
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Box::new(SubscriptExpr {
+            base: self.base.clone(),
+            collection: super::Expression::clone_box(&*self.collection),
+            index: super::Expression::clone_box(&*self.index),
+        })
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
 /// 谓词表达式节点
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct PredicateExpr {
     pub base: BaseNode,
     pub predicate: PredicateType,
@@ -768,7 +883,7 @@ impl AstNode for PredicateExpr {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(self.clone())
+        super::AstNode::clone_box(self)
     }
 }
 
@@ -781,8 +896,21 @@ impl Expression for PredicateExpr {
         false // 谓词表达式通常不是常量
     }
     
-    fn children(&self) -> Vec<&dyn Expression> {
-        vec![self.list.as_ref(), self.condition.as_ref()]
+    fn children(&self) -> Vec<Box<dyn Expression>> {
+        vec![super::Expression::clone_box(&*self.list), super::Expression::clone_box(&*self.condition)]
+    }
+    
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Box::new(PredicateExpr {
+            base: self.base.clone(),
+            predicate: self.predicate,
+            list: super::Expression::clone_box(&*self.list),
+            condition: super::Expression::clone_box(&*self.condition),
+        })
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

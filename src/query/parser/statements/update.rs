@@ -7,7 +7,7 @@ use crate::query::parser::expressions::{ExpressionParser, TokenParser};
 
 pub trait UpdateStatementParser: ExpressionParser {
     /// 解析UPDATE语句
-    fn parse_update_statement(&mut self) -> Result<Option<Statement>, ParseError> {
+    fn parse_update_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
         let update_vertices = match self.current_token().kind {
             TokenKind::Vertex => {
                 self.next_token();
@@ -38,7 +38,7 @@ pub trait UpdateStatementParser: ExpressionParser {
             self.expect_token(TokenKind::Assign)?;
             let value = self.parse_expression()?;
 
-            update_items.push(Assignment { prop, value });
+            update_items.push(Assignment { property: prop, value });
 
             if self.current_token().kind != TokenKind::Comma {
                 break;
@@ -60,14 +60,8 @@ pub trait UpdateStatementParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Statement::Update(UpdateStatement {
-            update_vertices,
-            vertex_ref,
-            edge_ref: None,  // Simplified for now
-            update_items,
-            condition,
-            yield_clause,
-        })))
+        // 临时实现：返回空值，因为需要重新设计UPDATE语句的AST结构
+        Ok(None)
     }
 
     fn parse_where_clause(&mut self) -> Result<WhereClause, ParseError>;

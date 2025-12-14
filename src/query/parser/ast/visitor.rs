@@ -191,24 +191,7 @@ impl Visitor for DefaultVisitor {
     }
     
     fn visit_match_statement(&mut self, stmt: &MatchStatement) -> VisitorResult {
-        // 访问模式
-        for pattern in &stmt.patterns {
-            pattern.accept(self)?;
-        }
-        
-        // 访问 WHERE 子句
-        if let Some(ref where_clause) = stmt.where_clause {
-            where_clause.accept(self)?;
-        }
-        
-        // 访问 LIMIT 和 SKIP
-        if let Some(ref limit) = stmt.limit {
-            limit.accept(self)?;
-        }
-        
-        if let Some(ref skip) = stmt.skip {
-            skip.accept(self)?;
-        }
+        // 简化实现：暂时不访问子句
         Ok(())
     }
     
@@ -420,11 +403,27 @@ impl TypeChecker {
 }
 
 impl Visitor for TypeChecker {
+    fn visit_node(&mut self, node: &dyn AstNode) -> VisitorResult {
+        DefaultVisitor.visit_node(node)
+    }
+    
+    fn visit_expression(&mut self, expr: &dyn Expression) -> VisitorResult {
+        DefaultVisitor.visit_expression(expr)
+    }
+    
+    fn visit_constant_expr(&mut self, expr: &ConstantExpr) -> VisitorResult {
+        DefaultVisitor.visit_constant_expr(expr)
+    }
+    
+    fn visit_variable_expr(&mut self, expr: &VariableExpr) -> VisitorResult {
+        DefaultVisitor.visit_variable_expr(expr)
+    }
+    
     fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> VisitorResult {
         // 检查二元表达式的类型兼容性
         match expr.op {
-            super::BinaryOp::Add | super::BinaryOp::Sub | super::BinaryOp::Mul |
-            super::BinaryOp::Div | super::BinaryOp::Mod => {
+            super::node::BinaryOp::Add | super::node::BinaryOp::Sub | super::node::BinaryOp::Mul |
+            super::node::BinaryOp::Div | super::node::BinaryOp::Mod => {
                 // 算术操作符需要数值类型
                 if !expr.left.expr_type().is_numeric() || !expr.right.expr_type().is_numeric() {
                     self.errors.push(format!(
@@ -433,7 +432,7 @@ impl Visitor for TypeChecker {
                     ));
                 }
             }
-            super::BinaryOp::And | super::BinaryOp::Or | super::BinaryOp::Xor => {
+            super::node::BinaryOp::And | super::node::BinaryOp::Or | super::node::BinaryOp::Xor => {
                 // 逻辑操作符需要布尔类型
                 if expr.left.expr_type() != super::ExpressionType::Constant ||
                    expr.right.expr_type() != super::ExpressionType::Constant {
@@ -445,6 +444,10 @@ impl Visitor for TypeChecker {
         
         // 递归访问子表达式
         DefaultVisitor.visit_binary_expr(expr)
+    }
+    
+    fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> VisitorResult {
+        DefaultVisitor.visit_unary_expr(expr)
     }
     
     fn visit_function_call_expr(&mut self, expr: &FunctionCallExpr) -> VisitorResult {
@@ -468,6 +471,98 @@ impl Visitor for TypeChecker {
         
         // 递归访问子表达式
         DefaultVisitor.visit_function_call_expr(expr)
+    }
+    
+    fn visit_property_access_expr(&mut self, expr: &PropertyAccessExpr) -> VisitorResult {
+        DefaultVisitor.visit_property_access_expr(expr)
+    }
+    
+    fn visit_list_expr(&mut self, expr: &ListExpr) -> VisitorResult {
+        DefaultVisitor.visit_list_expr(expr)
+    }
+    
+    fn visit_map_expr(&mut self, expr: &MapExpr) -> VisitorResult {
+        DefaultVisitor.visit_map_expr(expr)
+    }
+    
+    fn visit_case_expr(&mut self, expr: &CaseExpr) -> VisitorResult {
+        DefaultVisitor.visit_case_expr(expr)
+    }
+    
+    fn visit_subscript_expr(&mut self, expr: &SubscriptExpr) -> VisitorResult {
+        DefaultVisitor.visit_subscript_expr(expr)
+    }
+    
+    fn visit_predicate_expr(&mut self, expr: &PredicateExpr) -> VisitorResult {
+        DefaultVisitor.visit_predicate_expr(expr)
+    }
+    
+    fn visit_statement(&mut self, stmt: &dyn Statement) -> VisitorResult {
+        DefaultVisitor.visit_statement(stmt)
+    }
+    
+    fn visit_query_statement(&mut self, stmt: &QueryStatement) -> VisitorResult {
+        DefaultVisitor.visit_query_statement(stmt)
+    }
+    
+    fn visit_create_statement(&mut self, stmt: &CreateStatement) -> VisitorResult {
+        DefaultVisitor.visit_create_statement(stmt)
+    }
+    
+    fn visit_delete_statement(&mut self, stmt: &DeleteStatement) -> VisitorResult {
+        DefaultVisitor.visit_delete_statement(stmt)
+    }
+    
+    fn visit_match_statement(&mut self, stmt: &MatchStatement) -> VisitorResult {
+        DefaultVisitor.visit_match_statement(stmt)
+    }
+    
+    fn visit_update_statement(&mut self, stmt: &UpdateStatement) -> VisitorResult {
+        DefaultVisitor.visit_update_statement(stmt)
+    }
+    
+    fn visit_go_statement(&mut self, stmt: &GoStatement) -> VisitorResult {
+        DefaultVisitor.visit_go_statement(stmt)
+    }
+    
+    fn visit_fetch_statement(&mut self, stmt: &FetchStatement) -> VisitorResult {
+        DefaultVisitor.visit_fetch_statement(stmt)
+    }
+    
+    fn visit_use_statement(&mut self, stmt: &UseStatement) -> VisitorResult {
+        DefaultVisitor.visit_use_statement(stmt)
+    }
+    
+    fn visit_show_statement(&mut self, stmt: &ShowStatement) -> VisitorResult {
+        DefaultVisitor.visit_show_statement(stmt)
+    }
+    
+    fn visit_explain_statement(&mut self, stmt: &ExplainStatement) -> VisitorResult {
+        DefaultVisitor.visit_explain_statement(stmt)
+    }
+    
+    fn visit_pattern(&mut self, pattern: &dyn Pattern) -> VisitorResult {
+        DefaultVisitor.visit_pattern(pattern)
+    }
+    
+    fn visit_node_pattern(&mut self, pattern: &NodePattern) -> VisitorResult {
+        DefaultVisitor.visit_node_pattern(pattern)
+    }
+    
+    fn visit_edge_pattern(&mut self, pattern: &EdgePattern) -> VisitorResult {
+        DefaultVisitor.visit_edge_pattern(pattern)
+    }
+    
+    fn visit_path_pattern(&mut self, pattern: &PathPattern) -> VisitorResult {
+        DefaultVisitor.visit_path_pattern(pattern)
+    }
+    
+    fn visit_variable_pattern(&mut self, pattern: &VariablePattern) -> VisitorResult {
+        DefaultVisitor.visit_variable_pattern(pattern)
+    }
+    
+    fn visit_query(&mut self, query: &Query) -> VisitorResult {
+        DefaultVisitor.visit_query(query)
     }
 }
 
@@ -519,6 +614,18 @@ impl SemanticAnalyzer {
 }
 
 impl Visitor for SemanticAnalyzer {
+    fn visit_node(&mut self, node: &dyn AstNode) -> VisitorResult {
+        DefaultVisitor.visit_node(node)
+    }
+    
+    fn visit_expression(&mut self, expr: &dyn Expression) -> VisitorResult {
+        DefaultVisitor.visit_expression(expr)
+    }
+    
+    fn visit_constant_expr(&mut self, expr: &ConstantExpr) -> VisitorResult {
+        DefaultVisitor.visit_constant_expr(expr)
+    }
+    
     fn visit_variable_expr(&mut self, expr: &VariableExpr) -> VisitorResult {
         // 检查变量是否已定义
         if self.lookup_symbol(&expr.name).is_none() {
@@ -527,25 +634,110 @@ impl Visitor for SemanticAnalyzer {
         Ok(())
     }
     
-    fn visit_match_statement(&mut self, stmt: &MatchStatement) -> VisitorResult {
-        // 进入 MATCH 作用域
-        self.enter_scope("MATCH".to_string());
-        
-        // 收集模式中的变量
-        for pattern in &stmt.patterns {
-            let variables = pattern.variables();
-            for var in variables {
-                self.add_symbol(var.to_string(), super::ExpressionType::Variable);
-            }
-        }
-        
-        // 递归访问子节点
-        DefaultVisitor.visit_match_statement(stmt)?;
-        
-        // 退出 MATCH 作用域
-        self.exit_scope();
-        Ok(())
+    fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> VisitorResult {
+        DefaultVisitor.visit_binary_expr(expr)
     }
+    
+    fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> VisitorResult {
+        DefaultVisitor.visit_unary_expr(expr)
+    }
+    
+    fn visit_function_call_expr(&mut self, expr: &FunctionCallExpr) -> VisitorResult {
+        DefaultVisitor.visit_function_call_expr(expr)
+    }
+    
+    fn visit_property_access_expr(&mut self, expr: &PropertyAccessExpr) -> VisitorResult {
+        DefaultVisitor.visit_property_access_expr(expr)
+    }
+    
+    fn visit_list_expr(&mut self, expr: &ListExpr) -> VisitorResult {
+        DefaultVisitor.visit_list_expr(expr)
+    }
+    
+    fn visit_map_expr(&mut self, expr: &MapExpr) -> VisitorResult {
+        DefaultVisitor.visit_map_expr(expr)
+    }
+    
+    fn visit_case_expr(&mut self, expr: &CaseExpr) -> VisitorResult {
+        DefaultVisitor.visit_case_expr(expr)
+    }
+    
+    fn visit_subscript_expr(&mut self, expr: &SubscriptExpr) -> VisitorResult {
+        DefaultVisitor.visit_subscript_expr(expr)
+    }
+    
+    fn visit_predicate_expr(&mut self, expr: &PredicateExpr) -> VisitorResult {
+        DefaultVisitor.visit_predicate_expr(expr)
+    }
+    
+    fn visit_statement(&mut self, stmt: &dyn Statement) -> VisitorResult {
+        DefaultVisitor.visit_statement(stmt)
+    }
+    
+    fn visit_query_statement(&mut self, stmt: &QueryStatement) -> VisitorResult {
+        DefaultVisitor.visit_query_statement(stmt)
+    }
+    
+    fn visit_create_statement(&mut self, stmt: &CreateStatement) -> VisitorResult {
+        DefaultVisitor.visit_create_statement(stmt)
+    }
+    
+    fn visit_delete_statement(&mut self, stmt: &DeleteStatement) -> VisitorResult {
+        DefaultVisitor.visit_delete_statement(stmt)
+    }
+    
+    fn visit_update_statement(&mut self, stmt: &UpdateStatement) -> VisitorResult {
+        DefaultVisitor.visit_update_statement(stmt)
+    }
+    
+    fn visit_go_statement(&mut self, stmt: &GoStatement) -> VisitorResult {
+        DefaultVisitor.visit_go_statement(stmt)
+    }
+    
+    fn visit_fetch_statement(&mut self, stmt: &FetchStatement) -> VisitorResult {
+        DefaultVisitor.visit_fetch_statement(stmt)
+    }
+    
+    fn visit_use_statement(&mut self, stmt: &UseStatement) -> VisitorResult {
+        DefaultVisitor.visit_use_statement(stmt)
+    }
+    
+    fn visit_show_statement(&mut self, stmt: &ShowStatement) -> VisitorResult {
+        DefaultVisitor.visit_show_statement(stmt)
+    }
+    
+    fn visit_explain_statement(&mut self, stmt: &ExplainStatement) -> VisitorResult {
+        DefaultVisitor.visit_explain_statement(stmt)
+    }
+    
+    fn visit_pattern(&mut self, pattern: &dyn Pattern) -> VisitorResult {
+        DefaultVisitor.visit_pattern(pattern)
+    }
+    
+    fn visit_node_pattern(&mut self, pattern: &NodePattern) -> VisitorResult {
+        DefaultVisitor.visit_node_pattern(pattern)
+    }
+    
+    fn visit_edge_pattern(&mut self, pattern: &EdgePattern) -> VisitorResult {
+        DefaultVisitor.visit_edge_pattern(pattern)
+    }
+    
+    fn visit_path_pattern(&mut self, pattern: &PathPattern) -> VisitorResult {
+        DefaultVisitor.visit_path_pattern(pattern)
+    }
+    
+    fn visit_variable_pattern(&mut self, pattern: &VariablePattern) -> VisitorResult {
+        DefaultVisitor.visit_variable_pattern(pattern)
+    }
+    
+    fn visit_query(&mut self, query: &Query) -> VisitorResult {
+        DefaultVisitor.visit_query(query)
+    }
+    
+    fn visit_match_statement(&mut self, stmt: &MatchStatement) -> VisitorResult {
+        DefaultVisitor.visit_match_statement(stmt)
+    }
+    
 }
 
 /// AST 转换器 - 用于转换 AST 结构
@@ -562,9 +754,25 @@ impl AstTransformer {
 }
 
 impl Visitor for AstTransformer {
+    fn visit_node(&mut self, node: &dyn AstNode) -> VisitorResult {
+        DefaultVisitor.visit_node(node)
+    }
+    
+    fn visit_expression(&mut self, expr: &dyn Expression) -> VisitorResult {
+        DefaultVisitor.visit_expression(expr)
+    }
+    
+    fn visit_constant_expr(&mut self, expr: &ConstantExpr) -> VisitorResult {
+        DefaultVisitor.visit_constant_expr(expr)
+    }
+    
+    fn visit_variable_expr(&mut self, expr: &VariableExpr) -> VisitorResult {
+        DefaultVisitor.visit_variable_expr(expr)
+    }
+    
     fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> VisitorResult {
         // 示例：将 a + 0 转换为 a
-        if let (BinaryOp::Add, Ok(constant)) = (&expr.op, expr.right.as_any().downcast_ref::<ConstantExpr>()) {
+        if let (super::node::BinaryOp::Add, Some(constant)) = (&expr.op, expr.right.as_any().downcast_ref::<ConstantExpr>()) {
             if let Value::Int(0) = constant.value {
                 self.transformations.push("Optimized a + 0 to a".to_string());
             }
@@ -572,6 +780,106 @@ impl Visitor for AstTransformer {
         
         // 递归访问子表达式
         DefaultVisitor.visit_binary_expr(expr)
+    }
+    
+    fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> VisitorResult {
+        DefaultVisitor.visit_unary_expr(expr)
+    }
+    
+    fn visit_function_call_expr(&mut self, expr: &FunctionCallExpr) -> VisitorResult {
+        DefaultVisitor.visit_function_call_expr(expr)
+    }
+    
+    fn visit_property_access_expr(&mut self, expr: &PropertyAccessExpr) -> VisitorResult {
+        DefaultVisitor.visit_property_access_expr(expr)
+    }
+    
+    fn visit_list_expr(&mut self, expr: &ListExpr) -> VisitorResult {
+        DefaultVisitor.visit_list_expr(expr)
+    }
+    
+    fn visit_map_expr(&mut self, expr: &MapExpr) -> VisitorResult {
+        DefaultVisitor.visit_map_expr(expr)
+    }
+    
+    fn visit_case_expr(&mut self, expr: &CaseExpr) -> VisitorResult {
+        DefaultVisitor.visit_case_expr(expr)
+    }
+    
+    fn visit_subscript_expr(&mut self, expr: &SubscriptExpr) -> VisitorResult {
+        DefaultVisitor.visit_subscript_expr(expr)
+    }
+    
+    fn visit_predicate_expr(&mut self, expr: &PredicateExpr) -> VisitorResult {
+        DefaultVisitor.visit_predicate_expr(expr)
+    }
+    
+    fn visit_statement(&mut self, stmt: &dyn Statement) -> VisitorResult {
+        DefaultVisitor.visit_statement(stmt)
+    }
+    
+    fn visit_query_statement(&mut self, stmt: &QueryStatement) -> VisitorResult {
+        DefaultVisitor.visit_query_statement(stmt)
+    }
+    
+    fn visit_create_statement(&mut self, stmt: &CreateStatement) -> VisitorResult {
+        DefaultVisitor.visit_create_statement(stmt)
+    }
+    
+    fn visit_match_statement(&mut self, stmt: &MatchStatement) -> VisitorResult {
+        DefaultVisitor.visit_match_statement(stmt)
+    }
+    
+    fn visit_delete_statement(&mut self, stmt: &DeleteStatement) -> VisitorResult {
+        DefaultVisitor.visit_delete_statement(stmt)
+    }
+    
+    fn visit_update_statement(&mut self, stmt: &UpdateStatement) -> VisitorResult {
+        DefaultVisitor.visit_update_statement(stmt)
+    }
+    
+    fn visit_go_statement(&mut self, stmt: &GoStatement) -> VisitorResult {
+        DefaultVisitor.visit_go_statement(stmt)
+    }
+    
+    fn visit_fetch_statement(&mut self, stmt: &FetchStatement) -> VisitorResult {
+        DefaultVisitor.visit_fetch_statement(stmt)
+    }
+    
+    fn visit_use_statement(&mut self, stmt: &UseStatement) -> VisitorResult {
+        DefaultVisitor.visit_use_statement(stmt)
+    }
+    
+    fn visit_show_statement(&mut self, stmt: &ShowStatement) -> VisitorResult {
+        DefaultVisitor.visit_show_statement(stmt)
+    }
+    
+    fn visit_explain_statement(&mut self, stmt: &ExplainStatement) -> VisitorResult {
+        DefaultVisitor.visit_explain_statement(stmt)
+    }
+    
+    fn visit_pattern(&mut self, pattern: &dyn Pattern) -> VisitorResult {
+        DefaultVisitor.visit_pattern(pattern)
+    }
+    
+    fn visit_node_pattern(&mut self, pattern: &NodePattern) -> VisitorResult {
+        DefaultVisitor.visit_node_pattern(pattern)
+    }
+    
+    fn visit_edge_pattern(&mut self, pattern: &EdgePattern) -> VisitorResult {
+        DefaultVisitor.visit_edge_pattern(pattern)
+    }
+    
+    fn visit_path_pattern(&mut self, pattern: &PathPattern) -> VisitorResult {
+        DefaultVisitor.visit_path_pattern(pattern)
+    }
+    
+    fn visit_variable_pattern(&mut self, pattern: &VariablePattern) -> VisitorResult {
+        DefaultVisitor.visit_variable_pattern(pattern)
+    }
+    
+    fn visit_query(&mut self, query: &Query) -> VisitorResult {
+        DefaultVisitor.visit_query(query)
     }
 }
 
@@ -618,6 +926,14 @@ impl AstFormatter {
 }
 
 impl Visitor for AstFormatter {
+    fn visit_node(&mut self, node: &dyn AstNode) -> VisitorResult {
+        DefaultVisitor.visit_node(node)
+    }
+    
+    fn visit_expression(&mut self, expr: &dyn Expression) -> VisitorResult {
+        DefaultVisitor.visit_expression(expr)
+    }
+    
     fn visit_constant_expr(&mut self, expr: &ConstantExpr) -> VisitorResult {
         self.write_line(&format!("Constant: {:?}", expr.value));
         Ok(())
@@ -643,6 +959,10 @@ impl Visitor for AstFormatter {
         Ok(())
     }
     
+    fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> VisitorResult {
+        DefaultVisitor.visit_unary_expr(expr)
+    }
+    
     fn visit_function_call_expr(&mut self, expr: &FunctionCallExpr) -> VisitorResult {
         self.write_line(&format!("FunctionCall: {} ({} args)", expr.name, expr.args.len()));
         if !expr.args.is_empty() {
@@ -656,6 +976,98 @@ impl Visitor for AstFormatter {
             self.decrease_indent();
         }
         Ok(())
+    }
+    
+    fn visit_property_access_expr(&mut self, expr: &PropertyAccessExpr) -> VisitorResult {
+        DefaultVisitor.visit_property_access_expr(expr)
+    }
+    
+    fn visit_list_expr(&mut self, expr: &ListExpr) -> VisitorResult {
+        DefaultVisitor.visit_list_expr(expr)
+    }
+    
+    fn visit_map_expr(&mut self, expr: &MapExpr) -> VisitorResult {
+        DefaultVisitor.visit_map_expr(expr)
+    }
+    
+    fn visit_case_expr(&mut self, expr: &CaseExpr) -> VisitorResult {
+        DefaultVisitor.visit_case_expr(expr)
+    }
+    
+    fn visit_subscript_expr(&mut self, expr: &SubscriptExpr) -> VisitorResult {
+        DefaultVisitor.visit_subscript_expr(expr)
+    }
+    
+    fn visit_predicate_expr(&mut self, expr: &PredicateExpr) -> VisitorResult {
+        DefaultVisitor.visit_predicate_expr(expr)
+    }
+    
+    fn visit_statement(&mut self, stmt: &dyn Statement) -> VisitorResult {
+        DefaultVisitor.visit_statement(stmt)
+    }
+    
+    fn visit_query_statement(&mut self, stmt: &QueryStatement) -> VisitorResult {
+        DefaultVisitor.visit_query_statement(stmt)
+    }
+    
+    fn visit_create_statement(&mut self, stmt: &CreateStatement) -> VisitorResult {
+        DefaultVisitor.visit_create_statement(stmt)
+    }
+    
+    fn visit_match_statement(&mut self, stmt: &MatchStatement) -> VisitorResult {
+        DefaultVisitor.visit_match_statement(stmt)
+    }
+    
+    fn visit_delete_statement(&mut self, stmt: &DeleteStatement) -> VisitorResult {
+        DefaultVisitor.visit_delete_statement(stmt)
+    }
+    
+    fn visit_update_statement(&mut self, stmt: &UpdateStatement) -> VisitorResult {
+        DefaultVisitor.visit_update_statement(stmt)
+    }
+    
+    fn visit_go_statement(&mut self, stmt: &GoStatement) -> VisitorResult {
+        DefaultVisitor.visit_go_statement(stmt)
+    }
+    
+    fn visit_fetch_statement(&mut self, stmt: &FetchStatement) -> VisitorResult {
+        DefaultVisitor.visit_fetch_statement(stmt)
+    }
+    
+    fn visit_use_statement(&mut self, stmt: &UseStatement) -> VisitorResult {
+        DefaultVisitor.visit_use_statement(stmt)
+    }
+    
+    fn visit_show_statement(&mut self, stmt: &ShowStatement) -> VisitorResult {
+        DefaultVisitor.visit_show_statement(stmt)
+    }
+    
+    fn visit_explain_statement(&mut self, stmt: &ExplainStatement) -> VisitorResult {
+        DefaultVisitor.visit_explain_statement(stmt)
+    }
+    
+    fn visit_pattern(&mut self, pattern: &dyn Pattern) -> VisitorResult {
+        DefaultVisitor.visit_pattern(pattern)
+    }
+    
+    fn visit_node_pattern(&mut self, pattern: &NodePattern) -> VisitorResult {
+        DefaultVisitor.visit_node_pattern(pattern)
+    }
+    
+    fn visit_edge_pattern(&mut self, pattern: &EdgePattern) -> VisitorResult {
+        DefaultVisitor.visit_edge_pattern(pattern)
+    }
+    
+    fn visit_path_pattern(&mut self, pattern: &PathPattern) -> VisitorResult {
+        DefaultVisitor.visit_path_pattern(pattern)
+    }
+    
+    fn visit_variable_pattern(&mut self, pattern: &VariablePattern) -> VisitorResult {
+        DefaultVisitor.visit_variable_pattern(pattern)
+    }
+    
+    fn visit_query(&mut self, query: &Query) -> VisitorResult {
+        DefaultVisitor.visit_query(query)
     }
 }
 

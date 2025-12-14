@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 pub trait CreateStatementParser: ExpressionParser {
     /// 解析CREATE语句
-    fn parse_create_statement(&mut self) -> Result<Option<Statement>, ParseError> {
+    fn parse_create_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
         match self.current_token().kind {
             TokenKind::Vertex | TokenKind::Vertices => {
                 self.next_token();
@@ -31,7 +31,7 @@ pub trait CreateStatementParser: ExpressionParser {
     }
 
     /// 解析CREATE VERTEX语句
-    fn parse_create_node_statement(&mut self) -> Result<Option<Statement>, ParseError> {
+    fn parse_create_node_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
         let if_not_exists = self.check_and_skip_keyword(TokenKind::If);
 
         // Skip 'EXISTS' if we found 'IF'
@@ -53,11 +53,11 @@ pub trait CreateStatementParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Statement::Create(CreateStatement {
-            base: BaseStatement::new(self.current_token().span(), StatementType::Create),
+        Ok(Some(Box::new(CreateStatement {
+            base: BaseStatement::new(Span::default(), StatementType::Create),
             target: CreateTarget::Node {
                 identifier: None,
-                labels: tags.iter().map(|tag| tag.name.clone()).collect(),
+                labels: tags,
                 properties: None,
             },
             if_not_exists,
@@ -67,7 +67,7 @@ pub trait CreateStatementParser: ExpressionParser {
     }
 
     /// 解析CREATE EDGE语句
-    fn parse_create_edge_statement(&mut self) -> Result<Option<Statement>, ParseError> {
+    fn parse_create_edge_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
         let if_not_exists = self.check_and_skip_keyword(TokenKind::If);
 
         // Skip 'EXISTS' if we found 'IF'
@@ -113,8 +113,8 @@ pub trait CreateStatementParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Statement::Create(CreateStatement {
-            base: BaseStatement::new(self.current_token().span(), StatementType::Create),
+        Ok(Some(Box::new(CreateStatement {
+            base: BaseStatement::new(Span::default(), StatementType::Create),
             target: CreateTarget::Edge {
                 identifier: None,
                 edge_type,

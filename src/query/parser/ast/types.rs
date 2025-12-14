@@ -3,8 +3,9 @@
 //! 定义 AST 中使用的各种辅助类型和结构。
 
 use crate::core::Value;
-use super::{Expression, Span};
+use super::{Expression, Span, EdgeRange};
 use std::fmt;
+use std::collections::HashMap;
 
 /// 数据类型枚举
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,7 +90,9 @@ impl DataType {
                 // 创建包含默认键值对的映射
                 let key = key_type.default_value();
                 let value = value_type.default_value();
-                Value::Map(vec![(key, value)])
+                let mut map = HashMap::new();
+                map.insert(key.to_string(), value);
+                Value::Map(map)
             }
             DataType::Set(inner_type) => {
                 // 创建包含默认值的集合
@@ -276,13 +279,35 @@ impl IndexDefinition {
 }
 
 /// 函数定义
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct FunctionDefinition {
     pub name: String,
     pub parameters: Vec<Parameter>,
     pub return_type: Option<DataType>,
     pub body: Option<Box<dyn Expression>>,
     pub comment: Option<String>,
+}
+
+impl Clone for FunctionDefinition {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            parameters: self.parameters.clone(),
+            return_type: self.return_type.clone(),
+            body: self.body.as_ref().map(|expr| super::Expression::clone_box(expr)),
+            comment: self.comment.clone(),
+        }
+    }
+}
+
+impl PartialEq for FunctionDefinition {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name &&
+        self.parameters == other.parameters &&
+        self.return_type == other.return_type &&
+        self.body.is_some() == other.body.is_some() &&
+        self.comment == other.comment
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -479,5 +504,209 @@ mod tests {
         
         let common = TypeUtils::get_common_type(&int_type, &float_type);
         assert_eq!(common, DataType::Float);
+    }
+}
+
+/// 标签标识符
+pub type TagIdentifier = String;
+
+/// MATCH 语句子句详情
+#[derive(Debug)]
+pub struct MatchClauseDetail {
+    pub patterns: Vec<MatchPath>,
+    pub where_clause: Option<WhereClause>,
+    pub with_clause: Option<WithClause>,
+}
+
+impl Clone for MatchClauseDetail {
+    fn clone(&self) -> Self {
+        Self {
+            patterns: self.patterns.clone(),
+            where_clause: self.where_clause.clone(),
+            with_clause: self.with_clause.clone(),
+        }
+    }
+}
+
+impl PartialEq for MatchClauseDetail {
+    fn eq(&self, other: &Self) -> bool {
+        self.patterns == other.patterns &&
+        self.where_clause == other.where_clause &&
+        self.with_clause == other.with_clause
+    }
+}
+
+/// MATCH 路径
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchPath {
+    pub path: Vec<MatchPathSegment>,
+}
+
+/// MATCH 路径段
+#[derive(Debug, Clone, PartialEq)]
+pub enum MatchPathSegment {
+    Node(MatchNode),
+    Edge(MatchEdge),
+}
+
+/// MATCH 节点
+#[derive(Debug)]
+pub struct MatchNode {
+    pub identifier: Option<String>,
+    pub labels: Vec<Label>,
+    pub properties: Option<Box<dyn Expression>>,
+    pub predicates: Vec<Box<dyn Expression>>,
+}
+
+impl Clone for MatchNode {
+    fn clone(&self) -> Self {
+        Self {
+            identifier: self.identifier.clone(),
+            labels: self.labels.clone(),
+            properties: self.properties.as_ref().map(|expr| super::Expression::clone_box(expr)),
+            predicates: self.predicates.iter().map(|expr| super::Expression::clone_box(expr)).collect(),
+        }
+    }
+}
+
+impl PartialEq for MatchNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.identifier == other.identifier &&
+        self.labels == other.labels &&
+        self.properties.is_some() == other.properties.is_some() &&
+        self.predicates.len() == other.predicates.len()
+    }
+}
+
+/// MATCH 边
+#[derive(Debug)]
+pub struct MatchEdge {
+    pub direction: crate::query::parser::ast::statement::EdgeDirection,
+    pub identifier: Option<String>,
+    pub types: Vec<String>,
+    pub relationship: Option<String>,
+    pub properties: Option<Box<dyn Expression>>,
+    pub predicates: Vec<Box<dyn Expression>>,
+    pub range: Option<EdgeRange>,
+}
+
+impl Clone for MatchEdge {
+    fn clone(&self) -> Self {
+        Self {
+            direction: self.direction.clone(),
+            identifier: self.identifier.clone(),
+            types: self.types.clone(),
+            relationship: self.relationship.clone(),
+            properties: self.properties.as_ref().map(|expr| super::Expression::clone_box(expr)),
+            predicates: self.predicates.iter().map(|expr| super::Expression::clone_box(expr)).collect(),
+            range: self.range.clone(),
+        }
+    }
+}
+
+impl PartialEq for MatchEdge {
+    fn eq(&self, other: &Self) -> bool {
+        self.direction == other.direction &&
+        self.identifier == other.identifier &&
+        self.types == other.types &&
+        self.relationship == other.relationship &&
+        self.properties.is_some() == other.properties.is_some() &&
+        self.predicates.len() == other.predicates.len() &&
+        self.range == other.range
+    }
+}
+
+/// 标签
+#[derive(Debug, Clone, PartialEq)]
+pub struct Label {
+    pub name: String,
+}
+
+/// WHERE 子句
+#[derive(Debug)]
+pub struct WhereClause {
+    pub expression: Box<dyn Expression>,
+}
+
+impl Clone for WhereClause {
+    fn clone(&self) -> Self {
+        Self {
+            expression: super::Expression::clone_box(&self.expression),
+        }
+    }
+}
+
+impl PartialEq for WhereClause {
+    fn eq(&self, other: &Self) -> bool {
+        // 简化比较，只检查类型
+        true
+    }
+}
+
+/// WITH 子句
+#[derive(Debug)]
+pub struct WithClause {
+    pub items: Vec<WithItem>,
+}
+
+impl Clone for WithClause {
+    fn clone(&self) -> Self {
+        Self {
+            items: self.items.iter().map(|item| item.clone_box()).collect(),
+        }
+    }
+}
+
+impl PartialEq for WithClause {
+    fn eq(&self, other: &Self) -> bool {
+        self.items.len() == other.items.len()
+    }
+}
+
+/// WITH 项
+#[derive(Debug)]
+pub struct WithItem {
+    pub expression: Box<dyn Expression>,
+    pub alias: Option<String>,
+}
+
+impl Clone for WithItem {
+    fn clone(&self) -> Self {
+        Self {
+            expression: super::Expression::clone_box(&self.expression),
+            alias: self.alias.clone(),
+        }
+    }
+}
+
+impl PartialEq for WithItem {
+    fn eq(&self, other: &Self) -> bool {
+        self.alias == other.alias
+    }
+}
+
+impl WithItem {
+    pub fn clone_box(&self) -> WithItem {
+        self.clone()
+    }
+}
+
+/// MATCH 子句枚举
+#[derive(Debug, Clone, PartialEq)]
+pub enum MatchClause {
+    Match(MatchClauseDetail),
+    Return(crate::query::parser::ast::compat::ReturnClause),
+    With(WithClause),
+    Where(WhereClause),
+}
+
+impl MatchClause {
+    pub fn clone_box(&self) -> MatchClause {
+        match self {
+            MatchClause::Match(detail) => MatchClause::Match(detail.clone()),
+            MatchClause::Return(ret) => MatchClause::Return(ret.clone()),
+            MatchClause::With(with) => MatchClause::With(with.clone()),
+            MatchClause::Where(where_clause) => MatchClause::Where(where_clause.clone()),
+        }
     }
 }

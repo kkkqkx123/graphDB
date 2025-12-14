@@ -5,9 +5,9 @@
 use super::*;
 
 // 重新导出旧的类型名称以保持兼容性
-pub type Expression = Box<dyn node::Expression>;
-pub type Statement = Box<dyn statement::Statement>;
-pub type Pattern = Box<dyn pattern::Pattern>;
+pub type Expression = Box<dyn super::Expression>;
+pub type Statement = Box<dyn super::Statement>;
+pub type Pattern = Box<dyn super::Pattern>;
 
 // 表达式类型别名
 pub type ConstantExpr = node::ConstantExpr;
@@ -46,6 +46,13 @@ pub type Assignment = statement::Assignment;
 pub type YieldClause = statement::YieldClause;
 pub type ReturnClause = statement::ReturnClause;
 pub type OrderByClause = statement::OrderByClause;
+
+/// Yield 表达式
+#[derive(Debug)]
+pub struct YieldExpression {
+    pub expr: Box<dyn super::Expression>,
+    pub alias: Option<String>,
+}
 // pub type LimitClause = statement::LimitClause;  // 暂时注释掉
 // pub type SkipClause = statement::SkipClause;    // 暂时注释掉
 // pub type WhereClause = statement::WhereClause;  // 暂时注释掉
@@ -54,8 +61,9 @@ pub type OrderByClause = statement::OrderByClause;
 
 // 枚举类型别名
 pub use node::{BinaryOp, UnaryOp, PredicateType};
-pub use statement::{CreateTarget, DeleteTarget, UpdateTarget, Steps, FromClause, ShowTarget, FetchTarget, DataType, IndexType};
+pub use statement::{CreateTarget, DeleteTarget, UpdateTarget, Steps, FromClause, ShowTarget, FetchTarget, DataType, EdgeDirection};
 pub use pattern::{EdgeRange, PathElement, RepetitionType};
+pub use types::{TagIdentifier, MatchClauseDetail, MatchPath, MatchPathSegment, MatchNode, MatchEdge, Label, WhereClause, WithClause, WithItem, MatchClause};
 
 #[cfg(test)]
 mod tests {
@@ -66,8 +74,8 @@ mod tests {
         let span = Span::default();
         
         // 测试类型别名是否正常工作
-        let expr = Box::new(node::ConstantExpr::new(Value::Int(42), span));
+        let expr = Box::new(node::ConstantExpr::new(crate::core::Value::Int(42), span));
         
-        assert_eq!(expr.expr_type(), node::ExpressionType::Constant);
+        assert_eq!(expr.expr_type(), ExpressionType::Constant);
     }
 }

@@ -32,7 +32,6 @@ pub use builder::*;
 
 // 兼容性适配层
 pub mod compat;
-pub use compat::*;
 
 // 位置信息
 pub mod span;
@@ -44,8 +43,8 @@ mod tests;
 
 // 公共类型别名
 pub type Identifier = String;
-pub type Result<T> = std::result::Result<T, AstError>;
-pub type VisitorResult = Result<()>;
+pub type Result<T, E = AstError> = std::result::Result<T, E>;
+pub type VisitorResult = Result<(), AstError>;
 
 /// AST 错误类型
 #[derive(Debug, Clone, PartialEq)]
@@ -97,6 +96,12 @@ pub trait Expression: AstNode {
 
     /// 获取子表达式
     fn children(&self) -> Vec<Box<dyn Expression>>;
+
+    /// 克隆为 Box<dyn Expression>
+    fn clone_box(&self) -> Box<dyn Expression>;
+
+    /// 转换为 Any 类型，用于向下转型
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// 语句特征 - 所有语句节点都必须实现此 trait
@@ -106,6 +111,9 @@ pub trait Statement: AstNode {
 
     /// 获取语句的子节点
     fn children(&self) -> Vec<Box<dyn AstNode>>;
+
+    /// 克隆为 Box<dyn Statement>
+    fn clone_box(&self) -> Box<dyn Statement>;
 }
 
 /// 模式特征 - 所有模式节点都必须实现此 trait
@@ -115,6 +123,9 @@ pub trait Pattern: AstNode {
 
     /// 获取模式中的变量
     fn variables(&self) -> Vec<String>;
+
+    /// 转换为 Any 类型，用于向下转型
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// 表达式类型枚举
@@ -133,6 +144,18 @@ pub enum ExpressionType {
     Case,
     Predicate,
     Pattern,
+}
+
+impl ExpressionType {
+    /// 检查是否是数值类型
+    pub fn is_numeric(&self) -> bool {
+        matches!(self,
+            ExpressionType::Constant |
+            ExpressionType::Variable |
+            ExpressionType::Binary |
+            ExpressionType::Unary
+        )
+    }
 }
 
 /// 语句类型枚举
@@ -165,8 +188,92 @@ pub enum PatternType {
     Variable,
 }
 
+// 为 Box<dyn Statement> 实现 Statement trait
+impl Statement for Box<dyn Statement> {
+    fn stmt_type(&self) -> StatementType {
+        self.as_ref().stmt_type()
+    }
+
+    fn children(&self) -> Vec<Box<dyn AstNode>> {
+        self.as_ref().children()
+    }
+
+    fn clone_box(&self) -> Box<dyn Statement> {
+        Statement::clone_box(self.as_ref())
+    }
+}
+
+// 为 Box<dyn Statement> 实现 AstNode trait
+impl AstNode for Box<dyn Statement> {
+    fn span(&self) -> Span {
+        self.as_ref().span()
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) -> VisitorResult {
+        self.as_ref().accept(visitor)
+    }
+
+    fn node_type(&self) -> &'static str {
+        self.as_ref().node_type()
+    }
+
+    fn to_string(&self) -> String {
+        self.as_ref().to_string()
+    }
+
+    fn clone_box(&self) -> Box<dyn AstNode> {
+        Box::new(Statement::clone_box(self))
+    }
+}
+
+// 为 Box<dyn Expression> 实现 Expression trait
+impl Expression for Box<dyn Expression> {
+    fn expr_type(&self) -> ExpressionType {
+        self.as_ref().expr_type()
+    }
+
+    fn is_constant(&self) -> bool {
+        self.as_ref().is_constant()
+    }
+
+    fn children(&self) -> Vec<Box<dyn Expression>> {
+        self.as_ref().children()
+    }
+
+    fn clone_box(&self) -> Box<dyn Expression> {
+        Expression::clone_box(self.as_ref())
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self.as_ref().as_any()
+    }
+}
+
+// 为 Box<dyn Expression> 实现 AstNode trait
+impl AstNode for Box<dyn Expression> {
+    fn span(&self) -> Span {
+        self.as_ref().span()
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) -> VisitorResult {
+        self.as_ref().accept(visitor)
+    }
+
+    fn node_type(&self) -> &'static str {
+        self.as_ref().node_type()
+    }
+
+    fn to_string(&self) -> String {
+        self.as_ref().to_string()
+    }
+
+    fn clone_box(&self) -> Box<dyn AstNode> {
+        Box::new(Expression::clone_box(self))
+    }
+}
+
 /// 查询根节点
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct Query {
     pub statements: Vec<Box<dyn Statement>>,
     pub span: Span,
@@ -207,7 +314,10 @@ impl AstNode for Query {
     }
 
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(self.clone())
+        Box::new(Query {
+            statements: self.statements.iter().map(|stmt| Statement::clone_box(stmt)).collect(),
+            span: self.span.clone(),
+        })
     }
 }
 

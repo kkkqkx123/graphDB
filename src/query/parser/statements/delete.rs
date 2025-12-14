@@ -7,7 +7,7 @@ use crate::query::parser::expressions::{ExpressionParser, TokenParser};
 
 pub trait DeleteStatementParser: ExpressionParser {
     /// 解析DELETE语句
-    fn parse_delete_statement(&mut self) -> Result<Option<Statement>, ParseError> {
+    fn parse_delete_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
         let delete_vertices = match self.current_token().kind {
             TokenKind::Vertex | TokenKind::Vertices => {
                 self.next_token();
@@ -51,11 +51,20 @@ pub trait DeleteStatementParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Statement::Delete(DeleteStatement {
-            delete_vertices,
-            vertex_exprs,
-            edge_exprs: None,  // Simplified for now
-            where_clause,
+        Ok(Some(Box::new(DeleteStatement {
+            base: BaseStatement::new(Span::default(), StatementType::Delete),
+            target: if delete_vertices {
+                DeleteTarget::Vertices(vertex_exprs)
+            } else {
+                // 简化的边删除实现
+                DeleteTarget::Edges {
+                    edge_type: "".to_string(),
+                    src: Box::new(node::VariableExpr::new("src".to_string(), Span::default())),
+                    dst: Box::new(node::VariableExpr::new("dst".to_string(), Span::default())),
+                    rank: None,
+                }
+            },
+            where_clause: where_clause.map(|wc| wc.expression),
             yield_clause,
         })))
     }

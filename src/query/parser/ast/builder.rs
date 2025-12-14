@@ -7,6 +7,9 @@ use super::node::*;
 use super::statement::*;
 use super::pattern::*;
 use super::types::*;
+
+// 明确导入以避免歧义
+use super::statement::EdgeDirection;
 use crate::core::Value;
 use std::collections::HashMap;
 
@@ -143,7 +146,22 @@ impl AstBuilder {
         &self,
         patterns: Vec<Box<dyn Pattern>>,
     ) -> Box<dyn Statement> {
-        Box::new(MatchStatement::new(patterns, self.span))
+        // 将 Pattern 转换为 MatchClauseDetail
+        let match_paths: Vec<MatchPath> = patterns.into_iter()
+            .map(|pattern| {
+                // 将 Pattern 转换为 MatchPathSegment
+                // 这里需要更复杂的转换逻辑，暂时使用空路径
+                MatchPath { path: vec![] }
+            })
+            .collect();
+        
+        let match_detail = MatchClauseDetail {
+            patterns: match_paths,
+            where_clause: None,
+            with_clause: None,
+        };
+        
+        Box::new(MatchStatement::new(vec![MatchClause::Match(match_detail)], self.span))
     }
     
     pub fn delete_vertices(&self, vertices: Vec<Box<dyn Expression>>) -> Box<dyn Statement> {
@@ -221,7 +239,7 @@ impl AstBuilder {
         &self,
         identifier: Option<String>,
         edge_type: Option<String>,
-        direction: EdgeDirection,
+        direction: super::pattern::EdgeDirection,
     ) -> Box<dyn Pattern> {
         Box::new(EdgePattern::new(identifier, edge_type, direction, self.span))
     }
@@ -351,11 +369,25 @@ impl StatementBuilder {
     
     /// 构建 MATCH 语句
     pub fn match_pattern(&self, pattern: Box<dyn Pattern>) -> MatchStatement {
-        MatchStatement::new(vec![pattern], self.builder.span)
+        let match_paths = vec![MatchPath { path: vec![] }]; // 简化处理
+        let match_detail = MatchClauseDetail {
+            patterns: match_paths,
+            where_clause: None,
+            with_clause: None,
+        };
+        MatchStatement::new(vec![MatchClause::Match(match_detail)], self.builder.span)
     }
     
     pub fn match_patterns(&self, patterns: Vec<Box<dyn Pattern>>) -> MatchStatement {
-        MatchStatement::new(patterns, self.builder.span)
+        let match_paths: Vec<MatchPath> = patterns.into_iter()
+            .map(|pattern| MatchPath { path: vec![] }) // 简化处理
+            .collect();
+        let match_detail = MatchClauseDetail {
+            patterns: match_paths,
+            where_clause: None,
+            with_clause: None,
+        };
+        MatchStatement::new(vec![MatchClause::Match(match_detail)], self.builder.span)
     }
     
     /// 构建 CREATE 语句

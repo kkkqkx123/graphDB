@@ -246,7 +246,7 @@ impl<S: StorageEngine> QueryExecutor<S> {
     }
 }
 
-use crate::query::parser::ast::{Expression as AstExpression, Statement};
+use crate::query::parser::ast::{Expression as AstExpression, Statement as AstStatement};
 use crate::query::parser::parser::utils::Parser as NewParser;
 
 pub struct QueryParser;
@@ -267,304 +267,89 @@ impl QueryParser {
 
         // Convert the first statement to our Query type
         // For now, we'll handle only simple cases and extend as needed
-        match &statements[0] {
-            crate::query::parser::ast::Statement::Match(match_stmt) => {
-                self.convert_match_statement(&match_stmt)
-            }
-            crate::query::parser::ast::Statement::CreateNode(create_node_stmt) => {
-                self.convert_create_node_statement(&create_node_stmt)
-            }
-            crate::query::parser::ast::Statement::CreateEdge(create_edge_stmt) => {
-                self.convert_create_edge_statement(&create_edge_stmt)
-            }
-            crate::query::parser::ast::Statement::Delete(delete_stmt) => {
-                self.convert_delete_statement(&delete_stmt)
-            }
-            crate::query::parser::ast::Statement::Update(update_stmt) => {
-                self.convert_update_statement(&update_stmt)
-            }
-            // Add more statement types as needed
-            _ => Err(QueryError::ParseError(format!(
-                "Unsupported statement type: {:?}",
-                statements[0]
-            ))),
-        }
+        // 临时实现：返回错误，因为需要重新设计查询解析
+        Err(QueryError::ParseError(
+            "Query parsing needs to be reimplemented for new AST structure".to_string(),
+        ))
     }
 
     fn convert_match_statement(
         &self,
         match_stmt: &crate::query::parser::ast::MatchStatement,
     ) -> Result<Query, QueryError> {
-        use crate::query::parser::ast::{MatchStatement, Pattern};
-
-        // For now, we'll implement a basic conversion
-        // We'll extract WHERE conditions and any specified tags
-
-        let mut tags = None;
-        let mut conditions = Vec::new();
-
-        // Extract tag information from patterns
-        for pattern in &match_stmt.patterns {
-            // Process node patterns to extract labels
-            if let Pattern::Node(node) = pattern {
-                if !node.labels.is_empty() {
-                    let tag_names: Vec<String> = node.labels.iter().cloned().collect();
-                    tags = Some(tag_names);
-                }
-            }
-        }
-
-        // Process WHERE clause
-        if let Some(where_clause) = &match_stmt.where_clause {
-            if let Ok(condition) = self.convert_expression(where_clause) {
-                conditions.push(condition);
-            }
-        }
-
-        Ok(Query::MatchNodes { tags, conditions })
+        // 临时实现：返回错误
+        Err(QueryError::ParseError(
+            "Match statement conversion needs to be reimplemented".to_string(),
+        ))
     }
 
     fn convert_create_node_statement(
         &self,
         create_node_stmt: &crate::query::parser::ast::CreateStatement,
     ) -> Result<Query, QueryError> {
-        use crate::query::parser::ast::CreateTarget;
-
-        // Convert tags
-        let mut tags: Vec<Tag> = Vec::new();
-
-        // Process create target
-        match &create_node_stmt.target {
-            CreateTarget::Node { labels, properties, .. } => {
-                // Create tags from labels
-                for label in labels {
-                    let mut properties_map = HashMap::new();
-                    
-                    // Add properties from the properties expression
-                    if let Some(props_expr) = properties {
-                        // 简化处理：这里需要更复杂的逻辑来解析属性表达式
-                        // 暂时跳过
-                    }
-                    
-                    // Add properties from the statement properties
-                    for prop in &create_node_stmt.properties {
-                        let value = self.convert_ast_expression_to_value(&prop.value)?;
-                        properties_map.insert(prop.name.clone(), value);
-                    }
-
-                    tags.push(Tag::new(label.clone(), properties_map));
-                }
-            }
-            _ => {
-                return Err(QueryError::ParseError(
-                    "Only node creation is supported in this model".to_string(),
-                ));
-            }
-        }
-
-        Ok(Query::CreateNode {
-            id: None, // ID will be generated
-            tags,
-        })
+        // 临时实现：返回错误
+        Err(QueryError::ParseError(
+            "Create node statement conversion needs to be reimplemented".to_string(),
+        ))
     }
 
     fn convert_create_edge_statement(
         &self,
         create_edge_stmt: &crate::query::parser::ast::CreateStatement,
     ) -> Result<Query, QueryError> {
-        use crate::query::parser::ast::CreateTarget;
-
-        // Process create target
-        match &create_edge_stmt.target {
-            CreateTarget::Edge { src, dst, edge_type, properties, .. } => {
-                // Convert source and destination expressions to values
-                let src_value = self.convert_ast_expression_to_value(src)?;
-                let dst_value = self.convert_ast_expression_to_value(dst)?;
-
-                // Convert properties
-                let mut properties_map = HashMap::new();
-                
-                // Add properties from the edge properties expression
-                if let Some(props_expr) = properties {
-                    // 简化处理：这里需要更复杂的逻辑来解析属性表达式
-                    // 暂时跳过
-                }
-                
-                // Add properties from the statement properties
-                for prop in &create_edge_stmt.properties {
-                    let value = self.convert_ast_expression_to_value(&prop.value)?;
-                    properties_map.insert(prop.name.clone(), value);
-                }
-
-                Ok(Query::CreateEdge {
-                    src: src_value,
-                    dst: dst_value,
-                    edge_type: edge_type.clone(),
-                    name: String::new(), // Not used in our model
-                    ranking: 0,          // Default ranking
-                    properties: properties_map,
-                })
-            }
-            _ => {
-                return Err(QueryError::ParseError(
-                    "Only edge creation is supported in this model".to_string(),
-                ));
-            }
-        }
+        // 临时实现：返回错误
+        Err(QueryError::ParseError(
+            "Create edge statement conversion needs to be reimplemented".to_string(),
+        ))
     }
 
     fn convert_delete_statement(
         &self,
         delete_stmt: &crate::query::parser::ast::DeleteStatement,
     ) -> Result<Query, QueryError> {
-        use crate::query::parser::ast::DeleteTarget;
-
-        // Process delete target
-        match &delete_stmt.target {
-            DeleteTarget::Vertices(vertices) => {
-                if vertices.is_empty() {
-                    return Err(QueryError::ParseError(
-                        "No vertex specified for deletion".to_string(),
-                    ));
-                }
-
-                // For now, we'll use the first vertex expression as the ID
-                let id = self.convert_ast_expression_to_value(&vertices[0])?;
-
-                Ok(Query::DeleteNode { id })
-            }
-            DeleteTarget::Edges { .. } => {
-                return Err(QueryError::ParseError(
-                    "Deleting edges not supported in this model".to_string(),
-                ));
-            }
-        }
+        // 临时实现：返回错误
+        Err(QueryError::ParseError(
+            "Delete statement conversion needs to be reimplemented".to_string(),
+        ))
     }
 
     fn convert_update_statement(
         &self,
         update_stmt: &crate::query::parser::ast::UpdateStatement,
     ) -> Result<Query, QueryError> {
-        use crate::query::parser::ast::{UpdateTarget, PropertyRef};
-
-        // Process update target
-        match &update_stmt.target {
-            UpdateTarget::Vertex(vertex) => {
-                let id = self.convert_ast_expression_to_value(vertex)?;
-
-                // Convert update items to tags
-                let mut tags = Vec::new();
-                for assignment in &update_stmt.set_clause.assignments {
-                    match &assignment.property {
-                        PropertyRef::Simple(prop_name) => {
-                            // For now, we'll create a default tag with the updated properties
-                            let value = self.convert_ast_expression_to_value(&assignment.value)?;
-                            let mut properties = HashMap::new();
-                            properties.insert(prop_name.clone(), value);
-                            tags.push(Tag::new("UpdatedTag".to_string(), properties));
-                        }
-                        PropertyRef::Qualified(tag_name, prop_name) => {
-                            let value = self.convert_ast_expression_to_value(&assignment.value)?;
-                            let mut properties = HashMap::new();
-                            properties.insert(prop_name.clone(), value);
-                            tags.push(Tag::new(tag_name.clone(), properties));
-                        }
-                        PropertyRef::Variable(var_name, prop_name) => {
-                            let value = self.convert_ast_expression_to_value(&assignment.value)?;
-                            let mut properties = HashMap::new();
-                            properties.insert(prop_name.clone(), value);
-                            tags.push(Tag::new(var_name.clone(), properties));
-                        }
-                    }
-                }
-
-                Ok(Query::UpdateNode { id, tags })
-            }
-            UpdateTarget::Edges { .. } => {
-                return Err(QueryError::ParseError(
-                    "Updating edges not supported in this model".to_string(),
-                ));
-            }
-        }
+        // 临时实现：返回错误
+        Err(QueryError::ParseError(
+            "Update statement conversion needs to be reimplemented".to_string(),
+        ))
     }
 
     fn convert_expression(
         &self,
-        expr: &crate::query::parser::ast::Expression,
+        expr: &dyn crate::query::parser::ast::Expression,
     ) -> Result<Condition, QueryError> {
-        use crate::query::parser::ast::{Expression, BinaryOp};
-
-        // Convert AST expression to our Condition type
-        // This is a simplified implementation
-        match expr {
-            Expression::Relational(left, op, right) => {
-                // Convert left and right expressions to property names and values
-                let prop_name = self.extract_property_name(left)?;
-                let value = self.convert_ast_expression_to_value(right)?;
-
-                match op {
-                    BinaryOp::Eq => Ok(Condition::PropertyEquals(prop_name, value)),
-                    BinaryOp::Ne => Err(QueryError::ParseError(
-                        "Not equal operator not supported yet".to_string(),
-                    )),
-                    BinaryOp::Lt => Ok(Condition::PropertyLessThan(prop_name, value)),
-                    BinaryOp::Le => Err(QueryError::ParseError(
-                        "Less than or equal operator not supported yet".to_string(),
-                    )),
-                    BinaryOp::Gt => Ok(Condition::PropertyGreaterThan(prop_name, value)),
-                    BinaryOp::Ge => Err(QueryError::ParseError(
-                        "Greater than or equal operator not supported yet".to_string(),
-                    )),
-                    BinaryOp::Regex => Err(QueryError::ParseError(
-                        "Regex operator not supported yet".to_string(),
-                    )),
-                }
-            }
-            _ => Err(QueryError::ParseError(
-                "Unsupported expression type for condition".to_string(),
-            )),
-        }
+        // 临时实现：返回错误
+        Err(QueryError::ParseError(
+            "Expression conversion needs to be reimplemented".to_string(),
+        ))
     }
 
     fn extract_property_name(
         &self,
-        expr: &crate::query::parser::ast::Expression,
+        expr: &dyn crate::query::parser::ast::Expression,
     ) -> Result<String, QueryError> {
-        use crate::query::parser::ast::Expression;
-
-        // Extract the property name from an expression
-        match expr {
-            Expression::PropertyAccess(_, prop_name) => Ok(prop_name.clone()),
-            Expression::Variable(name) => Ok(name.clone()),
-            _ => Err(QueryError::ParseError(
-                "Could not extract property name from expression".to_string(),
-            )),
-        }
+        // 临时实现：返回错误
+        Err(QueryError::ParseError(
+            "Property name extraction needs to be reimplemented".to_string(),
+        ))
     }
 
     fn convert_ast_expression_to_value(
         &self,
-        expr: &crate::query::parser::ast::Expression,
+        expr: &dyn crate::query::parser::ast::Expression,
     ) -> Result<Value, QueryError> {
-        use crate::query::parser::ast::Expression;
-
-        // Convert an AST expression to a Value
-        match expr {
-            Expression::Constant(value) => Ok(value.clone()),
-            Expression::Variable(name) => {
-                // In a real implementation, this would look up the variable in the execution context
-                // For now, we'll return a string representation
-                Ok(Value::String(name.clone()))
-            }
-            Expression::FunctionCall(func) => {
-                // Function calls would need to be evaluated in the execution context
-                Err(QueryError::ParseError(
-                    "Function calls in expressions not supported in parsing".to_string(),
-                ))
-            }
-            _ => Err(QueryError::ParseError(
-                "Unsupported expression type for value conversion".to_string(),
-            )),
-        }
+        // 临时实现：返回错误
+        Err(QueryError::ParseError(
+            "AST expression to value conversion needs to be reimplemented".to_string(),
+        ))
     }
 }

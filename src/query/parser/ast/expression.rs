@@ -121,10 +121,10 @@ impl ExpressionUtils {
     }
     
     fn collect_recursive(expr: &dyn Expression, result: &mut Vec<Box<dyn Expression>>) {
-        result.push(Box::new(expr.clone_box()));
+        result.push(super::Expression::clone_box(expr));
         
         for child in expr.children() {
-            Self::collect_recursive(child, result);
+            Self::collect_recursive(child.as_ref(), result);
         }
     }
     
@@ -144,7 +144,7 @@ impl ExpressionUtils {
             }
             _ => {
                 for child in expr.children() {
-                    Self::find_variables_recursive(child, variables);
+                    Self::find_variables_recursive(child.as_ref(), variables);
                 }
             }
         }
@@ -169,7 +169,7 @@ impl ExpressionUtils {
                 }
             }
             _ => {
-                expr.children().iter().any(|child| Self::contains_aggregate_recursive(child))
+                expr.children().iter().any(|child| Self::contains_aggregate_recursive(child.as_ref()))
             }
         }
     }
@@ -182,125 +182,6 @@ impl ExpressionUtils {
     }
 }
 
-/// 表达式扩展 trait，提供额外的功能
-trait ExpressionExt: Expression {
-    /// 转换为 Any 类型，用于向下转型
-    fn as_any(&self) -> &dyn std::any::Any;
-    
-    /// 克隆为 Box<dyn Expression>
-    fn clone_expr(&self) -> Box<dyn Expression>;
-}
-
-// 为所有表达式类型实现扩展 trait
-impl ExpressionExt for ConstantExpr {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn clone_expr(&self) -> Box<dyn Expression> {
-        Box::new(self.clone())
-    }
-}
-
-impl ExpressionExt for VariableExpr {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn clone_expr(&self) -> Box<dyn Expression> {
-        Box::new(self.clone())
-    }
-}
-
-impl ExpressionExt for BinaryExpr {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn clone_expr(&self) -> Box<dyn Expression> {
-        Box::new(self.clone())
-    }
-}
-
-impl ExpressionExt for UnaryExpr {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn clone_expr(&self) -> Box<dyn Expression> {
-        Box::new(self.clone())
-    }
-}
-
-impl ExpressionExt for FunctionCallExpr {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn clone_expr(&self) -> Box<dyn Expression> {
-        Box::new(self.clone())
-    }
-}
-
-impl ExpressionExt for PropertyAccessExpr {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn clone_expr(&self) -> Box<dyn Expression> {
-        Box::new(self.clone())
-    }
-}
-
-impl ExpressionExt for ListExpr {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn clone_expr(&self) -> Box<dyn Expression> {
-        Box::new(self.clone())
-    }
-}
-
-impl ExpressionExt for MapExpr {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn clone_expr(&self) -> Box<dyn Expression> {
-        Box::new(self.clone())
-    }
-}
-
-impl ExpressionExt for CaseExpr {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn clone_expr(&self) -> Box<dyn Expression> {
-        Box::new(self.clone())
-    }
-}
-
-impl ExpressionExt for SubscriptExpr {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn clone_expr(&self) -> Box<dyn Expression> {
-        Box::new(self.clone())
-    }
-}
-
-impl ExpressionExt for PredicateExpr {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    fn clone_expr(&self) -> Box<dyn Expression> {
-        Box::new(self.clone())
-    }
-}
 
 #[cfg(test)]
 mod tests {

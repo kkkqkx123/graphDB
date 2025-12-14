@@ -110,7 +110,7 @@ impl Parser {
         }
     }
 
-    pub fn parse_tag_list(&mut self) -> Result<Vec<TagIdentifier>, ParseError> {
+    pub fn parse_tag_list(&mut self) -> Result<Vec<String>, ParseError> {
         let mut tags = Vec::new();
 
         // If we start with a parenthesis, we have tag list: (tag1, tag2, ...)
@@ -119,16 +119,7 @@ impl Parser {
 
             loop {
                 let tag_name = self.parse_identifier()?;
-                let properties = if self.current_token.kind == TokenKind::LBrace {
-                    Some(self.parse_property_map()?)
-                } else {
-                    None
-                };
-
-                tags.push(TagIdentifier {
-                    name: tag_name,
-                    properties,
-                });
+                tags.push(tag_name);
 
                 if self.current_token.kind != TokenKind::Comma {
                     break;
@@ -140,10 +131,7 @@ impl Parser {
         } else {
             // Just a single tag
             let tag_name = self.parse_identifier()?;
-            tags.push(TagIdentifier {
-                name: tag_name,
-                properties: None,
-            });
+            tags.push(tag_name);
         }
 
         Ok(tags)
@@ -161,10 +149,7 @@ impl Parser {
                     self.expect_token(TokenKind::Colon)?;
                     let value = self.parse_expression()?;
 
-                    properties.push(Property {
-                        name: prop_name,
-                        value,
-                    });
+                    properties.push(crate::query::parser::ast::types::Property::new(prop_name, crate::query::parser::ast::types::DataType::String));
 
                     if self.current_token.kind != TokenKind::Comma {
                         break;
@@ -181,10 +166,7 @@ impl Parser {
                 self.expect_token(TokenKind::Assign)?;
                 let value = self.parse_expression()?;
 
-                properties.push(Property {
-                    name: prop_name,
-                    value,
-                });
+                properties.push(crate::query::parser::ast::types::Property::new(prop_name, crate::query::parser::ast::types::DataType::String));
 
                 if self.current_token.kind != TokenKind::Comma {
                     break;
@@ -202,13 +184,13 @@ impl Parser {
         if self.current_token.kind == TokenKind::Dot {
             self.next_token(); // Skip '.'
             let second_ident = self.parse_identifier()?;
-            Ok(PropertyRef::Prop(first_ident, second_ident))
+            Ok(PropertyRef::Qualified(first_ident, second_ident))
         } else {
-            Ok(PropertyRef::InlineProp(first_ident))
+            Ok(PropertyRef::Simple(first_ident))
         }
     }
 
-    pub fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError> {
+    pub fn parse_yield_clause(&mut self) -> Result<crate::query::parser::ast::compat::YieldClause, ParseError> {
         self.next_token(); // Skip YIELD
         let mut items = Vec::new();
 
@@ -221,7 +203,8 @@ impl Parser {
                 None
             };
 
-            items.push(YieldExpression { expr, alias });
+            // 创建 YieldItem::Expression 而不是 YieldExpression
+            items.push(crate::query::parser::ast::statement::YieldItem::Expression(expr, alias));
 
             if self.current_token.kind != TokenKind::Comma {
                 break;
@@ -229,10 +212,13 @@ impl Parser {
             self.next_token();
         }
 
-        Ok(YieldClause { items })
+        Ok(crate::query::parser::ast::statement::YieldClause {
+            distinct: false,
+            items
+        })
     }
 
-    pub fn parse_property_map(&mut self) -> Result<std::collections::HashMap<String, Expression>, ParseError> {
+    pub fn parse_property_map(&mut self) -> Result<std::collections::HashMap<String, Box<dyn Expression>>, ParseError> {
         let mut map = std::collections::HashMap::new();
 
         self.expect_token(TokenKind::LBrace)?;

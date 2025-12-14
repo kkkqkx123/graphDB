@@ -7,7 +7,7 @@ use crate::query::parser::expressions::{ExpressionParser, TokenParser};
 
 pub trait MatchStatementParser: ExpressionParser {
     /// 解析MATCH语句
-    fn parse_match_statement(&mut self) -> Result<Option<Statement>, ParseError> {
+    fn parse_match_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
         // Parse match patterns
         let mut clauses = Vec::new();
 
@@ -30,9 +30,9 @@ pub trait MatchStatementParser: ExpressionParser {
             clauses.push(MatchClause::Return(self.parse_return_clause()?));
         }
 
-        Ok(Some(Statement::Match(MatchStatement {
+        Ok(Some(Box::new(MatchStatement {
+            base: BaseStatement::new(Span::default(), StatementType::Match),
             clauses,
-            return_clause: None
         })))
     }
 
@@ -185,6 +185,6 @@ pub trait MatchStatementParser: ExpressionParser {
         })
     }
 
-    fn parse_where_clause(&mut self) -> Result<WhereClause, ParseError>;
-    fn parse_return_clause(&mut self) -> Result<ReturnClause, ParseError>;
+    fn parse_where_clause(&mut self) -> Result<crate::query::parser::ast::compat::WhereClause, ParseError>;
+    fn parse_return_clause(&mut self) -> Result<crate::query::parser::ast::compat::ReturnClause, ParseError>;
 }
