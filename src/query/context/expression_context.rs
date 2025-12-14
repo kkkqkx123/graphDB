@@ -9,7 +9,7 @@
 
 use crate::core::Value;
 use super::QueryExecutionContext;
-use crate::storage::iterator::Iterator;
+use crate::storage::iterator::{Iterator, IteratorEnum};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -26,7 +26,7 @@ pub struct QueryExpressionContext {
     ectx: Arc<QueryExecutionContext>,
 
     // 当前迭代器（用于访问行数据）
-    iter: Arc<Mutex<Option<Box<dyn Iterator>>>>,
+    iter: Arc<Mutex<Option<IteratorEnum>>>,
 
     // 表达式内部变量（例如列表解析中的变量）
     expr_value_map: Arc<RwLock<HashMap<String, Value>>>,
@@ -61,7 +61,7 @@ impl QueryExpressionContext {
     ///
     /// # 返回
     /// 更新后的上下文（链式调用）
-    pub fn with_iterator(self, iter: Box<dyn Iterator>) -> Self {
+    pub fn with_iterator(self, iter: IteratorEnum) -> Self {
         *self.iter.lock().unwrap() = Some(iter);
         self
     }

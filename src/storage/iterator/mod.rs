@@ -12,11 +12,13 @@ pub mod default_iter;
 pub mod sequential_iter;
 pub mod get_neighbors_iter;
 pub mod prop_iter;
+pub mod enum_iter;
 
 pub use default_iter::DefaultIter;
 pub use sequential_iter::SequentialIter;
 pub use get_neighbors_iter::GetNeighborsIter;
 pub use prop_iter::PropIter;
+pub use enum_iter::IteratorEnum;
 
 use crate::core::Value;
 use std::fmt::Debug;
@@ -106,7 +108,7 @@ pub trait Iterator: Send + Sync + Debug {
     fn get_col_names(&self) -> Vec<String>;
 
     /// 深拷贝迭代器（用于保存状态）
-    fn copy(&self) -> Box<dyn Iterator>;
+    fn copy(&self) -> IteratorEnum;
 
     /// 类型检查方法
     fn is_default_iter(&self) -> bool {

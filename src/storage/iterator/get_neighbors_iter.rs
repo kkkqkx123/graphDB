@@ -9,7 +9,7 @@
 //! 3. 边列层：colIdx_（每个边类型一列）
 //! 4. 边列表层：edgeIdx_（每个邻接边一条记录）
 
-use super::{Iterator, IteratorKind, Row};
+use super::{Iterator, IteratorEnum, IteratorKind, Row};
 use crate::core::{DataSet, Value};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
@@ -807,8 +807,8 @@ impl Iterator for GetNeighborsIter {
         }
     }
 
-    fn copy(&self) -> Box<dyn Iterator> {
-        Box::new(self.clone())
+    fn copy(&self) -> IteratorEnum {
+        IteratorEnum::GetNeighbors(self.clone())
     }
 
     // 图特定方法

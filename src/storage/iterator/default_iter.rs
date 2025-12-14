@@ -3,7 +3,7 @@
 //! DefaultIter用于表示单个常量值，如数字、字符串等
 //! 逻辑上只有一"行"（值本身），next()后无效
 
-use super::{Iterator, IteratorKind, Row};
+use super::{Iterator, IteratorEnum, IteratorKind, Row};
 use crate::core::Value;
 use std::sync::Arc;
 
@@ -122,8 +122,8 @@ impl Iterator for DefaultIter {
         vec![]
     }
 
-    fn copy(&self) -> Box<dyn Iterator> {
-        Box::new(DefaultIter {
+    fn copy(&self) -> IteratorEnum {
+        IteratorEnum::Default(DefaultIter {
             value: self.value.clone(),
             counter: self.counter,
         })
