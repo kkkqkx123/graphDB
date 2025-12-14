@@ -246,7 +246,7 @@ impl<S: StorageEngine> QueryExecutor<S> {
     }
 }
 
-use crate::query::parser::parser::utils::Parser as NewParser;
+use crate::query::parser::parser::ParserV2 as NewParser;
 
 pub struct QueryParser;
 
@@ -274,7 +274,7 @@ impl QueryParser {
 
     fn convert_match_statement(
         &self,
-        match_stmt: &crate::query::parser::ast::MatchStatement,
+        match_stmt: &crate::query::parser::ast::stmt::MatchStmt,
     ) -> Result<Query, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -284,7 +284,7 @@ impl QueryParser {
 
     fn convert_create_node_statement(
         &self,
-        create_node_stmt: &crate::query::parser::ast::CreateStatement,
+        create_node_stmt: &crate::query::parser::ast::stmt::CreateStmt,
     ) -> Result<Query, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -294,7 +294,7 @@ impl QueryParser {
 
     fn convert_create_edge_statement(
         &self,
-        create_edge_stmt: &crate::query::parser::ast::CreateStatement,
+        create_edge_stmt: &crate::query::parser::ast::stmt::CreateStmt,
     ) -> Result<Query, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -304,7 +304,7 @@ impl QueryParser {
 
     fn convert_delete_statement(
         &self,
-        delete_stmt: &crate::query::parser::ast::DeleteStatement,
+        delete_stmt: &crate::query::parser::ast::stmt::DeleteStmt,
     ) -> Result<Query, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -314,7 +314,7 @@ impl QueryParser {
 
     fn convert_update_statement(
         &self,
-        update_stmt: &crate::query::parser::ast::UpdateStatement,
+        update_stmt: &crate::query::parser::ast::stmt::UpdateStmt,
     ) -> Result<Query, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -324,7 +324,7 @@ impl QueryParser {
 
     fn convert_expression(
         &self,
-        expr: &dyn crate::query::parser::ast::Expression,
+        expr: &crate::query::parser::ast::expr::Expr,
     ) -> Result<Condition, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -334,7 +334,7 @@ impl QueryParser {
 
     fn extract_property_name(
         &self,
-        expr: &dyn crate::query::parser::ast::Expression,
+        expr: &crate::query::parser::ast::expr::Expr,
     ) -> Result<String, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -344,7 +344,7 @@ impl QueryParser {
 
     fn convert_ast_expression_to_value(
         &self,
-        expr: &dyn crate::query::parser::ast::Expression,
+        expr: &crate::query::parser::ast::expr::Expr,
     ) -> Result<Value, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(

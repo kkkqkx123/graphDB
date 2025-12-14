@@ -137,7 +137,7 @@ impl Parser {
         Ok(tags)
     }
 
-    pub fn parse_property_list(&mut self) -> Result<Vec<Property>, ParseError> {
+    pub fn parse_property_list(&mut self) -> Result<Vec<PropertyDef>, ParseError> {
         let mut properties = Vec::new();
 
         if self.current_token.kind == TokenKind::LBrace {
@@ -149,7 +149,7 @@ impl Parser {
                     self.expect_token(TokenKind::Colon)?;
                     let value = self.parse_expression()?;
 
-                    properties.push(crate::query::parser::ast::types::Property::new(prop_name, crate::query::parser::ast::types::DataType::String));
+                    properties.push(PropertyDef { name: prop_name, data_type: DataType::String, nullable: true, default: None });
 
                     if self.current_token.kind != TokenKind::Comma {
                         break;
@@ -166,7 +166,7 @@ impl Parser {
                 self.expect_token(TokenKind::Assign)?;
                 let value = self.parse_expression()?;
 
-                properties.push(crate::query::parser::ast::types::Property::new(prop_name, crate::query::parser::ast::types::DataType::String));
+                properties.push(PropertyDef { name: prop_name, data_type: DataType::String, nullable: true, default: None });
 
                 if self.current_token.kind != TokenKind::Comma {
                     break;
@@ -190,7 +190,7 @@ impl Parser {
         }
     }
 
-    pub fn parse_yield_clause(&mut self) -> Result<crate::query::parser::ast::compat::YieldClause, ParseError> {
+    pub fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError> {
         self.next_token(); // Skip YIELD
         let mut items = Vec::new();
 

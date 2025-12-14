@@ -64,7 +64,7 @@ pub trait UpdateStmtParser: ExpressionParser {
         Ok(None)
     }
 
-    fn parse_where_clause(&mut self) -> Result<WhereClause, ParseError>;
+    fn parse_where_clause(&mut self) -> Result<Expr, ParseError>;
     fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError>;
-    fn parse_property_ref(&mut self) -> Result<PropertyRef, ParseError>;
+    fn parse_property_ref(&mut self) -> Result<String, ParseError>;
 }

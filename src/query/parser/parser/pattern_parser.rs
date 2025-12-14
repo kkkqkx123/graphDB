@@ -173,7 +173,7 @@ impl super::Parser {
 
     pub fn parse_return_clause(
         &mut self,
-    ) -> Result<crate::query::parser::ast::compat::ReturnClause, ParseError> {
+    ) -> Result<ReturnClause, ParseError> {
         self.next_token(); // Skip RETURN
 
         let distinct = if self.current_token.kind == TokenKind::Distinct {

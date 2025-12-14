@@ -190,7 +190,7 @@ impl Parser {
         }
     }
 
-    pub fn parse_yield_clause(&mut self) -> Result<crate::query::parser::ast::compat::YieldClause, ParseError> {
+    pub fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError> {
         self.next_token(); // Skip YIELD
         let mut items = Vec::new();
 

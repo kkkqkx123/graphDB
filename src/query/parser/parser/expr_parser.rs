@@ -22,10 +22,10 @@ impl super::Parser {
         while self.current_token.kind == TokenKind::Or {
             self.next_token();
             let right = self.parse_logical_and()?;
-            expr = Box::new(node::BinaryExpr::new(
-                expr,
-                node::BinaryOp::Or,
-                right,
+            expr = Expr::Binary(BinaryExpr::new(
+                *expr,
+                BinaryOp::Or,
+                *right,
                 Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0))
             ));
         }

@@ -52,23 +52,23 @@ pub trait DeleteStmtParser: ExpressionParser {
         };
 
         Ok(Some(Box::new(DeleteStmt {
-            base: BaseStmt::new(Span::default(), Stmt::Delete),
+            span: Span::default(),
             target: if delete_vertices {
                 DeleteTarget::Vertices(vertex_exprs)
             } else {
                 // 简化的边删除实现
                 DeleteTarget::Edges {
-                    edge_type: "".to_string(),
-                    src: Box::new(node::VariableExpr::new("src".to_string(), Span::default())),
-                    dst: Box::new(node::VariableExpr::new("dst".to_string(), Span::default())),
+                    src: Expr::Variable(VariableExpr::new("src".to_string(), Span::default())),
+                    dst: Expr::Variable(VariableExpr::new("dst".to_string(), Span::default())),
+                    edge_type: None,
                     rank: None,
                 }
             },
-            where_clause: where_clause.map(|wc| wc.expression),
+            where_clause: where_clause.map(|wc| wc),
             yield_clause,
         })))
     }
 
-    fn parse_where_clause(&mut self) -> Result<WhereClause, ParseError>;
+    fn parse_where_clause(&mut self) -> Result<Expr, ParseError>;
     fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError>;
 }

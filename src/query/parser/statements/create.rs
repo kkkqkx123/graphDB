@@ -133,8 +133,8 @@ pub trait CreateStmtParser: ExpressionParser {
         })))
     }
 
-    fn parse_tag_list(&mut self) -> Result<Vec<TagIdentifier>, ParseError>;
-    fn parse_property_list(&mut self) -> Result<Vec<Property>, ParseError>;
+    fn parse_tag_list(&mut self) -> Result<Vec<String>, ParseError>;
+    fn parse_property_list(&mut self) -> Result<Vec<PropertyDef>, ParseError>;
     fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError>;
     fn check_and_skip_keyword(&mut self, keyword: TokenKind) -> bool;
     fn add_error(&mut self, error: ParseError);

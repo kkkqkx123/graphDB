@@ -4,7 +4,6 @@
 
 use crate::query::parser::core::token::TokenKind;
 use crate::query::parser::ast::*;
-use crate::query::parser::ast::types::BaseStmt;
 use crate::query::parser::core::error::{ParseError, ParseErrors};
 use crate::query::parser::ast::types::Position;
 
@@ -289,8 +288,8 @@ impl super::Parser {
             ), Stmt::Delete),
             target: if delete_vertices { DeleteTarget::Vertices(vertex_exprs) } else { DeleteTarget::Edges {
                 edge_type: "".to_string(),
-                src: crate::query::parser::ast::expression::ExpressionFactory::constant(crate::core::Value::Null(crate::core::NullType::Null), Span::default()),
-                dst: crate::query::parser::ast::expression::ExpressionFactory::constant(crate::core::Value::Null(crate::core::NullType::Null), Span::default()),
+                src: crate::query::parser::ast::expr::Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(crate::core::Value::Null(crate::core::NullType::Null), Span::default())),
+                dst: crate::query::parser::ast::expr::Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(crate::core::Value::Null(crate::core::NullType::Null), Span::default())),
                 rank: None,
             } },
             where_clause: where_clause.map(|wc| wc.expression),
@@ -361,8 +360,8 @@ impl super::Parser {
             } else {
                 UpdateTarget::Edge {
                     edge_type: "".to_string(),
-                    src: crate::query::parser::ast::expression::ExpressionFactory::constant(crate::core::Value::Null(crate::core::NullType::Null), Span::default()),
-                    dst: crate::query::parser::ast::expression::ExpressionFactory::constant(crate::core::Value::Null(crate::core::NullType::Null), Span::default()),
+                    src: crate::query::parser::ast::expr::Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(crate::core::Value::Null(crate::core::NullType::Null), Span::default())),
+                    dst: crate::query::parser::ast::expr::Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(crate::core::Value::Null(crate::core::NullType::Null), Span::default())),
                     rank: None,
                 }
             },
@@ -449,7 +448,7 @@ impl super::Parser {
         // Parse the statement to explain
         let stmt = self.parse_statement()?;
         if let Some(stmt) = stmt {
-            Ok(Some(Box::new(crate::query::parser::ast::compat::ExplainStmt {
+            Ok(Some(Box::new(ExplainStmt {
                 base: BaseStmt::new(Span::new(
                     Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column),
                     Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column)

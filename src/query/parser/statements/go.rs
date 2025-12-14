@@ -48,11 +48,11 @@ pub trait GoStatementParser: ExpressionParser {
         self.expect_token(TokenKind::Yield)?;
         let yield_clause = Some(self.parse_yield_clause()?);
 
-        Ok(Some(Box::new(GoStatement {
-            base: BaseStmt::new(Span::default(), Stmt::Go),
+        Ok(Some(Box::new(GoStmt {
+            span: Span::default(),
             steps,
-            over: over_clause,
-            from: FromClause { vertices: from_list },
+            from: FromClause { span: Span::default(), vertices: from_list },
+            over: Some(over_clause),
             where_clause,
             yield_clause,
         })))

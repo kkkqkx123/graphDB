@@ -22,9 +22,6 @@ pub use pattern::*;
 pub mod visitor;
 pub use visitor::*;
 
-// 兼容性层
-pub mod compat;
-pub use compat::*;
 
 // 工具函数
 pub mod utils;

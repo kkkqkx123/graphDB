@@ -449,7 +449,7 @@ impl super::Parser {
         // Parse the statement to explain
         let stmt = self.parse_statement()?;
         if let Some(stmt) = stmt {
-            Ok(Some(Box::new(crate::query::parser::ast::compat::ExplainStmt {
+            Ok(Some(Box::new(ExplainStmt {
                 base: BaseStmt::new(Span::new(
                     Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column),
                     Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column)
