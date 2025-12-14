@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
-use crate::graph::expression::{EvalContext, ExpressionV1 as Expression, ExpressionEvaluator};
+use crate::graph::expression::{EvalContext, Expression, ExpressionEvaluator};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, DBResult};
 use crate::storage::StorageEngine;

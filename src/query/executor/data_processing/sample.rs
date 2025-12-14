@@ -8,7 +8,7 @@ use rand::{Rng, SeedableRng};
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Edge, Value, Vertex};
-use crate::graph::expression::{EvalContext, ExpressionEvaluator, ExpressionV1 as Expression};
+use crate::graph::expression::{EvalContext, ExpressionEvaluator, Expression};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,

@@ -480,7 +480,7 @@ mod tests {
 
         let unwind_ctx = crate::query::validator::structs::UnwindClauseContext {
             alias: "item".to_string(),
-            unwind_expr: crate::graph::expression::expr_type::Expression::Variable("x".to_string()),
+            unwind_expr: crate::graph::expression::Expression::Variable("x".to_string()),
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),
             paths: vec![],
@@ -688,7 +688,7 @@ mod tests {
             .insert("n".to_string(), AliasType::Node);
 
         let where_ctx = crate::query::validator::structs::WhereClauseContext {
-            filter: Some(crate::graph::expression::expr_type::Expression::Variable(
+            filter: Some(crate::graph::expression::Expression::Variable(
                 "x".to_string(),
             )),
             aliases_available: HashMap::new(),

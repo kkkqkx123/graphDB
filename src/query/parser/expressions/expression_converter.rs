@@ -1,7 +1,7 @@
 //! 表达式转换器
 //! 将AST表达式转换为graph表达式
 
-use crate::graph::expression::expr_type::Expression;
+use crate::graph::expression::Expression;
 use crate::graph::expression::binary::BinaryOperator;
 use crate::graph::expression::unary::UnaryOperator;
 use crate::query::parser::ast::{BinaryOp, UnaryOp};

@@ -1,5 +1,5 @@
 use crate::core::{Value, NullType};
-use crate::graph::expression::{Expression, ExpressionKind};
+use crate::graph::expression::Expression;
 use crate::graph::expression::binary::BinaryOperator;
 use crate::graph::expression::unary::UnaryOperator;
 use serde_json;

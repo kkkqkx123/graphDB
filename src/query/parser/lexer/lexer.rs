@@ -589,8 +589,8 @@ impl Lexer {
     }
     
     /// 获取当前位置
-    pub fn current_position(&self) -> crate::query::parser::core::Position {
-        crate::query::parser::core::Position::new(self.line, self.column)
+    pub fn current_position(&self) -> Position {
+        Position::new(self.line, self.column)
     }
     
     /// 检查是否在文件末尾

@@ -3,7 +3,7 @@
 
 use super::super::structs::*;
 use super::super::validation_interface::*;
-use crate::graph::expression::expr_type::Expression;
+use crate::graph::expression::Expression;
 use std::collections::HashMap;
 
 /// 别名验证策略
@@ -303,7 +303,7 @@ impl ValidationStrategy for AliasValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::expr_type::Expression;
+    use crate::graph::expression::Expression;
 
     #[test]
     fn test_alias_validation_strategy_creation() {

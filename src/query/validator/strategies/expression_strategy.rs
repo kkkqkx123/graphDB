@@ -5,7 +5,7 @@ use super::super::structs::*;
 use super::super::validation_interface::*;
 use crate::config::test_config::test_config;
 use crate::core::ValueTypeDef;
-use crate::graph::expression::expr_type::Expression;
+use crate::graph::expression::Expression;
 
 /// 表达式验证策略
 pub struct ExpressionValidationStrategy;
@@ -301,7 +301,7 @@ impl ValidationStrategy for ExpressionValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::expr_type::Expression;
+    use crate::graph::expression::Expression;
 
     #[test]
     fn test_expression_validation_strategy_creation() {

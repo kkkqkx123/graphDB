@@ -1,6 +1,6 @@
 //! 路径相关数据结构
 
-use crate::graph::expression::expr_type::Expression;
+use crate::graph::expression::Expression;
 
 /// 路径信息
 #[derive(Debug, Clone)]

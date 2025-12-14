@@ -22,7 +22,7 @@ pub struct GetVertices {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub space_id: i32,
-    pub src_ref: crate::graph::expression::expr_type::Expression, // 源引用
+    pub src_ref: crate::graph::expression::Expression, // 源引用
     pub src_vids: String,        // 源顶点表达式
     pub tag_props: Vec<TagProp>, // 标签属性
     pub expr: Option<String>,    // 过滤表达式
@@ -40,7 +40,7 @@ impl GetVertices {
             col_names: Vec::new(),
             cost: 0.0,
             space_id,
-            src_ref: crate::graph::expression::expr_type::Expression::Variable(src_vids.to_string()),
+            src_ref: crate::graph::expression::Expression::Variable(src_vids.to_string()),
             src_vids: src_vids.to_string(),
             tag_props: Vec::new(),
             expr: None,
@@ -170,7 +170,7 @@ pub struct GetEdges {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub space_id: i32,
-    pub edge_ref: crate::graph::expression::expr_type::Expression, // 边引用
+    pub edge_ref: crate::graph::expression::Expression, // 边引用
     pub src: String,               // 源顶点
     pub edge_type: String,         // 边类型
     pub rank: String,              // 排名
@@ -191,7 +191,7 @@ impl GetEdges {
             col_names: Vec::new(),
             cost: 0.0,
             space_id,
-            edge_ref: crate::graph::expression::expr_type::Expression::Variable(format!("{}->{}@{}", src, dst, edge_type)),
+            edge_ref: crate::graph::expression::Expression::Variable(format!("{}->{}@{}", src, dst, edge_type)),
             src: src.to_string(),
             edge_type: edge_type.to_string(),
             rank: rank.to_string(),

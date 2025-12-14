@@ -3,7 +3,7 @@
 
 use super::super::validation_interface::*;
 use super::super::structs::*;
-use crate::graph::expression::expr_type::Expression;
+use crate::graph::expression::Expression;
 use crate::core::ValueTypeDef;
 use crate::config::test_config::test_config;
 
@@ -185,7 +185,7 @@ impl ValidationStrategy for PaginationValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::expr_type::Expression;
+    use crate::graph::expression::Expression;
     
     #[test]
     fn test_pagination_validation_strategy_creation() {

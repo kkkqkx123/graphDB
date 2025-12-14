@@ -246,14 +246,14 @@ impl<S: StorageEngine> QueryExecutor<S> {
     }
 }
 
-use crate::query::parser::parser::ParserV2 as NewParser;
+use crate::query::parser::parser::Parser;
 
 pub struct QueryParser;
 
 impl QueryParser {
     pub fn parse(&self, query_string: &str) -> Result<Query, QueryError> {
         // Use the new parser implementation
-        let mut parser = NewParser::new(query_string);
+        let mut parser = Parser::new(query_string);
         let query_stmt = parser
             .parse_query()
             .map_err(|e| QueryError::ParseError(e.to_string()))?;

@@ -623,7 +623,7 @@ mod tests {
         let path = create_test_path("p", false, vec!["n"]);
         
         let where_clause = crate::query::validator::structs::WhereClauseContext {
-            filter: Some(crate::graph::expression::expr_type::Expression::Variable("x".to_string())),
+            filter: Some(crate::graph::expression::Expression::Variable("x".to_string())),
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),
             paths: vec![],
@@ -714,7 +714,7 @@ mod tests {
         let match_clause_ctx = create_test_match_clause_context();
         
         let mut path = create_test_path("p", false, vec!["n"]);
-        path.node_infos[0].props = Some(crate::graph::expression::expr_type::Expression::Constant(
+        path.node_infos[0].props = Some(crate::graph::expression::Expression::Constant(
             crate::core::Value::String("test".to_string())
         ));
         
@@ -735,7 +735,7 @@ mod tests {
         let match_clause_ctx = create_test_match_clause_context();
         
         let mut path = create_test_path("p", false, vec!["n"]);
-        path.node_infos[0].filter = Some(crate::graph::expression::expr_type::Expression::Variable("x".to_string()));
+        path.node_infos[0].filter = Some(crate::graph::expression::Expression::Variable("x".to_string()));
         
         let mut planner = MatchPathPlanner::new(match_clause_ctx, path);
         let mut node_aliases_seen = std::collections::HashSet::new();

@@ -120,13 +120,6 @@ pub enum Expression {
         target_type: String,
     },
 
-    // 聚合表达式
-    Aggregate {
-        func: String,
-        arg: Box<Expression>,
-        distinct: bool,
-    },
-
     // 列表推导
     ListComprehension {
         generator: Box<Expression>,
@@ -155,9 +148,6 @@ pub enum Expression {
 
     // UUID表达式
     UUID,
-
-    // 变量表达式
-    Variable(String),
 
     // 下标范围表达式
     SubscriptRange {

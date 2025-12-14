@@ -11,7 +11,7 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
 use crate::storage::StorageEngine;
-use crate::graph::expression::{Expression, ExpressionContext, InputPropertyExpression};
+use crate::graph::expression::{Expression, ExpressionContext};
 
 /// RollUpApply执行器
 /// 用于将右输入中的值根据左输入的键进行聚合
@@ -24,7 +24,7 @@ pub struct RollUpApplyExecutor<S: StorageEngine + Send + 'static> {
     /// 比较列表达式列表
     compare_cols: Vec<Expression>,
     /// 收集列表达式
-    collect_col: InputPropertyExpression,
+    collect_col: Expression,
     /// 输出列名
     col_names: Vec<String>,
     /// 是否可以移动数据
@@ -39,7 +39,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         left_input_var: String,
         right_input_var: String,
         compare_cols: Vec<Expression>,
-        collect_col: InputPropertyExpression,
+        collect_col: Expression,
         col_names: Vec<String>,
     ) -> Self {
         Self {
@@ -60,7 +60,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         left_input_var: String,
         right_input_var: String,
         compare_cols: Vec<Expression>,
-        collect_col: InputPropertyExpression,
+        collect_col: Expression,
         col_names: Vec<String>,
         context: crate::query::executor::base::ExecutionContext,
     ) -> Self {
@@ -92,7 +92,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     fn build_hash_table(
         &self,
         compare_cols: &[Expression],
-        collect_col: &InputPropertyExpression,
+        collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut HashMap<List, List>,
         expr_context: &mut ExpressionContext,
@@ -125,7 +125,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     fn build_single_key_hash_table(
         &self,
         compare_col: &Expression,
-        collect_col: &InputPropertyExpression,
+        collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut HashMap<Value, List>,
         expr_context: &mut ExpressionContext,
@@ -153,7 +153,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     /// 构建零键哈希表
     fn build_zero_key_hash_table(
         &self,
-        collect_col: &InputPropertyExpression,
+        collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut List,
         expr_context: &mut ExpressionContext,
@@ -455,7 +455,7 @@ mod tests {
         let compare_cols = vec![
             Expression::Constant(Value::Int(0)), // 简化的比较列
         ];
-        let collect_col = InputPropertyExpression::new("_".to_string());
+        let collect_col = Expression::InputProperty("_".to_string());
         
         let mut executor = RollUpApplyExecutor::with_context(
             1,

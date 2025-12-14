@@ -4,7 +4,7 @@
 mod tests {
     use super::super::*;
     use crate::core::{Value, ValueTypeDef};
-    use crate::graph::expression::{Expression, BinaryOperator, ExpressionKind};
+    use crate::graph::expression::{Expression, BinaryOperator};
     use crate::query::validator::ValidateContext;
     use std::collections::HashMap;
 

@@ -2,7 +2,7 @@
 //! 根据标签索引进行查找
 //! 负责规划基于标签索引的查找操作
 
-use crate::graph::expression::expr_type::Expression;
+use crate::graph::expression::Expression;
 use crate::query::planner::plan::core::{PlanNode, PlanNodeMutable};
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
@@ -199,7 +199,7 @@ fn create_start_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::expr_type::Expression;
+    use crate::graph::expression::Expression;
     use crate::query::validator::structs::path_structs::NodeInfo;
 
     /// 创建测试用的节点信息

@@ -17,14 +17,14 @@ use crate::query::parser::ast::expr::*;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::pattern::*;
 
-/// 新解析器
-pub struct ParserV2 {
+/// 解析器
+pub struct Parser {
     lexer: Lexer,
     compat_mode: bool,
 }
 
-impl ParserV2 {
-    /// 创建新解析器
+impl Parser {
+    /// 创建解析器
     pub fn new(input: &str) -> Self {
         Self {
             lexer: Lexer::new(input),
@@ -526,7 +526,7 @@ mod tests {
     
     #[test]
     fn test_parse_constant() {
-        let mut parser = ParserV2::new("42");
+        let mut parser = Parser::new("42");
         let result = parser.parse_expression();
         assert!(result.is_ok());
         
@@ -539,7 +539,7 @@ mod tests {
     
     #[test]
     fn test_parse_variable() {
-        let mut parser = ParserV2::new("x");
+        let mut parser = Parser::new("x");
         let result = parser.parse_expression();
         assert!(result.is_ok());
         
@@ -552,7 +552,7 @@ mod tests {
     
     #[test]
     fn test_parse_binary() {
-        let mut parser = ParserV2::new("5 + 3");
+        let mut parser = Parser::new("5 + 3");
         let result = parser.parse_expression();
         assert!(result.is_ok());
         
@@ -565,7 +565,7 @@ mod tests {
     
     #[test]
     fn test_parse_function_call() {
-        let mut parser = ParserV2::new("COUNT(x)");
+        let mut parser = Parser::new("COUNT(x)");
         let result = parser.parse_expression();
         assert!(result.is_ok());
         
@@ -579,7 +579,7 @@ mod tests {
     
     #[test]
     fn test_parse_list() {
-        let mut parser = ParserV2::new("[1, 2, 3]");
+        let mut parser = Parser::new("[1, 2, 3]");
         let result = parser.parse_expression();
         assert!(result.is_ok());
         
@@ -592,7 +592,7 @@ mod tests {
     
     #[test]
     fn test_parse_map() {
-        let mut parser = ParserV2::new("{name: \"John\", age: 30}");
+        let mut parser = Parser::new("{name: \"John\", age: 30}");
         let result = parser.parse_expression();
         assert!(result.is_ok());
         
@@ -605,7 +605,7 @@ mod tests {
     
     #[test]
     fn test_parse_property_access() {
-        let mut parser = ParserV2::new("node.name");
+        let mut parser = Parser::new("node.name");
         let result = parser.parse_expression();
         assert!(result.is_ok());
         
@@ -618,7 +618,7 @@ mod tests {
     
     #[test]
     fn test_parse_subscript() {
-        let mut parser = ParserV2::new("list[0]");
+        let mut parser = Parser::new("list[0]");
         let result = parser.parse_expression();
         assert!(result.is_ok());
         

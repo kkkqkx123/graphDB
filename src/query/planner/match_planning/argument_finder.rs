@@ -123,7 +123,7 @@ mod tests {
         ReturnClauseContext, WithClauseContext, UnwindClauseContext,
         YieldClauseContext, Path, NodeInfo, AliasType, PathType
     };
-    use crate::graph::expression::expr_type::Expression;
+    use crate::graph::expression::Expression;
 
     /// 创建测试用的节点信息
     fn create_test_node_info(alias: &str, anonymous: bool) -> NodeInfo {

@@ -5,7 +5,7 @@
 use crate::query::planner::plan::{SubPlan, PlanNodeKind, SingleInputNode};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
-use crate::graph::expression::expr_type::Expression;
+use crate::graph::expression::Expression;
 use std::sync::Arc;
 
 /// 可变顶点ID查找规划器

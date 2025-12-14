@@ -1,9 +1,22 @@
 //! 表达式解析器 (v2)
 
 use super::*;
-use crate::query::parser::lexer::{Lexer, Token as LexerToken};
+use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
+use crate::core::Value;
 
-impl ParserV2 {
+/// 表达式解析器
+pub struct ExprParser {
+    lexer: Lexer,
+}
+
+impl ExprParser {
+    /// 创建表达式解析器
+    pub fn new(input: &str) -> Self {
+        Self {
+            lexer: Lexer::new(input),
+        }
+    }
+    
     /// 解析表达式
     pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
         self.parse_or_expression()
@@ -17,7 +30,7 @@ impl ParserV2 {
             let op = BinaryOp::Or;
             let right = self.parse_and_expression()?;
             let span = Span::new(left.span().start, right.span().end);
-            left = ExprFactory::binary(left, op, right, span);
+            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
         }
         
         Ok(left)
@@ -31,7 +44,7 @@ impl ParserV2 {
             let op = BinaryOp::And;
             let right = self.parse_not_expression()?;
             let span = Span::new(left.span().start, right.span().end);
-            left = ExprFactory::binary(left, op, right, span);
+            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
         }
         
         Ok(left)
@@ -43,7 +56,7 @@ impl ParserV2 {
             let op = UnaryOp::Not;
             let operand = self.parse_not_expression()?;
             let span = Span::new(operand.span().start, operand.span().end);
-            Ok(ExprFactory::unary(op, operand, span))
+            Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
         } else {
             self.parse_comparison_expression()
         }
@@ -57,7 +70,7 @@ impl ParserV2 {
         if let Some(op) = self.parse_comparison_op() {
             let right = self.parse_additive_expression()?;
             let span = Span::new(left.span().start, right.span().end);
-            left = ExprFactory::binary(left, op, right, span);
+            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
         }
         
         Ok(left)
@@ -70,7 +83,7 @@ impl ParserV2 {
         while let Some(op) = self.parse_additive_op() {
             let right = self.parse_multiplicative_expression()?;
             let span = Span::new(left.span().start, right.span().end);
-            left = ExprFactory::binary(left, op, right, span);
+            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
         }
         
         Ok(left)
@@ -83,7 +96,7 @@ impl ParserV2 {
         while let Some(op) = self.parse_multiplicative_op() {
             let right = self.parse_unary_expression()?;
             let span = Span::new(left.span().start, right.span().end);
-            left = ExprFactory::binary(left, op, right, span);
+            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
         }
         
         Ok(left)
@@ -95,12 +108,12 @@ impl ParserV2 {
             let op = UnaryOp::Minus;
             let operand = self.parse_unary_expression()?;
             let span = Span::new(operand.span().start, operand.span().end);
-            Ok(ExprFactory::unary(op, operand, span))
+            Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
         } else if self.match_token(LexerToken::Plus) {
             let op = UnaryOp::Plus;
             let operand = self.parse_unary_expression()?;
             let span = Span::new(operand.span().start, operand.span().end);
-            Ok(ExprFactory::unary(op, operand, span))
+            Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
         } else {
             self.parse_postfix_expression()
         }
@@ -115,13 +128,13 @@ impl ParserV2 {
                 // 下标访问
                 let index = self.parse_expression()?;
                 self.expect_token(LexerToken::RightBracket)?;
-                let span = Span::new(expr.span().start, self.current_span().end);
-                expr = ExprFactory::subscript(expr, index, span);
+                let span = Span::new(expr.span().start, self.lexer.current_position());
+                expr = Expr::Subscript(SubscriptExpr::new(expr, index, span));
             } else if self.match_token(LexerToken::Dot) {
                 // 属性访问
                 let property = self.expect_identifier()?;
-                let span = Span::new(expr.span().start, self.current_span().end);
-                expr = ExprFactory::property_access(expr, property, span);
+                let span = Span::new(expr.span().start, self.lexer.current_position());
+                expr = Expr::PropertyAccess(PropertyAccessExpr::new(expr, property, span));
             } else {
                 break;
             }
@@ -138,24 +151,24 @@ impl ParserV2 {
             LexerToken::Integer => {
                 let value = self.parse_integer()?;
                 let span = self.current_span();
-                Ok(ExprFactory::constant(Value::Int(value), span))
+                Ok(Expr::Constant(ConstantExpr::new(Value::Int(value), span)))
             }
             LexerToken::Float => {
                 let value = self.parse_float()?;
                 let span = self.current_span();
-                Ok(ExprFactory::constant(Value::Float(value), span))
+                Ok(Expr::Constant(ConstantExpr::new(Value::Float(value), span)))
             }
             LexerToken::String => {
                 let value = self.parse_string()?;
                 let span = self.current_span();
-                Ok(ExprFactory::constant(Value::String(value), span))
+                Ok(Expr::Constant(ConstantExpr::new(Value::String(value), span)))
             }
             LexerToken::Boolean => {
                 let value = self.parse_boolean()?;
                 let span = self.current_span();
-                Ok(ExprFactory::constant(Value::Bool(value), span))
+                Ok(Expr::Constant(ConstantExpr::new(Value::Bool(value), span)))
             }
-            LexerToken::Identifier => {
+            LexerToken::Identifier(_) => {
                 let name = self.expect_identifier()?;
                 let span = self.current_span();
                 
@@ -163,7 +176,7 @@ impl ParserV2 {
                 if self.match_token(LexerToken::LeftParen) {
                     self.parse_function_call(name, span)
                 } else {
-                    Ok(ExprFactory::variable(name, span))
+                    Ok(Expr::Variable(VariableExpr::new(name, span)))
                 }
             }
             LexerToken::LeftParen => {
@@ -216,7 +229,7 @@ impl ParserV2 {
         let end_span = self.current_span();
         let full_span = Span::new(span.start, end_span.end);
         
-        Ok(ExprFactory::function_call(name, args, distinct, full_span))
+        Ok(Expr::FunctionCall(FunctionCallExpr::new(name, args, distinct, full_span)))
     }
     
     /// 解析列表表达式
@@ -241,7 +254,7 @@ impl ParserV2 {
         let end_span = self.current_span();
         let span = Span::new(start_span.start, end_span.end);
         
-        Ok(ExprFactory::list(elements, span))
+        Ok(Expr::List(ListExpr::new(elements, span)))
     }
     
     /// 解析映射表达式
@@ -268,7 +281,7 @@ impl ParserV2 {
         let end_span = self.current_span();
         let span = Span::new(start_span.start, end_span.end);
         
-        Ok(ExprFactory::map(pairs, span))
+        Ok(Expr::Map(MapExpr::new(pairs, span)))
     }
     
     /// 辅助方法
@@ -301,7 +314,7 @@ impl ParserV2 {
     
     fn expect_identifier(&mut self) -> Result<String, ParseError> {
         let token = self.lexer.peek()?;
-        if let LexerToken::Identifier = token.kind {
+        if let LexerToken::Identifier(_) = token.kind {
             let text = token.text.clone();
             self.lexer.advance()?;
             Ok(text)
@@ -425,11 +438,125 @@ impl ParserV2 {
         }
     }
     
+    fn skip_optional_semicolon(&mut self) {
+        self.match_token(LexerToken::Semicolon);
+    }
+    
     fn current_span(&self) -> Span {
         let pos = self.lexer.current_position();
         Span::new(
             Position::new(pos.line, pos.column),
             Position::new(pos.line, pos.column),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_parse_constant() {
+        let mut parser = ExprParser::new("42");
+        let result = parser.parse_expression();
+        assert!(result.is_ok());
+        
+        if let Ok(Expr::Constant(e)) = result {
+            assert_eq!(e.value, Value::Int(42));
+        } else {
+            panic!("Expected constant expression");
+        }
+    }
+    
+    #[test]
+    fn test_parse_variable() {
+        let mut parser = ExprParser::new("x");
+        let result = parser.parse_expression();
+        assert!(result.is_ok());
+        
+        if let Ok(Expr::Variable(e)) = result {
+            assert_eq!(e.name, "x");
+        } else {
+            panic!("Expected variable expression");
+        }
+    }
+    
+    #[test]
+    fn test_parse_binary() {
+        let mut parser = ExprParser::new("5 + 3");
+        let result = parser.parse_expression();
+        assert!(result.is_ok());
+        
+        if let Ok(Expr::Binary(e)) = result {
+            assert_eq!(e.op, BinaryOp::Add);
+        } else {
+            panic!("Expected binary expression");
+        }
+    }
+    
+    #[test]
+    fn test_parse_function_call() {
+        let mut parser = ExprParser::new("COUNT(x)");
+        let result = parser.parse_expression();
+        assert!(result.is_ok());
+        
+        if let Ok(Expr::FunctionCall(e)) = result {
+            assert_eq!(e.name, "COUNT");
+            assert_eq!(e.args.len(), 1);
+        } else {
+            panic!("Expected function call expression");
+        }
+    }
+    
+    #[test]
+    fn test_parse_list() {
+        let mut parser = ExprParser::new("[1, 2, 3]");
+        let result = parser.parse_expression();
+        assert!(result.is_ok());
+        
+        if let Ok(Expr::List(e)) = result {
+            assert_eq!(e.elements.len(), 3);
+        } else {
+            panic!("Expected list expression");
+        }
+    }
+    
+    #[test]
+    fn test_parse_map() {
+        let mut parser = ExprParser::new("{name: \"John\", age: 30}");
+        let result = parser.parse_expression();
+        assert!(result.is_ok());
+        
+        if let Ok(Expr::Map(e)) = result {
+            assert_eq!(e.pairs.len(), 2);
+        } else {
+            panic!("Expected map expression");
+        }
+    }
+    
+    #[test]
+    fn test_parse_property_access() {
+        let mut parser = ExprParser::new("node.name");
+        let result = parser.parse_expression();
+        assert!(result.is_ok());
+        
+        if let Ok(Expr::PropertyAccess(e)) = result {
+            assert_eq!(e.property, "name");
+        } else {
+            panic!("Expected property access expression");
+        }
+    }
+    
+    #[test]
+    fn test_parse_subscript() {
+        let mut parser = ExprParser::new("list[0]");
+        let result = parser.parse_expression();
+        assert!(result.is_ok());
+        
+        if let Ok(Expr::Subscript(e)) = result {
+            // 验证下标访问
+        } else {
+            panic!("Expected subscript expression");
+        }
     }
 }

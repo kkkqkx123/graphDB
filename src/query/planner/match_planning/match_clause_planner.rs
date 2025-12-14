@@ -240,7 +240,7 @@ impl MatchClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::expr_type::Expression;
+    use crate::graph::expression::Expression;
     use crate::query::planner::plan::core::PlanNodeKind;
     use crate::query::planner::plan::VariableDependencyNode;
     use crate::query::validator::structs::{

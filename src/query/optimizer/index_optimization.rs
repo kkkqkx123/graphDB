@@ -447,21 +447,21 @@ fn can_push_down_to_index_scan(condition: &str) -> FilterSplitResult {
 /// 尝试解析过滤条件为表达式
 fn parse_filter_condition(
     condition: &str,
-) -> Result<crate::graph::expression::expr_type::Expression, String> {
+) -> Result<crate::graph::expression::Expression, String> {
     // 使用表达式转换器解析字符串条件
     crate::query::parser::expressions::parse_expression_from_string(condition)
 }
 
 /// 分析表达式，确定哪些部分可以下推到索引扫描
 fn analyze_expression_for_index_scan(
-    expr: &crate::graph::expression::expr_type::Expression,
+    expr: &crate::graph::expression::Expression,
     pushable_conditions: &mut Vec<String>,
     remaining_conditions: &mut Vec<String>,
 ) {
     // 分析表达式
     // 通常，只涉及索引列的条件可以下推到索引扫描
     match expr {
-        crate::graph::expression::expr_type::Expression::BinaryOp(left, op, right) => {
+        crate::graph::expression::Expression::BinaryOp(left, op, right) => {
             // 检查是否是AND操作
             if matches!(op, crate::graph::expression::binary::BinaryOperator::And) {
                 // 递归分析左右子表达式
@@ -489,16 +489,16 @@ fn analyze_expression_for_index_scan(
 
 /// 检查表达式是否可以下推到索引扫描
 fn can_push_down_expression_to_index_scan(
-    expr: &crate::graph::expression::expr_type::Expression,
+    expr: &crate::graph::expression::Expression,
 ) -> bool {
     // 检查表达式是否可以下推到索引扫描
     match expr {
-        crate::graph::expression::expr_type::Expression::TagProperty { .. } => true,
-        crate::graph::expression::expr_type::Expression::Property(_) => true,
-        crate::graph::expression::expr_type::Expression::Variable(_) => true, // 变量也可以下推
-        crate::graph::expression::expr_type::Expression::VariableProperty { .. } => true,
-        crate::graph::expression::expr_type::Expression::EdgeProperty { .. } => true,
-        crate::graph::expression::expr_type::Expression::BinaryOp(left, op, right) => {
+        crate::graph::expression::Expression::TagProperty { .. } => true,
+        crate::graph::expression::Expression::Property(_) => true,
+        crate::graph::expression::Expression::Variable(_) => true, // 变量也可以下推
+        crate::graph::expression::Expression::VariableProperty { .. } => true,
+        crate::graph::expression::Expression::EdgeProperty { .. } => true,
+        crate::graph::expression::Expression::BinaryOp(left, op, right) => {
             // 检查是否是支持索引的操作符
             let is_indexable_op = matches!(
                 op,
@@ -514,14 +514,14 @@ fn can_push_down_expression_to_index_scan(
                 && can_push_down_expression_to_index_scan(left)
                 && can_push_down_expression_to_index_scan(right)
         }
-        crate::graph::expression::expr_type::Expression::UnaryOp(_, operand) => {
+        crate::graph::expression::Expression::UnaryOp(_, operand) => {
             can_push_down_expression_to_index_scan(operand)
         }
-        crate::graph::expression::expr_type::Expression::Function(name, _) => {
+        crate::graph::expression::Expression::Function(name, _) => {
             // 某些函数可以下推，如id(), properties()等
             matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
         }
-        crate::graph::expression::expr_type::Expression::Constant(_) => true, // 常量也可以下推
+        crate::graph::expression::Expression::Constant(_) => true, // 常量也可以下推
         _ => false,
     }
 }
@@ -554,11 +554,11 @@ fn update_index_scan_limits(index_scan: &mut IndexScanPlanNode, condition: &str)
 
 /// 从表达式中提取索引限制
 fn extract_index_limits_from_expression(
-    expr: &crate::graph::expression::expr_type::Expression,
+    expr: &crate::graph::expression::Expression,
     index_scan: &mut IndexScanPlanNode,
 ) {
     use crate::graph::expression::binary::BinaryOperator;
-    use crate::graph::expression::expr_type::Expression;
+    use crate::graph::expression::Expression;
 
     match expr {
         // 处理二元操作表达式
@@ -649,10 +649,10 @@ fn is_relational_operator(op: &crate::graph::expression::binary::BinaryOperator)
 
 /// 从表达式中提取列名和值
 fn extract_column_and_value(
-    left: &crate::graph::expression::expr_type::Expression,
-    right: &crate::graph::expression::expr_type::Expression,
+    left: &crate::graph::expression::Expression,
+    right: &crate::graph::expression::Expression,
 ) -> (Option<String>, Option<String>) {
-    use crate::graph::expression::expr_type::Expression;
+    use crate::graph::expression::Expression;
 
     let column = match left {
         Expression::Property(name) => Some(name.clone()),

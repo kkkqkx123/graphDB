@@ -11,7 +11,7 @@ use super::validation_factory::ValidationFactory;
 use super::validation_interface::{
     ValidationError, ValidationErrorType, ValidationStrategy,
 };
-use crate::graph::expression::expr_type::Expression;
+use crate::graph::expression::Expression;
 use std::collections::HashMap;
 
 /// Match语句验证器
@@ -190,7 +190,7 @@ impl MatchValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::expr_type::Expression;
+    use crate::graph::expression::Expression;
 
     #[test]
     fn test_match_validator_creation() {

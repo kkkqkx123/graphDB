@@ -1,9 +1,20 @@
 //! 模式解析器 (v2)
 
 use super::*;
-use crate::query::parser::lexer::{Lexer, Token as LexerToken};
+use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
 
-impl ParserV2 {
+/// 模式解析器
+pub struct PatternParser {
+    lexer: Lexer,
+}
+
+impl PatternParser {
+    /// 创建模式解析器
+    pub fn new(input: &str) -> Self {
+        Self {
+            lexer: Lexer::new(input),
+        }
+    }
     /// 解析模式
     pub fn parse_pattern(&mut self) -> Result<Pattern, ParseError> {
         let token = self.lexer.peek()?;
@@ -17,7 +28,7 @@ impl ParserV2 {
                 // 边模式: [variable:Type {properties}]-> or <-[variable:Type {properties}]
                 self.parse_edge_pattern()
             }
-            LexerToken::Identifier => {
+            LexerToken::Identifier(_) => {
                 // 变量模式或路径模式
                 self.parse_variable_or_path_pattern()
             }
@@ -36,7 +47,7 @@ impl ParserV2 {
         self.expect_token(LexerToken::LeftParen)?;
         
         // 解析变量名（可选）
-        let variable = if let LexerToken::Identifier = self.lexer.peek()?.kind {
+        let variable = if let LexerToken::Identifier(_) = self.lexer.peek()?.kind {
             Some(self.expect_identifier()?)
         } else {
             None
@@ -85,7 +96,7 @@ impl ParserV2 {
         self.expect_token(LexerToken::LeftBracket)?;
         
         // 解析变量名（可选）
-        let variable = if let LexerToken::Identifier = self.lexer.peek()?.kind {
+        let variable = if let LexerToken::Identifier(_) = self.lexer.peek()?.kind {
             Some(self.expect_identifier()?)
         } else {
             None
@@ -305,5 +316,110 @@ impl ParserV2 {
         self.expect_token(LexerToken::RightBrace)?;
         
         Ok(EdgeRange::new(min, max))
+    }
+    
+    /// 辅助方法
+    
+    fn match_token(&mut self, expected: LexerToken) -> bool {
+        if self.lexer.check(&expected) {
+            self.lexer.advance().ok();
+            true
+        } else {
+            false
+        }
+    }
+    
+    fn check_token(&mut self, expected: LexerToken) -> bool {
+        self.lexer.check(&expected)
+    }
+    
+    fn expect_token(&mut self, expected: LexerToken) -> Result<(), ParseError> {
+        let token = self.lexer.peek()?;
+        if token.kind == expected {
+            self.lexer.advance()?;
+            Ok(())
+        } else {
+            Err(ParseError::new(
+                format!("Expected {:?}, found {:?}", expected, token.kind),
+                self.current_span(),
+            ))
+        }
+    }
+    
+    fn expect_identifier(&mut self) -> Result<String, ParseError> {
+        let token = self.lexer.peek()?;
+        if let LexerToken::Identifier(_) = token.kind {
+            let text = token.text.clone();
+            self.lexer.advance()?;
+            Ok(text)
+        } else {
+            Err(ParseError::new(
+                format!("Expected identifier, found {:?}", token.kind),
+                self.current_span(),
+            ))
+        }
+    }
+    
+    fn parse_integer(&mut self) -> Result<i64, ParseError> {
+        let token = self.lexer.peek()?;
+        if let LexerToken::Integer = token.kind {
+            let text = token.text.clone();
+            self.lexer.advance()?;
+            text.parse().map_err(|_| {
+                ParseError::new(
+                    format!("Invalid integer: {}", text),
+                    self.current_span(),
+                )
+            })
+        } else {
+            Err(ParseError::new(
+                format!("Expected integer, found {:?}", token.kind),
+                self.current_span(),
+            ))
+        }
+    }
+    
+    fn parse_map_expression(&mut self) -> Result<Expr, ParseError> {
+        // 由于lexer.input是私有的，这里需要重新设计
+        // 暂时返回一个简单的映射表达式
+        let start_span = self.current_span();
+        self.expect_token(LexerToken::LeftBrace)?;
+        
+        let mut pairs = Vec::new();
+        
+        if !self.check_token(LexerToken::RightBrace) {
+            loop {
+                let key = self.expect_identifier()?;
+                self.expect_token(LexerToken::Colon)?;
+                let value = self.parse_expression()?;
+                pairs.push((key, value));
+                
+                if !self.match_token(LexerToken::Comma) {
+                    break;
+                }
+            }
+        }
+        
+        self.expect_token(LexerToken::RightBrace)?;
+        let end_span = self.current_span();
+        let span = Span::new(start_span.start, end_span.end);
+        
+        Ok(Expr::Map(MapExpr::new(pairs, span)))
+    }
+    
+    fn parse_expression(&mut self) -> Result<Expr, ParseError> {
+        // 由于lexer.input是私有的，这里需要重新设计
+        // 暂时返回一个简单的变量表达式
+        let name = self.expect_identifier()?;
+        let span = self.current_span();
+        Ok(Expr::Variable(VariableExpr::new(name, span)))
+    }
+    
+    fn current_span(&self) -> Span {
+        let pos = self.lexer.current_position();
+        Span::new(
+            Position::new(pos.line, pos.column),
+            Position::new(pos.line, pos.column),
+        )
     }
 }

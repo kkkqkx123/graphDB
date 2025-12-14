@@ -1,6 +1,6 @@
 //! 子句相关数据结构
 
-use crate::graph::expression::expr_type::Expression;
+use crate::graph::expression::Expression;
 use std::collections::HashMap;
 use super::path_structs::Path;
 use super::alias_structs::AliasType;
