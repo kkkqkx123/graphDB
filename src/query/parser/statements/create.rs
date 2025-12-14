@@ -53,9 +53,14 @@ pub trait CreateStatementParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Statement::CreateNode(CreateNodeStatement {
+        Ok(Some(Statement::Create(CreateStatement {
+            base: BaseStatement::new(self.current_token().span(), StatementType::Create),
+            target: CreateTarget::Node {
+                identifier: None,
+                labels: tags.iter().map(|tag| tag.name.clone()).collect(),
+                properties: None,
+            },
             if_not_exists,
-            tags,
             properties,
             yield_clause,
         })))
@@ -108,12 +113,17 @@ pub trait CreateStatementParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Statement::CreateEdge(CreateEdgeStatement {
+        Ok(Some(Statement::Create(CreateStatement {
+            base: BaseStatement::new(self.current_token().span(), StatementType::Create),
+            target: CreateTarget::Edge {
+                identifier: None,
+                edge_type,
+                src,
+                dst,
+                direction,
+                properties: None,
+            },
             if_not_exists,
-            edge_type,
-            src,
-            dst,
-            ranking: None, // No ranking in basic implementation
             properties,
             yield_clause,
         })))

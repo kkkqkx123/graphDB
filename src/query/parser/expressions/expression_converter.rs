@@ -4,7 +4,7 @@
 use crate::graph::expression::expr_type::Expression;
 use crate::graph::expression::binary::BinaryOperator;
 use crate::graph::expression::unary::UnaryOperator;
-use crate::query::parser::ast::expression::*;
+use crate::query::parser::ast::{BinaryOp, UnaryOp};
 
 /// 将AST表达式转换为graph表达式
 pub fn convert_ast_to_graph_expression(ast_expr: &crate::query::parser::ast::Expression) -> Result<Expression, String> {
@@ -243,36 +243,39 @@ pub fn convert_ast_to_graph_expression(ast_expr: &crate::query::parser::ast::Exp
 }
 
 /// 转换算术操作符
-fn convert_arithmetic_op(op: &ArithmeticOp) -> Result<BinaryOperator, String> {
+fn convert_arithmetic_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
     match op {
-        ArithmeticOp::Add => Ok(BinaryOperator::Add),
-        ArithmeticOp::Sub => Ok(BinaryOperator::Sub),
-        ArithmeticOp::Mul => Ok(BinaryOperator::Mul),
-        ArithmeticOp::Div => Ok(BinaryOperator::Div),
-        ArithmeticOp::Mod => Ok(BinaryOperator::Mod),
-        ArithmeticOp::Exp => Err("Exponentiation operator not supported in graph expressions".to_string()),
+        BinaryOp::Add => Ok(BinaryOperator::Add),
+        BinaryOp::Sub => Ok(BinaryOperator::Sub),
+        BinaryOp::Mul => Ok(BinaryOperator::Mul),
+        BinaryOp::Div => Ok(BinaryOperator::Div),
+        BinaryOp::Mod => Ok(BinaryOperator::Mod),
+        BinaryOp::Exp => Err("Exponentiation operator not supported in graph expressions".to_string()),
+        _ => Err("Unsupported arithmetic operator".to_string()),
     }
 }
 
 /// 转换逻辑操作符
-fn convert_logical_op(op: &LogicalOp) -> Result<BinaryOperator, String> {
+fn convert_logical_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
     match op {
-        LogicalOp::And => Ok(BinaryOperator::And),
-        LogicalOp::Or => Ok(BinaryOperator::Or),
-        LogicalOp::Xor => Err("XOR operator not supported in graph expressions".to_string()),
+        BinaryOp::And => Ok(BinaryOperator::And),
+        BinaryOp::Or => Ok(BinaryOperator::Or),
+        BinaryOp::Xor => Err("XOR operator not supported in graph expressions".to_string()),
+        _ => Err("Unsupported logical operator".to_string()),
     }
 }
 
 /// 转换关系操作符
-fn convert_relational_op(op: &RelationalOp) -> Result<BinaryOperator, String> {
+fn convert_relational_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
     match op {
-        RelationalOp::Eq => Ok(BinaryOperator::Eq),
-        RelationalOp::Ne => Ok(BinaryOperator::Ne),
-        RelationalOp::Lt => Ok(BinaryOperator::Lt),
-        RelationalOp::Le => Ok(BinaryOperator::Le),
-        RelationalOp::Gt => Ok(BinaryOperator::Gt),
-        RelationalOp::Ge => Ok(BinaryOperator::Ge),
-        RelationalOp::Regex => Err("Regex operator not supported in graph expressions".to_string()),
+        BinaryOp::Eq => Ok(BinaryOperator::Eq),
+        BinaryOp::Ne => Ok(BinaryOperator::Ne),
+        BinaryOp::Lt => Ok(BinaryOperator::Lt),
+        BinaryOp::Le => Ok(BinaryOperator::Le),
+        BinaryOp::Gt => Ok(BinaryOperator::Gt),
+        BinaryOp::Ge => Ok(BinaryOperator::Ge),
+        BinaryOp::Regex => Err("Regex operator not supported in graph expressions".to_string()),
+        _ => Err("Unsupported relational operator".to_string()),
     }
 }
 
@@ -282,6 +285,10 @@ fn convert_unary_op(op: &UnaryOp) -> Result<UnaryOperator, String> {
         UnaryOp::Not => Ok(UnaryOperator::Not),
         UnaryOp::Plus => Ok(UnaryOperator::Plus),
         UnaryOp::Minus => Ok(UnaryOperator::Minus),
+        UnaryOp::IsNull => Err("IsNull operator not supported in graph expressions".to_string()),
+        UnaryOp::IsNotNull => Err("IsNotNull operator not supported in graph expressions".to_string()),
+        UnaryOp::IsEmpty => Err("IsEmpty operator not supported in graph expressions".to_string()),
+        UnaryOp::IsNotEmpty => Err("IsNotEmpty operator not supported in graph expressions".to_string()),
     }
 }
 

@@ -21,7 +21,7 @@ pub use unary::UnaryOperator;
 
 // 明确导出两个版本的Expression，避免歧义
 pub use expr_type::Expression as ExpressionV1;  // 旧版本Expression
-pub use expression::Expression as ExpressionV2;  // 新版本Expression
+// pub use expression::Expression as ExpressionV2;  // 新版本Expression - 暂时注释掉
 
 // 为了向后兼容，默认使用V1版本
 pub use expr_type::Expression;
@@ -39,4 +39,4 @@ pub use evaluator::ExpressionEvaluator;
 pub type ExpressionContext<'a> = EvalContext<'a>;
 
 // 重新导出新的操作符类型，避免冲突
-pub use expression::{BinaryOperator as BinaryOperatorV2, UnaryOperator as UnaryOperatorV2, AggregateFunction};
+// pub use expression::{BinaryOperator as BinaryOperatorV2, UnaryOperator as UnaryOperatorV2, AggregateFunction};  // 暂时注释掉
