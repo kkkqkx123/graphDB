@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
-use crate::graph::expression::{Expression, ExpressionContext};
+use crate::graph::expression::{Expression, ExpressionContext, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
@@ -87,8 +87,9 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Input variable '{}' not found", self.input_var)))
             })?;
 
-        // 创建表达式上下文
+        // 创建表达式上下文和评估器
         let mut expr_context = ExpressionContext::new();
+        let evaluator = ExpressionEvaluator;
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {
@@ -110,9 +111,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     expr_context.set_variable("_".to_string(), value.clone());
 
                     // 计算展开表达式
-                    let unwind_value = self
-                        .unwind_expr
-                        .evaluate(&expr_context)
+                    let unwind_value = evaluator
+                        .evaluate(&self.unwind_expr, &expr_context)
                         .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                     // 提取列表
@@ -140,9 +140,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     let vertex_value = Value::Vertex(Box::new(vertex.clone()));
                     expr_context.set_variable("_".to_string(), vertex_value.clone());
 
-                    let unwind_value = self
-                        .unwind_expr
-                        .evaluate(&expr_context)
+                    let unwind_value = evaluator
+                        .evaluate(&self.unwind_expr, &expr_context)
                         .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                     let list_values = self.extract_list(&unwind_value);
@@ -166,9 +165,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     let edge_value = Value::Edge(edge.clone());
                     expr_context.set_variable("_".to_string(), edge_value.clone());
 
-                    let unwind_value = self
-                        .unwind_expr
-                        .evaluate(&expr_context)
+                    let unwind_value = evaluator
+                        .evaluate(&self.unwind_expr, &expr_context)
                         .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                     let list_values = self.extract_list(&unwind_value);
@@ -191,9 +189,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                 let empty_value = Value::Empty;
                 expr_context.set_variable("_".to_string(), empty_value.clone());
 
-                let unwind_value = self
-                    .unwind_expr
-                    .evaluate(&expr_context)
+                let unwind_value = evaluator
+                    .evaluate(&self.unwind_expr, &expr_context)
                     .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                 let list_values = self.extract_list(&unwind_value);
@@ -210,9 +207,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     let path_value = Value::Path(path.clone());
                     expr_context.set_variable("_".to_string(), path_value.clone());
 
-                    let unwind_value = self
-                        .unwind_expr
-                        .evaluate(&expr_context)
+                    let unwind_value = evaluator
+                        .evaluate(&self.unwind_expr, &expr_context)
                         .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                     let list_values = self.extract_list(&unwind_value);
@@ -236,9 +232,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     for value in row {
                         expr_context.set_variable("_".to_string(), value.clone());
 
-                        let unwind_value = self
-                            .unwind_expr
-                            .evaluate(&expr_context)
+                        let unwind_value = evaluator
+                            .evaluate(&self.unwind_expr, &expr_context)
                             .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
                         let list_values = self.extract_list(&unwind_value);

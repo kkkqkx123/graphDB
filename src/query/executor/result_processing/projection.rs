@@ -345,11 +345,11 @@ mod tests {
     //     // 创建表达式投影：计算两列之和
     //     let columns = vec![ProjectionColumn::new(
     //         "sum".to_string(),
-    //         Expression::BinaryOp(
-    //             Box::new(Expression::Property("col1".to_string())),
-    //             crate::graph::expression::binary::BinaryOperator::Add,
-    //             Box::new(Expression::Property("col2".to_string())),
-    //         ),
+    //         Expression::Binary {
+    //             left: Box::new(Expression::Property("col1".to_string())),
+    //             op: crate::graph::expression::BinaryOperator::Add,
+    //             right: Box::new(Expression::Property("col2".to_string())),
+    //         },
     //     )];
     //
     //     let executor = ProjectExecutor::new(1, storage, columns);

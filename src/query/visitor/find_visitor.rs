@@ -153,6 +153,58 @@ impl FindVisitor {
             Expression::VariableProperty { .. } => {},
             Expression::SourceProperty { .. } => {},
             Expression::DestinationProperty { .. } => {},
+            
+            // 新增表达式类型的处理
+            Expression::UnaryPlus(expr)
+            | Expression::UnaryNegate(expr)
+            | Expression::UnaryNot(expr)
+            | Expression::UnaryIncr(expr)
+            | Expression::UnaryDecr(expr)
+            | Expression::IsNull(expr)
+            | Expression::IsNotNull(expr)
+            | Expression::IsEmpty(expr)
+            | Expression::IsNotEmpty(expr) => {
+                self.visit(expr);
+            },
+            Expression::TypeCasting { expr, .. } => {
+                self.visit(expr);
+            },
+            Expression::ListComprehension { generator, condition } => {
+                self.visit(generator);
+                if let Some(cond) = condition {
+                    self.visit(cond);
+                }
+            },
+            Expression::Predicate { list, condition } => {
+                self.visit(list);
+                self.visit(condition);
+            },
+            Expression::Reduce { list, initial, expr, .. } => {
+                self.visit(list);
+                self.visit(initial);
+                self.visit(expr);
+            },
+            Expression::PathBuild(elements) => {
+                for elem in elements {
+                    self.visit(elem);
+                }
+            },
+            Expression::ESQuery(_) => {},
+            Expression::UUID => {},
+            Expression::SubscriptRange { collection, start, end } => {
+                self.visit(collection);
+                if let Some(start_expr) = start {
+                    self.visit(start_expr);
+                }
+                if let Some(end_expr) = end {
+                    self.visit(end_expr);
+                }
+            },
+            Expression::MatchPathPattern { patterns, .. } => {
+                for pattern in patterns {
+                    self.visit(pattern);
+                }
+            },
         }
     }
 
@@ -180,6 +232,26 @@ impl FindVisitor {
             Expression::VariableProperty { .. } => ExpressionType::VariableProperty,
             Expression::SourceProperty { .. } => ExpressionType::SourceProperty,
             Expression::DestinationProperty { .. } => ExpressionType::DestinationProperty,
+            
+            // 新增表达式类型的处理
+            Expression::UnaryPlus(_)
+            | Expression::UnaryNegate(_)
+            | Expression::UnaryNot(_)
+            | Expression::UnaryIncr(_)
+            | Expression::UnaryDecr(_)
+            | Expression::IsNull(_)
+            | Expression::IsNotNull(_)
+            | Expression::IsEmpty(_)
+            | Expression::IsNotEmpty(_) => ExpressionType::Unary,
+            Expression::TypeCasting { .. } => ExpressionType::TypeCast,
+            Expression::ListComprehension { .. } => ExpressionType::List,
+            Expression::Predicate { .. } => ExpressionType::Property,
+            Expression::Reduce { .. } => ExpressionType::Aggregate,
+            Expression::PathBuild(_) => ExpressionType::Path,
+            Expression::ESQuery(_) => ExpressionType::Function,
+            Expression::UUID => ExpressionType::Literal,
+            Expression::SubscriptRange { .. } => ExpressionType::Subscript,
+            Expression::MatchPathPattern { .. } => ExpressionType::Path,
         }
     }
 
@@ -270,6 +342,58 @@ impl FindVisitor {
             Expression::VariableProperty { .. } => {},
             Expression::SourceProperty { .. } => {},
             Expression::DestinationProperty { .. } => {},
+            
+            // 新增表达式类型的处理
+            Expression::UnaryPlus(expr)
+            | Expression::UnaryNegate(expr)
+            | Expression::UnaryNot(expr)
+            | Expression::UnaryIncr(expr)
+            | Expression::UnaryDecr(expr)
+            | Expression::IsNull(expr)
+            | Expression::IsNotNull(expr)
+            | Expression::IsEmpty(expr)
+            | Expression::IsNotEmpty(expr) => {
+                self.visit_with_predicate(expr, predicate, results);
+            },
+            Expression::TypeCasting { expr, .. } => {
+                self.visit_with_predicate(expr, predicate, results);
+            },
+            Expression::ListComprehension { generator, condition } => {
+                self.visit_with_predicate(generator, predicate, results);
+                if let Some(cond) = condition {
+                    self.visit_with_predicate(cond, predicate, results);
+                }
+            },
+            Expression::Predicate { list, condition } => {
+                self.visit_with_predicate(list, predicate, results);
+                self.visit_with_predicate(condition, predicate, results);
+            },
+            Expression::Reduce { list, initial, expr, .. } => {
+                self.visit_with_predicate(list, predicate, results);
+                self.visit_with_predicate(initial, predicate, results);
+                self.visit_with_predicate(expr, predicate, results);
+            },
+            Expression::PathBuild(elements) => {
+                for elem in elements {
+                    self.visit_with_predicate(elem, predicate, results);
+                }
+            },
+            Expression::ESQuery(_) => {},
+            Expression::UUID => {},
+            Expression::SubscriptRange { collection, start, end } => {
+                self.visit_with_predicate(collection, predicate, results);
+                if let Some(start_expr) = start {
+                    self.visit_with_predicate(start_expr, predicate, results);
+                }
+                if let Some(end_expr) = end {
+                    self.visit_with_predicate(end_expr, predicate, results);
+                }
+            },
+            Expression::MatchPathPattern { patterns, .. } => {
+                for pattern in patterns {
+                    self.visit_with_predicate(pattern, predicate, results);
+                }
+            },
         }
     }
 }
@@ -277,7 +401,7 @@ impl FindVisitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::{LiteralValue, BinaryOperator, UnaryOperator};
+    use crate::graph::expression::{LiteralValue, BinaryOperator};
 
     #[test]
     fn test_find_literals() {
@@ -289,7 +413,7 @@ mod tests {
             op: BinaryOperator::Add,
             right: Box::new(Expression::Binary {
                 left: Box::new(Expression::Literal(LiteralValue::Int(2))),
-                op: BinaryOperator::Mul,
+                op: BinaryOperator::Multiply,
                 right: Box::new(Expression::Literal(LiteralValue::Int(3))),
             }),
         };
@@ -312,7 +436,7 @@ mod tests {
             op: BinaryOperator::Add,
             right: Box::new(Expression::Binary {
                 left: Box::new(Expression::Literal(LiteralValue::Int(2))),
-                op: BinaryOperator::Mul,
+                op: BinaryOperator::Multiply,
                 right: Box::new(Expression::Literal(LiteralValue::Int(3))),
             }),
         };

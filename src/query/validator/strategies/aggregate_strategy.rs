@@ -366,7 +366,7 @@ impl ValidationStrategy for AggregateValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::binary::BinaryOperator;
+    use crate::graph::expression::BinaryOperator;
     use crate::graph::expression::unary::UnaryOperator;
     use crate::graph::expression::Expression;
 
@@ -387,11 +387,11 @@ mod tests {
 
         // 测试包含聚合函数的表达式
         // 注意：这里需要一个聚合表达式实例，具体实现可能依赖Expression的定义
-        let binary_expr = Expression::BinaryOp(
-            Box::new(Expression::Constant(crate::core::Value::Int(1))),
-            BinaryOperator::Add,
-            Box::new(Expression::Constant(crate::core::Value::Int(2))),
-        );
+        let binary_expr = Expression::Binary {
+            left: Box::new(Expression::Constant(crate::core::Value::Int(1))),
+            op: BinaryOperator::Add,
+            right: Box::new(Expression::Constant(crate::core::Value::Int(2))),
+        };
         assert_eq!(strategy.has_aggregate_expr(&binary_expr), false);
     }
 
@@ -413,14 +413,14 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试嵌套表达式
-        let nested_expr = Expression::BinaryOp(
-            Box::new(Expression::UnaryOp(
-                UnaryOperator::Minus,
-                Box::new(Expression::Constant(crate::core::Value::Int(5))),
-            )),
-            BinaryOperator::Add,
-            Box::new(Expression::Constant(crate::core::Value::Int(10))),
-        );
+        let nested_expr = Expression::Binary {
+            left: Box::new(Expression::Unary {
+                op: UnaryOperator::Minus,
+                operand: Box::new(Expression::Constant(crate::core::Value::Int(5))),
+            }),
+            op: BinaryOperator::Add,
+            right: Box::new(Expression::Constant(crate::core::Value::Int(10))),
+        };
 
         assert_eq!(strategy.has_aggregate_expr(&nested_expr), false);
     }
@@ -547,11 +547,11 @@ mod tests {
         assert!(!strategy.has_wildcard_property(&expr2));
 
         // 二元表达式包含通配符
-        let expr3 = Expression::BinaryOp(
-            Box::new(Expression::Property("*".to_string())),
-            BinaryOperator::Add,
-            Box::new(Expression::Constant(crate::core::Value::Int(1))),
-        );
+        let expr3 = Expression::Binary {
+            left: Box::new(Expression::Property("*".to_string())),
+            op: BinaryOperator::Add,
+            right: Box::new(Expression::Constant(crate::core::Value::Int(1))),
+        };
         assert!(strategy.has_wildcard_property(&expr3));
     }
 
@@ -560,11 +560,11 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试二元操作在聚合参数中的验证
-        let expr = Expression::BinaryOp(
-            Box::new(Expression::Property("value".to_string())),
-            BinaryOperator::Add,
-            Box::new(Expression::Constant(crate::core::Value::Int(10))),
-        );
+        let expr = Expression::Binary {
+            left: Box::new(Expression::Property("value".to_string())),
+            op: BinaryOperator::Add,
+            right: Box::new(Expression::Constant(crate::core::Value::Int(10))),
+        };
 
         // 应该通过验证
         assert!(strategy.validate_expression_in_aggregate(&expr).is_ok());
@@ -591,13 +591,13 @@ mod tests {
         // 测试CASE表达式在聚合参数中的验证
         let expr = Expression::Case {
             conditions: vec![(
-                Expression::BinaryOp(
-                    Box::new(Expression::Property("status".to_string())),
-                    BinaryOperator::Eq,
-                    Box::new(Expression::Constant(crate::core::Value::String(
+                Expression::Binary {
+                    left: Box::new(Expression::Property("status".to_string())),
+                    op: BinaryOperator::Equal,
+                    right: Box::new(Expression::Constant(crate::core::Value::String(
                         "active".to_string(),
                     ))),
-                ),
+                },
                 Expression::Constant(crate::core::Value::Int(1)),
             )],
             default: Some(Box::new(Expression::Constant(crate::core::Value::Int(0)))),

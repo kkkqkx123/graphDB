@@ -618,7 +618,7 @@ mod tests {
     async fn test_sample_executor_random() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let count_expr = Expression::Constant(Value::Int(3));
+        let count_expr = Expression::int(3);
 
         let mut executor = SampleExecutor::new(
             1,
@@ -708,7 +708,7 @@ mod tests {
     async fn test_sample_executor_systematic() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let count_expr = Expression::Constant(Value::Int(2));
+        let count_expr = Expression::int(2);
 
         let mut executor = SampleExecutor::new(
             1,

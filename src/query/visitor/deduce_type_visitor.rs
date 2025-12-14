@@ -105,17 +105,17 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     /// 递归访问表达式树
     fn visit(&mut self, expr: &Expression) -> Result<(), TypeDeductionError> {
         match expr {
-            Expression::Constant(value) => self.visit_constant(value),
-            Expression::Property(name) => self.visit_property(name),
-            Expression::Function(name, args) => self.visit_function_call(name, args),
-            Expression::BinaryOp(left, op, right) => {
+            Expression::Literal(value) => self.visit_constant(value),
+            Expression::Variable(name) => self.visit_property(name),
+            Expression::Function { name, args } => self.visit_function_call(name, args),
+            Expression::Binary { left, op, right } => {
                 self.visit(left)?;
                 let left_type = self.type_.clone();
                 self.visit(right)?;
                 let right_type = self.type_.clone();
                 self.visit_binary(op, left_type, right_type)
             }
-            Expression::UnaryOp(op, operand) => {
+            Expression::Unary { op, operand } => {
                 self.visit(operand)?;
                 self.visit_unary(op)
             }
@@ -397,10 +397,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                     return Err(TypeDeductionError::SemanticError(msg));
                 }
             }
-            BinaryOperator::Sub
-            | BinaryOperator::Mul
-            | BinaryOperator::Div
-            | BinaryOperator::Mod => {
+            BinaryOperator::Subtract
+            | BinaryOperator::Multiply
+            | BinaryOperator::Divide
+            | BinaryOperator::Modulo => {
                 if left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Int {
                     self.type_ = ValueTypeDef::Int;
                 } else if left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Float {
@@ -418,10 +418,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                     };
                 } else {
                     let op_name = match op {
-                        BinaryOperator::Sub => "减法",
-                        BinaryOperator::Mul => "乘法",
-                        BinaryOperator::Div => "除法",
-                        BinaryOperator::Mod => "模运算",
+                        BinaryOperator::Subtract => "减法",
+                        BinaryOperator::Multiply => "乘法",
+                        BinaryOperator::Divide => "除法",
+                        BinaryOperator::Modulo => "模运算",
                         _ => "数学运算",
                     };
                     let msg = format!(
@@ -432,20 +432,20 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                     return Err(TypeDeductionError::SemanticError(msg));
                 }
             }
-            BinaryOperator::Eq
-            | BinaryOperator::Ne
-            | BinaryOperator::Lt
-            | BinaryOperator::Le
-            | BinaryOperator::Gt
-            | BinaryOperator::Ge => {
+            BinaryOperator::Equal
+            | BinaryOperator::NotEqual
+            | BinaryOperator::LessThan
+            | BinaryOperator::LessThanOrEqual
+            | BinaryOperator::GreaterThan
+            | BinaryOperator::GreaterThanOrEqual => {
                 // 关系操作的结果类型是布尔值
                 self.type_ = ValueTypeDef::Bool;
             }
-            BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Xor => {
+            BinaryOperator::And | BinaryOperator::Or => {
                 // 逻辑操作的结果类型是布尔值
                 self.type_ = ValueTypeDef::Bool;
             }
-            BinaryOperator::In | BinaryOperator::NotIn => {
+            BinaryOperator::In => {
                 // 集合操作的结果类型是布尔值
                 self.type_ = ValueTypeDef::Bool;
             }

@@ -11,7 +11,7 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
 use crate::storage::StorageEngine;
-use crate::graph::expression::{Expression, ExpressionContext};
+use crate::graph::expression::{Expression, ExpressionContext, ExpressionEvaluator};
 
 /// RollUpApply执行器
 /// 用于将右输入中的值根据左输入的键进行聚合
@@ -104,13 +104,15 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             // 构建键列表
             let mut key_list = List { values: Vec::new() };
             for col in compare_cols {
-                let val = col.evaluate(expr_context)
+                let evaluator = ExpressionEvaluator::new();
+                let val = evaluator.evaluate(col, expr_context)
                     .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                 key_list.values.push(val);
             }
 
             // 获取收集列的值
-            let collect_val = collect_col.evaluate(expr_context)
+            let evaluator = ExpressionEvaluator::new();
+            let collect_val = evaluator.evaluate(collect_col, expr_context)
                 .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
             // 添加到哈希表
@@ -135,11 +137,13 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             expr_context.set_variable("_".to_string(), value.clone());
             
             // 获取键值
-            let key_val = compare_col.evaluate(expr_context)
+            let evaluator = ExpressionEvaluator::new();
+            let key_val = evaluator.evaluate(compare_col, expr_context)
                 .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
             // 获取收集列的值
-            let collect_val = collect_col.evaluate(expr_context)
+            let evaluator = ExpressionEvaluator::new();
+            let collect_val = evaluator.evaluate(collect_col, expr_context)
                 .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
             // 添加到哈希表
@@ -165,7 +169,8 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             expr_context.set_variable("_".to_string(), value.clone());
             
             // 获取收集列的值
-            let collect_val = collect_col.evaluate(expr_context)
+            let evaluator = ExpressionEvaluator::new();
+            let collect_val = evaluator.evaluate(collect_col, expr_context)
                 .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
             
             hash_table.values.push(collect_val);
@@ -227,7 +232,8 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             expr_context.set_variable("_".to_string(), value.clone());
             
             // 获取探测键值
-            let key_val = probe_key.evaluate(expr_context)
+            let evaluator = ExpressionEvaluator::new();
+            let key_val = evaluator.evaluate(probe_key, expr_context)
                 .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
             // 查找哈希表
@@ -270,7 +276,8 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             // 构建键列表
             let mut key_list = List { values: Vec::new() };
             for col in probe_keys {
-                let val = col.evaluate(expr_context)
+                let evaluator = ExpressionEvaluator::new();
+                let val = evaluator.evaluate(col, expr_context)
                     .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                 key_list.values.push(val);
             }
@@ -453,7 +460,7 @@ mod tests {
         
         // 创建RollUpApplyExecutor
         let compare_cols = vec![
-            Expression::Constant(Value::Int(0)), // 简化的比较列
+            Expression::literal(0i64), // 简化的比较列
         ];
         let collect_col = Expression::InputProperty("_".to_string());
         

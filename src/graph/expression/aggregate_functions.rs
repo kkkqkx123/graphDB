@@ -1,6 +1,6 @@
 use crate::core::Value;
-use crate::graph::expression::{Expression, ExpressionContext};
 use crate::graph::expression::error::ExpressionError;
+use crate::graph::expression::{Expression, ExpressionContext};
 use serde::{Deserialize, Serialize};
 
 /// 聚合函数类型
@@ -38,7 +38,8 @@ impl AggregateFunction {
             "MAX" => Ok(AggregateFunction::Max),
             "COLLECT" => Ok(AggregateFunction::Collect),
             _ => Err(ExpressionError::FunctionError(format!(
-                "Unknown aggregate function: {}", func_name
+                "Unknown aggregate function: {}",
+                func_name
             ))),
         }
     }
@@ -68,7 +69,10 @@ impl AggregateExpression {
         state: &mut AggregateState,
     ) -> Result<Value, ExpressionError> {
         // 计算参数值
-        let arg_value = self.argument.evaluate(context).map_err(|e| ExpressionError::FunctionError(e.to_string()))?;
+        let evaluator = super::evaluator::ExpressionEvaluator;
+        let arg_value = evaluator
+            .evaluate(&self.argument, context)
+            .map_err(|e| ExpressionError::FunctionError(e.to_string()))?;
 
         // 更新聚合状态
         state.update(&self.function, &arg_value);
@@ -77,8 +81,14 @@ impl AggregateExpression {
         match self.function {
             AggregateFunction::Count => Ok(Value::Int(state.count)),
             AggregateFunction::Sum => Ok(state.sum.clone()),
-            AggregateFunction::Min => Ok(state.min.clone().unwrap_or(Value::Null(crate::core::value::NullType::Null))),
-            AggregateFunction::Max => Ok(state.max.clone().unwrap_or(Value::Null(crate::core::value::NullType::Null))),
+            AggregateFunction::Min => Ok(state
+                .min
+                .clone()
+                .unwrap_or(Value::Null(crate::core::value::NullType::Null))),
+            AggregateFunction::Max => Ok(state
+                .max
+                .clone()
+                .unwrap_or(Value::Null(crate::core::value::NullType::Null))),
             AggregateFunction::Avg => {
                 if state.count > 0 {
                     match &state.sum {
@@ -130,7 +140,9 @@ impl AggregateState {
     /// 更新聚合状态
     pub fn update(&mut self, function: &AggregateFunction, value: &Value) {
         // 如果是去重函数，检查是否已存在
-        if matches!(function, AggregateFunction::Count) && self.distinct_values.contains(&value.to_string()) {
+        if matches!(function, AggregateFunction::Count)
+            && self.distinct_values.contains(&value.to_string())
+        {
             return; // 跳过重复值
         }
 

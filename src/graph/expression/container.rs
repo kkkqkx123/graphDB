@@ -17,14 +17,6 @@ pub fn evaluate_container(
             }
             Ok(Value::List(result))
         },
-        Expression::Set(items) => {
-            let mut result = std::collections::HashSet::new();
-            for item in items {
-                let evaluator = super::evaluator::ExpressionEvaluator;
-                result.insert(evaluator.evaluate(item, context)?);
-            }
-            Ok(Value::Set(result))
-        },
         Expression::Map(items) => {
             let mut result = std::collections::HashMap::new();
             for (key, value) in items {

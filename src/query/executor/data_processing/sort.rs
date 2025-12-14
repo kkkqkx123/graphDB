@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
 use crate::core::{Value, DataSet};
-use crate::graph::expression::{Expression, ExpressionContext};
+use crate::graph::expression::{Expression, EvalContext, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
@@ -111,10 +111,11 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
 
         // 为每行计算排序键值
         let mut rows_with_keys: Vec<(Vec<Value>, Vec<Value>)> = Vec::new();
+        let evaluator = ExpressionEvaluator;
         
         for row in &data_set.rows {
             // 构建表达式上下文
-            let mut expr_context = ExpressionContext::new();
+            let mut expr_context = EvalContext::new();
             for (i, col_name) in data_set.col_names.iter().enumerate() {
                 if i < row.len() {
                     expr_context.set_variable(col_name.clone(), row[i].clone());
@@ -124,7 +125,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
             // 计算排序键值
             let mut sort_values = Vec::new();
             for sort_key in &self.sort_keys {
-                let sort_value = sort_key.expression.evaluate(&expr_context)
+                let sort_value = evaluator.evaluate(&sort_key.expression, &expr_context)
                     .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                 sort_values.push(sort_value);
             }

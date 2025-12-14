@@ -2,7 +2,7 @@
 //! 将AST表达式转换为graph表达式
 
 use crate::graph::expression::Expression;
-use crate::graph::expression::binary::BinaryOperator;
+use crate::graph::expression::BinaryOperator;
 use crate::graph::expression::unary::UnaryOperator;
 use crate::query::parser::ast::{BinaryOp, UnaryOp};
 
@@ -19,10 +19,10 @@ pub fn convert_ast_to_graph_expression(_ast_expr: &crate::query::parser::ast::Ex
 fn convert_arithmetic_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
     match op {
         BinaryOp::Add => Ok(BinaryOperator::Add),
-        BinaryOp::Sub => Ok(BinaryOperator::Sub),
-        BinaryOp::Mul => Ok(BinaryOperator::Mul),
-        BinaryOp::Div => Ok(BinaryOperator::Div),
-        BinaryOp::Mod => Ok(BinaryOperator::Mod),
+        BinaryOp::Sub => Ok(BinaryOperator::Subtract),
+        BinaryOp::Mul => Ok(BinaryOperator::Multiply),
+        BinaryOp::Div => Ok(BinaryOperator::Divide),
+        BinaryOp::Mod => Ok(BinaryOperator::Modulo),
         BinaryOp::Exp => Err("Exponentiation operator not supported in graph expressions".to_string()),
         _ => Err("Unsupported arithmetic operator".to_string()),
     }
@@ -41,12 +41,12 @@ fn convert_logical_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
 /// 转换关系操作符
 fn convert_relational_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
     match op {
-        BinaryOp::Eq => Ok(BinaryOperator::Eq),
-        BinaryOp::Ne => Ok(BinaryOperator::Ne),
-        BinaryOp::Lt => Ok(BinaryOperator::Lt),
-        BinaryOp::Le => Ok(BinaryOperator::Le),
-        BinaryOp::Gt => Ok(BinaryOperator::Gt),
-        BinaryOp::Ge => Ok(BinaryOperator::Ge),
+        BinaryOp::Eq => Ok(BinaryOperator::Equal),
+        BinaryOp::Ne => Ok(BinaryOperator::NotEqual),
+        BinaryOp::Lt => Ok(BinaryOperator::LessThan),
+        BinaryOp::Le => Ok(BinaryOperator::LessThanOrEqual),
+        BinaryOp::Gt => Ok(BinaryOperator::GreaterThan),
+        BinaryOp::Ge => Ok(BinaryOperator::GreaterThanOrEqual),
         BinaryOp::Regex => Err("Regex operator not supported in graph expressions".to_string()),
         _ => Err("Unsupported relational operator".to_string()),
     }

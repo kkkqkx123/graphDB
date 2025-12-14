@@ -300,7 +300,7 @@ impl StmtParser {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Explain)?;
 
-        let statement = Box::new(self.parse_statement()?);
+        let statement = Box::new(self.parse_go_statement()?);
 
         let end_span = self.current_span();
         let span = Span::new(start_span.start, end_span.end);
@@ -530,10 +530,11 @@ impl StmtParser {
     }
 
     fn parse_steps(&mut self) -> Result<Steps, ParseError> {
-        if self.match_token(LexerToken::Integer) {
+        let token = self.lexer.peek()?;
+        if matches!(token.kind, LexerToken::IntegerLiteral(_)) {
             let steps = self.parse_integer()? as usize;
             Ok(Steps::Fixed(steps))
-        } else if self.match_token(LexerToken::Identifier) {
+        } else if matches!(token.kind, LexerToken::Identifier(_)) {
             let var_name = self.expect_identifier()?;
             Ok(Steps::Variable(var_name))
         } else {
@@ -622,7 +623,7 @@ impl StmtParser {
 
         loop {
             let property = self.expect_identifier()?;
-            self.expect_token(LexerToken::Equal)?;
+            self.expect_token(LexerToken::Assign)?;
             let value = self.parse_expression()?;
 
             assignments.push(Assignment { property, value });
@@ -639,9 +640,9 @@ impl StmtParser {
         let mut vertices = Vec::new();
 
         // 解析顶点列表
-        self.expect_token(LexerToken::LeftParen)?;
+        self.expect_token(LexerToken::LParen)?;
 
-        if !self.check_token(LexerToken::RightParen) {
+        if !self.check_token(LexerToken::RParen) {
             loop {
                 let vertex = self.parse_expression()?;
                 vertices.push(vertex);
@@ -652,7 +653,7 @@ impl StmtParser {
             }
         }
 
-        self.expect_token(LexerToken::RightParen)?;
+        self.expect_token(LexerToken::RParen)?;
 
         Ok(vertices)
     }
@@ -665,7 +666,7 @@ impl StmtParser {
         let dst = self.parse_expression()?;
 
         // 解析可选的边类型
-        let edge_type = if self.match_token(LexerToken::Type) {
+        let edge_type = if self.match_token(LexerToken::Edge) {
             Some(self.expect_identifier()?)
         } else {
             None
@@ -694,7 +695,7 @@ impl StmtParser {
         let dst = self.parse_expression()?;
 
         // 解析可选的边类型
-        let edge_type = if self.match_token(LexerToken::Type) {
+        let edge_type = if self.match_token(LexerToken::Edge) {
             Some(self.expect_identifier()?)
         } else {
             None
@@ -720,7 +721,7 @@ impl StmtParser {
         let ids = self.parse_vertex_list()?;
 
         // 解析可选的属性列表
-        let properties = if self.match_token(LexerToken::Properties) {
+        let properties = if self.match_token(LexerToken::Prop) {
             Some(self.parse_property_list()?)
         } else {
             None
@@ -747,7 +748,7 @@ impl StmtParser {
         };
 
         // 解析可选的属性列表
-        let properties = if self.match_token(LexerToken::Properties) {
+        let properties = if self.match_token(LexerToken::Prop) {
             Some(self.parse_property_list()?)
         } else {
             None
@@ -765,9 +766,9 @@ impl StmtParser {
     fn parse_property_list(&mut self) -> Result<Vec<String>, ParseError> {
         let mut properties = Vec::new();
 
-        self.expect_token(LexerToken::LeftParen)?;
+        self.expect_token(LexerToken::LParen)?;
 
-        if !self.check_token(LexerToken::RightParen) {
+        if !self.check_token(LexerToken::RParen) {
             loop {
                 let property = self.expect_identifier()?;
                 properties.push(property);
@@ -778,7 +779,7 @@ impl StmtParser {
             }
         }
 
-        self.expect_token(LexerToken::RightParen)?;
+        self.expect_token(LexerToken::RParen)?;
 
         Ok(properties)
     }
@@ -845,9 +846,9 @@ impl StmtParser {
     fn parse_property_definitions(&mut self) -> Result<Vec<PropertyDef>, ParseError> {
         let mut properties = Vec::new();
 
-        self.expect_token(LexerToken::LeftParen)?;
+        self.expect_token(LexerToken::LParen)?;
 
-        if !self.check_token(LexerToken::RightParen) {
+        if !self.check_token(LexerToken::RParen) {
             loop {
                 let name = self.expect_identifier()?;
                 let data_type = self.parse_data_type()?;
@@ -879,7 +880,7 @@ impl StmtParser {
             }
         }
 
-        self.expect_token(LexerToken::RightParen)?;
+        self.expect_token(LexerToken::RParen)?;
 
         Ok(properties)
     }
@@ -887,8 +888,8 @@ impl StmtParser {
     /// 辅助方法
 
     fn match_token(&mut self, expected: LexerToken) -> bool {
-        if self.lexer.check(&expected) {
-            self.lexer.advance().ok();
+        if self.lexer.check(expected) {
+            let _ = self.lexer.advance();
             true
         } else {
             false
@@ -896,7 +897,7 @@ impl StmtParser {
     }
 
     fn check_token(&mut self, expected: LexerToken) -> bool {
-        self.lexer.check(&expected)
+        self.lexer.check(expected)
     }
 
     fn expect_token(&mut self, expected: LexerToken) -> Result<(), ParseError> {
@@ -914,9 +915,9 @@ impl StmtParser {
 
     fn expect_identifier(&mut self) -> Result<String, ParseError> {
         let token = self.lexer.peek()?;
-        if let LexerToken::Identifier(_) = token.kind {
-            let text = token.text.clone();
-            self.lexer.advance()?;
+        if let LexerToken::Identifier(name) = &token.kind {
+            let text = name.clone();
+            let _ = self.lexer.advance();
             Ok(text)
         } else {
             Err(ParseError::new(
@@ -928,12 +929,9 @@ impl StmtParser {
 
     fn parse_integer(&mut self) -> Result<i64, ParseError> {
         let token = self.lexer.peek()?;
-        if let LexerToken::Integer = token.kind {
-            let text = token.text.clone();
-            self.lexer.advance()?;
-            text.parse().map_err(|_| {
-                ParseError::new(format!("Invalid integer: {}", text), self.current_span())
-            })
+        if let LexerToken::IntegerLiteral(value) = token.kind {
+            let _ = self.lexer.advance();
+            Ok(value)
         } else {
             Err(ParseError::new(
                 format!("Expected integer, found {:?}", token.kind),
@@ -967,14 +965,11 @@ impl StmtParser {
             LexerToken::String => DataType::String,
             LexerToken::Bool => DataType::Bool,
             LexerToken::Date => DataType::Date,
-            LexerToken::DateTime => DataType::DateTime,
+            LexerToken::Datetime => DataType::DateTime,
             LexerToken::Time => DataType::Time,
             LexerToken::Duration => DataType::Duration,
             LexerToken::List => DataType::List,
             LexerToken::Map => DataType::Map,
-            LexerToken::Node => DataType::Node,
-            LexerToken::Edge => DataType::Edge,
-            LexerToken::Path => DataType::Path,
             _ => {
                 return Err(ParseError::new(
                     format!("Expected data type, found {:?}", token.kind),
@@ -983,7 +978,7 @@ impl StmtParser {
             }
         };
 
-        self.lexer.advance()?;
+        let _ = self.lexer.advance();
         Ok(data_type)
     }
 }

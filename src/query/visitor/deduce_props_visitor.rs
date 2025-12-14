@@ -243,25 +243,25 @@ impl DeducePropsVisitor {
     /// 递归访问表达式树
     fn visit(&mut self, expr: &Expression) -> Result<(), String> {
         match expr {
-            Expression::Constant(_) => {
+            Expression::Literal(_) => {
                 // 常量表达式不包含属性
                 Ok(())
             }
-            Expression::Property(name) => {
+            Expression::Variable(name) => {
                 // 处理属性表达式 - 作为输入属性
                 self.props.insert_input_prop(name);
                 Ok(())
             }
-            Expression::UnaryOp(_, operand) => {
+            Expression::Unary { op: _, operand } => {
                 // 一元操作符，递归访问操作数
                 self.visit(operand)
             }
-            Expression::BinaryOp(left, _, right) => {
+            Expression::Binary { left, op: _, right } => {
                 // 二元操作符，递归访问左右操作数
                 self.visit(left)?;
                 self.visit(right)
             }
-            Expression::Function(_, args) => {
+            Expression::Function { name: _, args } => {
                 // 函数调用，递归访问所有参数
                 for arg in args {
                     self.visit(arg)?;
@@ -547,7 +547,7 @@ mod tests {
     #[test]
     fn test_deduce_visitor_constant() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expression::Constant(crate::core::Value::Int(42));
+        let expr = Expression::Literal(crate::graph::expression::LiteralValue::Int(42));
 
         assert!(visitor.deduce(&expr).is_ok());
         assert!(visitor.get_props().is_all_props_empty());
@@ -556,7 +556,7 @@ mod tests {
     #[test]
     fn test_deduce_visitor_property() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expression::Property("name".to_string());
+        let expr = Expression::Variable("name".to_string());
 
         assert!(visitor.deduce(&expr).is_ok());
         assert!(visitor.get_props().input_props.contains("name"));
@@ -613,11 +613,11 @@ mod tests {
     #[test]
     fn test_deduce_visitor_binary_op() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expression::BinaryOp(
-            Box::new(Expression::Property("age".to_string())),
-            crate::graph::expression::BinaryOperator::Add,
-            Box::new(Expression::Property("bonus".to_string())),
-        );
+        let expr = Expression::Binary {
+            left: Box::new(Expression::Variable("age".to_string())),
+            op: crate::graph::expression::BinaryOperator::Add,
+            right: Box::new(Expression::Variable("bonus".to_string())),
+        };
 
         assert!(visitor.deduce(&expr).is_ok());
         let props = visitor.get_props();

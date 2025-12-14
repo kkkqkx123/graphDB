@@ -11,7 +11,7 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
 use crate::storage::StorageEngine;
-use crate::graph::expression::{Expression, ExpressionContext};
+use crate::graph::expression::{Expression, ExpressionContext, ExpressionEvaluator};
 
 /// 模式类型
 #[derive(Debug, Clone, PartialEq)]
@@ -138,7 +138,8 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                     temp_context.set_variable("_".to_string(), prop_value);
                     
                     // 评估属性表达式
-                    let result = prop_expr.evaluate(&temp_context)
+                    let evaluator = ExpressionEvaluator::new();
+                    let result = evaluator.evaluate(prop_expr, &temp_context)
                         .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                     
                     // 如果结果是布尔值且为false，则不匹配
@@ -183,7 +184,8 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                     temp_context.set_variable("_".to_string(), prop_value);
                     
                     // 评估属性表达式
-                    let result = prop_expr.evaluate(&temp_context)
+                    let evaluator = ExpressionEvaluator::new();
+                    let result = evaluator.evaluate(prop_expr, &temp_context)
                         .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                     
                     // 如果结果是布尔值且为false，则不匹配

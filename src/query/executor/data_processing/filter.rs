@@ -5,7 +5,9 @@ use std::sync::{Arc, Mutex};
 use crate::core::Value;
 use crate::graph::expression::{EvalContext, Expression, ExpressionEvaluator};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, DBResult};
+use crate::query::executor::traits::{
+    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::storage::StorageEngine;
 
 /// FilterExecutor - 条件过滤执行器
@@ -45,7 +47,10 @@ impl<S: StorageEngine> FilterExecutor<S> {
     }
 
     /// 评估条件表达式
-    async fn evaluate_condition(&mut self, context: &EvalContext<'_>) -> Result<bool, crate::core::error::QueryError> {
+    async fn evaluate_condition(
+        &mut self,
+        context: &EvalContext<'_>,
+    ) -> Result<bool, crate::core::error::QueryError> {
         // 评估表达式
         let result = self
             .evaluator
@@ -213,7 +218,11 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for FilterExecutor<S> {
         };
 
         // 应用过滤条件
-        self.apply_filter(input_result).await.map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))
+        self.apply_filter(input_result).await.map_err(|e| {
+            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
+                e.to_string(),
+            ))
+        })
     }
 }
 
@@ -360,10 +369,10 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建条件表达式：age > 18
-        let condition = Expression::BinaryOp(
-            Box::new(Expression::Property("age".to_string())),
-            BinaryOperator::Gt,
-            Box::new(Expression::Constant(Value::Int(18))),
+        let condition = Expression::binary(
+            Expression::property(Expression::variable("age"), "age"),
+            BinaryOperator::GreaterThan,
+            Expression::literal(18i64),
         );
 
         let mut executor = FilterExecutor::new(1, storage, condition);
@@ -389,11 +398,13 @@ mod tests {
 
         #[async_trait]
         impl crate::query::executor::traits::ExecutorCore for MockInputExecutor {
-            async fn execute(&mut self) -> crate::query::executor::traits::DBResult<ExecutionResult> {
+            async fn execute(
+                &mut self,
+            ) -> crate::query::executor::traits::DBResult<ExecutionResult> {
                 Ok(self.result.clone())
             }
         }
-        
+
         impl crate::query::executor::traits::ExecutorLifecycle for MockInputExecutor {
             fn open(&mut self) -> crate::query::executor::traits::DBResult<()> {
                 Ok(())
@@ -405,7 +416,7 @@ mod tests {
                 true
             }
         }
-        
+
         impl crate::query::executor::traits::ExecutorMetadata for MockInputExecutor {
             fn id(&self) -> usize {
                 0
@@ -417,7 +428,7 @@ mod tests {
                 "MockInputExecutor"
             }
         }
-        
+
         #[async_trait::async_trait]
         impl crate::query::executor::traits::Executor<MockStorage> for MockInputExecutor {
             fn storage(&self) -> &Arc<Mutex<MockStorage>> {

@@ -243,9 +243,12 @@ pub enum TokenKind {
     Colon,     // :
     Semicolon, // ;
     QMark,     // ?
+    Question,  // ? (别名)
     Pipe,      // |
     Arrow,     // ->
     BackArrow, // <-
+    RightArrow, // -> (别名)
+    LeftArrow,  // <- (别名)
     At,        // @
     Dollar,    // $
 

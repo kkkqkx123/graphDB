@@ -10,7 +10,7 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
 use crate::storage::StorageEngine;
-use crate::graph::expression::{Expression, ExpressionContext};
+use crate::graph::expression::{Expression, ExpressionContext, ExpressionEvaluator};
 
 /// Assign执行器
 /// 用于将表达式的结果赋值给变量
@@ -58,7 +58,8 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
         // 执行每个赋值项
         for (var_name, expr) in &self.assign_items {
             // 计算表达式的值
-            let value = expr.evaluate(&expr_context)
+            let evaluator = ExpressionEvaluator::new();
+            let value = evaluator.evaluate(expr, &expr_context)
                 .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
 
             // 根据值的类型设置到执行上下文中
@@ -148,8 +149,8 @@ mod tests {
         
         // 创建赋值项
         let assign_items = vec![
-            ("var1".to_string(), Expression::Constant(Value::Int(42))),
-            ("var2".to_string(), Expression::Constant(Value::String("hello".to_string()))),
+            ("var1".to_string(), Expression::literal(42i64)),
+            ("var2".to_string(), Expression::literal("hello")),
         ];
 
         let mut executor = AssignExecutor::new(1, storage, assign_items);

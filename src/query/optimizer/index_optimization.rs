@@ -5,9 +5,9 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{combine_conditions, BaseOptRule, FilterSplitResult};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
+use crate::query::planner::plan::algorithms::IndexScan as IndexScanPlanNode;
 use crate::query::planner::plan::operations::Filter as FilterPlanNode;
 use crate::query::planner::plan::{PlanNode, PlanNodeKind};
-use crate::query::planner::plan::algorithms::IndexScan as IndexScanPlanNode;
 use std::sync::Arc;
 
 /// 基于过滤条件优化边索引扫描的规则
@@ -445,9 +445,7 @@ fn can_push_down_to_index_scan(condition: &str) -> FilterSplitResult {
 }
 
 /// 尝试解析过滤条件为表达式
-fn parse_filter_condition(
-    condition: &str,
-) -> Result<crate::graph::expression::Expression, String> {
+fn parse_filter_condition(condition: &str) -> Result<crate::graph::expression::Expression, String> {
     // 使用表达式转换器解析字符串条件
     crate::query::parser::expressions::parse_expression_from_string(condition)
 }
@@ -461,9 +459,9 @@ fn analyze_expression_for_index_scan(
     // 分析表达式
     // 通常，只涉及索引列的条件可以下推到索引扫描
     match expr {
-        crate::graph::expression::Expression::BinaryOp(left, op, right) => {
+        crate::graph::expression::Expression::Binary { left, op, right } => {
             // 检查是否是AND操作
-            if matches!(op, crate::graph::expression::binary::BinaryOperator::And) {
+            if matches!(op, crate::graph::expression::BinaryOperator::And) {
                 // 递归分析左右子表达式
                 analyze_expression_for_index_scan(left, pushable_conditions, remaining_conditions);
                 analyze_expression_for_index_scan(right, pushable_conditions, remaining_conditions);
@@ -488,40 +486,38 @@ fn analyze_expression_for_index_scan(
 }
 
 /// 检查表达式是否可以下推到索引扫描
-fn can_push_down_expression_to_index_scan(
-    expr: &crate::graph::expression::Expression,
-) -> bool {
+fn can_push_down_expression_to_index_scan(expr: &crate::graph::expression::Expression) -> bool {
     // 检查表达式是否可以下推到索引扫描
     match expr {
         crate::graph::expression::Expression::TagProperty { .. } => true,
-        crate::graph::expression::Expression::Property(_) => true,
+        crate::graph::expression::Expression::Property { .. } => true,
         crate::graph::expression::Expression::Variable(_) => true, // 变量也可以下推
         crate::graph::expression::Expression::VariableProperty { .. } => true,
         crate::graph::expression::Expression::EdgeProperty { .. } => true,
-        crate::graph::expression::Expression::BinaryOp(left, op, right) => {
+        crate::graph::expression::Expression::Binary { left, op, right } => {
             // 检查是否是支持索引的操作符
             let is_indexable_op = matches!(
                 op,
-                crate::graph::expression::binary::BinaryOperator::Eq
-                    | crate::graph::expression::binary::BinaryOperator::Ne
-                    | crate::graph::expression::binary::BinaryOperator::Lt
-                    | crate::graph::expression::binary::BinaryOperator::Le
-                    | crate::graph::expression::binary::BinaryOperator::Gt
-                    | crate::graph::expression::binary::BinaryOperator::Ge
+                crate::graph::expression::BinaryOperator::Equal
+                    | crate::graph::expression::BinaryOperator::NotEqual
+                    | crate::graph::expression::BinaryOperator::LessThan
+                    | crate::graph::expression::BinaryOperator::LessThanOrEqual
+                    | crate::graph::expression::BinaryOperator::GreaterThan
+                    | crate::graph::expression::BinaryOperator::GreaterThanOrEqual
             );
 
             is_indexable_op
                 && can_push_down_expression_to_index_scan(left)
                 && can_push_down_expression_to_index_scan(right)
         }
-        crate::graph::expression::Expression::UnaryOp(_, operand) => {
+        crate::graph::expression::Expression::Unary { operand, .. } => {
             can_push_down_expression_to_index_scan(operand)
         }
-        crate::graph::expression::Expression::Function(name, _) => {
+        crate::graph::expression::Expression::Function { name, .. } => {
             // 某些函数可以下推，如id(), properties()等
             matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
         }
-        crate::graph::expression::Expression::Constant(_) => true, // 常量也可以下推
+        crate::graph::expression::Expression::Literal(_) => true, // 字面量也可以下推
         _ => false,
     }
 }
@@ -557,19 +553,18 @@ fn extract_index_limits_from_expression(
     expr: &crate::graph::expression::Expression,
     index_scan: &mut IndexScanPlanNode,
 ) {
-    use crate::graph::expression::binary::BinaryOperator;
     use crate::graph::expression::Expression;
 
     match expr {
         // 处理二元操作表达式
-        Expression::BinaryOp(left, op, right) => {
+        Expression::Binary { left, op, right } => {
             // 只处理关系操作符
-            if is_relational_operator(op) {
+            if is_relational_operator(&op) {
                 if let (Some(column), Some(value)) = extract_column_and_value(left, right) {
                     let limit = create_index_limit(op, column, value);
                     index_scan.scan_limits.push(limit);
                 }
-            } else if matches!(op, BinaryOperator::And) {
+            } else if matches!(op, crate::graph::expression::BinaryOperator::And) {
                 // 对于AND操作，递归处理左右子表达式
                 extract_index_limits_from_expression(left, index_scan);
                 extract_index_limits_from_expression(right, index_scan);
@@ -634,16 +629,16 @@ fn extract_index_limits_from_string(condition: &str, index_scan: &mut IndexScanP
 }
 
 /// 检查是否是关系操作符
-fn is_relational_operator(op: &crate::graph::expression::binary::BinaryOperator) -> bool {
-    use crate::graph::expression::binary::BinaryOperator;
+fn is_relational_operator(op: &crate::graph::expression::BinaryOperator) -> bool {
+    use crate::graph::expression::BinaryOperator;
     matches!(
         op,
-        BinaryOperator::Eq
-            | BinaryOperator::Ne
-            | BinaryOperator::Lt
-            | BinaryOperator::Le
-            | BinaryOperator::Gt
-            | BinaryOperator::Ge
+        BinaryOperator::Equal
+            | BinaryOperator::NotEqual
+            | BinaryOperator::LessThan
+            | BinaryOperator::LessThanOrEqual
+            | BinaryOperator::GreaterThan
+            | BinaryOperator::GreaterThanOrEqual
     )
 }
 
@@ -655,7 +650,7 @@ fn extract_column_and_value(
     use crate::graph::expression::Expression;
 
     let column = match left {
-        Expression::Property(name) => Some(name.clone()),
+        Expression::Property { property, .. } => Some(property.clone()),
         Expression::VariableProperty { var, prop } => Some(format!("{}.{}", var, prop)),
         Expression::TagProperty { tag, prop } => Some(format!("{}.{}", tag, prop)),
         Expression::EdgeProperty { edge, prop } => Some(format!("{}.{}", edge, prop)),
@@ -664,10 +659,18 @@ fn extract_column_and_value(
     };
 
     let value = match right {
-        Expression::Constant(crate::core::Value::String(s)) => Some(s.clone()),
-        Expression::Constant(crate::core::Value::Int(i)) => Some(i.to_string()),
-        Expression::Constant(crate::core::Value::Float(f)) => Some(f.to_string()),
-        Expression::Constant(crate::core::Value::Bool(b)) => Some(b.to_string()),
+        Expression::Literal(crate::graph::expression::expression::LiteralValue::String(s)) => {
+            Some(s.clone())
+        }
+        Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(i)) => {
+            Some(i.to_string())
+        }
+        Expression::Literal(crate::graph::expression::expression::LiteralValue::Float(f)) => {
+            Some(f.to_string())
+        }
+        Expression::Literal(crate::graph::expression::expression::LiteralValue::Bool(b)) => {
+            Some(b.to_string())
+        }
         _ => None,
     };
 
@@ -676,26 +679,26 @@ fn extract_column_and_value(
 
 /// 创建索引限制
 fn create_index_limit(
-    op: &crate::graph::expression::binary::BinaryOperator,
+    op: &crate::graph::expression::BinaryOperator,
     column: String,
     value: String,
 ) -> crate::query::planner::plan::algorithms::IndexLimit {
-    use crate::graph::expression::binary::BinaryOperator;
+    use crate::graph::expression::BinaryOperator;
 
     match op {
-        BinaryOperator::Eq => crate::query::planner::plan::algorithms::IndexLimit {
+        BinaryOperator::Equal => crate::query::planner::plan::algorithms::IndexLimit {
             column,
             begin_value: Some(value.clone()),
             end_value: Some(value),
         },
-        BinaryOperator::Gt | BinaryOperator::Ge => {
+        BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual => {
             crate::query::planner::plan::algorithms::IndexLimit {
                 column,
                 begin_value: Some(value),
                 end_value: None,
             }
         }
-        BinaryOperator::Lt | BinaryOperator::Le => {
+        BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual => {
             crate::query::planner::plan::algorithms::IndexLimit {
                 column,
                 begin_value: None,
@@ -703,7 +706,7 @@ fn create_index_limit(
             }
         }
         // 对于不等于操作符，暂时不创建索引限制
-        BinaryOperator::Ne => crate::query::planner::plan::algorithms::IndexLimit {
+        BinaryOperator::NotEqual => crate::query::planner::plan::algorithms::IndexLimit {
             column,
             begin_value: None,
             end_value: None,

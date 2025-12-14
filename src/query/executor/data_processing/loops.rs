@@ -650,10 +650,10 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建条件表达式：__iteration < 3
-        let condition = Expression::BinaryOp(
-            Box::new(Expression::Variable("__iteration".to_string())),
-            BinaryOperator::Lt,
-            Box::new(Expression::Constant(Value::Int(3))),
+        let condition = Expression::binary(
+            Expression::variable("__iteration"),
+            BinaryOperator::LessThan,
+            Expression::int(3),
         );
 
         let body_executor = Box::new(CountExecutor {

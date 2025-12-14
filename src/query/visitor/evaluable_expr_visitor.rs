@@ -37,10 +37,10 @@ impl EvaluableExprVisitor {
     fn visit(&mut self, expr: &Expression) -> Result<(), String> {
         match expr {
             // 常量表达式是可求值的
-            Expression::Constant(_) => Ok(()),
+            Expression::Literal(_) => Ok(()),
 
             // 变量表达式依赖于上下文，可能不可求值
-            Expression::Property(_name) => {
+            Expression::Property { object: _, property: _ } => {
                 // 在当前实现中，如果表达式包含变量，则可能是不可求值的
                 // 在实际实现中，需要检查该变量是否在当前上下文中被定义
                 self.evaluable = false;
@@ -48,15 +48,15 @@ impl EvaluableExprVisitor {
             }
 
             // 算术表达式 - 如果所有子表达式都可求值，则该表达式可求值
-            Expression::UnaryOp(_, operand) => self.visit(operand),
+            Expression::Unary { op: _, operand } => self.visit(operand),
 
-            Expression::BinaryOp(left, _, right) => {
+            Expression::Binary { left, op: _, right } => {
                 self.visit(left)?;
                 self.visit(right)
             }
 
             // 函数调用 - 内置函数如果参数可求值则可求值
-            Expression::Function(_, args) => {
+            Expression::Function { name: _, args } => {
                 for arg in args {
                     self.visit(arg)?;
                 }

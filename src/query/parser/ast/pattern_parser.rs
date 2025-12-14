@@ -20,11 +20,11 @@ impl PatternParser {
         let token = self.lexer.peek()?;
         
         match token.kind {
-            LexerToken::LeftParen => {
+            LexerToken::LParen => {
                 // 节点模式: (variable:Label {properties})
                 self.parse_node_pattern()
             }
-            LexerToken::LeftBracket => {
+            LexerToken::LBracket => {
                 // 边模式: [variable:Type {properties}]-> or <-[variable:Type {properties}]
                 self.parse_edge_pattern()
             }
@@ -44,7 +44,7 @@ impl PatternParser {
     /// 解析节点模式
     fn parse_node_pattern(&mut self) -> Result<Pattern, ParseError> {
         let start_span = self.current_span();
-        self.expect_token(LexerToken::LeftParen)?;
+        self.expect_token(LexerToken::LParen)?;
         
         // 解析变量名（可选）
         let variable = if let LexerToken::Identifier(_) = self.lexer.peek()?.kind {
@@ -68,13 +68,13 @@ impl PatternParser {
         }
         
         // 解析属性（可选）
-        let properties = if self.match_token(LexerToken::LeftBrace) {
+        let properties = if self.match_token(LexerToken::LBrace) {
             Some(self.parse_map_expression()?)
         } else {
             None
         };
         
-        self.expect_token(LexerToken::RightParen)?;
+        self.expect_token(LexerToken::RParen)?;
         
         let end_span = self.current_span();
         let span = Span::new(start_span.start, end_span.end);
@@ -87,13 +87,13 @@ impl PatternParser {
         let start_span = self.current_span();
         
         // 检查方向
-        let direction = if self.match_token(LexerToken::LeftArrow) {
+        let direction = if self.match_token(LexerToken::BackArrow) {
             EdgeDirection::In
         } else {
             EdgeDirection::Out
         };
         
-        self.expect_token(LexerToken::LeftBracket)?;
+        self.expect_token(LexerToken::LBracket)?;
         
         // 解析变量名（可选）
         let variable = if let LexerToken::Identifier(_) = self.lexer.peek()?.kind {
@@ -117,7 +117,7 @@ impl PatternParser {
         }
         
         // 解析属性（可选）
-        let properties = if self.match_token(LexerToken::LeftBrace) {
+        let properties = if self.match_token(LexerToken::LBrace) {
             Some(self.parse_map_expression()?)
         } else {
             None
@@ -125,9 +125,9 @@ impl PatternParser {
         
         // 解析范围（可选）
         let range = if self.match_token(LexerToken::Star) {
-            if self.match_token(LexerToken::LeftParen) {
+            if self.match_token(LexerToken::LParen) {
                 // 解析范围: *({min}, {max})
-                let min = if self.match_token(LexerToken::Integer) {
+                let min = if self.match_token(LexerToken::IntegerLiteral(0)) {
                     Some(self.parse_integer()? as usize)
                 } else {
                     None
@@ -135,13 +135,13 @@ impl PatternParser {
                 
                 self.expect_token(LexerToken::Comma)?;
                 
-                let max = if self.match_token(LexerToken::Integer) {
+                let max = if self.match_token(LexerToken::IntegerLiteral(0)) {
                     Some(self.parse_integer()? as usize)
                 } else {
                     None
                 };
                 
-                self.expect_token(LexerToken::RightParen)?;
+                self.expect_token(LexerToken::RParen)?;
                 Some(EdgeRange::new(min, max))
             } else {
                 // 任意长度: *
@@ -151,17 +151,17 @@ impl PatternParser {
             None
         };
         
-        self.expect_token(LexerToken::RightBracket)?;
+        self.expect_token(LexerToken::RBracket)?;
         
         // 检查方向
         let final_direction = if direction == EdgeDirection::In {
-            if self.match_token(LexerToken::RightArrow) {
+            if self.match_token(LexerToken::Arrow) {
                 EdgeDirection::Both // <-[]-> 表示双向
             } else {
                 EdgeDirection::In
             }
         } else {
-            if self.match_token(LexerToken::RightArrow) {
+            if self.match_token(LexerToken::Arrow) {
                 EdgeDirection::Out
             } else {
                 EdgeDirection::Both // -[]- 表示双向
@@ -180,7 +180,7 @@ impl PatternParser {
         let span = self.current_span();
         
         // 检查是否是路径模式（包含箭头）
-        if self.match_token(LexerToken::RightArrow) || self.match_token(LexerToken::LeftArrow) {
+        if self.match_token(LexerToken::Arrow) || self.match_token(LexerToken::BackArrow) {
             // 这是一个路径模式，需要重新解析
             // 这里简化处理，返回变量模式
             Ok(PatternFactory::variable(name, span))
@@ -217,7 +217,7 @@ impl PatternParser {
         let token = self.lexer.peek()?;
         
         match token.kind {
-            LexerToken::LeftParen => {
+            LexerToken::LParen => {
                 // 节点元素
                 let node_pattern = self.parse_node_pattern()?;
                 if let Pattern::Node(node) = node_pattern {
@@ -226,7 +226,7 @@ impl PatternParser {
                     unreachable!()
                 }
             }
-            LexerToken::LeftBracket => {
+            LexerToken::LBracket => {
                 // 边元素
                 let edge_pattern = self.parse_edge_pattern()?;
                 if let Pattern::Edge(edge) = edge_pattern {
@@ -239,7 +239,7 @@ impl PatternParser {
                 // 替代模式: (a|b|c)
                 self.parse_alternative_pattern()
             }
-            LexerToken::Question => {
+            LexerToken::QMark | LexerToken::Question => {
                 // 可选模式: ?
                 self.lexer.advance()?;
                 let inner = self.parse_path_element()?;
@@ -289,17 +289,17 @@ impl PatternParser {
         let token = self.lexer.peek().ok();
         
         match token.map(|t| t.kind) {
-            Some(LexerToken::LeftParen) | Some(LexerToken::LeftBracket) => true,
-            Some(LexerToken::Pipe) | Some(LexerToken::Question) | Some(LexerToken::Star) | Some(LexerToken::Plus) => true,
+            Some(LexerToken::LParen) | Some(LexerToken::LBracket) => true,
+            Some(LexerToken::Pipe) | Some(LexerToken::QMark) | Some(LexerToken::Question) | Some(LexerToken::Star) | Some(LexerToken::Plus) => true,
             _ => false,
         }
     }
     
     /// 解析范围模式
     fn parse_range_pattern(&mut self) -> Result<EdgeRange, ParseError> {
-        self.expect_token(LexerToken::LeftBrace)?;
+        self.expect_token(LexerToken::LBrace)?;
         
-        let min = if self.match_token(LexerToken::Integer) {
+        let min = if self.match_token(LexerToken::IntegerLiteral(0)) {
             Some(self.parse_integer()? as usize)
         } else {
             None
@@ -307,13 +307,13 @@ impl PatternParser {
         
         self.expect_token(LexerToken::Comma)?;
         
-        let max = if self.match_token(LexerToken::Integer) {
+        let max = if self.match_token(LexerToken::IntegerLiteral(0)) {
             Some(self.parse_integer()? as usize)
         } else {
             None
         };
         
-        self.expect_token(LexerToken::RightBrace)?;
+        self.expect_token(LexerToken::RBrace)?;
         
         Ok(EdgeRange::new(min, max))
     }
@@ -321,8 +321,8 @@ impl PatternParser {
     /// 辅助方法
     
     fn match_token(&mut self, expected: LexerToken) -> bool {
-        if self.lexer.check(&expected) {
-            self.lexer.advance().ok();
+        if self.lexer.check(expected) {
+            self.lexer.advance();
             true
         } else {
             false
@@ -330,7 +330,7 @@ impl PatternParser {
     }
     
     fn check_token(&mut self, expected: LexerToken) -> bool {
-        self.lexer.check(&expected)
+        self.lexer.check(expected)
     }
     
     fn expect_token(&mut self, expected: LexerToken) -> Result<(), ParseError> {
@@ -349,7 +349,7 @@ impl PatternParser {
     fn expect_identifier(&mut self) -> Result<String, ParseError> {
         let token = self.lexer.peek()?;
         if let LexerToken::Identifier(_) = token.kind {
-            let text = token.text.clone();
+            let text = token.lexeme.clone();
             self.lexer.advance()?;
             Ok(text)
         } else {
@@ -362,8 +362,8 @@ impl PatternParser {
     
     fn parse_integer(&mut self) -> Result<i64, ParseError> {
         let token = self.lexer.peek()?;
-        if let LexerToken::Integer = token.kind {
-            let text = token.text.clone();
+        if let LexerToken::IntegerLiteral(_) = token.kind {
+            let text = token.lexeme.clone();
             self.lexer.advance()?;
             text.parse().map_err(|_| {
                 ParseError::new(
@@ -383,11 +383,11 @@ impl PatternParser {
         // 由于lexer.input是私有的，这里需要重新设计
         // 暂时返回一个简单的映射表达式
         let start_span = self.current_span();
-        self.expect_token(LexerToken::LeftBrace)?;
+        self.expect_token(LexerToken::LBrace)?;
         
         let mut pairs = Vec::new();
         
-        if !self.check_token(LexerToken::RightBrace) {
+        if !self.check_token(LexerToken::RBrace) {
             loop {
                 let key = self.expect_identifier()?;
                 self.expect_token(LexerToken::Colon)?;
@@ -400,7 +400,7 @@ impl PatternParser {
             }
         }
         
-        self.expect_token(LexerToken::RightBrace)?;
+        self.expect_token(LexerToken::RBrace)?;
         let end_span = self.current_span();
         let span = Span::new(start_span.start, end_span.end);
         

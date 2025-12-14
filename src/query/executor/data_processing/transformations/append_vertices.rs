@@ -10,7 +10,7 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
 use crate::storage::StorageEngine;
-use crate::graph::expression::{Expression, ExpressionContext};
+use crate::graph::expression::{Expression, ExpressionContext, ExpressionEvaluator};
 
 /// AppendVertices执行器
 /// 用于根据顶点ID获取顶点信息并追加到结果中
@@ -114,7 +114,8 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     expr_context.set_variable("_".to_string(), value.clone());
                     
                     // 计算源表达式获取顶点ID
-                    let vid = self.src_expr.evaluate(&expr_context)
+                    let evaluator = ExpressionEvaluator::new();
+                    let vid = evaluator.evaluate(&self.src_expr, &expr_context)
                         .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                     
                     // 检查是否去重
@@ -133,7 +134,8 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     let vertex_value = Value::Vertex(Box::new(vertex.clone()));
                     expr_context.set_variable("_".to_string(), vertex_value.clone());
                     
-                    let vid = self.src_expr.evaluate(&expr_context)
+                    let evaluator = ExpressionEvaluator::new();
+                    let vid = evaluator.evaluate(&self.src_expr, &expr_context)
                         .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                     
                     if let Some(ref mut seen_map) = seen {
@@ -151,7 +153,8 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     let edge_value = Value::Edge(edge.clone());
                     expr_context.set_variable("_".to_string(), edge_value.clone());
                     
-                    let vid = self.src_expr.evaluate(&expr_context)
+                    let evaluator = ExpressionEvaluator::new();
+                    let vid = evaluator.evaluate(&self.src_expr, &expr_context)
                         .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                     
                     if let Some(ref mut seen_map) = seen {
@@ -286,7 +289,8 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 
             // 如果有顶点过滤器，应用它
             if let Some(ref filter_expr) = self.v_filter {
-                let filter_result = filter_expr.evaluate(&expr_context)
+                let evaluator = ExpressionEvaluator::new();
+                let filter_result = evaluator.evaluate(filter_expr, &expr_context)
                     .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
                 
                 if let Value::Bool(false) = filter_result {

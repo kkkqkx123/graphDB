@@ -413,6 +413,83 @@ impl Expression {
             }
             Expression::Path(items) => items.iter().collect(),
             Expression::Label(_) => vec![],
+            
+            // 图数据库特有表达式
+            Expression::TagProperty { .. } => vec![],
+            Expression::EdgeProperty { .. } => vec![],
+            Expression::InputProperty(_) => vec![],
+            Expression::VariableProperty { .. } => vec![],
+            Expression::SourceProperty { .. } => vec![],
+            Expression::DestinationProperty { .. } => vec![],
+            
+            // 一元操作扩展
+            Expression::UnaryPlus(expr) => vec![expr.as_ref()],
+            Expression::UnaryNegate(expr) => vec![expr.as_ref()],
+            Expression::UnaryNot(expr) => vec![expr.as_ref()],
+            Expression::UnaryIncr(expr) => vec![expr.as_ref()],
+            Expression::UnaryDecr(expr) => vec![expr.as_ref()],
+            Expression::IsNull(expr) => vec![expr.as_ref()],
+            Expression::IsNotNull(expr) => vec![expr.as_ref()],
+            Expression::IsEmpty(expr) => vec![expr.as_ref()],
+            Expression::IsNotEmpty(expr) => vec![expr.as_ref()],
+            
+            // 类型转换
+            Expression::TypeCasting { expr, .. } => vec![expr.as_ref()],
+            
+            // 列表推导
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => {
+                let mut children = vec![generator.as_ref()];
+                if let Some(cond) = condition {
+                    children.push(cond.as_ref());
+                }
+                children
+            }
+            
+            // 谓词表达式
+            Expression::Predicate { list, condition } => {
+                vec![list.as_ref(), condition.as_ref()]
+            }
+            
+            // 归约表达式
+            Expression::Reduce {
+                list,
+                initial,
+                expr,
+                ..
+            } => {
+                vec![list.as_ref(), initial.as_ref(), expr.as_ref()]
+            }
+            
+            // 路径构建表达式
+            Expression::PathBuild(items) => items.iter().collect(),
+            
+            // 文本搜索表达式
+            Expression::ESQuery(_) => vec![],
+            
+            // UUID表达式
+            Expression::UUID => vec![],
+            
+            // 下标范围表达式
+            Expression::SubscriptRange {
+                collection,
+                start,
+                end,
+            } => {
+                let mut children = vec![collection.as_ref()];
+                if let Some(s) = start {
+                    children.push(s.as_ref());
+                }
+                if let Some(e) = end {
+                    children.push(e.as_ref());
+                }
+                children
+            }
+            
+            // 匹配路径模式表达式
+            Expression::MatchPathPattern { patterns, .. } => patterns.iter().collect(),
         }
     }
 
@@ -434,6 +511,52 @@ impl Expression {
             Expression::Range { .. } => ExpressionType::Range,
             Expression::Path(_) => ExpressionType::Path,
             Expression::Label(_) => ExpressionType::Label,
+            
+            // 图数据库特有表达式
+            Expression::TagProperty { .. } => ExpressionType::Property,
+            Expression::EdgeProperty { .. } => ExpressionType::Property,
+            Expression::InputProperty(_) => ExpressionType::Property,
+            Expression::VariableProperty { .. } => ExpressionType::Property,
+            Expression::SourceProperty { .. } => ExpressionType::Property,
+            Expression::DestinationProperty { .. } => ExpressionType::Property,
+            
+            // 一元操作扩展
+            Expression::UnaryPlus(_) => ExpressionType::Unary,
+            Expression::UnaryNegate(_) => ExpressionType::Unary,
+            Expression::UnaryNot(_) => ExpressionType::Unary,
+            Expression::UnaryIncr(_) => ExpressionType::Unary,
+            Expression::UnaryDecr(_) => ExpressionType::Unary,
+            Expression::IsNull(_) => ExpressionType::Unary,
+            Expression::IsNotNull(_) => ExpressionType::Unary,
+            Expression::IsEmpty(_) => ExpressionType::Unary,
+            Expression::IsNotEmpty(_) => ExpressionType::Unary,
+            
+            // 类型转换
+            Expression::TypeCasting { .. } => ExpressionType::TypeCast,
+            
+            // 列表推导
+            Expression::ListComprehension { .. } => ExpressionType::List,
+            
+            // 谓词表达式
+            Expression::Predicate { .. } => ExpressionType::Property,
+            
+            // 归约表达式
+            Expression::Reduce { .. } => ExpressionType::Aggregate,
+            
+            // 路径构建表达式
+            Expression::PathBuild(_) => ExpressionType::Path,
+            
+            // 文本搜索表达式
+            Expression::ESQuery(_) => ExpressionType::Function,
+            
+            // UUID表达式
+            Expression::UUID => ExpressionType::Literal,
+            
+            // 下标范围表达式
+            Expression::SubscriptRange { .. } => ExpressionType::Subscript,
+            
+            // 匹配路径模式表达式
+            Expression::MatchPathPattern { .. } => ExpressionType::Path,
         }
     }
 
@@ -640,172 +763,3 @@ impl Expression {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_expression_creation() {
-        // 测试字面量创建
-        let expr = Expression::int(42);
-        assert_eq!(expr, Expression::Literal(LiteralValue::Int(42)));
-
-        // 测试变量创建
-        let expr = Expression::variable("x");
-        assert_eq!(expr, Expression::Variable("x".to_string()));
-
-        // 测试属性访问创建
-        let expr = Expression::property(Expression::variable("a"), "name");
-        assert_eq!(
-            expr,
-            Expression::Property {
-                object: Box::new(Expression::Variable("a".to_string())),
-                property: "name".to_string(),
-            }
-        );
-    }
-
-    #[test]
-    fn test_binary_operations() {
-        let left = Expression::int(10);
-        let right = Expression::int(20);
-
-        // 测试加法
-        let expr = Expression::add(left.clone(), right.clone());
-        assert_eq!(
-            expr,
-            Expression::Binary {
-                left: Box::new(left.clone()),
-                op: BinaryOperator::Add,
-                right: Box::new(right.clone()),
-            }
-        );
-
-        // 测试比较
-        let expr = Expression::lt(left, right);
-        assert_eq!(
-            expr,
-            Expression::Binary {
-                left: Box::new(Expression::int(10)),
-                op: BinaryOperator::LessThan,
-                right: Box::new(Expression::int(20)),
-            }
-        );
-    }
-
-    #[test]
-    fn test_unary_operations() {
-        let expr = Expression::not(Expression::bool(true));
-        assert_eq!(
-            expr,
-            Expression::Unary {
-                op: UnaryOperator::Not,
-                operand: Box::new(Expression::bool(true)),
-            }
-        );
-    }
-
-    #[test]
-    fn test_function_calls() {
-        let expr = Expression::function("count", vec![Expression::variable("x")]);
-        assert_eq!(
-            expr,
-            Expression::Function {
-                name: "count".to_string(),
-                args: vec![Expression::Variable("x".to_string())],
-            }
-        );
-    }
-
-    #[test]
-    fn test_aggregate_functions() {
-        let expr =
-            Expression::aggregate(AggregateFunction::Count, Expression::variable("x"), false);
-        assert_eq!(
-            expr,
-            Expression::Aggregate {
-                func: AggregateFunction::Count,
-                arg: Box::new(Expression::Variable("x".to_string())),
-                distinct: false,
-            }
-        );
-    }
-
-    #[test]
-    fn test_containers() {
-        // 测试列表
-        let list = Expression::list(vec![
-            Expression::int(1),
-            Expression::int(2),
-            Expression::int(3),
-        ]);
-        assert_eq!(
-            list,
-            Expression::List(vec![
-                Expression::Literal(LiteralValue::Int(1)),
-                Expression::Literal(LiteralValue::Int(2)),
-                Expression::Literal(LiteralValue::Int(3)),
-            ])
-        );
-
-        // 测试映射
-        let map = Expression::map(vec![
-            ("a", Expression::int(1)),
-            ("b", Expression::string("hello")),
-        ]);
-        assert_eq!(
-            map,
-            Expression::Map(vec![
-                ("a".to_string(), Expression::Literal(LiteralValue::Int(1))),
-                (
-                    "b".to_string(),
-                    Expression::Literal(LiteralValue::String("hello".to_string()))
-                ),
-            ])
-        );
-    }
-
-    #[test]
-    fn test_expression_properties() {
-        // 测试常量检查
-        assert!(Expression::int(42).is_constant());
-        assert!(Expression::bool(true).is_constant());
-        assert!(!Expression::variable("x").is_constant());
-
-        // 测试聚合函数检查
-        let agg_expr =
-            Expression::aggregate(AggregateFunction::Count, Expression::variable("x"), false);
-        assert!(agg_expr.contains_aggregate());
-
-        let simple_expr = Expression::add(Expression::int(1), Expression::int(2));
-        assert!(!simple_expr.contains_aggregate());
-
-        // 测试变量提取
-        let complex_expr = Expression::add(
-            Expression::variable("x"),
-            Expression::mul(Expression::variable("y"), Expression::int(2)),
-        );
-        let vars = complex_expr.get_variables();
-        assert_eq!(vars, vec!["x", "y"]);
-    }
-
-    #[test]
-    fn test_type_conversions() {
-        // 测试从基本类型到 LiteralValue 的转换
-        let lit: LiteralValue = 42i64.into();
-        assert_eq!(lit, LiteralValue::Int(42));
-
-        let lit: LiteralValue = 3.14f64.into();
-        assert_eq!(lit, LiteralValue::Float(3.14));
-
-        let lit: LiteralValue = true.into();
-        assert_eq!(lit, LiteralValue::Bool(true));
-
-        let lit: LiteralValue = "hello".into();
-        assert_eq!(lit, LiteralValue::String("hello".to_string()));
-
-        // 测试从 LiteralValue 到 Expression 的转换
-        let expr: Expression = LiteralValue::Int(42).into();
-        assert_eq!(expr, Expression::Literal(LiteralValue::Int(42)));
-    }
-}

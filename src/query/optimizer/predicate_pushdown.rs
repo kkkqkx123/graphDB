@@ -922,9 +922,9 @@ fn analyze_expression_for_scan(
     // 分析表达式
     // 通常，只涉及顶点属性的条件可以下推到ScanVertices
     match expr {
-        crate::graph::expression::Expression::BinaryOp(left, op, right) => {
+        crate::graph::expression::Expression::Binary { left, op, right } => {
             // 检查是否是AND操作
-            if matches!(op, crate::graph::expression::binary::BinaryOperator::And) {
+            if matches!(op, crate::graph::expression::BinaryOperator::And) {
                 // 递归分析左右子表达式
                 analyze_expression_for_scan(left, pushable_conditions, remaining_conditions);
                 analyze_expression_for_scan(right, pushable_conditions, remaining_conditions);
@@ -957,9 +957,9 @@ fn analyze_expression_for_traverse(
     // 分析表达式
     // 通常，涉及源顶点属性的条件可以下推到Traverse
     match expr {
-        crate::graph::expression::Expression::BinaryOp(left, op, right) => {
+        crate::graph::expression::Expression::Binary { left, op, right } => {
             // 检查是否是AND操作
-            if matches!(op, crate::graph::expression::binary::BinaryOperator::And) {
+            if matches!(op, crate::graph::expression::BinaryOperator::And) {
                 // 递归分析左右子表达式
                 analyze_expression_for_traverse(left, pushable_conditions, remaining_conditions);
                 analyze_expression_for_traverse(right, pushable_conditions, remaining_conditions);
@@ -990,14 +990,14 @@ fn can_push_down_expression_to_scan(
     // 检查表达式是否可以下推到扫描操作
     match expr {
         crate::graph::expression::Expression::TagProperty { .. } => true,
-        crate::graph::expression::Expression::Property(_) => true,
-        crate::graph::expression::Expression::BinaryOp(left, _, right) => {
+        crate::graph::expression::Expression::Property { .. } => true,
+        crate::graph::expression::Expression::Binary { left, right, .. } => {
             can_push_down_expression_to_scan(left) && can_push_down_expression_to_scan(right)
         }
-        crate::graph::expression::Expression::UnaryOp(_, operand) => {
+        crate::graph::expression::Expression::Unary { operand, .. } => {
             can_push_down_expression_to_scan(operand)
         }
-        crate::graph::expression::Expression::Function(name, _) => {
+        crate::graph::expression::Expression::Function { name, .. } => {
             // 某些函数可以下推，如id(), properties()等
             matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
         }
@@ -1013,14 +1013,14 @@ fn can_push_down_expression_to_traverse(
     match expr {
         crate::graph::expression::Expression::SourceProperty { .. } => true,
         crate::graph::expression::Expression::EdgeProperty { .. } => true,
-        crate::graph::expression::Expression::BinaryOp(left, _, right) => {
+        crate::graph::expression::Expression::Binary { left, right, .. } => {
             can_push_down_expression_to_traverse(left)
                 && can_push_down_expression_to_traverse(right)
         }
-        crate::graph::expression::Expression::UnaryOp(_, operand) => {
+        crate::graph::expression::Expression::Unary { operand, .. } => {
             can_push_down_expression_to_traverse(operand)
         }
-        crate::graph::expression::Expression::Function(name, _) => {
+        crate::graph::expression::Expression::Function { name, .. } => {
             // 某些函数可以下推，如id(), properties()等
             matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
         }

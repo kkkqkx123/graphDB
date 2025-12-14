@@ -1,12 +1,17 @@
 use super::context::EvalContext;
 use super::error::ExpressionError;
 use crate::core::Value;
-use crate::graph::expression::Expression;
+use crate::graph::expression::{Expression, LiteralValue};
 
 /// Expression evaluator
 pub struct ExpressionEvaluator;
 
 impl ExpressionEvaluator {
+    /// Create a new ExpressionEvaluator
+    pub fn new() -> Self {
+        ExpressionEvaluator
+    }
+
     /// Evaluate an expression in the given context
     pub fn evaluate(
         &self,
@@ -23,39 +28,40 @@ impl ExpressionEvaluator {
         context: &EvalContext,
     ) -> Result<Value, ExpressionError> {
         match expr {
-            Expression::Constant(value) => Ok(value.clone()),
-            Expression::Property(prop_name) => {
-                // Try to find the property in vertex
-                if let Some(vertex) = context.vertex {
-                    for tag in &vertex.tags {
-                        if let Some(value) = tag.properties.get(prop_name) {
-                            return Ok(value.clone());
-                        }
-                    }
+            Expression::Literal(literal_value) => {
+                // 将 LiteralValue 转换为 Value
+                match literal_value {
+                    LiteralValue::Bool(b) => Ok(Value::Bool(*b)),
+                    LiteralValue::Int(i) => Ok(Value::Int(*i)),
+                    LiteralValue::Float(f) => Ok(Value::Float(*f)),
+                    LiteralValue::String(s) => Ok(Value::String(s.clone())),
+                    LiteralValue::Null => Ok(Value::Null(crate::core::NullType::Null)),
                 }
-
-                // Try to find the property in edge
-                if let Some(edge) = context.edge {
-                    if let Some(value) = edge.props.get(prop_name) {
-                        return Ok(value.clone());
-                    }
+            }
+            Expression::Property { object, property } => {
+                // 先计算 object，然后获取其属性
+                let obj_value = self.evaluate(object, context)?;
+                // 根据对象类型获取属性
+                match obj_value {
+                    Value::Map(map) => map
+                        .get(property)
+                        .cloned()
+                        .ok_or_else(|| ExpressionError::PropertyNotFound(property.clone())),
+                    _ => Err(ExpressionError::PropertyNotFound(property.clone())),
                 }
-
-                // Try to find the property in variables
-                if let Some(value) = context.vars.get(prop_name) {
-                    return Ok(value.clone());
-                }
-
-                Err(ExpressionError::PropertyNotFound(prop_name.clone()))
             }
-            Expression::BinaryOp(left, op, right) => {
-                super::binary::evaluate_binary_op(left, op, right, context)
+            Expression::Binary { left, op, right } => {
+                // 将 expression::BinaryOperator 转换为 binary::BinaryOperator
+                let binary_op = Self::convert_binary_operator(op);
+                super::binary::evaluate_binary_op(left, &binary_op, right, context)
             }
-            Expression::UnaryOp(op, operand) => {
-                super::unary::evaluate_unary_op(op, operand, context)
+            Expression::Unary { op, operand } => {
+                // 将 expression::UnaryOperator 转换为 unary::UnaryOperator
+                let unary_op = Self::convert_unary_operator(op);
+                super::unary::evaluate_unary_op(&unary_op, operand, context)
             }
-            Expression::Function(func_name, args) => {
-                super::function::evaluate_function(func_name, args, context)
+            Expression::Function { name, args } => {
+                super::function::evaluate_function(name, args, context)
             }
 
             // 新增表达式类型的处理
@@ -80,7 +86,7 @@ impl ExpressionEvaluator {
                 super::unary::evaluate_extended_unary_op(expr, context)
             }
 
-            expr @ Expression::List(_) | expr @ Expression::Set(_) | expr @ Expression::Map(_) => {
+            expr @ Expression::List(_) | expr @ Expression::Map(_) => {
                 super::container::evaluate_container(expr, context)
             }
 
@@ -114,7 +120,11 @@ impl ExpressionEvaluator {
                 func,
                 arg,
                 distinct,
-            } => super::function::evaluate_aggregate(func, arg, *distinct, context),
+            } => {
+                // 将 AggregateFunction 转换为字符串
+                let func_str = format!("{:?}", func).to_lowercase();
+                super::function::evaluate_aggregate(&func_str, arg, *distinct, context)
+            }
 
             Expression::ListComprehension {
                 generator,
@@ -326,6 +336,163 @@ impl ExpressionEvaluator {
                 // 匹配路径模式表达式，简化实现返回路径别名
                 Ok(Value::String(path_alias.clone()))
             }
+
+            Expression::TypeCast {
+                expr,
+                target_type: _,
+            } => {
+                // 类型转换暂时返回原值，实际实现需要根据目标类型进行转换
+                self.evaluate(expr, context)
+            }
+
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
+                let coll_value = self.evaluate(collection, context)?;
+
+                match coll_value {
+                    Value::List(items) => {
+                        let start_idx = if let Some(start_expr) = start {
+                            let val = self.evaluate(start_expr, context)?;
+                            match val {
+                                Value::Int(n) => n as usize,
+                                _ => {
+                                    return Err(ExpressionError::TypeError(
+                                        "Range start index must be an integer".to_string(),
+                                    ))
+                                }
+                            }
+                        } else {
+                            0
+                        };
+
+                        let end_idx = if let Some(end_expr) = end {
+                            let val = self.evaluate(end_expr, context)?;
+                            match val {
+                                Value::Int(n) => n as usize,
+                                _ => {
+                                    return Err(ExpressionError::TypeError(
+                                        "Range end index must be an integer".to_string(),
+                                    ))
+                                }
+                            }
+                        } else {
+                            items.len()
+                        };
+
+                        if start_idx > end_idx || end_idx > items.len() {
+                            return Err(ExpressionError::InvalidOperation(
+                                "Invalid range".to_string(),
+                            ));
+                        }
+
+                        let result = items[start_idx..end_idx].to_vec();
+                        Ok(Value::List(result))
+                    }
+                    Value::String(s) => {
+                        let start_idx = if let Some(start_expr) = start {
+                            let val = self.evaluate(start_expr, context)?;
+                            match val {
+                                Value::Int(n) => n as usize,
+                                _ => {
+                                    return Err(ExpressionError::TypeError(
+                                        "Range start index must be an integer".to_string(),
+                                    ))
+                                }
+                            }
+                        } else {
+                            0
+                        };
+
+                        let end_idx = if let Some(end_expr) = end {
+                            let val = self.evaluate(end_expr, context)?;
+                            match val {
+                                Value::Int(n) => n as usize,
+                                _ => {
+                                    return Err(ExpressionError::TypeError(
+                                        "Range end index must be an integer".to_string(),
+                                    ))
+                                }
+                            }
+                        } else {
+                            s.len()
+                        };
+
+                        if start_idx > end_idx || end_idx > s.len() {
+                            return Err(ExpressionError::InvalidOperation(
+                                "Invalid range".to_string(),
+                            ));
+                        }
+
+                        let result = s[start_idx..end_idx].to_string();
+                        Ok(Value::String(result))
+                    }
+                    _ => Err(ExpressionError::TypeError(
+                        "Range requires a list or string".to_string(),
+                    )),
+                }
+            }
+
+            Expression::Path(items) => {
+                // 路径表达式，计算所有项并返回为列表
+                let mut path_items = Vec::new();
+                for item in items {
+                    path_items.push(self.evaluate(item, context)?);
+                }
+                Ok(Value::List(path_items))
+            }
+        }
+    }
+
+    /// 将 expression::BinaryOperator 转换为 binary::BinaryOperator
+    fn convert_binary_operator(
+        op: &crate::graph::expression::expression::BinaryOperator,
+    ) -> super::binary::BinaryOperator {
+        use super::binary::BinaryOperator as BinOp;
+        use crate::graph::expression::expression::BinaryOperator as ExprBinOp;
+
+        match op {
+            ExprBinOp::Add => BinOp::Add,
+            ExprBinOp::Subtract => BinOp::Sub,
+            ExprBinOp::Multiply => BinOp::Mul,
+            ExprBinOp::Divide => BinOp::Div,
+            ExprBinOp::Modulo => BinOp::Mod,
+            ExprBinOp::Equal => BinOp::Eq,
+            ExprBinOp::NotEqual => BinOp::Ne,
+            ExprBinOp::LessThan => BinOp::Lt,
+            ExprBinOp::LessThanOrEqual => BinOp::Le,
+            ExprBinOp::GreaterThan => BinOp::Gt,
+            ExprBinOp::GreaterThanOrEqual => BinOp::Ge,
+            ExprBinOp::And => BinOp::And,
+            ExprBinOp::Or => BinOp::Or,
+            ExprBinOp::StringConcat => BinOp::Attribute,
+            ExprBinOp::Like => BinOp::StartsWith,
+            ExprBinOp::In => BinOp::In,
+            ExprBinOp::Union => BinOp::Add,
+            ExprBinOp::Intersect => BinOp::And,
+            ExprBinOp::Except => BinOp::Sub,
+        }
+    }
+
+    /// 将 expression::UnaryOperator 转换为 unary::UnaryOperator
+    fn convert_unary_operator(
+        op: &crate::graph::expression::expression::UnaryOperator,
+    ) -> super::unary::UnaryOperator {
+        use super::unary::UnaryOperator as UnaryOp;
+        use crate::graph::expression::expression::UnaryOperator as ExprUnaryOp;
+
+        match op {
+            ExprUnaryOp::Plus => UnaryOp::Plus,
+            ExprUnaryOp::Minus => UnaryOp::Minus,
+            ExprUnaryOp::Not => UnaryOp::Not,
+            ExprUnaryOp::IsNull => UnaryOp::Negate,
+            ExprUnaryOp::IsNotNull => UnaryOp::Negate,
+            ExprUnaryOp::IsEmpty => UnaryOp::Negate,
+            ExprUnaryOp::IsNotEmpty => UnaryOp::Negate,
+            ExprUnaryOp::Increment => UnaryOp::Increment,
+            ExprUnaryOp::Decrement => UnaryOp::Decrement,
         }
     }
 }

@@ -33,7 +33,7 @@ impl ExtractFilterExprVisitor {
         // 简化实现：将所有二元操作符表达式视为过滤表达式
         match expr {
             // AND操作通常包含多个过滤条件
-            Expression::BinaryOp(left, _op, right) => {
+            Expression::Binary { left, op: _, right } => {
                 if self.is_top_level || !self.top_level_only {
                     // 如果在顶层，或者不只提取顶层，则继续遍历子表达式
                     self.visit_with_updated_level(left)?;
@@ -46,7 +46,7 @@ impl ExtractFilterExprVisitor {
             },
             
             // 函数调用，检查是否是过滤相关的函数
-            Expression::Function(name, _) => {
+            Expression::Function { name, args: _ } => {
                 // 某些函数可能用于过滤，如 is_empty, is_null 等
                 if is_filter_function(name) {
                     if self.is_top_level || !self.top_level_only {
@@ -79,14 +79,14 @@ impl ExtractFilterExprVisitor {
 
     fn visit_children(&mut self, expr: &Expression) -> Result<(), String> {
         match expr {
-            Expression::UnaryOp(_, operand) => {
+            Expression::Unary { op: _, operand } => {
                 self.visit(operand)
             },
-            Expression::BinaryOp(left, _, right) => {
+            Expression::Binary { left, op: _, right } => {
                 self.visit(left)?;
                 self.visit(right)
             },
-            Expression::Function(_, args) => {
+            Expression::Function { name: _, args } => {
                 for arg in args {
                     self.visit(arg)?;
                 }
@@ -113,6 +113,6 @@ fn is_filter_expression(expr: &Expression) -> bool {
     // 检查表达式是否为过滤表达式
     // 通常关系表达式和函数调用是过滤表达式
     matches!(expr,
-             Expression::BinaryOp(_, _, _) |
-             Expression::Function(_, _))
+             Expression::Binary { .. } |
+             Expression::Function { .. })
 }
