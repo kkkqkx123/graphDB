@@ -50,11 +50,11 @@ impl Planner for GoPlanner {
 
         // 创建执行计划节点
         // 1. 首先创建起始节点
-        let mut start_node = Arc::new(Start::new(1));
+        let start_node = Arc::new(Start::new(1));
 
         // 2. 创建参数节点（如果需要）
         let mut arg_node = Arc::new(Argument::new(2, &go_ctx.from.user_defined_var_name));
-        let mut arg_node_mut = Arc::get_mut(&mut arg_node).unwrap();
+        let arg_node_mut = Arc::get_mut(&mut arg_node).unwrap();
         arg_node_mut.set_col_names(vec!["vid".to_string()]);
         arg_node_mut.set_output_var(Variable {
             name: "start_vids".to_string(),
@@ -68,7 +68,7 @@ impl Planner for GoPlanner {
             go_ctx.over.edge_types.clone(),
             "out",
         ));
-        let mut expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
+        let expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
         expand_node_mut.add_dependency(arg_node.clone_plan_node());
         expand_node_mut.set_output_var(Variable {
             name: "expanded_vids".to_string(),
@@ -106,7 +106,7 @@ impl Planner for GoPlanner {
             go_ctx.over.edge_types.clone(),
             direction,
         ));
-        let mut expand_all_node_mut = Arc::get_mut(&mut expand_all_node).unwrap();
+        let expand_all_node_mut = Arc::get_mut(&mut expand_all_node).unwrap();
         expand_all_node_mut.add_dependency(expand_node.clone_plan_node());
         expand_all_node_mut.set_output_var(Variable {
             name: "expanded_all_vids".to_string(),
@@ -130,9 +130,9 @@ impl Planner for GoPlanner {
             .collect();
 
         // 5. 如果有JOIN操作，创建JOIN节点
-        let mut join_node = if go_ctx.join_dst {
+        let join_node = if go_ctx.join_dst {
             let mut join = Arc::new(HashLeftJoin::new(5));
-            let mut join_mut = Arc::get_mut(&mut join).unwrap();
+            let join_mut = Arc::get_mut(&mut join).unwrap();
             join_mut.add_dependency(expand_all_node.clone_plan_node());
             join_mut.set_output_var(Variable {
                 name: "joined_result".to_string(),
@@ -144,9 +144,9 @@ impl Planner for GoPlanner {
         };
 
         // 6. 创建过滤节点（如果有过滤条件）
-        let mut filter_node = if let Some(ref condition) = go_ctx.filter {
+        let filter_node = if let Some(ref condition) = go_ctx.filter {
             let mut filter = Arc::new(Filter::new(6, condition));
-            let mut filter_mut = Arc::get_mut(&mut filter).unwrap();
+            let filter_mut = Arc::get_mut(&mut filter).unwrap();
             let dependency_node: Arc<dyn PlanNode> = if let Some(ref join_ref) = join_node {
                 join_ref.clone()
             } else {
@@ -167,7 +167,7 @@ impl Planner for GoPlanner {
             7,
             &go_ctx.yield_expr.clone().unwrap_or("DEFAULT".to_string()),
         ));
-        let mut project_node_mut = Arc::get_mut(&mut project_node).unwrap();
+        let project_node_mut = Arc::get_mut(&mut project_node).unwrap();
         let last_node: Arc<dyn PlanNode> = if let Some(ref filter_ref) = filter_node {
             filter_ref.clone()
         } else if let Some(ref join_ref) = join_node {
@@ -194,7 +194,7 @@ impl Planner for GoPlanner {
         // 8. 如果需要去重，创建去重节点
         let final_node: Arc<dyn PlanNode> = if go_ctx.distinct {
             let mut dedup_node = Arc::new(Dedup::new(8));
-            let mut dedup_node_mut = Arc::get_mut(&mut dedup_node).unwrap();
+            let dedup_node_mut = Arc::get_mut(&mut dedup_node).unwrap();
             dedup_node_mut.add_dependency(project_node.clone_plan_node());
             dedup_node_mut.set_output_var(Variable {
                 name: "dedup_result".to_string(),

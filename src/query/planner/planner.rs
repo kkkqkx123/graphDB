@@ -1,7 +1,6 @@
 //! Main planner trait and implementation
 use super::plan::SubPlan;
 use crate::query::context::AstContext;
-use crate::query::parser::query_parser::{QueryParser, QueryContext};
 
 // Match function type - takes AstContext and returns whether the planner matches
 pub type MatchFunc = fn(&AstContext) -> bool;

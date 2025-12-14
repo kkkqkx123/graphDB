@@ -3,7 +3,7 @@
 //! 定义 AST 中使用的各种辅助类型和结构。
 
 use crate::core::Value;
-use super::{Expression, Span, EdgeRange};
+use super::{Expression, EdgeRange};
 use std::fmt;
 use std::collections::HashMap;
 

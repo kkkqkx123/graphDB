@@ -3,7 +3,6 @@
 
 use crate::query::context::{AstContext, LookupContext};
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::{Filter, Project, Dedup};
@@ -52,7 +51,7 @@ impl Planner for LookupPlanner {
         let mut index_scan_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if lookup_ctx.is_edge {
             // 如果是边的查找，创建GetEdges节点
             let mut get_edges_node = Arc::new(crate::query::planner::plan::GetEdges::new(1, 1, "", "", "", ""));
-            let mut get_edges_node_mut = Arc::get_mut(&mut get_edges_node).unwrap();
+            let get_edges_node_mut = Arc::get_mut(&mut get_edges_node).unwrap();
             get_edges_node_mut.set_output_var(Variable {
                 name: "index_scanned_edges".to_string(),
                 columns: vec![],
@@ -61,7 +60,7 @@ impl Planner for LookupPlanner {
         } else {
             // 如果是顶点的查找，创建GetVertices节点
             let mut get_vertices_node = Arc::new(crate::query::planner::plan::GetVertices::new(1, 1, ""));
-            let mut get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
+            let get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
             get_vertices_node_mut.set_output_var(Variable {
                 name: "index_scanned_vertices".to_string(),
                 columns: vec![],
@@ -72,7 +71,7 @@ impl Planner for LookupPlanner {
         // 2. 创建过滤节点（基于索引搜索条件）
         if let Some(ref condition) = lookup_ctx.filter {
             let mut filter_node = Arc::new(Filter::new(2, condition));
-            let mut filter_node_mut = Arc::get_mut(&mut filter_node).unwrap();
+            let filter_node_mut = Arc::get_mut(&mut filter_node).unwrap();
             filter_node_mut.add_dependency(index_scan_node.clone_plan_node());
             filter_node_mut.set_output_var(Variable {
                 name: "filtered_result".to_string(),
@@ -92,7 +91,7 @@ impl Planner for LookupPlanner {
 
         // 3. 创建投影节点
         let mut project_node = Arc::new(Project::new(3, &lookup_ctx.yield_expr.clone().unwrap_or("*".to_string())));
-        let mut project_node_mut = Arc::get_mut(&mut project_node).unwrap();
+        let project_node_mut = Arc::get_mut(&mut project_node).unwrap();
         project_node_mut.add_dependency(index_scan_node.clone_plan_node());
         let result_columns: Vec<crate::query::context::validate::types::Column> = vec![
             crate::query::context::validate::types::Column {
@@ -108,7 +107,7 @@ impl Planner for LookupPlanner {
         // 4. 如果需要去重，创建去重节点
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if lookup_ctx.dedup {
             let mut dedup_node = Arc::new(Dedup::new(4));
-            let mut dedup_node_mut = Arc::get_mut(&mut dedup_node).unwrap();
+            let dedup_node_mut = Arc::get_mut(&mut dedup_node).unwrap();
             dedup_node_mut.add_dependency(project_node.clone_plan_node());
             dedup_node_mut.set_output_var(Variable {
                 name: "dedup_result".to_string(),

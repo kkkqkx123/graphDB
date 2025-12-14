@@ -1,8 +1,5 @@
 //! 通用计划节点结构定义
 
-use crate::query::planner::plan::core::{PlanNode as BasePlanNode, PlanNodeKind};
-use crate::query::planner::plan::core::visitor::{PlanNodeVisitError, PlanNodeVisitor};
-use crate::query::context::validate::types::Variable;
 
 // 标签属性结构
 #[derive(Debug, Clone)]

@@ -3,10 +3,8 @@
 
 use crate::query::context::{
     AstContext, GoContext, FetchVerticesContext, FetchEdgesContext, 
-    LookupContext, PathContext, SubgraphContext, Starts, Over, StepClause,
-    ExpressionProps, MaintainContext
+    LookupContext, PathContext, SubgraphContext, Starts, Over, StepClause, MaintainContext
 };
-use std::collections::HashMap;
 
 /// 查询解析器
 #[derive(Debug, Clone)]
@@ -60,7 +58,7 @@ impl QueryParser {
     
     /// 解析FETCH VERTICES查询
     fn parse_fetch_vertices_query(ast_ctx: &AstContext) -> Result<FetchVerticesContext, ParseError> {
-        let mut fetch_ctx = FetchVerticesContext::new(ast_ctx.clone());
+        let fetch_ctx = FetchVerticesContext::new(ast_ctx.clone());
         
         // 在实际实现中，这里会解析完整的查询语句
         Ok(fetch_ctx)
@@ -68,7 +66,7 @@ impl QueryParser {
     
     /// 解析FETCH EDGES查询
     fn parse_fetch_edges_query(ast_ctx: &AstContext) -> Result<FetchEdgesContext, ParseError> {
-        let mut fetch_ctx = FetchEdgesContext::new(ast_ctx.clone());
+        let fetch_ctx = FetchEdgesContext::new(ast_ctx.clone());
         
         // 在实际实现中，这里会解析完整的查询语句
         Ok(fetch_ctx)
@@ -76,7 +74,7 @@ impl QueryParser {
     
     /// 解析LOOKUP查询
     fn parse_lookup_query(ast_ctx: &AstContext) -> Result<LookupContext, ParseError> {
-        let mut lookup_ctx = LookupContext::new(ast_ctx.clone());
+        let lookup_ctx = LookupContext::new(ast_ctx.clone());
         
         // 在实际实现中，这里会解析完整的查询语句
         Ok(lookup_ctx)
@@ -84,7 +82,7 @@ impl QueryParser {
     
     /// 解析PATH查询
     fn parse_path_query(ast_ctx: &AstContext) -> Result<PathContext, ParseError> {
-        let mut path_ctx = PathContext::new(ast_ctx.clone());
+        let path_ctx = PathContext::new(ast_ctx.clone());
         
         // 在实际实现中，这里会解析完整的查询语句
         Ok(path_ctx)
@@ -92,7 +90,7 @@ impl QueryParser {
     
     /// 解析SUBGRAPH查询
     fn parse_subgraph_query(ast_ctx: &AstContext) -> Result<SubgraphContext, ParseError> {
-        let mut subgraph_ctx = SubgraphContext::new(ast_ctx.clone());
+        let subgraph_ctx = SubgraphContext::new(ast_ctx.clone());
         
         // 在实际实现中，这里会解析完整的查询语句
         Ok(subgraph_ctx)

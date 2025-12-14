@@ -3,14 +3,12 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
 use crate::core::{Value, DataSet};
-use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor,
     hash_table::JoinKey,
 };
 use crate::core::error::{DBError, DBResult};
-use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
 /// 全外连接执行器

@@ -2,10 +2,10 @@
 //!
 //! This module implements parsing for pattern matching in the query language.
 
-use crate::query::parser::lexer::lexer::Lexer;
-use crate::query::parser::core::token::{Token, TokenKind};
+use crate::query::parser::ast::statement::{OrderByItem, ReturnItem};
 use crate::query::parser::ast::*;
-use crate::query::parser::core::error::{ParseError, ParseErrors};
+use crate::query::parser::core::error::ParseError;
+use crate::query::parser::core::token::TokenKind;
 
 impl super::Parser {
     pub fn parse_match_patterns(&mut self) -> Result<Vec<MatchPath>, ParseError> {
@@ -32,9 +32,10 @@ impl super::Parser {
             }
 
             // Check if there's an edge following
-            if self.current_token.kind == TokenKind::Arrow ||
-               self.current_token.kind == TokenKind::BackArrow ||
-               matches!(self.current_token.kind, TokenKind::Minus) {
+            if self.current_token.kind == TokenKind::Arrow
+                || self.current_token.kind == TokenKind::BackArrow
+                || matches!(self.current_token.kind, TokenKind::Minus)
+            {
                 path.push(MatchPathSegment::Edge(self.parse_match_edge()?));
             } else {
                 break;
@@ -71,7 +72,9 @@ impl super::Parser {
         let mut labels = Vec::new();
         if self.current_token.kind == TokenKind::Colon {
             self.next_token();
-            labels.push(Label { name: self.parse_identifier()? });
+            labels.push(Label {
+                name: self.parse_identifier()?,
+            });
         }
 
         // Parse optional properties
@@ -107,7 +110,10 @@ impl super::Parser {
             }
             _ => {
                 return Err(ParseError::syntax_error(
-                    format!("Expected edge direction (->, <-, -), got {:?}", self.current_token.kind),
+                    format!(
+                        "Expected edge direction (->, <-, -), got {:?}",
+                        self.current_token.kind
+                    ),
                     self.current_token.line,
                     self.current_token.column,
                 ));
@@ -160,10 +166,14 @@ impl super::Parser {
     pub fn parse_where_clause(&mut self) -> Result<WhereClause, ParseError> {
         self.next_token(); // Skip WHERE
         let condition = self.parse_expression()?;
-        Ok(WhereClause { expression: condition })
+        Ok(WhereClause {
+            expression: condition,
+        })
     }
 
-    pub fn parse_return_clause(&mut self) -> Result<crate::query::parser::ast::compat::ReturnClause, ParseError> {
+    pub fn parse_return_clause(
+        &mut self,
+    ) -> Result<crate::query::parser::ast::compat::ReturnClause, ParseError> {
         self.next_token(); // Skip RETURN
 
         let distinct = if self.current_token.kind == TokenKind::Distinct {
@@ -177,9 +187,12 @@ impl super::Parser {
 
         // Parse return items
         loop {
-            if self.current_token.kind == TokenKind::Eof ||
-               matches!(self.current_token.kind,
-                   TokenKind::Semicolon | TokenKind::Order | TokenKind::Limit | TokenKind::Skip) {
+            if self.current_token.kind == TokenKind::Eof
+                || matches!(
+                    self.current_token.kind,
+                    TokenKind::Semicolon | TokenKind::Order | TokenKind::Limit | TokenKind::Skip
+                )
+            {
                 break;
             }
 
@@ -192,7 +205,9 @@ impl super::Parser {
                 let alias = if self.current_token.kind == TokenKind::As {
                     self.next_token();
                     Some(self.parse_identifier()?)
-                } else if matches!(self.current_token.kind, TokenKind::Identifier(_)) && self.peek_token() != TokenKind::Comma {
+                } else if matches!(self.current_token.kind, TokenKind::Identifier(_))
+                    && self.peek_token() != TokenKind::Comma
+                {
                     // Potential alias without AS
                     Some(self.parse_identifier()?)
                 } else {
@@ -208,10 +223,7 @@ impl super::Parser {
             self.next_token(); // Skip comma
         }
 
-        Ok(ReturnClause {
-            distinct,
-            items,
-        })
+        Ok(ReturnClause { distinct, items })
     }
 
     pub fn parse_order_by_clause(&mut self) -> Result<OrderByClause, ParseError> {
@@ -223,17 +235,24 @@ impl super::Parser {
         loop {
             let expr = self.parse_expression()?;
 
-            let order = if self.current_token.kind == TokenKind::Asc || self.current_token.kind == TokenKind::Ascending {
+            let order = if self.current_token.kind == TokenKind::Asc
+                || self.current_token.kind == TokenKind::Ascending
+            {
                 self.next_token();
                 "ASC"
-            } else if self.current_token.kind == TokenKind::Desc || self.current_token.kind == TokenKind::Descending {
+            } else if self.current_token.kind == TokenKind::Desc
+                || self.current_token.kind == TokenKind::Descending
+            {
                 self.next_token();
                 "DESC"
             } else {
                 "ASC" // Default to ascending
             };
 
-            items.push(OrderByItem { expression: expr, ascending: order == "ASC" });
+            items.push(OrderByItem {
+                expression: expr,
+                ascending: order == "ASC",
+            });
 
             if self.current_token.kind != TokenKind::Comma {
                 break;

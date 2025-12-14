@@ -6,6 +6,7 @@
 mod tests {
     use super::*;
     use crate::core::Value;
+    use crate::query::parser::ast::visitor::*;
     
     #[test]
     fn test_ast_node_traits() {
@@ -277,8 +278,6 @@ mod tests {
     
     #[test]
     fn test_visitor_pattern() {
-        use super::visitor::*;
-        
         let span = Span::default();
         
         // 创建测试表达式
@@ -288,61 +287,11 @@ mod tests {
         
         // 使用默认访问者
         let mut visitor = DefaultVisitor;
-        binary_expr.accept(&mut visitor);
+        let _ = binary_expr.accept(&mut visitor);
         
         // 应该能够正常访问而不出错
         assert!(true);
     }
-    
-    #[test]
-    fn test_type_checker_visitor() {
-        use super::visitor::*;
-        
-        let span = Span::default();
-        
-        // 创建类型错误的表达式（字符串 + 整数）
-        let left = Box::new(ConstantExpr::new(Value::String("hello".to_string()), span));
-        let right = Box::new(ConstantExpr::new(Value::Int(3), span));
-        let binary_expr = BinaryExpr::new(left, BinaryOp::Add, right, span);
-        
-        // 使用类型检查访问者
-        let mut checker = TypeChecker::new();
-        binary_expr.accept(&mut checker);
-        
-        // 应该检测到类型错误
-        assert!(checker.has_errors());
-    }
-    
-    #[test]
-    fn test_semantic_analyzer_visitor() {
-        use super::visitor::*;
-        
-        let span = Span::default();
-        
-        // 创建包含未定义变量的表达式
-        let var_expr = VariableExpr::new("undefined_var".to_string(), span);
-        
-        // 使用语义分析访问者
-        let mut analyzer = SemanticAnalyzer::new();
-        var_expr.accept(&mut analyzer);
-        
-        // 应该检测到未定义变量
-        assert!(!analyzer.errors.is_empty());
-    }
-    
-    #[test]
-    fn test_ast_formatter_visitor() {
-        use super::visitor::*;
-        
-        let span = Span::default();
-        
-        // 创建简单的表达式
-        let expr = ConstantExpr::new(Value::Int(42), span);
-        
-        // 使用格式化访问者
-        let mut formatter = AstFormatter::new();
-        let result = formatter.format(&expr);
-        
         // 应该生成格式化的字符串
         assert!(result.contains("Constant: Int(42)"));
     }

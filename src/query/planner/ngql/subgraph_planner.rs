@@ -4,7 +4,6 @@
 use crate::query::context::{AstContext, SubgraphContext};
 use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
 use crate::query::planner::plan::operations::{Argument, Filter, Project, Expand, ExpandAll};
-use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::context::validate::types::Variable;

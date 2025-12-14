@@ -7,10 +7,8 @@ use async_trait::async_trait;
 
 use crate::core::{Value, DataSet, NullType};
 use crate::storage::StorageEngine;
-use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
-use crate::query::QueryError;
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::data_processing::join::hash_table::{HashTableBuilder, HashTableProbe, SingleKeyHashTable, MultiKeyHashTable};
 

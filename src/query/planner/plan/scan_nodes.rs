@@ -2,7 +2,7 @@
 //! 如ScanVertices、ScanEdges、IndexScan等
 //! 包括顶点扫描、边扫描、索引扫描等操作
 
-use super::common::{EdgeProp, TagProp};
+use super::common::TagProp;
 use crate::query::planner::plan::core::plan_node_kind::PlanNodeKind;
 use crate::query::planner::plan::core::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::planner::plan::core::plan_node_traits::{

@@ -6,7 +6,6 @@ use crate::query::planner::plan::core::{
     PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
 };
 use crate::query::context::validate::types::Variable;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 // 主机信息结构

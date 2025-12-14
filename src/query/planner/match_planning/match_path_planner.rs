@@ -2,7 +2,7 @@
 //! 处理路径模式的规划
 //! 负责规划路径模式的匹配
 
-use crate::query::planner::plan::core::{PlanNode, PlanNodeMutable};
+use crate::query::planner::plan::core::PlanNodeMutable;
 use crate::query::planner::plan::{SubPlan, PlanNodeKind, SingleInputNode};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{

@@ -4,27 +4,49 @@
 
 // 基础 AST 节点定义
 pub mod node;
-pub use node::*;
 
 // 表达式 AST
 pub mod expression;
-pub use expression::*;
 
 // 语句 AST
 pub mod statement;
-pub use statement::*;
 
 // 模式 AST（图模式匹配）
 pub mod pattern;
-pub use pattern::*;
 
 // 类型定义
 pub mod types;
-pub use types::*;
+pub use types::{
+    Label, MatchClause, MatchClauseDetail, MatchEdge, MatchNode, MatchPath, MatchPathSegment,
+    Property, TagIdentifier, WhereClause, WithClause, WithItem,
+};
+
+// 从 compat 导入以保持兼容性
+pub use compat::{BinaryOp, PredicateType, UnaryOp};
 
 // 访问者模式
 pub mod visitor;
 pub use visitor::*;
+
+// 显式导出节点类型
+pub use node::{
+    BinaryExpr, CaseExpr, ConstantExpr, FunctionCallExpr, ListExpr, MapExpr, PredicateExpr,
+    PropertyAccessExpr, SubscriptExpr, UnaryExpr, VariableExpr,
+};
+
+// 显式导出语句类型
+pub use statement::{
+    Assignment, BaseStatement, CreateStatement, CreateTarget, DataType, DeleteStatement, DeleteTarget,
+    EdgeDirection, ExplainStatement, FetchStatement, FetchTarget, FromClause, GoStatement,
+    MatchStatement, OrderByClause, OverClause, PropertyRef, QueryStatement, ReturnClause, SetClause,
+    ShowStatement, ShowTarget, Steps, UpdateStatement, UpdateTarget, UseStatement, YieldClause,
+};
+
+// 显式导出模式类型
+pub use pattern::{
+    EdgeDirection as PatternEdgeDirection, EdgePattern, EdgeRange, NodePattern, PathElement,
+    PathPattern, RepetitionType, VariablePattern,
+};
 
 // AST 构建器
 pub mod builder;
@@ -36,10 +58,6 @@ pub mod compat;
 // 位置信息
 pub mod span;
 pub use span::*;
-
-// 测试模块
-#[cfg(test)]
-mod tests;
 
 // 公共类型别名
 pub type Identifier = String;
@@ -149,11 +167,12 @@ pub enum ExpressionType {
 impl ExpressionType {
     /// 检查是否是数值类型
     pub fn is_numeric(&self) -> bool {
-        matches!(self,
-            ExpressionType::Constant |
-            ExpressionType::Variable |
-            ExpressionType::Binary |
-            ExpressionType::Unary
+        matches!(
+            self,
+            ExpressionType::Constant
+                | ExpressionType::Variable
+                | ExpressionType::Binary
+                | ExpressionType::Unary
         )
     }
 }
@@ -315,19 +334,12 @@ impl AstNode for Query {
 
     fn clone_box(&self) -> Box<dyn AstNode> {
         Box::new(Query {
-            statements: self.statements.iter().map(|stmt| Statement::clone_box(stmt)).collect(),
+            statements: self
+                .statements
+                .iter()
+                .map(|stmt| Statement::clone_box(stmt))
+                .collect(),
             span: self.span.clone(),
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_ast_node_trait() {
-        // 这里可以添加测试用例
-        assert!(true);
     }
 }

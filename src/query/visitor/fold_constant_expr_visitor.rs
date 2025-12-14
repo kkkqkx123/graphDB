@@ -1,7 +1,7 @@
 //! FoldConstantExprVisitor - 用于常量折叠的访问器
 //! 对应 NebulaGraph FoldConstantExprVisitor.h/.cpp 的功能
 
-use crate::query::parser::ast::{Expression, BinaryOp, node::ConstantExpr};
+use crate::query::parser::ast::{Expression, BinaryOp};
 use crate::core::Value;
 use std::collections::HashMap;
 

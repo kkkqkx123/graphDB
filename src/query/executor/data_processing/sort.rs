@@ -6,7 +6,6 @@ use crate::graph::expression::{Expression, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
-use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
 /// 排序顺序枚举

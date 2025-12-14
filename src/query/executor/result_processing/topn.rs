@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
-use crate::core::error::{DBError, DBResult};
+use crate::core::error::DBResult;
 use crate::storage::StorageEngine;
 
 /// TopNExecutor - TOP N 结果执行器

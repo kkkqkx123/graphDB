@@ -2,7 +2,7 @@
 //!
 //! 定义图模式匹配的 AST 节点，支持复杂的图遍历模式。
 
-use super::{AstNode, Pattern, Expression, Span, PatternType, node::*};
+use super::{AstNode, Pattern, Expression, Span, PatternType};
 use std::fmt;
 
 /// 基础模式节点

@@ -6,7 +6,6 @@ use crate::core::Value;
 use crate::graph::expression::{EvalContext, ExpressionV1 as Expression, ExpressionEvaluator};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, DBResult};
-use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
 /// FilterExecutor - 条件过滤执行器

@@ -7,14 +7,9 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{create_basic_pattern, is_tautology, BaseOptRule, EliminationRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::operations::{Filter, Project, Dedup, Unwind, DataCollect, RollUpApply, PatternApply};
-use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 use crate::query::planner::plan::core::plan_node_traits::{PlanNodeIdentifiable, PlanNodeMutable};
-use crate::query::planner::plan::operations::{Sort, Limit};
-use crate::query::planner::plan::operations::{ScanVertices, GetVertices, GetEdges, ScanEdges};
-use crate::query::planner::plan::operations::{AppendVertices, ScanEdges as TraversalScanEdges};
-use crate::query::planner::plan::algorithms::IndexScan;
-use crate::query::planner::plan::operations::{HashInnerJoin, HashLeftJoin};
+use crate::query::planner::plan::operations::{Filter, Project};
+use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -92,10 +87,8 @@ impl EliminationRule for EliminateFilterRule {
                     // 创建一个新的计划节点并设置输出变量
                     // 由于Arc<dyn PlanNode>是不可变的，我们需要基于原节点创建一个新节点
                     // 这需要PlanNode有具体类型才能设置输出变量
-                    let new_plan_node_with_output = create_plan_node_with_output_var(
-                        &child_node.plan_node,
-                        output_var.clone()
-                    );
+                    let new_plan_node_with_output =
+                        create_plan_node_with_output_var(&child_node.plan_node, output_var.clone());
                     new_node.plan_node = new_plan_node_with_output;
                 }
 
@@ -197,7 +190,7 @@ impl EliminationRule for DedupEliminationRule {
                         if let Some(output_var) = node.plan_node.output_var() {
                             new_node.plan_node = create_plan_node_with_output_var(
                                 &child_node.plan_node,
-                                output_var.clone()
+                                output_var.clone(),
                             );
                         }
 
@@ -257,28 +250,28 @@ impl RemoveNoopProjectRule {
     ) -> Result<bool, OptimizerError> {
         // 获取投影表达式
         let yield_expr = &project_node.yield_expr;
-        
+
         // 如果投影表达式是 "*"，则表示投影所有列，这是无操作投影
         if yield_expr == "*" {
             return Ok(true);
         }
-        
+
         // 获取子节点的输出列名
         let child_col_names = child_node.plan_node.col_names();
-        
+
         // 如果子节点没有输出列，则无法判断，返回false
         if child_col_names.is_empty() {
             return Ok(false);
         }
-        
+
         // 检查投影表达式是否包含别名或表达式
         if self.has_aliases_or_expressions(yield_expr)? {
             return Ok(false);
         }
-        
+
         // 解析投影表达式，提取列名
         let projected_columns = self.extract_columns_from_yield_expr(yield_expr)?;
-        
+
         // 如果投影的列与子节点的输出列完全相同，则是无操作投影
         if projected_columns.len() == child_col_names.len() {
             for (i, col_name) in projected_columns.iter().enumerate() {
@@ -288,50 +281,54 @@ impl RemoveNoopProjectRule {
             }
             return Ok(true);
         }
-        
+
         Ok(false)
     }
-    
+
     /// 检查投影表达式是否包含别名或复杂表达式
     fn has_aliases_or_expressions(&self, yield_expr: &str) -> Result<bool, OptimizerError> {
         // 检查是否包含 AS 关键字（别名）
         if yield_expr.to_lowercase().contains(" as ") {
             return Ok(true);
         }
-        
+
         // 按逗号分割表达式
         for part in yield_expr.split(',') {
             let part = part.trim();
-            
+
             // 如果包含运算符，则是表达式
-            if part.contains('+') || part.contains('-') || part.contains('*') || part.contains('/') {
+            if part.contains('+') || part.contains('-') || part.contains('*') || part.contains('/')
+            {
                 return Ok(true);
             }
-            
+
             // 如果包含函数调用，则是表达式
             if part.contains('(') && part.contains(')') {
                 return Ok(true);
             }
         }
-        
+
         Ok(false)
     }
-    
+
     /// 从投影表达式中提取列名
-    fn extract_columns_from_yield_expr(&self, yield_expr: &str) -> Result<Vec<String>, OptimizerError> {
+    fn extract_columns_from_yield_expr(
+        &self,
+        yield_expr: &str,
+    ) -> Result<Vec<String>, OptimizerError> {
         // 简单实现：按逗号分割表达式，并去除空格
         // 在实际实现中，可能需要更复杂的解析来处理表达式和别名
         let mut columns = Vec::new();
-        
+
         // 处理特殊情况：如果表达式为空或为 "*"
         if yield_expr.is_empty() || yield_expr == "*" {
             return Ok(columns);
         }
-        
+
         // 按逗号分割表达式
         for part in yield_expr.split(',') {
             let part = part.trim();
-            
+
             // 如果包含 AS 关键字，提取别名前的部分
             if let Some(as_pos) = part.to_lowercase().find(" as ") {
                 let expr_part = part[..as_pos].trim();
@@ -341,7 +338,7 @@ impl RemoveNoopProjectRule {
                 columns.push(part.to_string());
             }
         }
-        
+
         Ok(columns)
     }
 }
@@ -364,7 +361,8 @@ impl EliminationRule for RemoveNoopProjectRule {
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 在实际实现中，需要比较投影表达式和输入列
                 // 这里简化实现，假设投影不是无操作
-                self.is_noop_projection(project_plan_node, child_node).unwrap_or(false)
+                self.is_noop_projection(project_plan_node, child_node)
+                    .unwrap_or(false)
             } else {
                 false
             }
@@ -382,9 +380,7 @@ impl EliminationRule for RemoveNoopProjectRule {
             let child_dep_id = node.dependencies[0];
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 检查投影是否为无操作
-                if let Some(project_plan_node) =
-                    node.plan_node.as_any().downcast_ref::<Project>()
-                {
+                if let Some(project_plan_node) = node.plan_node.as_any().downcast_ref::<Project>() {
                     if self.is_noop_projection(project_plan_node, child_node)? {
                         let new_plan_node = child_node.plan_node.clone_plan_node();
 
@@ -403,7 +399,7 @@ impl EliminationRule for RemoveNoopProjectRule {
                         if let Some(output_var) = node.plan_node.output_var() {
                             new_node.plan_node = create_plan_node_with_output_var(
                                 &child_node.plan_node,
-                                output_var.clone()
+                                output_var.clone(),
                             );
                         }
 
@@ -483,10 +479,8 @@ impl EliminationRule for EliminateAppendVerticesRule {
 
                 // 保留当前节点的输出变量
                 if let Some(output_var) = node.plan_node.output_var() {
-                    new_node.plan_node = create_plan_node_with_output_var(
-                        &child_node.plan_node,
-                        output_var.clone()
-                    );
+                    new_node.plan_node =
+                        create_plan_node_with_output_var(&child_node.plan_node, output_var.clone());
                 }
 
                 return Ok(Some(new_node));
@@ -577,10 +571,8 @@ impl EliminationRule for RemoveAppendVerticesBelowJoinRule {
 
                 // 保留当前节点的输出变量
                 if let Some(output_var) = node.plan_node.output_var() {
-                    new_node.plan_node = create_plan_node_with_output_var(
-                        &child_node.plan_node,
-                        output_var.clone()
-                    );
+                    new_node.plan_node =
+                        create_plan_node_with_output_var(&child_node.plan_node, output_var.clone());
                 }
 
                 return Ok(Some(new_node));
@@ -595,9 +587,9 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::planner::plan::IndexScan;
     use crate::query::planner::plan::{AppendVertices, Dedup, Filter, Project, Sort};
     use crate::query::planner::plan::{PlanNode, PlanNodeKind};
-    use crate::query::planner::plan::IndexScan;
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())
@@ -613,7 +605,9 @@ mod tests {
         let mut opt_node = OptGroupNode::new(1, filter_node);
 
         // 添加一个子节点作为依赖
-        let child_node = Arc::new(crate::query::planner::plan::operations::ScanVertices::new(2, 1));
+        let child_node = Arc::new(crate::query::planner::plan::operations::ScanVertices::new(
+            2, 1,
+        ));
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
@@ -648,9 +642,17 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个子节点，设置输出列
-        let mut child_node = Arc::new(crate::query::planner::plan::operations::ScanVertices::new(2, 1));
+        let mut child_node = Arc::new(crate::query::planner::plan::operations::ScanVertices::new(
+            2, 1,
+        ));
         // 注意：需要使用 PlanNode trait 中的 set_col_names 方法
-        std::sync::Arc::get_mut(&mut child_node).unwrap().set_col_names(vec!["id".to_string(), "name".to_string(), "age".to_string()]);
+        std::sync::Arc::get_mut(&mut child_node)
+            .unwrap()
+            .set_col_names(vec![
+                "id".to_string(),
+                "name".to_string(),
+                "age".to_string(),
+            ]);
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
@@ -679,7 +681,8 @@ mod tests {
         assert!(result_diff.is_none(), "投影不同列的节点不应该被消除");
 
         // 测试4: 创建一个投影带别名的节点（不应该被消除）
-        let project_node_alias = Arc::new(Project::new(5, "id as vertex_id, name as vertex_name, age"));
+        let project_node_alias =
+            Arc::new(Project::new(5, "id as vertex_id, name as vertex_name, age"));
         let mut opt_node_alias = OptGroupNode::new(5, project_node_alias);
         opt_node_alias.dependencies.push(2);
 
@@ -705,7 +708,9 @@ mod tests {
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
 
         // 添加一个子节点作为依赖
-        let child_node = Arc::new(crate::query::planner::plan::operations::ScanVertices::new(2, 1));
+        let child_node = Arc::new(crate::query::planner::plan::operations::ScanVertices::new(
+            2, 1,
+        ));
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
@@ -724,7 +729,9 @@ mod tests {
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
 
         // 添加一个HashInnerJoin子节点作为依赖
-        let child_node = Arc::new(crate::query::planner::plan::operations::HashInnerJoin::new(2));
+        let child_node = Arc::new(crate::query::planner::plan::operations::HashInnerJoin::new(
+            2,
+        ));
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
@@ -797,7 +804,11 @@ fn create_plan_node_with_output_var(
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(scan_edges_node) = plan_node.as_any().downcast_ref::<ScanEdges>() {
-        let mut new_node = ScanEdges::new(scan_edges_node.id(), scan_edges_node.space_id, &scan_edges_node.edge_type);
+        let mut new_node = ScanEdges::new(
+            scan_edges_node.id(),
+            scan_edges_node.space_id,
+            &scan_edges_node.edge_type,
+        );
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(get_vertices_node) = plan_node.as_any().downcast_ref::<GetVertices>() {
@@ -819,12 +830,21 @@ fn create_plan_node_with_output_var(
         );
         new_node.set_output_var(output_var);
         Arc::new(new_node)
-    } else if let Some(hash_inner_join_node) = plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::HashInnerJoin>() {
-        let mut new_node = crate::query::planner::plan::operations::HashInnerJoin::new(hash_inner_join_node.id());
+    } else if let Some(hash_inner_join_node) =
+        plan_node
+            .as_any()
+            .downcast_ref::<crate::query::planner::plan::operations::HashInnerJoin>()
+    {
+        let mut new_node =
+            crate::query::planner::plan::operations::HashInnerJoin::new(hash_inner_join_node.id());
         new_node.set_output_var(output_var);
         Arc::new(new_node)
-    } else if let Some(hash_left_join_node) = plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::HashLeftJoin>() {
-        let mut new_node = crate::query::planner::plan::operations::HashLeftJoin::new(hash_left_join_node.id());
+    } else if let Some(hash_left_join_node) = plan_node
+        .as_any()
+        .downcast_ref::<crate::query::planner::plan::operations::HashLeftJoin>(
+    ) {
+        let mut new_node =
+            crate::query::planner::plan::operations::HashLeftJoin::new(hash_left_join_node.id());
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else {

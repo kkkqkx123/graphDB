@@ -5,10 +5,9 @@ use crate::query::context::validate::types::Variable;
 use crate::query::context::{AstContext, PathContext};
 use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
 use crate::query::planner::plan::{Expand, ExpandAll, Filter, Project, Dedup, Argument};
-use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::planner::plan::core::plan_node_traits::{PlanNodeMutable, PlanNodeIdentifiable, PlanNodeDependencies, PlanNodeClonable};
+use crate::query::planner::plan::core::plan_node_traits::{PlanNodeMutable, PlanNodeDependencies, PlanNodeClonable};
 use std::sync::Arc;
 
 /// PATH查询规划器
@@ -51,7 +50,7 @@ impl Planner for PathPlanner {
 
         // 1. 创建参数节点，获取起始和结束顶点
         let mut start_arg_node = Arc::new(Argument::new(1, &path_ctx.from.user_defined_var_name));
-        let mut start_arg_node_mut = Arc::get_mut(&mut start_arg_node).unwrap();
+        let start_arg_node_mut = Arc::get_mut(&mut start_arg_node).unwrap();
         start_arg_node_mut.set_col_names(vec!["start_vid".to_string()]);
         start_arg_node_mut.set_output_var(Variable {
             name: path_ctx.from_vids_var.clone(),
@@ -59,7 +58,7 @@ impl Planner for PathPlanner {
         });
 
         let mut end_arg_node = Arc::new(Argument::new(2, &path_ctx.to.user_defined_var_name));
-        let mut end_arg_node_mut = Arc::get_mut(&mut end_arg_node).unwrap();
+        let end_arg_node_mut = Arc::get_mut(&mut end_arg_node).unwrap();
         end_arg_node_mut.set_col_names(vec!["end_vid".to_string()]);
         end_arg_node_mut.set_output_var(Variable {
             name: path_ctx.to_vids_var.clone(),
@@ -69,7 +68,7 @@ impl Planner for PathPlanner {
         // 2. 创建GetVertices节点来获取顶点
         let mut get_vertices_node =
             Arc::new(crate::query::planner::plan::GetVertices::new(3, 1, &path_ctx.from.user_defined_var_name));
-        let mut get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
+        let get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
         get_vertices_node_mut.add_dependency(start_arg_node.clone_plan_node());
         get_vertices_node_mut.set_output_var(Variable {
             name: "path_vertices".to_string(),
@@ -77,7 +76,7 @@ impl Planner for PathPlanner {
         });
 
         // 设置顶点属性
-        let mut get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
+        let get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
         get_vertices_node_mut.tag_props = path_ctx
             .expr_props
             .src_tag_props
@@ -94,7 +93,7 @@ impl Planner for PathPlanner {
             "out"
         };
         let mut expand_node = Arc::new(Expand::new(4, 1, path_ctx.over.edge_types.clone(), expand_direction));
-        let mut expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
+        let expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
         expand_node_mut.add_dependency(get_vertices_node.clone_plan_node());
         expand_node_mut.set_output_var(Variable {
             name: "expanded_path".to_string(),
@@ -102,7 +101,7 @@ impl Planner for PathPlanner {
         });
 
         // 4. 如果是双向边，设置方向
-        let mut expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
+        let expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
         if path_ctx.over.direction == "both" {
             expand_node_mut
                 .edge_types
@@ -130,7 +129,7 @@ impl Planner for PathPlanner {
             path_ctx.over.edge_types.clone(),
             expand_all_direction,
         ));
-        let mut expand_all_node_mut = Arc::get_mut(&mut expand_all_node).unwrap();
+        let expand_all_node_mut = Arc::get_mut(&mut expand_all_node).unwrap();
         expand_all_node_mut.add_dependency(expand_node.clone_plan_node());
         expand_all_node_mut.set_output_var(Variable {
             name: "expanded_all_path".to_string(),
@@ -138,7 +137,7 @@ impl Planner for PathPlanner {
         });
 
         // 设置边属性和顶点属性
-        let mut expand_all_node_mut = Arc::get_mut(&mut expand_all_node).unwrap();
+        let expand_all_node_mut = Arc::get_mut(&mut expand_all_node).unwrap();
         expand_all_node_mut.edge_props = path_ctx
             .expr_props
             .edge_props
@@ -154,9 +153,9 @@ impl Planner for PathPlanner {
             .collect();
 
         // 6. 创建过滤节点（如果有过滤条件）
-        let mut filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if let Some(ref condition) = path_ctx.filter {
+        let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if let Some(ref condition) = path_ctx.filter {
             let mut filter = Arc::new(Filter::new(6, condition));
-            let mut filter_mut = Arc::get_mut(&mut filter).unwrap();
+            let filter_mut = Arc::get_mut(&mut filter).unwrap();
             filter_mut.add_dependency(expand_all_node.clone_plan_node());
             filter_mut.set_output_var(Variable {
                 name: "filtered_path".to_string(),
@@ -169,7 +168,7 @@ impl Planner for PathPlanner {
 
         // 7. 创建投影节点
         let mut project_node = Arc::new(Project::new(7, &"DEFAULT".to_string()));
-        let mut project_node_mut = Arc::get_mut(&mut project_node).unwrap();
+        let project_node_mut = Arc::get_mut(&mut project_node).unwrap();
         project_node_mut.add_dependency(filter_node.clone_plan_node());
         project_node_mut.set_output_var(Variable {
             name: "projected_path".to_string(),
@@ -181,7 +180,7 @@ impl Planner for PathPlanner {
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if path_ctx.is_shortest {
             // 需要额外的节点来处理最短路径算法
             let mut dedup_node = Arc::new(Dedup::new(8));
-            let mut dedup_node_mut = Arc::get_mut(&mut dedup_node).unwrap();
+            let dedup_node_mut = Arc::get_mut(&mut dedup_node).unwrap();
             dedup_node_mut.add_dependency(project_node.clone_plan_node());
             dedup_node_mut.set_output_var(Variable {
                 name: "shortest_path_result".to_string(),

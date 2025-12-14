@@ -7,7 +7,6 @@ use crate::query::planner::plan::core::{PlanNode, PlanNodeMutable};
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
-use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
 /// 标签索引查找元数据

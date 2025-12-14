@@ -3,7 +3,7 @@
 //! 提供 AST 节点的核心 trait 和基础实现
 
 use crate::core::Value;
-use super::{AstNode, Expression, Statement, Pattern, Span, ExpressionType, StatementType, PatternType};
+use super::{AstNode, Expression, Span, ExpressionType};
 use std::fmt;
 
 /// 基础 AST 节点实现

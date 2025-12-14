@@ -3,8 +3,7 @@
 //! 定义所有表达式类型的 AST 节点，支持访问者模式和类型检查。
 
 use crate::core::Value;
-use super::{AstNode, Expression, Span, ExpressionType, node::*};
-use std::fmt;
+use super::{Expression, Span, ExpressionType};
 
 // 重新导出基础表达式类型
 pub use super::node::{

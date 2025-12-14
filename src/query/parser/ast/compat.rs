@@ -68,6 +68,7 @@ pub use types::{TagIdentifier, MatchClauseDetail, MatchPath, MatchPathSegment, M
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::{Expression as TraitExpression, ExpressionType};
     
     #[test]
     fn test_compatibility_types() {

@@ -2,7 +2,7 @@
 //! 根据属性索引进行查找
 //! 负责规划基于属性索引的查找操作
 
-use crate::query::planner::plan::core::{PlanNode, PlanNodeMutable, PlanNodeClonable};
+use crate::query::planner::plan::core::{PlanNodeMutable, PlanNodeClonable};
 use crate::query::planner::plan::{SubPlan, PlanNodeKind, SingleInputNode};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;

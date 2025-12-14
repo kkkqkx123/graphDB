@@ -3,7 +3,7 @@
 
 use crate::query::context::{AstContext, FetchEdgesContext};
 use crate::query::planner::plan::core::common::EdgeProp;
-use crate::query::planner::plan::core::plan_node_traits::{PlanNode, PlanNodeClonable, PlanNodeMutable, PlanNodeDependencies};
+use crate::query::planner::plan::core::plan_node_traits::{PlanNodeClonable, PlanNodeMutable, PlanNodeDependencies};
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::plan::operations::{Argument, Dedup, Filter, GetEdges, Project};
 use crate::query::planner::planner::{Planner, PlannerError};

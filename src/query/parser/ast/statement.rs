@@ -3,7 +3,7 @@
 //! 定义所有语句类型的 AST 节点，支持访问者模式和语义分析。
 
 use crate::core::Value;
-use super::{AstNode, Statement, Expression, Pattern, Span, StatementType, node::*, types::*, pattern::EdgeRange};
+use super::{AstNode, Statement, Expression, Span, StatementType, types::*};
 use std::fmt;
 
 /// 基础语句节点

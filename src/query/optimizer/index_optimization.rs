@@ -769,7 +769,7 @@ impl UnionAllEdgeIndexScanRule {
         // 尝试合并兼容的索引扫描
         if let Some(merged_scan) = self.try_merge_index_scans(&index_scan_nodes, is_edge_index) {
             // 创建新的索引扫描节点
-            let mut new_index_scan_node = merged_scan;
+            let new_index_scan_node = merged_scan;
 
             // 创建新的OptGroupNode
             let mut new_opt_node = node.clone();
@@ -935,7 +935,7 @@ impl UnionAllTagIndexScanRule {
         // 尝试合并兼容的索引扫描
         if let Some(merged_scan) = self.try_merge_index_scans(&index_scan_nodes, is_edge_index) {
             // 创建新的索引扫描节点
-            let mut new_index_scan_node = merged_scan;
+            let new_index_scan_node = merged_scan;
 
             // 创建新的OptGroupNode
             let mut new_opt_node = node.clone();

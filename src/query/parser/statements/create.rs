@@ -1,10 +1,9 @@
 //! CREATE语句解析器
 
-use crate::query::parser::core::error::ParseError;
-use crate::query::parser::core::token::{Token, TokenKind};
 use crate::query::parser::ast::*;
-use crate::query::parser::expressions::{ExpressionParser, TokenParser};
-use std::collections::HashMap;
+use crate::query::parser::core::error::ParseError;
+use crate::query::parser::core::token::TokenKind;
+use crate::query::parser::expressions::ExpressionParser;
 
 pub trait CreateStatementParser: ExpressionParser {
     /// 解析CREATE语句
@@ -20,7 +19,10 @@ pub trait CreateStatementParser: ExpressionParser {
             }
             _ => {
                 let error = ParseError::syntax_error(
-                    format!("Expected VERTEX or EDGE after CREATE, got {:?}", self.current_token().kind),
+                    format!(
+                        "Expected VERTEX or EDGE after CREATE, got {:?}",
+                        self.current_token().kind
+                    ),
                     self.current_token().line,
                     self.current_token().column,
                 );
@@ -84,10 +86,12 @@ pub trait CreateStatementParser: ExpressionParser {
         self.expect_token(TokenKind::RParen)?;
 
         // Parse edge pattern -> or <-
-        let direction = if self.current_token().kind == TokenKind::Arrow { // ->
+        let direction = if self.current_token().kind == TokenKind::Arrow {
+            // ->
             self.next_token();
             EdgeDirection::Outbound
-        } else if self.current_token().kind == TokenKind::BackArrow { // <-
+        } else if self.current_token().kind == TokenKind::BackArrow {
+            // <-
             self.next_token();
             EdgeDirection::Inbound
         } else {

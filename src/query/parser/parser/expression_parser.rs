@@ -2,11 +2,9 @@
 //!
 //! This module implements parsing for expressions in the query language.
 
-use crate::query::parser::lexer::lexer::Lexer;
-use crate::query::parser::core::token::{Token, TokenKind};
+use crate::query::parser::core::token::TokenKind;
 use crate::query::parser::ast::*;
-use crate::query::parser::core::error::{ParseError, ParseErrors};
-use crate::core::Value;
+use crate::query::parser::core::error::ParseError;
 
 impl super::Parser {
     /// 解析表达式

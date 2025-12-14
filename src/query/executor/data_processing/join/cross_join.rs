@@ -4,11 +4,9 @@
 
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
-use std::fmt;
 
 use crate::core::{DataSet, Value};
 use crate::core::error::{DBError, DBResult};
-use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::QueryError;

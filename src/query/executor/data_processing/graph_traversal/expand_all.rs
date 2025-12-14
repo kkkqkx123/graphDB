@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
-use std::fmt;
 
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::core::error::{DBError, DBResult};

@@ -368,7 +368,7 @@ impl OptRule for PushFilterDownExpandRule {
                         if let Some(pushable_condition) = split_result.pushable_condition {
                             // 创建带有下推过滤条件的新扩展节点
                             if let Some(expand_node) = child.plan_node().as_any().downcast_ref::<Expand>() {
-                                let mut new_expand_node = expand_node.clone();
+                                let new_expand_node = expand_node.clone();
                                 
                                 // 扩展节点本身没有filter字段，我们需要创建一个新的过滤节点
                                 // 在实际实现中，可能需要修改扩展节点以支持过滤条件
