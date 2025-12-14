@@ -207,9 +207,6 @@ impl super::Parser {
 
     fn parse_match_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         // Parse match patterns
-        let mut clauses = Vec::new();
-
-        // Parse the pattern part of MATCH
         let patterns = self.parse_match_patterns()?;
         let where_clause = if self.current_token.kind == TokenKind::Where {
             Some(self.parse_where_clause()?)
@@ -217,24 +214,28 @@ impl super::Parser {
             None
         };
 
-        clauses.push(MatchClause::Match(MatchClause {
+        // Parse optional RETURN clause
+        let return_clause = if self.current_token.kind == TokenKind::Return {
+            Some(self.parse_return_clause()?)
+        } else {
+            None
+        };
+
+        // 创建 MatchStmt 直接使用新的 AST 结构
+        let match_stmt = MatchStmt {
+            span: Span::new(
+                Position::new(self.current_token.line as u32, self.current_token.column as u32),
+                Position::new(self.current_token.line as u32, self.current_token.column as u32)
+            ),
             patterns,
             where_clause,
-            with_clause: None,
-        }));
+            return_clause,
+            order_by: None,
+            limit: None,
+            skip: None,
+        };
 
-        // Parse optional RETURN clause
-        if self.current_token.kind == TokenKind::Return {
-            clauses.push(MatchClause::Return(self.parse_return_clause()?));
-        }
-
-        Ok(Some(Box::new(MatchStmt {
-            base: BaseStmt::new(Span::new(
-                Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column),
-                Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column)
-            ), Stmt::Match),
-            clauses,
-        })))
+        Ok(Some(Stmt::Match(match_stmt)))
     }
 
     fn parse_delete_statement(&mut self) -> Result<Option<Stmt>, ParseError> {

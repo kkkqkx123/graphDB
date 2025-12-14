@@ -4,7 +4,7 @@
 
 use crate::core::Value;
 use super::types::*;
-use super::expr::{Expr, ExprUtils};
+use super::expr::{Expr, ExprUtils, VariableExpr};
 use super::pattern::*;
 
 /// 语句枚举 - 所有图数据库操作语句

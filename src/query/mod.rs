@@ -254,11 +254,11 @@ impl QueryParser {
     pub fn parse(&self, query_string: &str) -> Result<Query, QueryError> {
         // Use the new parser implementation
         let mut parser = NewParser::new(query_string);
-        let statements = parser
-            .parse()
+        let query_stmt = parser
+            .parse_query()
             .map_err(|e| QueryError::ParseError(e.to_string()))?;
 
-        if statements.is_empty() {
+        if query_stmt.statements.is_empty() {
             return Err(QueryError::ParseError(
                 "No valid statement found".to_string(),
             ));

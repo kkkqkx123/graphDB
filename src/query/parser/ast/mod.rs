@@ -30,7 +30,3 @@ pub use utils::*;
 // 测试模块
 #[cfg(test)]
 mod tests;
-
-// 示例模块
-pub mod examples;
-pub use examples::*;

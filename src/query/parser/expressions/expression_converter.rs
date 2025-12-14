@@ -7,7 +7,7 @@ use crate::graph::expression::unary::UnaryOperator;
 use crate::query::parser::ast::{BinaryOp, UnaryOp};
 
 /// 将AST表达式转换为graph表达式
-pub fn convert_ast_to_graph_expression(ast_expr: &crate::query::parser::ast::Expr) -> Result<Expression, String> {
+pub fn convert_ast_to_graph_expression(_ast_expr: &crate::query::parser::ast::Expr) -> Result<Expression, String> {
     // 由于我们使用了基于trait的AST设计，需要根据具体的表达式类型进行转换
     // 这里需要实现具体的转换逻辑
     
@@ -69,15 +69,14 @@ fn convert_unary_op(op: &UnaryOp) -> Result<UnaryOperator, String> {
 pub fn parse_expression_from_string(condition: &str) -> Result<Expression, String> {
     // 创建语法分析器
     let mut parser = crate::query::parser::parser::Parser::new(condition);
-    let ast_expr = parser.parse_expression().map_err(|e| format!("语法分析错误: {:?}", e))?;
+    let _ast_expr = parser.parse_expression().map_err(|e| format!("语法分析错误: {:?}", e))?;
     
     // 转换为graph表达式
-    convert_ast_to_graph_expression(&ast_expr)
+    Err("Expression conversion not yet implemented".to_string())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_convert_constant() {

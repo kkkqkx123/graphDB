@@ -445,11 +445,11 @@ impl ExprUtils {
             Expr::List(e) => e.elements.iter().any(Self::contains_aggregate_recursive),
             Expr::Map(e) => e.pairs.iter().any(|(_, value)| Self::contains_aggregate_recursive(value)),
             Expr::Case(e) => {
-                let match_contains = e.match_expr.as_ref().map_or(false, Self::contains_aggregate_recursive);
+                let match_contains = e.match_expr.as_ref().map_or(false, |expr| Self::contains_aggregate_recursive(expr));
                 let when_contains = e.when_then_pairs.iter().any(|(when, then)| {
                     Self::contains_aggregate_recursive(when) || Self::contains_aggregate_recursive(then)
                 });
-                let default_contains = e.default.as_ref().map_or(false, Self::contains_aggregate_recursive);
+                let default_contains = e.default.as_ref().map_or(false, |expr| Self::contains_aggregate_recursive(expr));
                 match_contains || when_contains || default_contains
             }
             Expr::Subscript(e) => {

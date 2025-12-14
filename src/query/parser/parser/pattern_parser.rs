@@ -8,7 +8,7 @@ use crate::query::parser::core::error::ParseError;
 use crate::query::parser::core::token::TokenKind;
 
 impl super::Parser {
-    pub fn parse_match_patterns(&mut self) -> Result<Vec<Pattern>, ParseError> {
+    pub fn parse_match_patterns(&mut self) -> Result<Vec<PathElement>, ParseError> {
         let mut patterns = Vec::new();
 
         // For now, just parse a simple path pattern
@@ -19,14 +19,14 @@ impl super::Parser {
         Ok(patterns)
     }
 
-    pub fn parse_match_path(&mut self) -> Result<Pattern, ParseError> {
+    pub fn parse_match_path(&mut self) -> Result<Vec<PathElement>, ParseError> {
         let mut path = Vec::new();
 
         // Parse nodes and edges in the path
         loop {
             // Parse a node
             if self.current_token.kind == TokenKind::LParen {
-                path.push(PatternSegment::Node(self.parse_match_node()?));
+                path.push(PathElement::Node(self.parse_match_node()?));
             } else {
                 break;
             }
@@ -36,16 +36,16 @@ impl super::Parser {
                 || self.current_token.kind == TokenKind::BackArrow
                 || matches!(self.current_token.kind, TokenKind::Minus)
             {
-                path.push(PatternSegment::Edge(self.parse_match_edge()?));
+                path.push(PathElement::Edge(self.parse_match_edge()?));
             } else {
                 break;
             }
         }
 
-        Ok(Pattern { path })
+        Ok(Pattern::Path(PathPattern::new(path, Span::default())))
     }
 
-    pub fn parse_match_node(&mut self) -> Result<MatchNode, ParseError> {
+    pub fn parse_match_node(&mut self) -> Result<NodePattern, ParseError> {
         self.expect_token(TokenKind::LParen)?;
 
         // Parse optional identifier
@@ -57,12 +57,13 @@ impl super::Parser {
             } else {
                 // No label, just identifier
                 self.expect_token(TokenKind::RParen)?;
-                return Ok(MatchNode {
-                    identifier: Some(id),
-                    labels: vec![],
-                    properties: None,
-                    predicates: vec![],
-                });
+                return Ok(NodePattern::new(
+                    Some(id),
+                    vec![],
+                    None,
+                    vec![],
+                    Span::default()
+                ));
             }
         } else {
             None
@@ -86,15 +87,16 @@ impl super::Parser {
 
         self.expect_token(TokenKind::RParen)?;
 
-        Ok(MatchNode {
+        Ok(NodePattern::new(
             identifier,
             labels,
             properties,
-            predicates: vec![],
-        })
+            vec![],
+            Span::default()
+        ))
     }
 
-    pub fn parse_match_edge(&mut self) -> Result<MatchEdge, ParseError> {
+    pub fn parse_match_edge(&mut self) -> Result<EdgePattern, ParseError> {
         let direction = match self.current_token.kind {
             TokenKind::Arrow => {
                 self.next_token();
@@ -152,23 +154,20 @@ impl super::Parser {
             self.expect_token(TokenKind::RBracket)?;
         }
 
-        Ok(MatchEdge {
-            direction,
+        Ok(EdgePattern::new(
             identifier,
             types,
-            relationship: None,
             properties,
-            predicates: vec![],
-            range: None,
-        })
+            vec![],
+            direction,
+            None,
+            Span::default()
+        ))
     }
 
-    pub fn parse_where_clause(&mut self) -> Result<WhereClause, ParseError> {
+    pub fn parse_where_clause(&mut self) -> Result<Expr, ParseError> {
         self.next_token(); // Skip WHERE
-        let condition = self.parse_expression()?;
-        Ok(WhereClause {
-            expression: condition,
-        })
+        self.parse_expression()
     }
 
     pub fn parse_return_clause(
@@ -214,7 +213,7 @@ impl super::Parser {
                     None
                 };
 
-                items.push(ReturnItem::Expression(expr, alias));
+                items.push(ReturnItem::Expression { expr, alias });
             }
 
             if self.current_token.kind != TokenKind::Comma {
@@ -223,7 +222,11 @@ impl super::Parser {
             self.next_token(); // Skip comma
         }
 
-        Ok(ReturnClause { distinct, items })
+        Ok(ReturnClause {
+            span: Span::default(),
+            items,
+            distinct
+        })
     }
 
     pub fn parse_order_by_clause(&mut self) -> Result<OrderByClause, ParseError> {
@@ -235,23 +238,23 @@ impl super::Parser {
         loop {
             let expr = self.parse_expression()?;
 
-            let order = if self.current_token.kind == TokenKind::Asc
+            let direction = if self.current_token.kind == TokenKind::Asc
                 || self.current_token.kind == TokenKind::Ascending
             {
                 self.next_token();
-                "ASC"
+                OrderDirection::Asc
             } else if self.current_token.kind == TokenKind::Desc
                 || self.current_token.kind == TokenKind::Descending
             {
                 self.next_token();
-                "DESC"
+                OrderDirection::Desc
             } else {
-                "ASC" // Default to ascending
+                OrderDirection::Asc // Default to ascending
             };
 
             items.push(OrderByItem {
-                expression: expr,
-                ascending: order == "ASC",
+                expr,
+                direction,
             });
 
             if self.current_token.kind != TokenKind::Comma {
@@ -260,7 +263,10 @@ impl super::Parser {
             self.next_token(); // Skip comma
         }
 
-        Ok(OrderByClause { items })
+        Ok(OrderByClause {
+            span: Span::default(),
+            items
+        })
     }
 
     pub fn parse_limit_clause(&mut self) -> Result<Expr, ParseError> {

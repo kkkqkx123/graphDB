@@ -438,14 +438,14 @@ impl ExprOptimizer {
             (Value::Int(l), BinaryOp::Sub, Value::Int(r)) => Some(Value::Int(l - r)),
             (Value::Int(l), BinaryOp::Mul, Value::Int(r)) => Some(Value::Int(l * r)),
             (Value::Int(l), BinaryOp::Div, Value::Int(r)) => {
-                if r != 0 {
+                if *r != 0 {
                     Some(Value::Int(l / r))
                 } else {
                     None
                 }
             }
             (Value::Int(l), BinaryOp::Mod, Value::Int(r)) => {
-                if r != 0 {
+                if *r != 0 {
                     Some(Value::Int(l % r))
                 } else {
                     None

@@ -1,5 +1,5 @@
 //! Token definitions for the query parser
-//! 
+//!
 //! This module defines the lexical tokens used by the parser.
 
 use std::fmt;
@@ -204,6 +204,7 @@ pub enum TokenKind {
     Destination,
     Rank,
     Input,
+    FindPath,
 
     // Literals
     Identifier(String),
@@ -213,52 +214,52 @@ pub enum TokenKind {
     BooleanLiteral(bool),
 
     // Operators
-    Plus,        // +
-    Minus,       // -
-    Star,        // *
-    Div,         // /
-    Mod,         // %
-    Exp,         // **
-    Eq,          // ==
-    Assign,      // =
-    Ne,          // !=
-    Lt,          // <
-    Le,          // <=
-    Gt,          // >
-    Ge,          // >=
-    Regex,       // =~
-    NotOp,       // !
+    Plus,   // +
+    Minus,  // -
+    Star,   // *
+    Div,    // /
+    Mod,    // %
+    Exp,    // **
+    Eq,     // ==
+    Assign, // =
+    Ne,     // !=
+    Lt,     // <
+    Le,     // <=
+    Gt,     // >
+    Ge,     // >=
+    Regex,  // =~
+    NotOp,  // !
 
     // Delimiters
-    LParen,      // (
-    RParen,      // )
-    LBracket,    // [
-    RBracket,    // ]
-    LBrace,      // {
-    RBrace,      // }
-    Comma,       // ,
-    Dot,         // .
-    DotDot,      // ..
-    Colon,       // :
-    Semicolon,   // ;
-    QMark,       // ?
-    Pipe,        // |
-    Arrow,       // ->
-    BackArrow,   // <-
-    At,          // @
-    Dollar,      // $
+    LParen,    // (
+    RParen,    // )
+    LBracket,  // [
+    RBracket,  // ]
+    LBrace,    // {
+    RBrace,    // }
+    Comma,     // ,
+    Dot,       // .
+    DotDot,    // ..
+    Colon,     // :
+    Semicolon, // ;
+    QMark,     // ?
+    Pipe,      // |
+    Arrow,     // ->
+    BackArrow, // <-
+    At,        // @
+    Dollar,    // $
 
     // Special properties
-    IdProp,      // _id
-    TypeProp,    // _type
-    SrcIdProp,   // _src
-    DstIdProp,   // _dst
-    RankProp,    // _rank
+    IdProp,    // _id
+    TypeProp,  // _type
+    SrcIdProp, // _src
+    DstIdProp, // _dst
+    RankProp,  // _rank
 
     // Graph reference identifiers
-    DstRef,      // $$
-    SrcRef,      // $^
-    InputRef,    // $-
+    DstRef,   // $$
+    SrcRef,   // $^
+    InputRef, // $-
 
     // End of input
     Eof,
@@ -279,6 +280,11 @@ impl fmt::Display for TokenKind {
 
 impl Token {
     pub fn new(kind: TokenKind, lexeme: String, line: usize, column: usize) -> Self {
-        Token { kind, lexeme, line, column }
+        Token {
+            kind,
+            lexeme,
+            line,
+            column,
+        }
     }
 }

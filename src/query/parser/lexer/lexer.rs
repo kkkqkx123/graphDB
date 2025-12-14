@@ -3,6 +3,7 @@
 //! This module implements a lexical analyzer that converts input query strings into tokens.
 
 use crate::query::parser::core::token::{Token, TokenKind};
+use crate::query::parser::ast::Position;
 
 #[derive(Clone)]
 pub struct Lexer {
@@ -585,6 +586,32 @@ impl Lexer {
 
     fn is_multitoken_keyword(&self, token: &Token) -> bool {
         matches!(token.kind, TokenKind::NotIn | TokenKind::IsNull | TokenKind::IsNotNull | TokenKind::IsEmpty | TokenKind::IsNotEmpty)
+    }
+    
+    /// 获取当前位置
+    pub fn current_position(&self) -> crate::query::parser::core::Position {
+        crate::query::parser::core::Position::new(self.line, self.column)
+    }
+    
+    /// 检查是否在文件末尾
+    pub fn is_at_end(&self) -> bool {
+        self.ch.is_none()
+    }
+    
+    /// 查看下一个令牌
+    pub fn peek(&mut self) -> Result<Token, String> {
+        Ok(self.next_token())
+    }
+    
+    /// 推进到下一个字符
+    pub fn advance(&mut self) {
+        self.read_char();
+    }
+    
+    /// 检查当前令牌是否匹配类型
+    pub fn check(&mut self, kind: TokenKind) -> bool {
+        let token = self.next_token();
+        token.kind == kind
     }
 }
 
