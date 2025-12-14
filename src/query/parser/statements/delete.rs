@@ -5,9 +5,9 @@ use crate::query::parser::core::token::TokenKind;
 use crate::query::parser::ast::*;
 use crate::query::parser::expressions::ExpressionParser;
 
-pub trait DeleteStatementParser: ExpressionParser {
+pub trait DeleteStmtParser: ExpressionParser {
     /// 解析DELETE语句
-    fn parse_delete_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_delete_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         let delete_vertices = match self.current_token().kind {
             TokenKind::Vertex | TokenKind::Vertices => {
                 self.next_token();
@@ -51,8 +51,8 @@ pub trait DeleteStatementParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Box::new(DeleteStatement {
-            base: BaseStatement::new(Span::default(), StatementType::Delete),
+        Ok(Some(Box::new(DeleteStmt {
+            base: BaseStmt::new(Span::default(), Stmt::Delete),
             target: if delete_vertices {
                 DeleteTarget::Vertices(vertex_exprs)
             } else {

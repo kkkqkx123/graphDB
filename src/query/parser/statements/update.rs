@@ -5,9 +5,9 @@ use crate::query::parser::core::token::TokenKind;
 use crate::query::parser::ast::*;
 use crate::query::parser::expressions::ExpressionParser;
 
-pub trait UpdateStatementParser: ExpressionParser {
+pub trait UpdateStmtParser: ExpressionParser {
     /// 解析UPDATE语句
-    fn parse_update_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_update_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         let update_vertices = match self.current_token().kind {
             TokenKind::Vertex => {
                 self.next_token();

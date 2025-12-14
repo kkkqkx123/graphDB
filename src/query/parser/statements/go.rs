@@ -7,7 +7,7 @@ use crate::query::parser::expressions::ExpressionParser;
 
 pub trait GoStatementParser: ExpressionParser {
     /// 解析GO语句
-    fn parse_go_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_go_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         // 解析 STEPS
         let steps = if self.current_token().kind == TokenKind::Step {
             self.next_token();
@@ -49,7 +49,7 @@ pub trait GoStatementParser: ExpressionParser {
         let yield_clause = Some(self.parse_yield_clause()?);
 
         Ok(Some(Box::new(GoStatement {
-            base: BaseStatement::new(Span::default(), StatementType::Go),
+            base: BaseStmt::new(Span::default(), Stmt::Go),
             steps,
             over: over_clause,
             from: FromClause { vertices: from_list },
@@ -107,7 +107,7 @@ pub trait GoStatementParser: ExpressionParser {
         })
     }
 
-    fn parse_vertex_list(&mut self) -> Result<Vec<Box<dyn Expression>>, ParseError> {
+    fn parse_vertex_list(&mut self) -> Result<Vec<Expr>, ParseError> {
         let mut vertices = Vec::new();
         
         vertices.push(self.parse_expression()?);

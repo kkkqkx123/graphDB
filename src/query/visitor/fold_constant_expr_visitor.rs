@@ -1,7 +1,7 @@
 //! FoldConstantExprVisitor - 用于常量折叠的访问器
 //! 对应 NebulaGraph FoldConstantExprVisitor.h/.cpp 的功能
 
-use crate::query::parser::ast::{Expression, BinaryOp};
+use crate::query::parser::ast::{Expr, BinaryOp};
 use crate::core::Value;
 use std::collections::HashMap;
 
@@ -18,14 +18,14 @@ impl FoldConstantExprVisitor {
     }
 
     /// 执行常量折叠
-    pub fn fold(&self, expr: &Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn fold(&self, expr: &Expr) -> Expr {
         self.visit(expr)
     }
 
-    fn visit(&self, expr: &Box<dyn Expression>) -> Box<dyn Expression> {
+    fn visit(&self, expr: &Expr) -> Expr {
         // 简化处理：由于 AST 结构已改变，暂时跳过复杂的常量折叠逻辑
         // 直接返回表达式的克隆
-        crate::query::parser::ast::Expression::clone_box(expr)
+        expr.clone()
     }
 
     fn evaluate_arithmetic(&self, op: &BinaryOp, left: &Value, right: &Value) -> Result<Value, String> {
@@ -40,7 +40,7 @@ impl FoldConstantExprVisitor {
     }
 
     #[allow(dead_code)]
-    fn evaluate_logical(&self, op: &str, operands: &[Box<dyn Expression>]) -> Result<Value, String> {
+    fn evaluate_logical(&self, op: &str, operands: &[Expr]) -> Result<Value, String> {
         match op {
             "And" | "LogicalAnd" => {
                 let mut result = true;
@@ -104,7 +104,7 @@ impl FoldConstantExprVisitor {
         }
     }
 
-    fn evaluate_function(&self, name: &str, args: &[Box<dyn Expression>]) -> Result<Value, String> {
+    fn evaluate_function(&self, name: &str, args: &[Expr]) -> Result<Value, String> {
         match name.to_lowercase().as_str() {
             "abs" => {
                 if args.len() == 1 {

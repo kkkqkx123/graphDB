@@ -422,7 +422,7 @@ impl DeducePropsVisitor {
                 }
                 Ok(())
             }
-            Expression::MatchPathPattern { patterns, .. } => {
+            Expression::PatternPattern { patterns, .. } => {
                 for pattern in patterns {
                     self.visit(pattern)?;
                 }

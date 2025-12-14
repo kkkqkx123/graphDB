@@ -5,9 +5,9 @@ use crate::query::parser::core::error::ParseError;
 use crate::query::parser::core::token::TokenKind;
 use crate::query::parser::expressions::ExpressionParser;
 
-pub trait CreateStatementParser: ExpressionParser {
+pub trait CreateStmtParser: ExpressionParser {
     /// 解析CREATE语句
-    fn parse_create_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_create_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         match self.current_token().kind {
             TokenKind::Vertex | TokenKind::Vertices => {
                 self.next_token();
@@ -33,7 +33,7 @@ pub trait CreateStatementParser: ExpressionParser {
     }
 
     /// 解析CREATE VERTEX语句
-    fn parse_create_node_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_create_node_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         let if_not_exists = self.check_and_skip_keyword(TokenKind::If);
 
         // Skip 'EXISTS' if we found 'IF'
@@ -55,8 +55,8 @@ pub trait CreateStatementParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Box::new(CreateStatement {
-            base: BaseStatement::new(Span::default(), StatementType::Create),
+        Ok(Some(Box::new(CreateStmt {
+            base: BaseStmt::new(Span::default(), Stmt::Create),
             target: CreateTarget::Node {
                 identifier: None,
                 labels: tags,
@@ -69,7 +69,7 @@ pub trait CreateStatementParser: ExpressionParser {
     }
 
     /// 解析CREATE EDGE语句
-    fn parse_create_edge_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_create_edge_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         let if_not_exists = self.check_and_skip_keyword(TokenKind::If);
 
         // Skip 'EXISTS' if we found 'IF'
@@ -117,8 +117,8 @@ pub trait CreateStatementParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Box::new(CreateStatement {
-            base: BaseStatement::new(Span::default(), StatementType::Create),
+        Ok(Some(Box::new(CreateStmt {
+            base: BaseStmt::new(Span::default(), Stmt::Create),
             target: CreateTarget::Edge {
                 identifier: None,
                 edge_type,

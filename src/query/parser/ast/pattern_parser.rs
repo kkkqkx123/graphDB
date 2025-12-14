@@ -1,0 +1,309 @@
+//! 模式解析器 (v2)
+
+use super::*;
+use crate::query::parser::lexer::{Lexer, Token as LexerToken};
+
+impl ParserV2 {
+    /// 解析模式
+    pub fn parse_pattern(&mut self) -> Result<Pattern, ParseError> {
+        let token = self.lexer.peek()?;
+        
+        match token.kind {
+            LexerToken::LeftParen => {
+                // 节点模式: (variable:Label {properties})
+                self.parse_node_pattern()
+            }
+            LexerToken::LeftBracket => {
+                // 边模式: [variable:Type {properties}]-> or <-[variable:Type {properties}]
+                self.parse_edge_pattern()
+            }
+            LexerToken::Identifier => {
+                // 变量模式或路径模式
+                self.parse_variable_or_path_pattern()
+            }
+            _ => {
+                Err(ParseError::new(
+                    format!("Expected pattern, found {:?}", token.kind),
+                    self.current_span(),
+                ))
+            }
+        }
+    }
+    
+    /// 解析节点模式
+    fn parse_node_pattern(&mut self) -> Result<Pattern, ParseError> {
+        let start_span = self.current_span();
+        self.expect_token(LexerToken::LeftParen)?;
+        
+        // 解析变量名（可选）
+        let variable = if let LexerToken::Identifier = self.lexer.peek()?.kind {
+            Some(self.expect_identifier()?)
+        } else {
+            None
+        };
+        
+        // 解析标签（可选）
+        let mut labels = Vec::new();
+        if self.match_token(LexerToken::Colon) {
+            // 解析标签列表
+            loop {
+                let label = self.expect_identifier()?;
+                labels.push(label);
+                
+                if !self.match_token(LexerToken::Pipe) { // | 用于多个标签
+                    break;
+                }
+            }
+        }
+        
+        // 解析属性（可选）
+        let properties = if self.match_token(LexerToken::LeftBrace) {
+            Some(self.parse_map_expression()?)
+        } else {
+            None
+        };
+        
+        self.expect_token(LexerToken::RightParen)?;
+        
+        let end_span = self.current_span();
+        let span = Span::new(start_span.start, end_span.end);
+        
+        Ok(PatternFactory::node(variable, labels, properties, vec![], span))
+    }
+    
+    /// 解析边模式
+    fn parse_edge_pattern(&mut self) -> Result<Pattern, ParseError> {
+        let start_span = self.current_span();
+        
+        // 检查方向
+        let direction = if self.match_token(LexerToken::LeftArrow) {
+            EdgeDirection::In
+        } else {
+            EdgeDirection::Out
+        };
+        
+        self.expect_token(LexerToken::LeftBracket)?;
+        
+        // 解析变量名（可选）
+        let variable = if let LexerToken::Identifier = self.lexer.peek()?.kind {
+            Some(self.expect_identifier()?)
+        } else {
+            None
+        };
+        
+        // 解析边类型（可选）
+        let mut edge_types = Vec::new();
+        if self.match_token(LexerToken::Colon) {
+            // 解析边类型列表
+            loop {
+                let edge_type = self.expect_identifier()?;
+                edge_types.push(edge_type);
+                
+                if !self.match_token(LexerToken::Pipe) { // | 用于多个类型
+                    break;
+                }
+            }
+        }
+        
+        // 解析属性（可选）
+        let properties = if self.match_token(LexerToken::LeftBrace) {
+            Some(self.parse_map_expression()?)
+        } else {
+            None
+        };
+        
+        // 解析范围（可选）
+        let range = if self.match_token(LexerToken::Star) {
+            if self.match_token(LexerToken::LeftParen) {
+                // 解析范围: *({min}, {max})
+                let min = if self.match_token(LexerToken::Integer) {
+                    Some(self.parse_integer()? as usize)
+                } else {
+                    None
+                };
+                
+                self.expect_token(LexerToken::Comma)?;
+                
+                let max = if self.match_token(LexerToken::Integer) {
+                    Some(self.parse_integer()? as usize)
+                } else {
+                    None
+                };
+                
+                self.expect_token(LexerToken::RightParen)?;
+                Some(EdgeRange::new(min, max))
+            } else {
+                // 任意长度: *
+                Some(EdgeRange::any())
+            }
+        } else {
+            None
+        };
+        
+        self.expect_token(LexerToken::RightBracket)?;
+        
+        // 检查方向
+        let final_direction = if direction == EdgeDirection::In {
+            if self.match_token(LexerToken::RightArrow) {
+                EdgeDirection::Both // <-[]-> 表示双向
+            } else {
+                EdgeDirection::In
+            }
+        } else {
+            if self.match_token(LexerToken::RightArrow) {
+                EdgeDirection::Out
+            } else {
+                EdgeDirection::Both // -[]- 表示双向
+            }
+        };
+        
+        let end_span = self.current_span();
+        let span = Span::new(start_span.start, end_span.end);
+        
+        Ok(PatternFactory::edge(variable, edge_types, properties, vec![], final_direction, range, span))
+    }
+    
+    /// 解析变量或路径模式
+    fn parse_variable_or_path_pattern(&mut self) -> Result<Pattern, ParseError> {
+        let name = self.expect_identifier()?;
+        let span = self.current_span();
+        
+        // 检查是否是路径模式（包含箭头）
+        if self.match_token(LexerToken::RightArrow) || self.match_token(LexerToken::LeftArrow) {
+            // 这是一个路径模式，需要重新解析
+            // 这里简化处理，返回变量模式
+            Ok(PatternFactory::variable(name, span))
+        } else {
+            // 变量模式
+            Ok(PatternFactory::variable(name, span))
+        }
+    }
+    
+    /// 解析路径模式
+    pub fn parse_path_pattern(&mut self) -> Result<Pattern, ParseError> {
+        let start_span = self.current_span();
+        let mut elements = Vec::new();
+        
+        // 解析路径元素
+        loop {
+            let element = self.parse_path_element()?;
+            elements.push(element);
+            
+            // 检查是否还有更多的路径元素
+            if !self.is_path_continuation() {
+                break;
+            }
+        }
+        
+        let end_span = self.current_span();
+        let span = Span::new(start_span.start, end_span.end);
+        
+        Ok(Pattern::Path(PathPattern::new(elements, span)))
+    }
+    
+    /// 解析路径元素
+    fn parse_path_element(&mut self) -> Result<PathElement, ParseError> {
+        let token = self.lexer.peek()?;
+        
+        match token.kind {
+            LexerToken::LeftParen => {
+                // 节点元素
+                let node_pattern = self.parse_node_pattern()?;
+                if let Pattern::Node(node) = node_pattern {
+                    Ok(PathElement::Node(node))
+                } else {
+                    unreachable!()
+                }
+            }
+            LexerToken::LeftBracket => {
+                // 边元素
+                let edge_pattern = self.parse_edge_pattern()?;
+                if let Pattern::Edge(edge) = edge_pattern {
+                    Ok(PathElement::Edge(edge))
+                } else {
+                    unreachable!()
+                }
+            }
+            LexerToken::Pipe => {
+                // 替代模式: (a|b|c)
+                self.parse_alternative_pattern()
+            }
+            LexerToken::Question => {
+                // 可选模式: ?
+                self.lexer.advance()?;
+                let inner = self.parse_path_element()?;
+                Ok(PathElement::Optional(Box::new(inner)))
+            }
+            LexerToken::Star => {
+                // 重复模式: *
+                self.lexer.advance()?;
+                let inner = self.parse_path_element()?;
+                Ok(PathElement::Repeated(Box::new(inner), RepetitionType::ZeroOrMore))
+            }
+            LexerToken::Plus => {
+                // 重复模式: +
+                self.lexer.advance()?;
+                let inner = self.parse_path_element()?;
+                Ok(PathElement::Repeated(Box::new(inner), RepetitionType::OneOrMore))
+            }
+            _ => {
+                Err(ParseError::new(
+                    format!("Expected path element, found {:?}", token.kind),
+                    self.current_span(),
+                ))
+            }
+        }
+    }
+    
+    /// 解析替代模式
+    fn parse_alternative_pattern(&mut self) -> Result<PathElement, ParseError> {
+        self.expect_token(LexerToken::Pipe)?;
+        
+        let mut alternatives = Vec::new();
+        
+        loop {
+            let pattern = self.parse_pattern()?;
+            alternatives.push(pattern);
+            
+            if !self.match_token(LexerToken::Pipe) {
+                break;
+            }
+        }
+        
+        Ok(PathElement::Alternative(alternatives))
+    }
+    
+    /// 检查是否是路径延续
+    fn is_path_continuation(&mut self) -> bool {
+        let token = self.lexer.peek().ok();
+        
+        match token.map(|t| t.kind) {
+            Some(LexerToken::LeftParen) | Some(LexerToken::LeftBracket) => true,
+            Some(LexerToken::Pipe) | Some(LexerToken::Question) | Some(LexerToken::Star) | Some(LexerToken::Plus) => true,
+            _ => false,
+        }
+    }
+    
+    /// 解析范围模式
+    fn parse_range_pattern(&mut self) -> Result<EdgeRange, ParseError> {
+        self.expect_token(LexerToken::LeftBrace)?;
+        
+        let min = if self.match_token(LexerToken::Integer) {
+            Some(self.parse_integer()? as usize)
+        } else {
+            None
+        };
+        
+        self.expect_token(LexerToken::Comma)?;
+        
+        let max = if self.match_token(LexerToken::Integer) {
+            Some(self.parse_integer()? as usize)
+        } else {
+            None
+        };
+        
+        self.expect_token(LexerToken::RightBrace)?;
+        
+        Ok(EdgeRange::new(min, max))
+    }
+}

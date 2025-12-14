@@ -8,12 +8,12 @@ use std::fmt;
 
 /// 基础语句节点
 #[derive(Debug, Clone, PartialEq)]
-pub struct BaseStatement {
+pub struct BaseStmt {
     pub span: Span,
     pub stmt_type: StatementType,
 }
 
-impl BaseStatement {
+impl BaseStmt {
     pub fn new(span: Span, stmt_type: StatementType) -> Self {
         Self { span, stmt_type }
     }
@@ -22,14 +22,14 @@ impl BaseStatement {
 /// 查询语句
 #[derive(Debug)]
 pub struct QueryStatement {
-    pub base: BaseStatement,
-    pub statements: Vec<Box<dyn Statement>>,
+    pub base: BaseStmt,
+    pub statements: Vec<Stmt>,
 }
 
 impl QueryStatement {
-    pub fn new(statements: Vec<Box<dyn Statement>>, span: Span) -> Self {
+    pub fn new(statements: Vec<Stmt>, span: Span) -> Self {
         Self {
-            base: BaseStatement::new(span, StatementType::Query),
+            base: BaseStmt::new(span, Stmt::Query),
             statements,
         }
     }
@@ -72,7 +72,7 @@ impl Statement for QueryStatement {
         self.statements.iter().map(|stmt| super::Statement::clone_box(stmt) as Box<dyn AstNode>).collect()
     }
 
-    fn clone_box(&self) -> Box<dyn Statement> {
+    fn clone_box(&self) -> Stmt {
         Box::new(QueryStatement {
             base: self.base.clone(),
             statements: self.statements.iter().map(|stmt| super::Statement::clone_box(stmt)).collect(),
@@ -82,8 +82,8 @@ impl Statement for QueryStatement {
 
 /// CREATE 语句
 #[derive(Debug)]
-pub struct CreateStatement {
-    pub base: BaseStatement,
+pub struct CreateStmt {
+    pub base: BaseStmt,
     pub target: CreateTarget,
     pub if_not_exists: bool,
     pub properties: Vec<Property>,
@@ -95,15 +95,15 @@ pub enum CreateTarget {
     Node {
         identifier: Option<String>,
         labels: Vec<String>,
-        properties: Option<Box<dyn Expression>>,
+        properties: Option<Expr>,
     },
     Edge {
         identifier: Option<String>,
         edge_type: String,
-        src: Box<dyn Expression>,
-        dst: Box<dyn Expression>,
+        src: Expr,
+        dst: Expr,
         direction: EdgeDirection,
-        properties: Option<Box<dyn Expression>>,
+        properties: Option<Expr>,
     },
     Tag {
         name: String,
@@ -122,15 +122,15 @@ impl CreateTarget {
             CreateTarget::Node { identifier, labels, properties } => CreateTarget::Node {
                 identifier: identifier.clone(),
                 labels: labels.clone(),
-                properties: properties.as_ref().map(|expr| super::Expression::clone_box(expr) as Box<dyn Expression>),
+                properties: properties.as_ref().map(|expr| super::Expression::clone_box(expr) as Expr),
             },
             CreateTarget::Edge { identifier, edge_type, src, dst, direction, properties } => CreateTarget::Edge {
                 identifier: identifier.clone(),
                 edge_type: edge_type.clone(),
-                src: super::Expression::clone_box(src) as Box<dyn Expression>,
-                dst: super::Expression::clone_box(dst) as Box<dyn Expression>,
+                src: super::Expression::clone_box(src) as Expr,
+                dst: super::Expression::clone_box(dst) as Expr,
                 direction: direction.clone(),
-                properties: properties.as_ref().map(|expr| super::Expression::clone_box(expr) as Box<dyn Expression>),
+                properties: properties.as_ref().map(|expr| super::Expression::clone_box(expr) as Expr),
             },
             CreateTarget::Tag { name, properties } => CreateTarget::Tag {
                 name: name.clone(),
@@ -174,10 +174,10 @@ pub enum EdgeDirection {
     Bidirectional, // -
 }
 
-impl CreateStatement {
+impl CreateStmt {
     pub fn new(target: CreateTarget, if_not_exists: bool, span: Span) -> Self {
         Self {
-            base: BaseStatement::new(span, StatementType::Create),
+            base: BaseStmt::new(span, Stmt::Create),
             target,
             if_not_exists,
             properties: Vec::new(),
@@ -196,7 +196,7 @@ impl CreateStatement {
     }
 }
 
-impl AstNode for CreateStatement {
+impl AstNode for CreateStmt {
     fn span(&self) -> Span {
         self.base.span
     }
@@ -206,7 +206,7 @@ impl AstNode for CreateStatement {
     }
     
     fn node_type(&self) -> &'static str {
-        "CreateStatement"
+        "CreateStmt"
     }
     
     fn to_string(&self) -> String {
@@ -251,7 +251,7 @@ impl AstNode for CreateStatement {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(CreateStatement {
+        Box::new(CreateStmt {
             base: self.base.clone(),
             target: self.target.clone_box(),
             if_not_exists: self.if_not_exists,
@@ -261,7 +261,7 @@ impl AstNode for CreateStatement {
     }
 }
 
-impl Statement for CreateStatement {
+impl Statement for CreateStmt {
     fn stmt_type(&self) -> StatementType {
         self.base.stmt_type
     }
@@ -288,8 +288,8 @@ impl Statement for CreateStatement {
         children
     }
 
-    fn clone_box(&self) -> Box<dyn Statement> {
-        Box::new(CreateStatement {
+    fn clone_box(&self) -> Stmt {
+        Box::new(CreateStmt {
             base: self.base.clone(),
             target: self.target.clone_box(),
             if_not_exists: self.if_not_exists,
@@ -311,21 +311,21 @@ impl fmt::Display for EdgeDirection {
 
 /// MATCH 语句
 #[derive(Debug)]
-pub struct MatchStatement {
-    pub base: BaseStatement,
+pub struct MatchStmt {
+    pub base: BaseStmt,
     pub clauses: Vec<MatchClause>,
 }
 
-impl MatchStatement {
+impl MatchStmt {
     pub fn new(clauses: Vec<MatchClause>, span: Span) -> Self {
         Self {
-            base: BaseStatement::new(span, StatementType::Match),
+            base: BaseStmt::new(span, Stmt::Match),
             clauses,
         }
     }
 }
 
-impl AstNode for MatchStatement {
+impl AstNode for MatchStmt {
     fn span(&self) -> Span {
         self.base.span
     }
@@ -335,7 +335,7 @@ impl AstNode for MatchStatement {
     }
     
     fn node_type(&self) -> &'static str {
-        "MatchStatement"
+        "MatchStmt"
     }
     
     fn to_string(&self) -> String {
@@ -370,14 +370,14 @@ impl AstNode for MatchStatement {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(MatchStatement {
+        Box::new(MatchStmt {
             base: self.base.clone(),
             clauses: self.clauses.iter().map(|clause| clause.clone_box()).collect(),
         })
     }
 }
 
-impl Statement for MatchStatement {
+impl Statement for MatchStmt {
     fn stmt_type(&self) -> StatementType {
         self.base.stmt_type
     }
@@ -424,8 +424,8 @@ impl Statement for MatchStatement {
         children
     }
 
-    fn clone_box(&self) -> Box<dyn Statement> {
-        Box::new(MatchStatement {
+    fn clone_box(&self) -> Stmt {
+        Box::new(MatchStmt {
             base: self.base.clone(),
             clauses: self.clauses.iter().map(|clause| clause.clone_box()).collect(),
         })
@@ -434,21 +434,21 @@ impl Statement for MatchStatement {
 
 /// DELETE 语句
 #[derive(Debug)]
-pub struct DeleteStatement {
-    pub base: BaseStatement,
+pub struct DeleteStmt {
+    pub base: BaseStmt,
     pub target: DeleteTarget,
-    pub where_clause: Option<Box<dyn Expression>>,
+    pub where_clause: Option<Expr>,
     pub yield_clause: Option<YieldClause>,
 }
 
 #[derive(Debug)]
 pub enum DeleteTarget {
-    Vertices(Vec<Box<dyn Expression>>),
+    Vertices(Vec<Expr>),
     Edges {
         edge_type: String,
-        src: Box<dyn Expression>,
-        dst: Box<dyn Expression>,
-        rank: Option<Box<dyn Expression>>,
+        src: Expr,
+        dst: Expr,
+        rank: Option<Expr>,
     },
 }
 
@@ -456,29 +456,29 @@ impl DeleteTarget {
     fn clone_box(&self) -> DeleteTarget {
         match self {
             DeleteTarget::Vertices(vertices) => DeleteTarget::Vertices(
-                vertices.iter().map(|vertex| super::Expression::clone_box(vertex) as Box<dyn Expression>).collect()
+                vertices.iter().map(|vertex| super::Expression::clone_box(vertex) as Expr).collect()
             ),
             DeleteTarget::Edges { edge_type, src, dst, rank } => DeleteTarget::Edges {
                 edge_type: edge_type.clone(),
-                src: super::Expression::clone_box(src) as Box<dyn Expression>,
-                dst: super::Expression::clone_box(dst) as Box<dyn Expression>,
-                rank: rank.as_ref().map(|expr| super::Expression::clone_box(expr) as Box<dyn Expression>),
+                src: super::Expression::clone_box(src) as Expr,
+                dst: super::Expression::clone_box(dst) as Expr,
+                rank: rank.as_ref().map(|expr| super::Expression::clone_box(expr) as Expr),
             },
         }
     }
 }
 
-impl DeleteStatement {
+impl DeleteStmt {
     pub fn new(target: DeleteTarget, span: Span) -> Self {
         Self {
-            base: BaseStatement::new(span, StatementType::Delete),
+            base: BaseStmt::new(span, Stmt::Delete),
             target,
             where_clause: None,
             yield_clause: None,
         }
     }
     
-    pub fn with_where_clause(mut self, where_clause: Box<dyn Expression>) -> Self {
+    pub fn with_where_clause(mut self, where_clause: Expr) -> Self {
         self.where_clause = Some(where_clause);
         self
     }
@@ -489,7 +489,7 @@ impl DeleteStatement {
     }
 }
 
-impl AstNode for DeleteStatement {
+impl AstNode for DeleteStmt {
     fn span(&self) -> Span {
         self.base.span
     }
@@ -499,7 +499,7 @@ impl AstNode for DeleteStatement {
     }
     
     fn node_type(&self) -> &'static str {
-        "DeleteStatement"
+        "DeleteStmt"
     }
     
     fn to_string(&self) -> String {
@@ -532,16 +532,16 @@ impl AstNode for DeleteStatement {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(DeleteStatement {
+        Box::new(DeleteStmt {
             base: self.base.clone(),
             target: self.target.clone_box(),
-            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Box<dyn Expression>),
+            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Expr),
             yield_clause: self.yield_clause.clone(),
         })
     }
 }
 
-impl Statement for DeleteStatement {
+impl Statement for DeleteStmt {
     fn stmt_type(&self) -> StatementType {
         self.base.stmt_type
     }
@@ -571,11 +571,11 @@ impl Statement for DeleteStatement {
         children
     }
 
-    fn clone_box(&self) -> Box<dyn Statement> {
-        Box::new(DeleteStatement {
+    fn clone_box(&self) -> Stmt {
+        Box::new(DeleteStmt {
             base: self.base.clone(),
             target: self.target.clone_box(),
-            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Box<dyn Expression>),
+            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Expr),
             yield_clause: self.yield_clause.clone(),
         })
     }
@@ -583,34 +583,34 @@ impl Statement for DeleteStatement {
 
 /// UPDATE 语句
 #[derive(Debug)]
-pub struct UpdateStatement {
-    pub base: BaseStatement,
+pub struct UpdateStmt {
+    pub base: BaseStmt,
     pub target: UpdateTarget,
     pub set_clause: SetClause,
-    pub where_clause: Option<Box<dyn Expression>>,
+    pub where_clause: Option<Expr>,
     pub yield_clause: Option<YieldClause>,
 }
 
 #[derive(Debug)]
 pub enum UpdateTarget {
-    Vertex(Box<dyn Expression>),
+    Vertex(Expr),
     Edge {
         edge_type: String,
-        src: Box<dyn Expression>,
-        dst: Box<dyn Expression>,
-        rank: Option<Box<dyn Expression>>,
+        src: Expr,
+        dst: Expr,
+        rank: Option<Expr>,
     },
 }
 
 impl UpdateTarget {
     fn clone_box(&self) -> UpdateTarget {
         match self {
-            UpdateTarget::Vertex(vertex) => UpdateTarget::Vertex(super::Expression::clone_box(vertex) as Box<dyn Expression>),
+            UpdateTarget::Vertex(vertex) => UpdateTarget::Vertex(super::Expression::clone_box(vertex) as Expr),
             UpdateTarget::Edge { edge_type, src, dst, rank } => UpdateTarget::Edge {
                 edge_type: edge_type.clone(),
-                src: super::Expression::clone_box(src) as Box<dyn Expression>,
-                dst: super::Expression::clone_box(dst) as Box<dyn Expression>,
-                rank: rank.as_ref().map(|expr| super::Expression::clone_box(expr) as Box<dyn Expression>),
+                src: super::Expression::clone_box(src) as Expr,
+                dst: super::Expression::clone_box(dst) as Expr,
+                rank: rank.as_ref().map(|expr| super::Expression::clone_box(expr) as Expr),
             },
         }
     }
@@ -629,10 +629,10 @@ impl SetClause {
     }
 }
 
-impl UpdateStatement {
+impl UpdateStmt {
     pub fn new(target: UpdateTarget, set_clause: SetClause, span: Span) -> Self {
         Self {
-            base: BaseStatement::new(span, StatementType::Update),
+            base: BaseStmt::new(span, Stmt::Update),
             target,
             set_clause,
             where_clause: None,
@@ -640,7 +640,7 @@ impl UpdateStatement {
         }
     }
     
-    pub fn with_where_clause(mut self, where_clause: Box<dyn Expression>) -> Self {
+    pub fn with_where_clause(mut self, where_clause: Expr) -> Self {
         self.where_clause = Some(where_clause);
         self
     }
@@ -651,7 +651,7 @@ impl UpdateStatement {
     }
 }
 
-impl AstNode for UpdateStatement {
+impl AstNode for UpdateStmt {
     fn span(&self) -> Span {
         self.base.span
     }
@@ -661,7 +661,7 @@ impl AstNode for UpdateStatement {
     }
     
     fn node_type(&self) -> &'static str {
-        "UpdateStatement"
+        "UpdateStmt"
     }
     
     fn to_string(&self) -> String {
@@ -695,17 +695,17 @@ impl AstNode for UpdateStatement {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(UpdateStatement {
+        Box::new(UpdateStmt {
             base: self.base.clone(),
             target: self.target.clone_box(),
             set_clause: self.set_clause.clone_box(),
-            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Box<dyn Expression>),
+            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Expr),
             yield_clause: self.yield_clause.clone(),
         })
     }
 }
 
-impl Statement for UpdateStatement {
+impl Statement for UpdateStmt {
     fn stmt_type(&self) -> StatementType {
         self.base.stmt_type
     }
@@ -738,12 +738,12 @@ impl Statement for UpdateStatement {
         children
     }
 
-    fn clone_box(&self) -> Box<dyn Statement> {
-        Box::new(UpdateStatement {
+    fn clone_box(&self) -> Stmt {
+        Box::new(UpdateStmt {
             base: self.base.clone(),
             target: self.target.clone_box(),
             set_clause: self.set_clause.clone_box(),
-            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Box<dyn Expression>),
+            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Expr),
             yield_clause: self.yield_clause.clone(),
         })
     }
@@ -752,11 +752,11 @@ impl Statement for UpdateStatement {
 /// GO 语句
 #[derive(Debug)]
 pub struct GoStatement {
-    pub base: BaseStatement,
+    pub base: BaseStmt,
     pub steps: Steps,
     pub from: FromClause,
     pub over: OverClause,
-    pub where_clause: Option<Box<dyn Expression>>,
+    pub where_clause: Option<Expr>,
     pub yield_clause: Option<YieldClause>,
 }
 
@@ -768,13 +768,13 @@ pub enum Steps {
 
 #[derive(Debug)]
 pub struct FromClause {
-    pub vertices: Vec<Box<dyn Expression>>,
+    pub vertices: Vec<Expr>,
 }
 
 impl FromClause {
     fn clone_box(&self) -> FromClause {
         FromClause {
-            vertices: self.vertices.iter().map(|vertex| super::Expression::clone_box(vertex) as Box<dyn Expression>).collect(),
+            vertices: self.vertices.iter().map(|vertex| super::Expression::clone_box(vertex) as Expr).collect(),
         }
     }
 }
@@ -789,7 +789,7 @@ pub struct OverClause {
 impl GoStatement {
     pub fn new(steps: Steps, from: FromClause, over: OverClause, span: Span) -> Self {
         Self {
-            base: BaseStatement::new(span, StatementType::Go),
+            base: BaseStmt::new(span, Stmt::Go),
             steps,
             from,
             over,
@@ -798,7 +798,7 @@ impl GoStatement {
         }
     }
     
-    pub fn with_where_clause(mut self, where_clause: Box<dyn Expression>) -> Self {
+    pub fn with_where_clause(mut self, where_clause: Expr) -> Self {
         self.where_clause = Some(where_clause);
         self
     }
@@ -868,7 +868,7 @@ impl AstNode for GoStatement {
             steps: self.steps.clone(),
             from: self.from.clone_box(),
             over: self.over.clone(),
-            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Box<dyn Expression>),
+            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Expr),
             yield_clause: self.yield_clause.clone(),
         })
     }
@@ -895,13 +895,13 @@ impl Statement for GoStatement {
         children
     }
 
-    fn clone_box(&self) -> Box<dyn Statement> {
+    fn clone_box(&self) -> Stmt {
         Box::new(GoStatement {
             base: self.base.clone(),
             steps: self.steps.clone(),
             from: self.from.clone_box(),
             over: self.over.clone(),
-            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Box<dyn Expression>),
+            where_clause: self.where_clause.as_ref().map(|expr| super::Expression::clone_box(expr) as Expr),
             yield_clause: self.yield_clause.clone(),
         })
     }
@@ -910,7 +910,7 @@ impl Statement for GoStatement {
 /// FETCH 语句
 #[derive(Debug)]
 pub struct FetchStatement {
-    pub base: BaseStatement,
+    pub base: BaseStmt,
     pub target: FetchTarget,
     pub yield_clause: Option<YieldClause>,
 }
@@ -918,14 +918,14 @@ pub struct FetchStatement {
 #[derive(Debug)]
 pub enum FetchTarget {
     Vertices {
-        ids: Vec<Box<dyn Expression>>,
+        ids: Vec<Expr>,
         properties: Vec<String>,
     },
     Edges {
         edge_type: String,
-        src: Box<dyn Expression>,
-        dst: Box<dyn Expression>,
-        rank: Option<Box<dyn Expression>>,
+        src: Expr,
+        dst: Expr,
+        rank: Option<Expr>,
         properties: Vec<String>,
     },
 }
@@ -934,14 +934,14 @@ impl FetchTarget {
     fn clone_box(&self) -> FetchTarget {
         match self {
             FetchTarget::Vertices { ids, properties } => FetchTarget::Vertices {
-                ids: ids.iter().map(|id| super::Expression::clone_box(id) as Box<dyn Expression>).collect(),
+                ids: ids.iter().map(|id| super::Expression::clone_box(id) as Expr).collect(),
                 properties: properties.clone(),
             },
             FetchTarget::Edges { edge_type, src, dst, rank, properties } => FetchTarget::Edges {
                 edge_type: edge_type.clone(),
-                src: super::Expression::clone_box(src) as Box<dyn Expression>,
-                dst: super::Expression::clone_box(dst) as Box<dyn Expression>,
-                rank: rank.as_ref().map(|expr| super::Expression::clone_box(expr) as Box<dyn Expression>),
+                src: super::Expression::clone_box(src) as Expr,
+                dst: super::Expression::clone_box(dst) as Expr,
+                rank: rank.as_ref().map(|expr| super::Expression::clone_box(expr) as Expr),
                 properties: properties.clone(),
             },
         }
@@ -951,7 +951,7 @@ impl FetchTarget {
 impl FetchStatement {
     pub fn new(target: FetchTarget, span: Span) -> Self {
         Self {
-            base: BaseStatement::new(span, StatementType::Fetch),
+            base: BaseStmt::new(span, Stmt::Fetch),
             target,
             yield_clause: None,
         }
@@ -1050,7 +1050,7 @@ impl Statement for FetchStatement {
         children
     }
 
-    fn clone_box(&self) -> Box<dyn Statement> {
+    fn clone_box(&self) -> Stmt {
         Box::new(FetchStatement {
             base: self.base.clone(),
             target: self.target.clone_box(),
@@ -1061,21 +1061,21 @@ impl Statement for FetchStatement {
 
 /// USE 语句
 #[derive(Debug, Clone, PartialEq)]
-pub struct UseStatement {
-    pub base: BaseStatement,
+pub struct UseStmt {
+    pub base: BaseStmt,
     pub space: String,
 }
 
-impl UseStatement {
+impl UseStmt {
     pub fn new(space: String, span: Span) -> Self {
         Self {
-            base: BaseStatement::new(span, StatementType::Use),
+            base: BaseStmt::new(span, Stmt::Use),
             space,
         }
     }
 }
 
-impl AstNode for UseStatement {
+impl AstNode for UseStmt {
     fn span(&self) -> Span {
         self.base.span
     }
@@ -1085,7 +1085,7 @@ impl AstNode for UseStatement {
     }
     
     fn node_type(&self) -> &'static str {
-        "UseStatement"
+        "UseStmt"
     }
     
     fn to_string(&self) -> String {
@@ -1093,14 +1093,14 @@ impl AstNode for UseStatement {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(UseStatement {
+        Box::new(UseStmt {
             base: self.base.clone(),
             space: self.space.clone(),
         })
     }
 }
 
-impl Statement for UseStatement {
+impl Statement for UseStmt {
     fn stmt_type(&self) -> StatementType {
         self.base.stmt_type
     }
@@ -1109,8 +1109,8 @@ impl Statement for UseStatement {
         vec![]
     }
 
-    fn clone_box(&self) -> Box<dyn Statement> {
-        Box::new(UseStatement {
+    fn clone_box(&self) -> Stmt {
+        Box::new(UseStmt {
             base: self.base.clone(),
             space: self.space.clone(),
         })
@@ -1119,8 +1119,8 @@ impl Statement for UseStatement {
 
 /// SHOW 语句
 #[derive(Debug, Clone, PartialEq)]
-pub struct ShowStatement {
-    pub base: BaseStatement,
+pub struct ShowStmt {
+    pub base: BaseStmt,
     pub target: ShowTarget,
 }
 
@@ -1140,16 +1140,16 @@ pub enum ShowTarget {
     Stats,
 }
 
-impl ShowStatement {
+impl ShowStmt {
     pub fn new(target: ShowTarget, span: Span) -> Self {
         Self {
-            base: BaseStatement::new(span, StatementType::Show),
+            base: BaseStmt::new(span, Stmt::Show),
             target,
         }
     }
 }
 
-impl AstNode for ShowStatement {
+impl AstNode for ShowStmt {
     fn span(&self) -> Span {
         self.base.span
     }
@@ -1159,7 +1159,7 @@ impl AstNode for ShowStatement {
     }
     
     fn node_type(&self) -> &'static str {
-        "ShowStatement"
+        "ShowStmt"
     }
     
     fn to_string(&self) -> String {
@@ -1198,14 +1198,14 @@ impl AstNode for ShowStatement {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(ShowStatement {
+        Box::new(ShowStmt {
             base: self.base.clone(),
             target: self.target.clone(),
         })
     }
 }
 
-impl Statement for ShowStatement {
+impl Statement for ShowStmt {
     fn stmt_type(&self) -> StatementType {
         self.base.stmt_type
     }
@@ -1214,8 +1214,8 @@ impl Statement for ShowStatement {
         vec![]
     }
 
-    fn clone_box(&self) -> Box<dyn Statement> {
-        Box::new(ShowStatement {
+    fn clone_box(&self) -> Stmt {
+        Box::new(ShowStmt {
             base: self.base.clone(),
             target: self.target.clone(),
         })
@@ -1224,21 +1224,21 @@ impl Statement for ShowStatement {
 
 /// EXPLAIN 语句
 #[derive(Debug)]
-pub struct ExplainStatement {
-    pub base: BaseStatement,
-    pub statement: Box<dyn Statement>,
+pub struct ExplainStmt {
+    pub base: BaseStmt,
+    pub statement: Stmt,
 }
 
-impl ExplainStatement {
-    pub fn new(statement: Box<dyn Statement>, span: Span) -> Self {
+impl ExplainStmt {
+    pub fn new(statement: Stmt, span: Span) -> Self {
         Self {
-            base: BaseStatement::new(span, StatementType::Explain),
+            base: BaseStmt::new(span, Stmt::Explain),
             statement,
         }
     }
 }
 
-impl AstNode for ExplainStatement {
+impl AstNode for ExplainStmt {
     fn span(&self) -> Span {
         self.base.span
     }
@@ -1248,7 +1248,7 @@ impl AstNode for ExplainStatement {
     }
     
     fn node_type(&self) -> &'static str {
-        "ExplainStatement"
+        "ExplainStmt"
     }
     
     fn to_string(&self) -> String {
@@ -1256,14 +1256,14 @@ impl AstNode for ExplainStatement {
     }
     
     fn clone_box(&self) -> Box<dyn AstNode> {
-        Box::new(ExplainStatement {
+        Box::new(ExplainStmt {
             base: self.base.clone(),
-            statement: super::Statement::clone_box(&self.statement) as Box<dyn Statement>,
+            statement: super::Statement::clone_box(&self.statement) as Stmt,
         })
     }
 }
 
-impl Statement for ExplainStatement {
+impl Statement for ExplainStmt {
     fn stmt_type(&self) -> StatementType {
         self.base.stmt_type
     }
@@ -1272,10 +1272,10 @@ impl Statement for ExplainStatement {
         vec![super::Statement::clone_box(&self.statement) as Box<dyn AstNode>]
     }
 
-    fn clone_box(&self) -> Box<dyn Statement> {
-        Box::new(ExplainStatement {
+    fn clone_box(&self) -> Stmt {
+        Box::new(ExplainStmt {
             base: self.base.clone(),
-            statement: super::Statement::clone_box(&self.statement) as Box<dyn Statement>,
+            statement: super::Statement::clone_box(&self.statement) as Stmt,
         })
     }
 }
@@ -1299,7 +1299,7 @@ impl Clone for YieldClause {
 
 #[derive(Debug)]
 pub enum YieldItem {
-    Expression(Box<dyn Expression>, Option<String>), // 表达式和别名
+    Expression(Expr, Option<String>), // 表达式和别名
     All, // *
 }
 
@@ -1312,7 +1312,7 @@ impl Clone for YieldItem {
 impl YieldItem {
     fn clone_box(&self) -> YieldItem {
         match self {
-            YieldItem::Expression(expr, alias) => YieldItem::Expression(super::Expression::clone_box(expr) as Box<dyn Expression>, alias.clone()),
+            YieldItem::Expression(expr, alias) => YieldItem::Expression(super::Expression::clone_box(expr) as Expr, alias.clone()),
             YieldItem::All => YieldItem::All,
         }
     }
@@ -1341,7 +1341,7 @@ impl PartialEq for ReturnClause {
 
 #[derive(Debug)]
 pub enum ReturnItem {
-    Expression(Box<dyn Expression>, Option<String>), // 表达式和别名
+    Expression(Expr, Option<String>), // 表达式和别名
     All, // *
 }
 
@@ -1354,7 +1354,7 @@ impl Clone for ReturnItem {
 impl ReturnItem {
     fn clone_box(&self) -> ReturnItem {
         match self {
-            ReturnItem::Expression(expr, alias) => ReturnItem::Expression(super::Expression::clone_box(expr) as Box<dyn Expression>, alias.clone()),
+            ReturnItem::Expression(expr, alias) => ReturnItem::Expression(super::Expression::clone_box(expr) as Expr, alias.clone()),
             ReturnItem::All => ReturnItem::All,
         }
     }
@@ -1367,14 +1367,14 @@ pub struct OrderByClause {
 
 #[derive(Debug)]
 pub struct OrderByItem {
-    pub expression: Box<dyn Expression>,
+    pub expression: Expr,
     pub ascending: bool,
 }
 
 impl OrderByItem {
     fn clone_box(&self) -> OrderByItem {
         OrderByItem {
-            expression: super::Expression::clone_box(&self.expression) as Box<dyn Expression>,
+            expression: super::Expression::clone_box(&self.expression) as Expr,
             ascending: self.ascending,
         }
     }
@@ -1383,14 +1383,14 @@ impl OrderByItem {
 #[derive(Debug)]
 pub struct Assignment {
     pub property: PropertyRef,
-    pub value: Box<dyn Expression>,
+    pub value: Expr,
 }
 
 impl Assignment {
     fn clone_box(&self) -> Assignment {
         Assignment {
             property: self.property.clone(),
-            value: super::Expression::clone_box(&self.value) as Box<dyn Expression>,
+            value: super::Expression::clone_box(&self.value) as Expr,
         }
     }
 }
@@ -1470,8 +1470,8 @@ mod tests {
             properties: None,
         };
         
-        let stmt = CreateStatement::new(target, false, span);
-        assert_eq!(stmt.stmt_type(), StatementType::Create);
+        let stmt = CreateStmt::new(target, false, span);
+        assert_eq!(stmt.stmt_type(), Stmt::Create);
         assert_eq!(stmt.to_string(), "CREATE (n:Person)");
     }
     
@@ -1480,8 +1480,8 @@ mod tests {
         let span = Span::default();
         let patterns = vec![]; // 空模式用于测试
         
-        let stmt = MatchStatement::new(patterns, span);
-        assert_eq!(stmt.stmt_type(), StatementType::Match);
+        let stmt = MatchStmt::new(patterns, span);
+        assert_eq!(stmt.stmt_type(), Stmt::Match);
         assert_eq!(stmt.to_string(), "MATCH ");
     }
     
@@ -1499,7 +1499,7 @@ mod tests {
         };
         
         let stmt = GoStatement::new(steps, from, over, span);
-        assert_eq!(stmt.stmt_type(), StatementType::Go);
+        assert_eq!(stmt.stmt_type(), Stmt::Go);
         assert_eq!(stmt.to_string(), "GO 1 STEP FROM  OVER friend");
     }
 }

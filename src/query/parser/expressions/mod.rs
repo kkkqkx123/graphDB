@@ -16,34 +16,34 @@ pub trait TokenParser {
 
 pub trait ExpressionParser: TokenParser {
     /// 解析表达式
-    fn parse_expression(&mut self) -> Result<Box<dyn Expression>, ParseError>;
+    fn parse_expression(&mut self) -> Result<Expr, ParseError>;
 
     /// 解析逻辑或表达式
-    fn parse_logical_or(&mut self) -> Result<Box<dyn Expression>, ParseError>;
+    fn parse_logical_or(&mut self) -> Result<Expr, ParseError>;
 
     /// 解析逻辑与表达式
-    fn parse_logical_and(&mut self) -> Result<Box<dyn Expression>, ParseError>;
+    fn parse_logical_and(&mut self) -> Result<Expr, ParseError>;
 
     /// 解析相等性表达式
-    fn parse_equality(&mut self) -> Result<Box<dyn Expression>, ParseError>;
+    fn parse_equality(&mut self) -> Result<Expr, ParseError>;
 
     /// 解析比较表达式
-    fn parse_comparison(&mut self) -> Result<Box<dyn Expression>, ParseError>;
+    fn parse_comparison(&mut self) -> Result<Expr, ParseError>;
 
     /// 解析加法表达式
-    fn parse_addition(&mut self) -> Result<Box<dyn Expression>, ParseError>;
+    fn parse_addition(&mut self) -> Result<Expr, ParseError>;
 
     /// 解析乘法表达式
-    fn parse_multiplication(&mut self) -> Result<Box<dyn Expression>, ParseError>;
+    fn parse_multiplication(&mut self) -> Result<Expr, ParseError>;
 
     /// 解析一元表达式
-    fn parse_unary(&mut self) -> Result<Box<dyn Expression>, ParseError>;
+    fn parse_unary(&mut self) -> Result<Expr, ParseError>;
 
     /// 解析指数表达式
-    fn parse_exponentiation(&mut self) -> Result<Box<dyn Expression>, ParseError>;
+    fn parse_exponentiation(&mut self) -> Result<Expr, ParseError>;
 
     /// 解析基本表达式
-    fn parse_primary(&mut self) -> Result<Box<dyn Expression>, ParseError>;
+    fn parse_primary(&mut self) -> Result<Expr, ParseError>;
 
     fn parse_identifier(&mut self) -> Result<String, ParseError>;
 }

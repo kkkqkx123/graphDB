@@ -8,7 +8,7 @@ use crate::query::parser::core::error::ParseError;
 
 impl super::Parser {
     /// 解析表达式
-    pub fn parse_expression(&mut self) -> Result<Box<dyn Expression>, ParseError> {
+    pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
         self.enter_recursion()?;
         let result = self.parse_logical_or();
         self.exit_recursion();
@@ -16,7 +16,7 @@ impl super::Parser {
     }
 
     /// 解析逻辑或表达式
-    fn parse_logical_or(&mut self) -> Result<Box<dyn Expression>, ParseError> {
+    fn parse_logical_or(&mut self) -> Result<Expr, ParseError> {
         self.enter_recursion()?;
         let mut expr = self.parse_logical_and()?;
         while self.current_token.kind == TokenKind::Or {
@@ -34,7 +34,7 @@ impl super::Parser {
     }
 
     /// 解析逻辑与表达式
-    fn parse_logical_and(&mut self) -> Result<Box<dyn Expression>, ParseError> {
+    fn parse_logical_and(&mut self) -> Result<Expr, ParseError> {
         self.enter_recursion()?;
         let mut expr = self.parse_equality()?;
         while self.current_token.kind == TokenKind::And {
@@ -52,7 +52,7 @@ impl super::Parser {
     }
 
     /// 解析相等性表达式
-    fn parse_equality(&mut self) -> Result<Box<dyn Expression>, ParseError> {
+    fn parse_equality(&mut self) -> Result<Expr, ParseError> {
         self.enter_recursion()?;
         let mut expr = self.parse_comparison()?;
         loop {
@@ -75,7 +75,7 @@ impl super::Parser {
     }
 
     /// 解析比较表达式
-    fn parse_comparison(&mut self) -> Result<Box<dyn Expression>, ParseError> {
+    fn parse_comparison(&mut self) -> Result<Expr, ParseError> {
         self.enter_recursion()?;
         let mut expr = self.parse_addition()?;
 
@@ -103,7 +103,7 @@ impl super::Parser {
     }
 
     /// 解析加法表达式
-    fn parse_addition(&mut self) -> Result<Box<dyn Expression>, ParseError> {
+    fn parse_addition(&mut self) -> Result<Expr, ParseError> {
         self.enter_recursion()?;
         let mut expr = self.parse_multiplication()?;
 
@@ -128,7 +128,7 @@ impl super::Parser {
     }
 
     /// 解析乘法表达式
-    fn parse_multiplication(&mut self) -> Result<Box<dyn Expression>, ParseError> {
+    fn parse_multiplication(&mut self) -> Result<Expr, ParseError> {
         self.enter_recursion()?;
         let mut expr = self.parse_unary()?;
 
@@ -154,7 +154,7 @@ impl super::Parser {
     }
 
     /// 解析一元表达式
-    fn parse_unary(&mut self) -> Result<Box<dyn Expression>, ParseError> {
+    fn parse_unary(&mut self) -> Result<Expr, ParseError> {
         self.enter_recursion()?;
         let result = match self.current_token.kind {
             TokenKind::NotOp => {
@@ -181,7 +181,7 @@ impl super::Parser {
     }
 
     /// 解析指数表达式
-    fn parse_exponentiation(&mut self) -> Result<Box<dyn Expression>, ParseError> {
+    fn parse_exponentiation(&mut self) -> Result<Expr, ParseError> {
         self.enter_recursion()?;
         let mut expr = self.parse_unary()?;
 
@@ -212,34 +212,34 @@ impl super::Parser {
     }
 
     /// 解析基本表达式
-    fn parse_primary(&mut self) -> Result<Box<dyn Expression>, ParseError> {
+    fn parse_primary(&mut self) -> Result<Expr, ParseError> {
         self.enter_recursion()?;
         // 检查当前token类型并进行相应处理
         let expr = match self.current_token.kind.clone() { // 这里clone token kind避免引用
             TokenKind::IntegerLiteral(n) => {
                 let value = crate::core::Value::Int(n);
                 self.next_token();
-                Box::new(node::ConstantExpr::new(value, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Box<dyn Expression>
+                Box::new(node::ConstantExpr::new(value, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Expr
             }
             TokenKind::FloatLiteral(n) => {
                 let value = crate::core::Value::Float(n);
                 self.next_token();
-                Box::new(node::ConstantExpr::new(value, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Box<dyn Expression>
+                Box::new(node::ConstantExpr::new(value, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Expr
             }
             TokenKind::StringLiteral(s) => {
                 let value = crate::core::Value::String(s);
                 self.next_token();
-                Box::new(node::ConstantExpr::new(value, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Box<dyn Expression>
+                Box::new(node::ConstantExpr::new(value, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Expr
             }
             TokenKind::BooleanLiteral(b) => {
                 let value = crate::core::Value::Bool(b);
                 self.next_token();
-                Box::new(node::ConstantExpr::new(value, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Box<dyn Expression>
+                Box::new(node::ConstantExpr::new(value, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Expr
             }
             TokenKind::Null => {
                 let value = crate::core::Value::Null(crate::core::NullType::Null);
                 self.next_token();
-                Box::new(node::ConstantExpr::new(value, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Box<dyn Expression>
+                Box::new(node::ConstantExpr::new(value, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Expr
             }
             TokenKind::LParen => {
                 self.next_token(); // Skip '('
@@ -262,7 +262,7 @@ impl super::Parser {
                 }
 
                 self.expect_token(TokenKind::RBracket)?;
-                Box::new(node::ListExpr::new(elements, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Box<dyn Expression>
+                Box::new(node::ListExpr::new(elements, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Expr
             }
             TokenKind::LBrace => {
                 self.next_token(); // Skip '{'
@@ -283,7 +283,7 @@ impl super::Parser {
                 }
 
                 self.expect_token(TokenKind::RBrace)?;
-                Box::new(node::MapExpr::new(pairs, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Box<dyn Expression>
+                Box::new(node::MapExpr::new(pairs, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Expr
             }
             TokenKind::Identifier(name) => {
                 // 首先获取下一个token的类型，以判断是函数调用还是变量/属性访问
@@ -307,7 +307,7 @@ impl super::Parser {
                     }
                     self.expect_token(TokenKind::RParen)?;
 
-                    Box::new(FunctionCallExpr::new(func_name, args, false, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Box<dyn Expression>
+                    Box::new(FunctionCallExpr::new(func_name, args, false, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Expr
                 } else {
                     // 这是一个变量或属性访问
                     let var_name = name;
@@ -317,12 +317,12 @@ impl super::Parser {
                         self.next_token();
                         let prop_name = self.parse_identifier()?;
                         Box::new(node::PropertyAccessExpr::new(
-                            Box::new(node::VariableExpr::new(var_name, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Box<dyn Expression>,
+                            Box::new(node::VariableExpr::new(var_name, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Expr,
                             prop_name,
                             Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0))
                         ))
                     } else {
-                        Box::new(node::VariableExpr::new(var_name, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Box<dyn Expression>
+                        Box::new(node::VariableExpr::new(var_name, Span::single(Position::new(self.current_token.line as u32, self.current_token.column as u32, 0)))) as Expr
                     }
                 }
             }

@@ -184,7 +184,7 @@ impl FindVisitor {
             Expression::Label(_) => {
                 // Label has no child expressions
             },
-            Expression::MatchPathPattern { patterns, .. } => {
+            Expression::PatternPattern { patterns, .. } => {
                 for pattern in patterns {
                     self.visit(pattern);
                 }
@@ -336,7 +336,7 @@ impl FindVisitor {
             Expression::Label(_) => {
                 // Label has no child expressions
             },
-            Expression::MatchPathPattern { patterns, .. } => {
+            Expression::PatternPattern { patterns, .. } => {
                 for pattern in patterns {
                     self.visit_with_predicate(pattern, predicate, results);
                 }

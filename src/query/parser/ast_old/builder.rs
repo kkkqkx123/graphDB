@@ -29,33 +29,33 @@ impl AstBuilder {
 
     // 表达式构建方法
 
-    pub fn constant(&self, value: Value) -> Box<dyn Expression> {
+    pub fn constant(&self, value: Value) -> Expr {
         Box::new(ConstantExpr::new(value, self.span))
     }
 
-    pub fn variable(&self, name: impl Into<String>) -> Box<dyn Expression> {
+    pub fn variable(&self, name: impl Into<String>) -> Expr {
         Box::new(VariableExpr::new(name.into(), self.span))
     }
 
     pub fn binary(
         &self,
-        left: Box<dyn Expression>,
+        left: Expr,
         op: BinaryOp,
-        right: Box<dyn Expression>,
-    ) -> Box<dyn Expression> {
+        right: Expr,
+    ) -> Expr {
         Box::new(BinaryExpr::new(left, op, right, self.span))
     }
 
-    pub fn unary(&self, op: UnaryOp, operand: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn unary(&self, op: UnaryOp, operand: Expr) -> Expr {
         Box::new(UnaryExpr::new(op, operand, self.span))
     }
 
     pub fn function_call(
         &self,
         name: impl Into<String>,
-        args: Vec<Box<dyn Expression>>,
+        args: Vec<Expr>,
         distinct: bool,
-    ) -> Box<dyn Expression> {
+    ) -> Expr {
         Box::new(FunctionCallExpr::new(
             name.into(),
             args,
@@ -66,26 +66,26 @@ impl AstBuilder {
 
     pub fn property_access(
         &self,
-        object: Box<dyn Expression>,
+        object: Expr,
         property: impl Into<String>,
-    ) -> Box<dyn Expression> {
+    ) -> Expr {
         Box::new(PropertyAccessExpr::new(object, property.into(), self.span))
     }
 
-    pub fn list(&self, elements: Vec<Box<dyn Expression>>) -> Box<dyn Expression> {
+    pub fn list(&self, elements: Vec<Expr>) -> Expr {
         Box::new(ListExpr::new(elements, self.span))
     }
 
-    pub fn map(&self, pairs: Vec<(String, Box<dyn Expression>)>) -> Box<dyn Expression> {
+    pub fn map(&self, pairs: Vec<(String, Expr)>) -> Expr {
         Box::new(MapExpr::new(pairs, self.span))
     }
 
     pub fn case(
         &self,
-        match_expr: Option<Box<dyn Expression>>,
-        when_then_pairs: Vec<(Box<dyn Expression>, Box<dyn Expression>)>,
-        default: Option<Box<dyn Expression>>,
-    ) -> Box<dyn Expression> {
+        match_expr: Option<Expr>,
+        when_then_pairs: Vec<(Expr, Expr)>,
+        default: Option<Expr>,
+    ) -> Expr {
         Box::new(CaseExpr::new(
             match_expr,
             when_then_pairs,
@@ -96,24 +96,24 @@ impl AstBuilder {
 
     pub fn subscript(
         &self,
-        collection: Box<dyn Expression>,
-        index: Box<dyn Expression>,
-    ) -> Box<dyn Expression> {
+        collection: Expr,
+        index: Expr,
+    ) -> Expr {
         Box::new(SubscriptExpr::new(collection, index, self.span))
     }
 
     pub fn predicate(
         &self,
         predicate: PredicateType,
-        list: Box<dyn Expression>,
-        condition: Box<dyn Expression>,
-    ) -> Box<dyn Expression> {
+        list: Expr,
+        condition: Expr,
+    ) -> Expr {
         Box::new(PredicateExpr::new(predicate, list, condition, self.span))
     }
 
     // 语句构建方法
 
-    pub fn query(&self, statements: Vec<Box<dyn Statement>>) -> Box<dyn Statement> {
+    pub fn query(&self, statements: Vec<Stmt>) -> Stmt {
         Box::new(QueryStatement::new(statements, self.span))
     }
 
@@ -122,24 +122,24 @@ impl AstBuilder {
         identifier: Option<String>,
         labels: Vec<String>,
         if_not_exists: bool,
-    ) -> Box<dyn Statement> {
+    ) -> Stmt {
         let target = CreateTarget::Node {
             identifier,
             labels,
             properties: None,
         };
-        Box::new(CreateStatement::new(target, if_not_exists, self.span))
+        Box::new(CreateStmt::new(target, if_not_exists, self.span))
     }
 
     pub fn create_edge(
         &self,
         identifier: Option<String>,
         edge_type: String,
-        src: Box<dyn Expression>,
-        dst: Box<dyn Expression>,
+        src: Expr,
+        dst: Expr,
         direction: EdgeDirection,
         if_not_exists: bool,
-    ) -> Box<dyn Statement> {
+    ) -> Stmt {
         let target = CreateTarget::Edge {
             identifier,
             edge_type,
@@ -148,86 +148,86 @@ impl AstBuilder {
             direction,
             properties: None,
         };
-        Box::new(CreateStatement::new(target, if_not_exists, self.span))
+        Box::new(CreateStmt::new(target, if_not_exists, self.span))
     }
 
-    pub fn match_(&self, patterns: Vec<Box<dyn Pattern>>) -> Box<dyn Statement> {
-        // 将 Pattern 转换为 MatchClauseDetail
-        let match_paths: Vec<MatchPath> = patterns
+    pub fn match_(&self, patterns: Vec<Pattern>) -> Stmt {
+        // 将 Pattern 转换为 MatchClause
+        let match_paths: Vec<Pattern> = patterns
             .into_iter()
             .map(|pattern| {
-                // 将 Pattern 转换为 MatchPathSegment
+                // 将 Pattern 转换为 PatternSegment
                 // 这里需要更复杂的转换逻辑，暂时使用空路径
-                MatchPath { path: vec![] }
+                Pattern { path: vec![] }
             })
             .collect();
 
-        let match_detail = MatchClauseDetail {
+        let match_detail = MatchClause {
             patterns: match_paths,
             where_clause: None,
             with_clause: None,
         };
 
-        Box::new(MatchStatement::new(
+        Box::new(MatchStmt::new(
             vec![MatchClause::Match(match_detail)],
             self.span,
         ))
     }
 
-    pub fn delete_vertices(&self, vertices: Vec<Box<dyn Expression>>) -> Box<dyn Statement> {
+    pub fn delete_vertices(&self, vertices: Vec<Expr>) -> Stmt {
         let target = DeleteTarget::Vertices(vertices);
-        Box::new(DeleteStatement::new(target, self.span))
+        Box::new(DeleteStmt::new(target, self.span))
     }
 
     pub fn delete_edge(
         &self,
         edge_type: String,
-        src: Box<dyn Expression>,
-        dst: Box<dyn Expression>,
-        rank: Option<Box<dyn Expression>>,
-    ) -> Box<dyn Statement> {
+        src: Expr,
+        dst: Expr,
+        rank: Option<Expr>,
+    ) -> Stmt {
         let target = DeleteTarget::Edges {
             edge_type,
             src,
             dst,
             rank,
         };
-        Box::new(DeleteStatement::new(target, self.span))
+        Box::new(DeleteStmt::new(target, self.span))
     }
 
     pub fn update_vertex(
         &self,
-        vertex: Box<dyn Expression>,
+        vertex: Expr,
         assignments: Vec<Assignment>,
-    ) -> Box<dyn Statement> {
+    ) -> Stmt {
         let target = UpdateTarget::Vertex(vertex);
         let set_clause = SetClause { assignments };
-        Box::new(UpdateStatement::new(target, set_clause, self.span))
+        Box::new(UpdateStmt::new(target, set_clause, self.span))
     }
 
-    pub fn go(&self, steps: Steps, from: FromClause, over: OverClause) -> Box<dyn Statement> {
+    pub fn go(&self, steps: Steps, from: FromClause, over: OverClause) -> Stmt {
         Box::new(GoStatement::new(steps, from, over, self.span))
     }
 
     pub fn fetch_vertices(
         &self,
-        ids: Vec<Box<dyn Expression>>,
+        ids: Vec<Expr>,
         properties: Vec<String>,
-    ) -> Box<dyn Statement> {
+    ) -> Stmt {
         let target = FetchTarget::Vertices { ids, properties };
         Box::new(FetchStatement::new(target, self.span))
     }
 
-    pub fn use_(&self, space: String) -> Box<dyn Statement> {
-        Box::new(UseStatement::new(space, self.span))
+    pub fn use_(&self, space: String) -> Stmt {
+        Box::new(UseStmt::new(space, self.span))
     }
 
-    pub fn show(&self, target: ShowTarget) -> Box<dyn Statement> {
-        Box::new(ShowStatement::new(target, self.span))
+    pub fn show(&self, target: ShowTarget) -> Stmt {
+        Box::new(ShowStmt::new(target, self.span))
     }
 
-    pub fn explain(&self, statement: Box<dyn Statement>) -> Box<dyn Statement> {
-        Box::new(ExplainStatement::new(statement, self.span))
+    pub fn explain(&self, statement: Stmt) -> Stmt {
+        Box::new(ExplainStmt::new(statement, self.span))
     }
 
     // 模式构建方法
@@ -236,7 +236,7 @@ impl AstBuilder {
         &self,
         identifier: Option<String>,
         labels: Vec<String>,
-    ) -> Box<dyn Pattern> {
+    ) -> Pattern {
         Box::new(NodePattern::new(identifier, labels, self.span))
     }
 
@@ -245,17 +245,17 @@ impl AstBuilder {
         identifier: Option<String>,
         edge_type: Option<String>,
         direction: super::pattern::EdgeDirection,
-    ) -> Box<dyn Pattern> {
+    ) -> Pattern {
         Box::new(EdgePattern::new(
             identifier, edge_type, direction, self.span,
         ))
     }
 
-    pub fn path_pattern(&self, elements: Vec<PathElement>) -> Box<dyn Pattern> {
+    pub fn path_pattern(&self, elements: Vec<PathElement>) -> Pattern {
         Box::new(PathPattern::new(elements, self.span))
     }
 
-    pub fn variable_pattern(&self, name: String) -> Box<dyn Pattern> {
+    pub fn variable_pattern(&self, name: String) -> Pattern {
         Box::new(VariablePattern::new(name, self.span))
     }
 }
@@ -273,129 +273,129 @@ impl ExpressionBuilder {
     }
 
     /// 构建常量表达式
-    pub fn constant(&self, value: Value) -> Box<dyn Expression> {
+    pub fn constant(&self, value: Value) -> Expr {
         self.builder.constant(value)
     }
 
     /// 构建变量表达式
-    pub fn variable(&self, name: impl Into<String>) -> Box<dyn Expression> {
+    pub fn variable(&self, name: impl Into<String>) -> Expr {
         self.builder.variable(name)
     }
 
     /// 构建算术表达式
     pub fn add(
         &self,
-        left: Box<dyn Expression>,
-        right: Box<dyn Expression>,
-    ) -> Box<dyn Expression> {
+        left: Expr,
+        right: Expr,
+    ) -> Expr {
         self.builder.binary(left, BinaryOp::Add, right)
     }
 
     pub fn sub(
         &self,
-        left: Box<dyn Expression>,
-        right: Box<dyn Expression>,
-    ) -> Box<dyn Expression> {
+        left: Expr,
+        right: Expr,
+    ) -> Expr {
         self.builder.binary(left, BinaryOp::Sub, right)
     }
 
     pub fn mul(
         &self,
-        left: Box<dyn Expression>,
-        right: Box<dyn Expression>,
-    ) -> Box<dyn Expression> {
+        left: Expr,
+        right: Expr,
+    ) -> Expr {
         self.builder.binary(left, BinaryOp::Mul, right)
     }
 
     pub fn div(
         &self,
-        left: Box<dyn Expression>,
-        right: Box<dyn Expression>,
-    ) -> Box<dyn Expression> {
+        left: Expr,
+        right: Expr,
+    ) -> Expr {
         self.builder.binary(left, BinaryOp::Div, right)
     }
 
     /// 构建逻辑表达式
     pub fn and(
         &self,
-        left: Box<dyn Expression>,
-        right: Box<dyn Expression>,
-    ) -> Box<dyn Expression> {
+        left: Expr,
+        right: Expr,
+    ) -> Expr {
         self.builder.binary(left, BinaryOp::And, right)
     }
 
-    pub fn or(&self, left: Box<dyn Expression>, right: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn or(&self, left: Expr, right: Expr) -> Expr {
         self.builder.binary(left, BinaryOp::Or, right)
     }
 
-    pub fn not(&self, expr: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn not(&self, expr: Expr) -> Expr {
         self.builder.unary(UnaryOp::Not, expr)
     }
 
     /// 构建关系表达式
-    pub fn eq(&self, left: Box<dyn Expression>, right: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn eq(&self, left: Expr, right: Expr) -> Expr {
         self.builder.binary(left, BinaryOp::Eq, right)
     }
 
-    pub fn ne(&self, left: Box<dyn Expression>, right: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn ne(&self, left: Expr, right: Expr) -> Expr {
         self.builder.binary(left, BinaryOp::Ne, right)
     }
 
-    pub fn lt(&self, left: Box<dyn Expression>, right: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn lt(&self, left: Expr, right: Expr) -> Expr {
         self.builder.binary(left, BinaryOp::Lt, right)
     }
 
-    pub fn le(&self, left: Box<dyn Expression>, right: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn le(&self, left: Expr, right: Expr) -> Expr {
         self.builder.binary(left, BinaryOp::Le, right)
     }
 
-    pub fn gt(&self, left: Box<dyn Expression>, right: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn gt(&self, left: Expr, right: Expr) -> Expr {
         self.builder.binary(left, BinaryOp::Gt, right)
     }
 
-    pub fn ge(&self, left: Box<dyn Expression>, right: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn ge(&self, left: Expr, right: Expr) -> Expr {
         self.builder.binary(left, BinaryOp::Ge, right)
     }
 
     /// 构建聚合函数
-    pub fn count(&self, expr: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn count(&self, expr: Expr) -> Expr {
         self.builder.function_call("COUNT", vec![expr], false)
     }
 
-    pub fn sum(&self, expr: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn sum(&self, expr: Expr) -> Expr {
         self.builder.function_call("SUM", vec![expr], false)
     }
 
-    pub fn avg(&self, expr: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn avg(&self, expr: Expr) -> Expr {
         self.builder.function_call("AVG", vec![expr], false)
     }
 
-    pub fn min(&self, expr: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn min(&self, expr: Expr) -> Expr {
         self.builder.function_call("MIN", vec![expr], false)
     }
 
-    pub fn max(&self, expr: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn max(&self, expr: Expr) -> Expr {
         self.builder.function_call("MAX", vec![expr], false)
     }
 
     /// 构建谓词表达式
     pub fn all(
         &self,
-        list: Box<dyn Expression>,
-        condition: Box<dyn Expression>,
-    ) -> Box<dyn Expression> {
+        list: Expr,
+        condition: Expr,
+    ) -> Expr {
         self.builder.predicate(PredicateType::All, list, condition)
     }
 
     pub fn any(
         &self,
-        list: Box<dyn Expression>,
-        condition: Box<dyn Expression>,
-    ) -> Box<dyn Expression> {
+        list: Expr,
+        condition: Expr,
+    ) -> Expr {
         self.builder.predicate(PredicateType::Any, list, condition)
     }
 
-    pub fn exists(&self, expr: Box<dyn Expression>) -> Box<dyn Expression> {
+    pub fn exists(&self, expr: Expr) -> Expr {
         self.builder.predicate(
             PredicateType::Exists,
             expr,
@@ -421,37 +421,37 @@ impl StatementBuilder {
         &self,
         identifier: Option<String>,
         labels: Vec<String>,
-    ) -> Box<dyn Pattern> {
+    ) -> Pattern {
         self.builder.node_pattern(identifier, labels)
     }
 
     /// 构建 MATCH 语句
-    pub fn match_pattern(&self, pattern: Box<dyn Pattern>) -> MatchStatement {
-        let match_paths = vec![MatchPath { path: vec![] }]; // 简化处理
-        let match_detail = MatchClauseDetail {
+    pub fn match_pattern(&self, pattern: Pattern) -> MatchStmt {
+        let match_paths = vec![Pattern { path: vec![] }]; // 简化处理
+        let match_detail = MatchClause {
             patterns: match_paths,
             where_clause: None,
             with_clause: None,
         };
-        MatchStatement::new(vec![MatchClause::Match(match_detail)], self.builder.span)
+        MatchStmt::new(vec![MatchClause::Match(match_detail)], self.builder.span)
     }
 
-    pub fn match_patterns(&self, patterns: Vec<Box<dyn Pattern>>) -> MatchStatement {
-        let match_paths: Vec<MatchPath> = patterns
+    pub fn match_patterns(&self, patterns: Vec<Pattern>) -> MatchStmt {
+        let match_paths: Vec<Pattern> = patterns
             .into_iter()
-            .map(|pattern| MatchPath { path: vec![] }) // 简化处理
+            .map(|pattern| Pattern { path: vec![] }) // 简化处理
             .collect();
-        let match_detail = MatchClauseDetail {
+        let match_detail = MatchClause {
             patterns: match_paths,
             where_clause: None,
             with_clause: None,
         };
-        MatchStatement::new(vec![MatchClause::Match(match_detail)], self.builder.span)
+        MatchStmt::new(vec![MatchClause::Match(match_detail)], self.builder.span)
     }
 
     /// 构建 CREATE 语句
-    pub fn create_node(&self, identifier: Option<String>, labels: Vec<String>) -> CreateStatement {
-        CreateStatement::new(
+    pub fn create_node(&self, identifier: Option<String>, labels: Vec<String>) -> CreateStmt {
+        CreateStmt::new(
             CreateTarget::Node {
                 identifier,
                 labels,
@@ -466,11 +466,11 @@ impl StatementBuilder {
         &self,
         identifier: Option<String>,
         edge_type: String,
-        src: Box<dyn Expression>,
-        dst: Box<dyn Expression>,
+        src: Expr,
+        dst: Expr,
         direction: EdgeDirection,
-    ) -> CreateStatement {
-        CreateStatement::new(
+    ) -> CreateStmt {
+        CreateStmt::new(
             CreateTarget::Edge {
                 identifier,
                 edge_type,
@@ -488,7 +488,7 @@ impl StatementBuilder {
     pub fn go_steps(
         &self,
         steps: u32,
-        from: Vec<Box<dyn Expression>>,
+        from: Vec<Expr>,
         over: Vec<String>,
     ) -> GoStatement {
         let steps_enum = Steps::Fixed(steps);
@@ -566,11 +566,11 @@ mod tests {
 
         // 构建简单的常量表达式
         let expr = builder.constant(Value::Int(42));
-        assert_eq!(expr.expr_type(), ExpressionType::Constant);
+        assert_eq!(expr.expr_type(), Expr::Constant);
 
         // 构建变量表达式
         let var_expr = builder.variable("x");
-        assert_eq!(var_expr.expr_type(), ExpressionType::Variable);
+        assert_eq!(var_expr.expr_type(), Expr::Variable);
     }
 
     #[test]
@@ -582,7 +582,7 @@ mod tests {
         let right = builder.constant(Value::Int(3));
         let add_expr = builder.add(left, right);
 
-        assert_eq!(add_expr.expr_type(), ExpressionType::Binary);
+        assert_eq!(add_expr.expr_type(), Expr::Binary);
         assert!(add_expr.is_constant());
     }
 
@@ -594,7 +594,7 @@ mod tests {
         let pattern = builder.node_pattern(Some("n".to_string()), vec!["Person".to_string()]);
         let match_stmt = builder.match_pattern(pattern);
 
-        assert_eq!(match_stmt.stmt_type(), StatementType::Match);
+        assert_eq!(match_stmt.stmt_type(), Stmt::Match);
     }
 
     #[test]
@@ -606,7 +606,7 @@ mod tests {
         let right = builder.constant(Value::Int(3));
         let expr = binary_expr!(builder, left, BinaryOp::Add, right);
 
-        assert_eq!(expr.expr_type(), ExpressionType::Binary);
+        assert_eq!(expr.expr_type(), Expr::Binary);
     }
 
     #[test]
@@ -624,7 +624,7 @@ mod tests {
         let cond2 = builder.lt(y, twenty);
         let combined = builder.and(cond1, cond2);
 
-        assert_eq!(combined.expr_type(), ExpressionType::Binary);
+        assert_eq!(combined.expr_type(), Expr::Binary);
         assert!(!combined.is_constant()); // 包含变量，不是常量
     }
 }

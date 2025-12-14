@@ -4,12 +4,12 @@
 
 use crate::query::parser::core::token::TokenKind;
 use crate::query::parser::ast::*;
-use crate::query::parser::ast::statement::BaseStatement;
+use crate::query::parser::ast::stmt::BaseStmt;
 use crate::query::parser::core::error::{ParseError, ParseErrors};
-use crate::query::parser::ast::span::Position;
+use crate::query::parser::ast::types::Position;
 
 impl super::Parser {
-    pub fn parse(&mut self) -> Result<Vec<Box<dyn Statement>>, ParseErrors> {
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParseErrors> {
         let mut statements = Vec::new();
 
         while !self.is_at_end() {
@@ -25,7 +25,7 @@ impl super::Parser {
         Ok(statements)
     }
 
-    fn parse_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         match self.current_token.kind {
             TokenKind::Create => {
                 self.next_token();
@@ -73,7 +73,7 @@ impl super::Parser {
         }
     }
 
-    fn parse_create_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_create_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         match self.current_token.kind {
             TokenKind::Vertex | TokenKind::Vertices => {
                 self.next_token();
@@ -95,7 +95,7 @@ impl super::Parser {
         }
     }
 
-    fn parse_create_node_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_create_node_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         let if_not_exists = self.check_and_skip_keyword(TokenKind::If);
 
         // Skip 'EXISTS' if we found 'IF'
@@ -129,11 +129,11 @@ impl super::Parser {
             None
         };
 
-        Ok(Some(Box::new(CreateStatement {
-            base: BaseStatement::new(Span::new(
+        Ok(Some(Box::new(CreateStmt {
+            base: BaseStmt::new(Span::new(
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column),
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column)
-            ), StatementType::Create),
+            ), Stmt::Create),
             target: CreateTarget::Tag { name: tags.join(":"), properties: vec![] },
             if_not_exists,
             properties,
@@ -141,7 +141,7 @@ impl super::Parser {
         })))
     }
 
-    fn parse_create_edge_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_create_edge_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         let if_not_exists = self.check_and_skip_keyword(TokenKind::If);
 
         // Skip 'EXISTS' if we found 'IF'
@@ -187,11 +187,11 @@ impl super::Parser {
             None
         };
 
-        Ok(Some(Box::new(CreateStatement {
-            base: BaseStatement::new(Span::new(
+        Ok(Some(Box::new(CreateStmt {
+            base: BaseStmt::new(Span::new(
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column),
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column)
-            ), StatementType::Create),
+            ), Stmt::Create),
             target: CreateTarget::Edge {
                 identifier: None,
                 edge_type,
@@ -206,7 +206,7 @@ impl super::Parser {
         })))
     }
 
-    fn parse_match_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_match_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         // Parse match patterns
         let mut clauses = Vec::new();
 
@@ -218,7 +218,7 @@ impl super::Parser {
             None
         };
 
-        clauses.push(MatchClause::Match(MatchClauseDetail {
+        clauses.push(MatchClause::Match(MatchClause {
             patterns,
             where_clause,
             with_clause: None,
@@ -229,16 +229,16 @@ impl super::Parser {
             clauses.push(MatchClause::Return(self.parse_return_clause()?));
         }
 
-        Ok(Some(Box::new(MatchStatement {
-            base: BaseStatement::new(Span::new(
+        Ok(Some(Box::new(MatchStmt {
+            base: BaseStmt::new(Span::new(
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column),
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column)
-            ), StatementType::Match),
+            ), Stmt::Match),
             clauses,
         })))
     }
 
-    fn parse_delete_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_delete_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         let delete_vertices = match self.current_token.kind {
             TokenKind::Vertex | TokenKind::Vertices => {
                 self.next_token();
@@ -282,11 +282,11 @@ impl super::Parser {
             None
         };
 
-        Ok(Some(Box::new(DeleteStatement {
-            base: BaseStatement::new(Span::new(
+        Ok(Some(Box::new(DeleteStmt {
+            base: BaseStmt::new(Span::new(
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column),
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column)
-            ), StatementType::Delete),
+            ), Stmt::Delete),
             target: if delete_vertices { DeleteTarget::Vertices(vertex_exprs) } else { DeleteTarget::Edges {
                 edge_type: "".to_string(),
                 src: crate::query::parser::ast::expression::ExpressionFactory::constant(crate::core::Value::Null(crate::core::NullType::Null), Span::default()),
@@ -298,7 +298,7 @@ impl super::Parser {
         })))
     }
 
-    fn parse_update_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_update_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         let update_vertices = match self.current_token.kind {
             TokenKind::Vertex => {
                 self.next_token();
@@ -351,11 +351,11 @@ impl super::Parser {
             None
         };
 
-        Ok(Some(Box::new(UpdateStatement {
-            base: BaseStatement::new(Span::new(
+        Ok(Some(Box::new(UpdateStmt {
+            base: BaseStmt::new(Span::new(
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column),
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column)
-            ), StatementType::Update),
+            ), Stmt::Update),
             target: if update_vertices {
                 UpdateTarget::Vertex(vertex_ref.unwrap())
             } else {
@@ -372,19 +372,19 @@ impl super::Parser {
         })))
     }
 
-    fn parse_use_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_use_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         self.next_token(); // Skip USE
         let space = self.parse_identifier()?;
-        Ok(Some(Box::new(UseStatement {
-            base: BaseStatement::new(Span::new(
+        Ok(Some(Box::new(UseStmt {
+            base: BaseStmt::new(Span::new(
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column),
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column)
-            ), StatementType::Use),
+            ), Stmt::Use),
             space,
         })))
     }
 
-    fn parse_show_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_show_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         self.next_token(); // Skip SHOW
 
         let show_stmt = match self.current_token.kind {
@@ -434,26 +434,26 @@ impl super::Parser {
             }
         };
 
-        Ok(Some(Box::new(crate::query::parser::ast::statement::ShowStatement {
-            base: BaseStatement::new(Span::new(
+        Ok(Some(Box::new(crate::query::parser::ast::stmt::ShowStmt {
+            base: BaseStmt::new(Span::new(
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column),
                 Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column)
-            ), StatementType::Show),
+            ), Stmt::Show),
             target: show_stmt,
         })))
     }
 
-    fn parse_explain_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_explain_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         self.next_token(); // Skip EXPLAIN
 
         // Parse the statement to explain
         let stmt = self.parse_statement()?;
         if let Some(stmt) = stmt {
-            Ok(Some(Box::new(crate::query::parser::ast::compat::ExplainStatement {
-                base: BaseStatement::new(Span::new(
+            Ok(Some(Box::new(crate::query::parser::ast::compat::ExplainStmt {
+                base: BaseStmt::new(Span::new(
                     Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column),
                     Position::new(self.current_token.line as u32, self.current_token.column as u32, self.current_token.column)
-                ), StatementType::Explain),
+                ), Stmt::Explain),
                 statement: stmt,
             })))
         } else {

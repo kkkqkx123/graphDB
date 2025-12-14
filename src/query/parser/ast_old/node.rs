@@ -5,6 +5,7 @@
 use crate::core::Value;
 use super::{AstNode, Expression, Span, ExpressionType};
 use std::fmt;
+use std::any::Any;
 
 /// 基础 AST 节点实现
 #[derive(Debug, Clone, PartialEq)]
@@ -59,7 +60,7 @@ impl AstNode for ConstantExpr {
 
 impl Expression for ConstantExpr {
     fn expr_type(&self) -> ExpressionType {
-        ExpressionType::Constant
+        Expr::Constant
     }
     
     fn is_constant(&self) -> bool {
@@ -119,7 +120,7 @@ impl AstNode for VariableExpr {
 
 impl Expression for VariableExpr {
     fn expr_type(&self) -> ExpressionType {
-        ExpressionType::Variable
+        Expr::Variable
     }
     
     fn is_constant(&self) -> bool {
@@ -143,9 +144,9 @@ impl Expression for VariableExpr {
 #[derive(Debug)]
 pub struct BinaryExpr {
     pub base: BaseNode,
-    pub left: Box<dyn Expression>,
+    pub left: Expr,
     pub op: BinaryOp,
-    pub right: Box<dyn Expression>,
+    pub right: Expr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -279,7 +280,7 @@ impl fmt::Display for BinaryOp {
 pub struct UnaryExpr {
     pub base: BaseNode,
     pub op: UnaryOp,
-    pub operand: Box<dyn Expression>,
+    pub operand: Expr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -294,7 +295,7 @@ pub enum UnaryOp {
 }
 
 impl UnaryExpr {
-    pub fn new(op: UnaryOp, operand: Box<dyn Expression>, span: Span) -> Self {
+    pub fn new(op: UnaryOp, operand: Expr, span: Span) -> Self {
         Self {
             base: BaseNode::new(span, "UnaryExpr"),
             op,
@@ -327,18 +328,18 @@ impl AstNode for UnaryExpr {
 
 impl Expression for UnaryExpr {
     fn expr_type(&self) -> ExpressionType {
-        ExpressionType::Unary
+        Expr::Unary
     }
     
     fn is_constant(&self) -> bool {
         self.operand.is_constant()
     }
     
-    fn children(&self) -> Vec<Box<dyn Expression>> {
+    fn children(&self) -> Vec<Expr> {
         vec![super::Expression::clone_box(&*self.operand)]
     }
     
-    fn clone_box(&self) -> Box<dyn Expression> {
+    fn clone_box(&self) -> Expr {
         Box::new(UnaryExpr {
             base: self.base.clone(),
             op: self.op,
@@ -370,12 +371,12 @@ impl fmt::Display for UnaryOp {
 pub struct FunctionCallExpr {
     pub base: BaseNode,
     pub name: String,
-    pub args: Vec<Box<dyn Expression>>,
+    pub args: Vec<Expr>,
     pub distinct: bool,
 }
 
 impl FunctionCallExpr {
-    pub fn new(name: String, args: Vec<Box<dyn Expression>>, distinct: bool, span: Span) -> Self {
+    pub fn new(name: String, args: Vec<Expr>, distinct: bool, span: Span) -> Self {
         Self {
             base: BaseNode::new(span, "FunctionCallExpr"),
             name,
@@ -418,18 +419,18 @@ impl AstNode for FunctionCallExpr {
 
 impl Expression for FunctionCallExpr {
     fn expr_type(&self) -> ExpressionType {
-        ExpressionType::FunctionCall
+        Expr::FunctionCall
     }
     
     fn is_constant(&self) -> bool {
         false // 函数调用通常不是常量
     }
     
-    fn children(&self) -> Vec<Box<dyn Expression>> {
+    fn children(&self) -> Vec<Expr> {
         self.args.iter().map(|arg| super::Expression::clone_box(&**arg)).collect()
     }
     
-    fn clone_box(&self) -> Box<dyn Expression> {
+    fn clone_box(&self) -> Expr {
         Box::new(FunctionCallExpr {
             base: self.base.clone(),
             name: self.name.clone(),
@@ -447,12 +448,12 @@ impl Expression for FunctionCallExpr {
 #[derive(Debug)]
 pub struct PropertyAccessExpr {
     pub base: BaseNode,
-    pub object: Box<dyn Expression>,
+    pub object: Expr,
     pub property: String,
 }
 
 impl PropertyAccessExpr {
-    pub fn new(object: Box<dyn Expression>, property: String, span: Span) -> Self {
+    pub fn new(object: Expr, property: String, span: Span) -> Self {
         Self {
             base: BaseNode::new(span, "PropertyAccessExpr"),
             object,
@@ -485,18 +486,18 @@ impl AstNode for PropertyAccessExpr {
 
 impl Expression for PropertyAccessExpr {
     fn expr_type(&self) -> ExpressionType {
-        ExpressionType::PropertyAccess
+        Expr::PropertyAccess
     }
     
     fn is_constant(&self) -> bool {
         false
     }
     
-    fn children(&self) -> Vec<Box<dyn Expression>> {
+    fn children(&self) -> Vec<Expr> {
         vec![super::Expression::clone_box(&*self.object)]
     }
     
-    fn clone_box(&self) -> Box<dyn Expression> {
+    fn clone_box(&self) -> Expr {
         Box::new(PropertyAccessExpr {
             base: self.base.clone(),
             object: super::Expression::clone_box(&*self.object),
@@ -513,11 +514,11 @@ impl Expression for PropertyAccessExpr {
 #[derive(Debug)]
 pub struct ListExpr {
     pub base: BaseNode,
-    pub elements: Vec<Box<dyn Expression>>,
+    pub elements: Vec<Expr>,
 }
 
 impl ListExpr {
-    pub fn new(elements: Vec<Box<dyn Expression>>, span: Span) -> Self {
+    pub fn new(elements: Vec<Expr>, span: Span) -> Self {
         Self {
             base: BaseNode::new(span, "ListExpr"),
             elements,
@@ -553,18 +554,18 @@ impl AstNode for ListExpr {
 
 impl Expression for ListExpr {
     fn expr_type(&self) -> ExpressionType {
-        ExpressionType::List
+        Expr::List
     }
     
     fn is_constant(&self) -> bool {
         self.elements.iter().all(|elem| elem.is_constant())
     }
     
-    fn children(&self) -> Vec<Box<dyn Expression>> {
+    fn children(&self) -> Vec<Expr> {
         self.elements.iter().map(|elem| super::Expression::clone_box(&**elem)).collect()
     }
     
-    fn clone_box(&self) -> Box<dyn Expression> {
+    fn clone_box(&self) -> Expr {
         Box::new(ListExpr {
             base: self.base.clone(),
             elements: self.elements.iter().map(|elem| super::Expression::clone_box(&**elem)).collect(),
@@ -580,11 +581,11 @@ impl Expression for ListExpr {
 #[derive(Debug)]
 pub struct MapExpr {
     pub base: BaseNode,
-    pub pairs: Vec<(String, Box<dyn Expression>)>,
+    pub pairs: Vec<(String, Expr)>,
 }
 
 impl MapExpr {
-    pub fn new(pairs: Vec<(String, Box<dyn Expression>)>, span: Span) -> Self {
+    pub fn new(pairs: Vec<(String, Expr)>, span: Span) -> Self {
         Self {
             base: BaseNode::new(span, "MapExpr"),
             pairs,
@@ -620,18 +621,18 @@ impl AstNode for MapExpr {
 
 impl Expression for MapExpr {
     fn expr_type(&self) -> ExpressionType {
-        ExpressionType::Map
+        Expr::Map
     }
     
     fn is_constant(&self) -> bool {
         self.pairs.iter().all(|(_, value)| value.is_constant())
     }
     
-    fn children(&self) -> Vec<Box<dyn Expression>> {
+    fn children(&self) -> Vec<Expr> {
         self.pairs.iter().map(|(_, value)| super::Expression::clone_box(&**value)).collect()
     }
     
-    fn clone_box(&self) -> Box<dyn Expression> {
+    fn clone_box(&self) -> Expr {
         Box::new(MapExpr {
             base: self.base.clone(),
             pairs: self.pairs.iter().map(|(k, v)| (k.clone(), super::Expression::clone_box(&**v))).collect(),
@@ -647,16 +648,16 @@ impl Expression for MapExpr {
 #[derive(Debug)]
 pub struct CaseExpr {
     pub base: BaseNode,
-    pub match_expr: Option<Box<dyn Expression>>,
-    pub when_then_pairs: Vec<(Box<dyn Expression>, Box<dyn Expression>)>,
-    pub default: Option<Box<dyn Expression>>,
+    pub match_expr: Option<Expr>,
+    pub when_then_pairs: Vec<(Expr, Expr)>,
+    pub default: Option<Expr>,
 }
 
 impl CaseExpr {
     pub fn new(
-        match_expr: Option<Box<dyn Expression>>,
-        when_then_pairs: Vec<(Box<dyn Expression>, Box<dyn Expression>)>,
-        default: Option<Box<dyn Expression>>,
+        match_expr: Option<Expr>,
+        when_then_pairs: Vec<(Expr, Expr)>,
+        default: Option<Expr>,
         span: Span,
     ) -> Self {
         Self {
@@ -707,7 +708,7 @@ impl AstNode for CaseExpr {
 
 impl Expression for CaseExpr {
     fn expr_type(&self) -> ExpressionType {
-        ExpressionType::Case
+        Expr::Case
     }
     
     fn is_constant(&self) -> bool {
@@ -725,7 +726,7 @@ impl Expression for CaseExpr {
         all_when_constant && default_constant && match_constant
     }
     
-    fn children(&self) -> Vec<Box<dyn Expression>> {
+    fn children(&self) -> Vec<Expr> {
         let mut children = Vec::new();
         
         if let Some(ref expr) = self.match_expr {
@@ -744,7 +745,7 @@ impl Expression for CaseExpr {
         children
     }
     
-    fn clone_box(&self) -> Box<dyn Expression> {
+    fn clone_box(&self) -> Expr {
         Box::new(CaseExpr {
             base: self.base.clone(),
             match_expr: self.match_expr.as_ref().map(|expr| super::Expression::clone_box(&**expr)),
@@ -764,12 +765,12 @@ impl Expression for CaseExpr {
 #[derive(Debug)]
 pub struct SubscriptExpr {
     pub base: BaseNode,
-    pub collection: Box<dyn Expression>,
-    pub index: Box<dyn Expression>,
+    pub collection: Expr,
+    pub index: Expr,
 }
 
 impl SubscriptExpr {
-    pub fn new(collection: Box<dyn Expression>, index: Box<dyn Expression>, span: Span) -> Self {
+    pub fn new(collection: Expr, index: Expr, span: Span) -> Self {
         Self {
             base: BaseNode::new(span, "SubscriptExpr"),
             collection,
@@ -802,18 +803,18 @@ impl AstNode for SubscriptExpr {
 
 impl Expression for SubscriptExpr {
     fn expr_type(&self) -> ExpressionType {
-        ExpressionType::Subscript
+        Expr::Subscript
     }
     
     fn is_constant(&self) -> bool {
         self.collection.is_constant() && self.index.is_constant()
     }
     
-    fn children(&self) -> Vec<Box<dyn Expression>> {
+    fn children(&self) -> Vec<Expr> {
         vec![super::Expression::clone_box(&*self.collection), super::Expression::clone_box(&*self.index)]
     }
     
-    fn clone_box(&self) -> Box<dyn Expression> {
+    fn clone_box(&self) -> Expr {
         Box::new(SubscriptExpr {
             base: self.base.clone(),
             collection: super::Expression::clone_box(&*self.collection),
@@ -831,8 +832,8 @@ impl Expression for SubscriptExpr {
 pub struct PredicateExpr {
     pub base: BaseNode,
     pub predicate: PredicateType,
-    pub list: Box<dyn Expression>,
-    pub condition: Box<dyn Expression>,
+    pub list: Expr,
+    pub condition: Expr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -847,8 +848,8 @@ pub enum PredicateType {
 impl PredicateExpr {
     pub fn new(
         predicate: PredicateType,
-        list: Box<dyn Expression>,
-        condition: Box<dyn Expression>,
+        list: Expr,
+        condition: Expr,
         span: Span,
     ) -> Self {
         Self {
@@ -889,18 +890,18 @@ impl AstNode for PredicateExpr {
 
 impl Expression for PredicateExpr {
     fn expr_type(&self) -> ExpressionType {
-        ExpressionType::Predicate
+        Expr::Predicate
     }
     
     fn is_constant(&self) -> bool {
         false // 谓词表达式通常不是常量
     }
     
-    fn children(&self) -> Vec<Box<dyn Expression>> {
+    fn children(&self) -> Vec<Expr> {
         vec![super::Expression::clone_box(&*self.list), super::Expression::clone_box(&*self.condition)]
     }
     
-    fn clone_box(&self) -> Box<dyn Expression> {
+    fn clone_box(&self) -> Expr {
         Box::new(PredicateExpr {
             base: self.base.clone(),
             predicate: self.predicate,
@@ -933,7 +934,7 @@ mod tests {
     #[test]
     fn test_constant_expr() {
         let expr = ConstantExpr::new(Value::Int(42), Span::default());
-        assert_eq!(expr.expr_type(), ExpressionType::Constant);
+        assert_eq!(expr.expr_type(), Expr::Constant);
         assert!(expr.is_constant());
         assert_eq!(expr.to_string(), "Int(42)");
     }
@@ -941,7 +942,7 @@ mod tests {
     #[test]
     fn test_variable_expr() {
         let expr = VariableExpr::new("x".to_string(), Span::default());
-        assert_eq!(expr.expr_type(), ExpressionType::Variable);
+        assert_eq!(expr.expr_type(), Expr::Variable);
         assert!(!expr.is_constant());
         assert_eq!(expr.to_string(), "x");
     }
@@ -952,7 +953,7 @@ mod tests {
         let right = Box::new(ConstantExpr::new(Value::Int(3), Span::default()));
         let expr = BinaryExpr::new(left, BinaryOp::Add, right, Span::default());
         
-        assert_eq!(expr.expr_type(), ExpressionType::Binary);
+        assert_eq!(expr.expr_type(), Expr::Binary);
         assert!(expr.is_constant());
         assert_eq!(expr.to_string(), "(Int(5) + Int(3))");
     }

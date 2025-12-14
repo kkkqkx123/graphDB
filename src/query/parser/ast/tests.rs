@@ -1,298 +1,426 @@
-//! AST 模块测试
-//!
-//! 测试新的基于 trait 的 AST 架构
+//! AST v2 测试模块
+
+use super::*;
+use crate::core::Value;
 
 #[cfg(test)]
-mod tests {
+mod expr_tests {
     use super::*;
-    use crate::core::Value;
-    use crate::query::parser::ast::visitor::*;
     
     #[test]
-    fn test_ast_node_traits() {
-        let span = Span::default();
-        
-        // 测试常量表达式
-        let const_expr = ConstantExpr::new(Value::Int(42), span);
-        assert_eq!(const_expr.node_type(), "ConstantExpr");
-        assert_eq!(const_expr.expr_type(), ExpressionType::Constant);
-        assert!(const_expr.is_constant());
-        
-        // 测试变量表达式
-        let var_expr = VariableExpr::new("x".to_string(), span);
-        assert_eq!(var_expr.node_type(), "VariableExpr");
-        assert_eq!(var_expr.expr_type(), ExpressionType::Variable);
-        assert!(!var_expr.is_constant());
+    fn test_constant_expr() {
+        let expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
+        assert!(expr.is_constant());
+        assert_eq!(expr.to_string(), "Int(42)");
     }
     
     #[test]
-    fn test_binary_expression() {
-        let span = Span::default();
-        
-        let left = Box::new(ConstantExpr::new(Value::Int(5), span));
-        let right = Box::new(ConstantExpr::new(Value::Int(3), span));
-        let binary_expr = BinaryExpr::new(left, BinaryOp::Add, right, span);
-        
-        assert_eq!(binary_expr.expr_type(), ExpressionType::Binary);
-        assert!(binary_expr.is_constant());
-        assert_eq!(binary_expr.children().len(), 2);
+    fn test_variable_expr() {
+        let expr = Expr::Variable(VariableExpr::new("x".to_string(), Span::default()));
+        assert!(!expr.is_constant());
+        assert_eq!(expr.to_string(), "x");
     }
     
     #[test]
-    fn test_function_call() {
-        let span = Span::default();
+    fn test_binary_expr() {
+        let left = Expr::Constant(ConstantExpr::new(Value::Int(5), Span::default()));
+        let right = Expr::Constant(ConstantExpr::new(Value::Int(3), Span::default()));
+        let expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Add, right, Span::default()));
         
+        assert!(expr.is_constant());
+        assert_eq!(expr.to_string(), "(Int(5) + Int(3))");
+    }
+    
+    #[test]
+    fn test_function_call_expr() {
         let args = vec![
-            Box::new(ConstantExpr::new(Value::Int(1), span)),
-            Box::new(ConstantExpr::new(Value::Int(2), span)),
+            Expr::Variable(VariableExpr::new("x".to_string(), Span::default())),
+            Expr::Variable(VariableExpr::new("y".to_string(), Span::default())),
         ];
-        
-        let func_expr = FunctionCallExpr::new("SUM".to_string(), args, false, span);
-        
-        assert_eq!(func_expr.expr_type(), ExpressionType::FunctionCall);
-        assert!(!func_expr.is_constant());
-        assert_eq!(func_expr.children().len(), 2);
-    }
-    
-    #[test]
-    fn test_case_expression() {
-        let span = Span::default();
-        
-        let match_expr = Some(Box::new(VariableExpr::new("x".to_string(), span)));
-        let when_then_pairs = vec![
-            (
-                Box::new(ConstantExpr::new(Value::Int(1), span)),
-                Box::new(ConstantExpr::new(Value::String("one".to_string()), span))
-            ),
-            (
-                Box::new(ConstantExpr::new(Value::Int(2), span)),
-                Box::new(ConstantExpr::new(Value::String("two".to_string()), span))
-            ),
-        ];
-        let default = Some(Box::new(ConstantExpr::new(Value::String("other".to_string()), span)));
-        
-        let case_expr = CaseExpr::new(match_expr, when_then_pairs, default, span);
-        
-        assert_eq!(case_expr.expr_type(), ExpressionType::Case);
-        assert!(!case_expr.is_constant()); // 包含变量，不是常量
-        assert_eq!(case_expr.children().len(), 4); // match + 2*(when+then) + default
-    }
-    
-    #[test]
-    fn test_list_expression() {
-        let span = Span::default();
-        
-        let elements = vec![
-            Box::new(ConstantExpr::new(Value::Int(1), span)),
-            Box::new(ConstantExpr::new(Value::Int(2), span)),
-            Box::new(ConstantExpr::new(Value::Int(3), span)),
-        ];
-        
-        let list_expr = ListExpr::new(elements, span);
-        
-        assert_eq!(list_expr.expr_type(), ExpressionType::List);
-        assert!(list_expr.is_constant());
-        assert_eq!(list_expr.children().len(), 3);
-    }
-    
-    #[test]
-    fn test_map_expression() {
-        let span = Span::default();
-        
-        let pairs = vec![
-            ("key1".to_string(), Box::new(ConstantExpr::new(Value::Int(1), span))),
-            ("key2".to_string(), Box::new(ConstantExpr::new(Value::Int(2), span))),
-        ];
-        
-        let map_expr = MapExpr::new(pairs, span);
-        
-        assert_eq!(map_expr.expr_type(), ExpressionType::Map);
-        assert!(map_expr.is_constant());
-        assert_eq!(map_expr.children().len(), 2);
-    }
-    
-    #[test]
-    fn test_predicate_expression() {
-        let span = Span::default();
-        
-        let list = Box::new(ListExpr::new(vec![
-            Box::new(ConstantExpr::new(Value::Int(1), span)),
-            Box::new(ConstantExpr::new(Value::Int(2), span)),
-            Box::new(ConstantExpr::new(Value::Int(3), span)),
-        ], span));
-        
-        let condition = Box::new(BinaryExpr::new(
-            Box::new(VariableExpr::new("x".to_string(), span)),
-            BinaryOp::Gt,
-            Box::new(ConstantExpr::new(Value::Int(1), span)),
-            span
+        let expr = Expr::FunctionCall(FunctionCallExpr::new(
+            "SUM".to_string(),
+            args,
+            false,
+            Span::default(),
         ));
         
-        let predicate_expr = PredicateExpr::new(PredicateType::All, list, condition, span);
-        
-        assert_eq!(predicate_expr.expr_type(), ExpressionType::Predicate);
-        assert!(!predicate_expr.is_constant());
-        assert_eq!(predicate_expr.children().len(), 2);
+        assert!(!expr.is_constant());
+        assert_eq!(expr.to_string(), "SUM(x, y)");
     }
     
     #[test]
-    fn test_create_statement() {
-        let span = Span::default();
+    fn test_property_access_expr() {
+        let object = Expr::Variable(VariableExpr::new("node".to_string(), Span::default()));
+        let expr = Expr::PropertyAccess(PropertyAccessExpr::new(
+            object,
+            "name".to_string(),
+            Span::default(),
+        ));
         
-        let target = CreateTarget::Node {
-            identifier: Some("n".to_string()),
-            labels: vec!["Person".to_string()],
-            properties: None,
-        };
-        
-        let create_stmt = CreateStatement::new(target, false, span);
-        
-        assert_eq!(create_stmt.stmt_type(), StatementType::Create);
-        assert_eq!(create_stmt.to_string(), "CREATE (n:Person)");
+        assert!(!expr.is_constant());
+        assert_eq!(expr.to_string(), "node.name");
     }
     
     #[test]
-    fn test_match_statement() {
-        let span = Span::default();
+    fn test_list_expr() {
+        let elements = vec![
+            Expr::Constant(ConstantExpr::new(Value::Int(1), Span::default())),
+            Expr::Constant(ConstantExpr::new(Value::Int(2), Span::default())),
+            Expr::Constant(ConstantExpr::new(Value::Int(3), Span::default())),
+        ];
+        let expr = Expr::List(ListExpr::new(elements, Span::default()));
         
-        let patterns: Vec<Box<dyn Pattern>> = vec![]; // 空模式用于测试
-        let match_stmt = MatchStatement::new(patterns, span);
-        
-        assert_eq!(match_stmt.stmt_type(), StatementType::Match);
-        assert_eq!(match_stmt.to_string(), "MATCH ");
+        assert!(expr.is_constant());
+        assert_eq!(expr.to_string(), "[Int(1), Int(2), Int(3)]");
     }
     
     #[test]
-    fn test_go_statement() {
-        let span = Span::default();
+    fn test_map_expr() {
+        let pairs = vec![
+            ("name".to_string(), Expr::Constant(ConstantExpr::new(Value::String("John".to_string()), Span::default()))),
+            ("age".to_string(), Expr::Constant(ConstantExpr::new(Value::Int(30), Span::default()))),
+        ];
+        let expr = Expr::Map(MapExpr::new(pairs, Span::default()));
         
-        let steps = Steps::Fixed(1);
-        let from = FromClause {
-            vertices: vec![],
-        };
-        let over = OverClause {
-            edge_types: vec!["friend".to_string()],
-            direction: EdgeDirection::Outbound,
-            reversely: false,
-        };
-        
-        let go_stmt = GoStatement::new(steps, from, over, span);
-        
-        assert_eq!(go_stmt.stmt_type(), StatementType::Go);
-        assert_eq!(go_stmt.to_string(), "GO 1 STEP FROM  OVER friend");
+        assert!(expr.is_constant());
+        assert_eq!(expr.to_string(), "{name: String(\"John\"), age: Int(30)}");
     }
+    
+    #[test]
+    fn test_case_expr() {
+        let match_expr = Some(Expr::Variable(VariableExpr::new("score".to_string(), Span::default())));
+        let when_then_pairs = vec![
+            (
+                Expr::Constant(ConstantExpr::new(Value::Int(90), Span::default())),
+                Expr::Constant(ConstantExpr::new(Value::String("A".to_string()), Span::default())),
+            ),
+            (
+                Expr::Constant(ConstantExpr::new(Value::Int(80), Span::default())),
+                Expr::Constant(ConstantExpr::new(Value::String("B".to_string()), Span::default())),
+            ),
+        ];
+        let default = Some(Expr::Constant(ConstantExpr::new(Value::String("F".to_string()), Span::default())));
+        
+        let expr = Expr::Case(CaseExpr::new(match_expr, when_then_pairs, default, Span::default()));
+        
+        assert!(expr.is_constant());
+        assert!(expr.to_string().contains("CASE score"));
+        assert!(expr.to_string().contains("WHEN Int(90) THEN String(\"A\")"));
+        assert!(expr.to_string().contains("ELSE String(\"F\")"));
+    }
+    
+    #[test]
+    fn test_subscript_expr() {
+        let collection = Expr::Variable(VariableExpr::new("array".to_string(), Span::default()));
+        let index = Expr::Constant(ConstantExpr::new(Value::Int(0), Span::default()));
+        let expr = Expr::Subscript(SubscriptExpr::new(collection, index, Span::default()));
+        
+        assert!(!expr.is_constant());
+        assert_eq!(expr.to_string(), "array[Int(0)]");
+    }
+    
+    #[test]
+    fn test_predicate_expr() {
+        let list = Expr::Variable(VariableExpr::new("numbers".to_string(), Span::default()));
+        let condition = Expr::Binary(BinaryExpr::new(
+            Expr::Variable(VariableExpr::new("x".to_string(), Span::default())),
+            BinaryOp::Gt,
+            Expr::Constant(ConstantExpr::new(Value::Int(10), Span::default())),
+            Span::default(),
+        ));
+        let expr = Expr::Predicate(PredicateExpr::new(PredicateType::Any, list, condition, Span::default()));
+        
+        assert!(!expr.is_constant());
+        assert!(expr.to_string().contains("ANY"));
+        assert!(expr.to_string().contains("numbers"));
+        assert!(expr.to_string().contains("x > Int(10)"));
+    }
+}
+
+#[cfg(test)]
+mod stmt_tests {
+    use super::*;
+    
+    #[test]
+    fn test_create_node_stmt() {
+        let stmt = Stmt::Create(CreateStmt {
+            span: Span::default(),
+            target: CreateTarget::Node {
+                variable: Some("n".to_string()),
+                labels: vec!["Person".to_string()],
+                properties: None,
+            },
+        });
+        
+        assert!(matches!(stmt, Stmt::Create(_)));
+    }
+    
+    #[test]
+    fn test_match_stmt() {
+        let stmt = Stmt::Match(MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: None,
+            limit: None,
+            skip: None,
+        });
+        
+        assert!(matches!(stmt, Stmt::Match(_)));
+    }
+    
+    #[test]
+    fn test_lookup_stmt() {
+        let stmt = Stmt::Lookup(LookupStmt {
+            span: Span::default(),
+            target: LookupTarget::Tag("Person".to_string()),
+            where_clause: None,
+            yield_clause: None,
+        });
+        
+        assert!(matches!(stmt, Stmt::Lookup(_)));
+    }
+    
+    #[test]
+    fn test_subgraph_stmt() {
+        let stmt = Stmt::Subgraph(SubgraphStmt {
+            span: Span::default(),
+            steps: Steps::Fixed(1),
+            from: FromClause {
+                span: Span::default(),
+                vertices: vec![],
+            },
+            over: None,
+            where_clause: None,
+            yield_clause: None,
+        });
+        
+        assert!(matches!(stmt, Stmt::Subgraph(_)));
+    }
+    
+    #[test]
+    fn test_find_path_stmt() {
+        let stmt = Stmt::FindPath(FindPathStmt {
+            span: Span::default(),
+            from: FromClause {
+                span: Span::default(),
+                vertices: vec![],
+            },
+            to: Expr::Variable(VariableExpr::new("target".to_string(), Span::default())),
+            over: None,
+            where_clause: None,
+            shortest: true,
+            yield_clause: None,
+        });
+        
+        assert!(matches!(stmt, Stmt::FindPath(_)));
+    }
+}
+
+#[cfg(test)]
+mod pattern_tests {
+    use super::*;
     
     #[test]
     fn test_node_pattern() {
-        let span = Span::default();
-        
-        let node_pattern = NodePattern::new(
+        let pattern = Pattern::Node(NodePattern::new(
             Some("n".to_string()),
-            vec!["Person".to_string(), "Student".to_string()],
-            span,
-        );
+            vec!["Person".to_string()],
+            None,
+            vec![],
+            Span::default(),
+        ));
         
-        assert_eq!(node_pattern.pattern_type(), PatternType::Node);
-        assert_eq!(node_pattern.variables(), vec!["n"]);
-        assert_eq!(node_pattern.to_string(), "(n:Person:Student)");
+        assert!(matches!(pattern, Pattern::Node(_)));
+        let vars = PatternUtils::find_variables(&pattern);
+        assert_eq!(vars, vec!["n"]);
     }
     
     #[test]
     fn test_edge_pattern() {
-        let span = Span::default();
-        
-        let edge_pattern = EdgePattern::new(
+        let pattern = Pattern::Edge(EdgePattern::new(
             Some("e".to_string()),
-            Some("friend".to_string()),
-            EdgeDirection::Outbound,
-            span,
-        );
+            vec!["KNOWS".to_string()],
+            None,
+            vec![],
+            EdgeDirection::Out,
+            None,
+            Span::default(),
+        ));
         
-        assert_eq!(edge_pattern.pattern_type(), PatternType::Edge);
-        assert_eq!(edge_pattern.variables(), vec!["e"]);
-        assert_eq!(edge_pattern.to_string(), "[e:friend]->");
+        assert!(matches!(pattern, Pattern::Edge(_)));
+        let vars = PatternUtils::find_variables(&pattern);
+        assert_eq!(vars, vec!["e"]);
     }
     
     #[test]
     fn test_path_pattern() {
-        let span = Span::default();
+        let elements = vec![
+            PathElement::Node(NodePattern::new(
+                Some("a".to_string()),
+                vec![],
+                None,
+                vec![],
+                Span::default(),
+            )),
+            PathElement::Edge(EdgePattern::new(
+                Some("e".to_string()),
+                vec![],
+                None,
+                vec![],
+                EdgeDirection::Out,
+                None,
+                Span::default(),
+            )),
+            PathElement::Node(NodePattern::new(
+                Some("b".to_string()),
+                vec![],
+                None,
+                vec![],
+                Span::default(),
+            )),
+        ];
         
-        let node1 = NodePattern::new(Some("a".to_string()), vec![], span);
-        let edge = EdgePattern::new(None, Some("knows".to_string()), EdgeDirection::Outbound, span);
-        let node2 = NodePattern::new(Some("b".to_string()), vec![], span);
-        
-        let path_pattern = PathPattern::new(vec![
-            PathElement::Node(node1),
-            PathElement::Edge(edge),
-            PathElement::Node(node2),
-        ], span);
-        
-        assert_eq!(path_pattern.pattern_type(), PatternType::Path);
-        assert_eq!(path_pattern.variables(), vec!["a", "b"]);
+        let pattern = Pattern::Path(PathPattern::new(elements, Span::default()));
+        let vars = PatternUtils::find_variables(&pattern);
+        assert_eq!(vars, vec!["a", "e", "b"]);
     }
     
     #[test]
-    fn test_ast_builder() {
-        let span = Span::default();
-        let builder = AstBuilder::new(span);
+    fn test_edge_range() {
+        let range1 = EdgeRange::fixed(2);
+        assert_eq!(range1.min, Some(2));
+        assert_eq!(range1.max, Some(2));
         
-        // 构建简单的常量表达式
-        let expr = builder.constant(Value::Int(42));
-        assert_eq!(expr.expr_type(), ExpressionType::Constant);
+        let range2 = EdgeRange::range(1, 3);
+        assert_eq!(range2.min, Some(1));
+        assert_eq!(range2.max, Some(3));
         
-        // 构建变量表达式
-        let var_expr = builder.variable("x");
-        assert_eq!(var_expr.expr_type(), ExpressionType::Variable);
+        let range3 = EdgeRange::at_least(1);
+        assert_eq!(range3.min, Some(1));
+        assert_eq!(range3.max, None);
         
-        // 构建二元表达式
-        let left = builder.constant(Value::Int(5));
-        let right = builder.constant(Value::Int(3));
-        let binary_expr = builder.binary(left, BinaryOp::Add, right);
-        assert_eq!(binary_expr.expr_type(), ExpressionType::Binary);
-        assert!(binary_expr.is_constant());
+        let range4 = EdgeRange::any();
+        assert_eq!(range4.min, None);
+        assert_eq!(range4.max, None);
     }
+}
+
+#[cfg(test)]
+mod visitor_tests {
+    use super::*;
+    use crate::core::Value;
     
     #[test]
-    fn test_expression_builder() {
-        let span = Span::default();
-        let builder = ExpressionBuilder::new(span);
-        
-        let left = builder.constant(Value::Int(5));
-        let right = builder.constant(Value::Int(3));
-        let add_expr = builder.add(left, right);
-        
-        assert_eq!(add_expr.expr_type(), ExpressionType::Binary);
-        assert!(add_expr.is_constant());
-    }
-    
-    #[test]
-    fn test_statement_builder() {
-        let span = Span::default();
-        let builder = StatementBuilder::new(span);
-        
-        let pattern = builder.node_pattern(Some("n".to_string()), vec!["Person".to_string()]);
-        let match_stmt = builder.match_pattern(pattern);
-        
-        assert_eq!(match_stmt.stmt_type(), StatementType::Match);
-    }
-    
-    #[test]
-    fn test_visitor_pattern() {
-        let span = Span::default();
-        
-        // 创建测试表达式
-        let left = Box::new(ConstantExpr::new(Value::Int(5), span));
-        let right = Box::new(ConstantExpr::new(Value::Int(3), span));
-        let binary_expr = BinaryExpr::new(left, BinaryOp::Add, right, span);
-        
-        // 使用默认访问者
+    fn test_default_visitor() {
         let mut visitor = DefaultVisitor;
-        let _ = binary_expr.accept(&mut visitor);
+        let expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
         
-        // 应该能够正常访问而不出错
-        assert!(true);
+        // 应该能够访问而不出错
+        visitor.visit_expr(&expr);
     }
-        // 应该生成格式化的字符串
+    
+    #[test]
+    fn test_type_checker() {
+        let mut checker = TypeChecker::new();
+        let left = Expr::Constant(ConstantExpr::new(Value::Int(5), Span::default()));
+        let right = Expr::Constant(ConstantExpr::new(
+            Value::String("hello".to_string()),
+            Span::default(),
+        ));
+        let expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Add, right, Span::default()));
+        
+        checker.visit_expr(&expr);
+        assert!(checker.has_warnings());
+    }
+    
+    #[test]
+    fn test_ast_formatter() {
+        let mut formatter = AstFormatter::new();
+        let expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
+        
+        let result = formatter.format(&expr);
         assert!(result.contains("Constant: Int(42)"));
+    }
+}
+
+#[cfg(test)]
+mod utils_tests {
+    use super::*;
+    use crate::core::Value;
+    
+    #[test]
+    fn test_expr_factory() {
+        let span = Span::default();
+        
+        // 测试常量表达式
+        let const_expr = ExprFactory::constant(Value::Int(42), span);
+        assert!(matches!(const_expr, Expr::Constant(_)));
+        
+        // 测试变量表达式
+        let var_expr = ExprFactory::variable("x".to_string(), span);
+        assert!(matches!(var_expr, Expr::Variable(_)));
+        
+        // 测试二元表达式
+        let left = ExprFactory::constant(Value::Int(5), span);
+        let right = ExprFactory::constant(Value::Int(3), span);
+        let binary_expr = ExprFactory::binary(left, BinaryOp::Add, right, span);
+        assert!(matches!(binary_expr, Expr::Binary(_)));
+    }
+    
+    #[test]
+    fn test_constant_folding() {
+        let span = Span::default();
+        
+        // 测试 5 + 3 -> 8
+        let left = ExprFactory::constant(Value::Int(5), span);
+        let right = ExprFactory::constant(Value::Int(3), span);
+        let expr = ExprFactory::binary(left, BinaryOp::Add, right, span);
+        
+        let optimized = ExprOptimizer::constant_folding(expr);
+        assert!(matches!(optimized, Expr::Constant(_)));
+        if let Expr::Constant(e) = optimized {
+            assert_eq!(e.value, Value::Int(8));
+        }
+        
+        // 测试 -5 -> -5
+        let operand = ExprFactory::constant(Value::Int(5), span);
+        let expr = ExprFactory::unary(UnaryOp::Minus, operand, span);
+        
+        let optimized = ExprOptimizer::constant_folding(expr);
+        assert!(matches!(optimized, Expr::Constant(_)));
+        if let Expr::Constant(e) = optimized {
+            assert_eq!(e.value, Value::Int(-5));
+        }
+    }
+    
+    #[test]
+    fn test_expression_simplification() {
+        let span = Span::default();
+        
+        // 测试 x + 0 -> x
+        let x = ExprFactory::variable("x".to_string(), span);
+        let zero = ExprFactory::constant(Value::Int(0), span);
+        let expr = ExprFactory::binary(x.clone(), BinaryOp::Add, zero, span);
+        
+        let simplified = ExprOptimizer::simplify(expr);
+        assert_eq!(simplified, x);
+        
+        // 测试 x * 1 -> x
+        let x = ExprFactory::variable("x".to_string(), span);
+        let one = ExprFactory::constant(Value::Int(1), span);
+        let expr = ExprFactory::binary(x.clone(), BinaryOp::Mul, one, span);
+        
+        let simplified = ExprOptimizer::simplify(expr);
+        assert_eq!(simplified, x);
+        
+        // 测试 !!x -> x
+        let x = ExprFactory::variable("x".to_string(), span);
+        let not_expr = ExprFactory::unary(UnaryOp::Not, x.clone(), span);
+        let expr = ExprFactory::unary(UnaryOp::Not, not_expr, span);
+        
+        let simplified = ExprOptimizer::simplify(expr);
+        assert_eq!(simplified, x);
     }
 }

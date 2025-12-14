@@ -10,6 +10,7 @@ pub mod core {
 
 pub mod lexer;
 pub mod ast;
+pub mod ast_old;
 pub mod expressions;
 pub mod statements;
 pub mod parser;

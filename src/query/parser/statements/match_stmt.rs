@@ -5,9 +5,9 @@ use crate::query::parser::core::token::TokenKind;
 use crate::query::parser::ast::*;
 use crate::query::parser::expressions::ExpressionParser;
 
-pub trait MatchStatementParser: ExpressionParser {
+pub trait MatchStmtParser: ExpressionParser {
     /// 解析MATCH语句
-    fn parse_match_statement(&mut self) -> Result<Option<Box<dyn Statement>>, ParseError> {
+    fn parse_match_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         // Parse match patterns
         let mut clauses = Vec::new();
 
@@ -19,7 +19,7 @@ pub trait MatchStatementParser: ExpressionParser {
             None
         };
 
-        clauses.push(MatchClause::Match(MatchClauseDetail {
+        clauses.push(MatchClause::Match(MatchClause {
             patterns,
             where_clause,
             with_clause: None,
@@ -30,13 +30,13 @@ pub trait MatchStatementParser: ExpressionParser {
             clauses.push(MatchClause::Return(self.parse_return_clause()?));
         }
 
-        Ok(Some(Box::new(MatchStatement {
-            base: BaseStatement::new(Span::default(), StatementType::Match),
+        Ok(Some(Box::new(MatchStmt {
+            base: BaseStmt::new(Span::default(), Stmt::Match),
             clauses,
         })))
     }
 
-    fn parse_match_patterns(&mut self) -> Result<Vec<MatchPath>, ParseError> {
+    fn parse_match_patterns(&mut self) -> Result<Vec<Pattern>, ParseError> {
         let mut patterns = Vec::new();
 
         // For now, just parse a simple path pattern
@@ -47,14 +47,14 @@ pub trait MatchStatementParser: ExpressionParser {
         Ok(patterns)
     }
 
-    fn parse_match_path(&mut self) -> Result<MatchPath, ParseError> {
+    fn parse_match_path(&mut self) -> Result<Pattern, ParseError> {
         let mut path = Vec::new();
 
         // Parse nodes and edges in the path
         loop {
             // Parse a node
             if self.current_token().kind == TokenKind::LParen {
-                path.push(MatchPathSegment::Node(self.parse_match_node()?));
+                path.push(PatternSegment::Node(self.parse_match_node()?));
             } else {
                 break;
             }
@@ -63,13 +63,13 @@ pub trait MatchStatementParser: ExpressionParser {
             if self.current_token().kind == TokenKind::Arrow ||
                self.current_token().kind == TokenKind::BackArrow ||
                matches!(self.current_token().kind, TokenKind::Minus) {
-                path.push(MatchPathSegment::Edge(self.parse_match_edge()?));
+                path.push(PatternSegment::Edge(self.parse_match_edge()?));
             } else {
                 break;
             }
         }
 
-        Ok(MatchPath { path })
+        Ok(Pattern { path })
     }
 
     fn parse_match_node(&mut self) -> Result<MatchNode, ParseError> {

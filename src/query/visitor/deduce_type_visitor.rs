@@ -336,7 +336,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = ValueTypeDef::String;
                 Ok(())
             }
-            Expression::MatchPathPattern {
+            Expression::PatternPattern {
                 path_alias: _,
                 patterns,
             } => {

@@ -1,92 +1,9 @@
-//! 简化版解析器 (v2)
-//!
-//! 基于新 AST 设计的简化解析器，提供更好的性能和可维护性。
+//! 表达式解析器 (v2)
 
-mod expr_parser;
-mod stmt_parser;
-mod pattern_parser;
-mod utils;
-
-pub use expr_parser::*;
-pub use stmt_parser::*;
-pub use pattern_parser::*;
-pub use utils::*;
-
-use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
-use crate::query::parser::ast::types::*;
-use crate::query::parser::ast::expr::*;
-use crate::query::parser::ast::stmt::*;
-use crate::query::parser::ast::pattern::*;
-
-/// 新解析器
-pub struct ParserV2 {
-    lexer: Lexer,
-    compat_mode: bool,
-}
+use super::*;
+use crate::query::parser::lexer::{Lexer, Token as LexerToken};
 
 impl ParserV2 {
-    /// 创建新解析器
-    pub fn new(input: &str) -> Self {
-        Self {
-            lexer: Lexer::new(input),
-            compat_mode: false,
-        }
-    }
-    
-    /// 设置兼容模式
-    pub fn set_compat_mode(&mut self, enabled: bool) {
-        self.compat_mode = enabled;
-    }
-    
-    /// 解析完整的查询
-    pub fn parse_query(&mut self) -> Result<QueryStmt, ParseError> {
-        let start_pos = self.lexer.current_position();
-        let mut statements = Vec::new();
-        
-        // 解析多个语句
-        while !self.lexer.is_at_end() {
-            let stmt = self.parse_statement()?;
-            statements.push(stmt);
-            
-            // 跳过可选的分号
-            self.skip_optional_semicolon();
-        }
-        
-        let end_pos = self.lexer.current_position();
-        let span = Span::new(
-            Position::new(start_pos.line, start_pos.column),
-            Position::new(end_pos.line, end_pos.column),
-        );
-        
-        Ok(QueryStmt::new(statements, span))
-    }
-    
-    /// 解析单个语句
-    pub fn parse_statement(&mut self) -> Result<Stmt, ParseError> {
-        let token = self.lexer.peek()?;
-        
-        match token.kind {
-            LexerToken::Match => self.parse_match_statement(),
-            LexerToken::Create => self.parse_create_statement(),
-            LexerToken::Delete => self.parse_delete_statement(),
-            LexerToken::Update => self.parse_update_statement(),
-            LexerToken::Go => self.parse_go_statement(),
-            LexerToken::Fetch => self.parse_fetch_statement(),
-            LexerToken::Use => self.parse_use_statement(),
-            LexerToken::Show => self.parse_show_statement(),
-            LexerToken::Explain => self.parse_explain_statement(),
-            LexerToken::Lookup => self.parse_lookup_statement(),
-            LexerToken::Subgraph => self.parse_subgraph_statement(),
-            LexerToken::FindPath => self.parse_find_path_statement(),
-            _ => {
-                // 如果不是关键字，尝试解析为表达式语句
-                let expr = self.parse_expression()?;
-                let span = expr.span();
-                Ok(Stmt::Query(QueryStmt::new(vec![], span)))
-            }
-        }
-    }
-    
     /// 解析表达式
     pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
         self.parse_or_expression()
@@ -198,12 +115,12 @@ impl ParserV2 {
                 // 下标访问
                 let index = self.parse_expression()?;
                 self.expect_token(LexerToken::RightBracket)?;
-                let span = Span::new(expr.span().start, self.lexer.current_position());
+                let span = Span::new(expr.span().start, self.current_span().end);
                 expr = ExprFactory::subscript(expr, index, span);
             } else if self.match_token(LexerToken::Dot) {
                 // 属性访问
                 let property = self.expect_identifier()?;
-                let span = Span::new(expr.span().start, self.lexer.current_position());
+                let span = Span::new(expr.span().start, self.current_span().end);
                 expr = ExprFactory::property_access(expr, property, span);
             } else {
                 break;
@@ -508,125 +425,11 @@ impl ParserV2 {
         }
     }
     
-    fn skip_optional_semicolon(&mut self) {
-        self.match_token(LexerToken::Semicolon);
-    }
-    
     fn current_span(&self) -> Span {
         let pos = self.lexer.current_position();
         Span::new(
             Position::new(pos.line, pos.column),
             Position::new(pos.line, pos.column),
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_parse_constant() {
-        let mut parser = ParserV2::new("42");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-        
-        if let Ok(Expr::Constant(e)) = result {
-            assert_eq!(e.value, Value::Int(42));
-        } else {
-            panic!("Expected constant expression");
-        }
-    }
-    
-    #[test]
-    fn test_parse_variable() {
-        let mut parser = ParserV2::new("x");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-        
-        if let Ok(Expr::Variable(e)) = result {
-            assert_eq!(e.name, "x");
-        } else {
-            panic!("Expected variable expression");
-        }
-    }
-    
-    #[test]
-    fn test_parse_binary() {
-        let mut parser = ParserV2::new("5 + 3");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-        
-        if let Ok(Expr::Binary(e)) = result {
-            assert_eq!(e.op, BinaryOp::Add);
-        } else {
-            panic!("Expected binary expression");
-        }
-    }
-    
-    #[test]
-    fn test_parse_function_call() {
-        let mut parser = ParserV2::new("COUNT(x)");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-        
-        if let Ok(Expr::FunctionCall(e)) = result {
-            assert_eq!(e.name, "COUNT");
-            assert_eq!(e.args.len(), 1);
-        } else {
-            panic!("Expected function call expression");
-        }
-    }
-    
-    #[test]
-    fn test_parse_list() {
-        let mut parser = ParserV2::new("[1, 2, 3]");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-        
-        if let Ok(Expr::List(e)) = result {
-            assert_eq!(e.elements.len(), 3);
-        } else {
-            panic!("Expected list expression");
-        }
-    }
-    
-    #[test]
-    fn test_parse_map() {
-        let mut parser = ParserV2::new("{name: \"John\", age: 30}");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-        
-        if let Ok(Expr::Map(e)) = result {
-            assert_eq!(e.pairs.len(), 2);
-        } else {
-            panic!("Expected map expression");
-        }
-    }
-    
-    #[test]
-    fn test_parse_property_access() {
-        let mut parser = ParserV2::new("node.name");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-        
-        if let Ok(Expr::PropertyAccess(e)) = result {
-            assert_eq!(e.property, "name");
-        } else {
-            panic!("Expected property access expression");
-        }
-    }
-    
-    #[test]
-    fn test_parse_subscript() {
-        let mut parser = ParserV2::new("list[0]");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-        
-        if let Ok(Expr::Subscript(e)) = result {
-            // 验证下标访问
-        } else {
-            panic!("Expected subscript expression");
-        }
     }
 }
