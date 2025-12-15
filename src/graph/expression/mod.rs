@@ -7,7 +7,6 @@ pub mod evaluator;
 pub mod expression;
 pub mod function;
 pub mod property;
-#[cfg(test)]
 pub mod tests;
 pub mod unary;
 pub mod visitor;
