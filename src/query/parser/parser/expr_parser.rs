@@ -196,11 +196,7 @@ impl super::Parser {
     }
 
     /// 解析函数调用
-    fn parse_function_call(
-        &mut self,
-        name: String,
-        span: Span,
-    ) -> Result<Expr, ParseError> {
+    fn parse_function_call(&mut self, name: String, span: Span) -> Result<Expr, ParseError> {
         let mut args = Vec::new();
         let mut distinct = false;
 

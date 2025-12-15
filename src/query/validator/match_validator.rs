@@ -2,15 +2,13 @@
 //! 对应原match_validator_main.rs的功能，使用新的策略模式架构
 
 use super::base_validator::Validator;
-use super::validate_context::ValidateContext;
 use super::structs::{
     AliasType, MatchStepRange, PaginationContext, Path, QueryPart, ReturnClauseContext,
     UnwindClauseContext, WhereClauseContext, WithClauseContext, YieldClauseContext, YieldColumn,
 };
+use super::validate_context::ValidateContext;
 use super::validation_factory::ValidationFactory;
-use super::validation_interface::{
-    ValidationError, ValidationErrorType, ValidationStrategy,
-};
+use super::validation_interface::{ValidationError, ValidationErrorType, ValidationStrategy};
 use crate::graph::expression::Expression;
 use std::collections::HashMap;
 
@@ -215,8 +213,10 @@ mod tests {
         let mut validator = MatchValidator::new(context);
 
         // 测试有效的分页表达式
-         let skip_expr = Expression::Literal(graph::expression::expression::LiteralValue::Int(1));
-         let limit_expr = Expression::Literal(graph::expression::expression::LiteralValue::Int(10));
+        let skip_expr =
+            Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1));
+        let limit_expr =
+            Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(10));
         let pagination_ctx = PaginationContext { skip: 0, limit: 10 };
 
         assert!(validator
@@ -251,7 +251,8 @@ mod tests {
         let validator = MatchValidator::new(context);
 
         // 测试没有聚合函数的表达式
-        let non_agg_expr = Expression::Literal(graph::expression::expression::LiteralValue::Int(1));
+        let non_agg_expr =
+            Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1));
         assert_eq!(validator.has_aggregate_expr(&non_agg_expr), false);
     }
 

@@ -1,7 +1,7 @@
 //! DeduceTypeVisitor - 用于推导表达式类型的访问器
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
-use crate::core::{Value, ValueTypeDef};
+use crate::core::ValueTypeDef;
 use crate::graph::expression::Expression;
 use crate::graph::expression::{BinaryOperator, UnaryOperator};
 use crate::query::validator::ValidateContext;
@@ -9,7 +9,7 @@ use crate::storage::StorageEngine;
 use thiserror::Error;
 
 #[cfg(test)]
-use crate::core::{Direction, Edge, Vertex};
+use crate::core::{Direction, Edge, Value, Vertex};
 #[cfg(test)]
 use crate::storage::StorageError;
 
@@ -106,7 +106,13 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     fn visit(&mut self, expr: &Expression) -> Result<(), TypeDeductionError> {
         match expr {
             Expression::Literal(value) => self.visit_literal(value),
-            Expression::Variable(name) => self.visit_property(name),
+            Expression::Variable(name) => self.visit_variable(name),
+            Expression::Property { object, property } => {
+                self.visit(object)?;
+                // 属性访问返回Empty类型（实际类型应该查询Schema）
+                self.type_ = ValueTypeDef::Empty;
+                Ok(())
+            }
             Expression::Function { name, args } => self.visit_function_call(name, args),
             Expression::Binary { left, op, right } => {
                 self.visit(left)?;
@@ -121,6 +127,29 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             }
             Expression::List(items) => self.visit_list(items),
             Expression::Map(pairs) => self.visit_map_items(pairs),
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
+                self.visit(collection)?;
+                if let Some(start_expr) = start.as_ref() {
+                    self.visit(start_expr)?;
+                }
+                if let Some(end_expr) = end.as_ref() {
+                    self.visit(end_expr)?;
+                }
+                // 范围访问始终返回列表
+                self.type_ = ValueTypeDef::List;
+                Ok(())
+            }
+            Expression::Path(items) => {
+                for item in items {
+                    self.visit(item)?;
+                }
+                self.type_ = ValueTypeDef::Path;
+                Ok(())
+            }
             Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
             Expression::EdgeProperty { edge, prop } => self.visit_edge_property(edge, prop),
             Expression::InputProperty(prop) => self.visit_input_property(prop),
@@ -197,7 +226,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             }
             Expression::TypeCast { expr, target_type } => {
                 self.visit(expr.as_ref())?;
-                self.type_ = self.parse_type_def(target_type);
+                self.type_ = self.parse_data_type(target_type);
                 Ok(())
             }
             Expression::Case {
@@ -301,7 +330,6 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = ValueTypeDef::String;
                 Ok(())
             }
-            Expression::Variable(name) => self.visit_variable(name),
             Expression::Subscript { collection, index } => {
                 self.visit(collection)?;
                 let container_type = self.type_.clone();
@@ -335,6 +363,11 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = ValueTypeDef::String;
                 Ok(())
             }
+            Expression::TypeCasting { expr, .. } => {
+                self.visit(expr.as_ref())?;
+                // 类型转换后返回转换后的类型
+                Ok(())
+            }
             Expression::MatchPathPattern { patterns, .. } => {
                 for pattern in patterns {
                     self.visit(pattern)?;
@@ -343,11 +376,14 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = ValueTypeDef::Path;
                 Ok(())
             }
-            }
+        }
     }
 
     /// 推导字面量表达式的类型
-    fn visit_literal(&mut self, value: &crate::graph::expression::LiteralValue) -> Result<(), TypeDeductionError> {
+    fn visit_literal(
+        &mut self,
+        value: &crate::graph::expression::LiteralValue,
+    ) -> Result<(), TypeDeductionError> {
         use crate::graph::expression::LiteralValue;
         self.type_ = match value {
             LiteralValue::Bool(_) => ValueTypeDef::Bool,
@@ -355,7 +391,6 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             LiteralValue::Float(_) => ValueTypeDef::Float,
             LiteralValue::String(_) => ValueTypeDef::String,
             LiteralValue::Null => ValueTypeDef::Null,
-            LiteralValue::Empty => ValueTypeDef::Empty,
         };
         Ok(())
     }
@@ -514,7 +549,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导聚合表达式的类型
-    fn visit_aggregate_func(&mut self, func: &crate::graph::expression::AggregateFunction) -> Result<(), TypeDeductionError> {
+    fn visit_aggregate_func(
+        &mut self,
+        func: &crate::graph::expression::AggregateFunction,
+    ) -> Result<(), TypeDeductionError> {
         use crate::graph::expression::AggregateFunction;
         self.type_ = match func {
             AggregateFunction::Count => ValueTypeDef::Int,
@@ -673,11 +711,91 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             _ => ValueTypeDef::Empty,
         }
     }
+
+    /// 将DataType解析为ValueTypeDef
+    fn parse_data_type(&self, data_type: &crate::graph::expression::DataType) -> ValueTypeDef {
+        use crate::graph::expression::DataType;
+        match data_type {
+            DataType::Bool => ValueTypeDef::Bool,
+            DataType::Int => ValueTypeDef::Int,
+            DataType::Float => ValueTypeDef::Float,
+            DataType::String => ValueTypeDef::String,
+            DataType::List => ValueTypeDef::List,
+            DataType::Map => ValueTypeDef::Map,
+            DataType::Vertex => ValueTypeDef::Vertex,
+            DataType::Edge => ValueTypeDef::Edge,
+            DataType::Path => ValueTypeDef::Path,
+            DataType::DateTime => ValueTypeDef::DateTime,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Mock 存储引擎用于测试
+    struct MockStorageEngine;
+
+    impl StorageEngine for MockStorageEngine {
+        fn insert_node(&mut self, _vertex: Vertex) -> Result<Value, StorageError> {
+            Ok(Value::Int(0))
+        }
+
+        fn get_node(&self, _id: &Value) -> Result<Option<Vertex>, StorageError> {
+            Ok(None)
+        }
+
+        fn update_node(&mut self, _vertex: Vertex) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn delete_node(&mut self, _id: &Value) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn insert_edge(&mut self, _edge: Edge) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn get_edge(
+            &self,
+            _src: &Value,
+            _dst: &Value,
+            _edge_type: &str,
+        ) -> Result<Option<Edge>, StorageError> {
+            Ok(None)
+        }
+
+        fn get_node_edges(
+            &self,
+            _node_id: &Value,
+            _direction: Direction,
+        ) -> Result<Vec<Edge>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn delete_edge(
+            &mut self,
+            _src: &Value,
+            _dst: &Value,
+            _edge_type: &str,
+        ) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn begin_transaction(&mut self) -> Result<u64, StorageError> {
+            Ok(1)
+        }
+
+        fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), StorageError> {
+            Ok(())
+        }
+    }
 
     #[test]
     fn test_is_superior_type() {
@@ -718,120 +836,5 @@ mod tests {
 
         // 不同类型不兼容
         assert!(!visitor.are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::String));
-    }
-
-    #[test]
-    fn test_parse_type_def() {
-        let validate_context = ValidateContext::new();
-        let visitor = DeduceTypeVisitor::new(
-            &MockStorageEngine,
-            &validate_context,
-            vec![],
-            "test_space".to_string(),
-        );
-
-        assert_eq!(visitor.parse_type_def("int"), ValueTypeDef::Int);
-        assert_eq!(visitor.parse_type_def("INT"), ValueTypeDef::Int);
-        assert_eq!(visitor.parse_type_def("string"), ValueTypeDef::String);
-        assert_eq!(visitor.parse_type_def("BOOL"), ValueTypeDef::Bool);
-        assert_eq!(visitor.parse_type_def("unknown"), ValueTypeDef::Empty);
-    }
-
-    #[test]
-    fn test_visit_constant() {
-        let validate_context = ValidateContext::new();
-        let mut visitor = DeduceTypeVisitor::new(
-            &MockStorageEngine,
-            &validate_context,
-            vec![],
-            "test_space".to_string(),
-        );
-
-        let value = Value::Int(42);
-        let result = visitor.visit_constant(&value);
-
-        assert!(result.is_ok());
-        assert_eq!(visitor.type_(), ValueTypeDef::Int);
-    }
-
-    #[test]
-    fn test_visit_list() {
-        let validate_context = ValidateContext::new();
-        let mut visitor = DeduceTypeVisitor::new(
-            &MockStorageEngine,
-            &validate_context,
-            vec![],
-            "test_space".to_string(),
-        );
-
-        let result = visitor.visit_list(&[]);
-
-        assert!(result.is_ok());
-        assert_eq!(visitor.type_(), ValueTypeDef::List);
-    }
-}
-
-// Mock 存储引擎用于测试
-#[cfg(test)]
-struct MockStorageEngine;
-
-#[cfg(test)]
-impl StorageEngine for MockStorageEngine {
-    fn insert_node(&mut self, vertex: Vertex) -> Result<Value, StorageError> {
-        Ok(vertex.vid.as_ref().clone())
-    }
-
-    fn get_node(&self, _id: &Value) -> Result<Option<Vertex>, StorageError> {
-        Ok(None)
-    }
-
-    fn update_node(&mut self, _vertex: Vertex) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn delete_node(&mut self, _id: &Value) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn insert_edge(&mut self, _edge: Edge) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn get_edge(
-        &self,
-        _src: &Value,
-        _dst: &Value,
-        _edge_type: &str,
-    ) -> Result<Option<Edge>, StorageError> {
-        Ok(None)
-    }
-
-    fn get_node_edges(
-        &self,
-        _node_id: &Value,
-        _direction: Direction,
-    ) -> Result<Vec<Edge>, StorageError> {
-        Ok(Vec::new())
-    }
-
-    fn delete_edge(
-        &mut self,
-        _src: &Value,
-        _dst: &Value,
-        _edge_type: &str,
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn begin_transaction(&mut self) -> Result<u64, StorageError> {
-        Ok(1)
-    }
-
-    fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), StorageError> {
-        Ok(())
     }
 }

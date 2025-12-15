@@ -383,13 +383,6 @@ impl DeducePropsVisitor {
                 // UUID表达式不需要处理属性
                 Ok(())
             }
-            Expression::Variable(name) => {
-                // 处理变量表达式 - 记录用户定义的变量
-                if !name.is_empty() && !name.starts_with("$") {
-                    self.user_defined_vars.insert(name.clone());
-                }
-                Ok(())
-            }
             Expression::Subscript { collection, index } => {
                 self.visit(collection)?;
                 self.visit(index)?;
@@ -422,12 +415,38 @@ impl DeducePropsVisitor {
                 }
                 Ok(())
             }
-        }
-    }
+            Expression::Property { .. } => {
+                // 属性表达式已在其他地方处理
+                Ok(())
+            }
+            Expression::TypeCast { expr, .. } => {
+                // 类型转换表达式
+                self.visit(expr)
+            }
+            Expression::Range { collection, start, end } => {
+                // 范围访问
+                self.visit(collection)?;
+                if let Some(start_expr) = start {
+                    self.visit(start_expr)?;
+                }
+                if let Some(end_expr) = end {
+                    self.visit(end_expr)?;
+                }
+                Ok(())
+            }
+            Expression::Path(items) => {
+                // 路径表达式
+                for item in items {
+                    self.visit(item)?;
+                }
+                Ok(())
+            }
+            }
+            }
 
-    /// 获取推导出的表达式属性
-    pub fn get_props(&self) -> &ExpressionProps {
-        &self.props
+            /// 获取推导出的表达式属性
+            pub fn get_props(&self) -> &ExpressionProps {
+            &self.props
     }
 
     /// 获取可变的表达式属性引用

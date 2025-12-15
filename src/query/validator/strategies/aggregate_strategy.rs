@@ -6,8 +6,7 @@ use super::super::validation_interface::{
     ValidationContext as ValidationContextTrait, ValidationError, ValidationErrorType,
     ValidationStrategy, ValidationStrategyType,
 };
-use crate::graph::expression::{Expression, UnaryOperator};
-use crate::graph::expression::BinaryOperator;
+use crate::graph::expression::Expression;
 
 /// 聚合验证策略
 pub struct AggregateValidationStrategy;
@@ -407,12 +406,12 @@ mod tests {
         // 测试嵌套表达式
         let nested_expr = Expression::Binary {
             left: Box::new(Expression::Unary {
-                op: UnaryOperator::Minus,
+                op: crate::graph::expression::expression::UnaryOperator::Minus,
                 operand: Box::new(Expression::Literal(
                     crate::graph::expression::expression::LiteralValue::Int(5),
                 )),
             }),
-            op: BinaryOperator::Add,
+            op: crate::graph::expression::expression::BinaryOperator::Add,
             right: Box::new(Expression::Literal(
                 crate::graph::expression::expression::LiteralValue::Int(10),
             )),

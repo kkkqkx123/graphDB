@@ -3,10 +3,11 @@
 //! 提供解析器使用的通用工具函数和辅助方法。
 
 use crate::query::parser::lexer::TokenKind as LexerToken;
+use crate::query::parser::ast::types::{ParseError, Span, Position};
 
 impl super::Parser {
     /// 检查并匹配 token
-    fn match_token(&mut self, expected: LexerToken) -> bool {
+    pub fn match_token(&mut self, expected: LexerToken) -> bool {
         if self.current_token.kind == expected {
             self.next_token();
             true
@@ -16,12 +17,12 @@ impl super::Parser {
     }
 
     /// 检查 token 类型
-    fn check_token(&mut self, expected: LexerToken) -> bool {
+    pub fn check_token(&mut self, expected: LexerToken) -> bool {
         self.current_token.kind == expected
     }
 
     /// 期望特定的 token
-    fn expect_token(&mut self, expected: LexerToken) -> Result<(), ParseError> {
+    pub fn expect_token(&mut self, expected: LexerToken) -> Result<(), ParseError> {
         if self.current_token.kind == expected {
             self.next_token();
             Ok(())
@@ -37,7 +38,7 @@ impl super::Parser {
     }
 
     /// 期望标识符
-    fn expect_identifier(&mut self) -> Result<String, ParseError> {
+    pub fn expect_identifier(&mut self) -> Result<String, ParseError> {
         if let LexerToken::Identifier(_) = self.current_token.kind {
             let text = match &self.current_token.kind {
                 LexerToken::Identifier(s) => s.clone(),
@@ -54,7 +55,7 @@ impl super::Parser {
     }
 
     /// 获取当前 span
-    fn current_span(&self) -> Span {
+    pub fn current_span(&self) -> Span {
         let pos = self.lexer.current_position();
         Span::new(
             Position::new(pos.line, pos.column),
@@ -69,19 +70,8 @@ impl super::Parser {
 
     /// 获取下一个 token
     pub fn next_token(&mut self) {
-        match self.lexer.advance() {
-            Ok(token) => {
-                self.current_token = token;
-            }
-            Err(_) => {
-                self.current_token = crate::query::parser::core::token::Token::new(
-                    crate::query::parser::core::token::TokenKind::Eof,
-                    String::new(),
-                    0,
-                    0,
-                );
-            }
-        };
+        let token = self.lexer.next_token();
+        self.current_token = token;
     }
 
     /// 查看下一个 token 但不移动位置
@@ -90,16 +80,13 @@ impl super::Parser {
     }
 
     /// 查看下一个 token 但不移动位置（返回整个 Token）
-    pub fn peek_next_token(
-        &self,
-    ) -> Result<crate::query::parser::core::token::Token, crate::query::parser::lexer::LexError>
-    {
-        Ok(crate::query::parser::core::token::Token::new(
+    pub fn peek_next_token(&self) -> crate::query::parser::core::token::Token {
+        crate::query::parser::core::token::Token::new(
             crate::query::parser::core::token::TokenKind::Eof,
             String::new(),
             0,
             0,
-        ))
+        )
     }
 
     /// 解析标识符
