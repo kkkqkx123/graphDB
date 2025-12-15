@@ -55,16 +55,13 @@ pub trait CreateStmtParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Box::new(CreateStmt {
-            base: BaseStmt::new(Span::default(), Stmt::Create),
+        Ok(Some(Stmt::Create(CreateStmt {
+            span: Span::default(),
             target: CreateTarget::Node {
-                identifier: None,
+                variable: None,
                 labels: tags,
                 properties: None,
             },
-            if_not_exists,
-            properties,
-            yield_clause,
         })))
     }
 
@@ -89,11 +86,11 @@ pub trait CreateStmtParser: ExpressionParser {
         let direction = if self.current_token().kind == TokenKind::Arrow {
             // ->
             self.next_token();
-            EdgeDirection::Outbound
+            EdgeDirection::Out
         } else if self.current_token().kind == TokenKind::BackArrow {
             // <-
             self.next_token();
-            EdgeDirection::Inbound
+            EdgeDirection::In
         } else {
             return Err(ParseError::syntax_error(
                 format!("Expected -> or <-, got {:?}", self.current_token().kind),
@@ -117,19 +114,16 @@ pub trait CreateStmtParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Box::new(CreateStmt {
-            base: BaseStmt::new(Span::default(), Stmt::Create),
+        Ok(Some(Stmt::Create(CreateStmt {
+            span: Span::default(),
             target: CreateTarget::Edge {
-                identifier: None,
+                variable: None,
                 edge_type,
                 src,
                 dst,
                 direction,
                 properties: None,
             },
-            if_not_exists,
-            properties,
-            yield_clause,
         })))
     }
 

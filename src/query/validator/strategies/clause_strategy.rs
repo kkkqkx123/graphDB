@@ -293,7 +293,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![
-                    YieldColumn::new(Expression::Constant(crate::core::Value::Int(1)), "col1".to_string())
+                    YieldColumn::new(Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1)), "col1".to_string())
                 ],
                 aliases_available: HashMap::new(),
                 aliases_generated: HashMap::new(),
@@ -325,7 +325,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![
-                    YieldColumn::new(Expression::Constant(crate::core::Value::Int(1)), "col1".to_string())
+                    YieldColumn::new(Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1)), "col1".to_string())
                 ],
                 aliases_available: HashMap::new(),
                 aliases_generated: HashMap::new(),
@@ -357,7 +357,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![
-                    YieldColumn::new(Expression::Constant(crate::core::Value::Int(1)), "col1".to_string())
+                    YieldColumn::new(Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1)), "col1".to_string())
                 ],
                 aliases_available: HashMap::new(),
                 aliases_generated: HashMap::new(),
@@ -411,7 +411,7 @@ mod tests {
         
         let mut yield_context = YieldClauseContext {
             yield_columns: vec![
-                YieldColumn::new(Expression::Constant(crate::core::Value::Int(1)), "col1".to_string())
+                YieldColumn::new(Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1)), "col1".to_string())
             ],
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),

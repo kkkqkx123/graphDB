@@ -52,7 +52,7 @@ impl AliasValidationStrategy {
     pub fn extract_alias_name(&self, expr: &Expression) -> Option<String> {
         match expr {
             Expression::Variable(name) => Some(name.clone()),
-            Expression::Property(name) => Some(name.clone()),
+            Expression::Property { property, .. } => Some(property.clone()),
             Expression::Label(name) => Some(name.clone()),
             // 根据实际的表达式类型，可能需要处理其他别名引用
             _ => None,
@@ -66,24 +66,18 @@ impl AliasValidationStrategy {
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         match expr {
-            Expression::UnaryOp(_, operand) => self.validate_expression_aliases(operand, aliases),
-            Expression::BinaryOp(left, _, right) => {
+            Expression::Unary { operand, .. } => self.validate_expression_aliases(operand, aliases),
+            Expression::Binary { left, right, .. } => {
                 self.validate_expression_aliases(left, aliases)?;
                 self.validate_expression_aliases(right, aliases)
             }
-            Expression::Function(_, args) => {
+            Expression::Function { args, .. } => {
                 for arg in args {
                     self.validate_expression_aliases(arg, aliases)?;
                 }
                 Ok(())
             }
             Expression::List(items) => {
-                for item in items {
-                    self.validate_expression_aliases(item, aliases)?;
-                }
-                Ok(())
-            }
-            Expression::Set(items) => {
                 for item in items {
                     self.validate_expression_aliases(item, aliases)?;
                 }
@@ -162,39 +156,56 @@ impl AliasValidationStrategy {
                 }
                 Ok(())
             }
-            Expression::Constant(_)
-            | Expression::Property(_)
-            | Expression::TagProperty { .. }
-            | Expression::EdgeProperty { .. }
-            | Expression::InputProperty(_)
-            | Expression::VariableProperty { .. }
-            | Expression::SourceProperty { .. }
-            | Expression::DestinationProperty { .. }
-            | Expression::UnaryPlus(_)
-            | Expression::UnaryNegate(_)
-            | Expression::UnaryNot(_)
-            | Expression::UnaryIncr(_)
-            | Expression::UnaryDecr(_)
-            | Expression::IsNull(_)
-            | Expression::IsNotNull(_)
-            | Expression::IsEmpty(_)
-            | Expression::IsNotEmpty(_)
-            | Expression::ESQuery(_)
-            | Expression::UUID
-            | Expression::Variable(_)
-            | Expression::Label(_) => Ok(()),
-            Expression::TypeCasting { expr, target_type: _ } => {
-                // 类型转换表达式需要验证其子表达式
-                self.validate_expression_aliases(expr, aliases)
-            },
-            Expression::Aggregate {
-                func: _,
-                arg,
-                distinct: _,
-            } => {
-                // 聚合函数表达式需要验证其参数表达式
-                self.validate_expression_aliases(arg, aliases)
-            },
+            Expression::Literal(_)
+             | Expression::Property { .. }
+             | Expression::TagProperty { .. }
+             | Expression::EdgeProperty { .. }
+             | Expression::InputProperty(_)
+             | Expression::VariableProperty { .. }
+             | Expression::SourceProperty { .. }
+             | Expression::DestinationProperty { .. }
+             | Expression::UnaryPlus(_)
+             | Expression::UnaryNegate(_)
+             | Expression::UnaryNot(_)
+             | Expression::UnaryIncr(_)
+             | Expression::UnaryDecr(_)
+             | Expression::IsNull(_)
+             | Expression::IsNotNull(_)
+             | Expression::IsEmpty(_)
+             | Expression::IsNotEmpty(_)
+             | Expression::ESQuery(_)
+             | Expression::UUID
+             | Expression::Variable(_)
+             | Expression::Label(_) => Ok(()),
+             Expression::TypeCast { expr, .. } => {
+                 // 类型转换表达式需要验证其子表达式
+                 self.validate_expression_aliases(expr, aliases)
+             },
+             Expression::Aggregate {
+                 arg,
+                 ..
+             } => {
+                 // 聚合函数表达式需要验证其参数表达式
+                 self.validate_expression_aliases(arg, aliases)
+             },
+             Expression::Range { collection, start, end } => {
+                 // 范围访问表达式需要验证集合和范围表达式
+                 self.validate_expression_aliases(collection, aliases)?;
+                 if let Some(start_expr) = start {
+                     self.validate_expression_aliases(start_expr, aliases)?;
+                 }
+                 if let Some(end_expr) = end {
+                     self.validate_expression_aliases(end_expr, aliases)?;
+                 }
+                 Ok(())
+             },
+             Expression::Path(items) => {
+                 // 路径表达式需要验证其所有项
+                 for item in items {
+                     self.validate_expression_aliases(item, aliases)?;
+                 }
+                 Ok(())
+             },
         }
     }
 
@@ -324,7 +335,7 @@ mod tests {
         );
 
         // 测试从常量表达式中提取别名（应该返回None）
-        let const_expr = Expression::Constant(crate::core::Value::Int(42));
+        let const_expr = Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(42));
         assert_eq!(strategy.extract_alias_name(&const_expr), None);
     }
 }

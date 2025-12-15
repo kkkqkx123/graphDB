@@ -116,7 +116,7 @@ impl LabelIndexSeek {
         }
 
         // 处理节点过滤条件 - 创建独立的Filter节点而不是修改IndexScan
-        if let Some(filter) = &self.node_info.filter {
+        if let Some(_filter) = &self.node_info.filter {
             // 创建Filter节点来处理过滤条件
             let filter_node = Arc::new(SingleInputNode::new(
                 PlanNodeKind::Filter,
@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn test_build_plan_with_properties() {
         let mut node_info = create_test_node_info(vec!["Person"], vec![1]);
-        node_info.props = Some(Expression::Constant(crate::core::Value::String(
+        node_info.props = Some(Expression::Literal(crate::graph::expression::expression::LiteralValue::String(
             "test".to_string(),
         )));
 
@@ -412,7 +412,7 @@ mod tests {
     fn test_index_scan_metadata_with_filter() {
         let mut metadata = IndexScanMetadata::new(vec![1], vec!["Person".to_string()], vec![1]);
 
-        let filter = Expression::Constant(crate::core::Value::String("test".to_string()));
+        let filter = Expression::Literal(crate::graph::expression::expression::LiteralValue::String("test".to_string()));
         metadata.set_property_filter(filter);
 
         assert!(metadata.has_property_filter);

@@ -51,7 +51,7 @@ pub trait DeleteStmtParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Box::new(DeleteStmt {
+        Ok(Some(Stmt::Delete(DeleteStmt {
             span: Span::default(),
             target: if delete_vertices {
                 DeleteTarget::Vertices(vertex_exprs)
@@ -64,8 +64,7 @@ pub trait DeleteStmtParser: ExpressionParser {
                     rank: None,
                 }
             },
-            where_clause: where_clause.map(|wc| wc),
-            yield_clause,
+            where_clause,
         })))
     }
 

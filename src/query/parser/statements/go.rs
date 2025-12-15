@@ -18,7 +18,7 @@ pub trait GoStatementParser: ExpressionParser {
                 let from_step = self.parse_expression()?;
                 self.expect_token(TokenKind::To)?;
                 let to_step = self.parse_expression()?;
-                Steps::Range(Some(1), Some(10)) // 简化处理，使用固定范围
+                Steps::Range { min: 1, max: 10 } // 简化处理，使用固定范围
             } else {
                 // 解析 N STEPS形式
                 let step_expr = self.parse_expression()?;
@@ -48,7 +48,7 @@ pub trait GoStatementParser: ExpressionParser {
         self.expect_token(TokenKind::Yield)?;
         let yield_clause = Some(self.parse_yield_clause()?);
 
-        Ok(Some(Box::new(GoStmt {
+        Ok(Some(Stmt::Go(GoStmt {
             span: Span::default(),
             steps,
             from: FromClause { span: Span::default(), vertices: from_list },
@@ -80,15 +80,15 @@ pub trait GoStatementParser: ExpressionParser {
             match self.current_token().kind {
                 TokenKind::Out => {
                     self.next_token();
-                    EdgeDirection::Outbound
+                    EdgeDirection::Out
                 }
                 TokenKind::In => {
                     self.next_token();
-                    EdgeDirection::Inbound
+                    EdgeDirection::In
                 }
                 TokenKind::Both => {
                     self.next_token();
-                    EdgeDirection::Bidirectional
+                    EdgeDirection::Both
                 }
                 _ => return Err(ParseError::syntax_error(
                     format!("Expected direction (OUT, IN, or BOTH), got {:?}", self.current_token().kind),
@@ -97,13 +97,13 @@ pub trait GoStatementParser: ExpressionParser {
                 ))
             }
         } else {
-            EdgeDirection::Outbound // 默认方向
+            EdgeDirection::Out // 默认方向
         };
 
         Ok(OverClause {
+            span: Span::default(),
             edge_types,
             direction,
-            reversely: false,
         })
     }
 

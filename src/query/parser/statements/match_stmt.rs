@@ -23,7 +23,7 @@ pub trait MatchStmtParser: ExpressionParser {
             None
         };
 
-        Ok(Some(Box::new(MatchStmt {
+        Ok(Some(Stmt::Match(MatchStmt {
             span: Span::default(),
             patterns,
             where_clause,

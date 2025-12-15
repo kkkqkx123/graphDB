@@ -215,8 +215,8 @@ mod tests {
         let mut validator = MatchValidator::new(context);
 
         // 测试有效的分页表达式
-        let skip_expr = Expression::Constant(crate::core::Value::Int(1));
-        let limit_expr = Expression::Constant(crate::core::Value::Int(10));
+         let skip_expr = Expression::Literal(graph::expression::expression::LiteralValue::Int(1));
+         let limit_expr = Expression::Literal(graph::expression::expression::LiteralValue::Int(10));
         let pagination_ctx = PaginationContext { skip: 0, limit: 10 };
 
         assert!(validator
@@ -251,7 +251,7 @@ mod tests {
         let validator = MatchValidator::new(context);
 
         // 测试没有聚合函数的表达式
-        let non_agg_expr = Expression::Constant(crate::core::Value::Int(1));
+        let non_agg_expr = Expression::Literal(graph::expression::expression::LiteralValue::Int(1));
         assert_eq!(validator.has_aggregate_expr(&non_agg_expr), false);
     }
 

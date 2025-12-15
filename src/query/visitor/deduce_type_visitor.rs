@@ -105,7 +105,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     /// 递归访问表达式树
     fn visit(&mut self, expr: &Expression) -> Result<(), TypeDeductionError> {
         match expr {
-            Expression::Literal(value) => self.visit_constant(value),
+            Expression::Literal(value) => self.visit_literal(value),
             Expression::Variable(name) => self.visit_property(name),
             Expression::Function { name, args } => self.visit_function_call(name, args),
             Expression::Binary { left, op, right } => {
@@ -121,7 +121,6 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             }
             Expression::List(items) => self.visit_list(items),
             Expression::Map(pairs) => self.visit_map_items(pairs),
-            Expression::Set(items) => self.visit_set(items),
             Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
             Expression::EdgeProperty { edge, prop } => self.visit_edge_property(edge, prop),
             Expression::InputProperty(prop) => self.visit_input_property(prop),
@@ -196,7 +195,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = ValueTypeDef::Bool;
                 Ok(())
             }
-            Expression::TypeCasting { expr, target_type } => {
+            Expression::TypeCast { expr, target_type } => {
                 self.visit(expr.as_ref())?;
                 self.type_ = self.parse_type_def(target_type);
                 Ok(())
@@ -256,7 +255,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 distinct: _,
             } => {
                 self.visit(arg.as_ref())?;
-                self.visit_aggregate(func)
+                self.visit_aggregate_func(func)
             }
             Expression::ListComprehension {
                 generator,
@@ -336,10 +335,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = ValueTypeDef::String;
                 Ok(())
             }
-            Expression::PatternPattern {
-                path_alias: _,
-                patterns,
-            } => {
+            Expression::MatchPathPattern { patterns, .. } => {
                 for pattern in patterns {
                     self.visit(pattern)?;
                 }
@@ -347,12 +343,20 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = ValueTypeDef::Path;
                 Ok(())
             }
-        }
+            }
     }
 
-    /// 推导常量表达式的类型
-    fn visit_constant(&mut self, value: &Value) -> Result<(), TypeDeductionError> {
-        self.type_ = value.get_type();
+    /// 推导字面量表达式的类型
+    fn visit_literal(&mut self, value: &crate::graph::expression::LiteralValue) -> Result<(), TypeDeductionError> {
+        use crate::graph::expression::LiteralValue;
+        self.type_ = match value {
+            LiteralValue::Bool(_) => ValueTypeDef::Bool,
+            LiteralValue::Int(_) => ValueTypeDef::Int,
+            LiteralValue::Float(_) => ValueTypeDef::Float,
+            LiteralValue::String(_) => ValueTypeDef::String,
+            LiteralValue::Null => ValueTypeDef::Null,
+            LiteralValue::Empty => ValueTypeDef::Empty,
+        };
         Ok(())
     }
 
@@ -510,18 +514,18 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导聚合表达式的类型
-    fn visit_aggregate(&mut self, name: &str) -> Result<(), TypeDeductionError> {
-        let name_upper = name.to_uppercase();
-        self.type_ = match name_upper.as_str() {
-            "COUNT" => ValueTypeDef::Int,
-            "COLLECT" => ValueTypeDef::List,
-            "COLLECT_SET" => ValueTypeDef::Set,
-            "AVG" | "SUM" => ValueTypeDef::Float,
-            "MAX" | "MIN" => {
+    fn visit_aggregate_func(&mut self, func: &crate::graph::expression::AggregateFunction) -> Result<(), TypeDeductionError> {
+        use crate::graph::expression::AggregateFunction;
+        self.type_ = match func {
+            AggregateFunction::Count => ValueTypeDef::Int,
+            AggregateFunction::Sum => ValueTypeDef::Float,
+            AggregateFunction::Avg => ValueTypeDef::Float,
+            AggregateFunction::Min | AggregateFunction::Max => {
                 // 保持参数类型，已在visit中处理
                 self.type_.clone()
             }
-            _ => ValueTypeDef::Empty,
+            AggregateFunction::Collect => ValueTypeDef::List,
+            AggregateFunction::Distinct => ValueTypeDef::List,
         };
         Ok(())
     }

@@ -231,26 +231,26 @@ pub enum TokenKind {
     NotOp,  // !
 
     // Delimiters
-    LParen,    // (
-    RParen,    // )
-    LBracket,  // [
-    RBracket,  // ]
-    LBrace,    // {
-    RBrace,    // }
-    Comma,     // ,
-    Dot,       // .
-    DotDot,    // ..
-    Colon,     // :
-    Semicolon, // ;
-    QMark,     // ?
-    Question,  // ? (别名)
-    Pipe,      // |
-    Arrow,     // ->
-    BackArrow, // <-
+    LParen,     // (
+    RParen,     // )
+    LBracket,   // [
+    RBracket,   // ]
+    LBrace,     // {
+    RBrace,     // }
+    Comma,      // ,
+    Dot,        // .
+    DotDot,     // ..
+    Colon,      // :
+    Semicolon,  // ;
+    QMark,      // ?
+    Question,   // ? (别名)
+    Pipe,       // |
+    Arrow,      // ->
+    BackArrow,  // <-
     RightArrow, // -> (别名)
     LeftArrow,  // <- (别名)
-    At,        // @
-    Dollar,    // $
+    At,         // @
+    Dollar,     // $
 
     // Special properties
     IdProp,    // _id

@@ -826,7 +826,7 @@ impl StmtParser {
 
     fn parse_create_node_or_edge_statement(
         &mut self,
-        start_span: Span,
+        _start_span: Span,
     ) -> Result<Stmt, ParseError> {
         // 简化的节点/边创建解析
         // 这里应该解析完整的模式语法
@@ -867,7 +867,7 @@ impl StmtParser {
                     name,
                     data_type,
                     nullable,
-                    default: default.map(|expr| {
+                    default: default.map(|_expr| {
                         // 这里应该将表达式转换为值
                         // 临时使用空值
                         Value::Null(crate::core::NullType::Null)
@@ -903,7 +903,7 @@ impl StmtParser {
     fn expect_token(&mut self, expected: LexerToken) -> Result<(), ParseError> {
         let token = self.lexer.peek()?;
         if token.kind == expected {
-            self.lexer.advance()?;
+            self.lexer.advance();
             Ok(())
         } else {
             Err(ParseError::new(

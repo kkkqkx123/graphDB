@@ -241,19 +241,19 @@ impl PatternParser {
             }
             LexerToken::QMark | LexerToken::Question => {
                 // 可选模式: ?
-                self.lexer.advance()?;
+                self.lexer.advance();
                 let inner = self.parse_path_element()?;
                 Ok(PathElement::Optional(Box::new(inner)))
             }
             LexerToken::Star => {
                 // 重复模式: *
-                self.lexer.advance()?;
+                self.lexer.advance();
                 let inner = self.parse_path_element()?;
                 Ok(PathElement::Repeated(Box::new(inner), RepetitionType::ZeroOrMore))
             }
             LexerToken::Plus => {
                 // 重复模式: +
-                self.lexer.advance()?;
+                self.lexer.advance();
                 let inner = self.parse_path_element()?;
                 Ok(PathElement::Repeated(Box::new(inner), RepetitionType::OneOrMore))
             }
@@ -336,7 +336,7 @@ impl PatternParser {
     fn expect_token(&mut self, expected: LexerToken) -> Result<(), ParseError> {
         let token = self.lexer.peek()?;
         if token.kind == expected {
-            self.lexer.advance()?;
+            self.lexer.advance();
             Ok(())
         } else {
             Err(ParseError::new(
@@ -350,7 +350,7 @@ impl PatternParser {
         let token = self.lexer.peek()?;
         if let LexerToken::Identifier(_) = token.kind {
             let text = token.lexeme.clone();
-            self.lexer.advance()?;
+            self.lexer.advance();
             Ok(text)
         } else {
             Err(ParseError::new(
@@ -364,7 +364,7 @@ impl PatternParser {
         let token = self.lexer.peek()?;
         if let LexerToken::IntegerLiteral(_) = token.kind {
             let text = token.lexeme.clone();
-            self.lexer.advance()?;
+            self.lexer.advance();
             text.parse().map_err(|_| {
                 ParseError::new(
                     format!("Invalid integer: {}", text),

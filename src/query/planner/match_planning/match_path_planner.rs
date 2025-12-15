@@ -498,7 +498,6 @@ mod tests {
     use crate::query::validator::structs::{
         MatchClauseContext, Path, NodeInfo, PathType
     };
-    use crate::query::context::validate::types::Variable;
     use std::collections::HashMap;
 
     /// 创建测试用的节点信息
@@ -714,8 +713,8 @@ mod tests {
         let match_clause_ctx = create_test_match_clause_context();
         
         let mut path = create_test_path("p", false, vec!["n"]);
-        path.node_infos[0].props = Some(crate::graph::expression::Expression::Constant(
-            crate::core::Value::String("test".to_string())
+        path.node_infos[0].props = Some(crate::graph::expression::Expression::Literal(
+            crate::graph::expression::expression::LiteralValue::String("test".to_string())
         ));
         
         let mut planner = MatchPathPlanner::new(match_clause_ctx, path);

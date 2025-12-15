@@ -319,12 +319,6 @@ impl DeducePropsVisitor {
                 }
                 Ok(())
             }
-            Expression::Set(items) => {
-                for item in items {
-                    self.visit(item)?;
-                }
-                Ok(())
-            }
             Expression::Map(items) => {
                 for (_, value) in items {
                     self.visit(value)?;
@@ -422,7 +416,7 @@ impl DeducePropsVisitor {
                 }
                 Ok(())
             }
-            Expression::PatternPattern { patterns, .. } => {
+            Expression::MatchPathPattern { patterns, .. } => {
                 for pattern in patterns {
                     self.visit(pattern)?;
                 }

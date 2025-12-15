@@ -37,6 +37,13 @@ impl From<ParseError> for QueryError {
     }
 }
 
+// Convert ast::types::ParseError to core::error::ParseError
+impl From<crate::query::parser::ast::types::ParseError> for ParseError {
+    fn from(ast_error: crate::query::parser::ast::types::ParseError) -> Self {
+        ParseError::new(ast_error.message, 0, 0)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParseErrors {
     pub errors: Vec<ParseError>,

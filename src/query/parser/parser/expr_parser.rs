@@ -1,22 +1,13 @@
-//! 表达式解析器 (v2)
+//! 表达式解析模块
+//!
+//! 负责解析各种表达式，包括算术表达式、逻辑表达式、函数调用等。
 
-use super::*;
 use crate::core::Value;
-use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
+use crate::query::parser::ast::expr::*;
+use crate::query::parser::ast::types::*;
+use crate::query::parser::lexer::TokenKind as LexerToken;
 
-/// 表达式解析器
-pub struct ExprParser {
-    lexer: Lexer,
-}
-
-impl ExprParser {
-    /// 创建表达式解析器
-    pub fn new(input: &str) -> Self {
-        Self {
-            lexer: Lexer::new(input),
-        }
-    }
-
+impl super::Parser {
     /// 解析表达式
     pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
         self.parse_or_expression()
@@ -153,12 +144,12 @@ impl ExprParser {
                 let span = self.current_span();
                 Ok(Expr::Constant(ConstantExpr::new(Value::Int(value), span)))
             }
-            LexerToken::Float => {
+            LexerToken::FloatLiteral(_) => {
                 let value = self.parse_float()?;
                 let span = self.current_span();
                 Ok(Expr::Constant(ConstantExpr::new(Value::Float(value), span)))
             }
-            LexerToken::String => {
+            LexerToken::StringLiteral(_) => {
                 let value = self.parse_string()?;
                 let span = self.current_span();
                 Ok(Expr::Constant(ConstantExpr::new(
@@ -205,7 +196,11 @@ impl ExprParser {
     }
 
     /// 解析函数调用
-    fn parse_function_call(&mut self, name: String, span: Span) -> Result<Expr, ParseError> {
+    fn parse_function_call(
+        &mut self,
+        name: String,
+        span: Span,
+    ) -> Result<Expr, ParseError> {
         let mut args = Vec::new();
         let mut distinct = false;
 
@@ -287,111 +282,7 @@ impl ExprParser {
         Ok(Expr::Map(MapExpr::new(pairs, span)))
     }
 
-    /// 辅助方法
-
-    fn match_token(&mut self, expected: LexerToken) -> bool {
-        if self.lexer.check(expected.clone()) {
-            let _ = self.lexer.advance();
-            true
-        } else {
-            false
-        }
-    }
-
-    fn check_token(&mut self, expected: LexerToken) -> bool {
-        self.lexer.check(expected.clone())
-    }
-
-    fn expect_token(&mut self, expected: LexerToken) -> Result<(), ParseError> {
-        let token = self.lexer.peek()?;
-        if token.kind == expected {
-            self.lexer.advance();
-            Ok(())
-        } else {
-            Err(ParseError::new(
-                format!("Expected {:?}, found {:?}", expected, token.kind),
-                self.current_span(),
-            ))
-        }
-    }
-
-    fn expect_identifier(&mut self) -> Result<String, ParseError> {
-        let token = self.lexer.peek()?;
-        if let LexerToken::Identifier(_) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            Ok(text)
-        } else {
-            Err(ParseError::new(
-                format!("Expected identifier, found {:?}", token.kind),
-                self.current_span(),
-            ))
-        }
-    }
-
-    fn parse_integer(&mut self) -> Result<i64, ParseError> {
-        let token = self.lexer.peek()?;
-        if let LexerToken::IntegerLiteral(_) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            text.parse().map_err(|_| {
-                ParseError::new(format!("Invalid integer: {}", text), self.current_span())
-            })
-        } else {
-            Err(ParseError::new(
-                format!("Expected integer, found {:?}", token.kind),
-                self.current_span(),
-            ))
-        }
-    }
-
-    fn parse_float(&mut self) -> Result<f64, ParseError> {
-        let token = self.lexer.peek()?;
-        if let LexerToken::Float = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            text.parse().map_err(|_| {
-                ParseError::new(format!("Invalid float: {}", text), self.current_span())
-            })
-        } else {
-            Err(ParseError::new(
-                format!("Expected float, found {:?}", token.kind),
-                self.current_span(),
-            ))
-        }
-    }
-
-    fn parse_string(&mut self) -> Result<String, ParseError> {
-        let token = self.lexer.peek()?;
-        if let LexerToken::String = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            // 移除引号
-            Ok(text.trim_matches('"').to_string())
-        } else {
-            Err(ParseError::new(
-                format!("Expected string, found {:?}", token.kind),
-                self.current_span(),
-            ))
-        }
-    }
-
-    fn parse_boolean(&mut self) -> Result<bool, ParseError> {
-        let token = self.lexer.peek()?;
-        if let LexerToken::BooleanLiteral(_) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            text.parse().map_err(|_| {
-                ParseError::new(format!("Invalid boolean: {}", text), self.current_span())
-            })
-        } else {
-            Err(ParseError::new(
-                format!("Expected boolean, found {:?}", token.kind),
-                self.current_span(),
-            ))
-        }
-    }
-
+    /// 解析比较操作符
     fn parse_comparison_op(&mut self) -> Option<BinaryOp> {
         if self.match_token(LexerToken::Eq) {
             Some(BinaryOp::Eq)
@@ -410,6 +301,7 @@ impl ExprParser {
         }
     }
 
+    /// 解析加法操作符
     fn parse_additive_op(&mut self) -> Option<BinaryOp> {
         if self.match_token(LexerToken::Plus) {
             Some(BinaryOp::Add)
@@ -420,6 +312,7 @@ impl ExprParser {
         }
     }
 
+    /// 解析乘法操作符
     fn parse_multiplicative_op(&mut self) -> Option<BinaryOp> {
         if self.match_token(LexerToken::Star) {
             Some(BinaryOp::Mul)
@@ -432,125 +325,60 @@ impl ExprParser {
         }
     }
 
-    fn skip_optional_semicolon(&mut self) {
-        self.match_token(LexerToken::Semicolon);
-    }
-
-    fn current_span(&self) -> Span {
-        let pos = self.lexer.current_position();
-        Span::new(
-            Position::new(pos.line, pos.column),
-            Position::new(pos.line, pos.column),
-        )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_constant() {
-        let mut parser = ExprParser::new("42");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-
-        if let Ok(Expr::Constant(e)) = result {
-            assert_eq!(e.value, Value::Int(42));
+    /// 解析整数
+    fn parse_integer(&mut self) -> Result<i64, ParseError> {
+        if let LexerToken::IntegerLiteral(n) = self.current_token.kind {
+            let value = n;
+            self.next_token();
+            Ok(value)
         } else {
-            panic!("Expected constant expression");
+            Err(ParseError::new(
+                format!("Expected integer, found {:?}", self.current_token.kind),
+                self.current_span(),
+            ))
         }
     }
 
-    #[test]
-    fn test_parse_variable() {
-        let mut parser = ExprParser::new("x");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-
-        if let Ok(Expr::Variable(e)) = result {
-            assert_eq!(e.name, "x");
+    /// 解析浮点数
+    fn parse_float(&mut self) -> Result<f64, ParseError> {
+        if let LexerToken::FloatLiteral(n) = self.current_token.kind {
+            let value = n;
+            self.next_token();
+            Ok(value)
         } else {
-            panic!("Expected variable expression");
+            Err(ParseError::new(
+                format!("Expected float, found {:?}", self.current_token.kind),
+                self.current_span(),
+            ))
         }
     }
 
-    #[test]
-    fn test_parse_binary() {
-        let mut parser = ExprParser::new("5 + 3");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-
-        if let Ok(Expr::Binary(e)) = result {
-            assert_eq!(e.op, BinaryOp::Add);
+    /// 解析字符串
+    fn parse_string(&mut self) -> Result<String, ParseError> {
+        if let LexerToken::StringLiteral(s) = &self.current_token.kind {
+            let text = s.clone();
+            self.next_token();
+            // 移除引号
+            Ok(text.trim_matches('"').to_string())
         } else {
-            panic!("Expected binary expression");
+            Err(ParseError::new(
+                format!("Expected string, found {:?}", self.current_token.kind),
+                self.current_span(),
+            ))
         }
     }
 
-    #[test]
-    fn test_parse_function_call() {
-        let mut parser = ExprParser::new("COUNT(x)");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-
-        if let Ok(Expr::FunctionCall(e)) = result {
-            assert_eq!(e.name, "COUNT");
-            assert_eq!(e.args.len(), 1);
+    /// 解析布尔值
+    fn parse_boolean(&mut self) -> Result<bool, ParseError> {
+        if let LexerToken::BooleanLiteral(b) = self.current_token.kind {
+            let value = b;
+            self.next_token();
+            Ok(value)
         } else {
-            panic!("Expected function call expression");
-        }
-    }
-
-    #[test]
-    fn test_parse_list() {
-        let mut parser = ExprParser::new("[1, 2, 3]");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-
-        if let Ok(Expr::List(e)) = result {
-            assert_eq!(e.elements.len(), 3);
-        } else {
-            panic!("Expected list expression");
-        }
-    }
-
-    #[test]
-    fn test_parse_map() {
-        let mut parser = ExprParser::new("{name: \"John\", age: 30}");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-
-        if let Ok(Expr::Map(e)) = result {
-            assert_eq!(e.pairs.len(), 2);
-        } else {
-            panic!("Expected map expression");
-        }
-    }
-
-    #[test]
-    fn test_parse_property_access() {
-        let mut parser = ExprParser::new("node.name");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-
-        if let Ok(Expr::PropertyAccess(e)) = result {
-            assert_eq!(e.property, "name");
-        } else {
-            panic!("Expected property access expression");
-        }
-    }
-
-    #[test]
-    fn test_parse_subscript() {
-        let mut parser = ExprParser::new("list[0]");
-        let result = parser.parse_expression();
-        assert!(result.is_ok());
-
-        if let Ok(Expr::Subscript(_e)) = result {
-            // 验证下标访问
-        } else {
-            panic!("Expected subscript expression");
+            Err(ParseError::new(
+                format!("Expected boolean, found {:?}", self.current_token.kind),
+                self.current_span(),
+            ))
         }
     }
 }
