@@ -3,7 +3,7 @@
 
 use super::basic_context::BasicValidateContext;
 use super::generators::{AnonColGenerator, AnonVarGenerator, GeneratorFactory};
-use super::schema::{SchemaInfo, SchemaProvider};
+use super::schema::{self, SchemaInfo, SchemaProvider};
 use super::types::{ColsDef, SpaceInfo, Variable};
 use crate::core::symbol::SymbolTable;
 use crate::core::Value;
@@ -96,25 +96,14 @@ impl ValidateContext {
         }
     }
 
-    /// 验证变量类型是否符合Schema（简化版本，保持向后兼容）
-    pub fn validate_var_against_schema(
-        &self,
-        var_name: &str,
-        schema_name: &str,
-    ) -> Result<bool, String> {
-        let result = self.validate_var_against_schema_detailed(var_name, schema_name,
-            &super::schema::ValidationMode::Lenient, None)?;
-        Ok(result.is_valid)
-    }
-
-    /// 验证变量类型是否符合Schema（详细版本）
+    /// 验证变量类型是否符合Schema
     pub fn validate_var_against_schema_detailed(
         &self,
         var_name: &str,
         schema_name: &str,
-        mode: &super::schema::ValidationMode,
+        mode: &schema::ValidationMode,
         required_fields: Option<&[String]>,
-    ) -> Result<super::schema::SchemaValidationResult, String> {
+    ) -> Result<schema::SchemaValidationResult, String> {
         let schema = match self.get_schema(schema_name) {
             Some(s) => s,
             None => return Err(format!("Schema '{}' not found", schema_name)),
@@ -122,8 +111,8 @@ impl ValidateContext {
 
         let var_cols = self.get_var(var_name);
         if var_cols.is_empty() {
-            return Ok(super::schema::SchemaValidationResult::failure(vec![
-                super::schema::SchemaValidationError::MissingRequiredField("变量无列定义".to_string())
+            return Ok(schema::SchemaValidationResult::failure(vec![
+                schema::SchemaValidationError::MissingRequiredField("变量无列定义".to_string()),
             ]));
         }
 
@@ -489,8 +478,8 @@ impl Default for ValidateContext {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::Column;
+    use super::*;
 
     struct MockSchemaProvider;
 
@@ -614,20 +603,27 @@ mod tests {
         ];
         ctx.register_variable("p".to_string(), cols);
 
-        // 验证变量是否符合Schema - 应该成功
-        let result = ctx.validate_var_against_schema("p", "person");
-        assert!(result.is_ok());
-        assert!(result.unwrap()); // 现在应该返回true
-
-        // 测试详细验证
+        // 测试详细验证 - 严格模式
         let detailed_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &super::schema::ValidationMode::Strict,
-            None
+            &schema::ValidationMode::Strict,
+            None,
         );
         assert!(detailed_result.is_ok());
         let validation_result = detailed_result.unwrap();
+        assert!(validation_result.is_valid);
+        assert!(validation_result.errors.is_empty());
+
+        // 测试详细验证 - 宽松模式
+        let lenient_result = ctx.validate_var_against_schema_detailed(
+            "p",
+            "person",
+            &schema::ValidationMode::Lenient,
+            None,
+        );
+        assert!(lenient_result.is_ok());
+        let validation_result = lenient_result.unwrap();
         assert!(validation_result.is_valid);
         assert!(validation_result.errors.is_empty());
     }
@@ -661,23 +657,18 @@ mod tests {
         ];
         ctx.register_variable("p".to_string(), cols);
 
-        // 验证变量是否符合Schema - 应该失败
-        let result = ctx.validate_var_against_schema("p", "person");
-        assert!(result.is_ok());
-        assert!(!result.unwrap()); // 应该返回false
-
-        // 测试详细验证
+        // 测试详细验证 - 宽松模式
         let detailed_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &super::schema::ValidationMode::Lenient,
-            None
+            &schema::ValidationMode::Lenient,
+            None,
         );
         assert!(detailed_result.is_ok());
         let validation_result = detailed_result.unwrap();
         assert!(!validation_result.is_valid);
         assert!(!validation_result.errors.is_empty());
-        
+
         // 检查错误类型
         let type_errors = ctx.validate_var_field_types("p", "person").unwrap();
         assert!(!type_errors.is_empty());
@@ -718,8 +709,8 @@ mod tests {
         let lenient_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &super::schema::ValidationMode::Lenient,
-            None
+            &schema::ValidationMode::Lenient,
+            None,
         );
         assert!(lenient_result.is_ok());
         let validation_result = lenient_result.unwrap();
@@ -729,13 +720,13 @@ mod tests {
         let strict_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &super::schema::ValidationMode::Strict,
-            None
+            &schema::ValidationMode::Strict,
+            None,
         );
         assert!(strict_result.is_ok());
         let validation_result = strict_result.unwrap();
         assert!(!validation_result.is_valid);
-        
+
         // 检查缺失字段
         let missing_fields = ctx.check_var_missing_fields("p", "person").unwrap();
         assert!(missing_fields.contains(&"age".to_string()));
@@ -778,13 +769,13 @@ mod tests {
         let lenient_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &super::schema::ValidationMode::Lenient,
-            None
+            &schema::ValidationMode::Lenient,
+            None,
         );
         assert!(lenient_result.is_ok());
         let validation_result = lenient_result.unwrap();
         assert!(!validation_result.is_valid);
-        
+
         // 检查额外字段
         let extra_fields = ctx.check_var_extra_fields("p", "person").unwrap();
         assert!(extra_fields.contains(&"email".to_string()));
@@ -828,8 +819,8 @@ mod tests {
         let required_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &super::schema::ValidationMode::RequiredOnly,
-            Some(&required_fields)
+            &schema::ValidationMode::RequiredOnly,
+            Some(&required_fields),
         );
         assert!(required_result.is_ok());
         let validation_result = required_result.unwrap();
@@ -840,8 +831,8 @@ mod tests {
         let missing_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &super::schema::ValidationMode::RequiredOnly,
-            Some(&required_fields_missing)
+            &schema::ValidationMode::RequiredOnly,
+            Some(&required_fields_missing),
         );
         assert!(missing_result.is_ok());
         let validation_result = missing_result.unwrap();

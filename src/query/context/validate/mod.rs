@@ -18,7 +18,7 @@ pub mod context;
 // 重新导出主要类型，方便外部使用
 pub use types::{SpaceInfo, Column, ColsDef, Variable};
 pub use basic_context::BasicValidateContext;
-pub use schema::{SchemaProvider, SchemaInfo, SchemaManager};
+pub use schema::{SchemaProvider, SchemaInfo, SchemaManager, SchemaValidationError, SchemaValidationResult, ValidationMode};
 pub use generators::{AnonVarGenerator, AnonColGenerator, GeneratorFactory};
 pub use context::ValidateContext;
 

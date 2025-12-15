@@ -392,4 +392,141 @@ mod tests {
         let removed_again = manager.remove_schema("test");
         assert!(removed_again.is_none());
     }
+
+    #[test]
+    fn test_schema_validation_errors() {
+        let error = SchemaValidationError::FieldNotFound("id".to_string());
+        assert_eq!(error.to_string(), "字段 'id' 在Schema中不存在");
+        
+        let error = SchemaValidationError::TypeMismatch("age".to_string(), "INT".to_string(), "STRING".to_string());
+        assert_eq!(error.to_string(), "字段 'age' 类型不匹配: 期望 'INT', 实际 'STRING'");
+        
+        let error = SchemaValidationError::MissingRequiredField("name".to_string());
+        assert_eq!(error.to_string(), "缺少必需字段 'name'");
+        
+        let error = SchemaValidationError::ExtraField("email".to_string());
+        assert_eq!(error.to_string(), "变量中包含Schema中未定义的字段 'email'");
+    }
+
+    #[test]
+    fn test_schema_validation_result() {
+        let mut result = SchemaValidationResult::success();
+        assert!(result.is_valid);
+        assert!(result.errors.is_empty());
+        
+        result.add_error(SchemaValidationError::FieldNotFound("id".to_string()));
+        assert!(!result.is_valid);
+        assert_eq!(result.errors.len(), 1);
+        
+        let failure = SchemaValidationResult::failure(vec![
+            SchemaValidationError::TypeMismatch("age".to_string(), "INT".to_string(), "STRING".to_string())
+        ]);
+        assert!(!failure.is_valid);
+        assert_eq!(failure.errors.len(), 1);
+    }
+
+    #[test]
+    fn test_schema_info_validate_columns() {
+        let mut schema = SchemaInfo::new("person".to_string(), true);
+        schema.add_field("id".to_string(), "INT".to_string());
+        schema.add_field("name".to_string(), "STRING".to_string());
+        schema.add_field("age".to_string(), "INT".to_string());
+
+        // 测试完全匹配的情况
+        let cols = vec![
+            crate::query::context::validate::types::Column::new("id".to_string(), "INT".to_string()),
+            crate::query::context::validate::types::Column::new("name".to_string(), "STRING".to_string()),
+            crate::query::context::validate::types::Column::new("age".to_string(), "INT".to_string()),
+        ];
+        
+        let result = schema.validate_columns(&cols, &ValidationMode::Strict, None);
+        assert!(result.is_valid);
+        assert!(result.errors.is_empty());
+
+        // 测试类型不匹配
+        let wrong_type_cols = vec![
+            crate::query::context::validate::types::Column::new("id".to_string(), "STRING".to_string()), // 错误类型
+            crate::query::context::validate::types::Column::new("name".to_string(), "STRING".to_string()),
+        ];
+        
+        let result = schema.validate_columns(&wrong_type_cols, &ValidationMode::Lenient, None);
+        assert!(!result.is_valid);
+        assert!(!result.errors.is_empty());
+        match &result.errors[0] {
+            SchemaValidationError::TypeMismatch(field, expected, actual) => {
+                assert_eq!(field, "id");
+                assert_eq!(expected, "INT");
+                assert_eq!(actual, "STRING");
+            }
+            _ => panic!("期望类型不匹配错误"),
+        }
+
+        // 测试缺少字段
+        let missing_cols = vec![
+            crate::query::context::validate::types::Column::new("id".to_string(), "INT".to_string()),
+            crate::query::context::validate::types::Column::new("name".to_string(), "STRING".to_string()),
+            // 缺少 age 字段
+        ];
+        
+        let result = schema.validate_columns(&missing_cols, &ValidationMode::Strict, None);
+        assert!(!result.is_valid);
+        assert!(!result.errors.is_empty());
+        match &result.errors[0] {
+            SchemaValidationError::MissingRequiredField(field) => {
+                assert_eq!(field, "age");
+            }
+            _ => panic!("期望缺少必需字段错误"),
+        }
+
+        // 测试额外字段
+        let extra_cols = vec![
+            crate::query::context::validate::types::Column::new("id".to_string(), "INT".to_string()),
+            crate::query::context::validate::types::Column::new("name".to_string(), "STRING".to_string()),
+            crate::query::context::validate::types::Column::new("email".to_string(), "STRING".to_string()), // 额外字段
+        ];
+        
+        let result = schema.validate_columns(&extra_cols, &ValidationMode::Lenient, None);
+        assert!(!result.is_valid);
+        assert!(!result.errors.is_empty());
+        match &result.errors[0] {
+            SchemaValidationError::FieldNotFound(field) => {
+                assert_eq!(field, "email");
+            }
+            _ => panic!("期望字段未找到错误"),
+        }
+
+        // 测试必需字段模式
+        let required_fields = vec!["id".to_string(), "name".to_string()];
+        let result = schema.validate_columns(&missing_cols, &ValidationMode::RequiredOnly, Some(&required_fields));
+        assert!(result.is_valid); // 只验证必需字段，应该成功
+    }
+
+    #[test]
+    fn test_schema_info_helper_methods() {
+        let mut schema = SchemaInfo::new("person".to_string(), true);
+        schema.add_field("id".to_string(), "INT".to_string());
+        schema.add_field("name".to_string(), "STRING".to_string());
+
+        let cols = vec![
+            crate::query::context::validate::types::Column::new("id".to_string(), "INT".to_string()),
+            crate::query::context::validate::types::Column::new("email".to_string(), "STRING".to_string()), // 额外字段
+        ];
+
+        // 测试额外字段检测
+        let extra_fields = schema.has_extra_fields(&cols);
+        assert_eq!(extra_fields.len(), 1);
+        assert!(extra_fields.contains(&"email".to_string()));
+
+        // 测试缺失字段检测
+        let missing_fields = schema.get_missing_fields(&cols);
+        assert_eq!(missing_fields.len(), 1);
+        assert!(missing_fields.contains(&"name".to_string()));
+
+        // 测试字段信息获取
+        let field_info = schema.get_field_info("id");
+        assert!(field_info.is_some());
+        let (name, type_) = field_info.unwrap();
+        assert_eq!(name, "id");
+        assert_eq!(type_, "INT");
+    }
 }
