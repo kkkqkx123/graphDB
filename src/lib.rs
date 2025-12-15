@@ -17,7 +17,7 @@ pub mod stats;
 // Re-export common types at the crate root for convenience
 pub use crate::core::{Vertex, Edge, Value, Direction, Tag, Path, Step, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, error::{Status, StatusOr}};
 pub use crate::storage::{StorageEngine, NativeStorage, StorageError};
-pub use crate::query::{Query, QueryResult, QueryExecutor, QueryError};
+pub use crate::query::{Query, QueryResult, QueryExecutor, QueryError, QueryConverter};
 pub use crate::config::Config;
 
 // Re-export commonly used types from submodules

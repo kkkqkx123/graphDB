@@ -1,16 +1,17 @@
 #[cfg(test)]
 mod parser_tests {
-    use crate::query::{QueryParser, Query, Condition};
-    use crate::core::{Value, Tag};
+    use crate::core::{Tag, Value};
+    use crate::query::parser::query_parser::QueryParser;
+    use crate::query::{Condition, Query};
 
     #[test]
     fn test_parse_simple_match() {
         let parser = QueryParser;
         let query = "MATCH (n) RETURN n";
-        
+
         let result = parser.parse(query);
         assert!(result.is_ok());
-        
+
         match result.unwrap() {
             Query::MatchNodes { tags, conditions } => {
                 // Should have no specific tags requested
@@ -26,10 +27,10 @@ mod parser_tests {
     fn test_parse_match_with_label() {
         let parser = QueryParser;
         let query = "MATCH (n:Person) RETURN n";
-        
+
         let result = parser.parse(query);
         assert!(result.is_ok());
-        
+
         match result.unwrap() {
             Query::MatchNodes { tags, conditions } => {
                 // Should have the 'Person' tag requested
@@ -44,23 +45,23 @@ mod parser_tests {
     fn test_parse_match_with_condition() {
         let parser = QueryParser;
         let query = "MATCH (n:Person) WHERE n.age > 18 RETURN n";
-        
+
         let result = parser.parse(query);
         assert!(result.is_ok());
-        
+
         match result.unwrap() {
             Query::MatchNodes { tags, conditions } => {
                 assert_eq!(tags, Some(vec!["Person".to_string()]));
                 assert_eq!(conditions.len(), 1);
-                
+
                 match &conditions[0] {
                     Condition::PropertyGreaterThan(prop_name, value) => {
                         assert_eq!(prop_name, "age");
                         match value {
-                            Value::Int(18) => {}, // Correct
+                            Value::Int(18) => {} // Correct
                             _ => panic!("Expected integer value 18"),
                         }
-                    },
+                    }
                     _ => panic!("Expected PropertyGreaterThan condition"),
                 }
             }
@@ -72,19 +73,22 @@ mod parser_tests {
     fn test_parse_create_node() {
         let parser = QueryParser;
         let query = "CREATE VERTEX (Person) SET {name: 'Alice', age: 30}";
-        
+
         let result = parser.parse(query);
         assert!(result.is_ok());
-        
+
         match result.unwrap() {
             Query::CreateNode { id: _, tags } => {
                 assert_eq!(tags.len(), 1);
                 let tag = &tags[0];
                 assert_eq!(tag.name, "Person");
-                
+
                 // Check properties
                 assert_eq!(tag.properties.len(), 2);
-                assert_eq!(tag.properties.get("name"), Some(&Value::String("Alice".to_string())));
+                assert_eq!(
+                    tag.properties.get("name"),
+                    Some(&Value::String("Alice".to_string()))
+                );
                 assert_eq!(tag.properties.get("age"), Some(&Value::Int(30)));
             }
             _ => panic!("Expected CreateNode query"),
@@ -95,12 +99,12 @@ mod parser_tests {
     fn test_parse_create_edge() {
         let parser = QueryParser;
         let query = "CREATE EDGE friendship -> (srcId) -> (dstId) SET {since: 2022}";
-        
+
         // Note: The current parser implementation has limitations in parsing
         // edge creation as per our data model. This test would require
         // more sophisticated handling.
         let result = parser.parse(query);
-        
+
         // For now, we'll just check that it doesn't crash
         // The proper implementation would depend on exact syntax requirements
         if result.is_err() {
@@ -123,17 +127,15 @@ mod parser_tests {
     fn test_parse_delete_node() {
         let parser = QueryParser;
         let query = "DELETE VERTEX 'some_id'";
-        
+
         let result = parser.parse(query);
         assert!(result.is_ok());
-        
+
         match result.unwrap() {
-            Query::DeleteNode { id } => {
-                match id {
-                    Value::String(s) => assert_eq!(s, "some_id"),
-                    _ => panic!("Expected string ID"),
-                }
-            }
+            Query::DeleteNode { id } => match id {
+                Value::String(s) => assert_eq!(s, "some_id"),
+                _ => panic!("Expected string ID"),
+            },
             _ => panic!("Expected DeleteNode query"),
         }
     }
@@ -142,17 +144,17 @@ mod parser_tests {
     fn test_parse_update_node() {
         let parser = QueryParser;
         let query = "UPDATE VERTEX 'some_id' SET name = 'UpdatedName'";
-        
+
         let result = parser.parse(query);
         assert!(result.is_ok());
-        
+
         match result.unwrap() {
             Query::UpdateNode { id, tags } => {
                 match id {
                     Value::String(s) => assert_eq!(s, "some_id"),
                     _ => panic!("Expected string ID"),
                 }
-                
+
                 // Should have at least one tag with the updated property
                 assert!(!tags.is_empty());
             }
@@ -164,11 +166,11 @@ mod parser_tests {
     fn test_invalid_syntax() {
         let parser = QueryParser;
         let query = "MATCH (n INVALID SYNTAX";
-        
+
         let result = parser.parse(query);
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_lexer_functionality() {
         use crate::query::parser::lexer::lexer::Lexer;
@@ -184,7 +186,8 @@ mod parser_tests {
             } else {
                 Some(token)
             }
-        }).collect();
+        })
+        .collect();
 
         // Check that the first token is CREATE
         assert_eq!(tokens[0].kind, TokenKind::Create);

@@ -3,6 +3,82 @@
 
 use std::collections::HashMap;
 
+/// Schema验证错误类型
+#[derive(Debug, Clone, PartialEq)]
+pub enum SchemaValidationError {
+    /// 字段在Schema中不存在
+    FieldNotFound(String),
+    /// 字段类型不匹配 (字段名, 期望类型, 实际类型)
+    TypeMismatch(String, String, String),
+    /// 缺少必需字段
+    MissingRequiredField(String),
+    /// 变量中有Schema中未定义的字段
+    ExtraField(String),
+}
+
+impl std::fmt::Display for SchemaValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SchemaValidationError::FieldNotFound(field) => {
+                write!(f, "字段 '{}' 在Schema中不存在", field)
+            }
+            SchemaValidationError::TypeMismatch(field, expected, actual) => {
+                write!(f, "字段 '{}' 类型不匹配: 期望 '{}', 实际 '{}'", field, expected, actual)
+            }
+            SchemaValidationError::MissingRequiredField(field) => {
+                write!(f, "缺少必需字段 '{}'", field)
+            }
+            SchemaValidationError::ExtraField(field) => {
+                write!(f, "变量中包含Schema中未定义的字段 '{}'", field)
+            }
+        }
+    }
+}
+
+/// Schema验证结果
+#[derive(Debug, Clone)]
+pub struct SchemaValidationResult {
+    /// 是否验证通过
+    pub is_valid: bool,
+    /// 验证错误列表
+    pub errors: Vec<SchemaValidationError>,
+}
+
+impl SchemaValidationResult {
+    /// 创建成功的验证结果
+    pub fn success() -> Self {
+        Self {
+            is_valid: true,
+            errors: Vec::new(),
+        }
+    }
+
+    /// 创建失败的验证结果
+    pub fn failure(errors: Vec<SchemaValidationError>) -> Self {
+        Self {
+            is_valid: false,
+            errors,
+        }
+    }
+
+    /// 添加错误
+    pub fn add_error(&mut self, error: SchemaValidationError) {
+        self.is_valid = false;
+        self.errors.push(error);
+    }
+}
+
+/// Schema验证模式
+#[derive(Debug, Clone, PartialEq)]
+pub enum ValidationMode {
+    /// 严格模式：变量字段必须与Schema完全匹配
+    Strict,
+    /// 宽松模式：允许变量中有额外字段，但类型必须匹配
+    Lenient,
+    /// 必需字段模式：只验证必需字段存在且类型匹配
+    RequiredOnly,
+}
+
 /// Schema提供者trait（简化版）
 pub trait SchemaProvider: Send + Sync {
     fn get_schema(&self, name: &str) -> Option<SchemaInfo>;
@@ -50,6 +126,95 @@ impl SchemaInfo {
     /// 验证字段类型是否匹配
     pub fn validate_field_type(&self, name: &str, expected_type: &str) -> bool {
         self.fields.get(name).map_or(false, |t| t == expected_type)
+    }
+
+    /// 验证变量列定义是否符合Schema
+    ///
+    /// # 参数
+    /// * `var_cols` - 变量的列定义
+    /// * `mode` - 验证模式
+    /// * `required_fields` - 必需字段列表（可选）
+    ///
+    /// # 返回值
+    /// 返回验证结果，包含详细的错误信息
+    pub fn validate_columns(
+        &self,
+        var_cols: &super::types::ColsDef,
+        mode: &ValidationMode,
+        required_fields: Option<&[String]>,
+    ) -> SchemaValidationResult {
+        let mut result = SchemaValidationResult::success();
+
+        // 检查变量中的每个字段
+        for col in var_cols {
+            // 检查字段是否在Schema中定义
+            if !self.has_field(&col.name) {
+                result.add_error(SchemaValidationError::FieldNotFound(col.name.clone()));
+                continue;
+            }
+
+            // 检查字段类型是否匹配
+            if let Some(schema_type) = self.get_field_type(&col.name) {
+                if schema_type != &col.type_ {
+                    result.add_error(SchemaValidationError::TypeMismatch(
+                        col.name.clone(),
+                        schema_type.clone(),
+                        col.type_.clone(),
+                    ));
+                }
+            }
+        }
+
+        // 根据验证模式进行额外检查
+        match mode {
+            ValidationMode::Strict => {
+                // 严格模式：检查Schema中的所有字段是否都在变量中
+                for schema_field in self.get_field_names() {
+                    if !var_cols.iter().any(|c| c.name == schema_field) {
+                        result.add_error(SchemaValidationError::MissingRequiredField(schema_field));
+                    }
+                }
+            }
+            ValidationMode::Lenient => {
+                // 宽松模式：不需要额外检查
+            }
+            ValidationMode::RequiredOnly => {
+                // 必需字段模式：检查指定的必需字段是否存在
+                if let Some(required) = required_fields {
+                    for required_field in required {
+                        if !var_cols.iter().any(|c| c.name == *required_field) {
+                            result.add_error(SchemaValidationError::MissingRequiredField(
+                                required_field.clone(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        result
+    }
+
+    /// 获取字段的详细信息
+    pub fn get_field_info(&self, name: &str) -> Option<(String, &String)> {
+        self.fields.get(name).map(|t| (name.to_string(), t))
+    }
+
+    /// 检查变量列是否包含Schema中未定义的字段
+    pub fn has_extra_fields(&self, var_cols: &super::types::ColsDef) -> Vec<String> {
+        var_cols
+            .iter()
+            .filter(|col| !self.has_field(&col.name))
+            .map(|col| col.name.clone())
+            .collect()
+    }
+
+    /// 获取缺失的字段列表
+    pub fn get_missing_fields(&self, var_cols: &super::types::ColsDef) -> Vec<String> {
+        self.get_field_names()
+            .into_iter()
+            .filter(|field| !var_cols.iter().any(|c| c.name == *field))
+            .collect()
     }
 }
 

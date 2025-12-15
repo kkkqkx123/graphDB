@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::storage::NativeStorage;
-use crate::query::{QueryParser, QueryExecutor as QueryExecutorImpl};
+use crate::query::{QueryConverter, QueryExecutor as QueryExecutorImpl};
 use crate::api::session::ClientSession;
 
 #[derive(Debug)]
@@ -40,7 +40,7 @@ impl QueryEngine {
         let start_time = std::time::Instant::now();
 
         // Parse the query
-        let parser = QueryParser;
+        let parser = QueryConverter;
         match parser.parse(&rctx.statement) {
             Ok(query) => {
                 // Use the shared storage to create a query executor

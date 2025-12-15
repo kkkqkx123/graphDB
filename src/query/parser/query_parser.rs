@@ -5,12 +5,97 @@ use crate::query::context::{
     AstContext, GoContext, FetchVerticesContext, FetchEdgesContext, 
     LookupContext, PathContext, SubgraphContext, Starts, Over, StepClause, MaintainContext
 };
+use crate::query::Query;
 
 /// 查询解析器
 #[derive(Debug, Clone)]
 pub struct QueryParser;
 
 impl QueryParser {
+    /// 解析查询字符串
+    pub fn parse(&self, query: &str) -> Result<Query, ParseError> {
+        // 简单的查询字符串解析
+        let query_upper = query.to_uppercase();
+        
+        if query_upper.starts_with("MATCH") {
+            Self::parse_match_query(query)
+        } else if query_upper.starts_with("CREATE VERTEX") {
+            Self::parse_create_node_query(query)
+        } else if query_upper.starts_with("CREATE EDGE") {
+            Self::parse_create_edge_query(query)
+        } else if query_upper.starts_with("DELETE VERTEX") {
+            Self::parse_delete_node_query(query)
+        } else if query_upper.starts_with("UPDATE VERTEX") {
+            Self::parse_update_node_query(query)
+        } else {
+            Err(ParseError::ParseError("未知的查询类型".to_string()))
+        }
+    }
+    
+    /// 解析MATCH查询
+    fn parse_match_query(query: &str) -> Result<Query, ParseError> {
+        // 提取标签（如果有）
+        let tags = if query.contains(":") {
+            let start = query.find(":").unwrap();
+            let end = query[start+1..].find(")").unwrap();
+            let tag_str = query[start+1..start+1+end].trim();
+            Some(vec![tag_str.to_string()])
+        } else {
+            None
+        };
+        
+        Ok(Query::MatchNodes {
+            tags,
+            conditions: vec![],
+        })
+    }
+    
+    /// 解析CREATE VERTEX查询
+    fn parse_create_node_query(query: &str) -> Result<Query, ParseError> {
+        // 简单的实现，需要更复杂的解析
+        Ok(Query::CreateNode {
+            id: Some(crate::core::Value::String(uuid::Uuid::new_v4().to_string())),
+            tags: vec![],
+        })
+    }
+    
+    /// 解析CREATE EDGE查询
+    fn parse_create_edge_query(query: &str) -> Result<Query, ParseError> {
+        Ok(Query::CreateEdge {
+            src: crate::core::Value::String("".to_string()),
+            dst: crate::core::Value::String("".to_string()),
+            edge_type: "".to_string(),
+            name: "".to_string(),
+            ranking: 0,
+            properties: Default::default(),
+        })
+    }
+    
+    /// 解析DELETE VERTEX查询
+    fn parse_delete_node_query(query: &str) -> Result<Query, ParseError> {
+        // 提取ID
+        let id_start = query.find("'").unwrap_or(0);
+        let id_end = query[id_start+1..].find("'").unwrap_or(0);
+        let id = query[id_start+1..id_start+1+id_end].to_string();
+        
+        Ok(Query::DeleteNode {
+            id: crate::core::Value::String(id),
+        })
+    }
+    
+    /// 解析UPDATE VERTEX查询
+    fn parse_update_node_query(query: &str) -> Result<Query, ParseError> {
+        // 提取ID
+        let id_start = query.find("'").unwrap_or(0);
+        let id_end = query[id_start+1..].find("'").unwrap_or(0);
+        let id = query[id_start+1..id_start+1+id_end].to_string();
+        
+        Ok(Query::UpdateNode {
+            id: crate::core::Value::String(id),
+            tags: vec![],
+        })
+    }
+
     /// 解析查询并返回对应的上下文
     pub fn parse_query(ast_ctx: &AstContext) -> Result<Box<dyn QueryContext>, ParseError> {
         let statement_type = ast_ctx.statement_type().to_uppercase();

@@ -96,12 +96,25 @@ impl ValidateContext {
         }
     }
 
-    /// 验证变量类型是否符合Schema
+    /// 验证变量类型是否符合Schema（简化版本，保持向后兼容）
     pub fn validate_var_against_schema(
         &self,
         var_name: &str,
         schema_name: &str,
     ) -> Result<bool, String> {
+        let result = self.validate_var_against_schema_detailed(var_name, schema_name,
+            &super::schema::ValidationMode::Lenient, None)?;
+        Ok(result.is_valid)
+    }
+
+    /// 验证变量类型是否符合Schema（详细版本）
+    pub fn validate_var_against_schema_detailed(
+        &self,
+        var_name: &str,
+        schema_name: &str,
+        mode: &super::schema::ValidationMode,
+        required_fields: Option<&[String]>,
+    ) -> Result<super::schema::SchemaValidationResult, String> {
         let schema = match self.get_schema(schema_name) {
             Some(s) => s,
             None => return Err(format!("Schema '{}' not found", schema_name)),
@@ -109,17 +122,73 @@ impl ValidateContext {
 
         let var_cols = self.get_var(var_name);
         if var_cols.is_empty() {
-            return Ok(false);
+            return Ok(super::schema::SchemaValidationResult::failure(vec![
+                super::schema::SchemaValidationError::MissingRequiredField("变量无列定义".to_string())
+            ]));
         }
 
-        // 简化验证：检查变量列是否在Schema中定义
+        // 使用Schema的详细验证方法
+        Ok(schema.validate_columns(&var_cols, mode, required_fields))
+    }
+
+    /// 验证变量字段类型是否匹配Schema
+    pub fn validate_var_field_types(
+        &self,
+        var_name: &str,
+        schema_name: &str,
+    ) -> Result<Vec<String>, String> {
+        let schema = match self.get_schema(schema_name) {
+            Some(s) => s,
+            None => return Err(format!("Schema '{}' not found", schema_name)),
+        };
+
+        let var_cols = self.get_var(var_name);
+        let mut type_errors = Vec::new();
+
         for col in &var_cols {
-            if !schema.has_field(&col.name) {
-                return Ok(false);
+            if let Some(schema_type) = schema.get_field_type(&col.name) {
+                if schema_type != &col.type_ {
+                    type_errors.push(format!(
+                        "字段 '{}' 类型不匹配: 期望 '{}', 实际 '{}'",
+                        col.name, schema_type, col.type_
+                    ));
+                }
+            } else {
+                type_errors.push(format!("字段 '{}' 在Schema中不存在", col.name));
             }
         }
 
-        Ok(true)
+        Ok(type_errors)
+    }
+
+    /// 检查变量是否包含Schema中未定义的字段
+    pub fn check_var_extra_fields(
+        &self,
+        var_name: &str,
+        schema_name: &str,
+    ) -> Result<Vec<String>, String> {
+        let schema = match self.get_schema(schema_name) {
+            Some(s) => s,
+            None => return Err(format!("Schema '{}' not found", schema_name)),
+        };
+
+        let var_cols = self.get_var(var_name);
+        Ok(schema.has_extra_fields(&var_cols))
+    }
+
+    /// 检查变量是否缺少Schema中的字段
+    pub fn check_var_missing_fields(
+        &self,
+        var_name: &str,
+        schema_name: &str,
+    ) -> Result<Vec<String>, String> {
+        let schema = match self.get_schema(schema_name) {
+            Some(s) => s,
+            None => return Err(format!("Schema '{}' not found", schema_name)),
+        };
+
+        let var_cols = self.get_var(var_name);
+        Ok(schema.get_missing_fields(&var_cols))
     }
 
     /// 获取所有Schema名称
@@ -519,6 +588,7 @@ mod tests {
         let mut fields = HashMap::new();
         fields.insert("id".to_string(), "INT".to_string());
         fields.insert("name".to_string(), "STRING".to_string());
+        fields.insert("age".to_string(), "INT".to_string());
 
         let schema = SchemaInfo {
             name: "person".to_string(),
@@ -527,7 +597,111 @@ mod tests {
         };
         ctx.add_schema("person".to_string(), schema);
 
-        // 注册变量
+        // 注册变量 - 完全匹配Schema
+        let cols = vec![
+            Column {
+                name: "id".to_string(),
+                type_: "INT".to_string(),
+            },
+            Column {
+                name: "name".to_string(),
+                type_: "STRING".to_string(),
+            },
+            Column {
+                name: "age".to_string(),
+                type_: "INT".to_string(),
+            },
+        ];
+        ctx.register_variable("p".to_string(), cols);
+
+        // 验证变量是否符合Schema - 应该成功
+        let result = ctx.validate_var_against_schema("p", "person");
+        assert!(result.is_ok());
+        assert!(result.unwrap()); // 现在应该返回true
+
+        // 测试详细验证
+        let detailed_result = ctx.validate_var_against_schema_detailed(
+            "p",
+            "person",
+            &super::schema::ValidationMode::Strict,
+            None
+        );
+        assert!(detailed_result.is_ok());
+        let validation_result = detailed_result.unwrap();
+        assert!(validation_result.is_valid);
+        assert!(validation_result.errors.is_empty());
+    }
+
+    #[test]
+    fn test_schema_validation_type_mismatch() {
+        let mut ctx = ValidateContext::new();
+
+        // 添加Schema
+        let mut fields = HashMap::new();
+        fields.insert("id".to_string(), "INT".to_string());
+        fields.insert("name".to_string(), "STRING".to_string());
+
+        let schema = SchemaInfo {
+            name: "person".to_string(),
+            fields,
+            is_vertex: true,
+        };
+        ctx.add_schema("person".to_string(), schema);
+
+        // 注册变量 - 类型不匹配
+        let cols = vec![
+            Column {
+                name: "id".to_string(),
+                type_: "STRING".to_string(), // 错误：应该是INT
+            },
+            Column {
+                name: "name".to_string(),
+                type_: "STRING".to_string(),
+            },
+        ];
+        ctx.register_variable("p".to_string(), cols);
+
+        // 验证变量是否符合Schema - 应该失败
+        let result = ctx.validate_var_against_schema("p", "person");
+        assert!(result.is_ok());
+        assert!(!result.unwrap()); // 应该返回false
+
+        // 测试详细验证
+        let detailed_result = ctx.validate_var_against_schema_detailed(
+            "p",
+            "person",
+            &super::schema::ValidationMode::Lenient,
+            None
+        );
+        assert!(detailed_result.is_ok());
+        let validation_result = detailed_result.unwrap();
+        assert!(!validation_result.is_valid);
+        assert!(!validation_result.errors.is_empty());
+        
+        // 检查错误类型
+        let type_errors = ctx.validate_var_field_types("p", "person").unwrap();
+        assert!(!type_errors.is_empty());
+        assert!(type_errors[0].contains("类型不匹配"));
+    }
+
+    #[test]
+    fn test_schema_validation_missing_fields() {
+        let mut ctx = ValidateContext::new();
+
+        // 添加Schema
+        let mut fields = HashMap::new();
+        fields.insert("id".to_string(), "INT".to_string());
+        fields.insert("name".to_string(), "STRING".to_string());
+        fields.insert("age".to_string(), "INT".to_string());
+
+        let schema = SchemaInfo {
+            name: "person".to_string(),
+            fields,
+            is_vertex: true,
+        };
+        ctx.add_schema("person".to_string(), schema);
+
+        // 注册变量 - 缺少age字段
         let cols = vec![
             Column {
                 name: "id".to_string(),
@@ -540,10 +714,138 @@ mod tests {
         ];
         ctx.register_variable("p".to_string(), cols);
 
-        // 验证变量是否符合Schema
-        let result = ctx.validate_var_against_schema("p", "person");
-        // 由于我们的验证逻辑简化，这里会返回Ok(false)
-        assert!(result.is_ok());
+        // 测试宽松模式 - 应该成功（允许缺少字段）
+        let lenient_result = ctx.validate_var_against_schema_detailed(
+            "p",
+            "person",
+            &super::schema::ValidationMode::Lenient,
+            None
+        );
+        assert!(lenient_result.is_ok());
+        let validation_result = lenient_result.unwrap();
+        assert!(validation_result.is_valid);
+
+        // 测试严格模式 - 应该失败（不允许缺少字段）
+        let strict_result = ctx.validate_var_against_schema_detailed(
+            "p",
+            "person",
+            &super::schema::ValidationMode::Strict,
+            None
+        );
+        assert!(strict_result.is_ok());
+        let validation_result = strict_result.unwrap();
+        assert!(!validation_result.is_valid);
+        
+        // 检查缺失字段
+        let missing_fields = ctx.check_var_missing_fields("p", "person").unwrap();
+        assert!(missing_fields.contains(&"age".to_string()));
+    }
+
+    #[test]
+    fn test_schema_validation_extra_fields() {
+        let mut ctx = ValidateContext::new();
+
+        // 添加Schema
+        let mut fields = HashMap::new();
+        fields.insert("id".to_string(), "INT".to_string());
+        fields.insert("name".to_string(), "STRING".to_string());
+
+        let schema = SchemaInfo {
+            name: "person".to_string(),
+            fields,
+            is_vertex: true,
+        };
+        ctx.add_schema("person".to_string(), schema);
+
+        // 注册变量 - 包含额外字段
+        let cols = vec![
+            Column {
+                name: "id".to_string(),
+                type_: "INT".to_string(),
+            },
+            Column {
+                name: "name".to_string(),
+                type_: "STRING".to_string(),
+            },
+            Column {
+                name: "email".to_string(), // 额外字段
+                type_: "STRING".to_string(),
+            },
+        ];
+        ctx.register_variable("p".to_string(), cols);
+
+        // 测试宽松模式 - 应该失败（不允许Schema中未定义的字段）
+        let lenient_result = ctx.validate_var_against_schema_detailed(
+            "p",
+            "person",
+            &super::schema::ValidationMode::Lenient,
+            None
+        );
+        assert!(lenient_result.is_ok());
+        let validation_result = lenient_result.unwrap();
+        assert!(!validation_result.is_valid);
+        
+        // 检查额外字段
+        let extra_fields = ctx.check_var_extra_fields("p", "person").unwrap();
+        assert!(extra_fields.contains(&"email".to_string()));
+    }
+
+    #[test]
+    fn test_schema_validation_required_only() {
+        let mut ctx = ValidateContext::new();
+
+        // 添加Schema
+        let mut fields = HashMap::new();
+        fields.insert("id".to_string(), "INT".to_string());
+        fields.insert("name".to_string(), "STRING".to_string());
+        fields.insert("age".to_string(), "INT".to_string());
+        fields.insert("email".to_string(), "STRING".to_string());
+
+        let schema = SchemaInfo {
+            name: "person".to_string(),
+            fields,
+            is_vertex: true,
+        };
+        ctx.add_schema("person".to_string(), schema);
+
+        // 注册变量 - 只包含必需字段
+        let cols = vec![
+            Column {
+                name: "id".to_string(),
+                type_: "INT".to_string(),
+            },
+            Column {
+                name: "name".to_string(),
+                type_: "STRING".to_string(),
+            },
+        ];
+        ctx.register_variable("p".to_string(), cols);
+
+        // 定义必需字段
+        let required_fields = vec!["id".to_string(), "name".to_string()];
+
+        // 测试必需字段模式 - 应该成功
+        let required_result = ctx.validate_var_against_schema_detailed(
+            "p",
+            "person",
+            &super::schema::ValidationMode::RequiredOnly,
+            Some(&required_fields)
+        );
+        assert!(required_result.is_ok());
+        let validation_result = required_result.unwrap();
+        assert!(validation_result.is_valid);
+
+        // 测试缺少必需字段的情况
+        let required_fields_missing = vec!["id".to_string(), "name".to_string(), "age".to_string()];
+        let missing_result = ctx.validate_var_against_schema_detailed(
+            "p",
+            "person",
+            &super::schema::ValidationMode::RequiredOnly,
+            Some(&required_fields_missing)
+        );
+        assert!(missing_result.is_ok());
+        let validation_result = missing_result.unwrap();
+        assert!(!validation_result.is_valid);
     }
 
     #[test]
