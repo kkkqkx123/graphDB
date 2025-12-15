@@ -192,38 +192,95 @@ impl RequestContext {
     }
 
     /// 创建带参数的请求上下文
-    pub fn with_parameters(query: String, parameters: HashMap<String, Value>) -> Self {
+    pub fn with_parameters(
+        query: String,
+        parameters: HashMap<String, Value>,
+        session_id: &str,
+        user_name: &str,
+        client_ip: &str,
+        client_port: u16,
+    ) -> Self {
         let session_info = SessionInfo::new(
-            "test_session".to_string(),
-            "test_user".to_string(),
-            "127.0.0.1".to_string(),
-            0,
+            session_id.to_string(),
+            user_name.to_string(),
+            client_ip.to_string(),
+            client_port,
         );
         let request_params = RequestParams::new(query).with_parameters(parameters);
         Self::new(session_info, request_params)
     }
 
     /// 创建带超时设置的请求上下文
-    pub fn with_timeout(query: String, timeout_ms: u64) -> Self {
+    pub fn with_timeout(
+        query: String,
+        timeout_ms: u64,
+        session_id: &str,
+        user_name: &str,
+        client_ip: &str,
+        client_port: u16,
+    ) -> Self {
         let session_info = SessionInfo::new(
-            "test_session".to_string(),
-            "test_user".to_string(),
-            "127.0.0.1".to_string(),
-            0,
+            session_id.to_string(),
+            user_name.to_string(),
+            client_ip.to_string(),
+            client_port,
         );
         let request_params = RequestParams::new(query).with_timeout(timeout_ms);
         Self::new(session_info, request_params)
     }
 
     /// 创建带重试设置的请求上下文
-    pub fn with_retry(query: String, max_retry_times: u32) -> Self {
+    pub fn with_retry(
+        query: String,
+        max_retry_times: u32,
+        session_id: &str,
+        user_name: &str,
+        client_ip: &str,
+        client_port: u16,
+    ) -> Self {
         let session_info = SessionInfo::new(
-            "test_session".to_string(),
-            "test_user".to_string(),
-            "127.0.0.1".to_string(),
-            0,
+            session_id.to_string(),
+            user_name.to_string(),
+            client_ip.to_string(),
+            client_port,
         );
         let request_params = RequestParams::new(query).with_max_retry(max_retry_times);
+        Self::new(session_info, request_params)
+    }
+
+    /// 基于现有请求上下文创建带参数的请求上下文
+    pub fn with_parameters_from_context(&self, parameters: HashMap<String, Value>) -> Self {
+        let session_info = self.session_info.clone().unwrap_or_else(|| SessionInfo::new(
+            "unknown_session".to_string(),
+            "unknown_user".to_string(),
+            "127.0.0.1".to_string(),
+            0,
+        ));
+        let request_params = RequestParams::new(self.request_params.query.clone()).with_parameters(parameters);
+        Self::new(session_info, request_params)
+    }
+
+    /// 基于现有请求上下文创建带超时设置的请求上下文
+    pub fn with_timeout_from_context(&self, timeout_ms: u64) -> Self {
+        let session_info = self.session_info.clone().unwrap_or_else(|| SessionInfo::new(
+            "unknown_session".to_string(),
+            "unknown_user".to_string(),
+            "127.0.0.1".to_string(),
+            0,
+        ));
+        let request_params = RequestParams::new(self.request_params.query.clone()).with_timeout(timeout_ms);
+        Self::new(session_info, request_params)
+    }
+
+    /// 基于现有请求上下文创建带重试设置的请求上下文
+    pub fn with_retry_from_context(&self, max_retry_times: u32) -> Self {
+        let session_info = self.session_info.clone().unwrap_or_else(|| SessionInfo::new(
+            "unknown_session".to_string(),
+            "unknown_user".to_string(),
+            "127.0.0.1".to_string(),
+            0,
+        ));
+        let request_params = RequestParams::new(self.request_params.query.clone()).with_max_retry(max_retry_times);
         Self::new(session_info, request_params)
     }
 
@@ -590,6 +647,10 @@ mod tests {
         let ctx = RequestContext::with_parameters(
             "MATCH (n) WHERE n.name = $name AND n.age = $age RETURN n".to_string(),
             params,
+            "custom_session",
+            "admin",
+            "192.168.1.100",
+            8080,
         );
 
         assert_eq!(
@@ -601,20 +662,94 @@ mod tests {
             Some(Value::String("Alice".to_string()))
         );
         assert_eq!(ctx.get_parameter("age"), Some(Value::Int(25)));
+        assert_eq!(ctx.session_id(), Some("custom_session"));
+        assert_eq!(ctx.user_name(), Some("admin"));
+        assert_eq!(ctx.client_ip(), Some("192.168.1.100"));
     }
 
     #[test]
     fn test_request_context_with_timeout() {
-        let ctx = RequestContext::with_timeout("LONG RUNNING QUERY".to_string(), 60000);
+        let ctx = RequestContext::with_timeout(
+            "LONG RUNNING QUERY".to_string(),
+            60000,
+            "timeout_session",
+            "user",
+            "192.168.1.200",
+            9090,
+        );
         assert_eq!(ctx.query(), "LONG RUNNING QUERY");
         assert_eq!(ctx.timeout_ms(), 60000);
+        assert_eq!(ctx.session_id(), Some("timeout_session"));
     }
 
     #[test]
     fn test_request_context_with_retry() {
-        let ctx = RequestContext::with_retry("QUERY WITH RETRY".to_string(), 5);
+        let ctx = RequestContext::with_retry(
+            "QUERY WITH RETRY".to_string(),
+            5,
+            "retry_session",
+            "retry_user",
+            "192.168.1.150",
+            7070,
+        );
         assert_eq!(ctx.query(), "QUERY WITH RETRY");
         assert_eq!(ctx.max_retry_times(), 5);
+        assert_eq!(ctx.session_id(), Some("retry_session"));
+    }
+
+    #[test]
+    fn test_request_context_with_parameters_from_context() {
+        let base_ctx = RequestContext::with_session(
+            "MATCH (n) RETURN n".to_string(),
+            "base_session",
+            "base_user",
+            "192.168.1.50",
+            6060,
+        );
+
+        let mut params = HashMap::new();
+        params.insert("limit".to_string(), Value::Int(10));
+
+        let new_ctx = base_ctx.with_parameters_from_context(params);
+
+        assert_eq!(new_ctx.query(), "MATCH (n) RETURN n");
+        assert_eq!(new_ctx.get_parameter("limit"), Some(Value::Int(10)));
+        assert_eq!(new_ctx.session_id(), Some("base_session"));
+        assert_eq!(new_ctx.user_name(), Some("base_user"));
+    }
+
+    #[test]
+    fn test_request_context_with_timeout_from_context() {
+        let base_ctx = RequestContext::with_session(
+            "LONG QUERY".to_string(),
+            "base_session",
+            "base_user",
+            "192.168.1.60",
+            5050,
+        );
+
+        let new_ctx = base_ctx.with_timeout_from_context(120000);
+
+        assert_eq!(new_ctx.query(), "LONG QUERY");
+        assert_eq!(new_ctx.timeout_ms(), 120000);
+        assert_eq!(new_ctx.session_id(), Some("base_session"));
+    }
+
+    #[test]
+    fn test_request_context_with_retry_from_context() {
+        let base_ctx = RequestContext::with_session(
+            "RETRY QUERY".to_string(),
+            "base_session",
+            "base_user",
+            "192.168.1.70",
+            4040,
+        );
+
+        let new_ctx = base_ctx.with_retry_from_context(10);
+
+        assert_eq!(new_ctx.query(), "RETRY QUERY");
+        assert_eq!(new_ctx.max_retry_times(), 10);
+        assert_eq!(new_ctx.session_id(), Some("base_session"));
     }
 
     #[test]
