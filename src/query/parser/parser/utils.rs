@@ -3,6 +3,7 @@
 //! 提供解析器使用的通用工具函数和辅助方法。
 
 use crate::query::parser::lexer::TokenKind as LexerToken;
+use crate::query::parser::{Token, TokenKind};
 use crate::query::parser::ast::types::{ParseError, Span, Position};
 
 impl super::Parser {
@@ -64,7 +65,7 @@ impl super::Parser {
     }
 
     /// 获取当前 token
-    pub fn current_token(&self) -> &crate::query::parser::core::token::Token {
+    pub fn current_token(&self) -> &Token {
         &self.current_token
     }
 
@@ -75,14 +76,14 @@ impl super::Parser {
     }
 
     /// 查看下一个 token 但不移动位置
-    pub fn peek_token(&self) -> crate::query::parser::core::token::TokenKind {
+    pub fn peek_token(&self) -> TokenKind {
         self.current_token.kind.clone()
     }
 
     /// 查看下一个 token 但不移动位置（返回整个 Token）
-    pub fn peek_next_token(&self) -> crate::query::parser::core::token::Token {
-        crate::query::parser::core::token::Token::new(
-            crate::query::parser::core::token::TokenKind::Eof,
+    pub fn peek_next_token(&self) -> Token {
+        Token::new(
+            TokenKind::Eof,
             String::new(),
             0,
             0,
@@ -92,7 +93,7 @@ impl super::Parser {
     /// 解析标识符
     pub fn parse_identifier(&mut self) -> Result<String, ParseError> {
         match &self.current_token.kind {
-            crate::query::parser::core::token::TokenKind::Identifier(s) => {
+            TokenKind::Identifier(s) => {
                 let id = s.clone();
                 self.next_token();
                 Ok(id)

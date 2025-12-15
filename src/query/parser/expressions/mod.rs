@@ -4,8 +4,7 @@
 //! implemented by different parser components.
 
 use crate::query::parser::ast::*;
-use crate::query::parser::core::error::ParseError;
-use crate::query::parser::core::token::{Token, TokenKind};
+use crate::query::parser::{ParseError, Token, TokenKind};
 
 pub trait TokenParser {
     fn expect_token(&mut self, expected: TokenKind) -> Result<Token, ParseError>;

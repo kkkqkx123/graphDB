@@ -1,7 +1,6 @@
 //! UPDATE语句解析器
 
-use crate::query::parser::core::error::ParseError;
-use crate::query::parser::core::token::TokenKind;
+use crate::query::parser::{ParseError, TokenKind};
 use crate::query::parser::ast::*;
 use crate::query::parser::expressions::ExpressionParser;
 

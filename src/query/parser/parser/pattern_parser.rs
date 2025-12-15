@@ -4,8 +4,7 @@
 
 use crate::query::parser::ast::stmt::OrderByItem;
 use crate::query::parser::ast::*;
-use crate::query::parser::core::error::ParseError;
-use crate::query::parser::core::token::TokenKind;
+use crate::query::parser::{ParseError, TokenKind};
 
 impl super::Parser {
     pub fn parse_match_patterns(&mut self) -> Result<Vec<PathElement>, ParseError> {

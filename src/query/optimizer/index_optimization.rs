@@ -7,7 +7,7 @@ use super::rule_traits::{combine_conditions, BaseOptRule, FilterSplitResult};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::algorithms::IndexScan as IndexScanPlanNode;
 use crate::query::planner::plan::operations::Filter as FilterPlanNode;
-use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+use crate::query::planner::plan::PlanNodeKind;
 use std::sync::Arc;
 
 /// 基于过滤条件优化边索引扫描的规则
@@ -234,12 +234,14 @@ impl OptRule for EdgeIndexFullScanRule {
         // 检查是否没有有效的过滤条件，这可能意味着全扫描
         // 在完整实现中，我们需要检查索引扫描的条件
         // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
-        if let Some(index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
             // 如果索引扫描没有有效的过滤条件，可能是全扫描
-            if !index_scan_node.has_effective_filter() {
-                // 根据具体情况，我们可能将其转换为更高效的操作
-                // 简单起见，目前我们返回原节点
-                return Ok(Some(node.clone()));
+            if let Some(index_scan_plan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+                if !index_scan_plan_node.has_effective_filter() {
+                    // 根据具体情况，我们可能将其转换为更高效的操作
+                    // 简单起见，目前我们返回原节点
+                    return Ok(Some(node.clone()));
+                }
             }
         }
         Ok(None)
@@ -274,12 +276,14 @@ impl OptRule for TagIndexFullScanRule {
         // 检查是否没有有效的过滤条件，这可能意味着全扫描
         // 在完整实现中，我们需要检查索引扫描的条件
         // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
-        if let Some(index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
             // 如果索引扫描没有有效的过滤条件，可能是全扫描
-            if !index_scan_node.has_effective_filter() {
-                // 根据具体情况，我们可能将其转换为更高效的操作
-                // 简单起见，目前我们返回原节点
-                return Ok(Some(node.clone()));
+            if let Some(index_scan_plan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+                if !index_scan_plan_node.has_effective_filter() {
+                    // 根据具体情况，我们可能将其转换为更高效的操作
+                    // 简单起见，目前我们返回原节点
+                    return Ok(Some(node.clone()));
+                }
             }
         }
         Ok(None)
@@ -316,7 +320,7 @@ impl OptRule for IndexScanRule {
         // - 数据分布
         // - 可用内存
         // 这里，我们基于NebulaGraph的IndexScanRule实现，检查索引扫描的查询上下文
-        if let Some(index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
             // 实际优化逻辑可能会根据索引条件创建更优化的索引扫描计划
             // 暂时返回当前节点
             Ok(Some(node.clone()))

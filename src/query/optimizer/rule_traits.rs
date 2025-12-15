@@ -18,7 +18,7 @@ pub trait BaseOptRule: OptRule {
     }
 
     /// 应用规则前的验证
-    fn validate(&self, ctx: &OptContext, node: &OptGroupNode) -> Result<(), OptimizerError> {
+    fn validate(&self, _ctx: &OptContext, _node: &OptGroupNode) -> Result<(), OptimizerError> {
         // 默认实现不做任何验证
         Ok(())
     }
@@ -26,9 +26,9 @@ pub trait BaseOptRule: OptRule {
     /// 应用规则后的处理
     fn post_process(
         &self,
-        ctx: &mut OptContext,
-        original_node: &OptGroupNode,
-        result_node: &OptGroupNode,
+        _ctx: &mut OptContext,
+        _original_node: &OptGroupNode,
+        _result_node: &OptGroupNode,
     ) -> Result<(), OptimizerError> {
         // 默认实现不做任何处理
         Ok(())
@@ -66,13 +66,13 @@ pub trait MergeRule: BaseOptRule {
 /// 消除优化规则的通用trait
 pub trait EliminationRule: BaseOptRule {
     /// 检查节点是否可以被消除
-    fn can_eliminate(&self, ctx: &OptContext, node: &OptGroupNode) -> bool;
+    fn can_eliminate(&self, _ctx: &OptContext, _node: &OptGroupNode) -> bool;
 
     /// 获取消除后的替代节点（如果有）
     fn get_replacement(
         &self,
-        ctx: &mut OptContext,
-        node: &OptGroupNode,
+        _ctx: &mut OptContext,
+        _node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError>;
 }
 
@@ -542,7 +542,7 @@ macro_rules! impl_rule_with_validation {
         }
 
         impl BaseOptRule for $rule_type {
-            fn validate(&self, ctx: &OptContext, node: &OptGroupNode) -> Result<(), OptimizerError> {
+            fn validate(&self, _ctx: &OptContext, _node: &OptGroupNode) -> Result<(), OptimizerError> {
                 $validate
                 Ok(())
             }
@@ -563,9 +563,9 @@ macro_rules! impl_rule_with_post_process {
         impl BaseOptRule for $rule_type {
             fn post_process(
                 &self,
-                ctx: &mut OptContext,
-                original_node: &OptGroupNode,
-                result_node: &OptGroupNode
+                _ctx: &mut OptContext,
+                _original_node: &OptGroupNode,
+                _result_node: &OptGroupNode
             ) -> Result<(), OptimizerError> {
                 $post_process
                 Ok(())

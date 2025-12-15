@@ -2,7 +2,7 @@
 //!
 //! This module implements a lexical analyzer that converts input query strings into tokens.
 
-use crate::query::parser::core::token::{Token, TokenKind};
+use crate::query::parser::{Token, TokenKind};
 use crate::query::parser::ast::Position;
 
 #[derive(Clone)]

@@ -1,6 +1,5 @@
 //! 基础类型定义
 
-use crate::core::Value;
 
 /// 位置信息
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

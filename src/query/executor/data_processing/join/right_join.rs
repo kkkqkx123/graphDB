@@ -131,7 +131,7 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
         };
 
         // 处理右表的每一行
-        for (right_idx, right_row) in right_dataset.rows.iter().enumerate() {
+        for (_right_idx, right_row) in right_dataset.rows.iter().enumerate() {
             let mut right_key_parts = Vec::new();
 
             // 根据连接键提取值

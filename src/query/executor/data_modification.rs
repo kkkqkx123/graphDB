@@ -47,14 +47,14 @@ impl<S: StorageEngine> InsertExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for InsertExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let mut total_inserted = 0;
+        let mut _total_inserted = 0;
 
         // Insert vertices if provided
         if let Some(vertices) = &self.vertex_data {
             let mut storage = self.base.storage.lock().unwrap();
             for vertex in vertices {
                 storage.insert_node(vertex.clone())?; // Assuming we have an insert_node method
-                total_inserted += 1;
+                _total_inserted += 1;
             }
         }
 
@@ -63,7 +63,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for InsertExecutor<S> {
             let mut storage = self.base.storage.lock().unwrap();
             for edge in edges {
                 storage.insert_edge(edge.clone())?; // Assuming we have an insert_edge method
-                total_inserted += 1;
+                _total_inserted += 1;
             }
         }
 
@@ -151,7 +151,7 @@ impl<S: StorageEngine> UpdateExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let mut total_updated = 0;
+        let mut _total_updated = 0;
 
         // Update vertices if provided
         if let Some(updates) = &self.vertex_updates {
@@ -162,7 +162,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
                 // 2. Apply the condition if provided
                 // 3. Update the vertex properties and tags
                 // For now, we'll just assume the update succeeds
-                total_updated += 1;
+                _total_updated += 1;
             }
         }
 
@@ -175,7 +175,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
                 // 2. Apply the condition if provided
                 // 3. Update the edge properties
                 // For now, we'll just assume the update succeeds
-                total_updated += 1;
+                _total_updated += 1;
             }
         }
 
@@ -253,7 +253,7 @@ impl<S: StorageEngine> DeleteExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for DeleteExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let mut total_deleted = 0;
+        let mut _total_deleted = 0;
 
         // Delete vertices if provided
         if let Some(ids) = &self.vertex_ids {
@@ -264,7 +264,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for DeleteExecutor<S> {
                 // 2. Apply the condition if provided
                 // 3. Delete the vertex and optionally cascade to related edges
                 // For now, we'll just assume the deletion succeeds
-                total_deleted += 1;
+                _total_deleted += 1;
             }
         }
 
@@ -277,7 +277,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for DeleteExecutor<S> {
                 // 2. Apply the condition if provided
                 // 3. Delete the edge
                 // For now, we'll just assume the deletion succeeds
-                total_deleted += 1;
+                _total_deleted += 1;
             }
         }
 

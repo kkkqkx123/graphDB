@@ -5,7 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_traits::{BaseOptRule, PushDownRule, FilterSplitResult, combine_conditions, combine_expression_list};
 use super::rule_patterns::{PatternBuilder, CommonPatterns};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::{PlanNodeKind, PlanNode};
+use crate::query::planner::plan::PlanNodeKind;
 use crate::query::planner::plan::operations::Filter as FilterPlanNode;
 use crate::query::planner::plan::operations::ScanVertices;
 use crate::query::planner::plan::operations::ScanEdges;
@@ -368,7 +368,7 @@ impl OptRule for PushFilterDownExpandRule {
                         if let Some(pushable_condition) = split_result.pushable_condition {
                             // 创建带有下推过滤条件的新扩展节点
                             if let Some(expand_node) = child.plan_node().as_any().downcast_ref::<Expand>() {
-                                let new_expand_node = expand_node.clone();
+                                let _new_expand_node = expand_node.clone();
                                 
                                 // 扩展节点本身没有filter字段，我们需要创建一个新的过滤节点
                                 // 在实际实现中，可能需要修改扩展节点以支持过滤条件
@@ -905,6 +905,7 @@ fn can_push_down_to_traverse(condition: &str) -> FilterSplitResult {
 }
 
 // 尝试解析过滤条件为表达式
+#[allow(unused_variables)]
 fn parse_filter_condition(
     condition: &str,
 ) -> Result<crate::graph::expression::Expression, String> {

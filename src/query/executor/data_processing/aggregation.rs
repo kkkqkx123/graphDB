@@ -309,7 +309,7 @@ impl<S: StorageEngine> InputExecutor<S> for AggregateExecutor<S> {
 impl<S: StorageEngine + Send + 'static> ExecutorCore for AggregateExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
-        let input_result = if let Some(ref mut input_exec) = self.input_executor {
+        let _input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
         } else {
             // 如果没有输入执行器，返回空结果
@@ -475,7 +475,7 @@ impl<S: StorageEngine> InputExecutor<S> for HavingExecutor<S> {
 impl<S: StorageEngine + Send + 'static> ExecutorCore for HavingExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
-        let input_result = if let Some(ref mut input_exec) = self.input_executor {
+        let _input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
         } else {
             // 如果没有输入执行器，返回空结果
@@ -484,7 +484,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for HavingExecutor<S> {
 
         // 在实际实现中，这里会评估 HAVING 条件
         // 暂时返回原始结果
-        Ok(input_result)
+        Ok(_input_result)
     }
 }
 

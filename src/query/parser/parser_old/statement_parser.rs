@@ -2,10 +2,10 @@
 //!
 //! This module implements parsing for statements in the query language.
 
-use crate::query::parser::core::token::TokenKind;
+use crate::query::parser::TokenKind;
 use crate::query::parser::ast::*;
 use crate::query::parser::ast::stmt::BaseStmt;
-use crate::query::parser::core::error::{ParseError, ParseErrors};
+use crate::query::parser::{ParseError, ParseErrors};
 use crate::query::parser::ast::types::Position;
 
 impl super::Parser {

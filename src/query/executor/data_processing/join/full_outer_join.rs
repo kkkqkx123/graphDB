@@ -119,7 +119,7 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
         };
 
         // 处理左表的每一行
-        for (idx, row) in left_dataset.rows.iter().enumerate() {
+        for (_idx, row) in left_dataset.rows.iter().enumerate() {
             let mut key_parts = Vec::new();
 
             // 根据连接键提取值
@@ -177,7 +177,7 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
 
                         // 检查是否有左表行匹配当前右表行的键
                         let has_left_match = left_hash_table.get(key).map_or(false, |left_entries| {
-                            left_entries.iter().any(|(left_idx, matched)| !matched)
+                            left_entries.iter().any(|(_left_idx, matched)| !matched)
                         });
 
                         if !has_left_match {

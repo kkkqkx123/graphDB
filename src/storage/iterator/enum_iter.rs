@@ -261,7 +261,7 @@ impl IteratorEnum {
     }
 
     /// 从 Box<dyn Iterator> 转换到 IteratorEnum
-    pub fn from_boxed(iter: Box<dyn Iterator>) -> Option<Self> {
+    pub fn from_boxed(_iter: Box<dyn Iterator>) -> Option<Self> {
         // 由于 Box<dyn Iterator> 不支持 downcast，我们无法安全地进行转换
         // 这个方法暂时无法实现，需要保持向后兼容性
         None

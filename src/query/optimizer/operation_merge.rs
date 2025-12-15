@@ -6,7 +6,7 @@ use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::operations::Filter as FilterPlanNode;
-use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+use crate::query::planner::plan::PlanNodeKind;
 
 /// 合并多个过滤操作的规则
 #[derive(Debug)]
@@ -441,7 +441,7 @@ mod tests {
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::{Dedup, Filter, GetNeighbors, GetVertices, Project};
-    use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+    use crate::query::planner::plan::PlanNodeKind;
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())

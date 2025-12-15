@@ -46,7 +46,7 @@ impl OptRule for EliminateFilterRule {
 impl BaseOptRule for EliminateFilterRule {}
 
 impl EliminationRule for EliminateFilterRule {
-    fn can_eliminate(&self, ctx: &OptContext, node: &OptGroupNode) -> bool {
+    fn can_eliminate(&self, _ctx: &OptContext, node: &OptGroupNode) -> bool {
         if node.plan_node.kind() != PlanNodeKind::Filter {
             return false;
         }
@@ -447,7 +447,7 @@ impl OptRule for EliminateAppendVerticesRule {
 impl BaseOptRule for EliminateAppendVerticesRule {}
 
 impl EliminationRule for EliminateAppendVerticesRule {
-    fn can_eliminate(&self, ctx: &OptContext, node: &OptGroupNode) -> bool {
+    fn can_eliminate(&self, _ctx: &OptContext, node: &OptGroupNode) -> bool {
         if node.plan_node.kind() != PlanNodeKind::AppendVertices {
             return false;
         }

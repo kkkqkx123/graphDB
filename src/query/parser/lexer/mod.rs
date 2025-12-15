@@ -1,7 +1,7 @@
 pub mod lexer;
 
 pub use lexer::Lexer;
-pub use crate::query::parser::core::token::{Token, TokenKind};
+pub use crate::query::parser::{Token, TokenKind};
 
 #[derive(Debug, Clone)]
 pub struct LexError {

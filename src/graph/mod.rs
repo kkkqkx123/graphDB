@@ -13,11 +13,11 @@ pub mod utils;
 
 // 重新导出图操作相关功能
 pub use batch_operation::*;
-pub use expression::*;
+pub use expression::{Expression, ExpressionEvaluator, BinaryOperator, UnaryOperator, AggregateFunction, LiteralValue};
 pub use index::*;
 pub use response::*;
 pub use result_set::*;
-pub use schema::*;
+pub use schema::{SchemaDef, PropertyDef, DataType as SchemaDataType, IndexDef, EntityType};
 pub use transaction::*;
 pub use utils::*;
 

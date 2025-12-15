@@ -2,10 +2,10 @@
 //!
 //! 基于枚举的简化语句定义，支持所有图数据库操作语句。
 
-use crate::core::Value;
-use super::types::*;
 use super::expr::{Expr, ExprUtils, VariableExpr};
 use super::pattern::*;
+use super::types::*;
+use crate::core::Value;
 
 /// 语句枚举 - 所有图数据库操作语句
 #[derive(Debug, Clone, PartialEq)]
@@ -126,10 +126,7 @@ pub struct ReturnClause {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReturnItem {
     All,
-    Expression {
-        expr: Expr,
-        alias: Option<String>,
-    },
+    Expression { expr: Expr, alias: Option<String> },
 }
 
 /// 排序子句
@@ -359,7 +356,7 @@ impl StmtUtils {
         Self::find_variables_recursive(stmt, &mut variables);
         variables
     }
-    
+
     fn find_variables_recursive(stmt: &Stmt, variables: &mut Vec<String>) {
         match stmt {
             Stmt::Match(s) => {
@@ -370,23 +367,26 @@ impl StmtUtils {
                     variables.extend(ExprUtils::find_variables(where_clause));
                 }
             }
-            Stmt::Create(s) => {
-                match &s.target {
-                    CreateTarget::Node { properties, .. } => {
-                        if let Some(props) = properties {
-                            variables.extend(ExprUtils::find_variables(props));
-                        }
+            Stmt::Create(s) => match &s.target {
+                CreateTarget::Node { properties, .. } => {
+                    if let Some(props) = properties {
+                        variables.extend(ExprUtils::find_variables(props));
                     }
-                    CreateTarget::Edge { src, dst, properties, .. } => {
-                        variables.extend(ExprUtils::find_variables(src));
-                        variables.extend(ExprUtils::find_variables(dst));
-                        if let Some(props) = properties {
-                            variables.extend(ExprUtils::find_variables(props));
-                        }
-                    }
-                    _ => {}
                 }
-            }
+                CreateTarget::Edge {
+                    src,
+                    dst,
+                    properties,
+                    ..
+                } => {
+                    variables.extend(ExprUtils::find_variables(src));
+                    variables.extend(ExprUtils::find_variables(dst));
+                    if let Some(props) = properties {
+                        variables.extend(ExprUtils::find_variables(props));
+                    }
+                }
+                _ => {}
+            },
             Stmt::Delete(s) => {
                 match &s.target {
                     DeleteTarget::Vertices(vertices) => {
@@ -436,22 +436,20 @@ impl StmtUtils {
                     variables.extend(ExprUtils::find_variables(where_clause));
                 }
             }
-            Stmt::Fetch(s) => {
-                match &s.target {
-                    FetchTarget::Vertices { ids, .. } => {
-                        for id in ids {
-                            variables.extend(ExprUtils::find_variables(id));
-                        }
-                    }
-                    FetchTarget::Edges { src, dst, rank, .. } => {
-                        variables.extend(ExprUtils::find_variables(src));
-                        variables.extend(ExprUtils::find_variables(dst));
-                        if let Some(ref rank) = rank {
-                            variables.extend(ExprUtils::find_variables(rank));
-                        }
+            Stmt::Fetch(s) => match &s.target {
+                FetchTarget::Vertices { ids, .. } => {
+                    for id in ids {
+                        variables.extend(ExprUtils::find_variables(id));
                     }
                 }
-            }
+                FetchTarget::Edges { src, dst, rank, .. } => {
+                    variables.extend(ExprUtils::find_variables(src));
+                    variables.extend(ExprUtils::find_variables(dst));
+                    if let Some(ref rank) = rank {
+                        variables.extend(ExprUtils::find_variables(rank));
+                    }
+                }
+            },
             Stmt::Lookup(s) => {
                 if let Some(ref where_clause) = s.where_clause {
                     variables.extend(ExprUtils::find_variables(where_clause));
@@ -482,7 +480,7 @@ impl StmtUtils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_create_stmt() {
         let stmt = Stmt::Create(CreateStmt {
@@ -493,10 +491,10 @@ mod tests {
                 properties: None,
             },
         });
-        
+
         assert!(matches!(stmt, Stmt::Create(_)));
     }
-    
+
     #[test]
     fn test_match_stmt() {
         let stmt = Stmt::Match(MatchStmt {
@@ -508,10 +506,10 @@ mod tests {
             limit: None,
             skip: None,
         });
-        
+
         assert!(matches!(stmt, Stmt::Match(_)));
     }
-    
+
     #[test]
     fn test_lookup_stmt() {
         let stmt = Stmt::Lookup(LookupStmt {
@@ -520,10 +518,10 @@ mod tests {
             where_clause: None,
             yield_clause: None,
         });
-        
+
         assert!(matches!(stmt, Stmt::Lookup(_)));
     }
-    
+
     #[test]
     fn test_subgraph_stmt() {
         let stmt = Stmt::Subgraph(SubgraphStmt {
@@ -537,10 +535,10 @@ mod tests {
             where_clause: None,
             yield_clause: None,
         });
-        
+
         assert!(matches!(stmt, Stmt::Subgraph(_)));
     }
-    
+
     #[test]
     fn test_find_path_stmt() {
         let stmt = Stmt::FindPath(FindPathStmt {
@@ -555,7 +553,7 @@ mod tests {
             shortest: true,
             yield_clause: None,
         });
-        
+
         assert!(matches!(stmt, Stmt::FindPath(_)));
     }
 }

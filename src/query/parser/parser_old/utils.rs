@@ -3,9 +3,9 @@
 //! This module implements common utility functions used across the parser.
 
 use crate::query::parser::lexer::lexer::Lexer;
-use crate::query::parser::core::token::{Token, TokenKind};
+use crate::query::parser::{Token, TokenKind};
 use crate::query::parser::ast::*;
-use crate::query::parser::core::error::{ParseError, ParseErrors};
+use crate::query::parser::{ParseError, ParseErrors};
 
 pub struct Parser {
     pub lexer: Lexer,

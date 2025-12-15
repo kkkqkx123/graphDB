@@ -323,7 +323,7 @@ impl<S: StorageEngine> SampleExecutor<S> {
         let total_vertices = strata.values().map(|v| v.len()).sum::<usize>();
         let mut sampled_vertices = Vec::new();
 
-        for (stratum_value, stratum_vertices) in strata {
+        for (_stratum_value, stratum_vertices) in strata {
             let stratum_count = (stratum_vertices.len() * count) / total_vertices;
             if stratum_count > 0 {
                 let stratum_sampled = self.random_sample(stratum_vertices, stratum_count).await?;
@@ -356,7 +356,7 @@ impl<S: StorageEngine> SampleExecutor<S> {
         let total_edges = strata.values().map(|v| v.len()).sum::<usize>();
         let mut sampled_edges = Vec::new();
 
-        for (stratum_value, stratum_edges) in strata {
+        for (_stratum_value, stratum_edges) in strata {
             let stratum_count = (stratum_edges.len() * count) / total_edges;
             if stratum_count > 0 {
                 let stratum_sampled = self.random_sample(stratum_edges, stratum_count).await?;
@@ -405,7 +405,7 @@ impl<S: StorageEngine> SampleExecutor<S> {
         let total_rows = strata.values().map(|v| v.len()).sum::<usize>();
         let mut sampled_rows = Vec::new();
 
-        for (stratum_value, stratum_rows) in strata {
+        for (_stratum_value, stratum_rows) in strata {
             let stratum_count = (stratum_rows.len() * count) / total_rows;
             if stratum_count > 0 {
                 let stratum_sampled = self.random_sample(stratum_rows, stratum_count).await?;

@@ -9,7 +9,7 @@
 
 use crate::core::Value;
 use super::QueryExecutionContext;
-use crate::storage::iterator::{Iterator, IteratorEnum};
+use crate::storage::iterator::IteratorEnum;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 

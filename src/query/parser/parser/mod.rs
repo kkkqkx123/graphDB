@@ -13,12 +13,13 @@ pub use statement_parser::*;
 pub use utils::*;
 
 use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
+use crate::query::parser::Token;
 
 /// 解析器
 pub struct Parser {
     lexer: Lexer,
     compat_mode: bool,
-    current_token: crate::query::parser::core::token::Token,
+    current_token: Token,
 }
 
 impl Parser {
@@ -26,8 +27,8 @@ impl Parser {
     pub fn new(input: &str) -> Self {
         let mut lexer = Lexer::new(input);
         let current_token = lexer.peek().unwrap_or_else(|_| {
-            crate::query::parser::core::token::Token::new(
-                crate::query::parser::core::token::TokenKind::Eof,
+            Token::new(
+                crate::query::parser::TokenKind::Eof,
                 String::new(),
                 0,
                 0,
