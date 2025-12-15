@@ -209,6 +209,16 @@ impl QueryExecutionContext {
         
         value_map.contains_key(name)
     }
+
+    /// 获取变量数量
+    pub fn variable_count(&self) -> usize {
+        let value_map = match self.value_map.read() {
+            Ok(map) => map,
+            Err(_) => return 0, // 如果无法获取读锁，返回0
+        };
+        
+        value_map.len()
+    }
 }
 
 impl Default for QueryExecutionContext {
@@ -276,5 +286,30 @@ mod tests {
         // 版本截断
         ctx.trunc_history("versioned_var", 2).unwrap();
         assert_eq!(ctx.num_versions("versioned_var").unwrap(), 2);
+    }
+
+    #[test]
+    fn test_variable_count() {
+        let ctx = QueryExecutionContext::new();
+        
+        // 初始变量数量应为0
+        assert_eq!(ctx.variable_count(), 0);
+        
+        // 添加变量
+        ctx.set_value("var1", Value::Int(1)).unwrap();
+        assert_eq!(ctx.variable_count(), 1);
+        
+        // 添加更多变量
+        ctx.set_value("var2", Value::String("test".to_string())).unwrap();
+        ctx.set_value("var3", Value::Bool(true)).unwrap();
+        assert_eq!(ctx.variable_count(), 3);
+        
+        // 删除变量
+        ctx.drop_result("var2").unwrap();
+        assert_eq!(ctx.variable_count(), 2);
+        
+        // 删除不存在的变量不应影响计数
+        ctx.drop_result("non_existent").unwrap();
+        assert_eq!(ctx.variable_count(), 2);
     }
 }

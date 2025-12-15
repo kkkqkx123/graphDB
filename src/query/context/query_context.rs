@@ -459,7 +459,7 @@ impl QueryContext {
             is_killed: self.is_killed(),
             current_id: self.current_id(),
             symbol_table_size: self.sym_table.size().unwrap_or(0),
-            variable_count: self.ectx.exists("").then(|| 1).unwrap_or(0), // 简化计算
+            variable_count: self.ectx.variable_count(),
         }
     }
 
@@ -785,16 +785,22 @@ mod tests {
         assert!(!status.has_execution_plan);
         assert!(!status.is_killed);
         assert_eq!(status.current_id, 0);
+        assert_eq!(status.variable_count, 0); // 初始变量数量应为0
 
         // 设置一些组件
         ctx.set_schema_manager(Arc::new(MockSchemaManager::new()));
         ctx.set_plan(ExecutionPlan::new(ctx.gen_id()));
+
+        // 添加一些变量到执行上下文
+        ctx.ectx().set_value("test_var1", crate::core::Value::Int(42)).unwrap();
+        ctx.ectx().set_value("test_var2", crate::core::Value::String("hello".to_string())).unwrap();
 
         // 检查更新后的状态
         let status = ctx.get_status_info();
         assert!(status.has_schema_manager);
         assert!(status.has_execution_plan);
         assert_eq!(status.current_id, 1);
+        assert_eq!(status.variable_count, 2); // 现在应该有2个变量
     }
 
     #[test]
