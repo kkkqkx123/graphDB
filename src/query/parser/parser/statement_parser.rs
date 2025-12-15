@@ -4,7 +4,11 @@
 
 use crate::core::Value;
 use crate::query::parser::ast::expr::*;
+use crate::query::parser::ast::pattern::{
+    NodePattern, PathElement, PathPattern, Pattern, VariablePattern,
+};
 use crate::query::parser::ast::stmt::*;
+use crate::query::parser::ast::stmt::{PropertyDef, YieldClause, YieldItem};
 use crate::query::parser::ast::types::*;
 use crate::query::parser::lexer::TokenKind as LexerToken;
 
@@ -40,12 +44,12 @@ impl super::Parser {
             LexerToken::Match => {
                 self.next_token();
                 self.parse_match_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse MATCH statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -53,12 +57,12 @@ impl super::Parser {
             LexerToken::Create => {
                 self.next_token();
                 self.parse_create_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse CREATE statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -66,12 +70,12 @@ impl super::Parser {
             LexerToken::Delete => {
                 self.next_token();
                 self.parse_delete_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse DELETE statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -79,12 +83,12 @@ impl super::Parser {
             LexerToken::Update => {
                 self.next_token();
                 self.parse_update_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse UPDATE statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -92,12 +96,12 @@ impl super::Parser {
             LexerToken::Use => {
                 self.next_token();
                 self.parse_use_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse USE statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -105,12 +109,12 @@ impl super::Parser {
             LexerToken::Show => {
                 self.next_token();
                 self.parse_show_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse SHOW statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -118,12 +122,12 @@ impl super::Parser {
             LexerToken::Explain => {
                 self.next_token();
                 self.parse_explain_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse EXPLAIN statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -145,12 +149,12 @@ impl super::Parser {
             LexerToken::Match => {
                 self.next_token();
                 self.parse_match_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse MATCH statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -158,12 +162,12 @@ impl super::Parser {
             LexerToken::Create => {
                 self.next_token();
                 self.parse_create_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse CREATE statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -171,12 +175,12 @@ impl super::Parser {
             LexerToken::Delete => {
                 self.next_token();
                 self.parse_delete_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse DELETE statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -184,12 +188,12 @@ impl super::Parser {
             LexerToken::Update => {
                 self.next_token();
                 self.parse_update_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse UPDATE statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -197,12 +201,12 @@ impl super::Parser {
             LexerToken::Use => {
                 self.next_token();
                 self.parse_use_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse USE statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -210,12 +214,12 @@ impl super::Parser {
             LexerToken::Show => {
                 self.next_token();
                 self.parse_show_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse SHOW statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -223,12 +227,12 @@ impl super::Parser {
             LexerToken::Explain => {
                 self.next_token();
                 self.parse_explain_statement()
-                    .map_err(|e| ParseError::new(e.message, self.current_span()))
+                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
                             ParseError::new(
                                 "Failed to parse EXPLAIN statement".to_string(),
-                                self.current_span(),
+                                self.parser_current_span(),
                             )
                         })
                     })
@@ -259,7 +263,7 @@ impl super::Parser {
                         "Expected VERTEX or EDGE after CREATE, got {:?}",
                         self.current_token.kind
                     ),
-                    self.current_span(),
+                    self.parser_current_span(),
                 );
                 Err(error)
             }
@@ -268,53 +272,261 @@ impl super::Parser {
 
     /// 解析 CREATE NODE 语句
     fn parse_create_node_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
-        // 简化实现，直接解析 TAG 创建
-        let tag_name = self.parse_identifier()?;
+        let _if_not_exists = self.check_and_skip_keyword(LexerToken::If);
+
+        // Skip 'EXISTS' if we found 'IF'
+        if _if_not_exists {
+            self.expect_token(LexerToken::Exists)?;
+        }
+
+        // Parse tag list
+        let tags = self.parse_tag_list()?;
+
+        // Parse SET clause
+        self.expect_token(LexerToken::Set)?;
+
+        // Properties can be in two forms: SET prop = value or SET {prop: value}
+        let properties = if self.current_token.kind == LexerToken::LBrace {
+            // Handle SET {prop: value} form
+            let map = self.parse_property_map()?;
+            // Convert HashMap to Vec<Property>
+            let props: Vec<PropertyDef> = map
+                .into_iter()
+                .map(|(name, _value)| PropertyDef {
+                    name,
+                    data_type: DataType::String,
+                    nullable: false,
+                    default: None,
+                })
+                .collect();
+            props
+        } else {
+            // Handle SET prop = value form
+            self.parse_property_list()?
+        };
+
+        // Optionally parse YIELD clause
+        let _yield_clause = if self.current_token.kind == LexerToken::Yield {
+            Some(self.parse_yield_clause()?)
+        } else {
+            None
+        };
 
         Ok(Some(Stmt::Create(CreateStmt {
-            span: self.current_span(),
+            span: self.parser_current_span(),
             target: CreateTarget::Tag {
-                name: tag_name,
-                properties: vec![],
+                name: tags.join(":"),
+                properties,
             },
         })))
     }
 
     /// 解析 CREATE EDGE 语句
     fn parse_create_edge_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
-        // 简化实现，直接解析 EDGE 创建
+        let _if_not_exists = self.check_and_skip_keyword(LexerToken::If);
+
+        // Skip 'EXISTS' if we found 'IF'
+        if _if_not_exists {
+            self.expect_token(LexerToken::Exists)?;
+        }
+
+        // Parse edge type
         let edge_type = self.parse_identifier()?;
 
+        // Parse source and destination
+        self.expect_token(LexerToken::LParen)?;
+        let src = self.parse_expression()?;
+        self.expect_token(LexerToken::RParen)?;
+
+        // Parse edge pattern -> or <-
+        let direction = if self.current_token.kind == LexerToken::Arrow {
+            // ->
+            self.next_token();
+            EdgeDirection::Out
+        } else if self.current_token.kind == LexerToken::BackArrow {
+            // <-
+            self.next_token();
+            EdgeDirection::In
+        } else {
+            return Err(ParseError::new(
+                format!("Expected -> or <-, got {:?}", self.current_token.kind),
+                self.parser_current_span(),
+            ));
+        };
+
+        self.expect_token(LexerToken::LParen)?;
+        let dst = self.parse_expression()?;
+        self.expect_token(LexerToken::RParen)?;
+
+        // Parse SET clause
+        self.expect_token(LexerToken::Set)?;
+        let properties = self.parse_property_list()?;
+
+        // Optionally parse YIELD clause
+        let _yield_clause = if self.current_token.kind == LexerToken::Yield {
+            Some(self.parse_yield_clause()?)
+        } else {
+            None
+        };
+
+        // Convert Vec<PropertyDef> to Expr if not empty
+        let properties_expr = if properties.is_empty() {
+            None
+        } else {
+            // For now, create a simple expression representation
+            // In a real implementation, you might create a map/object expression
+            Some(Expr::Constant(ConstantExpr::new(
+                Value::String(format!("{} properties", properties.len())),
+                Span::default(),
+            )))
+        };
+
         Ok(Some(Stmt::Create(CreateStmt {
-            span: self.current_span(),
+            span: self.parser_current_span(),
             target: CreateTarget::Edge {
                 variable: None,
                 edge_type,
-                src: Expr::Constant(ConstantExpr::new(
-                    Value::Null(crate::core::NullType::Null),
-                    Span::default(),
-                )),
-                dst: Expr::Constant(ConstantExpr::new(
-                    Value::Null(crate::core::NullType::Null),
-                    Span::default(),
-                )),
-                properties: None,
-                direction: EdgeDirection::Out,
+                src,
+                dst,
+                properties: properties_expr,
+                direction,
             },
         })))
     }
 
     /// 解析 MATCH 语句
     pub fn parse_match_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
-        // 简化实现，创建一个空的 MATCH 语句
+        // Parse match patterns - convert PathElement to Pattern
+        let path_elements = self.parse_match_patterns()?;
+        let patterns: Vec<Pattern> = path_elements
+            .into_iter()
+            .map(|elem| {
+                // Convert PathElement to Pattern
+                match elem {
+                    PathElement::Node(node) => Ok(Pattern::Node(node)),
+                    PathElement::Edge(edge) => Ok(Pattern::Edge(edge)),
+                    PathElement::Alternative(alts) => {
+                        // For alternatives, create a PathPattern containing the alternatives
+                        let path_pattern = PathPattern::new(
+                            alts.into_iter()
+                                .map(|pattern| {
+                                    // Convert each Pattern back to PathElement
+                                    match pattern {
+                                        Pattern::Node(node) => PathElement::Node(node),
+                                        Pattern::Edge(edge) => PathElement::Edge(edge),
+                                        Pattern::Path(path) => {
+                                            // Extract first element from path if it's a single element path
+                                            if path.elements.len() == 1 {
+                                                path.elements.into_iter().next().unwrap()
+                                            } else {
+                                                // For complex paths, create a simple node pattern as fallback
+                                                PathElement::Node(NodePattern::new(
+                                                    None,
+                                                    vec![],
+                                                    None,
+                                                    vec![],
+                                                    path.span,
+                                                ))
+                                            }
+                                        }
+                                        Pattern::Variable(var) => {
+                                            // Convert variable pattern to node pattern
+                                            PathElement::Node(NodePattern::new(
+                                                Some(var.name),
+                                                vec![],
+                                                None,
+                                                vec![],
+                                                var.span,
+                                            ))
+                                        }
+                                    }
+                                })
+                                .collect(),
+                            Span::default(),
+                        );
+                        Ok(Pattern::Path(path_pattern))
+                    }
+                    PathElement::Optional(opt) => {
+                        // Convert Optional PathElement to PathPattern with optional element
+                        let path_pattern =
+                            PathPattern::new(vec![PathElement::Optional(opt)], Span::default());
+                        Ok(Pattern::Path(path_pattern))
+                    }
+                    PathElement::Repeated(elem, rep_type) => {
+                        // Convert Repeated PathElement to PathPattern with repeated element
+                        let path_pattern = PathPattern::new(
+                            vec![PathElement::Repeated(elem, rep_type)],
+                            Span::default(),
+                        );
+                        Ok(Pattern::Path(path_pattern))
+                    }
+                }
+            })
+            .collect::<Result<Vec<Pattern>, ParseError>>()?;
+
+        // Parse optional WHERE clause
+        let where_clause = if self.current_token.kind == LexerToken::Where {
+            Some(self.parse_where_clause()?)
+        } else {
+            None
+        };
+
+        // Parse optional RETURN clause
+        let return_clause = if self.current_token.kind == LexerToken::Return {
+            Some(self.parse_return_clause()?)
+        } else {
+            None
+        };
+
+        // Parse optional ORDER BY clause
+        let order_by = if self.current_token.kind == LexerToken::Order {
+            Some(self.parse_order_by_clause()?)
+        } else {
+            None
+        };
+
+        // Parse optional LIMIT clause - extract numeric value from expression
+        let limit = if self.current_token.kind == LexerToken::Limit {
+            let expr = self.parse_limit_clause()?;
+            // Try to extract a numeric constant from the expression
+            if let Expr::Constant(ConstantExpr { value, .. }) = &expr {
+                if let Value::Int(n) = value {
+                    Some(*n as usize)
+                } else {
+                    Some(10) // Default limit
+                }
+            } else {
+                Some(10) // Default limit
+            }
+        } else {
+            None
+        };
+
+        // Parse optional SKIP clause - extract numeric value from expression
+        let skip = if self.current_token.kind == LexerToken::Skip {
+            let expr = self.parse_skip_clause()?;
+            // Try to extract a numeric constant from the expression
+            if let Expr::Constant(ConstantExpr { value, .. }) = &expr {
+                if let Value::Int(n) = value {
+                    Some(*n as usize)
+                } else {
+                    Some(0) // Default skip
+                }
+            } else {
+                Some(0) // Default skip
+            }
+        } else {
+            None
+        };
+
         let match_stmt = MatchStmt {
-            span: self.current_span(),
-            patterns: vec![],
-            where_clause: None,
-            return_clause: None,
-            order_by: None,
-            limit: None,
-            skip: None,
+            span: self.parser_current_span(),
+            patterns,
+            where_clause,
+            return_clause,
+            order_by,
+            limit,
+            skip,
         };
 
         Ok(Some(Stmt::Match(match_stmt)))
@@ -324,7 +536,7 @@ impl super::Parser {
     pub fn parse_delete_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         // 简化实现，创建一个空的 DELETE 语句
         let delete_stmt = DeleteStmt {
-            span: self.current_span(),
+            span: self.parser_current_span(),
             target: DeleteTarget::Vertices(vec![]),
             where_clause: None,
         };
@@ -336,13 +548,13 @@ impl super::Parser {
     pub fn parse_update_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
         // 简化实现，创建一个空的 UPDATE 语句
         let update_stmt = UpdateStmt {
-            span: self.current_span(),
+            span: self.parser_current_span(),
             target: UpdateTarget::Vertex(Expr::Constant(ConstantExpr::new(
                 Value::Null(crate::core::NullType::Null),
                 Span::default(),
             ))),
             set_clause: SetClause {
-                span: self.current_span(),
+                span: self.parser_current_span(),
                 assignments: vec![],
             },
             where_clause: None,
@@ -356,7 +568,7 @@ impl super::Parser {
         self.next_token(); // Skip USE
         let space = self.parse_identifier()?;
         Ok(Some(Stmt::Use(UseStmt {
-            span: self.current_span(),
+            span: self.parser_current_span(),
             space,
         })))
     }
@@ -400,13 +612,13 @@ impl super::Parser {
                         "Unexpected token in SHOW statement: {:?}",
                         self.current_token.kind
                     ),
-                    self.current_span(),
+                    self.parser_current_span(),
                 ));
             }
         };
 
         Ok(Some(Stmt::Show(ShowStmt {
-            span: self.current_span(),
+            span: self.parser_current_span(),
             target: show_stmt,
         })))
     }
@@ -418,7 +630,7 @@ impl super::Parser {
         // Parse the statement to explain
         let stmt = self.parse_statement()?;
         Ok(Some(Stmt::Explain(ExplainStmt {
-            span: self.current_span(),
+            span: self.parser_current_span(),
             statement: Box::new(stmt),
         })))
     }

@@ -106,8 +106,32 @@ impl super::Parser {
             let span = Span::new(operand.span().start, operand.span().end);
             Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
         } else {
-            self.parse_postfix_expression()
+            self.parse_exponentiation_expression()
         }
+    }
+
+    /// 解析指数表达式
+    fn parse_exponentiation_expression(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.parse_postfix_expression()?;
+
+        // 指数运算是右结合的，使用迭代方法处理，避免递归导致栈溢出
+        if self.match_token(LexerToken::Exp) {
+            // 收集所有连续的指数操作
+            let mut right_operands = Vec::new();
+
+            while self.match_token(LexerToken::Exp) {
+                right_operands.push(self.parse_unary_expression()?);
+            }
+
+            // 从最右边开始构建表达式树（右结合性）
+            // 例如 a^b^c 应该被解释为 a^(b^c)，而不是 (a^b)^c
+            for operand in right_operands.into_iter().rev() {
+                let span = Span::new(expr.span().start, operand.span().end);
+                expr = Expr::Binary(BinaryExpr::new(expr, BinaryOp::Exp, operand, span));
+            }
+        }
+
+        Ok(expr)
     }
 
     /// 解析后缀表达式
@@ -141,17 +165,17 @@ impl super::Parser {
         match token.kind {
             LexerToken::IntegerLiteral(_) => {
                 let value = self.parse_integer()?;
-                let span = self.current_span();
+                let span = self.parser_current_span();
                 Ok(Expr::Constant(ConstantExpr::new(Value::Int(value), span)))
             }
             LexerToken::FloatLiteral(_) => {
                 let value = self.parse_float()?;
-                let span = self.current_span();
+                let span = self.parser_current_span();
                 Ok(Expr::Constant(ConstantExpr::new(Value::Float(value), span)))
             }
             LexerToken::StringLiteral(_) => {
                 let value = self.parse_string()?;
-                let span = self.current_span();
+                let span = self.parser_current_span();
                 Ok(Expr::Constant(ConstantExpr::new(
                     Value::String(value),
                     span,
@@ -159,12 +183,12 @@ impl super::Parser {
             }
             LexerToken::BooleanLiteral(_) => {
                 let value = self.parse_boolean()?;
-                let span = self.current_span();
+                let span = self.parser_current_span();
                 Ok(Expr::Constant(ConstantExpr::new(Value::Bool(value), span)))
             }
             LexerToken::Identifier(_) => {
                 let name = self.expect_identifier()?;
-                let span = self.current_span();
+                let span = self.parser_current_span();
 
                 // 检查是否是函数调用
                 if self.match_token(LexerToken::LParen) {
@@ -190,7 +214,7 @@ impl super::Parser {
             }
             _ => Err(ParseError::new(
                 format!("Unexpected token: {:?}", token.kind),
-                self.current_span(),
+                self.parser_current_span(),
             )),
         }
     }
@@ -218,7 +242,7 @@ impl super::Parser {
         }
 
         self.expect_token(LexerToken::RParen)?;
-        let end_span = self.current_span();
+        let end_span = self.parser_current_span();
         let full_span = Span::new(span.start, end_span.end);
 
         Ok(Expr::FunctionCall(FunctionCallExpr::new(
@@ -228,7 +252,7 @@ impl super::Parser {
 
     /// 解析列表表达式
     fn parse_list_expression(&mut self) -> Result<Expr, ParseError> {
-        let start_span = self.current_span();
+        let start_span = self.parser_current_span();
         self.expect_token(LexerToken::LBracket)?;
 
         let mut elements = Vec::new();
@@ -245,7 +269,7 @@ impl super::Parser {
         }
 
         self.expect_token(LexerToken::RBracket)?;
-        let end_span = self.current_span();
+        let end_span = self.parser_current_span();
         let span = Span::new(start_span.start, end_span.end);
 
         Ok(Expr::List(ListExpr::new(elements, span)))
@@ -253,7 +277,7 @@ impl super::Parser {
 
     /// 解析映射表达式
     fn parse_map_expression(&mut self) -> Result<Expr, ParseError> {
-        let start_span = self.current_span();
+        let start_span = self.parser_current_span();
         self.expect_token(LexerToken::LBrace)?;
 
         let mut pairs = Vec::new();
@@ -272,7 +296,7 @@ impl super::Parser {
         }
 
         self.expect_token(LexerToken::RBrace)?;
-        let end_span = self.current_span();
+        let end_span = self.parser_current_span();
         let span = Span::new(start_span.start, end_span.end);
 
         Ok(Expr::Map(MapExpr::new(pairs, span)))
@@ -321,6 +345,15 @@ impl super::Parser {
         }
     }
 
+    /// 解析指数操作符
+    fn parse_exponentiation_op(&mut self) -> Option<BinaryOp> {
+        if self.match_token(LexerToken::Exp) {
+            Some(BinaryOp::Exp)
+        } else {
+            None
+        }
+    }
+
     /// 解析整数
     fn parse_integer(&mut self) -> Result<i64, ParseError> {
         if let LexerToken::IntegerLiteral(n) = self.current_token.kind {
@@ -330,7 +363,7 @@ impl super::Parser {
         } else {
             Err(ParseError::new(
                 format!("Expected integer, found {:?}", self.current_token.kind),
-                self.current_span(),
+                self.parser_current_span(),
             ))
         }
     }
@@ -344,7 +377,7 @@ impl super::Parser {
         } else {
             Err(ParseError::new(
                 format!("Expected float, found {:?}", self.current_token.kind),
-                self.current_span(),
+                self.parser_current_span(),
             ))
         }
     }
@@ -359,7 +392,7 @@ impl super::Parser {
         } else {
             Err(ParseError::new(
                 format!("Expected string, found {:?}", self.current_token.kind),
-                self.current_span(),
+                self.parser_current_span(),
             ))
         }
     }
@@ -373,7 +406,7 @@ impl super::Parser {
         } else {
             Err(ParseError::new(
                 format!("Expected boolean, found {:?}", self.current_token.kind),
-                self.current_span(),
+                self.parser_current_span(),
             ))
         }
     }

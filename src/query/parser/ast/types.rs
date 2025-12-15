@@ -1,6 +1,5 @@
 //! 基础类型定义
 
-
 /// 位置信息
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Span {
@@ -12,14 +11,14 @@ impl Span {
     pub fn new(start: Position, end: Position) -> Self {
         Self { start, end }
     }
-    
+
     pub fn from_tokens(start: &Token, end: &Token) -> Self {
         Self {
             start: start.position,
             end: end.position,
         }
     }
-    
+
     pub fn default() -> Self {
         Self {
             start: Position::new(0, 0),
@@ -58,7 +57,7 @@ pub enum TokenKind {
     Integer,
     Float,
     Boolean,
-    
+
     // 关键字
     Match,
     Create,
@@ -72,14 +71,14 @@ pub enum TokenKind {
     Lookup,
     Subgraph,
     FindPath,
-    
+
     // 操作符
     Plus,
     Minus,
     Star,
     Slash,
     Percent,
-    
+
     // 比较操作符
     Equal,
     NotEqual,
@@ -87,12 +86,12 @@ pub enum TokenKind {
     LessEqual,
     Greater,
     GreaterEqual,
-    
+
     // 逻辑操作符
     And,
     Or,
     Not,
-    
+
     // 特殊符号
     LeftParen,
     RightParen,
@@ -104,7 +103,7 @@ pub enum TokenKind {
     Semicolon,
     Dot,
     Arrow,
-    
+
     // 其他
     Eof,
     Unknown,
@@ -120,12 +119,12 @@ pub enum BinaryOp {
     Div,
     Mod,
     Exp,
-    
+
     // 逻辑操作符
     And,
     Or,
     Xor,
-    
+
     // 关系操作符
     Eq,
     Ne,
@@ -133,7 +132,7 @@ pub enum BinaryOp {
     Le,
     Gt,
     Ge,
-    
+
     // 字符串操作符
     Regex,
     In,
@@ -236,8 +235,11 @@ impl ParseError {
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Parse error at line {}, column {}: {}", 
-               self.span.start.line, self.span.start.column, self.message)
+        write!(
+            f,
+            "Parse error at line {}, column {}: {}",
+            self.span.start.line, self.span.start.column, self.message
+        )
     }
 }
 
@@ -246,5 +248,11 @@ impl std::error::Error for ParseError {}
 impl From<String> for ParseError {
     fn from(message: String) -> Self {
         ParseError::new(message, Span::default())
+    }
+}
+
+impl From<crate::query::parser::core::error::ParseError> for ParseError {
+    fn from(error: crate::query::parser::core::error::ParseError) -> Self {
+        ParseError::new(error.message, Span::default())
     }
 }
