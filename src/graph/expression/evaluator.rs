@@ -1,7 +1,7 @@
-use super::context::EvalContext;
 use super::error::ExpressionError;
 use crate::core::Value;
 use crate::graph::expression::{Expression, LiteralValue};
+use crate::query::context::EvalContext;
 
 /// Expression evaluator
 pub struct ExpressionEvaluator;

@@ -1,5 +1,5 @@
-use super::context::EvalContext;
 use super::error::ExpressionError;
+use crate::query::context::EvalContext;
 use crate::core::Value;
 use crate::graph::expression::Expression;
 

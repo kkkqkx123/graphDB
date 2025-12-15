@@ -168,10 +168,6 @@ impl RequestContext {
         }
     }
 
-    /// 创建简化的请求上下文（用于测试）
-    pub fn simple(query: String) -> Self {
-        Self::with_session(query, "test_session", "test_user", "127.0.0.1", 0)
-    }
 
     /// 创建带会话信息的请求上下文
     pub fn with_session(
@@ -250,37 +246,46 @@ impl RequestContext {
 
     /// 基于现有请求上下文创建带参数的请求上下文
     pub fn with_parameters_from_context(&self, parameters: HashMap<String, Value>) -> Self {
-        let session_info = self.session_info.clone().unwrap_or_else(|| SessionInfo::new(
-            "unknown_session".to_string(),
-            "unknown_user".to_string(),
-            "127.0.0.1".to_string(),
-            0,
-        ));
-        let request_params = RequestParams::new(self.request_params.query.clone()).with_parameters(parameters);
+        let session_info = self.session_info.clone().unwrap_or_else(|| {
+            SessionInfo::new(
+                "unknown_session".to_string(),
+                "unknown_user".to_string(),
+                "unknown_ip".to_string(),
+                0,
+            )
+        });
+        let request_params =
+            RequestParams::new(self.request_params.query.clone()).with_parameters(parameters);
         Self::new(session_info, request_params)
     }
 
     /// 基于现有请求上下文创建带超时设置的请求上下文
     pub fn with_timeout_from_context(&self, timeout_ms: u64) -> Self {
-        let session_info = self.session_info.clone().unwrap_or_else(|| SessionInfo::new(
-            "unknown_session".to_string(),
-            "unknown_user".to_string(),
-            "127.0.0.1".to_string(),
-            0,
-        ));
-        let request_params = RequestParams::new(self.request_params.query.clone()).with_timeout(timeout_ms);
+        let session_info = self.session_info.clone().unwrap_or_else(|| {
+            SessionInfo::new(
+                "unknown_session".to_string(),
+                "unknown_user".to_string(),
+                "unknown_ip".to_string(),
+                0,
+            )
+        });
+        let request_params =
+            RequestParams::new(self.request_params.query.clone()).with_timeout(timeout_ms);
         Self::new(session_info, request_params)
     }
 
     /// 基于现有请求上下文创建带重试设置的请求上下文
     pub fn with_retry_from_context(&self, max_retry_times: u32) -> Self {
-        let session_info = self.session_info.clone().unwrap_or_else(|| SessionInfo::new(
-            "unknown_session".to_string(),
-            "unknown_user".to_string(),
-            "127.0.0.1".to_string(),
-            0,
-        ));
-        let request_params = RequestParams::new(self.request_params.query.clone()).with_max_retry(max_retry_times);
+        let session_info = self.session_info.clone().unwrap_or_else(|| {
+            SessionInfo::new(
+                "unknown_session".to_string(),
+                "unknown_user".to_string(),
+                "unknown_ip".to_string(),
+                0,
+            )
+        });
+        let request_params =
+            RequestParams::new(self.request_params.query.clone()).with_max_retry(max_retry_times);
         Self::new(session_info, request_params)
     }
 
@@ -584,7 +589,7 @@ impl Default for RequestContext {
         let session_info = SessionInfo::new(
             "default_session".to_string(),
             "default_user".to_string(),
-            "127.0.0.1".to_string(),
+            "localhost".to_string(),
             0,
         );
         let request_params = RequestParams::new("SELECT 1".to_string());
@@ -617,7 +622,13 @@ mod tests {
 
     #[test]
     fn test_request_context_simple() {
-        let ctx = RequestContext::simple("SELECT * FROM users".to_string());
+        let ctx = RequestContext::with_session(
+            "SELECT * FROM users".to_string(),
+            "test_session",
+            "test_user",
+            "127.0.0.1",
+            0,
+        );
         assert_eq!(ctx.query(), "SELECT * FROM users");
         assert_eq!(ctx.session_id(), Some("test_session"));
         assert_eq!(ctx.user_name(), Some("test_user"));
@@ -754,7 +765,13 @@ mod tests {
 
     #[test]
     fn test_request_parameters() {
-        let mut ctx = RequestContext::simple("MATCH (n) WHERE n.name = $name RETURN n".to_string());
+        let mut ctx = RequestContext::with_session(
+            "MATCH (n) WHERE n.name = $name RETURN n".to_string(),
+            "test_session",
+            "test_user",
+            "127.0.0.1",
+            0,
+        );
 
         // 设置参数
         ctx.set_parameter("name".to_string(), Value::String("Alice".to_string()));
@@ -771,7 +788,13 @@ mod tests {
 
     #[test]
     fn test_response_management() {
-        let ctx = RequestContext::simple("MATCH (n) RETURN n".to_string());
+        let ctx = RequestContext::with_session(
+            "MATCH (n) RETURN n".to_string(),
+            "test_session",
+            "test_user",
+            "127.0.0.1",
+            0,
+        );
 
         // 设置响应数据
         let data = Value::List(vec![
@@ -795,7 +818,13 @@ mod tests {
 
     #[test]
     fn test_request_lifecycle() {
-        let ctx = RequestContext::simple("MATCH (n) RETURN n".to_string());
+        let ctx = RequestContext::with_session(
+            "MATCH (n) RETURN n".to_string(),
+            "test_session",
+            "test_user",
+            "127.0.0.1",
+            0,
+        );
 
         // 初始状态
         assert_eq!(ctx.status().unwrap(), RequestStatus::Pending);
@@ -811,19 +840,37 @@ mod tests {
         assert!(ctx.is_completed().unwrap());
 
         // 测试失败状态
-        let ctx2 = RequestContext::simple("INVALID QUERY".to_string());
+        let ctx2 = RequestContext::with_session(
+            "INVALID QUERY".to_string(),
+            "test_session",
+            "test_user",
+            "127.0.0.1",
+            0,
+        );
         ctx2.mark_failed().unwrap();
         assert!(ctx2.is_failed().unwrap());
 
         // 测试取消状态
-        let ctx3 = RequestContext::simple("LONG RUNNING QUERY".to_string());
+        let ctx3 = RequestContext::with_session(
+            "LONG RUNNING QUERY".to_string(),
+            "test_session",
+            "test_user",
+            "127.0.0.1",
+            0,
+        );
         ctx3.mark_cancelled().unwrap();
         assert!(ctx3.is_cancelled().unwrap());
     }
 
     #[test]
     fn test_attributes() {
-        let ctx = RequestContext::simple("MATCH (n) RETURN n".to_string());
+        let ctx = RequestContext::with_session(
+            "MATCH (n) RETURN n".to_string(),
+            "test_session",
+            "test_user",
+            "127.0.0.1",
+            0,
+        );
 
         // 设置属性
         ctx.set_attribute("query_type".to_string(), Value::String("read".to_string()))
@@ -854,7 +901,13 @@ mod tests {
 
     #[test]
     fn test_duration() {
-        let ctx = RequestContext::simple("MATCH (n) RETURN n".to_string());
+        let ctx = RequestContext::with_session(
+            "MATCH (n) RETURN n".to_string(),
+            "test_session",
+            "test_user",
+            "127.0.0.1",
+            0,
+        );
 
         // 等待一小段时间
         std::thread::sleep(std::time::Duration::from_millis(10));
@@ -865,7 +918,13 @@ mod tests {
 
     #[test]
     fn test_to_string() {
-        let ctx = RequestContext::simple("MATCH (n) RETURN n".to_string());
+        let ctx = RequestContext::with_session(
+            "MATCH (n) RETURN n".to_string(),
+            "test_session",
+            "test_user",
+            "127.0.0.1",
+            0,
+        );
         ctx.set_attribute("test".to_string(), Value::String("value".to_string()))
             .unwrap();
 

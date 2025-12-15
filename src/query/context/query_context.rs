@@ -827,7 +827,13 @@ mod tests {
     #[test]
     fn test_with_request_context() {
         // 创建请求上下文
-        let request_ctx = Arc::new(RequestContext::simple("MATCH (n) RETURN n".to_string()));
+        let request_ctx = Arc::new(RequestContext::with_session(
+            "MATCH (n) RETURN n".to_string(),
+            "test_session",
+            "test_user",
+            "127.0.0.1",
+            0,
+        ));
 
         // 使用请求上下文创建查询上下文
         let ctx = QueryContext::with_request_context(request_ctx.clone());

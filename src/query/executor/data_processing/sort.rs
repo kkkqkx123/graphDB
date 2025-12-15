@@ -2,7 +2,8 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
 use crate::core::{Value, DataSet};
-use crate::graph::expression::{Expression, EvalContext, ExpressionEvaluator};
+use crate::graph::expression::{Expression, ExpressionEvaluator};
+use crate::query::context::EvalContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};

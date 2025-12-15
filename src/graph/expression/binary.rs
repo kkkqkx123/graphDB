@@ -1,7 +1,7 @@
 use crate::core::{Value, NullType};
 use crate::graph::expression::Expression;
-use super::context::EvalContext;
 use super::error::ExpressionError;
+use crate::query::context::EvalContext;
 use serde::{Deserialize, Serialize};
 
 /// Binary operators for expressions
