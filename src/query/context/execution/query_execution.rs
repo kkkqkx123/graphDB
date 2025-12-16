@@ -1,83 +1,15 @@
-//! 查询上下文模块 - 管理整个查询请求的上下文
+//! 查询执行上下文 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
-use super::{QueryExecutionContext, RequestContext, ValidateContext};
+use crate::query::context::{QueryExecutionContext, RequestContext, ValidateContext};
 use crate::core::{SymbolTable, Value};
 use crate::graph::utils::IdGenerator;
+use crate::query::context::managers::{
+    SchemaManager, IndexManager, StorageClient, MetaClient, CharsetInfo
+};
 use crate::utils::ObjectPool;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-
-/// Schema信息 - 表示数据库Schema
-#[derive(Debug, Clone)]
-pub struct Schema {
-    pub name: String,
-    pub fields: std::collections::HashMap<String, String>,
-    pub is_vertex: bool,
-}
-
-/// 索引信息 - 表示数据库索引
-#[derive(Debug, Clone)]
-pub struct Index {
-    pub name: String,
-    pub schema_name: String,
-    pub fields: Vec<String>,
-    pub is_unique: bool,
-}
-
-/// Schema管理器接口 - 定义Schema管理的基本操作
-pub trait SchemaManager: Send + Sync + std::fmt::Debug {
-    /// 获取指定名称的Schema
-    fn get_schema(&self, name: &str) -> Option<Schema>;
-    /// 列出所有Schema名称
-    fn list_schemas(&self) -> Vec<String>;
-    /// 检查Schema是否存在
-    fn has_schema(&self, name: &str) -> bool;
-}
-
-/// 索引管理器接口 - 定义索引管理的基本操作
-pub trait IndexManager: Send + Sync + std::fmt::Debug {
-    /// 获取指定名称的索引
-    fn get_index(&self, name: &str) -> Option<Index>;
-    /// 列出所有索引名称
-    fn list_indexes(&self) -> Vec<String>;
-    /// 检查索引是否存在
-    fn has_index(&self, name: &str) -> bool;
-}
-
-/// 存储客户端接口 - 定义存储层访问的基本操作
-pub trait StorageClient: Send + Sync + std::fmt::Debug {
-    /// 执行存储操作
-    fn execute(&self, operation: StorageOperation) -> Result<StorageResponse, String>;
-    /// 检查连接状态
-    fn is_connected(&self) -> bool;
-}
-
-/// 元数据客户端接口 - 定义元数据访问的基本操作
-pub trait MetaClient: Send + Sync + std::fmt::Debug {
-    /// 获取集群元信息
-    fn get_cluster_info(&self) -> Result<ClusterInfo, String>;
-    /// 获取空间信息
-    fn get_space_info(&self, space_id: i32) -> Result<SpaceInfo, String>;
-    /// 检查连接状态
-    fn is_connected(&self) -> bool;
-}
-
-/// 字符集信息 - 管理字符集和排序规则
-#[derive(Debug, Clone)]
-pub struct CharsetInfo {
-    pub charset: String,
-    pub collation: String,
-}
-
-impl Default for CharsetInfo {
-    fn default() -> Self {
-        Self {
-            charset: "utf8mb4".to_string(),
-            collation: "utf8mb4_general_ci".to_string(),
-        }
-    }
-}
 
 /// 执行计划 - 表示查询的执行计划
 #[derive(Debug, Clone)]
@@ -115,53 +47,6 @@ pub struct PlanNode {
     pub node_id: i64,
     pub node_type: String,
     pub children: Vec<PlanNode>,
-}
-
-/// 存储操作类型
-#[derive(Debug, Clone)]
-pub enum StorageOperation {
-    Read {
-        table: String,
-        key: String,
-    },
-    Write {
-        table: String,
-        key: String,
-        value: Value,
-    },
-    Delete {
-        table: String,
-        key: String,
-    },
-    Scan {
-        table: String,
-        prefix: String,
-    },
-}
-
-/// 存储响应
-#[derive(Debug, Clone)]
-pub struct StorageResponse {
-    pub success: bool,
-    pub data: Option<Value>,
-    pub error_message: Option<String>,
-}
-
-/// 集群信息
-#[derive(Debug, Clone)]
-pub struct ClusterInfo {
-    pub cluster_id: String,
-    pub meta_servers: Vec<String>,
-    pub storage_servers: Vec<String>,
-}
-
-/// 空间信息
-#[derive(Debug, Clone)]
-pub struct SpaceInfo {
-    pub space_id: i32,
-    pub space_name: String,
-    pub partition_num: i32,
-    pub replica_factor: i32,
 }
 
 /// 执行响应 - 包含查询执行结果
@@ -543,6 +428,7 @@ impl Default for QueryContext {
 mod tests {
     use super::*;
     use std::collections::HashMap;
+    use crate::query::context::managers::{Schema, Index};
 
     // Mock实现用于测试
     #[derive(Debug)]
@@ -618,8 +504,8 @@ mod tests {
     struct MockStorageClient;
 
     impl StorageClient for MockStorageClient {
-        fn execute(&self, _operation: StorageOperation) -> Result<StorageResponse, String> {
-            Ok(StorageResponse {
+        fn execute(&self, _operation: crate::query::context::managers::StorageOperation) -> Result<crate::query::context::managers::StorageResponse, String> {
+            Ok(crate::query::context::managers::StorageResponse {
                 success: true,
                 data: None,
                 error_message: None,
@@ -635,16 +521,16 @@ mod tests {
     struct MockMetaClient;
 
     impl MetaClient for MockMetaClient {
-        fn get_cluster_info(&self) -> Result<ClusterInfo, String> {
-            Ok(ClusterInfo {
+        fn get_cluster_info(&self) -> Result<crate::query::context::managers::ClusterInfo, String> {
+            Ok(crate::query::context::managers::ClusterInfo {
                 cluster_id: "test_cluster".to_string(),
                 meta_servers: vec!["127.0.0.1:9559".to_string()],
                 storage_servers: vec!["127.0.0.1:9779".to_string()],
             })
         }
 
-        fn get_space_info(&self, space_id: i32) -> Result<SpaceInfo, String> {
-            Ok(SpaceInfo {
+        fn get_space_info(&self, space_id: i32) -> Result<crate::query::context::managers::SpaceInfo, String> {
+            Ok(crate::query::context::managers::SpaceInfo {
                 space_id,
                 space_name: "test_space".to_string(),
                 partition_num: 10,
@@ -752,7 +638,7 @@ mod tests {
         let mut ctx = QueryContext::new();
 
         // 设置字符集信息
-        let charset_info = CharsetInfo {
+        let charset_info = crate::query::context::managers::CharsetInfo {
             charset: "utf8mb4".to_string(),
             collation: "utf8mb4_general_ci".to_string(),
         };

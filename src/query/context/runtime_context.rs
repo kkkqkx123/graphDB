@@ -7,7 +7,7 @@ use crate::common::base::id::{TagId, EdgeType};
 use crate::core::Value;
 use std::sync::Arc;
 
-use super::query_context::SchemaManager;
+use crate::query::context::managers::SchemaManager;
 
 /// 结果状态枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -280,7 +280,7 @@ mod tests {
 
     #[derive(Debug)]
     struct MockSchemaManager {
-        schemas: HashMap<String, crate::query::context::query_context::Schema>,
+        schemas: HashMap<String, crate::query::context::managers::Schema>,
     }
 
     impl MockSchemaManager {
@@ -292,7 +292,7 @@ mod tests {
     }
 
     impl SchemaManager for MockSchemaManager {
-        fn get_schema(&self, name: &str) -> Option<crate::query::context::query_context::Schema> {
+        fn get_schema(&self, name: &str) -> Option<crate::query::context::managers::Schema> {
             self.schemas.get(name).cloned()
         }
 
