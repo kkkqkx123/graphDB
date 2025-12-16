@@ -4,7 +4,6 @@ use super::ast::*;
 use crate::core::Value;
 use crate::query::context::CypherAstContext;
 
-
 /// Cypher执行器
 #[derive(Debug)]
 pub struct CypherExecutor {
@@ -22,12 +21,12 @@ impl CypherExecutor {
     /// 执行Cypher语句
     pub fn execute(&mut self, statements: Vec<CypherStatement>) -> Result<Vec<Value>, String> {
         let mut results = Vec::new();
-        
+
         for statement in statements {
             let result = self.execute_statement(statement)?;
             results.push(result);
         }
-        
+
         Ok(results)
     }
 
@@ -49,61 +48,61 @@ impl CypherExecutor {
     }
 
     /// 执行MATCH语句
-    fn execute_match(&mut self, clause: MatchClause) -> Result<Value, String> {
+    fn execute_match(&mut self, _clause: MatchClause) -> Result<Value, String> {
         // 简化实现：返回空结果
         Ok(Value::List(Vec::new()))
     }
 
     /// 执行RETURN语句
-    fn execute_return(&mut self, clause: ReturnClause) -> Result<Value, String> {
+    fn execute_return(&mut self, _clause: ReturnClause) -> Result<Value, String> {
         // 简化实现：返回空结果
         Ok(Value::List(Vec::new()))
     }
 
     /// 执行CREATE语句
-    fn execute_create(&mut self, clause: CreateClause) -> Result<Value, String> {
+    fn execute_create(&mut self, _clause: CreateClause) -> Result<Value, String> {
         // 简化实现：返回创建成功的信息
         Ok(Value::String("CREATE操作成功".to_string()))
     }
 
     /// 执行DELETE语句
-    fn execute_delete(&mut self, clause: DeleteClause) -> Result<Value, String> {
+    fn execute_delete(&mut self, _clause: DeleteClause) -> Result<Value, String> {
         // 简化实现：返回删除成功的信息
         Ok(Value::String("DELETE操作成功".to_string()))
     }
 
     /// 执行SET语句
-    fn execute_set(&mut self, clause: SetClause) -> Result<Value, String> {
+    fn execute_set(&mut self, _clause: SetClause) -> Result<Value, String> {
         // 简化实现：返回设置成功的信息
         Ok(Value::String("SET操作成功".to_string()))
     }
 
     /// 执行REMOVE语句
-    fn execute_remove(&mut self, clause: RemoveClause) -> Result<Value, String> {
+    fn execute_remove(&mut self, _clause: RemoveClause) -> Result<Value, String> {
         // 简化实现：返回移除成功的信息
         Ok(Value::String("REMOVE操作成功".to_string()))
     }
 
     /// 执行MERGE语句
-    fn execute_merge(&mut self, clause: MergeClause) -> Result<Value, String> {
+    fn execute_merge(&mut self, _clause: MergeClause) -> Result<Value, String> {
         // 简化实现：返回合并成功的信息
         Ok(Value::String("MERGE操作成功".to_string()))
     }
 
     /// 执行WITH语句
-    fn execute_with(&mut self, clause: WithClause) -> Result<Value, String> {
+    fn execute_with(&mut self, _clause: WithClause) -> Result<Value, String> {
         // 简化实现：返回空结果
         Ok(Value::List(Vec::new()))
     }
 
     /// 执行UNWIND语句
-    fn execute_unwind(&mut self, clause: UnwindClause) -> Result<Value, String> {
+    fn execute_unwind(&mut self, _clause: UnwindClause) -> Result<Value, String> {
         // 简化实现：返回展开后的结果
         Ok(Value::List(Vec::new()))
     }
 
     /// 执行CALL语句
-    fn execute_call(&mut self, clause: CallClause) -> Result<Value, String> {
+    fn execute_call(&mut self, _clause: CallClause) -> Result<Value, String> {
         // 简化实现：返回调用结果
         Ok(Value::String("CALL操作成功".to_string()))
     }
@@ -138,15 +137,16 @@ mod tests {
     #[test]
     fn test_execute_match_statement() {
         let mut executor = CypherExecutor::new();
-        
+
         let match_clause = MatchClause {
             patterns: Vec::new(),
             where_clause: None,
+            optional: false,
         };
-        
+
         let statement = CypherStatement::Match(match_clause);
         let result = executor.execute_statement(statement);
-        
+
         assert!(result.is_ok());
         assert!(matches!(result.unwrap(), Value::List(_)));
     }
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn test_execute_return_statement() {
         let mut executor = CypherExecutor::new();
-        
+
         let return_clause = ReturnClause {
             return_items: Vec::new(),
             distinct: false,
@@ -162,10 +162,10 @@ mod tests {
             skip: None,
             limit: None,
         };
-        
+
         let statement = CypherStatement::Return(return_clause);
         let result = executor.execute_statement(statement);
-        
+
         assert!(result.is_ok());
         assert!(matches!(result.unwrap(), Value::List(_)));
     }
@@ -173,14 +173,14 @@ mod tests {
     #[test]
     fn test_execute_create_statement() {
         let mut executor = CypherExecutor::new();
-        
+
         let create_clause = CreateClause {
             patterns: Vec::new(),
         };
-        
+
         let statement = CypherStatement::Create(create_clause);
         let result = executor.execute_statement(statement);
-        
+
         assert!(result.is_ok());
         assert!(matches!(result.unwrap(), Value::String(_)));
     }
@@ -188,11 +188,12 @@ mod tests {
     #[test]
     fn test_execute_multiple_statements() {
         let mut executor = CypherExecutor::new();
-        
+
         let statements = vec![
             CypherStatement::Match(MatchClause {
                 patterns: Vec::new(),
                 where_clause: None,
+                optional: false,
             }),
             CypherStatement::Return(ReturnClause {
                 return_items: Vec::new(),
@@ -202,9 +203,9 @@ mod tests {
                 limit: None,
             }),
         ];
-        
+
         let result = executor.execute(statements);
-        
+
         assert!(result.is_ok());
         let results = result.unwrap();
         assert_eq!(results.len(), 2);
@@ -213,11 +214,11 @@ mod tests {
     #[test]
     fn test_executor_context() {
         let mut executor = CypherExecutor::new();
-        
+
         // 获取上下文引用
         let context = executor.context();
         assert!(context.patterns().is_empty());
-        
+
         // 获取可变上下文引用
         let context_mut = executor.context_mut();
         assert!(context_mut.patterns().is_empty());

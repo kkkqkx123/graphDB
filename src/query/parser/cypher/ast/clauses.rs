@@ -93,7 +93,7 @@ pub struct ReturnItem {
 }
 
 /// SET操作符
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SetOperator {
     Replace,  // =
     Add,      // +=
@@ -150,7 +150,7 @@ pub struct OrderByItem {
 }
 
 /// 排序
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Ordering {
     Ascending,
     Descending,
