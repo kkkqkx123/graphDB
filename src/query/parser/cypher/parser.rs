@@ -28,7 +28,7 @@ impl CypherParser {
 
             let current_pos = self.position;
             let statement = self.parse_statement();
-            
+
             match statement {
                 Ok(stmt) => {
                     statements.push(stmt);
@@ -59,17 +59,17 @@ impl CypherParser {
         self.skip_whitespace();
 
         let keyword = self.parse_keyword()?;
-        
+
         match keyword.to_uppercase().as_str() {
             "MATCH" => {
                 let patterns = self.parse_patterns()?;
-                
+
                 let where_clause = if self.peek_keyword("WHERE") {
                     Some(self.parse_where_clause()?)
                 } else {
                     None
                 };
-                
+
                 // 检查是否有后续的RETURN或WITH子句
                 if self.peek_keyword("RETURN") || self.peek_keyword("WITH") {
                     let return_clause = if self.peek_keyword("RETURN") {
@@ -78,14 +78,14 @@ impl CypherParser {
                     } else {
                         None
                     };
-                    
+
                     let with_clause = if self.peek_keyword("WITH") {
                         self.parse_keyword()?; // 跳过WITH
                         Some(self.parse_with_clause()?)
                     } else {
                         None
                     };
-                    
+
                     Ok(CypherStatement::Query(QueryClause {
                         match_clause: Some(MatchClause {
                             patterns,
@@ -284,12 +284,12 @@ impl CypherParser {
         while !self.is_eof() {
             // 跳过空白字符
             self.skip_whitespace();
-            
+
             // 先检查是否能够解析模式（当前位置是否是'('）
             if self.peek_char() != Some('(') {
                 break;
             }
-            
+
             let pattern = self.parse_pattern()?;
             patterns.push(pattern);
 
@@ -498,7 +498,7 @@ impl CypherParser {
                 }
                 'a'..='z' | 'A'..='Z' | '_' => {
                     let identifier = self.parse_identifier()?;
-                    
+
                     // 检查是否是属性表达式
                     self.skip_whitespace();
                     if self.peek_char() == Some('.') {
@@ -580,10 +580,10 @@ impl CypherParser {
 
     fn peek_keyword(&mut self, keyword: &str) -> bool {
         let current_pos = self.position;
-        
+
         // 先跳过空白字符
         self.skip_whitespace();
-        
+
         // 检查当前位置是否是字母字符（关键字的开始）
         if let Some(ch) = self.peek_char() {
             if !ch.is_alphabetic() {
@@ -594,11 +594,11 @@ impl CypherParser {
             self.position = current_pos;
             return false;
         }
-        
+
         // 尝试解析关键字，但如果失败则返回false
         let result = match self.parse_keyword() {
             Ok(k) => k.to_uppercase() == keyword.to_uppercase(),
-            Err(_) => false
+            Err(_) => false,
         };
         self.position = current_pos;
         result
@@ -698,25 +698,25 @@ impl CypherParser {
     // 简化实现的其他方法
     fn parse_return_items(&mut self) -> Result<Vec<ReturnItem>, String> {
         let mut items = Vec::new();
-        
+
         while !self.is_eof() {
             self.skip_whitespace();
-            
+
             // 检查是否还有更多项目
             if self.peek_char().is_none() {
                 break;
             }
-            
+
             // 尝试解析表达式作为返回项目
             let expression = self.parse_expression()?;
-            
+
             // 创建返回项目
             let item = ReturnItem {
                 expression,
                 alias: None, // 简化实现，不支持别名
             };
             items.push(item);
-            
+
             // 检查是否有逗号分隔更多项目
             self.skip_whitespace();
             if self.peek_char() == Some(',') {
@@ -725,7 +725,7 @@ impl CypherParser {
                 break;
             }
         }
-        
+
         Ok(items)
     }
 
@@ -737,9 +737,9 @@ impl CypherParser {
 
     fn parse_comparison_expression(&mut self) -> Result<Expression, String> {
         let left = self.parse_expression()?;
-        
+
         self.skip_whitespace();
-        
+
         // 检查是否有比较操作符
         if let Some(ch) = self.peek_char() {
             match ch {
@@ -798,25 +798,22 @@ impl CypherParser {
 
     fn parse_set_items(&mut self) -> Result<Vec<SetItem>, String> {
         let mut items = Vec::new();
-        
+
         while !self.is_eof() {
             self.skip_whitespace();
-            
+
             // 解析属性表达式作为left
             let left = self.parse_expression()?;
-            
+
             self.skip_whitespace();
             self.expect_char('=')?;
             self.skip_whitespace();
-            
+
             // 解析值作为right
             let right = self.parse_expression()?;
-            
-            items.push(SetItem {
-                left,
-                right,
-            });
-            
+
+            items.push(SetItem { left, right });
+
             // 检查是否有更多项目
             self.skip_whitespace();
             if self.peek_char() == Some(',') {
@@ -825,7 +822,7 @@ impl CypherParser {
                 break;
             }
         }
-        
+
         Ok(items)
     }
 
@@ -841,22 +838,22 @@ impl CypherParser {
 
     fn parse_expressions(&mut self) -> Result<Vec<Expression>, String> {
         let mut expressions = Vec::new();
-        
+
         while !self.is_eof() {
             self.skip_whitespace();
-            
+
             // 尝试解析节点模式作为表达式
             if self.peek_char() == Some('(') {
                 let node_pattern = self.parse_node_pattern()?;
                 expressions.push(Expression::Variable(
-                    node_pattern.variable.unwrap_or_else(|| "node".to_string())
+                    node_pattern.variable.unwrap_or_else(|| "node".to_string()),
                 ));
             } else {
                 // 尝试解析普通表达式
                 let expr = self.parse_expression()?;
                 expressions.push(expr);
             }
-            
+
             // 检查是否有更多表达式
             self.skip_whitespace();
             if self.peek_char() == Some(',') {
@@ -865,7 +862,7 @@ impl CypherParser {
                 break;
             }
         }
-        
+
         Ok(expressions)
     }
 

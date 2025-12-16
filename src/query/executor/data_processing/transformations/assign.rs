@@ -7,7 +7,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
-use crate::graph::expression::{Expression, ExpressionContext, ExpressionEvaluator};
+use crate::graph::expression::{Expression, ExpressionEvaluator};
+use crate::query::context::expression_eval_context::EvalContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -57,7 +58,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
 
     /// 执行赋值操作
     fn execute_assign(&mut self) -> DBResult<()> {
-        let mut expr_context = ExpressionContext::new();
+        let mut expr_context = EvalContext::new();
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {

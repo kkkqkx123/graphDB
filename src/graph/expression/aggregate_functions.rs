@@ -1,6 +1,6 @@
 use crate::core::Value;
 use crate::graph::expression::error::ExpressionError;
-use crate::graph::expression::{Expression, ExpressionContext};
+use crate::graph::expression::Expression;
 use serde::{Deserialize, Serialize};
 
 /// 聚合函数类型
@@ -65,7 +65,7 @@ impl AggregateExpression {
     /// 计算聚合表达式的值
     pub fn evaluate(
         &self,
-        context: &ExpressionContext,
+        context: &crate::query::context::expression_eval_context::EvalContext,
         state: &mut AggregateState,
     ) -> Result<Value, ExpressionError> {
         // 计算参数值

@@ -22,7 +22,6 @@ pub mod managers;
 // 重新导出主要类型
 pub use ast::*;
 pub use execution_context::QueryExecutionContext;
-pub use expression::*;
 pub use expression_context::*;
 pub use expression_eval_context::*;
 pub use request_context::RequestContext;
@@ -30,4 +29,3 @@ pub use validate::*;
 
 // 导出新的模块结构
 pub use execution::*;
-
