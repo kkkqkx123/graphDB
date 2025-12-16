@@ -3,6 +3,8 @@
 
 use crate::query::context::ast::{AstContext, MaintainContext};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::PlanNodeMutable;
+use crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies;
 use crate::query::planner::plan::operations::{Argument, Project};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -79,19 +81,20 @@ impl Planner for MaintainPlanner {
             });
 
         // 3. 不同类型的操作可能需要不同处理
-        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if stmt_type == "SUBMIT JOB" {
-            // 提交作业类型的维护操作
-            project_node
-        } else if stmt_type.starts_with("CREATE") {
-            // 创建类型的操作
-            project_node
-        } else if stmt_type.starts_with("DROP") {
-            // 删除类型的操作
-            project_node
-        } else {
-            // 其他类型的维护操作
-            project_node
-        };
+        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
+            if stmt_type == "SUBMIT JOB" {
+                // 提交作业类型的维护操作
+                project_node
+            } else if stmt_type.starts_with("CREATE") {
+                // 创建类型的操作
+                project_node
+            } else if stmt_type.starts_with("DROP") {
+                // 删除类型的操作
+                project_node
+            } else {
+                // 其他类型的维护操作
+                project_node
+            };
 
         // 创建SubPlan
         let sub_plan = SubPlan {

@@ -1,11 +1,14 @@
 //! PATH查询规划器
 //! 处理Nebula PATH查询的规划
 
+use crate::query::context::ast::common::{ExpressionProps, Over, Starts, StepClause};
 use crate::query::context::ast::{AstContext, PathContext};
-use crate::query::context::ast::common::{Starts, Over, StepClause, ExpressionProps};
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
-use crate::query::planner::plan::operations::{Argument, Dedup, Expand, ExpandAll, Filter, GetVertices, Project};
+use crate::query::planner::plan::core::{PlanNodeDependencies, PlanNodeMutable};
+use crate::query::planner::plan::operations::{
+    Argument, Dedup, Expand, ExpandAll, Filter, GetVertices, Project,
+};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
@@ -66,11 +69,8 @@ impl Planner for PathPlanner {
         });
 
         // 2. 创建GetVertices节点来获取顶点
-        let mut get_vertices_node = Arc::new(GetVertices::new(
-            3,
-            1,
-            &path_ctx.from.user_defined_var_name,
-        ));
+        let mut get_vertices_node =
+            Arc::new(GetVertices::new(3, 1, &path_ctx.from.user_defined_var_name));
         let get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
         get_vertices_node_mut.add_dependency(start_arg_node.clone());
         get_vertices_node_mut.set_output_var(Variable {

@@ -2,10 +2,12 @@
 //! 处理Nebula GO查询的规划
 
 use crate::query::context::ast::{AstContext, GoContext};
-use crate::query::context::ast::common::{Starts, Over, StepClause, ExpressionProps};
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
-use crate::query::planner::plan::operations::{Argument, Dedup, Expand, ExpandAll, Filter, HashLeftJoin, Project};
+use crate::query::planner::plan::core::plan_node_traits::{PlanNodeDependencies, PlanNodeMutable};
+use crate::query::planner::plan::operations::{
+    Argument, Dedup, Expand, ExpandAll, Filter, HashLeftJoin, Project,
+};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
@@ -59,12 +61,7 @@ impl Planner for GoPlanner {
         });
 
         // 2. 创建扩展节点
-        let mut expand_node = Arc::new(Expand::new(
-            2,
-            1,
-            go_ctx.over.edge_types.clone(),
-            "out",
-        ));
+        let mut expand_node = Arc::new(Expand::new(2, 1, go_ctx.over.edge_types.clone(), "out"));
         let expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
         expand_node_mut.add_dependency(arg_node.clone());
         expand_node_mut.set_output_var(Variable {
@@ -144,11 +141,12 @@ impl Planner for GoPlanner {
         let filter_node = if let Some(ref condition) = go_ctx.filter {
             let mut filter = Arc::new(Filter::new(5, condition));
             let filter_mut = Arc::get_mut(&mut filter).unwrap();
-            let dependency_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if let Some(ref join_ref) = join_node {
-                join_ref.clone()
-            } else {
-                expand_all_node.clone()
-            };
+            let dependency_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
+                if let Some(ref join_ref) = join_node {
+                    join_ref.clone()
+                } else {
+                    expand_all_node.clone()
+                };
             filter_mut.add_dependency(dependency_node);
             filter_mut.set_output_var(Variable {
                 name: "filtered_result".to_string(),
@@ -165,13 +163,14 @@ impl Planner for GoPlanner {
             &go_ctx.yield_expr.clone().unwrap_or("DEFAULT".to_string()),
         ));
         let project_node_mut = Arc::get_mut(&mut project_node).unwrap();
-        let last_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if let Some(ref filter_ref) = filter_node {
-            filter_ref.clone()
-        } else if let Some(ref join_ref) = join_node {
-            join_ref.clone()
-        } else {
-            expand_all_node.clone()
-        };
+        let last_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
+            if let Some(ref filter_ref) = filter_node {
+                filter_ref.clone()
+            } else if let Some(ref join_ref) = join_node {
+                join_ref.clone()
+            } else {
+                expand_all_node.clone()
+            };
 
         project_node_mut.add_dependency(last_node);
         let result_columns: Vec<crate::query::context::validate::types::Column> = go_ctx

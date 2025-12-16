@@ -1,53 +1,15 @@
 //! PlanNode特征和基础实现
 //! 定义执行计划节点的通用接口和各种基础节点类型
 
+use crate::impl_plan_node_for;
+use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::plan_node_traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+    PlanNodeProperties, PlanNodeVisitable,
+};
 use crate::query::planner::plan::core::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::planner::plan::core::PlanNodeKind;
-use crate::query::context::validate::types::Variable;
-use std::any::Any;
 use std::sync::Arc;
-
-/// PlanNode特征，所有计划节点都应实现该特征
-pub trait PlanNode: std::fmt::Debug + Send + Sync {
-    /// 获取节点的唯一ID
-    fn id(&self) -> i64;
-
-    /// 获取节点的类型
-    fn kind(&self) -> PlanNodeKind;
-
-    /// 获取节点的依赖节点列表
-    fn dependencies(&self) -> &Vec<Arc<dyn PlanNode>>;
-
-    /// 获取节点的输出变量
-    fn output_var(&self) -> &Option<Variable>;
-
-    /// 获取列名列表
-    fn col_names(&self) -> &Vec<String>;
-
-    /// 获取节点的成本估计值
-    fn cost(&self) -> f64;
-
-    /// 克隆节点
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode>;
-
-    /// 使用访问者模式访问节点
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError>;
-
-    /// 设置节点的依赖
-    fn set_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>);
-
-    /// 设置节点的输出变量
-    fn set_output_var(&mut self, var: Variable);
-
-    /// 设置列名
-    fn set_col_names(&mut self, names: Vec<String>);
-
-    /// 设置成本
-    fn set_cost(&mut self, cost: f64);
-
-    /// 以Any类型返回节点，以支持downcast
-    fn as_any(&self) -> &dyn Any;
-}
 
 /// 单一依赖节点 - 具有一个依赖的计划节点
 #[derive(Debug)]
@@ -59,6 +21,10 @@ pub struct SingleDependencyNode {
     pub col_names: Vec<String>,
     pub cost: f64,
 }
+
+// Ensure SingleDependencyNode implements Send + Sync for PlanNode trait requirement
+unsafe impl Send for SingleDependencyNode {}
+unsafe impl Sync for SingleDependencyNode {}
 
 impl Clone for SingleDependencyNode {
     fn clone(&self) -> Self {
@@ -88,67 +54,14 @@ impl SingleDependencyNode {
     }
 }
 
-impl PlanNode for SingleDependencyNode {
-    fn id(&self) -> i64 {
-        self.id
-    }
+impl_plan_node_for!(SingleDependencyNode);
 
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-
-    fn dependencies(&self) -> &Vec<Arc<dyn PlanNode>> {
-        &self.dependencies
-    }
-
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
-    }
-
-    fn col_names(&self) -> &Vec<String> {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
-        Arc::new(SingleDependencyNode {
-            id: self.id,
-            kind: self.kind.clone(),
-            dependencies: self
-                .dependencies
-                .iter()
-                .map(|dep| dep.clone_plan_node())
-                .collect(),
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-        })
-    }
-
+impl PlanNodeVisitable for SingleDependencyNode {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
         visitor.visit_plan_node(self)?;
         visitor.post_visit()?;
         Ok(())
-    }
-
-    fn set_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.dependencies = deps;
-    }
-
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
     }
 }
 
@@ -162,6 +75,10 @@ pub struct SingleInputNode {
     pub col_names: Vec<String>,
     pub cost: f64,
 }
+
+// Ensure SingleInputNode implements Send + Sync for PlanNode trait requirement
+unsafe impl Send for SingleInputNode {}
+unsafe impl Sync for SingleInputNode {}
 
 impl Clone for SingleInputNode {
     fn clone(&self) -> Self {
@@ -191,67 +108,14 @@ impl SingleInputNode {
     }
 }
 
-impl PlanNode for SingleInputNode {
-    fn id(&self) -> i64 {
-        self.id
-    }
+impl_plan_node_for!(SingleInputNode);
 
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-
-    fn dependencies(&self) -> &Vec<Arc<dyn PlanNode>> {
-        &self.dependencies
-    }
-
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
-    }
-
-    fn col_names(&self) -> &Vec<String> {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
-        Arc::new(SingleInputNode {
-            id: self.id,
-            kind: self.kind.clone(),
-            dependencies: self
-                .dependencies
-                .iter()
-                .map(|dep| dep.clone_plan_node())
-                .collect(),
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-        })
-    }
-
+impl PlanNodeVisitable for SingleInputNode {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
         visitor.visit_plan_node(self)?;
         visitor.post_visit()?;
         Ok(())
-    }
-
-    fn set_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.dependencies = deps;
-    }
-
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
     }
 }
 
@@ -265,6 +129,10 @@ pub struct BinaryInputNode {
     pub col_names: Vec<String>,
     pub cost: f64,
 }
+
+// Ensure BinaryInputNode implements Send + Sync for PlanNode trait requirement
+unsafe impl Send for BinaryInputNode {}
+unsafe impl Sync for BinaryInputNode {}
 
 impl Clone for BinaryInputNode {
     fn clone(&self) -> Self {
@@ -294,67 +162,14 @@ impl BinaryInputNode {
     }
 }
 
-impl PlanNode for BinaryInputNode {
-    fn id(&self) -> i64 {
-        self.id
-    }
+impl_plan_node_for!(BinaryInputNode);
 
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-
-    fn dependencies(&self) -> &Vec<Arc<dyn PlanNode>> {
-        &self.dependencies
-    }
-
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
-    }
-
-    fn col_names(&self) -> &Vec<String> {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
-        Arc::new(BinaryInputNode {
-            id: self.id,
-            kind: self.kind.clone(),
-            dependencies: self
-                .dependencies
-                .iter()
-                .map(|dep| dep.clone_plan_node())
-                .collect(),
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-        })
-    }
-
+impl PlanNodeVisitable for BinaryInputNode {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
         visitor.visit_plan_node(self)?;
         visitor.post_visit()?;
         Ok(())
-    }
-
-    fn set_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.dependencies = deps;
-    }
-
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
     }
 }
 
@@ -368,6 +183,10 @@ pub struct VariableDependencyNode {
     pub col_names: Vec<String>,
     pub cost: f64,
 }
+
+// Ensure VariableDependencyNode implements Send + Sync for PlanNode trait requirement
+unsafe impl Send for VariableDependencyNode {}
+unsafe impl Sync for VariableDependencyNode {}
 
 impl Clone for VariableDependencyNode {
     fn clone(&self) -> Self {
@@ -401,66 +220,13 @@ impl VariableDependencyNode {
     }
 }
 
-impl PlanNode for VariableDependencyNode {
-    fn id(&self) -> i64 {
-        self.id
-    }
+impl_plan_node_for!(VariableDependencyNode);
 
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-
-    fn dependencies(&self) -> &Vec<Arc<dyn PlanNode>> {
-        &self.dependencies
-    }
-
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
-    }
-
-    fn col_names(&self) -> &Vec<String> {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
-        Arc::new(VariableDependencyNode {
-            id: self.id,
-            kind: self.kind.clone(),
-            dependencies: self
-                .dependencies
-                .iter()
-                .map(|dep| dep.clone_plan_node())
-                .collect(),
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-        })
-    }
-
+impl PlanNodeVisitable for VariableDependencyNode {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
         visitor.visit_plan_node(self)?;
         visitor.post_visit()?;
         Ok(())
-    }
-
-    fn set_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.dependencies = deps;
-    }
-
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
     }
 }

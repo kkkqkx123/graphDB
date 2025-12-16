@@ -1,16 +1,19 @@
 //! PlanNode访问者模式的定义
 //! 用于遍历和处理计划树
 
-use super::plan_node::PlanNode as BasePlanNode;
-use super::common::{TagProp, EdgeProp};
-use super::graph_scan::{GetNeighbors, GetEdges, GetVertices};
-use super::traverse_ops::{Traverse, AppendVertices, ScanEdges, Expand, ExpandAll};
-use super::data_ops::{Unwind, Project, Filter, RollUpApply, PatternApply};
-use super::aggregation_ops::Aggregate;
-use super::sort_limit_ops::{Sort, Limit, TopN, Sample};
-use super::operations::{Union, DataCollect, Dedup, Start, Argument};
-use super::join_ops::{HashJoin, HashLeftJoin, HashInnerJoin, CrossJoin};
-use super::scan_nodes::{FulltextIndexScan, IndexScan, ScanVertices};
+use super::algorithms::index_scan::{FulltextIndexScan, IndexScan};
+use super::core::plan_node_traits::PlanNode as BasePlanNode;
+use super::operations::{
+    aggregation_ops::Aggregate,
+    control_flow_ops::{Argument, Start},
+    data_processing_ops::{
+        DataCollect, Dedup, Filter, PatternApply, Project, RollUpApply, Union, Unwind,
+    },
+    graph_scan_ops::{GetEdges, GetNeighbors, GetVertices, ScanVertices},
+    join_ops::{CrossJoin, HashInnerJoin, HashJoin, HashLeftJoin},
+    sorting_ops::{Limit, Sample, Sort, TopN},
+    traversal_ops::{AppendVertices, Expand, ExpandAll, ScanEdges, Traverse},
+};
 use std::fmt;
 
 /// 计划节点访问者特征

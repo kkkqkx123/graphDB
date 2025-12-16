@@ -3,6 +3,7 @@
 
 use crate::query::context::ast::{AstContext, LookupContext};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::plan_node_traits::{PlanNodeDependencies, PlanNodeMutable};
 use crate::query::planner::plan::operations::{Dedup, Filter, GetEdges, GetVertices, Project};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
