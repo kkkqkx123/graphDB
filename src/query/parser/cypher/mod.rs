@@ -5,7 +5,6 @@
 pub mod parser;
 pub mod lexer;
 pub mod ast;
-pub mod executor;
 
 // 新增的解析器模块
 pub mod parser_core;
@@ -18,4 +17,6 @@ pub mod expression_parser;
 pub use parser::{CypherParser, ParseError, ParseResult, ParserInfo};
 pub use lexer::CypherLexer;
 pub use ast::CypherStatement;
-pub use executor::CypherExecutor;
+
+// 重新导出新的 Cypher 执行器
+pub use crate::query::executor::cypher::CypherExecutor;
