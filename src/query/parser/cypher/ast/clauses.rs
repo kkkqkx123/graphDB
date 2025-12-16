@@ -8,6 +8,7 @@ use crate::query::parser::cypher::ast::expressions::Expression;
 pub struct MatchClause {
     pub patterns: Vec<Pattern>,
     pub where_clause: Option<WhereClause>,
+    pub optional: bool,
 }
 
 /// WHERE子句
@@ -91,17 +92,34 @@ pub struct ReturnItem {
     pub alias: Option<String>,
 }
 
+/// SET操作符
+#[derive(Debug, Clone)]
+pub enum SetOperator {
+    Replace,  // =
+    Add,      // +=
+    Subtract, // -=
+}
+
 /// SET项
 #[derive(Debug, Clone)]
 pub struct SetItem {
     pub left: Expression,
+    pub operator: SetOperator,
     pub right: Expression,
+}
+
+/// REMOVE项类型
+#[derive(Debug, Clone)]
+pub enum RemoveItemType {
+    Property,
+    Label,
 }
 
 /// REMOVE项
 #[derive(Debug, Clone)]
 pub struct RemoveItem {
     pub expression: Expression,
+    pub item_type: RemoveItemType,
 }
 
 /// MERGE动作

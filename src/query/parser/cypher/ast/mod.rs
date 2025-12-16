@@ -14,7 +14,8 @@ pub use clauses::{
     MatchClause, WhereClause, ReturnClause, CreateClause, DeleteClause,
     SetClause, RemoveClause, MergeClause, WithClause, UnwindClause, CallClause,
     ReturnItem, SetItem, RemoveItem, MergeAction, MergeActionType,
-    OrderByClause, OrderByItem, Ordering, SkipClause, LimitClause
+    OrderByClause, OrderByItem, Ordering, SkipClause, LimitClause,
+    SetOperator, RemoveItemType
 };
 pub use patterns::{
     Pattern, PatternPart, NodePattern, RelationshipPattern, Direction, Range

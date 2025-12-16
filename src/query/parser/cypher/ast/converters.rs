@@ -215,7 +215,7 @@ impl ExpressionEvaluator {
                     _ => Err("NOT操作符只能应用于布尔值".to_string()),
                 }
             }
-            UnaryOperator::Negate => expr.negate(),
+            UnaryOperator::Negative => expr.negate(),
             _ => Err(format!("不支持的一元操作符: {:?}", unary.operator)),
         }
     }

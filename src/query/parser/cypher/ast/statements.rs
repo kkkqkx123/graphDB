@@ -57,6 +57,7 @@ mod tests {
         let match_stmt = CypherStatement::Match(MatchClause {
             patterns: Vec::new(),
             where_clause: None,
+            optional: false,
         });
         
         assert_eq!(match_stmt.statement_type(), "MATCH");

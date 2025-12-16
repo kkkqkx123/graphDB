@@ -39,7 +39,6 @@ pub struct PropertyExpression {
 pub struct FunctionCall {
     pub function_name: String,
     pub arguments: Vec<Expression>,
-    pub distinct: bool,
 }
 
 /// 二元表达式
@@ -86,9 +85,8 @@ pub struct UnaryExpression {
 #[derive(Debug, Clone)]
 pub enum UnaryOperator {
     Not,
-    Negate,
-    IsNull,
-    IsNotNull,
+    Positive,  // +
+    Negative,  // -
 }
 
 /// CASE表达式
@@ -96,26 +94,26 @@ pub enum UnaryOperator {
 pub struct CaseExpression {
     pub expression: Option<Box<Expression>>,
     pub alternatives: Vec<CaseAlternative>,
-    pub default: Option<Box<Expression>>,
+    pub default_alternative: Option<Box<Expression>>,
 }
 
 /// CASE分支
 #[derive(Debug, Clone)]
 pub struct CaseAlternative {
-    pub condition: Box<Expression>,
-    pub result: Box<Expression>,
+    pub when_expression: Expression,
+    pub then_expression: Expression,
 }
 
 /// 列表表达式
 #[derive(Debug, Clone)]
 pub struct ListExpression {
-    pub items: Vec<Expression>,
+    pub elements: Vec<Expression>,
 }
 
 /// Map表达式
 #[derive(Debug, Clone)]
 pub struct MapExpression {
-    pub entries: HashMap<String, Expression>,
+    pub properties: HashMap<String, Expression>,
 }
 
 /// 模式表达式
