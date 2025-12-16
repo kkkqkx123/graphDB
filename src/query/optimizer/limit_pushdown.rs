@@ -88,7 +88,7 @@ impl PushDownRule for PushLimitDownRule {
                         // 克隆节点并设置限制和输出变量
                         let mut new_get_vertices = get_vertices_plan_node.clone();
                         new_get_vertices.set_limit(_limit_plan_node.count());
-                        
+
                         // 设置输出变量
                         if let Some(output_var) = limit_node.plan_node.output_var() {
                             new_get_vertices.set_output_var(output_var.clone());
@@ -111,7 +111,7 @@ impl PushDownRule for PushLimitDownRule {
                         // 克隆节点并设置限制和输出变量
                         let mut new_get_edges = get_edges_plan_node.clone();
                         new_get_edges.set_limit(_limit_plan_node.count());
-                        
+
                         // 设置输出变量
                         if let Some(output_var) = limit_node.plan_node.output_var() {
                             new_get_edges.set_output_var(output_var.clone());
@@ -159,7 +159,7 @@ impl PushDownRule for PushLimitDownRule {
                         // 克隆节点并设置限制和输出变量
                         let mut new_scan_vertices = scan_vertices_plan_node.clone();
                         new_scan_vertices.set_limit(_limit_plan_node.count());
-                        
+
                         // 设置输出变量
                         if let Some(output_var) = limit_node.plan_node.output_var() {
                             new_scan_vertices.set_output_var(output_var.clone());
@@ -182,7 +182,7 @@ impl PushDownRule for PushLimitDownRule {
                         // 克隆节点并设置限制和输出变量
                         let mut new_scan_edges = scan_edges_plan_node.clone();
                         new_scan_edges.set_limit(_limit_plan_node.count());
-                        
+
                         // 设置输出变量
                         if let Some(output_var) = limit_node.plan_node.output_var() {
                             new_scan_edges.set_output_var(output_var.clone());
@@ -277,7 +277,7 @@ impl PushDownRule for PushLimitDownGetVerticesRule {
                 // 设置GetVertices的limit值为LIMIT操作的计数值
                 let limit_value = _limit_plan_node.count(); // 这是LIMIT操作的计数值
                 new_get_vertices.set_limit(limit_value);
-                
+
                 // 设置输出变量
                 if let Some(output_var) = limit_node.plan_node.output_var() {
                     new_get_vertices.set_output_var(output_var.clone());
@@ -362,7 +362,7 @@ impl PushDownRule for PushLimitDownGetNeighborsRule {
                 // 设置GetNeighbors的limit值为LIMIT操作的计数值
                 let limit_value = _limit_plan_node.count();
                 new_get_neighbors.set_limit(limit_value);
-                
+
                 // 设置输出变量
                 if let Some(output_var) = limit_node.plan_node.output_var() {
                     new_get_neighbors.set_output_var(output_var.clone());
@@ -447,7 +447,7 @@ impl PushDownRule for PushLimitDownGetEdgesRule {
                 // 设置GetEdges的limit值为LIMIT操作的计数值
                 let limit_value = _limit_plan_node.count();
                 new_get_edges.set_limit(limit_value);
-                
+
                 // 设置输出变量
                 if let Some(output_var) = limit_node.plan_node.output_var() {
                     new_get_edges.set_output_var(output_var.clone());
@@ -532,7 +532,7 @@ impl PushDownRule for PushLimitDownScanVerticesRule {
                 // 设置ScanVertices的limit值为LIMIT操作的计数值
                 let limit_value = _limit_plan_node.count();
                 new_scan_vertices.set_limit(limit_value);
-                
+
                 // 设置输出变量
                 if let Some(output_var) = limit_node.plan_node.output_var() {
                     new_scan_vertices.set_output_var(output_var.clone());
@@ -617,7 +617,7 @@ impl PushDownRule for PushLimitDownScanEdgesRule {
                 // 设置ScanEdges的limit值为LIMIT操作的计数值
                 let limit_value = _limit_plan_node.count();
                 new_scan_edges.set_limit(limit_value);
-                
+
                 // 设置输出变量
                 if let Some(output_var) = limit_node.plan_node.output_var() {
                     new_scan_edges.set_output_var(output_var.clone());
