@@ -3,6 +3,7 @@
 //! 包含各种Cypher子句的具体执行器实现
 
 pub mod match_executor;
+pub mod match_path;
 // pub mod create_executor;
 // pub mod delete_executor;
 // pub mod return_executor;
