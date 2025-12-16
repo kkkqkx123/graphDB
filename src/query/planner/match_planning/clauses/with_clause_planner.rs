@@ -2,12 +2,12 @@
 //! 处理WITH子句的规划
 //! 负责规划WITH子句用于链接多个查询部分
 
-use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePlanner;
-use crate::query::planner::match_planning::order_by_clause_planner::OrderByClausePlanner;
-use crate::query::planner::match_planning::pagination_planner::PaginationPlanner;
-use crate::query::planner::match_planning::segments_connector::SegmentsConnector;
-use crate::query::planner::match_planning::where_clause_planner::WhereClausePlanner;
-use crate::query::planner::match_planning::yield_clause_planner::YieldClausePlanner;
+use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
+use super::order_by_planner::OrderByClausePlanner;
+use super::pagination_planner::PaginationPlanner;
+use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
+use super::where_clause_planner::WhereClausePlanner;
+use super::yield_planner::YieldClausePlanner;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind, WithClauseContext};

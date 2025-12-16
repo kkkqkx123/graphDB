@@ -58,6 +58,20 @@ pub struct NodeInfo {
     pub label_props: Vec<Option<Expression>>, // 标签属性
 }
 
+impl Default for NodeInfo {
+    fn default() -> Self {
+        Self {
+            alias: String::new(),
+            labels: Vec::new(),
+            props: None,
+            anonymous: false,
+            filter: None,
+            tids: Vec::new(),
+            label_props: Vec::new(),
+        }
+    }
+}
+
 /// Edge信息
 #[derive(Debug, Clone)]
 pub struct EdgeInfo {

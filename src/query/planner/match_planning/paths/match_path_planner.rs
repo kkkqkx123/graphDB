@@ -67,17 +67,17 @@ impl MatchPathPlanner {
         }
 
         // 查找起始节点
-        for (i, node_info) in self.path.node_infos.iter().enumerate() {
-            // 检查节点是否可以使用标签索引查找
-            if !node_info.labels.is_empty() {
-                let label_index_seeker =
-                    crate::query::planner::match_planning::label_index_seek::LabelIndexSeek::new(
-                        node_info.clone(),
-                    );
-                if label_index_seeker.match_node() {
-                    let plan = label_index_seeker.build_plan()?;
-                    return Ok((i, false, plan));
-                }
+         for (i, node_info) in self.path.node_infos.iter().enumerate() {
+             // 检查节点是否可以使用标签索引查找
+             if !node_info.labels.is_empty() {
+                 let label_index_seeker =
+                     crate::query::planner::match_planning::IndexSeek::new_label(
+                         node_info.clone(),
+                     );
+                 if label_index_seeker.match_node() {
+                     let plan = label_index_seeker.build_plan()?;
+                     return Ok((i, false, plan));
+                 }
             }
 
             // 检查节点是否在已见别名中

@@ -1,10 +1,10 @@
 //! MATCH子句规划器
 //! 处理MATCH语句中的个别匹配子句
 
-use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePlanner;
-use crate::query::planner::match_planning::match_path_planner::MatchPathPlanner;
-use crate::query::planner::match_planning::segments_connector::SegmentsConnector;
-use crate::query::planner::match_planning::shortest_path_planner::ShortestPathPlanner;
+use super::cypher_clause_planner::CypherClausePlanner;
+use crate::query::planner::match_planning::paths::match_path_planner::MatchPathPlanner;
+use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
+use crate::query::planner::match_planning::paths::shortest_path_planner::ShortestPathPlanner;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{

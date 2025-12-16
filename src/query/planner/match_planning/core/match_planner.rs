@@ -2,14 +2,15 @@
 //! 负责将MATCH查询转换为执行计划
 
 use crate::query::context::ast::AstContext;
-use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePlanner;
-use crate::query::planner::match_planning::match_clause_planner::MatchClausePlanner;
-use crate::query::planner::match_planning::order_by_clause_planner::OrderByClausePlanner;
-use crate::query::planner::match_planning::pagination_planner::PaginationPlanner;
-use crate::query::planner::match_planning::return_clause_planner::ReturnClausePlanner;
-use crate::query::planner::match_planning::segments_connector::SegmentsConnector;
-use crate::query::planner::match_planning::unwind_clause_planner::UnwindClausePlanner;
-use crate::query::planner::match_planning::with_clause_planner::WithClausePlanner;
+use super::cypher_clause_planner::CypherClausePlanner;
+use super::match_clause_planner::MatchClausePlanner;
+use crate::query::planner::match_planning::clauses::order_by_planner::OrderByClausePlanner;
+use crate::query::planner::match_planning::clauses::pagination_planner::PaginationPlanner;
+use crate::query::planner::match_planning::clauses::return_clause_planner::ReturnClausePlanner;
+use crate::query::planner::match_planning::SegmentsConnector;
+use crate::query::planner::match_planning::clauses::unwind_planner::UnwindClausePlanner;
+use crate::query::planner::match_planning::clauses::with_clause_planner::WithClausePlanner;
+use crate::query::planner::match_planning::clauses::where_clause_planner::WhereClausePlanner;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::{PlanNode, PlanNodeKind, SingleDependencyNode, SingleInputNode};
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -61,7 +62,7 @@ impl MatchPlanner {
                 planner.transform(clause_ctx)
             }
             CypherClauseKind::Where => {
-                let mut planner = crate::query::planner::match_planning::where_clause_planner::WhereClausePlanner::new(false);
+                let mut planner = WhereClausePlanner::new(false);
                 planner.transform(clause_ctx)
             }
             CypherClauseKind::Unwind => {
@@ -423,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_make() {
-        let planner_box = MatchPlanner::make();
+        let _planner_box = MatchPlanner::make();
 
         // 验证工厂函数创建的实例
         assert!(true); // 如果能创建实例就通过
@@ -455,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_get_match_and_instantiate() {
-        let match_and_instantiate = MatchPlanner::get_match_and_instantiate();
+        let _match_and_instantiate = MatchPlanner::get_match_and_instantiate();
 
         // 验证获取的匹配和实例化函数
         assert!(true); // 如果能获取就通过

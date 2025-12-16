@@ -2,7 +2,7 @@
 //! 处理YIELD子句的规划
 //! 负责规划YIELD子句中的结果产出
 
-use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePlanner;
+use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
@@ -65,39 +65,39 @@ impl CypherClausePlanner for YieldClausePlanner {
             // 这里需要根据proj_cols设置投影逻辑
 
             if plan.root.is_none() {
-                plan.root = Some(project_node.clone());
-                plan.tail = Some(project_node);
-            } else {
-                // 将投影节点连接到现有计划的尾部
-                let connector = crate::query::planner::match_planning::segments_connector::SegmentsConnector::new();
-                plan = connector.add_input(
-                    SubPlan::new(Some(project_node.clone()), Some(project_node)),
-                    plan,
-                    true,
-                );
+                 plan.root = Some(project_node.clone());
+                 plan.tail = Some(project_node);
+             } else {
+                 // 将投影节点连接到现有计划的尾部
+                 let connector = crate::query::planner::match_planning::SegmentsConnector::new();
+                 plan = connector.add_input(
+                     SubPlan::new(Some(project_node.clone()), Some(project_node)),
+                     plan,
+                     true,
+                 );
+             }
             }
-        }
 
-        // 处理去重
-        if yield_clause_ctx.distinct {
-            // 创建去重节点
-            let dedup_node = Arc::new(SingleInputNode::new(
-                PlanNodeKind::Dedup,
-                create_empty_node()?,
-            ));
+            // 处理去重
+            if yield_clause_ctx.distinct {
+             // 创建去重节点
+             let dedup_node = Arc::new(SingleInputNode::new(
+                 PlanNodeKind::Dedup,
+                 create_empty_node()?,
+             ));
 
-            // TODO: 设置去重键
+             // TODO: 设置去重键
 
-            if plan.root.is_none() {
-                plan.root = Some(dedup_node.clone());
-                plan.tail = Some(dedup_node);
-            } else {
-                // 将去重节点连接到现有计划的尾部
-                let connector = crate::query::planner::match_planning::segments_connector::SegmentsConnector::new();
-                plan = connector.add_input(
-                    SubPlan::new(Some(dedup_node.clone()), Some(dedup_node)),
-                    plan,
-                    true,
+             if plan.root.is_none() {
+                 plan.root = Some(dedup_node.clone());
+                 plan.tail = Some(dedup_node);
+             } else {
+                 // 将去重节点连接到现有计划的尾部
+                 let connector = crate::query::planner::match_planning::SegmentsConnector::new();
+                 plan = connector.add_input(
+                     SubPlan::new(Some(dedup_node.clone()), Some(dedup_node)),
+                     plan,
+                     true,
                 );
             }
         }

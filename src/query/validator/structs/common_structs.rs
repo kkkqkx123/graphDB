@@ -89,7 +89,7 @@ pub enum CypherClauseContext {
 }
 
 /// Cypher子句类型
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum CypherClauseKind {
     Match,
     Where,

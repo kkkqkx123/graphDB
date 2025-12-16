@@ -2,9 +2,9 @@
 //! 处理WHERE条件的规划
 //! 负责规划WHERE子句中的过滤条件
 
-use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePlanner;
-use crate::query::planner::match_planning::match_path_planner::MatchPathPlanner;
-use crate::query::planner::match_planning::segments_connector::SegmentsConnector;
+use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
+use crate::query::planner::match_planning::paths::match_path_planner::MatchPathPlanner;
+use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
