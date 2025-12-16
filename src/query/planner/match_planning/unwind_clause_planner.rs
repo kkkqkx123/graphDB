@@ -27,7 +27,7 @@ impl CypherClausePlanner for UnwindClausePlanner {
             ));
         }
 
-        let unwind_clause_ctx = match clause_ctx {
+        let _unwind_clause_ctx = match clause_ctx {
             CypherClauseContext::Unwind(ctx) => ctx,
             _ => {
                 return Err(PlannerError::InvalidAstContext(

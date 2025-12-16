@@ -45,10 +45,10 @@ pub trait CreateStmtParser: ExpressionParser {
 
         // Parse SET clause
         self.expect_token(TokenKind::Set)?;
-        let properties = self.parse_property_list()?;
+        let _properties = self.parse_property_list()?;
 
         // Optionally parse YIELD clause
-        let yield_clause = if self.current_token().kind == TokenKind::Yield {
+        let _yield_clause = if self.current_token().kind == TokenKind::Yield {
             Some(self.parse_yield_clause()?)
         } else {
             None
@@ -104,10 +104,10 @@ pub trait CreateStmtParser: ExpressionParser {
 
         // Parse SET clause
         self.expect_token(TokenKind::Set)?;
-        let properties = self.parse_property_list()?;
+        let _properties = self.parse_property_list()?;
 
         // Optionally parse YIELD clause
-        let yield_clause = if self.current_token().kind == TokenKind::Yield {
+        let _yield_clause = if self.current_token().kind == TokenKind::Yield {
             Some(self.parse_yield_clause()?)
         } else {
             None

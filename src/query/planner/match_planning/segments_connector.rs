@@ -22,7 +22,7 @@ impl SegmentsConnector {
         &self,
         left: SubPlan,
         right: SubPlan,
-        intersected_aliases: HashSet<String>,
+        _intersected_aliases: HashSet<String>,
     ) -> SubPlan {
         if left.root.is_none() || right.root.is_none() {
             return if left.root.is_some() { left } else { right };
@@ -53,7 +53,7 @@ impl SegmentsConnector {
         &self,
         left: SubPlan,
         right: SubPlan,
-        intersected_aliases: HashSet<String>,
+        _intersected_aliases: HashSet<String>,
     ) -> SubPlan {
         if left.root.is_none() {
             return right;
@@ -100,7 +100,7 @@ impl SegmentsConnector {
     }
 
     /// 添加输入
-    pub fn add_input(&self, left: SubPlan, right: SubPlan, copy_col_names: bool) -> SubPlan {
+    pub fn add_input(&self, left: SubPlan, right: SubPlan, _copy_col_names: bool) -> SubPlan {
         if left.root.is_none() {
             return right;
         }
@@ -121,7 +121,7 @@ impl SegmentsConnector {
         &self,
         left: SubPlan,
         right: SubPlan,
-        path: &crate::query::validator::structs::Path,
+        _path: &crate::query::validator::structs::Path,
     ) -> SubPlan {
         if left.root.is_none() || right.root.is_none() {
             return if left.root.is_some() { left } else { right };
@@ -147,7 +147,7 @@ impl SegmentsConnector {
         &self,
         left: SubPlan,
         right: SubPlan,
-        path: &crate::query::validator::structs::Path,
+        _path: &crate::query::validator::structs::Path,
     ) -> SubPlan {
         if left.root.is_none() || right.root.is_none() {
             return if left.root.is_some() { left } else { right };

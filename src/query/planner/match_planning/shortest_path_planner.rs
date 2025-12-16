@@ -27,8 +27,8 @@ impl ShortestPathPlanner {
     /// 转换最短路径为执行计划
     pub fn transform(
         &mut self,
-        where_clause: Option<&WhereClauseContext>,
-        node_aliases_seen: &mut HashSet<String>,
+        _where_clause: Option<&WhereClauseContext>,
+        _node_aliases_seen: &mut HashSet<String>,
     ) -> Result<SubPlan, PlannerError> {
         // TODO: 实现最短路径算法的具体逻辑
         // 这里应该根据路径类型构建相应的计划节点

@@ -2,7 +2,7 @@
 //!
 //! 基于枚举的简化语句定义，支持所有图数据库操作语句。
 
-use super::expr::{Expr, ExprUtils, VariableExpr};
+use super::expr::{Expr, ExprUtils};
 use super::pattern::*;
 use super::types::*;
 use crate::core::Value;
@@ -479,6 +479,8 @@ impl StmtUtils {
 
 #[cfg(test)]
 mod tests {
+    use crate::query::parser::ast::VariableExpr;
+
     use super::*;
 
     #[test]

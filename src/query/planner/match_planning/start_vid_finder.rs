@@ -57,7 +57,7 @@ impl StartVidFinder {
         }
 
         // 如果节点在WHERE条件中被引用，可能是好的起始点
-        if let Some(where_ctx) = &match_ctx.where_clause {
+        if let Some(_where_ctx) = &match_ctx.where_clause {
             // 这里应该检查WHERE条件是否包含对该节点的引用
             // 简化处理：如果别名在可用别名中，认为可能被引用
             if match_ctx.aliases_available.contains_key(&node_info.alias) {

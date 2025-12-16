@@ -28,7 +28,7 @@ impl QueryConverter {
 
     fn convert_match_statement(
         &self,
-        match_stmt: &crate::query::parser::ast::stmt::MatchStmt,
+        _match_stmt: &crate::query::parser::ast::stmt::MatchStmt,
     ) -> Result<Query, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -38,7 +38,7 @@ impl QueryConverter {
 
     fn convert_create_node_statement(
         &self,
-        create_node_stmt: &crate::query::parser::ast::stmt::CreateStmt,
+        _create_node_stmt: &crate::query::parser::ast::stmt::CreateStmt,
     ) -> Result<Query, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -48,7 +48,7 @@ impl QueryConverter {
 
     fn convert_create_edge_statement(
         &self,
-        create_edge_stmt: &crate::query::parser::ast::stmt::CreateStmt,
+        _create_edge_stmt: &crate::query::parser::ast::stmt::CreateStmt,
     ) -> Result<Query, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -58,7 +58,7 @@ impl QueryConverter {
 
     fn convert_delete_statement(
         &self,
-        delete_stmt: &crate::query::parser::ast::stmt::DeleteStmt,
+        _delete_stmt: &crate::query::parser::ast::stmt::DeleteStmt,
     ) -> Result<Query, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -68,7 +68,7 @@ impl QueryConverter {
 
     fn convert_update_statement(
         &self,
-        update_stmt: &crate::query::parser::ast::stmt::UpdateStmt,
+        _update_stmt: &crate::query::parser::ast::stmt::UpdateStmt,
     ) -> Result<Query, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -78,7 +78,7 @@ impl QueryConverter {
 
     fn convert_expression(
         &self,
-        expr: &crate::query::parser::ast::expr::Expr,
+        _expr: &crate::query::parser::ast::expr::Expr,
     ) -> Result<Condition, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -88,7 +88,7 @@ impl QueryConverter {
 
     fn extract_property_name(
         &self,
-        expr: &crate::query::parser::ast::expr::Expr,
+        _expr: &crate::query::parser::ast::expr::Expr,
     ) -> Result<String, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(
@@ -98,7 +98,7 @@ impl QueryConverter {
 
     fn convert_ast_expression_to_value(
         &self,
-        expr: &crate::query::parser::ast::expr::Expr,
+        _expr: &crate::query::parser::ast::expr::Expr,
     ) -> Result<Value, QueryError> {
         // 临时实现：返回错误
         Err(QueryError::ParseError(

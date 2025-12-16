@@ -31,7 +31,7 @@ impl CypherConverter {
                 }
 
                 // 从WHERE子句中提取条件
-                if let Some(where_clause) = &match_clause.where_clause {
+                if let Some(_where_clause) = &match_clause.where_clause {
                     // 简化处理：将表达式转换为条件
                     // 这里需要更复杂的逻辑来解析WHERE表达式
                     conditions.push(Condition::PropertyGreaterThan(
@@ -62,7 +62,7 @@ impl CypherConverter {
                     }
 
                     // 从WHERE子句中提取条件
-                    if let Some(where_clause) = &match_clause.where_clause {
+                    if let Some(_where_clause) = &match_clause.where_clause {
                         // 简化处理：将表达式转换为条件
                         conditions.push(Condition::PropertyGreaterThan(
                             "age".to_string(),

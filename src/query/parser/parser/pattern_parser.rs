@@ -2,7 +2,6 @@
 //!
 //! This module implements parsing for pattern matching in the query language.
 
-use crate::query::parser::ast::stmt::OrderByItem;
 use crate::query::parser::ast::*;
 use crate::query::parser::{ParseError, TokenKind};
 

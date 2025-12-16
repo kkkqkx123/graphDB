@@ -5,11 +5,6 @@
 use super::ast::*;
 use super::parser_core::CypherParserCore;
 
-// 导入所有解析器模块的trait实现
-use super::statement_parser::*;
-use super::clause_parser::*;
-use super::pattern_parser::*;
-use super::expression_parser::*;
 
 /// Cypher解析器
 #[derive(Debug)]

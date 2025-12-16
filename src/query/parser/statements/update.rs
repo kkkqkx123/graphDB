@@ -7,7 +7,7 @@ use crate::query::parser::{ParseError, TokenKind};
 pub trait UpdateStmtParser: ExpressionParser {
     /// 解析UPDATE语句
     fn parse_update_statement(&mut self) -> Result<Option<Stmt>, ParseError> {
-        let update_vertices = match self.current_token().kind {
+        let _update_vertices = match self.current_token().kind {
             TokenKind::Vertex => {
                 self.next_token();
                 true
@@ -29,7 +29,7 @@ pub trait UpdateStmtParser: ExpressionParser {
         };
 
         // Parse vertex/edge reference
-        let vertex_ref = Some(self.parse_expression()?);
+        let _vertex_ref = Some(self.parse_expression()?);
 
         // Parse SET clause
         self.expect_token(TokenKind::Set)?;
@@ -52,14 +52,14 @@ pub trait UpdateStmtParser: ExpressionParser {
         }
 
         // Optionally parse WHERE clause
-        let condition = if self.current_token().kind == TokenKind::Where {
+        let _condition = if self.current_token().kind == TokenKind::Where {
             Some(self.parse_where_clause()?)
         } else {
             None
         };
 
         // Optionally parse YIELD clause
-        let yield_clause = if self.current_token().kind == TokenKind::Yield {
+        let _yield_clause = if self.current_token().kind == TokenKind::Yield {
             Some(self.parse_yield_clause()?)
         } else {
             None

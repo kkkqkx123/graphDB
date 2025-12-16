@@ -2,8 +2,8 @@
 //!
 //! 提供完整的Cypher表达式解析功能
 
-use super::parser_core::CypherParserCore;
 use super::ast::*;
+use super::parser_core::CypherParserCore;
 
 impl CypherParserCore {
     /// 解析表达式（完整实现）
@@ -14,7 +14,7 @@ impl CypherParserCore {
     /// 解析OR表达式
     fn parse_or_expression(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_and_expression()?;
-        
+
         self.skip_whitespace();
         while self.is_current_keyword("OR") {
             self.consume_token(); // 消费 OR
@@ -26,14 +26,14 @@ impl CypherParserCore {
             });
             self.skip_whitespace();
         }
-        
+
         Ok(left)
     }
 
     /// 解析AND表达式
     fn parse_and_expression(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_not_expression()?;
-        
+
         self.skip_whitespace();
         while self.is_current_keyword("AND") {
             self.consume_token(); // 消费 AND
@@ -45,14 +45,14 @@ impl CypherParserCore {
             });
             self.skip_whitespace();
         }
-        
+
         Ok(left)
     }
 
     /// 解析NOT表达式
     fn parse_not_expression(&mut self) -> Result<Expression, String> {
         self.skip_whitespace();
-        
+
         if self.is_current_keyword("NOT") {
             self.consume_token(); // 消费 NOT
             let expression = self.parse_not_expression()?;
@@ -68,7 +68,7 @@ impl CypherParserCore {
     /// 解析比较表达式
     fn parse_comparison_expression(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_additive_expression()?;
-        
+
         self.skip_whitespace();
         while let Some(operator) = self.parse_comparison_operator() {
             self.consume_token(); // 消费操作符
@@ -80,7 +80,7 @@ impl CypherParserCore {
             });
             self.skip_whitespace();
         }
-        
+
         Ok(left)
     }
 
@@ -102,7 +102,7 @@ impl CypherParserCore {
     /// 解析加法表达式
     fn parse_additive_expression(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_multiplicative_expression()?;
-        
+
         self.skip_whitespace();
         while self.is_current_token_value("+") || self.is_current_token_value("-") {
             let operator = if self.is_current_token_value("+") {
@@ -119,16 +119,19 @@ impl CypherParserCore {
             });
             self.skip_whitespace();
         }
-        
+
         Ok(left)
     }
 
     /// 解析乘法表达式
     fn parse_multiplicative_expression(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_unary_expression()?;
-        
+
         self.skip_whitespace();
-        while self.is_current_token_value("*") || self.is_current_token_value("/") || self.is_current_token_value("%") {
+        while self.is_current_token_value("*")
+            || self.is_current_token_value("/")
+            || self.is_current_token_value("%")
+        {
             let operator = if self.is_current_token_value("*") {
                 BinaryOperator::Multiply
             } else if self.is_current_token_value("/") {
@@ -145,14 +148,14 @@ impl CypherParserCore {
             });
             self.skip_whitespace();
         }
-        
+
         Ok(left)
     }
 
     /// 解析一元表达式
     fn parse_unary_expression(&mut self) -> Result<Expression, String> {
         self.skip_whitespace();
-        
+
         if self.is_current_token_value("+") {
             self.consume_token(); // 消费 '+'
             let expression = self.parse_unary_expression()?;
@@ -175,7 +178,7 @@ impl CypherParserCore {
     /// 解析基本表达式
     fn parse_primary_expression(&mut self) -> Result<Expression, String> {
         self.skip_whitespace();
-        
+
         if self.is_current_token_value("(") {
             self.consume_token(); // 消费 '('
             let expression = self.parse_expression_full()?;
@@ -215,7 +218,7 @@ impl CypherParserCore {
     /// 解析标识符或函数调用
     fn parse_identifier_or_function_call(&mut self) -> Result<Expression, String> {
         let identifier = self.parse_identifier()?;
-        
+
         self.skip_whitespace();
         if self.is_current_token_value("(") {
             // 函数调用
@@ -223,7 +226,7 @@ impl CypherParserCore {
             let arguments = self.parse_function_arguments()?;
             self.skip_whitespace();
             self.expect_token_value(")")?;
-            
+
             Ok(Expression::FunctionCall(FunctionCall {
                 function_name: identifier,
                 arguments,
@@ -234,7 +237,7 @@ impl CypherParserCore {
             if self.is_current_token_value(".") {
                 self.consume_token(); // 消费 '.'
                 let property_name = self.parse_identifier()?;
-                
+
                 // 检查是否有更多属性访问
                 self.skip_whitespace();
                 if self.is_current_token_value(".") {
@@ -267,12 +270,12 @@ impl CypherParserCore {
     /// 解析函数参数
     fn parse_function_arguments(&mut self) -> Result<Vec<Expression>, String> {
         let mut arguments = Vec::new();
-        
+
         self.skip_whitespace();
         if !self.is_current_token_value(")") {
             let expression = self.parse_expression_full()?;
             arguments.push(expression);
-            
+
             self.skip_whitespace();
             while self.is_current_token_value(",") {
                 self.consume_token(); // 消费 ','
@@ -282,7 +285,7 @@ impl CypherParserCore {
                 self.skip_whitespace();
             }
         }
-        
+
         Ok(arguments)
     }
 
@@ -290,12 +293,12 @@ impl CypherParserCore {
     fn parse_list_expression(&mut self) -> Result<Expression, String> {
         self.consume_token(); // 消费 '['
         let mut elements = Vec::new();
-        
+
         self.skip_whitespace();
         if !self.is_current_token_value("]") {
             let element = self.parse_expression_full()?;
             elements.push(element);
-            
+
             self.skip_whitespace();
             while self.is_current_token_value(",") {
                 self.consume_token(); // 消费 ','
@@ -305,7 +308,7 @@ impl CypherParserCore {
                 self.skip_whitespace();
             }
         }
-        
+
         self.expect_token_value("]")?;
         Ok(Expression::List(ListExpression { elements }))
     }
@@ -314,7 +317,7 @@ impl CypherParserCore {
     fn parse_map_expression(&mut self) -> Result<Expression, String> {
         self.consume_token(); // 消费 '{'
         let mut properties = std::collections::HashMap::new();
-        
+
         self.skip_whitespace();
         if !self.is_current_token_value("}") {
             let key = self.parse_identifier()?;
@@ -322,7 +325,7 @@ impl CypherParserCore {
             self.expect_token_value(":")?;
             let value = self.parse_expression_full()?;
             properties.insert(key, value);
-            
+
             self.skip_whitespace();
             while self.is_current_token_value(",") {
                 self.consume_token(); // 消费 ','
@@ -335,7 +338,7 @@ impl CypherParserCore {
                 self.skip_whitespace();
             }
         }
-        
+
         self.expect_token_value("}")?;
         Ok(Expression::Map(MapExpression { properties }))
     }
@@ -343,18 +346,18 @@ impl CypherParserCore {
     /// 解析CASE表达式
     pub fn parse_case_expression(&mut self) -> Result<Expression, String> {
         self.expect_keyword("CASE")?;
-        
+
         let mut expression = None;
         let mut alternatives = Vec::new();
         let mut default_alternative = None;
-        
+
         // 检查是否有CASE表达式
         self.skip_whitespace();
         if !self.is_current_keyword("WHEN") {
             expression = Some(Box::new(self.parse_expression_full()?));
             self.skip_whitespace();
         }
-        
+
         // 解析WHEN-THEN子句
         while self.is_current_keyword("WHEN") {
             self.consume_token(); // 消费 WHEN
@@ -362,24 +365,24 @@ impl CypherParserCore {
             self.skip_whitespace();
             self.expect_keyword("THEN")?;
             let then_expression = self.parse_expression_full()?;
-            
+
             alternatives.push(CaseAlternative {
                 when_expression,
                 then_expression,
             });
-            
+
             self.skip_whitespace();
         }
-        
+
         // 解析ELSE子句
         if self.is_current_keyword("ELSE") {
             self.consume_token(); // 消费 ELSE
             default_alternative = Some(Box::new(self.parse_expression_full()?));
             self.skip_whitespace();
         }
-        
+
         self.expect_keyword("END")?;
-        
+
         Ok(Expression::Case(CaseExpression {
             expression,
             alternatives,
@@ -402,7 +405,7 @@ mod tests {
     fn test_parse_simple_expression() {
         let mut parser = CypherParserCore::new("n.name".to_string());
         let expression = parser.parse_expression_full().unwrap();
-        
+
         match expression {
             Expression::Property(prop) => {
                 assert_eq!(prop.property_name, "name");
@@ -419,7 +422,7 @@ mod tests {
     fn test_parse_comparison_expression() {
         let mut parser = CypherParserCore::new("n.age > 30".to_string());
         let expression = parser.parse_expression_full().unwrap();
-        
+
         match expression {
             Expression::Binary(binary) => {
                 assert_eq!(binary.operator, BinaryOperator::GreaterThan);
@@ -446,7 +449,7 @@ mod tests {
     fn test_parse_logical_expression() {
         let mut parser = CypherParserCore::new("n.age > 30 AND n.name = \"Alice\"".to_string());
         let expression = parser.parse_expression_full().unwrap();
-        
+
         match expression {
             Expression::Binary(binary) => {
                 assert_eq!(binary.operator, BinaryOperator::And);
@@ -460,7 +463,7 @@ mod tests {
     fn test_parse_function_call() {
         let mut parser = CypherParserCore::new("count(n)".to_string());
         let expression = parser.parse_expression_full().unwrap();
-        
+
         match expression {
             Expression::FunctionCall(func) => {
                 assert_eq!(func.function_name, "count");
@@ -478,7 +481,7 @@ mod tests {
     fn test_parse_list_expression() {
         let mut parser = CypherParserCore::new("[1, 2, 3]".to_string());
         let expression = parser.parse_expression_full().unwrap();
-        
+
         match expression {
             Expression::List(list) => {
                 assert_eq!(list.elements.len(), 3);
@@ -492,7 +495,7 @@ mod tests {
     fn test_parse_map_expression() {
         let mut parser = CypherParserCore::new("{name: \"Alice\", age: 30}".to_string());
         let expression = parser.parse_expression_full().unwrap();
-        
+
         match expression {
             Expression::Map(map) => {
                 assert_eq!(map.properties.len(), 2);

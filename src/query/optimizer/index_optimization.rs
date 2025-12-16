@@ -21,7 +21,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为索引扫描操作
@@ -32,7 +32,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
         // 查找依赖中的过滤操作
         if node.dependencies.len() >= 1 {
             for dep_id in &node.dependencies {
-                if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(*dep_id) {
+                if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(*dep_id) {
                     if dep_node.plan_node.kind() == PlanNodeKind::Filter {
                         // 检查过滤条件是否可以推入到索引扫描中
                         if let Some(filter_node) =
@@ -122,7 +122,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为索引扫描操作
@@ -133,7 +133,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
         // 查找依赖中的过滤操作
         if node.dependencies.len() >= 1 {
             for dep_id in &node.dependencies {
-                if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(*dep_id) {
+                if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(*dep_id) {
                     if dep_node.plan_node.kind() == PlanNodeKind::Filter {
                         // 检查过滤条件是否可以推入到索引扫描中
                         if let Some(filter_node) =
@@ -223,7 +223,7 @@ impl OptRule for EdgeIndexFullScanRule {
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为可能是全扫描的索引扫描操作
@@ -268,7 +268,7 @@ impl OptRule for TagIndexFullScanRule {
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为可能是全扫描的索引扫描操作
@@ -313,7 +313,7 @@ impl OptRule for IndexScanRule {
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为索引扫描操作
@@ -354,7 +354,7 @@ impl OptRule for UnionAllEdgeIndexScanRule {
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为作为UNION一部分的索引扫描操作
@@ -365,7 +365,7 @@ impl OptRule for UnionAllEdgeIndexScanRule {
         // 检查节点是否有多个依赖（表示UNION操作）
         if node.dependencies.len() > 1 {
             // 尝试优化UNION ALL操作
-            return self.optimize_union_all_index_scans(ctx, node, true); // true表示边索引
+            return self.optimize_union_all_index_scans(_ctx, node, true); // true表示边索引
         }
 
         // 单个索引扫描，无需优化
@@ -390,7 +390,7 @@ impl OptRule for UnionAllTagIndexScanRule {
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为作为UNION一部分的索引扫描操作
@@ -401,7 +401,7 @@ impl OptRule for UnionAllTagIndexScanRule {
         // 检查节点是否有多个依赖（表示UNION操作）
         if node.dependencies.len() > 1 {
             // 尝试优化UNION ALL操作
-            return self.optimize_union_all_index_scans(ctx, node, false); // false表示标签索引
+            return self.optimize_union_all_index_scans(_ctx, node, false); // false表示标签索引
         }
 
         // 单个索引扫描，无需优化
@@ -755,14 +755,14 @@ impl UnionAllEdgeIndexScanRule {
     /// 优化UNION ALL索引扫描操作
     fn optimize_union_all_index_scans(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
         is_edge_index: bool,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 获取所有依赖的索引扫描节点
         let mut index_scan_nodes = Vec::new();
         for &dep_id in &node.dependencies {
-            if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(dep_id) {
+            if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(dep_id) {
                 if dep_node.plan_node.kind() == PlanNodeKind::IndexScan {
                     if let Some(index_scan) = dep_node
                         .plan_node
@@ -795,7 +795,7 @@ impl UnionAllEdgeIndexScanRule {
             Ok(Some(new_opt_node))
         } else {
             // 无法合并，尝试重新排序以提高效率
-            if let Some(reordered_deps) = self.reorder_index_scans(ctx, &index_scan_nodes) {
+            if let Some(reordered_deps) = self.reorder_index_scans(_ctx, &index_scan_nodes) {
                 let mut new_opt_node = node.clone();
                 new_opt_node.dependencies = reordered_deps;
                 Ok(Some(new_opt_node))
@@ -897,7 +897,7 @@ impl UnionAllEdgeIndexScanRule {
     /// 重新排序索引扫描以提高效率
     fn reorder_index_scans(
         &self,
-        ctx: &OptContext,
+        _ctx: &OptContext,
         index_scans: &[(usize, IndexScanPlanNode)],
     ) -> Option<Vec<usize>> {
         // 根据成本估算重新排序，成本低的优先
@@ -918,7 +918,7 @@ impl UnionAllTagIndexScanRule {
     /// 优化UNION ALL索引扫描操作
     fn optimize_union_all_index_scans(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
         is_edge_index: bool,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
@@ -928,7 +928,7 @@ impl UnionAllTagIndexScanRule {
         // 获取所有依赖的索引扫描节点
         let mut index_scan_nodes = Vec::new();
         for &dep_id in &node.dependencies {
-            if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(dep_id) {
+            if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(dep_id) {
                 if dep_node.plan_node.kind() == PlanNodeKind::IndexScan {
                     if let Some(index_scan) = dep_node
                         .plan_node
@@ -961,7 +961,7 @@ impl UnionAllTagIndexScanRule {
             Ok(Some(new_opt_node))
         } else {
             // 无法合并，尝试重新排序以提高效率
-            if let Some(reordered_deps) = self.reorder_index_scans(ctx, &index_scan_nodes) {
+            if let Some(reordered_deps) = self.reorder_index_scans(_ctx, &index_scan_nodes) {
                 let mut new_opt_node = node.clone();
                 new_opt_node.dependencies = reordered_deps;
                 Ok(Some(new_opt_node))
@@ -1063,7 +1063,7 @@ impl UnionAllTagIndexScanRule {
     /// 重新排序索引扫描以提高效率
     fn reorder_index_scans(
         &self,
-        ctx: &OptContext,
+        _ctx: &OptContext,
         index_scans: &[(usize, IndexScanPlanNode)],
     ) -> Option<Vec<usize>> {
         // 根据成本估算重新排序，成本低的优先

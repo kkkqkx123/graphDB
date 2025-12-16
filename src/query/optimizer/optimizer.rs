@@ -108,7 +108,7 @@ impl OptContext {
         let deps_count = group_node.dependencies.len();
 
         if input_vars_count == deps_count {
-            for (i, &dep_id) in group_node.dependencies.iter().enumerate() {
+            for (i, &_dep_id) in group_node.dependencies.iter().enumerate() {
                 // In a complete implementation, we would check if the input var matches the output var of the dependency
                 // For now, we just check the basic structure
                 if i >= input_vars_count {
@@ -471,7 +471,7 @@ pub trait OptRule: std::fmt::Debug {
 
     fn match_pattern_with_result(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &OptGroupNode,
         pattern: &Pattern,
     ) -> Result<Option<MatchedResult>, OptimizerError> {
@@ -491,7 +491,7 @@ pub trait OptRule: std::fmt::Debug {
         }
 
         let mut dependencies = Vec::new();
-        for (i, dep_pattern) in pattern.dependencies.iter().enumerate() {
+        for (_i, _dep_pattern) in pattern.dependencies.iter().enumerate() {
             // In a complete implementation, we would look up the actual dependency OptGroupNode
             // For now, this is a simplified version that doesn't implement full dependency matching
             // This would need a more complex structure to properly match dependencies
@@ -768,7 +768,7 @@ impl Optimizer {
                 }
 
                 // Try to match the rule pattern on this node
-                if let Ok(Some(matched)) = rule.match_pattern(ctx, &group.nodes[node_idx]) {
+                if let Ok(Some(_matched)) = rule.match_pattern(ctx, &group.nodes[node_idx]) {
                     // Apply the transformation
                     if let Some(new_node) = rule.apply(ctx, &group.nodes[node_idx])? {
                         // Add the new node to the group if not already present

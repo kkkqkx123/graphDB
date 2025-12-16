@@ -14,13 +14,13 @@ pub trait GoStatementParser: ExpressionParser {
                 // 解析 M TO N STEPS形式
                 self.next_token();
                 // 这里应该解析具体的步骤数，现在简化处理
-                let from_step = self.parse_expression()?;
+                let _from_step = self.parse_expression()?;
                 self.expect_token(TokenKind::To)?;
-                let to_step = self.parse_expression()?;
+                let _to_step = self.parse_expression()?;
                 Steps::Range { min: 1, max: 10 } // 简化处理，使用固定范围
             } else {
                 // 解析 N STEPS形式
-                let step_expr = self.parse_expression()?;
+                let _step_expr = self.parse_expression()?;
                 Steps::Fixed(1) // 简化处理，使用固定步数
             }
         } else {

@@ -7,12 +7,7 @@ mod pattern_parser;
 mod statement_parser;
 mod utils;
 
-pub use expr_parser::*;
-pub use pattern_parser::*;
-pub use statement_parser::*;
-pub use utils::*;
-
-use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
+use crate::query::parser::lexer::Lexer;
 use crate::query::parser::Token;
 
 /// 解析器

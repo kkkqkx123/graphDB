@@ -79,7 +79,7 @@ impl CypherClausePlanner for WhereClausePlanner {
         }
 
         // 处理过滤条件
-        if let Some(filter) = &where_clause_ctx.filter {
+        if let Some(_filter) = &where_clause_ctx.filter {
             let mut where_plan = SubPlan::new(None, None);
 
             // 创建过滤器节点

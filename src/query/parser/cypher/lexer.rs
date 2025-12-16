@@ -123,21 +123,21 @@ impl CypherLexer {
                 })
             }
             
-            // 操作符
-            '+' | '-' | '*' | '/' | '=' | '<' | '>' | '!' | '|' | '&' => {
-                let value = self.read_operator()?;
-                Ok(Token {
-                    token_type: TokenType::Operator,
-                    value,
-                    position,
-                })
-            }
-            
             // 注释
             '/' if self.peek_next_char() == Some('/') => {
                 let value = self.read_comment()?;
                 Ok(Token {
                     token_type: TokenType::Comment,
+                    value,
+                    position,
+                })
+            }
+
+            // 操作符
+            '+' | '-' | '*' | '/' | '=' | '<' | '>' | '!' | '|' | '&' => {
+                let value = self.read_operator()?;
+                Ok(Token {
+                    token_type: TokenType::Operator,
                     value,
                     position,
                 })
