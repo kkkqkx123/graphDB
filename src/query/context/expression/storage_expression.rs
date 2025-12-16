@@ -3,7 +3,7 @@
 //! StorageExpressionContext支持从RowReader读取值和用户设置值
 //! 对应C++版本中的StorageExpressionContext类
 
-use super::schema::{ColumnDef, FieldType, RowReaderWrapper, Schema};
+use super::schema::{ColumnDef, RowReaderWrapper, Schema};
 use crate::core::{NullType, Value};
 use std::collections::HashMap;
 
@@ -588,7 +588,7 @@ impl StorageExpressionContext {
         }
 
         // 解析PartitionID (前4字节)
-        let partition_id =
+        let _partition_id =
             u32::from_be_bytes([key_bytes[0], key_bytes[1], key_bytes[2], key_bytes[3]]);
 
         // 根据是否为边模式解析不同的键值格式
@@ -608,7 +608,7 @@ impl StorageExpressionContext {
                 self.parse_vertex_id(&key_bytes[src_offset..src_offset + self.v_id_len])?;
 
             // 解析边类型
-            let edge_type = i32::from_be_bytes([
+            let _edge_type = i32::from_be_bytes([
                 key_bytes[edge_type_offset],
                 key_bytes[edge_type_offset + 1],
                 key_bytes[edge_type_offset + 2],
@@ -616,7 +616,7 @@ impl StorageExpressionContext {
             ]);
 
             // 解析排名
-            let ranking = i64::from_be_bytes([
+            let _ranking = i64::from_be_bytes([
                 key_bytes[ranking_offset],
                 key_bytes[ranking_offset + 1],
                 key_bytes[ranking_offset + 2],

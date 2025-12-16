@@ -1,4 +1,4 @@
-use crate::core::{Edge, NullType, Tag, Value, Vertex};
+use crate::core::{Edge, Value, Vertex, Tag};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]

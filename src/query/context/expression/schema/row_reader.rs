@@ -4,7 +4,7 @@
 
 use super::schema_def::Schema;
 use super::types::{EncodingFormat, FieldDef};
-use crate::core::{NullType, Value};
+use crate::core::Value;
 use std::collections::HashMap;
 
 /// 行读取器包装器 - 负责从二进制数据中解析字段值
@@ -206,7 +206,7 @@ impl RowReaderWrapper {
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
                 // 将时间戳转换为DateTime
-                let seconds = timestamp / 1000;
+                let _seconds = timestamp / 1000;
                 let nanos = ((timestamp % 1000) * 1_000_000) as u32;
                 Ok(Value::DateTime(crate::core::value::DateTimeValue {
                     year: 1970,
@@ -238,7 +238,7 @@ impl RowReaderWrapper {
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
                 // 将时间戳转换为DateTime
-                let seconds = timestamp / 1000;
+                let _seconds = timestamp / 1000;
                 let nanos = ((timestamp % 1000) * 1_000_000) as u32;
                 Ok(Value::DateTime(crate::core::value::DateTimeValue {
                     year: 1970,

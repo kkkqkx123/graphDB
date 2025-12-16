@@ -4,8 +4,8 @@
 use crate::core::Value;
 use crate::graph::expression::expression::{BinaryOperator, Expression, LiteralValue, UnaryOperator};
 use crate::query::parser::ast::{
-    BinaryOp, CaseExpr, ConstantExpr, Expr, FunctionCallExpr, ListExpr, MapExpr, PredicateExpr,
-    PropertyAccessExpr, SubscriptExpr, UnaryOp, VariableExpr,
+    BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, Expr, FunctionCallExpr, ListExpr, MapExpr, 
+    PredicateExpr, PropertyAccessExpr, SubscriptExpr, UnaryExpr, UnaryOp, VariableExpr,
 };
 
 /// 将AST表达式转换为graph表达式
@@ -32,7 +32,7 @@ fn convert_constant_expr(expr: &ConstantExpr) -> Result<Expression, String> {
         Value::Int(i) => LiteralValue::Int(*i),
         Value::Float(f) => LiteralValue::Float(*f),
         Value::String(s) => LiteralValue::String(s.clone()),
-        Value::Null => LiteralValue::Null,
+        Value::Null(_) => LiteralValue::Null,
         _ => return Err(format!("不支持的常量值类型: {:?}", expr.value)),
     };
     Ok(Expression::Literal(literal_value))

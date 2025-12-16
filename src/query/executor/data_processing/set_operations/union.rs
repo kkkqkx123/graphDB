@@ -150,7 +150,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
             .as_nanos();
-        let test_db_path = format!("test_union_db_{}_{}", test_id, timestamp);
+        let test_db_path = format!("data/tests/test_union_db_{}_{}", test_id, timestamp);
         let storage = crate::storage::NativeStorage::new(test_db_path)
             .expect("Failed to create test storage");
         Arc::new(Mutex::new(storage))

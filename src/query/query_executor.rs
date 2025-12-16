@@ -1,7 +1,6 @@
-use crate::core::{NullType, Tag, Value, Vertex};
+use crate::core::{Value, Vertex, NullType};
 use crate::query::types::{Condition, Query, QueryError, QueryResult};
-use crate::storage::{StorageEngine, StorageError};
-use std::collections::HashMap;
+use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
 
 pub struct QueryExecutor<S: StorageEngine> {

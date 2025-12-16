@@ -26,12 +26,8 @@ pub use expression::*;
 pub use expression_context::*;
 pub use expression_eval_context::*;
 pub use request_context::RequestContext;
-pub use runtime_context::*;
 pub use validate::*;
 
 // 导出新的模块结构
 pub use execution::*;
-pub use managers::*;
 
-// 为了向后兼容，重新导出QueryContext
-pub use execution::QueryContext;
