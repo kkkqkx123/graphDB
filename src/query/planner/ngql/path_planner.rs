@@ -2,13 +2,11 @@
 //! 处理Nebula PATH查询的规划
 
 use crate::query::context::ast::{AstContext, PathContext};
+use crate::query::context::ast::common::{Starts, Over, StepClause, ExpressionProps};
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
-use crate::query::planner::plan::core::plan_node_traits::{
-    PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
-};
+use crate::query::planner::plan::operations::{Argument, Dedup, Expand, ExpandAll, Filter, GetVertices, Project};
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::{Argument, Dedup, Expand, ExpandAll, Filter, Project};
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
 
@@ -68,20 +66,19 @@ impl Planner for PathPlanner {
         });
 
         // 2. 创建GetVertices节点来获取顶点
-        let mut get_vertices_node = Arc::new(crate::query::planner::plan::GetVertices::new(
+        let mut get_vertices_node = Arc::new(GetVertices::new(
             3,
             1,
             &path_ctx.from.user_defined_var_name,
         ));
         let get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
-        get_vertices_node_mut.add_dependency(start_arg_node.clone_plan_node());
+        get_vertices_node_mut.add_dependency(start_arg_node.clone());
         get_vertices_node_mut.set_output_var(Variable {
             name: "path_vertices".to_string(),
             columns: vec![],
         });
 
         // 设置顶点属性
-        let get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
         get_vertices_node_mut.tag_props = path_ctx
             .expr_props
             .src_tag_props
@@ -104,14 +101,13 @@ impl Planner for PathPlanner {
             expand_direction,
         ));
         let expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
-        expand_node_mut.add_dependency(get_vertices_node.clone_plan_node());
+        expand_node_mut.add_dependency(get_vertices_node.clone());
         expand_node_mut.set_output_var(Variable {
             name: "expanded_path".to_string(),
             columns: vec![],
         });
 
         // 4. 如果是双向边，设置方向
-        let expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
         if path_ctx.over.direction == "both" {
             expand_node_mut
                 .edge_types
@@ -140,14 +136,13 @@ impl Planner for PathPlanner {
             expand_all_direction,
         ));
         let expand_all_node_mut = Arc::get_mut(&mut expand_all_node).unwrap();
-        expand_all_node_mut.add_dependency(expand_node.clone_plan_node());
+        expand_all_node_mut.add_dependency(expand_node.clone());
         expand_all_node_mut.set_output_var(Variable {
             name: "expanded_all_path".to_string(),
             columns: vec![],
         });
 
         // 设置边属性和顶点属性
-        let expand_all_node_mut = Arc::get_mut(&mut expand_all_node).unwrap();
         expand_all_node_mut.edge_props = path_ctx
             .expr_props
             .edge_props
@@ -167,7 +162,7 @@ impl Planner for PathPlanner {
             if let Some(ref condition) = path_ctx.filter {
                 let mut filter = Arc::new(Filter::new(6, condition));
                 let filter_mut = Arc::get_mut(&mut filter).unwrap();
-                filter_mut.add_dependency(expand_all_node.clone_plan_node());
+                filter_mut.add_dependency(expand_all_node.clone());
                 filter_mut.set_output_var(Variable {
                     name: "filtered_path".to_string(),
                     columns: vec![],
@@ -180,7 +175,7 @@ impl Planner for PathPlanner {
         // 7. 创建投影节点
         let mut project_node = Arc::new(Project::new(7, &"DEFAULT".to_string()));
         let project_node_mut = Arc::get_mut(&mut project_node).unwrap();
-        project_node_mut.add_dependency(filter_node.clone_plan_node());
+        project_node_mut.add_dependency(filter_node.clone());
         project_node_mut.set_output_var(Variable {
             name: "projected_path".to_string(),
             columns: vec![],
@@ -193,7 +188,7 @@ impl Planner for PathPlanner {
                 // 需要额外的节点来处理最短路径算法
                 let mut dedup_node = Arc::new(Dedup::new(8));
                 let dedup_node_mut = Arc::get_mut(&mut dedup_node).unwrap();
-                dedup_node_mut.add_dependency(project_node.clone_plan_node());
+                dedup_node_mut.add_dependency(project_node.clone());
                 dedup_node_mut.set_output_var(Variable {
                     name: "shortest_path_result".to_string(),
                     columns: vec![],

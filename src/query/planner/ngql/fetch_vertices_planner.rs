@@ -4,12 +4,11 @@
 use crate::query::context::ast::{AstContext, FetchVerticesContext};
 use crate::query::context::validate::types::{Column, Variable};
 use crate::query::planner::plan::core::common::TagProp;
-use crate::query::planner::plan::core::plan_node_traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
-};
+use crate::query::planner::plan::core::plan_node_traits::{PlanNodeDependencies, PlanNodeMutable};
+use crate::query::planner::plan::operations::{Argument, Dedup, GetVertices, Project};
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::{Argument, Dedup, GetVertices, Project};
 use crate::query::planner::planner::{Planner, PlannerError};
+use std::sync::Arc;
 
 /// FETCH VERTICES查询规划器
 /// 负责将FETCH VERTICES查询转换为执行计划
@@ -50,12 +49,11 @@ impl Planner for FetchVerticesPlanner {
         println!("Processing FETCH VERTICES query planning: {:?}", fetch_ctx);
 
         // 1. 创建参数节点，获取顶点ID
-        let mut arg_node =
-            std::sync::Arc::new(Argument::new(1, &fetch_ctx.from.user_defined_var_name));
-        std::sync::Arc::get_mut(&mut arg_node)
+        let mut arg_node = Arc::new(Argument::new(1, &fetch_ctx.from.user_defined_var_name));
+        Arc::get_mut(&mut arg_node)
             .unwrap()
             .set_col_names(vec!["vid".to_string()]);
-        std::sync::Arc::get_mut(&mut arg_node)
+        Arc::get_mut(&mut arg_node)
             .unwrap()
             .set_output_var(Variable {
                 name: "vertex_ids".to_string(),
@@ -63,15 +61,15 @@ impl Planner for FetchVerticesPlanner {
             });
 
         // 2. 创建获取顶点的节点
-        let mut get_vertices_node = std::sync::Arc::new(GetVertices::new(
+        let mut get_vertices_node = Arc::new(GetVertices::new(
             2,
             1,
             &fetch_ctx.from.user_defined_var_name,
         ));
-        std::sync::Arc::get_mut(&mut get_vertices_node)
+        Arc::get_mut(&mut get_vertices_node)
             .unwrap()
-            .add_dependency(arg_node.clone_plan_node());
-        std::sync::Arc::get_mut(&mut get_vertices_node)
+            .add_dependency(arg_node.clone());
+        Arc::get_mut(&mut get_vertices_node)
             .unwrap()
             .set_output_var(Variable {
                 name: "fetched_vertices".to_string(),
@@ -79,7 +77,7 @@ impl Planner for FetchVerticesPlanner {
             });
 
         // 设置顶点属性
-        if let Some(node) = std::sync::Arc::get_mut(&mut get_vertices_node) {
+        if let Some(node) = Arc::get_mut(&mut get_vertices_node) {
             node.tag_props = fetch_ctx
                 .expr_props
                 .tag_props
@@ -89,13 +87,13 @@ impl Planner for FetchVerticesPlanner {
         }
 
         // 3. 创建投影节点
-        let mut project_node = std::sync::Arc::new(Project::new(
+        let mut project_node = Arc::new(Project::new(
             3,
             &fetch_ctx.yield_expr.clone().unwrap_or("*".to_string()),
         ));
-        std::sync::Arc::get_mut(&mut project_node)
+        Arc::get_mut(&mut project_node)
             .unwrap()
-            .add_dependency(get_vertices_node.clone_plan_node());
+            .add_dependency(get_vertices_node.clone());
         let result_columns: Vec<Column> = fetch_ctx
             .from
             .vids
@@ -105,23 +103,24 @@ impl Planner for FetchVerticesPlanner {
                 type_: "STRING".to_string(),
             })
             .collect();
-        std::sync::Arc::get_mut(&mut project_node)
+        Arc::get_mut(&mut project_node)
             .unwrap()
             .set_output_var(Variable {
                 name: "project_result".to_string(),
                 columns: result_columns,
             });
-        std::sync::Arc::get_mut(&mut project_node)
+        Arc::get_mut(&mut project_node)
             .unwrap()
             .set_col_names(fetch_ctx.from.vids.clone());
 
         // 4. 如果需要去重，创建去重节点
-        let final_node: std::sync::Arc<dyn PlanNode> = if fetch_ctx.distinct {
-            let mut dedup_node = std::sync::Arc::new(Dedup::new(4));
-            std::sync::Arc::get_mut(&mut dedup_node)
+        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if fetch_ctx.distinct
+        {
+            let mut dedup_node = Arc::new(Dedup::new(4));
+            Arc::get_mut(&mut dedup_node)
                 .unwrap()
-                .add_dependency(project_node.clone_plan_node());
-            std::sync::Arc::get_mut(&mut dedup_node)
+                .add_dependency(project_node.clone());
+            Arc::get_mut(&mut dedup_node)
                 .unwrap()
                 .set_output_var(Variable {
                     name: "dedup_result".to_string(),

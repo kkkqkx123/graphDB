@@ -2,7 +2,8 @@
 //! 如ShortestPath、BFSShortest、AllPaths等
 //! 包括最短路径、BFS最短路径、所有路径等算法节点
 
-use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind, BinaryInputNode};
+use super::plan_node::{PlanNode as BasePlanNode, BinaryInputNode};
+use super::core::PlanNodeKind;
 use crate::query::context::validate::types::Variable;
 use super::plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
 

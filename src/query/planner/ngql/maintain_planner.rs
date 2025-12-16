@@ -3,12 +3,8 @@
 
 use crate::query::context::ast::{AstContext, MaintainContext};
 use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::plan_node_traits::{
-    PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
-};
-use crate::query::planner::plan::PlanNode;
+use crate::query::planner::plan::operations::{Argument, Project};
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::{Argument, Project};
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
 
@@ -60,10 +56,10 @@ impl Planner for MaintainPlanner {
 
         // 1. 创建参数节点来接收操作参数
         let mut arg_node = Arc::new(Argument::new(1, "maintain_args"));
-        std::sync::Arc::get_mut(&mut arg_node)
+        Arc::get_mut(&mut arg_node)
             .unwrap()
             .set_col_names(vec!["args".to_string()]);
-        std::sync::Arc::get_mut(&mut arg_node)
+        Arc::get_mut(&mut arg_node)
             .unwrap()
             .set_output_var(Variable {
                 name: "maintain_args".to_string(),
@@ -72,10 +68,10 @@ impl Planner for MaintainPlanner {
 
         // 2. 根据不同类型创建相应的计划节点
         let mut project_node = Arc::new(Project::new(2, &format!("MAINTAIN_{}", stmt_type)));
-        std::sync::Arc::get_mut(&mut project_node)
+        Arc::get_mut(&mut project_node)
             .unwrap()
-            .add_dependency(arg_node.clone_plan_node());
-        std::sync::Arc::get_mut(&mut project_node)
+            .add_dependency(arg_node.clone());
+        Arc::get_mut(&mut project_node)
             .unwrap()
             .set_output_var(Variable {
                 name: "maintain_result".to_string(),
@@ -83,7 +79,7 @@ impl Planner for MaintainPlanner {
             });
 
         // 3. 不同类型的操作可能需要不同处理
-        let final_node: Arc<dyn PlanNode> = if stmt_type == "SUBMIT JOB" {
+        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if stmt_type == "SUBMIT JOB" {
             // 提交作业类型的维护操作
             project_node
         } else if stmt_type.starts_with("CREATE") {

@@ -10,6 +10,11 @@ use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Patt
 use crate::query::planner::plan::core::plan_node_traits::{PlanNodeIdentifiable, PlanNodeMutable};
 use crate::query::planner::plan::operations::{Filter, Project};
 use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+// 显式导入类型以消除歧义
+use crate::query::planner::plan::operations::{
+    AppendVertices, Dedup, Sort, Limit, ScanVertices, ScanEdges, GetVertices, GetEdges,
+};
+use crate::query::planner::plan::algorithms::IndexScan;
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -587,8 +592,8 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::IndexScan;
-    use crate::query::planner::plan::{AppendVertices, Dedup, Filter, Project, Sort};
+    use crate::query::planner::plan::algorithms::IndexScan;
+    use crate::query::planner::plan::operations::{AppendVertices, Dedup, Filter, Project, Sort};
     use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
     fn create_test_context() -> OptContext {

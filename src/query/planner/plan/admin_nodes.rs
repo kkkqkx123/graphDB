@@ -3,7 +3,8 @@
 //! 包括创建/删除空间、标签、边等DDL操作
 
 use std::collections::HashMap;
-use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind, SingleDependencyNode};
+use super::plan_node::{PlanNode as BasePlanNode, SingleDependencyNode};
+use super::core::PlanNodeKind;
 use crate::query::context::validate::types::Variable;
 use super::plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitError};
 

@@ -2,7 +2,8 @@
 //! 如SUBMIT JOB、CREATE SNAPSHOT等维护操作
 //! 包括提交任务、创建快照等维护操作
 
-use super::plan_node::{PlanNode as BasePlanNode, PlanNodeKind, SingleDependencyNode};
+use super::plan_node::{PlanNode as BasePlanNode, SingleDependencyNode};
+use super::core::PlanNodeKind;
 use super::plan_node_visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
 

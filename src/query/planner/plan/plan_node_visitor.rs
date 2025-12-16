@@ -2,25 +2,15 @@
 //! 用于遍历和处理计划树
 
 use super::plan_node::PlanNode as BasePlanNode;
-use crate::query::planner::plan::common::{TagProp, EdgeProp};
-use crate::query::planner::plan::graph_scan::{
-    GetNeighbors, GetEdges, GetVertices
-};
-use crate::query::planner::plan::traverse_ops::{
-    Traverse, AppendVertices, ScanEdges, Expand, ExpandAll
-};
-use crate::query::planner::plan::data_ops::{
-    Unwind, Project, Filter, RollUpApply, PatternApply
-};
-use crate::query::planner::plan::aggregation_ops::Aggregate;
-use crate::query::planner::plan::sort_limit_ops::{Sort, Limit, TopN, Sample};
-use crate::query::planner::plan::other_ops::{
-    Union, DataCollect, Dedup, Start, Argument
-};
-use crate::query::planner::plan::join_ops::{
-    HashJoin, HashLeftJoin, HashInnerJoin, CrossJoin
-};
-use crate::query::planner::plan::scan_nodes::{FulltextIndexScan, IndexScan, ScanVertices};
+use super::common::{TagProp, EdgeProp};
+use super::graph_scan::{GetNeighbors, GetEdges, GetVertices};
+use super::traverse_ops::{Traverse, AppendVertices, ScanEdges, Expand, ExpandAll};
+use super::data_ops::{Unwind, Project, Filter, RollUpApply, PatternApply};
+use super::aggregation_ops::Aggregate;
+use super::sort_limit_ops::{Sort, Limit, TopN, Sample};
+use super::operations::{Union, DataCollect, Dedup, Start, Argument};
+use super::join_ops::{HashJoin, HashLeftJoin, HashInnerJoin, CrossJoin};
+use super::scan_nodes::{FulltextIndexScan, IndexScan, ScanVertices};
 use std::fmt;
 
 /// 计划节点访问者特征
