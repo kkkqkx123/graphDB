@@ -7,16 +7,16 @@ use crate::graph::expression::Expression;
 pub struct Path {
     pub alias: String,
     pub anonymous: bool,
-    pub gen_path: bool,  // 是否生成路径
+    pub gen_path: bool, // 是否生成路径
     pub path_type: PathType,
     pub node_infos: Vec<NodeInfo>,
     pub edge_infos: Vec<EdgeInfo>,
     pub path_build: Option<Expression>, // 路径构建表达式
-    pub is_pred: bool, // 是否为谓词
-    pub is_anti_pred: bool, // 是否为反向谓词
+    pub is_pred: bool,                  // 是否为谓词
+    pub is_anti_pred: bool,             // 是否为反向谓词
     pub compare_variables: Vec<String>, // 比较变量
-    pub collect_variable: String, // 收集变量
-    pub roll_up_apply: bool, // 是否应用RollUp
+    pub collect_variable: String,       // 收集变量
+    pub roll_up_apply: bool,            // 是否应用RollUp
 }
 
 impl Path {
@@ -24,12 +24,12 @@ impl Path {
     pub fn is_default_path(&self) -> bool {
         matches!(self.path_type, PathType::Default)
     }
-    
+
     /// 获取节点信息列表
     pub fn node_infos(&self) -> &[NodeInfo] {
         &self.node_infos
     }
-    
+
     /// 获取边信息列表
     pub fn edge_infos(&self) -> &[EdgeInfo] {
         &self.edge_infos
@@ -53,8 +53,8 @@ pub struct NodeInfo {
     pub labels: Vec<String>,
     pub props: Option<Expression>,
     pub anonymous: bool,
-    pub filter: Option<Expression>, // 节点过滤条件
-    pub tids: Vec<i32>, // 标签ID列表
+    pub filter: Option<Expression>,           // 节点过滤条件
+    pub tids: Vec<i32>,                       // 标签ID列表
     pub label_props: Vec<Option<Expression>>, // 标签属性
 }
 
@@ -66,17 +66,17 @@ pub struct EdgeInfo {
     pub types: Vec<String>,
     pub props: Option<Expression>,
     pub anonymous: bool,
-    pub filter: Option<Expression>, // 边过滤条件
-    pub direction: Direction, // 边方向
+    pub filter: Option<Expression>,    // 边过滤条件
+    pub direction: Direction,          // 边方向
     pub range: Option<MatchStepRange>, // 步数范围
-    pub edge_types: Vec<i32>, // 边类型ID
+    pub edge_types: Vec<i32>,          // 边类型ID
 }
 
 /// 边的方向
 #[derive(Debug, Clone, Copy)]
 pub enum Direction {
-    Forward,  // ->
-    Backward, // <-
+    Forward,       // ->
+    Backward,      // <-
     Bidirectional, // -
 }
 
@@ -91,11 +91,11 @@ impl MatchStepRange {
     pub fn new(min: u32, max: u32) -> Self {
         MatchStepRange { min, max }
     }
-    
+
     pub fn min(&self) -> u32 {
         self.min
     }
-    
+
     pub fn max(&self) -> u32 {
         self.max
     }

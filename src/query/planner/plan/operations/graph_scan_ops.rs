@@ -1,6 +1,7 @@
 //! 图扫描操作节点
 //! 包含获取顶点、边和邻居节点的计划节点
 
+use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
 use crate::query::planner::plan::core::{
     plan_node_traits::{
@@ -9,7 +10,6 @@ use crate::query::planner::plan::core::{
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
-use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
 // 获取顶点的计划节点
@@ -23,11 +23,11 @@ pub struct GetVertices {
     pub cost: f64,
     pub space_id: i32,
     pub src_ref: crate::graph::expression::Expression, // 源引用
-    pub src_vids: String,        // 源顶点表达式
-    pub tag_props: Vec<TagProp>, // 标签属性
-    pub expr: Option<String>,    // 过滤表达式
-    pub dedup: bool,             // 是否去重
-    pub limit: Option<i64>,      // 限制返回的顶点数量
+    pub src_vids: String,                              // 源顶点表达式
+    pub tag_props: Vec<TagProp>,                       // 标签属性
+    pub expr: Option<String>,                          // 过滤表达式
+    pub dedup: bool,                                   // 是否去重
+    pub limit: Option<i64>,                            // 限制返回的顶点数量
 }
 
 impl GetVertices {
@@ -171,14 +171,14 @@ pub struct GetEdges {
     pub cost: f64,
     pub space_id: i32,
     pub edge_ref: crate::graph::expression::Expression, // 边引用
-    pub src: String,               // 源顶点
-    pub edge_type: String,         // 边类型
-    pub rank: String,              // 排名
-    pub dst: String,               // 目标顶点
-    pub edge_props: Vec<EdgeProp>, // 边属性
-    pub expr: Option<String>,      // 过滤表达式
-    pub dedup: bool,               // 是否去重
-    pub limit: Option<i64>,        // 限制返回的边数量
+    pub src: String,                                    // 源顶点
+    pub edge_type: String,                              // 边类型
+    pub rank: String,                                   // 排名
+    pub dst: String,                                    // 目标顶点
+    pub edge_props: Vec<EdgeProp>,                      // 边属性
+    pub expr: Option<String>,                           // 过滤表达式
+    pub dedup: bool,                                    // 是否去重
+    pub limit: Option<i64>,                             // 限制返回的边数量
 }
 
 impl GetEdges {
@@ -191,7 +191,10 @@ impl GetEdges {
             col_names: Vec::new(),
             cost: 0.0,
             space_id,
-            edge_ref: crate::graph::expression::Expression::Variable(format!("{}->{}@{}", src, dst, edge_type)),
+            edge_ref: crate::graph::expression::Expression::Variable(format!(
+                "{}->{}@{}",
+                src, dst, edge_type
+            )),
             src: src.to_string(),
             edge_type: edge_type.to_string(),
             rank: rank.to_string(),

@@ -2,10 +2,10 @@
 //! 根据可变的顶点ID进行查找
 //! 负责规划基于可变顶点ID的查找操作
 
-use crate::query::planner::plan::{SubPlan, PlanNodeKind, SingleInputNode};
+use crate::graph::expression::Expression;
+use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
-use crate::graph::expression::Expression;
 use std::sync::Arc;
 
 /// 可变顶点ID查找规划器
@@ -35,20 +35,26 @@ impl VariableVertexIdSeek {
         // TODO: 设置可变顶点ID表达式
         // 这里需要根据vid_expr设置要查找的顶点ID表达式
 
-        Ok(SubPlan::new(Some(get_vertices_node.clone()), Some(get_vertices_node)))
+        Ok(SubPlan::new(
+            Some(get_vertices_node.clone()),
+            Some(get_vertices_node),
+        ))
     }
 
     /// 检查是否可以使用可变顶点ID查找
     pub fn match_node(&self) -> bool {
         // 如果节点有顶点ID表达式，可以使用可变顶点ID查找
-        matches!(self.vid_expr, Expression::Label(_) | Expression::Variable(_))
+        matches!(
+            self.vid_expr,
+            Expression::Label(_) | Expression::Variable(_)
+        )
     }
 }
 
 /// 创建起始节点
 fn create_start_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     use crate::query::planner::plan::SingleDependencyNode;
-    
+
     Ok(Arc::new(SingleDependencyNode {
         id: -1,
         kind: PlanNodeKind::Start,

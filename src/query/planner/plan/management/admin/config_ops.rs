@@ -1,11 +1,14 @@
 //! 配置操作相关的计划节点
 //! 包括显示、设置和获取配置等操作
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 /// 配置参数类型
@@ -46,7 +49,13 @@ impl ShowConfigs {
             kind: PlanNodeKind::ShowConfigs,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec!["Module".to_string(), "Name".to_string(), "Value".to_string(), "Default".to_string(), "Type".to_string()],
+            col_names: vec![
+                "Module".to_string(),
+                "Name".to_string(),
+                "Value".to_string(),
+                "Default".to_string(),
+                "Type".to_string(),
+            ],
             cost: 0.0,
             config_type,
             module_name,
@@ -297,7 +306,13 @@ impl GetConfig {
             kind: PlanNodeKind::GetConfig,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec!["Module".to_string(), "Name".to_string(), "Value".to_string(), "Default".to_string(), "Type".to_string()],
+            col_names: vec![
+                "Module".to_string(),
+                "Name".to_string(),
+                "Value".to_string(),
+                "Default".to_string(),
+                "Type".to_string(),
+            ],
             cost: 0.0,
             module_name: module_name.to_string(),
             config_name: config_name.to_string(),

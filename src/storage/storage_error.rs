@@ -1,6 +1,6 @@
 use crate::core::Value;
-use thiserror::Error;
 use sled;
+use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
 pub enum StorageError {

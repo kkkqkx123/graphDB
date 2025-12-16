@@ -1,7 +1,7 @@
 //! 依赖关系跟踪器模块 - 管理变量读写依赖关系
 
-use std::collections::{HashMap, HashSet};
 use super::plan_node::PlanNodeRef;
+use std::collections::{HashMap, HashSet};
 
 /// 依赖关系类型
 #[derive(Debug, Clone, PartialEq)]
@@ -46,7 +46,9 @@ impl Clone for VariableDependencies {
             readers: self.readers.clone(),
             writers: self.writers.clone(),
             dependencies: self.dependencies.clone(),
-            user_count: std::sync::atomic::AtomicU64::new(self.user_count.load(std::sync::atomic::Ordering::Relaxed)),
+            user_count: std::sync::atomic::AtomicU64::new(
+                self.user_count.load(std::sync::atomic::Ordering::Relaxed),
+            ),
         }
     }
 }
@@ -65,14 +67,16 @@ impl VariableDependencies {
     /// 添加读取依赖
     pub fn add_reader(&mut self, node: PlanNodeRef) {
         self.readers.insert(node.clone());
-        self.dependencies.push(Dependency::new(node, DependencyType::Read));
+        self.dependencies
+            .push(Dependency::new(node, DependencyType::Read));
         self.increment_user_count();
     }
 
     /// 添加写入依赖
     pub fn add_writer(&mut self, node: PlanNodeRef) {
         self.writers.insert(node.clone());
-        self.dependencies.push(Dependency::new(node, DependencyType::Write));
+        self.dependencies
+            .push(Dependency::new(node, DependencyType::Write));
         self.increment_user_count();
     }
 
@@ -80,7 +84,8 @@ impl VariableDependencies {
     pub fn add_reader_writer(&mut self, node: PlanNodeRef) {
         self.readers.insert(node.clone());
         self.writers.insert(node.clone());
-        self.dependencies.push(Dependency::new(node, DependencyType::ReadWrite));
+        self.dependencies
+            .push(Dependency::new(node, DependencyType::ReadWrite));
         self.increment_user_count();
     }
 
@@ -88,7 +93,8 @@ impl VariableDependencies {
     pub fn remove_reader(&mut self, node: &PlanNodeRef) -> bool {
         let removed = self.readers.remove(node);
         if removed {
-            self.dependencies.retain(|dep| !(dep.node == *node && dep.dep_type == DependencyType::Read));
+            self.dependencies
+                .retain(|dep| !(dep.node == *node && dep.dep_type == DependencyType::Read));
         }
         removed
     }
@@ -97,7 +103,8 @@ impl VariableDependencies {
     pub fn remove_writer(&mut self, node: &PlanNodeRef) -> bool {
         let removed = self.writers.remove(node);
         if removed {
-            self.dependencies.retain(|dep| !(dep.node == *node && dep.dep_type == DependencyType::Write));
+            self.dependencies
+                .retain(|dep| !(dep.node == *node && dep.dep_type == DependencyType::Write));
         }
         removed
     }
@@ -139,7 +146,8 @@ impl VariableDependencies {
 
     /// 增加使用计数
     pub fn increment_user_count(&self) {
-        self.user_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.user_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// 获取使用计数
@@ -184,7 +192,10 @@ impl DependencyTracker {
 
     /// 添加变量
     pub fn add_variable(&mut self, variable_name: String) {
-        self.dependencies.insert(variable_name.clone(), VariableDependencies::new(variable_name));
+        self.dependencies.insert(
+            variable_name.clone(),
+            VariableDependencies::new(variable_name),
+        );
     }
 
     /// 检查变量是否存在
@@ -198,36 +209,61 @@ impl DependencyTracker {
     }
 
     /// 获取可变变量依赖
-    pub fn get_variable_dependencies_mut(&mut self, variable_name: &str) -> Option<&mut VariableDependencies> {
+    pub fn get_variable_dependencies_mut(
+        &mut self,
+        variable_name: &str,
+    ) -> Option<&mut VariableDependencies> {
         self.dependencies.get_mut(variable_name)
     }
 
     /// 添加读取依赖
-    pub fn add_read_dependency(&mut self, variable_name: &str, node: PlanNodeRef) -> Result<(), String> {
-        let deps = self.dependencies.entry(variable_name.to_string())
+    pub fn add_read_dependency(
+        &mut self,
+        variable_name: &str,
+        node: PlanNodeRef,
+    ) -> Result<(), String> {
+        let deps = self
+            .dependencies
+            .entry(variable_name.to_string())
             .or_insert_with(|| VariableDependencies::new(variable_name.to_string()));
         deps.add_reader(node);
         Ok(())
     }
 
     /// 添加写入依赖
-    pub fn add_write_dependency(&mut self, variable_name: &str, node: PlanNodeRef) -> Result<(), String> {
-        let deps = self.dependencies.entry(variable_name.to_string())
+    pub fn add_write_dependency(
+        &mut self,
+        variable_name: &str,
+        node: PlanNodeRef,
+    ) -> Result<(), String> {
+        let deps = self
+            .dependencies
+            .entry(variable_name.to_string())
             .or_insert_with(|| VariableDependencies::new(variable_name.to_string()));
         deps.add_writer(node);
         Ok(())
     }
 
     /// 添加读写依赖
-    pub fn add_read_write_dependency(&mut self, variable_name: &str, node: PlanNodeRef) -> Result<(), String> {
-        let deps = self.dependencies.entry(variable_name.to_string())
+    pub fn add_read_write_dependency(
+        &mut self,
+        variable_name: &str,
+        node: PlanNodeRef,
+    ) -> Result<(), String> {
+        let deps = self
+            .dependencies
+            .entry(variable_name.to_string())
             .or_insert_with(|| VariableDependencies::new(variable_name.to_string()));
         deps.add_reader_writer(node);
         Ok(())
     }
 
     /// 移除读取依赖
-    pub fn remove_read_dependency(&mut self, variable_name: &str, node: &PlanNodeRef) -> Result<bool, String> {
+    pub fn remove_read_dependency(
+        &mut self,
+        variable_name: &str,
+        node: &PlanNodeRef,
+    ) -> Result<bool, String> {
         if let Some(deps) = self.dependencies.get_mut(variable_name) {
             Ok(deps.remove_reader(node))
         } else {
@@ -236,7 +272,11 @@ impl DependencyTracker {
     }
 
     /// 移除写入依赖
-    pub fn remove_write_dependency(&mut self, variable_name: &str, node: &PlanNodeRef) -> Result<bool, String> {
+    pub fn remove_write_dependency(
+        &mut self,
+        variable_name: &str,
+        node: &PlanNodeRef,
+    ) -> Result<bool, String> {
         if let Some(deps) = self.dependencies.get_mut(variable_name) {
             Ok(deps.remove_writer(node))
         } else {
@@ -267,28 +307,32 @@ impl DependencyTracker {
 
     /// 获取所有依赖统计
     pub fn get_all_stats(&self) -> Vec<DependencyStats> {
-        self.dependencies.values()
+        self.dependencies
+            .values()
             .map(|deps| deps.get_dependency_stats())
             .collect()
     }
 
     /// 查找读取指定变量的所有节点
     pub fn find_readers_of(&self, variable_name: &str) -> Vec<&PlanNodeRef> {
-        self.dependencies.get(variable_name)
+        self.dependencies
+            .get(variable_name)
             .map(|deps| deps.get_readers().iter().collect())
             .unwrap_or_default()
     }
 
     /// 查找写入指定变量的所有节点
     pub fn find_writers_of(&self, variable_name: &str) -> Vec<&PlanNodeRef> {
-        self.dependencies.get(variable_name)
+        self.dependencies
+            .get(variable_name)
             .map(|deps| deps.get_writers().iter().collect())
             .unwrap_or_default()
     }
 
     /// 查找指定节点读取的所有变量
     pub fn find_variables_read_by(&self, node: &PlanNodeRef) -> Vec<String> {
-        self.dependencies.iter()
+        self.dependencies
+            .iter()
             .filter(|(_, deps)| deps.is_reader(node))
             .map(|(name, _)| name.clone())
             .collect()
@@ -296,7 +340,8 @@ impl DependencyTracker {
 
     /// 查找指定节点写入的所有变量
     pub fn find_variables_written_by(&self, node: &PlanNodeRef) -> Vec<String> {
-        self.dependencies.iter()
+        self.dependencies
+            .iter()
             .filter(|(_, deps)| deps.is_writer(node))
             .map(|(name, _)| name.clone())
             .collect()
@@ -304,7 +349,8 @@ impl DependencyTracker {
 
     /// 检查是否存在数据竞争（同一变量被多个节点写入）
     pub fn detect_write_conflicts(&self) -> Vec<(String, Vec<&PlanNodeRef>)> {
-        self.dependencies.iter()
+        self.dependencies
+            .iter()
             .filter(|(_, deps)| deps.get_writers().len() > 1)
             .map(|(name, deps)| (name.clone(), deps.get_writers().iter().collect()))
             .collect()
@@ -340,28 +386,32 @@ mod tests {
     #[test]
     fn test_dependency_tracker() {
         let mut tracker = DependencyTracker::new();
-        
+
         // 添加变量
         tracker.add_variable("test_var".to_string());
         assert!(tracker.has_variable("test_var"));
-        
+
         // 添加依赖
         let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
         let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
-        
-        tracker.add_read_dependency("test_var", node1.clone()).unwrap();
-        tracker.add_write_dependency("test_var", node2.clone()).unwrap();
-        
+
+        tracker
+            .add_read_dependency("test_var", node1.clone())
+            .unwrap();
+        tracker
+            .add_write_dependency("test_var", node2.clone())
+            .unwrap();
+
         // 检查依赖
         let deps = tracker.get_variable_dependencies("test_var").unwrap();
         assert!(deps.is_reader(&node1));
         assert!(deps.is_writer(&node2));
-        
+
         // 查找读取者
         let readers = tracker.find_readers_of("test_var");
         assert_eq!(readers.len(), 1);
         assert_eq!(readers[0].id(), "node1");
-        
+
         // 查找写入者
         let writers = tracker.find_writers_of("test_var");
         assert_eq!(writers.len(), 1);
@@ -371,20 +421,20 @@ mod tests {
     #[test]
     fn test_variable_dependencies() {
         let mut deps = VariableDependencies::new("test_var".to_string());
-        
+
         let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
         let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
-        
+
         deps.add_reader(node1.clone());
         deps.add_writer(node2.clone());
-        
+
         assert!(deps.has_readers());
         assert!(deps.has_writers());
         assert!(deps.is_reader(&node1));
         assert!(deps.is_writer(&node2));
         assert!(!deps.is_writer(&node1));
         assert!(!deps.is_reader(&node2));
-        
+
         // 测试移除
         assert!(deps.remove_reader(&node1));
         assert!(!deps.has_readers());
@@ -394,16 +444,20 @@ mod tests {
     #[test]
     fn test_write_conflict_detection() {
         let mut tracker = DependencyTracker::new();
-        
+
         tracker.add_variable("conflict_var".to_string());
-        
+
         let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
         let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
-        
+
         // 多个节点写入同一变量
-        tracker.add_write_dependency("conflict_var", node1.clone()).unwrap();
-        tracker.add_write_dependency("conflict_var", node2.clone()).unwrap();
-        
+        tracker
+            .add_write_dependency("conflict_var", node1.clone())
+            .unwrap();
+        tracker
+            .add_write_dependency("conflict_var", node2.clone())
+            .unwrap();
+
         let conflicts = tracker.detect_write_conflicts();
         assert_eq!(conflicts.len(), 1);
         assert_eq!(conflicts[0].0, "conflict_var");
@@ -413,15 +467,15 @@ mod tests {
     #[test]
     fn test_dependency_stats() {
         let mut tracker = DependencyTracker::new();
-        
+
         tracker.add_variable("stats_var".to_string());
-        
+
         let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
         let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
-        
+
         tracker.add_read_dependency("stats_var", node1).unwrap();
         tracker.add_write_dependency("stats_var", node2).unwrap();
-        
+
         let stats = tracker.get_all_stats();
         assert_eq!(stats.len(), 1);
         assert_eq!(stats[0].variable_name, "stats_var");

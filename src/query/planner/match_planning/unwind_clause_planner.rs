@@ -5,9 +5,7 @@
 use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{
-    CypherClauseContext, CypherClauseKind,
-};
+use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 use std::sync::Arc;
 
 /// UNWIND子句规划器

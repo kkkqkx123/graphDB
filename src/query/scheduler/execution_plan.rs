@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::query::executor::{Executor, ExecutionResult};
-use crate::storage::StorageEngine;
-use crate::query::QueryError;
 use super::types::ExecutorDep;
+use crate::query::executor::{ExecutionResult, Executor};
+use crate::query::QueryError;
+use crate::storage::StorageEngine;
 
 // Execution plan containing multiple executors and their dependencies
 pub struct ExecutionPlan<S: StorageEngine> {
@@ -27,47 +27,68 @@ impl<S: StorageEngine + Send + 'static> ExecutionPlan<S> {
 
         // Initialize dependency info if not already present
         if !self.dependencies.contains_key(&id) {
-            self.dependencies.insert(id, ExecutorDep {
-                executor_id: id,
-                dependencies: Vec::new(),
-                successors: Vec::new(),
-            });
+            self.dependencies.insert(
+                id,
+                ExecutorDep {
+                    executor_id: id,
+                    dependencies: Vec::new(),
+                    successors: Vec::new(),
+                },
+            );
         }
     }
 
     pub fn add_dependency(&mut self, from: usize, to: usize) -> Result<(), QueryError> {
         // Check that both executors exist
         if !self.executors.contains_key(&from) {
-            return Err(QueryError::InvalidQuery(format!("Executor {} does not exist", from)));
+            return Err(QueryError::InvalidQuery(format!(
+                "Executor {} does not exist",
+                from
+            )));
         }
         if !self.executors.contains_key(&to) {
-            return Err(QueryError::InvalidQuery(format!("Executor {} does not exist", to)));
+            return Err(QueryError::InvalidQuery(format!(
+                "Executor {} does not exist",
+                to
+            )));
         }
 
         // Update dependency relationships
-        self.dependencies.entry(to).or_insert_with(|| ExecutorDep {
-            executor_id: to,
-            dependencies: Vec::new(),
-            successors: Vec::new(),
-        }).dependencies.push(from);
+        self.dependencies
+            .entry(to)
+            .or_insert_with(|| ExecutorDep {
+                executor_id: to,
+                dependencies: Vec::new(),
+                successors: Vec::new(),
+            })
+            .dependencies
+            .push(from);
 
-        self.dependencies.entry(from).or_insert_with(|| ExecutorDep {
-            executor_id: from,
-            dependencies: Vec::new(),
-            successors: Vec::new(),
-        }).successors.push(to);
+        self.dependencies
+            .entry(from)
+            .or_insert_with(|| ExecutorDep {
+                executor_id: from,
+                dependencies: Vec::new(),
+                successors: Vec::new(),
+            })
+            .successors
+            .push(to);
 
         Ok(())
     }
 
     /// Get all executors that can be executed (all dependencies satisfied)
-    pub fn get_executable_executors(&self, completed_executors: &HashMap<usize, ExecutionResult>) -> Vec<usize> {
+    pub fn get_executable_executors(
+        &self,
+        completed_executors: &HashMap<usize, ExecutionResult>,
+    ) -> Vec<usize> {
         let mut executable = Vec::new();
 
         for (id, dep_info) in &self.dependencies {
-            let all_deps_satisfied = dep_info.dependencies.iter().all(|dep_id| {
-                completed_executors.contains_key(dep_id)
-            });
+            let all_deps_satisfied = dep_info
+                .dependencies
+                .iter()
+                .all(|dep_id| completed_executors.contains_key(dep_id));
 
             // Check if executor is not already executed
             if all_deps_satisfied && !completed_executors.contains_key(id) {
@@ -87,10 +108,18 @@ impl<S: StorageEngine + Send + 'static> ExecutionPlan<S> {
     }
 
     /// Check if all dependencies for an executor are satisfied
-    pub fn are_dependencies_satisfied(&self, executor_id: usize, completed_executors: &HashMap<usize, ExecutionResult>) -> bool {
+    pub fn are_dependencies_satisfied(
+        &self,
+        executor_id: usize,
+        completed_executors: &HashMap<usize, ExecutionResult>,
+    ) -> bool {
         self.dependencies
             .get(&executor_id)
-            .map(|dep| dep.dependencies.iter().all(|dep_id| completed_executors.contains_key(dep_id)))
+            .map(|dep| {
+                dep.dependencies
+                    .iter()
+                    .all(|dep_id| completed_executors.contains_key(dep_id))
+            })
             .unwrap_or(true) // No dependencies means satisfied
     }
 
@@ -103,14 +132,19 @@ impl<S: StorageEngine + Send + 'static> ExecutionPlan<S> {
         for executor_id in self.executors.keys() {
             if !visited.contains(executor_id) {
                 if self.has_cycle(*executor_id, &mut visited, &mut recursion_stack)? {
-                    return Err(QueryError::InvalidQuery("Cycle detected in execution plan".to_string()));
+                    return Err(QueryError::InvalidQuery(
+                        "Cycle detected in execution plan".to_string(),
+                    ));
                 }
             }
         }
 
         // Check that root executor exists
         if !self.executors.contains_key(&self.root_executor_id) {
-            return Err(QueryError::InvalidQuery(format!("Root executor {} does not exist", self.root_executor_id)));
+            return Err(QueryError::InvalidQuery(format!(
+                "Root executor {} does not exist",
+                self.root_executor_id
+            )));
         }
 
         Ok(())

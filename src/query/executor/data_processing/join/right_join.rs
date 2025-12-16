@@ -2,12 +2,14 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor, hash_table::JoinKey,
 };
-use crate::core::error::{DBError, DBResult};
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::storage::StorageEngine;
 
 /// 右外连接执行器
@@ -73,18 +75,22 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
         let left_dataset = match left_result {
             ExecutionResult::DataSet(ds) => ds,
             _ => {
-                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    "Left input must be a DataSet".to_string(),
-                )))
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "Left input must be a DataSet".to_string(),
+                    ),
+                ))
             }
         };
 
         let right_dataset = match right_result {
             ExecutionResult::DataSet(ds) => ds,
             _ => {
-                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    "Right input must be a DataSet".to_string(),
-                )))
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "Right input must be a DataSet".to_string(),
+                    ),
+                ))
             }
         };
 

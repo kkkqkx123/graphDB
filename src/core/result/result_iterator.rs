@@ -261,6 +261,9 @@ mod tests {
         let data = Arc::new(Value::Int(42));
         let result = SequentialResultIterator::new(data);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "SequentialResultIterator 只支持 DataSet");
+        assert_eq!(
+            result.unwrap_err(),
+            "SequentialResultIterator 只支持 DataSet"
+        );
     }
 }

@@ -1,41 +1,42 @@
 /// Escapes special characters in a string for use in queries
 pub fn escape_for_query(s: &str) -> String {
     s.replace('\\', "\\\\")
-     .replace('\'', "\\'")
-     .replace('\"', "\\\"")
-     .replace('\n', "\\n")
-     .replace('\r', "\\r")
-     .replace('\t', "\\t")
+        .replace('\'', "\\'")
+        .replace('\"', "\\\"")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+        .replace('\t', "\\t")
 }
 
 /// Unescapes special characters in a string
 pub fn unescape_for_query(s: &str) -> String {
     s.replace("\\t", "\t")
-     .replace("\\r", "\r")
-     .replace("\\n", "\n")
-     .replace("\\\"", "\"")
-     .replace("\\'", "'")
-     .replace("\\\\", "\\")
+        .replace("\\r", "\r")
+        .replace("\\n", "\n")
+        .replace("\\\"", "\"")
+        .replace("\\'", "'")
+        .replace("\\\\", "\\")
 }
 
 /// Normalizes identifier names (table names, column names, etc.)
 pub fn normalize_identifier(name: &str) -> String {
     // Replace spaces with underscores and convert to lowercase
     name.trim()
-       .replace(' ', "_")
-       .replace('-', "_")
-       .to_lowercase()
+        .replace(' ', "_")
+        .replace('-', "_")
+        .to_lowercase()
 }
 
 /// Sanitizes input to prevent injection attacks
 pub fn sanitize_input(input: &str) -> String {
     // Remove potentially dangerous characters/sequences
-    input.replace(";", "")
-         .replace("--", "")
-         .replace("/*", "")
-         .replace("*/", "")
-         .replace("xp_", "")  // Prevent calls to extended procedures
-         .replace("sp_", "")  // Prevent calls to stored procedures
+    input
+        .replace(";", "")
+        .replace("--", "")
+        .replace("/*", "")
+        .replace("*/", "")
+        .replace("xp_", "") // Prevent calls to extended procedures
+        .replace("sp_", "") // Prevent calls to stored procedures
 }
 
 #[cfg(test)]
@@ -65,7 +66,7 @@ mod tests {
         let malicious = "SELECT * FROM users; DROP TABLE users; --";
         let sanitized = sanitize_input(malicious);
         assert_eq!(sanitized, "SELECT * FROM users DROP TABLE users ");
-        
+
         let with_procedures = "EXEC xp_cmdshell 'dir'; EXEC sp_who2;";
         let sanitized2 = sanitize_input(with_procedures);
         assert_eq!(sanitized2, "EXEC cmdshell 'dir' EXEC who2");
@@ -81,7 +82,7 @@ mod tests {
             "String with\nnewline",
             "String with\ttab",
             "String with\rcarriage return",
-            "Complex 'string' with \"multiple\" \\special\\ characters\nand\ttabs"
+            "Complex 'string' with \"multiple\" \\special\\ characters\nand\ttabs",
         ];
 
         for original in test_cases {

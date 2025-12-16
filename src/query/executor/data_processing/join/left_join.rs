@@ -2,15 +2,19 @@
 //!
 //! 实现基于哈希的左外连接算法，支持单键和多键连接
 
-use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
 
-use crate::core::{Value, DataSet, NullType};
-use crate::storage::StorageEngine;
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
+use crate::core::{DataSet, NullType, Value};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
-use crate::query::executor::data_processing::join::hash_table::{HashTableBuilder, HashTableProbe, SingleKeyHashTable, MultiKeyHashTable};
+use crate::query::executor::data_processing::join::hash_table::{
+    HashTableBuilder, HashTableProbe, MultiKeyHashTable, SingleKeyHashTable,
+};
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
+use crate::storage::StorageEngine;
 
 /// 左外连接执行器
 pub struct LeftJoinExecutor<S: StorageEngine> {
@@ -38,13 +42,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         let use_multi_key = hash_keys.len() > 1;
         Self {
             base_executor: BaseJoinExecutor::new(
-                id,
-                storage,
-                left_var,
-                right_var,
-                hash_keys,
-                probe_keys,
-                col_names,
+                id, storage, left_var, right_var, hash_keys, probe_keys, col_names,
             ),
             right_col_size: 0,
             single_key_hash_table: None,
@@ -70,10 +68,16 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
 
         // 构建哈希表
         let hash_table = HashTableBuilder::build_single_key_table(build_dataset, build_key_idx)
-            .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("构建哈希表失败: {}", e))))?;
+            .map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "构建哈希表失败: {}",
+                    e
+                )))
+            })?;
 
         // 探测哈希表
-        let probe_results = HashTableProbe::probe_single_key(&hash_table, probe_dataset, probe_key_idx);
+        let probe_results =
+            HashTableProbe::probe_single_key(&hash_table, probe_dataset, probe_key_idx);
 
         // 构建结果集
         let mut result = DataSet::new();
@@ -85,7 +89,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         // 处理匹配的行
         for (probe_row, matching_rows) in probe_results {
             matched_rows.insert(probe_row.clone()); // 标记为已匹配
-            
+
             for build_row in matching_rows {
                 let new_row = self.base_executor.new_row(probe_row.clone(), build_row);
                 result.rows.push(new_row);
@@ -121,14 +125,20 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         let mut right_key_indices = Vec::new();
 
         for key in self.base_executor.get_hash_keys() {
-            let idx = key.parse::<usize>()
-                .map_err(|_| DBError::Query(crate::core::error::QueryError::ExecutionError("无效的左键索引".to_string())))?;
+            let idx = key.parse::<usize>().map_err(|_| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                    "无效的左键索引".to_string(),
+                ))
+            })?;
             left_key_indices.push(idx);
         }
 
         for key in self.base_executor.get_probe_keys() {
-            let idx = key.parse::<usize>()
-                .map_err(|_| DBError::Query(crate::core::error::QueryError::ExecutionError("无效的右键索引".to_string())))?;
+            let idx = key.parse::<usize>().map_err(|_| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                    "无效的右键索引".to_string(),
+                ))
+            })?;
             right_key_indices.push(idx);
         }
 
@@ -140,10 +150,16 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
 
         // 构建哈希表
         let hash_table = HashTableBuilder::build_multi_key_table(build_dataset, build_key_indices)
-            .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("构建多键哈希表失败: {}", e))))?;
+            .map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "构建多键哈希表失败: {}",
+                    e
+                )))
+            })?;
 
         // 探测哈希表
-        let probe_results = HashTableProbe::probe_multi_key(&hash_table, probe_dataset, probe_key_indices);
+        let probe_results =
+            HashTableProbe::probe_multi_key(&hash_table, probe_dataset, probe_key_indices);
 
         // 构建结果集
         let mut result = DataSet::new();
@@ -155,7 +171,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         // 处理匹配的行
         for (probe_row, matching_rows) in probe_results {
             matched_rows.insert(probe_row.clone()); // 标记为已匹配
-            
+
             for build_row in matching_rows {
                 let new_row = self.base_executor.new_row(probe_row.clone(), build_row);
                 result.rows.push(new_row);
@@ -204,7 +220,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for LeftJoinExecutor<S> {
             let mut result = DataSet::new();
             result.col_names = self.base_executor.get_col_names().clone();
             self.right_col_size = right_dataset.col_names.len();
-            
+
             for left_row in &left_dataset.rows {
                 let mut new_row = left_row.clone();
                 for _ in 0..self.right_col_size {
@@ -212,7 +228,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for LeftJoinExecutor<S> {
                 }
                 result.rows.push(new_row);
             }
-            
+
             return Ok(ExecutionResult::Values(vec![Value::DataSet(result)]));
         }
 
@@ -283,13 +299,7 @@ impl<S: StorageEngine> HashLeftJoinExecutor<S> {
     ) -> Self {
         Self {
             inner: LeftJoinExecutor::new(
-                id,
-                storage,
-                left_var,
-                right_var,
-                hash_keys,
-                probe_keys,
-                col_names,
+                id, storage, left_var, right_var, hash_keys, probe_keys, col_names,
             ),
         }
     }
@@ -345,49 +355,84 @@ mod tests {
 
     // 模拟存储引擎
     struct MockStorage;
-    
+
     impl crate::storage::StorageEngine for MockStorage {
-        fn insert_node(&mut self, _vertex: crate::core::vertex_edge_path::Vertex) -> Result<crate::core::Value, crate::storage::StorageError> {
+        fn insert_node(
+            &mut self,
+            _vertex: crate::core::vertex_edge_path::Vertex,
+        ) -> Result<crate::core::Value, crate::storage::StorageError> {
             Ok(crate::core::Value::Null(crate::core::value::NullType::NaN))
         }
-        
-        fn get_node(&self, _id: &crate::core::Value) -> Result<Option<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+
+        fn get_node(
+            &self,
+            _id: &crate::core::Value,
+        ) -> Result<Option<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(None)
         }
-        
-        fn update_node(&mut self, _vertex: crate::core::vertex_edge_path::Vertex) -> Result<(), crate::storage::StorageError> {
+
+        fn update_node(
+            &mut self,
+            _vertex: crate::core::vertex_edge_path::Vertex,
+        ) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
-        
-        fn delete_node(&mut self, _id: &crate::core::Value) -> Result<(), crate::storage::StorageError> {
+
+        fn delete_node(
+            &mut self,
+            _id: &crate::core::Value,
+        ) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
-        
-        fn insert_edge(&mut self, _edge: crate::core::vertex_edge_path::Edge) -> Result<(), crate::storage::StorageError> {
+
+        fn insert_edge(
+            &mut self,
+            _edge: crate::core::vertex_edge_path::Edge,
+        ) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
-        
-        fn get_edge(&self, _src: &crate::core::Value, _dst: &crate::core::Value, _edge_type: &str) -> Result<Option<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError> {
+
+        fn get_edge(
+            &self,
+            _src: &crate::core::Value,
+            _dst: &crate::core::Value,
+            _edge_type: &str,
+        ) -> Result<Option<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError>
+        {
             Ok(None)
         }
-        
-        fn get_node_edges(&self, _node_id: &crate::core::Value, _direction: crate::core::vertex_edge_path::Direction) -> Result<Vec<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError> {
+
+        fn get_node_edges(
+            &self,
+            _node_id: &crate::core::Value,
+            _direction: crate::core::vertex_edge_path::Direction,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
-        
-        fn delete_edge(&mut self, _src: &crate::core::Value, _dst: &crate::core::Value, _edge_type: &str) -> Result<(), crate::storage::StorageError> {
+
+        fn delete_edge(
+            &mut self,
+            _src: &crate::core::Value,
+            _dst: &crate::core::Value,
+            _edge_type: &str,
+        ) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
-        
+
         fn begin_transaction(&mut self) -> Result<u64, crate::storage::StorageError> {
             Ok(1)
         }
-        
+
         fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
-        
-        fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
+
+        fn rollback_transaction(
+            &mut self,
+            _tx_id: u64,
+        ) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
     }
@@ -395,7 +440,7 @@ mod tests {
     #[tokio::test]
     async fn test_left_join_single_key() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建执行器
         let mut executor = LeftJoinExecutor::new(
             1,
@@ -443,21 +488,27 @@ mod tests {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
                     assert_eq!(dataset.rows.len(), 3); // 三行结果（包括未匹配的）
-                    
+
                     // 第一行：Alice匹配
-                    assert_eq!(dataset.rows[0], vec![
-                        Value::Int(1),
-                        Value::String("Alice".to_string()),
-                        Value::Int(25),
-                    ]);
-                    
+                    assert_eq!(
+                        dataset.rows[0],
+                        vec![
+                            Value::Int(1),
+                            Value::String("Alice".to_string()),
+                            Value::Int(25),
+                        ]
+                    );
+
                     // 第二行：Bob匹配
-                    assert_eq!(dataset.rows[1], vec![
-                        Value::Int(2),
-                        Value::String("Bob".to_string()),
-                        Value::Int(30),
-                    ]);
-                    
+                    assert_eq!(
+                        dataset.rows[1],
+                        vec![
+                            Value::Int(2),
+                            Value::String("Bob".to_string()),
+                            Value::Int(30),
+                        ]
+                    );
+
                     // 第三行：Charlie未匹配，age为NULL
                     assert_eq!(dataset.rows[2][0], Value::Int(3));
                     assert_eq!(dataset.rows[2][1], Value::String("Charlie".to_string()));
@@ -465,7 +516,7 @@ mod tests {
                 } else {
                     panic!("期望DataSet结果");
                 }
-            },
+            }
             _ => panic!("期望Values结果"),
         }
     }
@@ -473,7 +524,7 @@ mod tests {
     #[tokio::test]
     async fn test_left_join_empty_right() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建执行器
         let mut executor = LeftJoinExecutor::new(
             1,
@@ -517,7 +568,7 @@ mod tests {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
                     assert_eq!(dataset.rows.len(), 2); // 两行结果，都填充NULL
-                    
+
                     // 所有行的age都应该是NULL
                     for row in &dataset.rows {
                         assert_eq!(row[2], Value::Null(NullType::Null));
@@ -525,7 +576,7 @@ mod tests {
                 } else {
                     panic!("期望DataSet结果");
                 }
-            },
+            }
             _ => panic!("期望Values结果"),
         }
     }

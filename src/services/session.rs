@@ -1,9 +1,9 @@
+use crate::core::Value;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::{SystemTime, Duration};
+use std::time::{Duration, SystemTime};
 use uuid::Uuid;
-use serde::{Deserialize, Serialize};
-use crate::core::Value;
 
 /// Unique identifier for a session
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -156,16 +156,21 @@ impl SessionManager {
     }
 
     /// Create a new session
-    pub fn create_session(&self, user_id: Option<String>, client_info: String, connection_info: String) -> SessionId {
+    pub fn create_session(
+        &self,
+        user_id: Option<String>,
+        client_info: String,
+        connection_info: String,
+    ) -> SessionId {
         let session = Session::new(user_id, client_info, connection_info);
         let session_id = session.id.clone();
-        
+
         let session = Arc::new(Mutex::new(session));
         {
             let mut sessions = self.sessions.write().unwrap();
             sessions.insert(session_id.clone(), session);
         }
-        
+
         session_id
     }
 
@@ -219,8 +224,9 @@ impl SessionManager {
             .values()
             .filter_map(|session| {
                 let session = session.lock().unwrap();
-                if matches!(session.status, SessionStatus::Active) && 
-                   session.is_valid(self.default_session_timeout) {
+                if matches!(session.status, SessionStatus::Active)
+                    && session.is_valid(self.default_session_timeout)
+                {
                     Some(session.info())
                 } else {
                     None
@@ -280,7 +286,10 @@ pub mod session_utils {
 
     /// Get the age of a session
     pub fn session_age(session: &Session) -> Duration {
-        session.created_at.elapsed().unwrap_or(Duration::from_secs(0))
+        session
+            .created_at
+            .elapsed()
+            .unwrap_or(Duration::from_secs(0))
     }
 
     /// Check if a session is about to expire
@@ -307,7 +316,7 @@ mod tests {
     fn test_session_id() {
         let session_id = SessionId::new();
         assert!(!session_id.as_str().is_empty());
-        
+
         let session_id_str = session_id.to_string();
         assert_eq!(session_id.as_str(), session_id_str);
     }
@@ -319,10 +328,10 @@ mod tests {
             "client_info".to_string(),
             "connection_info".to_string(),
         );
-        
+
         assert!(session.id.as_str().len() > 0);
         assert_eq!(session.user_id, Some("user123".to_string()));
-        
+
         // Check that session is initially active
         assert!(matches!(session.status, SessionStatus::Active));
     }
@@ -330,18 +339,18 @@ mod tests {
     #[test]
     fn test_session_variables() {
         let session = Session::new(None, "".to_string(), "".to_string());
-        
+
         // Set a variable
         session.set_variable("test_key".to_string(), Value::Int(42));
-        
+
         // Get the variable
         let value = session.get_variable("test_key");
         assert_eq!(value, Some(Value::Int(42)));
-        
+
         // Remove the variable
         let removed_value = session.remove_variable("test_key");
         assert_eq!(removed_value, Some(Value::Int(42)));
-        
+
         // Check that it's gone
         let value = session.get_variable("test_key");
         assert_eq!(value, None);
@@ -350,29 +359,29 @@ mod tests {
     #[tokio::test]
     async fn test_session_manager() {
         let session_manager = SessionManager::new(Duration::from_secs(300)); // 5 minutes timeout
-        
+
         // Create a session
         let session_id = session_manager.create_session(
             Some("user123".to_string()),
             "client_info".to_string(),
             "connection_info".to_string(),
         );
-        
+
         // Verify the session exists
         assert!(session_manager.is_valid_session(&session_id));
-        
+
         // Get session info
         let info = session_manager.get_session_info(&session_id);
         assert!(info.is_some());
         assert_eq!(info.as_ref().unwrap().user_id, Some("user123".to_string()));
-        
+
         // Touch the session to update last_accessed time
         assert!(session_manager.touch_session(&session_id));
-        
+
         // List active sessions
         let active_sessions = session_manager.list_active_sessions();
         assert_eq!(active_sessions.len(), 1);
-        
+
         // Clean up
         session_manager.remove_session(&session_id);
         assert!(!session_manager.is_valid_session(&session_id));
@@ -381,16 +390,16 @@ mod tests {
     #[test]
     fn test_session_timeout() {
         let mut session = Session::new(None, "".to_string(), "".to_string());
-        
+
         // Initially, the session should be valid
         assert!(session.is_valid(Duration::from_secs(10)));
-        
+
         // Modify the last_accessed time to be in the past
         session.last_accessed = SystemTime::now() - Duration::from_secs(15); // 15 seconds ago
-        
+
         // Now it should be invalid with a 10-second timeout
         assert!(!session.is_valid(Duration::from_secs(10)));
-        
+
         // But valid with a 20-second timeout
         assert!(session.is_valid(Duration::from_secs(20)));
     }

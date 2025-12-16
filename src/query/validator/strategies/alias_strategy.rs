@@ -157,57 +157,58 @@ impl AliasValidationStrategy {
                 Ok(())
             }
             Expression::Literal(_)
-              | Expression::Property { .. }
-              | Expression::TagProperty { .. }
-              | Expression::EdgeProperty { .. }
-              | Expression::InputProperty(_)
-              | Expression::VariableProperty { .. }
-              | Expression::SourceProperty { .. }
-              | Expression::DestinationProperty { .. }
-              | Expression::UnaryPlus(_)
-              | Expression::UnaryNegate(_)
-              | Expression::UnaryNot(_)
-              | Expression::UnaryIncr(_)
-              | Expression::UnaryDecr(_)
-              | Expression::IsNull(_)
-              | Expression::IsNotNull(_)
-              | Expression::IsEmpty(_)
-              | Expression::IsNotEmpty(_)
-              | Expression::ESQuery(_)
-              | Expression::UUID
-              | Expression::Variable(_)
-              | Expression::Label(_)
-              | Expression::TypeCasting { .. } => Ok(()),
-              Expression::TypeCast { expr, .. } => {
-                  // 类型转换表达式需要验证其子表达式
-                  self.validate_expression_aliases(expr, aliases)
-              },
-              Expression::Aggregate {
-                  arg,
-                  ..
-              } => {
-                  // 聚合函数表达式需要验证其参数表达式
-                  self.validate_expression_aliases(arg, aliases)
-              },
-              Expression::Range { collection, start, end } => {
-                  // 范围访问表达式需要验证集合和范围表达式
-                  self.validate_expression_aliases(collection, aliases)?;
-                  if let Some(start_expr) = start {
-                      self.validate_expression_aliases(start_expr, aliases)?;
-                  }
-                  if let Some(end_expr) = end {
-                      self.validate_expression_aliases(end_expr, aliases)?;
-                  }
-                  Ok(())
-              },
-              Expression::Path(items) => {
-                  // 路径表达式需要验证其所有项
-                  for item in items {
-                      self.validate_expression_aliases(item, aliases)?;
-                  }
-                  Ok(())
-              },
+            | Expression::Property { .. }
+            | Expression::TagProperty { .. }
+            | Expression::EdgeProperty { .. }
+            | Expression::InputProperty(_)
+            | Expression::VariableProperty { .. }
+            | Expression::SourceProperty { .. }
+            | Expression::DestinationProperty { .. }
+            | Expression::UnaryPlus(_)
+            | Expression::UnaryNegate(_)
+            | Expression::UnaryNot(_)
+            | Expression::UnaryIncr(_)
+            | Expression::UnaryDecr(_)
+            | Expression::IsNull(_)
+            | Expression::IsNotNull(_)
+            | Expression::IsEmpty(_)
+            | Expression::IsNotEmpty(_)
+            | Expression::ESQuery(_)
+            | Expression::UUID
+            | Expression::Variable(_)
+            | Expression::Label(_)
+            | Expression::TypeCasting { .. } => Ok(()),
+            Expression::TypeCast { expr, .. } => {
+                // 类型转换表达式需要验证其子表达式
+                self.validate_expression_aliases(expr, aliases)
             }
+            Expression::Aggregate { arg, .. } => {
+                // 聚合函数表达式需要验证其参数表达式
+                self.validate_expression_aliases(arg, aliases)
+            }
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
+                // 范围访问表达式需要验证集合和范围表达式
+                self.validate_expression_aliases(collection, aliases)?;
+                if let Some(start_expr) = start {
+                    self.validate_expression_aliases(start_expr, aliases)?;
+                }
+                if let Some(end_expr) = end {
+                    self.validate_expression_aliases(end_expr, aliases)?;
+                }
+                Ok(())
+            }
+            Expression::Path(items) => {
+                // 路径表达式需要验证其所有项
+                for item in items {
+                    self.validate_expression_aliases(item, aliases)?;
+                }
+                Ok(())
+            }
+        }
     }
 
     /// 检查别名类型是否匹配使用方式
@@ -336,7 +337,8 @@ mod tests {
         );
 
         // 测试从常量表达式中提取别名（应该返回None）
-        let const_expr = Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(42));
+        let const_expr =
+            Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(42));
         assert_eq!(strategy.extract_alias_name(&const_expr), None);
     }
 }

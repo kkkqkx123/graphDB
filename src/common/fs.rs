@@ -1,10 +1,10 @@
-use std::fs::{self, File};
-use std::io::{Read, Write, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-use std::collections::HashMap;
-use std::time::SystemTime;
-use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs::{self, File};
+use std::io::{Read, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 /// File attributes
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,22 +27,22 @@ pub type FsResult<T> = Result<T, FsError>;
 pub enum FsError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
-    
+
     #[error("Path not found: {0}")]
     PathNotFound(String),
-    
+
     #[error("Permission denied: {0}")]
     PermissionDenied(String),
-    
+
     #[error("Invalid path: {0}")]
     InvalidPath(String),
-    
+
     #[error("File already exists: {0}")]
     AlreadyExists(String),
-    
+
     #[error("Not a directory: {0}")]
     NotADirectory(String),
-    
+
     #[error("Not a file: {0}")]
     NotAFile(String),
 }
@@ -68,8 +68,7 @@ impl FileSystemUtils {
 
     /// Get file attributes
     pub fn get_attributes<P: AsRef<Path>>(path: P) -> FsResult<FileAttributes> {
-        let metadata = fs::metadata(path.as_ref())
-            .map_err(|e| FsError::IoError(e))?;
+        let metadata = fs::metadata(path.as_ref()).map_err(|e| FsError::IoError(e))?;
 
         Ok(FileAttributes {
             size: metadata.len(),
@@ -85,32 +84,27 @@ impl FileSystemUtils {
 
     /// Create a directory and all its parent directories if they don't exist
     pub fn create_dir_all<P: AsRef<Path>>(path: P) -> FsResult<()> {
-        fs::create_dir_all(path.as_ref())
-            .map_err(|e| FsError::IoError(e))
+        fs::create_dir_all(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Create an empty file
     pub fn create_file<P: AsRef<Path>>(path: P) -> FsResult<File> {
-        File::create(path.as_ref())
-            .map_err(|e| FsError::IoError(e))
+        File::create(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Read the entire contents of a file into a string
     pub fn read_to_string<P: AsRef<Path>>(path: P) -> FsResult<String> {
-        fs::read_to_string(path.as_ref())
-            .map_err(|e| FsError::IoError(e))
+        fs::read_to_string(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Read the entire contents of a file into a vector of bytes
     pub fn read<P: AsRef<Path>>(path: P) -> FsResult<Vec<u8>> {
-        fs::read(path.as_ref())
-            .map_err(|e| FsError::IoError(e))
+        fs::read(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Write a string to a file
     pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, contents: C) -> FsResult<()> {
-        fs::write(path.as_ref(), contents.as_ref())
-            .map_err(|e| FsError::IoError(e))
+        fs::write(path.as_ref(), contents.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Append a string to a file
@@ -120,52 +114,45 @@ impl FileSystemUtils {
             .create(true)
             .open(path.as_ref())
             .map_err(|e| FsError::IoError(e))?;
-        
+
         file.write_all(contents.as_ref())
             .map_err(|e| FsError::IoError(e))
     }
 
     /// Copy a file to a new location
     pub fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> FsResult<u64> {
-        fs::copy(from.as_ref(), to.as_ref())
-            .map_err(|e| FsError::IoError(e))
+        fs::copy(from.as_ref(), to.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Remove a file
     pub fn remove_file<P: AsRef<Path>>(path: P) -> FsResult<()> {
-        fs::remove_file(path.as_ref())
-            .map_err(|e| FsError::IoError(e))
+        fs::remove_file(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Remove a directory (must be empty)
     pub fn remove_dir<P: AsRef<Path>>(path: P) -> FsResult<()> {
-        fs::remove_dir(path.as_ref())
-            .map_err(|e| FsError::IoError(e))
+        fs::remove_dir(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Remove a directory and all its contents
     pub fn remove_dir_all<P: AsRef<Path>>(path: P) -> FsResult<()> {
-        fs::remove_dir_all(path.as_ref())
-            .map_err(|e| FsError::IoError(e))
+        fs::remove_dir_all(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Rename or move a file or directory
     pub fn rename<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> FsResult<()> {
-        fs::rename(from.as_ref(), to.as_ref())
-            .map_err(|e| FsError::IoError(e))
+        fs::rename(from.as_ref(), to.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// List all entries in a directory
     pub fn read_dir<P: AsRef<Path>>(path: P) -> FsResult<Vec<PathBuf>> {
         let mut entries = Vec::new();
-        
-        for entry in fs::read_dir(path.as_ref())
-            .map_err(|e| FsError::IoError(e))? {
-            let entry = entry
-                .map_err(|e| FsError::IoError(e))?;
+
+        for entry in fs::read_dir(path.as_ref()).map_err(|e| FsError::IoError(e))? {
+            let entry = entry.map_err(|e| FsError::IoError(e))?;
             entries.push(entry.path());
         }
-        
+
         Ok(entries)
     }
 
@@ -178,12 +165,10 @@ impl FileSystemUtils {
 
     /// Internal implementation for recursive directory walk
     fn walk_dir_impl(dir: &Path, paths: &mut Vec<PathBuf>) -> FsResult<()> {
-        for entry in fs::read_dir(dir)
-            .map_err(|e| FsError::IoError(e))? {
-            let entry = entry
-                .map_err(|e| FsError::IoError(e))?;
+        for entry in fs::read_dir(dir).map_err(|e| FsError::IoError(e))? {
+            let entry = entry.map_err(|e| FsError::IoError(e))?;
             let path = entry.path();
-            
+
             if path.is_dir() {
                 Self::walk_dir_impl(&path, paths)?;
             } else {
@@ -209,7 +194,7 @@ impl FileHandle {
             .create(true)
             .open(path.as_ref())
             .map_err(|e| FsError::IoError(e))?;
-            
+
         Ok(Self {
             file: Arc::new(Mutex::new(file)),
             path: path.as_ref().to_path_buf(),
@@ -218,9 +203,8 @@ impl FileHandle {
 
     /// Create a new file handle
     pub fn create<P: AsRef<Path>>(path: P) -> FsResult<Self> {
-        let file = File::create(path.as_ref())
-            .map_err(|e| FsError::IoError(e))?;
-            
+        let file = File::create(path.as_ref()).map_err(|e| FsError::IoError(e))?;
+
         Ok(Self {
             file: Arc::new(Mutex::new(file)),
             path: path.as_ref().to_path_buf(),
@@ -230,29 +214,30 @@ impl FileHandle {
     /// Read from the file
     pub fn read(&self, buf: &mut [u8]) -> FsResult<usize> {
         let mut file = self.file.lock().unwrap();
-        file.read(buf)
-            .map_err(|e| FsError::IoError(e))
+        file.read(buf).map_err(|e| FsError::IoError(e))
     }
 
     /// Write to the file
     pub fn write(&self, buf: &[u8]) -> FsResult<usize> {
         let mut file = self.file.lock().unwrap();
-        file.write(buf)
-            .map_err(|e| FsError::IoError(e))
+        file.write(buf).map_err(|e| FsError::IoError(e))
     }
 
     /// Seek to a position in the file
     pub fn seek(&self, pos: SeekFrom) -> FsResult<u64> {
         let mut file = self.file.lock().unwrap();
-        file.seek(pos)
-            .map_err(|e| FsError::IoError(e))
+        file.seek(pos).map_err(|e| FsError::IoError(e))
     }
 
     /// Get file attributes
     pub fn attributes(&self) -> FsResult<FileAttributes> {
-        let metadata = self.file.lock().unwrap().metadata()
+        let metadata = self
+            .file
+            .lock()
+            .unwrap()
+            .metadata()
             .map_err(|e| FsError::IoError(e))?;
-        
+
         Ok(FileAttributes {
             size: metadata.len(),
             created: metadata.created().unwrap_or_else(|_| SystemTime::now()),
@@ -268,8 +253,7 @@ impl FileHandle {
     /// Synchronize the file to disk
     pub fn sync_all(&self) -> FsResult<()> {
         let file = self.file.lock().unwrap();
-        file.sync_all()
-            .map_err(|e| FsError::IoError(e))
+        file.sync_all().map_err(|e| FsError::IoError(e))
     }
 
     /// Get the file path
@@ -293,7 +277,7 @@ impl FileLock {
             .create(true)
             .open(path.as_ref())
             .map_err(|e| FsError::IoError(e))?;
-        
+
         // In a real implementation, we would use proper file locking
         // For this implementation, we'll just return the file handle
         Ok(Self {
@@ -304,9 +288,8 @@ impl FileLock {
 
     /// Acquire a shared lock on a file
     pub fn acquire_shared<P: AsRef<Path>>(path: P) -> FsResult<Self> {
-        let file = File::open(path.as_ref())
-            .map_err(|e| FsError::IoError(e))?;
-        
+        let file = File::open(path.as_ref()).map_err(|e| FsError::IoError(e))?;
+
         // In a real implementation, we would use proper file locking
         Ok(Self {
             _file: file,
@@ -334,7 +317,7 @@ impl FileCache {
     /// Get a file from the cache or load it if not present
     pub fn get_or_load<P: AsRef<Path>>(&self, path: P) -> FsResult<Vec<u8>> {
         let path_buf = path.as_ref().to_path_buf();
-        
+
         // Check if it's in cache first
         {
             let cache = self.cache.lock().unwrap();
@@ -342,10 +325,10 @@ impl FileCache {
                 return Ok(data.clone());
             }
         }
-        
+
         // Not in cache, load from disk
         let data = FileSystemUtils::read(&path_buf)?;
-        
+
         // Add to cache if it fits
         {
             let mut current_size = self.current_size.lock().unwrap();
@@ -355,7 +338,7 @@ impl FileCache {
                 *current_size += data.len();
             }
         }
-        
+
         Ok(data)
     }
 
@@ -374,7 +357,7 @@ impl FileCache {
     /// Remove a file from the cache
     pub fn remove<P: AsRef<Path>>(&self, path: P) {
         let path_buf = path.as_ref().to_path_buf();
-        
+
         let mut cache = self.cache.lock().unwrap();
         if let Some(data) = cache.remove(&path_buf) {
             let mut current_size = self.current_size.lock().unwrap();
@@ -420,16 +403,21 @@ impl FileSystemWatcher {
     /// Add a path to watch
     pub fn watch<P: AsRef<Path>>(&self, path: P) -> FsResult<()> {
         let path_buf = path.as_ref().to_path_buf();
-        
+
         // Get the current modification time
         let metadata = fs::metadata(&path_buf).map_err(|e| FsError::IoError(e))?;
-        let modified_time = metadata.modified().map_err(|_| FsError::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "Could not get modification time"
-        )))?;
-        
+        let modified_time = metadata.modified().map_err(|_| {
+            FsError::IoError(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Could not get modification time",
+            ))
+        })?;
+
         // Store the path and its current modification time
-        self.watched_paths.lock().unwrap().insert(path_buf, modified_time);
+        self.watched_paths
+            .lock()
+            .unwrap()
+            .insert(path_buf, modified_time);
         Ok(())
     }
 
@@ -443,7 +431,7 @@ impl FileSystemWatcher {
     pub fn check_for_changes(&self) -> FsResult<Vec<(PathBuf, FileEvent)>> {
         let watched_paths = self.watched_paths.lock().unwrap();
         let mut changes = Vec::new();
-        
+
         for (path, last_modified) in watched_paths.iter() {
             if let Ok(metadata) = fs::metadata(path) {
                 if let Ok(current_modified) = metadata.modified() {
@@ -456,7 +444,7 @@ impl FileSystemWatcher {
                 changes.push((path.clone(), FileEvent::Deleted));
             }
         }
-        
+
         Ok(changes)
     }
 
@@ -473,9 +461,9 @@ impl FileSystemWatcher {
 #[derive(Debug, Clone)]
 pub struct FileSystemConfig {
     pub default_permissions: u32,
-    pub max_file_size: u64,  // in bytes
+    pub max_file_size: u64, // in bytes
     pub enable_caching: bool,
-    pub cache_size: usize,   // in bytes
+    pub cache_size: usize, // in bytes
     pub temp_dir: PathBuf,
     pub file_lock_timeout: std::time::Duration,
 }
@@ -483,7 +471,7 @@ pub struct FileSystemConfig {
 impl Default for FileSystemConfig {
     fn default() -> Self {
         Self {
-            default_permissions: 0o644, // rw-r--r--
+            default_permissions: 0o644,       // rw-r--r--
             max_file_size: 100 * 1024 * 1024, // 100MB
             enable_caching: true,
             cache_size: 10 * 1024 * 1024, // 10MB
@@ -503,13 +491,13 @@ mod tests {
         // Create a temporary directory
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test_file.txt");
-        
+
         // File shouldn't exist yet
         assert!(!FileSystemUtils::exists(&file_path));
-        
+
         // Create the file
         FileSystemUtils::write(&file_path, "test content").unwrap();
-        
+
         // Now it should exist
         assert!(FileSystemUtils::exists(&file_path));
     }
@@ -518,11 +506,11 @@ mod tests {
     fn test_file_system_utils_read_write() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test_read_write.txt");
-        
+
         // Write some content
         let content = "Hello, file system!";
         FileSystemUtils::write(&file_path, content).unwrap();
-        
+
         // Read it back
         let read_content = FileSystemUtils::read_to_string(&file_path).unwrap();
         assert_eq!(content, read_content);
@@ -532,13 +520,13 @@ mod tests {
     fn test_file_attributes() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test_attrs.txt");
-        
+
         // Create a file
         FileSystemUtils::write(&file_path, "test").unwrap();
-        
+
         // Get its attributes
         let attrs = FileSystemUtils::get_attributes(&file_path).unwrap();
-        
+
         assert!(attrs.is_file);
         assert!(!attrs.is_directory);
         assert_eq!(attrs.size, 4); // "test" is 4 bytes
@@ -548,15 +536,15 @@ mod tests {
     fn test_file_handle() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test_handle.txt");
-        
+
         // Create a file handle
         let handle = FileHandle::create(&file_path).unwrap();
-        
+
         // Write to the file
         let content = b"Hello from file handle!";
         handle.write(content).unwrap();
         handle.sync_all().unwrap();
-        
+
         // Read it back with standard fs
         let read_content = FileSystemUtils::read(&file_path).unwrap();
         assert_eq!(content.to_vec(), read_content);
@@ -566,18 +554,18 @@ mod tests {
     fn test_file_cache() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test_cache.txt");
-        
+
         // Create and write to a file
         let content = b"Cache test content";
         FileSystemUtils::write(&file_path, content).unwrap();
-        
+
         // Create a cache
         let cache = FileCache::new(1024); // 1KB cache
-        
+
         // Load the file into cache
         let cached_content = cache.get_or_load(&file_path).unwrap();
         assert_eq!(content.to_vec(), cached_content);
-        
+
         assert_eq!(cache.size(), content.len());
     }
 
@@ -585,20 +573,20 @@ mod tests {
     fn test_directory_operations() {
         let dir = tempdir().unwrap();
         let sub_dir = dir.path().join("subdir");
-        
+
         // Create a subdirectory
         FileSystemUtils::create_dir_all(&sub_dir).unwrap();
         assert!(FileSystemUtils::is_directory(&sub_dir));
-        
+
         // Create a file in the subdirectory
         let file_path = sub_dir.join("nested_file.txt");
         FileSystemUtils::write(&file_path, "nested content").unwrap();
-        
+
         // List directory contents
         let entries = FileSystemUtils::read_dir(&sub_dir).unwrap();
         assert_eq!(entries.len(), 1);
         assert!(entries[0].ends_with("nested_file.txt"));
-        
+
         // Walk directory recursively
         let all_paths = FileSystemUtils::walk_dir(&dir.path()).unwrap();
         assert_eq!(all_paths.len(), 1);

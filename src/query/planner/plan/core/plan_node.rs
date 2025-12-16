@@ -2,10 +2,12 @@
 //! 定义执行计划节点的基础结构体
 
 use super::plan_node_kind::PlanNodeKind;
-use super::plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, 
-                             PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable};
-use crate::query::planner::plan::core::{PlanNodeVisitor, PlanNodeVisitError};
+use super::plan_node_traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+    PlanNodeProperties, PlanNodeVisitable,
+};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{PlanNodeVisitError, PlanNodeVisitor};
 use std::sync::Arc;
 
 /// 单一依赖节点 - 具有一个依赖的计划节点

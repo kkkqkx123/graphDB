@@ -7,8 +7,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::ExecutionResult;
 use crate::query::executor::data_processing::join::hash_table::JoinKey;
+use crate::query::executor::traits::ExecutionResult;
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -67,7 +67,12 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         description: String,
     ) -> Self {
         Self {
-            base: BaseExecutor::with_description(id, "BaseJoinExecutor".to_string(), description.clone(), storage),
+            base: BaseExecutor::with_description(
+                id,
+                "BaseJoinExecutor".to_string(),
+                description.clone(),
+                storage,
+            ),
             left_var,
             right_var,
             hash_keys,
@@ -219,14 +224,14 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         // 输出列名格式：["id", "name", "age"]
         // 左表列名：["id", "name"]
         // 右表列名：["id", "age"]
-        
+
         // 简化实现：假设输出列名已经指定了正确的顺序
         // 对于自然连接，重复的列应该只出现一次
         // 这里我们简单地将左表的所有列和右表的非重复列合并
-        
+
         // 添加左表的所有列
         new_row.extend(left_row.clone());
-        
+
         // 添加右表的非重复列（从第1列开始，跳过重复的id列）
         if right_row.len() > 1 {
             new_row.extend(right_row[1..].iter().cloned());

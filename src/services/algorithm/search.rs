@@ -16,31 +16,29 @@ impl SearchAlgorithms {
     }
 
     /// Depth-first search
-    pub fn dfs<T: Clone + Eq + Hash, F>(
-        graph: &HashMap<T, Vec<T>>,
-        start: &T,
-        mut visit_fn: F,
-    ) where
+    pub fn dfs<T: Clone + Eq + Hash, F>(graph: &HashMap<T, Vec<T>>, start: &T, mut visit_fn: F)
+    where
         F: FnMut(&T) -> bool, // Return true to continue, false to stop
     {
         let mut visited = HashSet::new();
         let mut stack = Vec::new();
-        
+
         stack.push(start.clone());
-        
+
         while let Some(current) = stack.pop() {
             if visited.contains(&current) {
                 continue;
             }
-            
+
             visited.insert(current.clone());
-            
+
             if !visit_fn(&current) {
                 break;
             }
-            
+
             if let Some(neighbors) = graph.get(&current) {
-                for neighbor in neighbors.iter().rev() {  // Reverse to maintain order when using stack
+                for neighbor in neighbors.iter().rev() {
+                    // Reverse to maintain order when using stack
                     if !visited.contains(neighbor) {
                         stack.push(neighbor.clone());
                     }
@@ -50,24 +48,21 @@ impl SearchAlgorithms {
     }
 
     /// Breadth-first search
-    pub fn bfs<T: Clone + Eq + Hash, F>(
-        graph: &HashMap<T, Vec<T>>,
-        start: &T,
-        mut visit_fn: F,
-    ) where
+    pub fn bfs<T: Clone + Eq + Hash, F>(graph: &HashMap<T, Vec<T>>, start: &T, mut visit_fn: F)
+    where
         F: FnMut(&T) -> bool, // Return true to continue, false to stop
     {
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
-        
+
         queue.push_back(start.clone());
         visited.insert(start.clone());
-        
+
         while let Some(current) = queue.pop_front() {
             if !visit_fn(&current) {
                 break;
             }
-            
+
             if let Some(neighbors) = graph.get(&current) {
                 for neighbor in neighbors {
                     if !visited.contains(neighbor) {

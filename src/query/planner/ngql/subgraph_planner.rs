@@ -1,13 +1,15 @@
 //! SUBGRAPH查询规划器
 //! 处理Nebula SUBGRAPH查询的规划
 
-use crate::query::context::{AstContext, SubgraphContext};
+use crate::query::context::ast::{AstContext, SubgraphContext};
+use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
-use crate::query::planner::plan::operations::{Argument, Filter, Project, Expand, ExpandAll};
+use crate::query::planner::plan::core::plan_node_traits::{
+    PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
+};
+use crate::query::planner::plan::operations::{Argument, Expand, ExpandAll, Filter, Project};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::plan_node_traits::{PlanNodeClonable, PlanNodeMutable, PlanNodeDependencies};
 use std::sync::Arc;
 
 /// SUBGRAPH查询规划器
@@ -77,12 +79,7 @@ impl Planner for SubgraphPlanner {
         let expand_node = Arc::new(expand_node);
 
         // 3. 创建ExpandAll节点进行多步扩展
-        let mut expand_all_node = ExpandAll::new(
-            3,
-            1,
-            subgraph_ctx.edge_types.clone(),
-            "out"
-        );
+        let mut expand_all_node = ExpandAll::new(3, 1, subgraph_ctx.edge_types.clone(), "out");
         expand_all_node.add_dependency(expand_node.clone_plan_node());
         expand_all_node.set_output_var(Variable {
             name: "expanded_all_subgraph".to_string(),
@@ -106,17 +103,18 @@ impl Planner for SubgraphPlanner {
         let expand_all_node = Arc::new(expand_all_node);
 
         // 4. 创建过滤节点（如果有过滤条件）
-        let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if let Some(ref condition) = subgraph_ctx.filter {
-            let mut filter = Filter::new(4, condition);
-            filter.add_dependency(expand_all_node.clone_plan_node());
-            filter.set_output_var(Variable {
-                name: "filtered_subgraph".to_string(),
-                columns: vec![],
-            });
-            Arc::new(filter)
-        } else {
-            expand_all_node
-        };
+        let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
+            if let Some(ref condition) = subgraph_ctx.filter {
+                let mut filter = Filter::new(4, condition);
+                filter.add_dependency(expand_all_node.clone_plan_node());
+                filter.set_output_var(Variable {
+                    name: "filtered_subgraph".to_string(),
+                    columns: vec![],
+                });
+                Arc::new(filter)
+            } else {
+                expand_all_node
+            };
 
         // 5. 如果有标签过滤，添加额外过滤
         let tag_filter_node = if let Some(ref tag_condition) = subgraph_ctx.tag_filter {

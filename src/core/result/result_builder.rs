@@ -1,10 +1,10 @@
 //! 结果构建器模块 - 用于构建Result对象
 
-use std::sync::Arc;
-use crate::core::{Value, NullType};
-use super::result_core::{Result, ResultState, MemoryStats};
 use super::memory_manager::MemoryManager;
+use super::result_core::{MemoryStats, Result, ResultState};
 use super::result_iterator::ResultIterator;
+use crate::core::{NullType, Value};
+use std::sync::Arc;
 
 /// 结果构建器
 ///
@@ -97,7 +97,7 @@ impl ResultBuilder {
     /// 构建结果
     pub fn build(self) -> Result {
         let value = self.value.unwrap_or(Value::Null(NullType::Null));
-        
+
         // 使用完整构造方法创建结果
         let result = Result::with_components(
             value,
@@ -145,7 +145,7 @@ mod tests {
             .state(ResultState::Success)
             .msg("Test message".to_string())
             .build();
-        
+
         assert_eq!(result.value(), &value);
         assert_eq!(result.state(), &ResultState::Success);
         assert_eq!(result.msg(), "Test message");
@@ -164,7 +164,7 @@ mod tests {
         let original = Result::new(Value::String("test".to_string()), ResultState::Success);
         let builder = ResultBuilder::from_result(&original);
         let rebuilt = builder.build();
-        
+
         assert_eq!(rebuilt.value(), original.value());
         assert_eq!(rebuilt.state(), original.state());
         assert_eq!(rebuilt.msg(), original.msg());
@@ -174,12 +174,12 @@ mod tests {
     fn test_result_builder_with_memory_stats() {
         let mut stats = MemoryStats::new();
         stats.update_value_bytes(100);
-        
+
         let result = ResultBuilder::new()
             .value(Value::Int(42))
             .memory_stats(stats)
             .build();
-        
+
         assert_eq!(result.memory_stats().value_bytes, 100);
     }
 }

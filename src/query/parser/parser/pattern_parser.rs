@@ -77,7 +77,13 @@ impl super::Parser {
 
         // Parse optional properties
         let properties = if self.current_token().kind == TokenKind::LBrace {
-            Some(self.parse_expression().map_err(|e| ParseError::syntax_error(e.message, self.current_token().line, self.current_token().column))?)
+            Some(self.parse_expression().map_err(|e| {
+                ParseError::syntax_error(
+                    e.message,
+                    self.current_token().line,
+                    self.current_token().column,
+                )
+            })?)
         } else {
             None
         };
@@ -145,7 +151,13 @@ impl super::Parser {
 
             // Parse optional properties
             if self.current_token().kind == TokenKind::LBrace {
-                properties = Some(self.parse_expression().map_err(|e| ParseError::syntax_error(e.message, self.current_token().line, self.current_token().column))?);
+                properties = Some(self.parse_expression().map_err(|e| {
+                    ParseError::syntax_error(
+                        e.message,
+                        self.current_token().line,
+                        self.current_token().column,
+                    )
+                })?);
             }
 
             self.expect_token(TokenKind::RBracket)?;
@@ -160,6 +172,5 @@ impl super::Parser {
             None,
             Span::default(),
         ))
-        }
-
-        }
+    }
+}

@@ -8,11 +8,9 @@ use crate::query::planner::match_planning::pagination_planner::PaginationPlanner
 use crate::query::planner::match_planning::segments_connector::SegmentsConnector;
 use crate::query::planner::match_planning::where_clause_planner::WhereClausePlanner;
 use crate::query::planner::match_planning::yield_clause_planner::YieldClausePlanner;
-use crate::query::planner::plan::{SubPlan};
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{
-    CypherClauseContext, CypherClauseKind, WithClauseContext,
-};
+use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind, WithClauseContext};
 
 /// WITH子句规划器
 /// 负责规划WITH子句用于链接多个查询部分

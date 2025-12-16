@@ -31,7 +31,7 @@ impl ValidationError {
             context: None,
         }
     }
-    
+
     pub fn with_context(mut self, context: String) -> Self {
         self.context = Some(context);
         self
@@ -69,10 +69,10 @@ pub trait ValidationContext {
 pub trait ValidationStrategy {
     /// 执行验证
     fn validate(&self, context: &dyn ValidationContext) -> Result<(), ValidationError>;
-    
+
     /// 获取策略类型
     fn strategy_type(&self) -> ValidationStrategyType;
-    
+
     /// 策略名称（用于调试和日志）
     fn strategy_name(&self) -> &'static str;
 }

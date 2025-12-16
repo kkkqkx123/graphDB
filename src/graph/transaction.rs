@@ -1,7 +1,7 @@
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::collections::HashMap;
-use crate::core::{Vertex, Edge, Value};
+use crate::core::{Edge, Value, Vertex};
 use crate::storage::TransactionId;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -21,7 +21,7 @@ pub enum Operation {
     UpdateNode(Vertex),
     DeleteNode(Value),
     InsertEdge(Edge),
-    DeleteEdge(Value, Value, String),  // Changed to match the new Edge structure
+    DeleteEdge(Value, Value, String), // Changed to match the new Edge structure
 }
 
 pub struct Transaction {
@@ -102,7 +102,10 @@ impl TransactionManager {
         tx_id
     }
 
-    pub fn get_transaction(&mut self, tx_id: TransactionId) -> Result<&mut Transaction, TransactionError> {
+    pub fn get_transaction(
+        &mut self,
+        tx_id: TransactionId,
+    ) -> Result<&mut Transaction, TransactionError> {
         self.active_transactions
             .get_mut(&tx_id)
             .ok_or_else(|| TransactionError::TransactionNotFound(tx_id))
@@ -111,22 +114,22 @@ impl TransactionManager {
     pub fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), TransactionError> {
         let transaction = self.get_transaction(tx_id)?;
         transaction.commit()?;
-        
+
         // In a real implementation, we would apply the operations to the storage
         // For now, we'll just remove the transaction
         self.active_transactions.remove(&tx_id);
-        
+
         Ok(())
     }
 
     pub fn rollback_transaction(&mut self, tx_id: TransactionId) -> Result<(), TransactionError> {
         let transaction = self.get_transaction(tx_id)?;
         transaction.rollback()?;
-        
+
         // In a real implementation, we would undo the operations on the storage
         // For now, we'll just remove the transaction
         self.active_transactions.remove(&tx_id);
-        
+
         Ok(())
     }
 }

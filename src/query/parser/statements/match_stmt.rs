@@ -1,8 +1,8 @@
 //! MATCH语句解析器
 
-use crate::query::parser::{ParseError, TokenKind};
 use crate::query::parser::ast::*;
 use crate::query::parser::expressions::ExpressionParser;
+use crate::query::parser::{ParseError, TokenKind};
 
 pub trait MatchStmtParser: ExpressionParser {
     /// 解析MATCH语句
@@ -67,7 +67,7 @@ pub trait MatchStmtParser: ExpressionParser {
                     vec![],
                     None,
                     vec![],
-                    Span::default()
+                    Span::default(),
                 ));
             }
         } else {
@@ -95,7 +95,7 @@ pub trait MatchStmtParser: ExpressionParser {
             labels,
             properties,
             vec![],
-            Span::default()
+            Span::default(),
         ))
     }
 
@@ -115,7 +115,10 @@ pub trait MatchStmtParser: ExpressionParser {
             }
             _ => {
                 return Err(ParseError::syntax_error(
-                    format!("Expected edge direction (->, <-, -), got {:?}", self.current_token().kind),
+                    format!(
+                        "Expected edge direction (->, <-, -), got {:?}",
+                        self.current_token().kind
+                    ),
                     self.current_token().line,
                     self.current_token().column,
                 ));
@@ -161,7 +164,7 @@ pub trait MatchStmtParser: ExpressionParser {
             vec![],
             direction,
             None,
-            Span::default()
+            Span::default(),
         ))
     }
 

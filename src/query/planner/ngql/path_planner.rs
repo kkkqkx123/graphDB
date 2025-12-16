@@ -1,13 +1,15 @@
 //! PATH查询规划器
 //! 处理Nebula PATH查询的规划
 
+use crate::query::context::ast::{AstContext, PathContext};
 use crate::query::context::validate::types::Variable;
-use crate::query::context::{AstContext, PathContext};
-use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
-use crate::query::planner::plan::{Expand, ExpandAll, Filter, Project, Dedup, Argument};
+use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
+use crate::query::planner::plan::core::plan_node_traits::{
+    PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
+};
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::{Argument, Dedup, Expand, ExpandAll, Filter, Project};
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::planner::plan::core::plan_node_traits::{PlanNodeMutable, PlanNodeDependencies, PlanNodeClonable};
 use std::sync::Arc;
 
 /// PATH查询规划器
@@ -66,8 +68,11 @@ impl Planner for PathPlanner {
         });
 
         // 2. 创建GetVertices节点来获取顶点
-        let mut get_vertices_node =
-            Arc::new(crate::query::planner::plan::GetVertices::new(3, 1, &path_ctx.from.user_defined_var_name));
+        let mut get_vertices_node = Arc::new(crate::query::planner::plan::GetVertices::new(
+            3,
+            1,
+            &path_ctx.from.user_defined_var_name,
+        ));
         let get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
         get_vertices_node_mut.add_dependency(start_arg_node.clone_plan_node());
         get_vertices_node_mut.set_output_var(Variable {
@@ -92,7 +97,12 @@ impl Planner for PathPlanner {
         } else {
             "out"
         };
-        let mut expand_node = Arc::new(Expand::new(4, 1, path_ctx.over.edge_types.clone(), expand_direction));
+        let mut expand_node = Arc::new(Expand::new(
+            4,
+            1,
+            path_ctx.over.edge_types.clone(),
+            expand_direction,
+        ));
         let expand_node_mut = Arc::get_mut(&mut expand_node).unwrap();
         expand_node_mut.add_dependency(get_vertices_node.clone_plan_node());
         expand_node_mut.set_output_var(Variable {
@@ -153,18 +163,19 @@ impl Planner for PathPlanner {
             .collect();
 
         // 6. 创建过滤节点（如果有过滤条件）
-        let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if let Some(ref condition) = path_ctx.filter {
-            let mut filter = Arc::new(Filter::new(6, condition));
-            let filter_mut = Arc::get_mut(&mut filter).unwrap();
-            filter_mut.add_dependency(expand_all_node.clone_plan_node());
-            filter_mut.set_output_var(Variable {
-                name: "filtered_path".to_string(),
-                columns: vec![],
-            });
-            filter
-        } else {
-            expand_all_node
-        };
+        let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
+            if let Some(ref condition) = path_ctx.filter {
+                let mut filter = Arc::new(Filter::new(6, condition));
+                let filter_mut = Arc::get_mut(&mut filter).unwrap();
+                filter_mut.add_dependency(expand_all_node.clone_plan_node());
+                filter_mut.set_output_var(Variable {
+                    name: "filtered_path".to_string(),
+                    columns: vec![],
+                });
+                filter
+            } else {
+                expand_all_node
+            };
 
         // 7. 创建投影节点
         let mut project_node = Arc::new(Project::new(7, &"DEFAULT".to_string()));
@@ -177,19 +188,20 @@ impl Planner for PathPlanner {
         project_node_mut.set_col_names(path_ctx.col_names.clone());
 
         // 8. 如果是查找最短路径，可能需要额外的处理
-        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if path_ctx.is_shortest {
-            // 需要额外的节点来处理最短路径算法
-            let mut dedup_node = Arc::new(Dedup::new(8));
-            let dedup_node_mut = Arc::get_mut(&mut dedup_node).unwrap();
-            dedup_node_mut.add_dependency(project_node.clone_plan_node());
-            dedup_node_mut.set_output_var(Variable {
-                name: "shortest_path_result".to_string(),
-                columns: vec![],
-            });
-            dedup_node
-        } else {
-            project_node
-        };
+        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
+            if path_ctx.is_shortest {
+                // 需要额外的节点来处理最短路径算法
+                let mut dedup_node = Arc::new(Dedup::new(8));
+                let dedup_node_mut = Arc::get_mut(&mut dedup_node).unwrap();
+                dedup_node_mut.add_dependency(project_node.clone_plan_node());
+                dedup_node_mut.set_output_var(Variable {
+                    name: "shortest_path_result".to_string(),
+                    columns: vec![],
+                });
+                dedup_node
+            } else {
+                project_node
+            };
 
         // 创建SubPlan
         let sub_plan = SubPlan {

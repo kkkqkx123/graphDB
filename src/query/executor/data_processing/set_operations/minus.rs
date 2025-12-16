@@ -2,12 +2,14 @@
 //!
 //! 实现MINUS操作，返回左数据集中存在但右数据集中不存在的行
 
-use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
 
-use crate::core::{Value, DataSet};
+use crate::core::{DataSet, Value};
+use crate::query::executor::traits::{
+    DBResult, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::query::QueryError;
-use crate::query::executor::traits::{ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
 use crate::storage::StorageEngine;
 
 use super::base::SetExecutor;
@@ -41,7 +43,7 @@ impl<S: StorageEngine> MinusExecutor<S> {
     }
 
     /// 执行MINUS操作
-    /// 
+    ///
     /// 算法步骤：
     /// 1. 获取左右两个输入数据集
     /// 2. 验证列名是否一致
@@ -54,7 +56,8 @@ impl<S: StorageEngine> MinusExecutor<S> {
         let right_dataset = self.set_executor.get_right_input_data()?;
 
         // 检查输入数据集的有效性
-        self.set_executor.check_input_data_sets(&left_dataset, &right_dataset)?;
+        self.set_executor
+            .check_input_data_sets(&left_dataset, &right_dataset)?;
 
         // 如果右数据集为空，直接返回左数据集
         if right_dataset.rows.is_empty() {
@@ -77,7 +80,7 @@ impl<S: StorageEngine> MinusExecutor<S> {
 
         // 找出在左数据集中存在但在右数据集中不存在的行
         let mut minus_rows = Vec::new();
-        
+
         for left_row in &left_dataset.rows {
             if !SetExecutor::<S>::row_in_set(left_row, &right_row_set) {
                 minus_rows.push(left_row.clone());
@@ -97,10 +100,16 @@ impl<S: StorageEngine> MinusExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for MinusExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_minus().await.map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
-        
+        let dataset = self.execute_minus().await.map_err(|e| {
+            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
+                e.to_string(),
+            ))
+        })?;
+
         // 将DataSet转换为Values结果
-        let values: Vec<Value> = dataset.rows.into_iter()
+        let values: Vec<Value> = dataset
+            .rows
+            .into_iter()
             .flat_map(|row| row.into_iter())
             .collect();
 
@@ -137,7 +146,9 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for MinusExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for MinusExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
+    for MinusExecutor<S>
+{
     fn storage(&self) -> &Arc<Mutex<S>> {
         self.set_executor.storage()
     }
@@ -150,13 +161,13 @@ mod tests {
 
     // 创建测试用的存储引擎
     fn create_test_storage() -> Arc<Mutex<crate::storage::NativeStorage>> {
-        use std::time::{SystemTime, UNIX_EPOCH};
         use std::sync::atomic::{AtomicUsize, Ordering};
-        
+        use std::time::{SystemTime, UNIX_EPOCH};
+
         // 使用原子计数器确保每个测试使用唯一的数据库路径
         static TEST_COUNTER: AtomicUsize = AtomicUsize::new(0);
         let test_id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
-        
+
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
@@ -212,7 +223,7 @@ mod tests {
 
         // 验证结果
         assert!(result.is_ok());
-        
+
         if let Ok(ExecutionResult::Values(values)) = result {
             // 应该只包含Alice和Charlie（Bob和David被排除）
             // 2行 × 2列 = 4个值
@@ -262,7 +273,7 @@ mod tests {
         // 执行MINUS操作
         let result = executor.execute().await;
         assert!(result.is_ok());
-        
+
         if let Ok(ExecutionResult::Values(values)) = result {
             // 没有重叠，应该返回整个左数据集
             // 2行 × 2列 = 4个值
@@ -310,7 +321,7 @@ mod tests {
         // 执行MINUS操作
         let result = executor.execute().await;
         assert!(result.is_ok());
-        
+
         if let Ok(ExecutionResult::Values(values)) = result {
             // 完全重叠，结果应该为空
             assert_eq!(values.len(), 0);
@@ -354,7 +365,7 @@ mod tests {
         // 测试左数据集为空的MINUS
         let result = executor.execute().await;
         assert!(result.is_ok());
-        
+
         if let Ok(ExecutionResult::Values(values)) = result {
             // 左数据集为空，结果应该为空
             assert_eq!(values.len(), 0);
@@ -398,7 +409,7 @@ mod tests {
         // 测试右数据集为空的MINUS
         let result = executor.execute().await;
         assert!(result.is_ok());
-        
+
         if let Ok(ExecutionResult::Values(values)) = result {
             // 右数据集为空，应该返回整个左数据集
             // 2行 × 2列 = 4个值
@@ -440,7 +451,7 @@ mod tests {
         // 测试两个数据集都为空的MINUS
         let result = executor.execute().await;
         assert!(result.is_ok());
-        
+
         if let Ok(ExecutionResult::Values(values)) = result {
             assert_eq!(values.len(), 0);
         }
@@ -449,12 +460,8 @@ mod tests {
     #[tokio::test]
     async fn test_minus_with_duplicates() {
         let storage = create_test_storage();
-        let mut executor = MinusExecutor::new(
-            7,
-            storage,
-            "left_dup".to_string(),
-            "right_dup".to_string(),
-        );
+        let mut executor =
+            MinusExecutor::new(7, storage, "left_dup".to_string(), "right_dup".to_string());
 
         // 设置包含重复行的数据集
         let left_dataset = DataSet {
@@ -488,7 +495,7 @@ mod tests {
         // 执行MINUS操作
         let result = executor.execute().await;
         assert!(result.is_ok());
-        
+
         if let Ok(ExecutionResult::Values(values)) = result {
             // 应该只包含unique行，common和another被排除
             // 1行 × 2列 = 2个值
@@ -532,8 +539,11 @@ mod tests {
         // 执行应该失败
         let result = executor.execute().await;
         assert!(result.is_err());
-        
-        if let Err(crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(msg))) = result {
+
+        if let Err(crate::core::error::DBError::Query(
+            crate::core::error::QueryError::ExecutionError(msg),
+        )) = result
+        {
             assert!(msg.contains("列名不匹配"));
         } else {
             panic!("期望列名不匹配错误");

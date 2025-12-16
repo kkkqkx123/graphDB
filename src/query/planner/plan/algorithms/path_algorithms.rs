@@ -1,11 +1,14 @@
 //! 路径查找算法相关的计划节点
 //! 包含最短路径、所有路径等算法相关的计划节点
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 /// 多源最短路径计划节点
@@ -18,10 +21,10 @@ pub struct MultiShortestPath {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub steps: usize,
-    pub left_vid_var: String,      // 左输入顶点变量
-    pub right_vid_var: String,     // 右输入顶点变量
-    pub termination_var: String,   // 终止条件变量
-    pub single_shortest: bool,     // 是否为单最短路径
+    pub left_vid_var: String,    // 左输入顶点变量
+    pub right_vid_var: String,   // 右输入顶点变量
+    pub termination_var: String, // 终止条件变量
+    pub single_shortest: bool,   // 是否为单最短路径
 }
 
 impl MultiShortestPath {
@@ -181,13 +184,19 @@ pub struct BFSShortest {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub steps: usize,
-    pub edge_types: Vec<String>,     // 边类型
-    pub no_loop: bool,              // 是否无环
-    pub reverse: bool,              // 是否反向搜索
+    pub edge_types: Vec<String>, // 边类型
+    pub no_loop: bool,           // 是否无环
+    pub reverse: bool,           // 是否反向搜索
 }
 
 impl BFSShortest {
-    pub fn new(id: i64, dep: Arc<dyn PlanNode>, steps: usize, edge_types: Vec<String>, no_loop: bool) -> Self {
+    pub fn new(
+        id: i64,
+        dep: Arc<dyn PlanNode>,
+        steps: usize,
+        edge_types: Vec<String>,
+        no_loop: bool,
+    ) -> Self {
         Self {
             id,
             kind: PlanNodeKind::BFSShortest,
@@ -320,10 +329,10 @@ pub struct AllPaths {
     pub cost: f64,
     pub steps: usize,
     pub edge_types: Vec<String>,
-    pub min_hop: usize,            // 最小跳数
-    pub max_hop: usize,            // 最大跳数
-    pub acyclic: bool,             // 是否无环
-    pub has_step_limit: bool,      // 是否有步数限制
+    pub min_hop: usize,       // 最小跳数
+    pub max_hop: usize,       // 最大跳数
+    pub acyclic: bool,        // 是否无环
+    pub has_step_limit: bool, // 是否有步数限制
 }
 
 impl AllPaths {
@@ -476,9 +485,9 @@ pub struct ShortestPath {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub edge_types: Vec<String>,
-    pub max_step: usize,           // 最大步数
+    pub max_step: usize,             // 最大步数
     pub weight_expr: Option<String>, // 权重表达式
-    pub no_reverse: bool,          // 是否不允许反向
+    pub no_reverse: bool,            // 是否不允许反向
 }
 
 impl ShortestPath {

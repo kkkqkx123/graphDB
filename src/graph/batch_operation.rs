@@ -2,9 +2,9 @@
 //!
 //! 包含批量图操作的相关数据结构
 
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 use crate::core::Value;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// 表示一批图操作
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,12 +16,36 @@ pub struct BatchOperation {
 /// 表示批处理中的单个图操作
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GraphOperation {
-    CreateVertex { vertex: crate::core::Vertex },
-    CreateEdge { edge: crate::core::Edge },
-    UpdateVertex { vid: Value, properties: HashMap<String, Value> },
-    UpdateEdge { src: Value, dst: Value, edge_type: String, properties: HashMap<String, Value> },
-    DeleteVertex { vid: Value },
-    DeleteEdge { src: Value, dst: Value, edge_type: String },
-    ReadVertex { vid: Value },
-    ReadEdge { src: Value, dst: Value, edge_type: String },
+    CreateVertex {
+        vertex: crate::core::Vertex,
+    },
+    CreateEdge {
+        edge: crate::core::Edge,
+    },
+    UpdateVertex {
+        vid: Value,
+        properties: HashMap<String, Value>,
+    },
+    UpdateEdge {
+        src: Value,
+        dst: Value,
+        edge_type: String,
+        properties: HashMap<String, Value>,
+    },
+    DeleteVertex {
+        vid: Value,
+    },
+    DeleteEdge {
+        src: Value,
+        dst: Value,
+        edge_type: String,
+    },
+    ReadVertex {
+        vid: Value,
+    },
+    ReadEdge {
+        src: Value,
+        dst: Value,
+        edge_type: String,
+    },
 }

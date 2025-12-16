@@ -1,8 +1,8 @@
 //! UPDATE语句解析器
 
-use crate::query::parser::{ParseError, TokenKind};
 use crate::query::parser::ast::*;
 use crate::query::parser::expressions::ExpressionParser;
+use crate::query::parser::{ParseError, TokenKind};
 
 pub trait UpdateStmtParser: ExpressionParser {
     /// 解析UPDATE语句
@@ -18,7 +18,10 @@ pub trait UpdateStmtParser: ExpressionParser {
             }
             _ => {
                 return Err(ParseError::syntax_error(
-                    format!("Expected VERTEX or EDGE after UPDATE, got {:?}", self.current_token().kind),
+                    format!(
+                        "Expected VERTEX or EDGE after UPDATE, got {:?}",
+                        self.current_token().kind
+                    ),
                     self.current_token().line,
                     self.current_token().column,
                 ));
@@ -37,7 +40,10 @@ pub trait UpdateStmtParser: ExpressionParser {
             self.expect_token(TokenKind::Assign)?;
             let value = self.parse_expression()?;
 
-            update_items.push(Assignment { property: prop, value });
+            update_items.push(Assignment {
+                property: prop,
+                value,
+            });
 
             if self.current_token().kind != TokenKind::Comma {
                 break;

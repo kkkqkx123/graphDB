@@ -10,9 +10,7 @@ pub struct Validator {
 
 impl Validator {
     pub fn new(context: ValidateContext) -> Self {
-        Self {
-            context,
-        }
+        Self { context }
     }
 
     /// 验证实现 - 子类需要实现此方法

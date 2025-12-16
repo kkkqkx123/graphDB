@@ -1,12 +1,12 @@
+#[cfg(unix)]
+use signal_hook::{consts::SIGINT, consts::SIGTERM, iterator::Signals};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, Duration};
-use std::process;
 use std::env;
 use std::fs;
 use std::path::Path;
-#[cfg(unix)]
-use signal_hook::{consts::SIGTERM, consts::SIGINT, iterator::Signals};
+use std::process;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime};
 
 /// Represents a process identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -67,12 +67,18 @@ impl ProcessManager {
     }
 
     /// Get information about the current process
-    pub fn current_process_info(&self) -> Result<ProcessInfo, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn current_process_info(
+        &self,
+    ) -> Result<ProcessInfo, Box<dyn std::error::Error + Send + Sync>> {
         let pid = ProcessId(process::id());
-        
+
         Ok(ProcessInfo {
             pid,
-            name: env::current_exe()?.file_name().unwrap_or_default().to_string_lossy().to_string(),
+            name: env::current_exe()?
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string(),
             cmd: env::args().collect::<Vec<_>>().join(" "),
             cwd: env::current_dir()?.to_string_lossy().to_string(),
             root: "/".to_string(), // Simplified, in real implementation this would be more complex
@@ -80,7 +86,7 @@ impl ProcessManager {
             parent_pid: None, // Would need to query the actual parent process
             status: ProcessStatus::Running,
             memory_usage: get_memory_usage()?,
-            cpu_usage: 0.0, // Would need to track over time
+            cpu_usage: 0.0,     // Would need to track over time
             open_files: vec![], // Would need to query the system
         })
     }
@@ -104,12 +110,14 @@ impl ProcessManager {
         if pid.as_u32() == process::id() {
             return true; // Current process is always running
         }
-        
+
         self.monitored_processes.lock().unwrap().contains_key(&pid)
     }
 
     /// List all processes (simplified implementation)
-    pub fn list_processes(&self) -> Result<Vec<ProcessInfo>, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn list_processes(
+        &self,
+    ) -> Result<Vec<ProcessInfo>, Box<dyn std::error::Error + Send + Sync>> {
         // In a real implementation, this would query all system processes
         // For now, return an empty list or only the current process
         Ok(vec![self.current_process_info()?])
@@ -117,7 +125,10 @@ impl ProcessManager {
 
     /// Register a process to be monitored
     pub fn register_process(&self, info: ProcessInfo) {
-        self.monitored_processes.lock().unwrap().insert(info.pid, info);
+        self.monitored_processes
+            .lock()
+            .unwrap()
+            .insert(info.pid, info);
     }
 
     /// Unregister a process from monitoring
@@ -126,7 +137,11 @@ impl ProcessManager {
     }
 
     /// Send a signal to a process
-    pub fn send_signal(&self, pid: ProcessId, signal: i32) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn send_signal(
+        &self,
+        pid: ProcessId,
+        signal: i32,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // In a real implementation, this would actually send a signal to the process
         // For now, just check if it's the current process
         if pid.as_u32() == process::id() {
@@ -136,7 +151,7 @@ impl ProcessManager {
                     // For the current process, we can't actually send a signal to ourselves
                     // but we can simulate the behavior
                     println!("Simulated signal {} to current process", signal);
-                },
+                }
                 #[cfg(not(unix))]
                 _ => {
                     // On non-Unix systems, just log the signal
@@ -146,12 +161,20 @@ impl ProcessManager {
             Ok(())
         } else {
             // In real implementation, would send signal to another process
-            Err(format!("Cannot send signal to process {} in simplified implementation", pid.as_u32()).into())
+            Err(format!(
+                "Cannot send signal to process {} in simplified implementation",
+                pid.as_u32()
+            )
+            .into())
         }
     }
 
     /// Wait for a process to finish (simplified implementation)
-    pub fn wait_for_process(&self, pid: ProcessId, timeout: Option<Duration>) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn wait_for_process(
+        &self,
+        pid: ProcessId,
+        timeout: Option<Duration>,
+    ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         // In a real implementation, this would wait for the process to finish
         // For this simplified version, we'll just check if it exists and possibly sleep
         if self.is_process_running(pid) {
@@ -187,11 +210,18 @@ impl SignalHandler {
         })
     }
 
-    pub fn register_handler<F>(&self, signal: i32, handler: F) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+    pub fn register_handler<F>(
+        &self,
+        signal: i32,
+        handler: F,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
     where
         F: Fn() + Send + 'static,
     {
-        self.handlers.lock().unwrap().insert(signal, Box::new(handler));
+        self.handlers
+            .lock()
+            .unwrap()
+            .insert(signal, Box::new(handler));
         Ok(())
     }
 
@@ -214,7 +244,11 @@ impl SignalHandler {
         Ok(Self)
     }
 
-    pub fn register_handler<F>(&self, _signal: i32, _handler: F) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+    pub fn register_handler<F>(
+        &self,
+        _signal: i32,
+        _handler: F,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
     where
         F: Fn() + Send + 'static,
     {
@@ -238,11 +272,11 @@ fn get_memory_usage() -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
 
 /// Get system resource usage information
 pub struct SystemResourceUsage {
-    pub total_memory: u64,    // in bytes
+    pub total_memory: u64,     // in bytes
     pub available_memory: u64, // in bytes
-    pub used_memory: u64,     // in bytes
-    pub total_swap: u64,      // in bytes
-    pub used_swap: u64,       // in bytes
+    pub used_memory: u64,      // in bytes
+    pub total_swap: u64,       // in bytes
+    pub used_swap: u64,        // in bytes
     pub cpu_count: u8,
     pub load_avg: (f64, f64, f64), // 1min, 5min, 15min load average
 }
@@ -250,9 +284,10 @@ pub struct SystemResourceUsage {
 /// System resource utilities
 pub mod system_resources {
     use super::*;
-    
+
     /// Get current system resource usage
-    pub fn get_system_usage() -> Result<SystemResourceUsage, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn get_system_usage(
+    ) -> Result<SystemResourceUsage, Box<dyn std::error::Error + Send + Sync>> {
         // This is a simplified implementation
         // In a real implementation, this would query system resources
         Ok(SystemResourceUsage {
@@ -281,12 +316,13 @@ pub mod system_resources {
 /// Process execution utilities
 pub mod process_execution {
     use std::process::Command;
-    
+
     /// Execute a command and return its output
-    pub fn execute_command(cmd: &str, args: &[&str]) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let output = Command::new(cmd)
-            .args(args)
-            .output()?;
+    pub fn execute_command(
+        cmd: &str,
+        args: &[&str],
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let output = Command::new(cmd).args(args).output()?;
 
         if output.status.success() {
             let stdout = String::from_utf8(output.stdout)?;
@@ -298,19 +334,23 @@ pub mod process_execution {
     }
 
     /// Execute a command asynchronously
-    pub async fn execute_command_async(cmd: &str, args: &[&str]) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn execute_command_async(
+        cmd: &str,
+        args: &[&str],
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let cmd = cmd.to_owned();
         let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
         tokio::task::spawn_blocking(move || {
             let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
             execute_command(&cmd, &args_ref)
-        }).await?
+        })
+        .await?
     }
 
     /// Check if a command exists in the system
     pub fn command_exists(cmd: &str) -> bool {
         Command::new(cmd)
-            .arg("--help")  // Use a harmless argument to test existence
+            .arg("--help") // Use a harmless argument to test existence
             .output()
             .is_ok()
     }
@@ -350,7 +390,7 @@ mod tests {
     fn test_current_process_info() {
         let pm = ProcessManager::new();
         let info = pm.current_process_info().unwrap();
-        
+
         assert_eq!(info.pid.as_u32(), process::id());
         assert!(!info.name.is_empty());
     }
@@ -359,7 +399,7 @@ mod tests {
     fn test_process_manager() {
         let pm = ProcessManager::new();
         let pid = pm.current_pid();
-        
+
         assert!(pm.is_process_running(pid));
         assert!(pm.get_process_info(pid).is_some());
     }
@@ -367,8 +407,11 @@ mod tests {
     #[test]
     fn test_environment_functions() {
         set_environment_var("TEST_VAR", "test_value");
-        assert_eq!(get_environment_var("TEST_VAR"), Some("test_value".to_string()));
-        
+        assert_eq!(
+            get_environment_var("TEST_VAR"),
+            Some("test_value".to_string())
+        );
+
         let env = get_environment();
         assert!(env.contains_key("TEST_VAR"));
     }

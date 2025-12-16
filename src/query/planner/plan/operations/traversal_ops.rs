@@ -1,12 +1,15 @@
 //! 图遍历操作节点
 //! 包含Expand、ExpandAll、Traverse等图遍历相关的计划节点
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
-use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 // 扩展节点
@@ -19,9 +22,9 @@ pub struct Expand {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub space_id: i32,
-    pub edge_types: Vec<String>,  // 边类型
-    pub direction: String,        // 方向 (IN/OUT/BOTH)
-    pub step_limit: Option<u32>,  // 步数限制
+    pub edge_types: Vec<String>, // 边类型
+    pub direction: String,       // 方向 (IN/OUT/BOTH)
+    pub step_limit: Option<u32>, // 步数限制
 }
 
 impl Expand {
@@ -150,10 +153,10 @@ pub struct ExpandAll {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub space_id: i32,
-    pub edge_types: Vec<String>,  // 边类型
-    pub direction: String,        // 方向 (IN/OUT/BOTH)
-    pub step_limit: Option<u32>,  // 步数限制
-    pub edge_props: Vec<EdgeProp>, // 边属性
+    pub edge_types: Vec<String>,    // 边类型
+    pub direction: String,          // 方向 (IN/OUT/BOTH)
+    pub step_limit: Option<u32>,    // 步数限制
+    pub edge_props: Vec<EdgeProp>,  // 边属性
     pub vertex_props: Vec<TagProp>, // 顶点属性
 }
 
@@ -287,10 +290,10 @@ pub struct Traverse {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub space_id: i32,
-    pub edge_types: Vec<String>,  // 边类型
-    pub direction: String,        // 方向 (IN/OUT/BOTH)
-    pub step_limit: Option<u32>,  // 步数限制
-    pub filter: Option<String>,   // 过滤条件
+    pub edge_types: Vec<String>, // 边类型
+    pub direction: String,       // 方向 (IN/OUT/BOTH)
+    pub step_limit: Option<u32>, // 步数限制
+    pub filter: Option<String>,  // 过滤条件
 }
 
 impl Traverse {
@@ -422,8 +425,8 @@ pub struct AppendVertices {
     pub cost: f64,
     pub space_id: i32,
     pub vids: Vec<crate::core::Value>, // 顶点ID列表
-    pub tag_ids: Vec<i32>,  // 标签ID列表
-    pub filter: Option<String>,  // 过滤条件
+    pub tag_ids: Vec<i32>,             // 标签ID列表
+    pub filter: Option<String>,        // 过滤条件
 }
 
 impl AppendVertices {
@@ -555,7 +558,7 @@ pub struct ScanEdges {
     pub edge_type: String,
     pub limit: Option<i64>,
     pub filter: Option<String>,
-    pub props: Vec<String>,  // 边属性
+    pub props: Vec<String>, // 边属性
 }
 
 impl ScanEdges {

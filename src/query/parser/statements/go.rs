@@ -1,8 +1,8 @@
 //! GO语句解析器
 
-use crate::query::parser::{ParseError, TokenKind};
 use crate::query::parser::ast::*;
 use crate::query::parser::expressions::ExpressionParser;
+use crate::query::parser::{ParseError, TokenKind};
 
 pub trait GoStatementParser: ExpressionParser {
     /// 解析GO语句
@@ -50,7 +50,10 @@ pub trait GoStatementParser: ExpressionParser {
         Ok(Some(Stmt::Go(GoStmt {
             span: Span::default(),
             steps,
-            from: FromClause { span: Span::default(), vertices: from_list },
+            from: FromClause {
+                span: Span::default(),
+                vertices: from_list,
+            },
             over: Some(over_clause),
             where_clause,
             yield_clause,
@@ -65,7 +68,7 @@ pub trait GoStatementParser: ExpressionParser {
         } else {
             let mut types = Vec::new();
             types.push(self.parse_identifier()?);
-            
+
             while self.current_token().kind == TokenKind::Comma {
                 self.next_token(); // 跳过逗号
                 types.push(self.parse_identifier()?);
@@ -89,11 +92,16 @@ pub trait GoStatementParser: ExpressionParser {
                     self.next_token();
                     EdgeDirection::Both
                 }
-                _ => return Err(ParseError::syntax_error(
-                    format!("Expected direction (OUT, IN, or BOTH), got {:?}", self.current_token().kind),
-                    self.current_token().line,
-                    self.current_token().column,
-                ))
+                _ => {
+                    return Err(ParseError::syntax_error(
+                        format!(
+                            "Expected direction (OUT, IN, or BOTH), got {:?}",
+                            self.current_token().kind
+                        ),
+                        self.current_token().line,
+                        self.current_token().column,
+                    ))
+                }
             }
         } else {
             EdgeDirection::Out // 默认方向
@@ -108,18 +116,17 @@ pub trait GoStatementParser: ExpressionParser {
 
     fn parse_vertex_list(&mut self) -> Result<Vec<Expr>, ParseError> {
         let mut vertices = Vec::new();
-        
+
         vertices.push(self.parse_expression()?);
-        
+
         while self.current_token().kind == TokenKind::Comma {
             self.next_token();
             vertices.push(self.parse_expression()?);
         }
-        
+
         Ok(vertices)
     }
 
     fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError>;
     fn add_error(&mut self, error: ParseError);
 }
-

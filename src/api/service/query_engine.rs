@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use crate::storage::NativeStorage;
-use crate::query::{QueryConverter, QueryExecutor as QueryExecutorImpl};
 use crate::api::session::ClientSession;
+use crate::query::{QueryConverter, QueryExecutor as QueryExecutorImpl};
+use crate::storage::NativeStorage;
 
 #[derive(Debug)]
 pub struct RequestContext {
@@ -72,10 +72,10 @@ impl QueryEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::session::client_session::{ClientSession, Session};
+    use crate::config::Config;
     use std::sync::Arc;
     use tempfile::TempDir;
-    use crate::config::Config;
-    use crate::api::session::client_session::{ClientSession, Session};
 
     #[tokio::test]
     async fn test_query_engine_creation() {

@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 
 use crate::query::executor::ExecutionResult;
-use crate::storage::StorageEngine;
 use crate::query::QueryError;
+use crate::storage::StorageEngine;
 
 // Executor dependency information
 #[derive(Debug, Clone)]
@@ -15,7 +15,10 @@ pub struct ExecutorDep {
 // Scheduler trait that defines how executors are coordinated
 #[async_trait]
 pub trait QueryScheduler<S: StorageEngine> {
-    async fn schedule(&mut self, execution_plan: super::execution_plan::ExecutionPlan<S>) -> Result<ExecutionResult, QueryError>;
+    async fn schedule(
+        &mut self,
+        execution_plan: super::execution_plan::ExecutionPlan<S>,
+    ) -> Result<ExecutionResult, QueryError>;
 
     fn wait_finish(&mut self) -> Result<(), QueryError>;
 }

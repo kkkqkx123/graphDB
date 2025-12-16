@@ -2,22 +2,24 @@
 //!
 //! 这个模块提供了访问者模式的核心 trait 和基础实现
 
-use crate::core::value::{Value, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, DataSet};
-use crate::core::vertex_edge_path::{Vertex, Edge, Path};
+use crate::core::value::{
+    DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
+};
+use crate::core::vertex_edge_path::{Edge, Path, Vertex};
 use std::collections::HashMap;
 
 /// Value 访问者 trait
-/// 
+///
 /// 这个 trait 定义了访问者模式的核心接口，允许对 Value 类型进行操作而不修改其结构
-/// 
+///
 /// # 示例
 /// ```
 /// use graphdb::core::visitor::{ValueVisitor, ValueAcceptor};
-/// 
+///
 /// struct MyVisitor {
 ///     count: usize,
 /// }
-/// 
+///
 /// impl ValueVisitor for MyVisitor {
 ///     type Result = ();
 ///     
@@ -31,7 +33,7 @@ use std::collections::HashMap;
 ///     
 ///     // ... 其他 visit 方法
 /// }
-/// 
+///
 /// let value = Value::Int(42);
 /// let mut visitor = MyVisitor { count: 0 };
 /// value.accept(&mut visitor);
@@ -39,7 +41,7 @@ use std::collections::HashMap;
 /// ```
 pub trait ValueVisitor {
     type Result;
-    
+
     fn visit_bool(&mut self, value: bool) -> Self::Result;
     fn visit_int(&mut self, value: i64) -> Self::Result;
     fn visit_float(&mut self, value: f64) -> Self::Result;
@@ -61,7 +63,7 @@ pub trait ValueVisitor {
 }
 
 /// Value 访问者接受器 trait
-/// 
+///
 /// 这个 trait 为 Value 类型提供了接受访问者的能力，实现了访问者模式的"可访问性"部分
 pub trait ValueAcceptor {
     /// 接受访问者进行访问
@@ -96,7 +98,7 @@ impl ValueAcceptor for Value {
 /// 访问者模式辅助工具
 pub mod utils {
     use super::*;
-    
+
     /// 递归访问辅助函数，避免栈溢出
     pub fn visit_recursive<V: ValueVisitor>(
         value: &Value,
@@ -125,12 +127,8 @@ pub mod utils {
                 // This is handled by the specific visitor implementation
                 Ok(visitor.visit_list(l))
             }
-            Value::Map(m) => {
-                Ok(visitor.visit_map(m))
-            }
-            Value::Set(s) => {
-                Ok(visitor.visit_set(s))
-            }
+            Value::Map(m) => Ok(visitor.visit_map(m)),
+            Value::Set(s) => Ok(visitor.visit_set(s)),
             Value::Geography(g) => Ok(visitor.visit_geography(g)),
             Value::Duration(d) => Ok(visitor.visit_duration(d)),
             Value::DataSet(ds) => Ok(visitor.visit_dataset(ds)),
@@ -138,7 +136,7 @@ pub mod utils {
             Value::Empty => Ok(visitor.visit_empty()),
         }
     }
-    
+
     /// 递归错误类型
     #[derive(Debug, thiserror::Error)]
     pub enum RecursionError {
@@ -151,89 +149,89 @@ pub mod utils {
 mod tests {
     use super::*;
     use crate::core::value::Value;
-    
+
     #[test]
     fn test_value_acceptor() {
         struct CountVisitor {
             count: usize,
         }
-        
+
         impl ValueVisitor for CountVisitor {
             type Result = ();
-            
+
             fn visit_int(&mut self, _value: i64) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_string(&mut self, _value: &str) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_bool(&mut self, _value: bool) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_float(&mut self, _value: f64) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_date(&mut self, _value: &DateValue) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_time(&mut self, _value: &TimeValue) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_datetime(&mut self, _value: &DateTimeValue) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_vertex(&mut self, _value: &Vertex) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_edge(&mut self, _value: &Edge) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_path(&mut self, _value: &Path) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_list(&mut self, _value: &[Value]) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_map(&mut self, _value: &HashMap<String, Value>) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_set(&mut self, _value: &std::collections::HashSet<Value>) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_geography(&mut self, _value: &GeographyValue) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_duration(&mut self, _value: &DurationValue) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_dataset(&mut self, _value: &DataSet) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_null(&mut self, _null_type: &NullType) -> Self::Result {
                 self.count += 1;
             }
-            
+
             fn visit_empty(&mut self) -> Self::Result {
                 self.count += 1;
             }
         }
-        
+
         let value = Value::Int(42);
         let mut visitor = CountVisitor { count: 0 };
         value.accept(&mut visitor);

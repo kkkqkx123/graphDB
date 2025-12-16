@@ -1,8 +1,8 @@
 //! FoldConstantExprVisitor - 用于常量折叠的访问器
 //! 对应 NebulaGraph FoldConstantExprVisitor.h/.cpp 的功能
 
-use crate::query::parser::ast::{Expr, BinaryOp};
 use crate::core::Value;
+use crate::query::parser::ast::{BinaryOp, Expr};
 use std::collections::HashMap;
 
 pub struct FoldConstantExprVisitor {
@@ -12,9 +12,7 @@ pub struct FoldConstantExprVisitor {
 
 impl FoldConstantExprVisitor {
     pub fn new(parameters: HashMap<String, Value>) -> Self {
-        Self {
-            parameters,
-        }
+        Self { parameters }
     }
 
     /// 执行常量折叠
@@ -28,7 +26,12 @@ impl FoldConstantExprVisitor {
         expr.clone()
     }
 
-    fn evaluate_arithmetic(&self, op: &BinaryOp, left: &Value, right: &Value) -> Result<Value, String> {
+    fn evaluate_arithmetic(
+        &self,
+        op: &BinaryOp,
+        left: &Value,
+        right: &Value,
+    ) -> Result<Value, String> {
         match op {
             BinaryOp::Add => left.add(right),
             BinaryOp::Sub => left.sub(right),
@@ -53,7 +56,7 @@ impl FoldConstantExprVisitor {
                     }
                 }
                 Ok(Value::Bool(result))
-            },
+            }
             "Or" | "LogicalOr" => {
                 let mut result = false;
                 for operand in operands {
@@ -65,7 +68,7 @@ impl FoldConstantExprVisitor {
                     }
                 }
                 Ok(Value::Bool(result))
-            },
+            }
             _ => Err(format!("Unknown logical operation: {}", op)),
         }
     }
@@ -90,14 +93,14 @@ impl FoldConstantExprVisitor {
                 } else {
                     Err("Regex operation requires string operands".to_string())
                 }
-            },
+            }
             _ => Err(format!("Unknown relational operation: {}", op)),
         }
     }
 
     fn evaluate_unary(&self, op: &str, operand: &Value) -> Result<Value, String> {
         match op {
-            "Plus" => Ok(operand.clone()),  // Identity operation
+            "Plus" => Ok(operand.clone()), // Identity operation
             "Minus" => operand.negate(),
             "Not" => Ok(Value::Bool(!operand.bool_value().unwrap_or(false))),
             _ => Err(format!("Unknown unary operation: {}", op)),
@@ -114,7 +117,7 @@ impl FoldConstantExprVisitor {
                     }
                 }
                 Err("Invalid arguments for abs function".to_string())
-            },
+            }
             "ceil" => {
                 if args.len() == 1 {
                     if args[0].is_constant() {
@@ -123,7 +126,7 @@ impl FoldConstantExprVisitor {
                     }
                 }
                 Err("Invalid arguments for ceil function".to_string())
-            },
+            }
             "floor" => {
                 if args.len() == 1 {
                     if args[0].is_constant() {
@@ -132,7 +135,7 @@ impl FoldConstantExprVisitor {
                     }
                 }
                 Err("Invalid arguments for floor function".to_string())
-            },
+            }
             "round" => {
                 if args.len() == 1 {
                     if args[0].is_constant() {
@@ -141,7 +144,7 @@ impl FoldConstantExprVisitor {
                     }
                 }
                 Err("Invalid arguments for round function".to_string())
-            },
+            }
             "lower" => {
                 if args.len() == 1 {
                     if args[0].is_constant() {
@@ -150,7 +153,7 @@ impl FoldConstantExprVisitor {
                     }
                 }
                 Err("Invalid arguments for lower function".to_string())
-            },
+            }
             "upper" => {
                 if args.len() == 1 {
                     if args[0].is_constant() {
@@ -159,7 +162,7 @@ impl FoldConstantExprVisitor {
                     }
                 }
                 Err("Invalid arguments for upper function".to_string())
-            },
+            }
             "trim" => {
                 if args.len() == 1 {
                     if args[0].is_constant() {
@@ -168,7 +171,7 @@ impl FoldConstantExprVisitor {
                     }
                 }
                 Err("Invalid arguments for trim function".to_string())
-            },
+            }
             "length" => {
                 if args.len() == 1 {
                     if args[0].is_constant() {
@@ -177,14 +180,18 @@ impl FoldConstantExprVisitor {
                     }
                 }
                 Err("Invalid arguments for length function".to_string())
-            },
+            }
             // 添加更多内建函数的处理
             _ => Err(format!("Unknown function: {}", name)),
         }
     }
 
     #[allow(dead_code)]
-    fn cast_value(&self, value: &Value, target_type: &crate::core::ValueTypeDef) -> Result<Value, String> {
+    fn cast_value(
+        &self,
+        value: &Value,
+        target_type: &crate::core::ValueTypeDef,
+    ) -> Result<Value, String> {
         // 类型转换实现
         match target_type {
             crate::core::ValueTypeDef::Bool => value.cast_to_bool(),

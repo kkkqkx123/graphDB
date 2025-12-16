@@ -3,14 +3,14 @@
 //! 基于枚举的简化访问者模式，减少样板代码和类型转换复杂性。
 
 use super::expr::*;
-use super::stmt::*;
 use super::pattern::*;
+use super::stmt::*;
 use super::types::*;
 
 /// 表达式访问者 trait
 pub trait ExprVisitor {
     type Result;
-    
+
     /// 访问表达式 - 主入口点
     fn visit_expr(&mut self, expr: &Expr) -> Self::Result {
         match expr {
@@ -27,37 +27,37 @@ pub trait ExprVisitor {
             Expr::Predicate(e) => self.visit_predicate(e),
         }
     }
-    
+
     /// 访问常量表达式
     fn visit_constant(&mut self, expr: &ConstantExpr) -> Self::Result;
-    
+
     /// 访问变量表达式
     fn visit_variable(&mut self, expr: &VariableExpr) -> Self::Result;
-    
+
     /// 访问二元表达式
     fn visit_binary(&mut self, expr: &BinaryExpr) -> Self::Result;
-    
+
     /// 访问一元表达式
     fn visit_unary(&mut self, expr: &UnaryExpr) -> Self::Result;
-    
+
     /// 访问函数调用表达式
     fn visit_function_call(&mut self, expr: &FunctionCallExpr) -> Self::Result;
-    
+
     /// 访问属性访问表达式
     fn visit_property_access(&mut self, expr: &PropertyAccessExpr) -> Self::Result;
-    
+
     /// 访问列表表达式
     fn visit_list(&mut self, expr: &ListExpr) -> Self::Result;
-    
+
     /// 访问映射表达式
     fn visit_map(&mut self, expr: &MapExpr) -> Self::Result;
-    
+
     /// 访问 CASE 表达式
     fn visit_case(&mut self, expr: &CaseExpr) -> Self::Result;
-    
+
     /// 访问下标表达式
     fn visit_subscript(&mut self, expr: &SubscriptExpr) -> Self::Result;
-    
+
     /// 访问谓词表达式
     fn visit_predicate(&mut self, expr: &PredicateExpr) -> Self::Result;
 }
@@ -65,7 +65,7 @@ pub trait ExprVisitor {
 /// 语句访问者 trait
 pub trait StmtVisitor {
     type Result;
-    
+
     /// 访问语句 - 主入口点
     fn visit_stmt(&mut self, stmt: &Stmt) -> Self::Result {
         match stmt {
@@ -84,43 +84,43 @@ pub trait StmtVisitor {
             Stmt::FindPath(s) => self.visit_find_path(s),
         }
     }
-    
+
     /// 访问查询语句
     fn visit_query(&mut self, stmt: &QueryStmt) -> Self::Result;
-    
+
     /// 访问 CREATE 语句
     fn visit_create(&mut self, stmt: &CreateStmt) -> Self::Result;
-    
+
     /// 访问 MATCH 语句
     fn visit_match(&mut self, stmt: &MatchStmt) -> Self::Result;
-    
+
     /// 访问 DELETE 语句
     fn visit_delete(&mut self, stmt: &DeleteStmt) -> Self::Result;
-    
+
     /// 访问 UPDATE 语句
     fn visit_update(&mut self, stmt: &UpdateStmt) -> Self::Result;
-    
+
     /// 访问 GO 语句
     fn visit_go(&mut self, stmt: &GoStmt) -> Self::Result;
-    
+
     /// 访问 FETCH 语句
     fn visit_fetch(&mut self, stmt: &FetchStmt) -> Self::Result;
-    
+
     /// 访问 USE 语句
     fn visit_use(&mut self, stmt: &UseStmt) -> Self::Result;
-    
+
     /// 访问 SHOW 语句
     fn visit_show(&mut self, stmt: &ShowStmt) -> Self::Result;
-    
+
     /// 访问 EXPLAIN 语句
     fn visit_explain(&mut self, stmt: &ExplainStmt) -> Self::Result;
-    
+
     /// 访问 LOOKUP 语句
     fn visit_lookup(&mut self, stmt: &LookupStmt) -> Self::Result;
-    
+
     /// 访问 SUBGRAPH 语句
     fn visit_subgraph(&mut self, stmt: &SubgraphStmt) -> Self::Result;
-    
+
     /// 访问 FIND PATH 语句
     fn visit_find_path(&mut self, stmt: &FindPathStmt) -> Self::Result;
 }
@@ -128,7 +128,7 @@ pub trait StmtVisitor {
 /// 模式访问者 trait
 pub trait PatternVisitor {
     type Result;
-    
+
     /// 访问模式 - 主入口点
     fn visit_pattern(&mut self, pattern: &Pattern) -> Self::Result {
         match pattern {
@@ -138,16 +138,16 @@ pub trait PatternVisitor {
             Pattern::Variable(p) => self.visit_variable_pattern(p),
         }
     }
-    
+
     /// 访问节点模式
     fn visit_node_pattern(&mut self, pattern: &NodePattern) -> Self::Result;
-    
+
     /// 访问边模式
     fn visit_edge_pattern(&mut self, pattern: &EdgePattern) -> Self::Result;
-    
+
     /// 访问路径模式
     fn visit_path_pattern(&mut self, pattern: &PathPattern) -> Self::Result;
-    
+
     /// 访问变量模式
     fn visit_variable_pattern(&mut self, pattern: &VariablePattern) -> Self::Result;
 }
@@ -157,76 +157,76 @@ pub struct DefaultVisitor;
 
 impl ExprVisitor for DefaultVisitor {
     type Result = ();
-    
+
     fn visit_constant(&mut self, _expr: &ConstantExpr) -> Self::Result {
         // 常量表达式没有子节点
     }
-    
+
     fn visit_variable(&mut self, _expr: &VariableExpr) -> Self::Result {
         // 变量表达式没有子节点
     }
-    
+
     fn visit_binary(&mut self, expr: &BinaryExpr) -> Self::Result {
         // 访问左右操作数
         self.visit_expr(&expr.left);
         self.visit_expr(&expr.right);
     }
-    
+
     fn visit_unary(&mut self, expr: &UnaryExpr) -> Self::Result {
         // 访问操作数
         self.visit_expr(&expr.operand);
     }
-    
+
     fn visit_function_call(&mut self, expr: &FunctionCallExpr) -> Self::Result {
         // 访问所有参数
         for arg in &expr.args {
             self.visit_expr(arg);
         }
     }
-    
+
     fn visit_property_access(&mut self, expr: &PropertyAccessExpr) -> Self::Result {
         // 访问对象表达式
         self.visit_expr(&expr.object);
     }
-    
+
     fn visit_list(&mut self, expr: &ListExpr) -> Self::Result {
         // 访问所有元素
         for elem in &expr.elements {
             self.visit_expr(elem);
         }
     }
-    
+
     fn visit_map(&mut self, expr: &MapExpr) -> Self::Result {
         // 访问所有值
         for (_, value) in &expr.pairs {
             self.visit_expr(value);
         }
     }
-    
+
     fn visit_case(&mut self, expr: &CaseExpr) -> Self::Result {
         // 访问匹配表达式
         if let Some(ref match_expr) = expr.match_expr {
             self.visit_expr(match_expr);
         }
-        
+
         // 访问所有 WHEN-THEN 对
         for (when, then) in &expr.when_then_pairs {
             self.visit_expr(when);
             self.visit_expr(then);
         }
-        
+
         // 访问默认表达式
         if let Some(ref default) = expr.default {
             self.visit_expr(default);
         }
     }
-    
+
     fn visit_subscript(&mut self, expr: &SubscriptExpr) -> Self::Result {
         // 访问集合和索引表达式
         self.visit_expr(&expr.collection);
         self.visit_expr(&expr.index);
     }
-    
+
     fn visit_predicate(&mut self, expr: &PredicateExpr) -> Self::Result {
         // 访问列表和条件表达式
         self.visit_expr(&expr.list);
@@ -236,14 +236,14 @@ impl ExprVisitor for DefaultVisitor {
 
 impl StmtVisitor for DefaultVisitor {
     type Result = ();
-    
+
     fn visit_query(&mut self, stmt: &QueryStmt) -> Self::Result {
         // 访问所有语句
         for statement in &stmt.statements {
             self.visit_stmt(statement);
         }
     }
-    
+
     fn visit_create(&mut self, stmt: &CreateStmt) -> Self::Result {
         // 根据创建目标访问相关表达式
         match &stmt.target {
@@ -252,7 +252,12 @@ impl StmtVisitor for DefaultVisitor {
                     self.visit_expr(props);
                 }
             }
-            CreateTarget::Edge { src, dst, properties, .. } => {
+            CreateTarget::Edge {
+                src,
+                dst,
+                properties,
+                ..
+            } => {
                 self.visit_expr(src);
                 self.visit_expr(dst);
                 if let Some(props) = properties {
@@ -262,18 +267,18 @@ impl StmtVisitor for DefaultVisitor {
             _ => {}
         }
     }
-    
+
     fn visit_match(&mut self, stmt: &MatchStmt) -> Self::Result {
         // 访问所有模式
         for pattern in &stmt.patterns {
             self.visit_pattern(pattern);
         }
-        
+
         // 访问 WHERE 子句
         if let Some(ref where_clause) = stmt.where_clause {
             self.visit_expr(where_clause);
         }
-        
+
         // 访问 RETURN 子句
         if let Some(ref return_clause) = stmt.return_clause {
             for item in &return_clause.items {
@@ -286,7 +291,7 @@ impl StmtVisitor for DefaultVisitor {
             }
         }
     }
-    
+
     fn visit_delete(&mut self, stmt: &DeleteStmt) -> Self::Result {
         // 根据删除目标访问相关表达式
         match &stmt.target {
@@ -304,13 +309,13 @@ impl StmtVisitor for DefaultVisitor {
             }
             _ => {}
         }
-        
+
         // 访问 WHERE 子句
         if let Some(ref where_clause) = stmt.where_clause {
             self.visit_expr(where_clause);
         }
     }
-    
+
     fn visit_update(&mut self, stmt: &UpdateStmt) -> Self::Result {
         // 根据更新目标访问相关表达式
         match &stmt.target {
@@ -326,29 +331,29 @@ impl StmtVisitor for DefaultVisitor {
             }
             _ => {}
         }
-        
+
         // 访问 SET 子句中的表达式
         for assignment in &stmt.set_clause.assignments {
             self.visit_expr(&assignment.value);
         }
-        
+
         // 访问 WHERE 子句
         if let Some(ref where_clause) = stmt.where_clause {
             self.visit_expr(where_clause);
         }
     }
-    
+
     fn visit_go(&mut self, stmt: &GoStmt) -> Self::Result {
         // 访问 FROM 子句中的顶点
         for vertex in &stmt.from.vertices {
             self.visit_expr(vertex);
         }
-        
+
         // 访问 WHERE 子句
         if let Some(ref where_clause) = stmt.where_clause {
             self.visit_expr(where_clause);
         }
-        
+
         // 访问 YIELD 子句
         if let Some(ref yield_clause) = stmt.yield_clause {
             for item in &yield_clause.items {
@@ -356,7 +361,7 @@ impl StmtVisitor for DefaultVisitor {
             }
         }
     }
-    
+
     fn visit_fetch(&mut self, stmt: &FetchStmt) -> Self::Result {
         // 根据获取目标访问相关表达式
         match &stmt.target {
@@ -374,26 +379,26 @@ impl StmtVisitor for DefaultVisitor {
             }
         }
     }
-    
+
     fn visit_use(&mut self, _stmt: &UseStmt) -> Self::Result {
         // USE 语句没有子表达式
     }
-    
+
     fn visit_show(&mut self, _stmt: &ShowStmt) -> Self::Result {
         // SHOW 语句没有子表达式
     }
-    
+
     fn visit_explain(&mut self, stmt: &ExplainStmt) -> Self::Result {
         // 访问被解释的语句
         self.visit_stmt(&stmt.statement);
     }
-    
+
     fn visit_lookup(&mut self, stmt: &LookupStmt) -> Self::Result {
         // 访问 WHERE 子句
         if let Some(ref where_clause) = stmt.where_clause {
             self.visit_expr(where_clause);
         }
-        
+
         // 访问 YIELD 子句
         if let Some(ref yield_clause) = stmt.yield_clause {
             for item in &yield_clause.items {
@@ -401,18 +406,18 @@ impl StmtVisitor for DefaultVisitor {
             }
         }
     }
-    
+
     fn visit_subgraph(&mut self, stmt: &SubgraphStmt) -> Self::Result {
         // 访问 FROM 子句中的顶点
         for vertex in &stmt.from.vertices {
             self.visit_expr(vertex);
         }
-        
+
         // 访问 WHERE 子句
         if let Some(ref where_clause) = stmt.where_clause {
             self.visit_expr(where_clause);
         }
-        
+
         // 访问 YIELD 子句
         if let Some(ref yield_clause) = stmt.yield_clause {
             for item in &yield_clause.items {
@@ -420,21 +425,21 @@ impl StmtVisitor for DefaultVisitor {
             }
         }
     }
-    
+
     fn visit_find_path(&mut self, stmt: &FindPathStmt) -> Self::Result {
         // 访问 FROM 子句中的顶点
         for vertex in &stmt.from.vertices {
             self.visit_expr(vertex);
         }
-        
+
         // 访问目标表达式
         self.visit_expr(&stmt.to);
-        
+
         // 访问 WHERE 子句
         if let Some(ref where_clause) = stmt.where_clause {
             self.visit_expr(where_clause);
         }
-        
+
         // 访问 YIELD 子句
         if let Some(ref yield_clause) = stmt.yield_clause {
             for item in &yield_clause.items {
@@ -446,38 +451,38 @@ impl StmtVisitor for DefaultVisitor {
 
 impl PatternVisitor for DefaultVisitor {
     type Result = ();
-    
+
     fn visit_node_pattern(&mut self, pattern: &NodePattern) -> Self::Result {
         // 访问属性表达式
         if let Some(ref props) = pattern.properties {
             self.visit_expr(props);
         }
-        
+
         // 访问谓词表达式
         for predicate in &pattern.predicates {
             self.visit_expr(predicate);
         }
     }
-    
+
     fn visit_edge_pattern(&mut self, pattern: &EdgePattern) -> Self::Result {
         // 访问属性表达式
         if let Some(ref props) = pattern.properties {
             self.visit_expr(props);
         }
-        
+
         // 访问谓词表达式
         for predicate in &pattern.predicates {
             self.visit_expr(predicate);
         }
     }
-    
+
     fn visit_path_pattern(&mut self, pattern: &PathPattern) -> Self::Result {
         // 访问所有路径元素
         for element in &pattern.elements {
             self.visit_path_element(element);
         }
     }
-    
+
     fn visit_variable_pattern(&mut self, _pattern: &VariablePattern) -> Self::Result {
         // 变量模式没有子表达式
     }
@@ -513,11 +518,11 @@ impl TypeChecker {
             warnings: Vec::new(),
         }
     }
-    
+
     pub fn has_errors(&self) -> bool {
         !self.errors.is_empty()
     }
-    
+
     pub fn has_warnings(&self) -> bool {
         !self.warnings.is_empty()
     }
@@ -525,15 +530,15 @@ impl TypeChecker {
 
 impl ExprVisitor for TypeChecker {
     type Result = ();
-    
+
     fn visit_constant(&mut self, _expr: &ConstantExpr) -> Self::Result {
         // 常量表达式总是类型安全的
     }
-    
+
     fn visit_variable(&mut self, _expr: &VariableExpr) -> Self::Result {
         // 变量表达式需要符号表检查（TODO）
     }
-    
+
     fn visit_binary(&mut self, expr: &BinaryExpr) -> Self::Result {
         // 检查二元表达式的类型兼容性
         match expr.op {
@@ -554,83 +559,82 @@ impl ExprVisitor for TypeChecker {
             }
             _ => {}
         }
-        
+
         // 递归检查子表达式
         self.visit_expr(&expr.left);
         self.visit_expr(&expr.right);
     }
-    
+
     fn visit_function_call(&mut self, expr: &FunctionCallExpr) -> Self::Result {
         // 检查函数参数数量
         match expr.name.as_str() {
             "COUNT" => {
                 if expr.args.len() > 1 && !expr.distinct {
-                    self.errors.push("COUNT function takes at most one argument".to_string());
+                    self.errors
+                        .push("COUNT function takes at most one argument".to_string());
                 }
             }
             "SUM" | "AVG" | "MIN" | "MAX" => {
                 if expr.args.len() != 1 {
-                    self.errors.push(format!(
-                        "{} function takes exactly one argument",
-                        expr.name
-                    ));
+                    self.errors
+                        .push(format!("{} function takes exactly one argument", expr.name));
                 }
             }
             _ => {}
         }
-        
+
         // 递归检查所有参数
         for arg in &expr.args {
             self.visit_expr(arg);
         }
     }
-    
+
     fn visit_unary(&mut self, expr: &UnaryExpr) -> Self::Result {
         // 递归检查操作数
         self.visit_expr(&expr.operand);
     }
-    
+
     fn visit_property_access(&mut self, expr: &PropertyAccessExpr) -> Self::Result {
         // 递归检查对象表达式
         self.visit_expr(&expr.object);
     }
-    
+
     fn visit_list(&mut self, expr: &ListExpr) -> Self::Result {
         // 递归检查所有元素
         for elem in &expr.elements {
             self.visit_expr(elem);
         }
     }
-    
+
     fn visit_map(&mut self, expr: &MapExpr) -> Self::Result {
         // 递归检查所有值
         for (_, value) in &expr.pairs {
             self.visit_expr(value);
         }
     }
-    
+
     fn visit_case(&mut self, expr: &CaseExpr) -> Self::Result {
         // 递归检查所有子表达式
         if let Some(ref match_expr) = expr.match_expr {
             self.visit_expr(match_expr);
         }
-        
+
         for (when, then) in &expr.when_then_pairs {
             self.visit_expr(when);
             self.visit_expr(then);
         }
-        
+
         if let Some(ref default) = expr.default {
             self.visit_expr(default);
         }
     }
-    
+
     fn visit_subscript(&mut self, expr: &SubscriptExpr) -> Self::Result {
         // 递归检查集合和索引表达式
         self.visit_expr(&expr.collection);
         self.visit_expr(&expr.index);
     }
-    
+
     fn visit_predicate(&mut self, expr: &PredicateExpr) -> Self::Result {
         // 递归检查列表和条件表达式
         self.visit_expr(&expr.list);
@@ -651,28 +655,28 @@ impl AstFormatter {
             result: String::new(),
         }
     }
-    
+
     pub fn format(&mut self, expr: &Expr) -> String {
         self.result.clear();
         self.indent = 0;
         self.visit_expr(expr);
         self.result.clone()
     }
-    
+
     fn indent_str(&self) -> String {
         "  ".repeat(self.indent)
     }
-    
+
     fn write_line(&mut self, content: &str) {
         self.result.push_str(&self.indent_str());
         self.result.push_str(content);
         self.result.push('\n');
     }
-    
+
     fn increase_indent(&mut self) {
         self.indent += 1;
     }
-    
+
     fn decrease_indent(&mut self) {
         if self.indent > 0 {
             self.indent -= 1;
@@ -682,15 +686,15 @@ impl AstFormatter {
 
 impl ExprVisitor for AstFormatter {
     type Result = ();
-    
+
     fn visit_constant(&mut self, expr: &ConstantExpr) -> Self::Result {
         self.write_line(&format!("Constant: {:?}", expr.value));
     }
-    
+
     fn visit_variable(&mut self, expr: &VariableExpr) -> Self::Result {
         self.write_line(&format!("Variable: {}", expr.name));
     }
-    
+
     fn visit_binary(&mut self, expr: &BinaryExpr) -> Self::Result {
         self.write_line(&format!("Binary: {}", expr.op));
         self.increase_indent();
@@ -704,7 +708,7 @@ impl ExprVisitor for AstFormatter {
         self.decrease_indent();
         self.decrease_indent();
     }
-    
+
     fn visit_function_call(&mut self, expr: &FunctionCallExpr) -> Self::Result {
         self.write_line(&format!(
             "FunctionCall: {} ({} args)",
@@ -722,21 +726,21 @@ impl ExprVisitor for AstFormatter {
             self.decrease_indent();
         }
     }
-    
+
     fn visit_unary(&mut self, expr: &UnaryExpr) -> Self::Result {
         self.write_line(&format!("Unary: {}", expr.op));
         self.increase_indent();
         self.visit_expr(&expr.operand);
         self.decrease_indent();
     }
-    
+
     fn visit_property_access(&mut self, expr: &PropertyAccessExpr) -> Self::Result {
         self.write_line(&format!("PropertyAccess: {}", expr.property));
         self.increase_indent();
         self.visit_expr(&expr.object);
         self.decrease_indent();
     }
-    
+
     fn visit_list(&mut self, expr: &ListExpr) -> Self::Result {
         self.write_line(&format!("List: {} elements", expr.elements.len()));
         if !expr.elements.is_empty() {
@@ -750,7 +754,7 @@ impl ExprVisitor for AstFormatter {
             self.decrease_indent();
         }
     }
-    
+
     fn visit_map(&mut self, expr: &MapExpr) -> Self::Result {
         self.write_line(&format!("Map: {} pairs", expr.pairs.len()));
         if !expr.pairs.is_empty() {
@@ -764,18 +768,18 @@ impl ExprVisitor for AstFormatter {
             self.decrease_indent();
         }
     }
-    
+
     fn visit_case(&mut self, expr: &CaseExpr) -> Self::Result {
         self.write_line("Case:");
         self.increase_indent();
-        
+
         if let Some(ref match_expr) = expr.match_expr {
             self.write_line("Match:");
             self.increase_indent();
             self.visit_expr(match_expr);
             self.decrease_indent();
         }
-        
+
         for (i, (when, then)) in expr.when_then_pairs.iter().enumerate() {
             self.write_line(&format!("When-Then {}:", i));
             self.increase_indent();
@@ -789,17 +793,17 @@ impl ExprVisitor for AstFormatter {
             self.decrease_indent();
             self.decrease_indent();
         }
-        
+
         if let Some(ref default) = expr.default {
             self.write_line("Default:");
             self.increase_indent();
             self.visit_expr(default);
             self.decrease_indent();
         }
-        
+
         self.decrease_indent();
     }
-    
+
     fn visit_subscript(&mut self, expr: &SubscriptExpr) -> Self::Result {
         self.write_line("Subscript:");
         self.increase_indent();
@@ -813,7 +817,7 @@ impl ExprVisitor for AstFormatter {
         self.decrease_indent();
         self.decrease_indent();
     }
-    
+
     fn visit_predicate(&mut self, expr: &PredicateExpr) -> Self::Result {
         self.write_line(&format!("Predicate: {}", expr.predicate));
         self.increase_indent();
@@ -833,16 +837,16 @@ impl ExprVisitor for AstFormatter {
 mod tests {
     use super::*;
     use crate::core::Value;
-    
+
     #[test]
     fn test_default_visitor() {
         let mut visitor = DefaultVisitor;
         let expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
-        
+
         // 应该能够访问而不出错
         visitor.visit_expr(&expr);
     }
-    
+
     #[test]
     fn test_type_checker() {
         let mut checker = TypeChecker::new();
@@ -852,16 +856,16 @@ mod tests {
             Span::default(),
         ));
         let expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Add, right, Span::default()));
-        
+
         checker.visit_expr(&expr);
         assert!(checker.has_warnings());
     }
-    
+
     #[test]
     fn test_ast_formatter() {
         let mut formatter = AstFormatter::new();
         let expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
-        
+
         let result = formatter.format(&expr);
         assert!(result.contains("Constant: Int(42)"));
     }

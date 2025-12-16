@@ -1,6 +1,6 @@
+use super::error::ExpressionError;
 use crate::core::Value;
 use crate::graph::expression::Expression;
-use super::error::ExpressionError;
 use crate::query::context::EvalContext;
 
 /// 评估容器表达式
@@ -16,7 +16,7 @@ pub fn evaluate_container(
                 result.push(evaluator.evaluate(item, context)?);
             }
             Ok(Value::List(result))
-        },
+        }
         Expression::Map(items) => {
             let mut result = std::collections::HashMap::new();
             for (key, value) in items {
@@ -25,9 +25,9 @@ pub fn evaluate_container(
                 result.insert(key.clone(), evaluated_value);
             }
             Ok(Value::Map(result))
-        },
+        }
         _ => Err(ExpressionError::TypeError(
-            "Expression is not a container expression".to_string()
+            "Expression is not a container expression".to_string(),
         )),
     }
 }

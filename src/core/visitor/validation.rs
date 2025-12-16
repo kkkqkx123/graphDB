@@ -2,9 +2,11 @@
 //!
 //! 这个模块提供了用于验证 Value 的访问者实现
 
-use crate::core::visitor::core::{ValueVisitor, utils};
-use crate::core::value::{Value, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, DataSet};
-use crate::core::vertex_edge_path::{Vertex, Edge, Path};
+use crate::core::value::{
+    DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
+};
+use crate::core::vertex_edge_path::{Edge, Path, Vertex};
+use crate::core::visitor::core::{utils, ValueVisitor};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -16,7 +18,11 @@ pub enum ValidationError {
     #[error("类型不匹配: 期望 {expected}, 实际 {actual}")]
     TypeMismatch { expected: String, actual: String },
     #[error("值超出范围: {value} 不在 [{min}, {max}] 范围内")]
-    OutOfRange { value: String, min: String, max: String },
+    OutOfRange {
+        value: String,
+        min: String,
+        max: String,
+    },
     #[error("字符串长度超出限制: {length} > {max_length}")]
     StringTooLong { length: usize, max_length: usize },
     #[error("集合大小超出限制: {size} > {max_size}")]
@@ -53,7 +59,11 @@ impl fmt::Debug for ValidationRule {
 }
 
 impl ValidationRule {
-    pub fn new(name: &str, description: &str, validator: fn(&Value) -> Result<(), ValidationError>) -> Self {
+    pub fn new(
+        name: &str,
+        description: &str,
+        validator: fn(&Value) -> Result<(), ValidationError>,
+    ) -> Self {
         Self {
             name: name.to_string(),
             description: description.to_string(),
@@ -108,10 +118,10 @@ impl BasicValidationVisitor {
         let mut visitor = Self::new(config);
         let max_depth = visitor.config.max_depth;
         match utils::visit_recursive(value, &mut visitor, 0, max_depth) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => return Err(ValidationError::from(e)),
         }
-        
+
         if visitor.errors.is_empty() {
             Ok(())
         } else {
@@ -122,14 +132,17 @@ impl BasicValidationVisitor {
         }
     }
 
-    pub fn validate_with_config(value: &Value, config: ValidationConfig) -> Result<(), ValidationError> {
+    pub fn validate_with_config(
+        value: &Value,
+        config: ValidationConfig,
+    ) -> Result<(), ValidationError> {
         let max_depth = config.max_depth;
         let mut visitor = Self::new(config);
         match utils::visit_recursive(value, &mut visitor, 0, max_depth) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => return Err(ValidationError::from(e)),
         }
-        
+
         if visitor.errors.is_empty() {
             Ok(())
         } else {
@@ -176,38 +189,36 @@ impl ValueVisitor for BasicValidationVisitor {
 
     fn visit_float(&mut self, value: f64) -> Self::Result {
         self.check_depth()?;
-        
+
         // 检查 NaN 和无穷大
         if value.is_nan() {
-            self.add_error(ValidationError::Validation(
-                "浮点数不能为 NaN".to_string()
-            ));
+            self.add_error(ValidationError::Validation("浮点数不能为 NaN".to_string()));
         }
         if value.is_infinite() {
             self.add_error(ValidationError::Validation(
-                "浮点数不能为无穷大".to_string()
+                "浮点数不能为无穷大".to_string(),
             ));
         }
-        
+
         Ok(())
     }
 
     fn visit_string(&mut self, value: &str) -> Self::Result {
         self.check_depth()?;
-        
+
         if value.len() > self.config.max_string_length {
             self.add_error(ValidationError::StringTooLong {
                 length: value.len(),
                 max_length: self.config.max_string_length,
             });
         }
-        
+
         Ok(())
     }
 
     fn visit_date(&mut self, value: &DateValue) -> Self::Result {
         self.check_depth()?;
-        
+
         // 验证日期的有效性
         if value.month < 1 || value.month > 12 {
             self.add_error(ValidationError::InvalidDate {
@@ -216,7 +227,7 @@ impl ValueVisitor for BasicValidationVisitor {
                 day: value.day,
             });
         }
-        
+
         if value.day < 1 || value.day > 31 {
             self.add_error(ValidationError::InvalidDate {
                 year: value.year,
@@ -224,7 +235,7 @@ impl ValueVisitor for BasicValidationVisitor {
                 day: value.day,
             });
         }
-        
+
         // 简单的月份天数验证
         let max_day = match value.month {
             2 => {
@@ -238,7 +249,7 @@ impl ValueVisitor for BasicValidationVisitor {
             4 | 6 | 9 | 11 => 30,
             _ => 31,
         };
-        
+
         if value.day > max_day {
             self.add_error(ValidationError::InvalidDate {
                 year: value.year,
@@ -246,13 +257,13 @@ impl ValueVisitor for BasicValidationVisitor {
                 day: value.day,
             });
         }
-        
+
         Ok(())
     }
 
     fn visit_time(&mut self, value: &TimeValue) -> Self::Result {
         self.check_depth()?;
-        
+
         if value.hour >= 24 {
             self.add_error(ValidationError::InvalidTime {
                 hour: value.hour,
@@ -260,7 +271,7 @@ impl ValueVisitor for BasicValidationVisitor {
                 second: value.sec,
             });
         }
-        
+
         if value.minute >= 60 {
             self.add_error(ValidationError::InvalidTime {
                 hour: value.hour,
@@ -268,7 +279,7 @@ impl ValueVisitor for BasicValidationVisitor {
                 second: value.sec,
             });
         }
-        
+
         if value.sec >= 60 {
             self.add_error(ValidationError::InvalidTime {
                 hour: value.hour,
@@ -276,20 +287,20 @@ impl ValueVisitor for BasicValidationVisitor {
                 second: value.sec,
             });
         }
-        
+
         Ok(())
     }
 
     fn visit_datetime(&mut self, value: &DateTimeValue) -> Self::Result {
         self.check_depth()?;
-        
+
         // 验证日期部分
         self.visit_date(&DateValue {
             year: value.year,
             month: value.month,
             day: value.day,
         })?;
-        
+
         // 验证时间部分
         self.visit_time(&TimeValue {
             hour: value.hour,
@@ -297,13 +308,13 @@ impl ValueVisitor for BasicValidationVisitor {
             sec: value.sec,
             microsec: 0,
         })?;
-        
+
         Ok(())
     }
 
     fn visit_vertex(&mut self, value: &Vertex) -> Self::Result {
         self.check_depth()?;
-        
+
         // 验证顶点 ID
         match value.id() {
             Value::Int(_) | Value::String(_) => {
@@ -315,84 +326,82 @@ impl ValueVisitor for BasicValidationVisitor {
                 });
             }
         }
-        
+
         // 验证标签
         if value.tags().is_empty() {
             self.add_error(ValidationError::Validation(
-                "顶点必须至少有一个标签".to_string()
+                "顶点必须至少有一个标签".to_string(),
             ));
         }
-        
+
         Ok(())
     }
 
     fn visit_edge(&mut self, value: &Edge) -> Self::Result {
         self.check_depth()?;
-        
+
         // 验证边类型
         if value.edge_type().is_empty() {
             self.add_error(ValidationError::InvalidEdgeType {
                 edge_type: value.edge_type().to_string(),
             });
         }
-        
+
         // 验证排名
         if value.ranking() < 0 {
-            self.add_error(ValidationError::Validation(
-                "边排名不能为负数".to_string()
-            ));
+            self.add_error(ValidationError::Validation("边排名不能为负数".to_string()));
         }
-        
+
         Ok(())
     }
 
     fn visit_path(&mut self, value: &Path) -> Self::Result {
         self.check_depth()?;
-        
+
         // 验证路径结构
         if value.steps.is_empty() {
             self.add_error(ValidationError::InvalidPathStructure);
         }
-        
+
         Ok(())
     }
 
     fn visit_list(&mut self, value: &[Value]) -> Self::Result {
         self.check_depth()?;
-        
+
         if value.len() > self.config.max_collection_size {
             self.add_error(ValidationError::CollectionTooLarge {
                 size: value.len(),
                 max_size: self.config.max_collection_size,
             });
         }
-        
+
         Ok(())
     }
 
     fn visit_map(&mut self, value: &HashMap<String, Value>) -> Self::Result {
         self.check_depth()?;
-        
+
         if value.len() > self.config.max_collection_size {
             self.add_error(ValidationError::CollectionTooLarge {
                 size: value.len(),
                 max_size: self.config.max_collection_size,
             });
         }
-        
+
         Ok(())
     }
 
     fn visit_set(&mut self, value: &std::collections::HashSet<Value>) -> Self::Result {
         self.check_depth()?;
-        
+
         if value.len() > self.config.max_collection_size {
             self.add_error(ValidationError::CollectionTooLarge {
                 size: value.len(),
                 max_size: self.config.max_collection_size,
             });
         }
-        
+
         Ok(())
     }
 
@@ -402,48 +411,48 @@ impl ValueVisitor for BasicValidationVisitor {
 
     fn visit_duration(&mut self, value: &DurationValue) -> Self::Result {
         self.check_depth()?;
-        
+
         if value.seconds < 0 {
             self.add_error(ValidationError::Validation(
-                "持续时间不能为负数".to_string()
+                "持续时间不能为负数".to_string(),
             ));
         }
-        
+
         Ok(())
     }
 
     fn visit_dataset(&mut self, value: &DataSet) -> Self::Result {
         self.check_depth()?;
-        
+
         // 验证数据集结构
         if value.col_names.is_empty() {
             self.add_error(ValidationError::Validation(
-                "数据集必须至少有一列".to_string()
+                "数据集必须至少有一列".to_string(),
             ));
         }
-        
+
         // 验证行数据一致性
         for (i, row) in value.rows.iter().enumerate() {
             if row.len() != value.col_names.len() {
                 self.add_error(ValidationError::Validation(format!(
                     "第 {} 行的列数 ({}) 与列定义 ({}) 不匹配",
-                    i, row.len(), value.col_names.len()
+                    i,
+                    row.len(),
+                    value.col_names.len()
                 )));
             }
         }
-        
+
         Ok(())
     }
 
     fn visit_null(&mut self, _null_type: &NullType) -> Self::Result {
         self.check_depth()?;
-        
+
         if !self.config.allow_null_values {
-            self.add_error(ValidationError::Validation(
-                "不允许 null 值".to_string()
-            ));
+            self.add_error(ValidationError::Validation("不允许 null 值".to_string()));
         }
-        
+
         Ok(())
     }
 
@@ -475,12 +484,18 @@ impl TypeValidationVisitor {
         }
     }
 
-    pub fn validate_type(value: &Value, expected_type: crate::core::value::ValueTypeDef) -> Result<(), ValidationError> {
+    pub fn validate_type(
+        value: &Value,
+        expected_type: crate::core::value::ValueTypeDef,
+    ) -> Result<(), ValidationError> {
         let mut visitor = Self::new(expected_type);
         value.accept(&mut visitor)
     }
 
-    pub fn validate_type_strict(value: &Value, expected_type: crate::core::value::ValueTypeDef) -> Result<(), ValidationError> {
+    pub fn validate_type_strict(
+        value: &Value,
+        expected_type: crate::core::value::ValueTypeDef,
+    ) -> Result<(), ValidationError> {
         let mut visitor = Self::strict(expected_type);
         value.accept(&mut visitor)
     }
@@ -697,7 +712,7 @@ mod tests {
     fn test_basic_validation_visitor() {
         let valid_value = Value::Int(42);
         assert!(BasicValidationVisitor::validate(&valid_value).is_ok());
-        
+
         let invalid_float = Value::Float(f64::NAN);
         assert!(BasicValidationVisitor::validate(&invalid_float).is_err());
     }
@@ -708,7 +723,7 @@ mod tests {
             max_string_length: 5,
             ..Default::default()
         };
-        
+
         let long_string = Value::String("this is a very long string".to_string());
         assert!(BasicValidationVisitor::validate_with_config(&long_string, config).is_err());
     }
@@ -716,8 +731,16 @@ mod tests {
     #[test]
     fn test_type_validation_visitor() {
         let int_value = Value::Int(42);
-        assert!(TypeValidationVisitor::validate_type(&int_value, crate::core::value::ValueTypeDef::Int).is_ok());
-        assert!(TypeValidationVisitor::validate_type(&int_value, crate::core::value::ValueTypeDef::String).is_err());
+        assert!(TypeValidationVisitor::validate_type(
+            &int_value,
+            crate::core::value::ValueTypeDef::Int
+        )
+        .is_ok());
+        assert!(TypeValidationVisitor::validate_type(
+            &int_value,
+            crate::core::value::ValueTypeDef::String
+        )
+        .is_err());
     }
 
     #[test]
@@ -728,7 +751,7 @@ mod tests {
             day: 25,
         });
         assert!(BasicValidationVisitor::validate(&valid_date).is_ok());
-        
+
         let invalid_date = Value::Date(DateValue {
             year: 2023,
             month: 2,
@@ -746,7 +769,7 @@ mod tests {
             microsec: 0,
         });
         assert!(BasicValidationVisitor::validate(&valid_time).is_ok());
-        
+
         let invalid_time = Value::Time(TimeValue {
             hour: 25, // 无效小时
             minute: 30,
@@ -761,7 +784,10 @@ mod tests {
 impl From<utils::RecursionError> for ValidationError {
     fn from(err: utils::RecursionError) -> Self {
         match err {
-            utils::RecursionError::MaxDepthExceeded => ValidationError::MaxDepthExceeded { depth: 0, max_depth: 0 },
+            utils::RecursionError::MaxDepthExceeded => ValidationError::MaxDepthExceeded {
+                depth: 0,
+                max_depth: 0,
+            },
         }
     }
 }

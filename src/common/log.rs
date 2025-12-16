@@ -1,11 +1,11 @@
-use std::sync::{Arc, Mutex, OnceLock};
+use chrono::{DateTime, Local};
+use std::collections::VecDeque;
 use std::fmt;
 use std::fmt::Write;
-use std::fs::{OpenOptions, File};
+use std::fs::{File, OpenOptions};
 use std::io::Write as IoWrite;
 use std::path::Path;
-use std::collections::VecDeque;
-use chrono::{DateTime, Local};
+use std::sync::{Arc, Mutex, OnceLock};
 
 /// Log level definitions
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -123,25 +123,29 @@ impl LogWriter for ConsoleWriter {
         }
 
         let mut output = String::new();
-        
+
         if self.show_level {
             write!(output, "[{}] ", entry.level)?;
         }
-        
-        write!(output, "{} ", entry.timestamp.format("%Y-%m-%d %H:%M:%S%.3f"))?;
-        
+
+        write!(
+            output,
+            "{} ",
+            entry.timestamp.format("%Y-%m-%d %H:%M:%S%.3f")
+        )?;
+
         if self.show_target {
             write!(output, "[{}] ", entry.target)?;
         }
-        
+
         if let (Some(file), Some(line)) = (&entry.file, entry.line) {
             if self.show_location {
                 write!(output, "[{}:{}]", file, line)?;
             }
         }
-        
+
         write!(output, " - {}", entry.message)?;
-        
+
         println!("{}", output);
         Ok(())
     }
@@ -165,7 +169,7 @@ impl FileWriter {
             .write(true)
             .append(true)
             .open(path)?;
-            
+
         Ok(Self {
             file: Arc::new(Mutex::new(file)),
             min_level,
@@ -180,7 +184,7 @@ impl LogWriter for FileWriter {
         }
 
         let mut file = self.file.lock().unwrap();
-        
+
         writeln!(
             file,
             "[{}] {} [{}] [{}:{}] - {}",
@@ -235,11 +239,11 @@ impl LogWriter for MemoryWriter {
 
         let mut entries = self.entries.lock().unwrap();
         entries.push_back(entry.clone());
-        
+
         if entries.len() > self.max_entries {
             entries.pop_front();
         }
-        
+
         Ok(())
     }
 
@@ -324,9 +328,7 @@ static GLOBAL_LOGGER: OnceLock<Arc<Mutex<Logger>>> = OnceLock::new();
 
 /// Initialize the global logger
 pub fn init_logger(min_level: LogLevel) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let _ = GLOBAL_LOGGER.get_or_init(|| {
-        Arc::new(Mutex::new(Logger::new(min_level)))
-    });
+    let _ = GLOBAL_LOGGER.get_or_init(|| Arc::new(Mutex::new(Logger::new(min_level))));
     Ok(())
 }
 
@@ -342,10 +344,10 @@ pub fn log(level: LogLevel, target: &str, message: &str) {
         logger.log(
             level,
             target,
-            None,  // file
-            None,  // line
+            None, // file
+            None, // line
             message.to_string(),
-            None,  // module_path
+            None, // module_path
         );
     }
 }
@@ -421,7 +423,7 @@ macro_rules! fatal {
 pub struct LogConfig {
     pub level: LogLevel,
     pub file_path: Option<String>,
-    pub max_file_size: u64,  // in bytes
+    pub max_file_size: u64, // in bytes
     pub max_files: u32,
     pub enable_console: bool,
     pub format: LogFormat,
@@ -452,33 +454,33 @@ impl Default for LogConfig {
 /// Setup logger based on configuration
 pub fn setup_logger(config: &LogConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     init_logger(config.level)?;
-    
+
     if let Some(logger) = logger() {
         let mut logger = logger.lock().unwrap();
-        
+
         // Add console writer if enabled
         if config.enable_console {
             let console_writer = Arc::new(
                 ConsoleWriter::new(config.level)
                     .with_show_level(true)
                     .with_show_target(true)
-                    .with_show_location(true)
+                    .with_show_location(true),
             );
             logger.add_writer(console_writer);
         }
-        
+
         // Add file writer if path is provided
         if let Some(ref path) = config.file_path {
             let file_writer = Arc::new(FileWriter::new(path, config.level)?);
             logger.add_writer(file_writer);
         }
-        
+
         // Add module filters
         for (module, level) in &config.module_filters {
             logger.add_module_filter(module, *level);
         }
     }
-    
+
     Ok(())
 }
 
@@ -521,14 +523,14 @@ pub mod log_utils {
     /// Convert log level to syslog priority
     fn syslog_priority(level: &LogLevel) -> u8 {
         match level {
-            LogLevel::Trace | LogLevel::Debug => 7,  // Debug
-            LogLevel::Info => 6,                     // Info
-            LogLevel::Warn => 4,                     // Warning
-            LogLevel::Error => 3,                    // Error
-            LogLevel::Fatal => 2,                    // Critical
+            LogLevel::Trace | LogLevel::Debug => 7, // Debug
+            LogLevel::Info => 6,                    // Info
+            LogLevel::Warn => 4,                    // Warning
+            LogLevel::Error => 3,                   // Error
+            LogLevel::Fatal => 2,                   // Critical
         }
     }
-    
+
     /// Get the current timestamp for logging
     pub fn current_timestamp() -> DateTime<Local> {
         Local::now()
@@ -575,7 +577,7 @@ mod tests {
 
         assert!(writer.write(&entry).is_ok());
         assert_eq!(writer.get_entries().len(), 1);
-        
+
         writer.clear();
         assert_eq!(writer.get_entries().len(), 0);
     }
@@ -585,7 +587,7 @@ mod tests {
         let mut logger = Logger::new(LogLevel::Info);
         let writer = Arc::new(MemoryWriter::new(10, LogLevel::Info));
         logger.add_writer(writer.clone());
-        
+
         logger.log(
             LogLevel::Info,
             "test_target",
@@ -594,7 +596,7 @@ mod tests {
             "Test log message".to_string(),
             Some("test_module"),
         );
-        
+
         let entries = writer.get_entries();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].level, LogLevel::Info);

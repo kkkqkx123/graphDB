@@ -1,7 +1,7 @@
 pub mod lexer;
 
-pub use lexer::Lexer;
 pub use crate::query::parser::{Token, TokenKind};
+pub use lexer::Lexer;
 
 #[derive(Debug, Clone)]
 pub struct LexError {
@@ -21,5 +21,3 @@ impl std::fmt::Display for LexError {
 }
 
 impl std::error::Error for LexError {}
-
-

@@ -1,11 +1,13 @@
 //! 通用数据结构
 
-use crate::query::validator::validation_interface::{ValidationContext, ValidationError};
 use crate::query::validator::structs::{
-    AliasType,
-    QueryPart,
-    clause_structs::{MatchClauseContext, WhereClauseContext, ReturnClauseContext, WithClauseContext, UnwindClauseContext, YieldClauseContext, OrderByClauseContext, PaginationContext},
+    clause_structs::{
+        MatchClauseContext, OrderByClauseContext, PaginationContext, ReturnClauseContext,
+        UnwindClauseContext, WhereClauseContext, WithClauseContext, YieldClauseContext,
+    },
+    AliasType, QueryPart,
 };
+use crate::query::validator::validation_interface::{ValidationContext, ValidationError};
 
 /// 验证上下文实现
 #[derive(Debug, Clone)]

@@ -1,7 +1,7 @@
 //! Optimizer implementation for optimizing execution plans
-use crate::query::planner::plan::{PlanNode, PlanNodeKind, ExecutionPlan};
-use crate::query::planner::plan::core::{PlanNodeVisitor, PlanNodeVisitError};
 use crate::query::context::QueryContext;
+use crate::query::planner::plan::core::{PlanNodeVisitError, PlanNodeVisitor};
+use crate::query::planner::plan::{ExecutionPlan, PlanNode, PlanNodeKind};
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -36,8 +36,8 @@ pub struct OptContext {
     // Optimization context that holds state during optimization
     pub query_context: QueryContext,
     pub stats: OptimizationStats,
-    pub changed: bool,  // Whether this iteration caused a change to the plan
-    pub visited_groups: HashSet<usize>,  // Track visited groups during exploration
+    pub changed: bool, // Whether this iteration caused a change to the plan
+    pub visited_groups: HashSet<usize>, // Track visited groups during exploration
     pub plan_node_to_group_node: HashMap<usize, OptGroupNode>, // Map plan node IDs to optimization group nodes
     object_pool: ObjectPool<OptGroupNode>, // Pool for reusing OptGroupNode objects
 }
@@ -59,19 +59,24 @@ impl OptContext {
     }
 
     pub fn add_plan_node_and_group_node(&mut self, plan_node_id: usize, group_node: &OptGroupNode) {
-        self.plan_node_to_group_node.insert(plan_node_id, group_node.clone());
+        self.plan_node_to_group_node
+            .insert(plan_node_id, group_node.clone());
     }
 
     pub fn find_group_node_by_plan_node_id(&self, plan_node_id: usize) -> Option<&OptGroupNode> {
         self.plan_node_to_group_node.get(&plan_node_id)
     }
 
-    pub fn get_group_node_from_pool(&mut self, id: usize, plan_node: std::sync::Arc<dyn PlanNode>) -> OptGroupNode {
+    pub fn get_group_node_from_pool(
+        &mut self,
+        id: usize,
+        plan_node: std::sync::Arc<dyn PlanNode>,
+    ) -> OptGroupNode {
         let mut node = self.object_pool.acquire();
         node.id = id;
         node.plan_node = plan_node;
-        node.group_id = 0;  // Will be set when added to a group
-        // Reset other fields as needed
+        node.group_id = 0; // Will be set when added to a group
+                           // Reset other fields as needed
         node.dependencies.clear();
         node.explored_rules.clear();
         node.cost = 0.0;
@@ -89,9 +94,10 @@ impl OptContext {
 
     pub fn validate_data_flow(&self, group_node: &OptGroupNode, boundary: &[&OptGroup]) -> bool {
         // Check if dependencies are within boundary
-        let all_deps_in_boundary = group_node.dependencies.iter().all(|&dep_id| {
-            boundary.iter().any(|&group| group.id == dep_id)
-        });
+        let all_deps_in_boundary = group_node
+            .dependencies
+            .iter()
+            .all(|&dep_id| boundary.iter().any(|&group| group.id == dep_id));
 
         if all_deps_in_boundary {
             return true;
@@ -129,9 +135,9 @@ pub struct OptimizationStats {
 pub struct OptGroup {
     pub id: usize,
     pub nodes: Vec<OptGroupNode>,
-    pub logical: bool, // Whether this is a logical or physical group
+    pub logical: bool,               // Whether this is a logical or physical group
     pub explored_rules: Vec<String>, // Track which rules have been applied to this group
-    pub root_group: bool, // Whether this is the root optimization group
+    pub root_group: bool,            // Whether this is the root optimization group
 }
 
 impl OptGroup {
@@ -170,7 +176,7 @@ pub struct OptGroupNode {
     pub cost: f64,
     pub properties: PlanNodeProperties,
     pub explored_rules: Vec<String>, // Track which rules have been applied to this node
-    pub group_id: usize, // ID of the group this node belongs to
+    pub group_id: usize,             // ID of the group this node belongs to
 }
 
 use crate::query::context::validate::types::Variable;
@@ -375,7 +381,9 @@ impl MatchNode {
     pub fn matches(&self, node: &dyn PlanNode) -> bool {
         match self {
             MatchNode::Single(kind) => node.kind() == *kind,
-            MatchNode::Multi(kinds) => kinds.iter().any(|k| node.kind() == *k || *k == PlanNodeKind::Unknown),
+            MatchNode::Multi(kinds) => kinds
+                .iter()
+                .any(|k| node.kind() == *k || *k == PlanNodeKind::Unknown),
         }
     }
 }
@@ -445,15 +453,28 @@ impl TransformResult {
 // Base trait for optimization rules
 pub trait OptRule: std::fmt::Debug {
     fn name(&self) -> &str;
-    fn apply(&self, ctx: &mut OptContext, group_node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError>;
+    fn apply(
+        &self,
+        ctx: &mut OptContext,
+        group_node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError>;
 
     // Match method with detailed matching
-    fn match_pattern(&self, ctx: &mut OptContext, group_node: &OptGroupNode) -> Result<Option<MatchedResult>, OptimizerError> {
+    fn match_pattern(
+        &self,
+        ctx: &mut OptContext,
+        group_node: &OptGroupNode,
+    ) -> Result<Option<MatchedResult>, OptimizerError> {
         let pattern = self.pattern();
         self.match_pattern_with_result(ctx, group_node, &pattern)
     }
 
-    fn match_pattern_with_result(&self, ctx: &mut OptContext, group_node: &OptGroupNode, pattern: &Pattern) -> Result<Option<MatchedResult>, OptimizerError> {
+    fn match_pattern_with_result(
+        &self,
+        ctx: &mut OptContext,
+        group_node: &OptGroupNode,
+        pattern: &Pattern,
+    ) -> Result<Option<MatchedResult>, OptimizerError> {
         if !pattern.matches(group_node) {
             return Ok(None);
         }
@@ -533,11 +554,11 @@ impl Optimizer {
         logical_rules.add_rule(Box::new(super::PushFilterDownInnerJoinRule));
         logical_rules.add_rule(Box::new(super::PushFilterDownHashInnerJoinRule));
         logical_rules.add_rule(Box::new(super::PushFilterDownHashLeftJoinRule));
-        
+
         // 投影下推规则
         logical_rules.add_rule(Box::new(super::ProjectionPushDownRule));
         logical_rules.add_rule(Box::new(super::PushProjectDownRule));
-        
+
         // 操作合并规则
         logical_rules.add_rule(Box::new(super::CombineFilterRule));
         logical_rules.add_rule(Box::new(super::CollapseProjectRule));
@@ -545,7 +566,7 @@ impl Optimizer {
         logical_rules.add_rule(Box::new(super::MergeGetVerticesAndDedupRule));
         logical_rules.add_rule(Box::new(super::MergeGetNbrsAndDedupRule));
         logical_rules.add_rule(Box::new(super::MergeGetNbrsAndProjectRule));
-        
+
         // 消除规则
         logical_rules.add_rule(Box::new(super::DedupEliminationRule));
         logical_rules.add_rule(Box::new(super::EliminateFilterRule));
@@ -559,7 +580,7 @@ impl Optimizer {
         let mut physical_rules = RuleSet::new("physical");
         // 连接优化规则
         physical_rules.add_rule(Box::new(super::JoinOptimizationRule));
-        
+
         // LIMIT下推规则
         physical_rules.add_rule(Box::new(super::PushLimitDownRule));
         physical_rules.add_rule(Box::new(super::PushLimitDownGetVerticesRule));
@@ -572,11 +593,11 @@ impl Optimizer {
         // 注释掉使用不存在的 AllPaths 和 ExpandAll 类型的规则
         // physical_rules.add_rule(Box::new(super::PushLimitDownAllPathsRule));
         // physical_rules.add_rule(Box::new(super::PushLimitDownExpandAllRule));
-        
+
         // 扫描优化规则
         physical_rules.add_rule(Box::new(super::ScanWithFilterOptimizationRule));
         physical_rules.add_rule(Box::new(super::IndexFullScanRule));
-        
+
         // 索引优化规则
         physical_rules.add_rule(Box::new(super::IndexScanRule));
         physical_rules.add_rule(Box::new(super::EdgeIndexFullScanRule));
@@ -589,42 +610,50 @@ impl Optimizer {
         Self::new(vec![logical_rules, physical_rules])
     }
 
-    pub fn find_best_plan(&mut self, qctx: &mut QueryContext, plan: ExecutionPlan) -> Result<ExecutionPlan, OptimizerError> {
-         // Create an optimization context
-         let mut opt_ctx = OptContext::new(qctx.clone());
+    pub fn find_best_plan(
+        &mut self,
+        qctx: &mut QueryContext,
+        plan: ExecutionPlan,
+    ) -> Result<ExecutionPlan, OptimizerError> {
+        // Create an optimization context
+        let mut opt_ctx = OptContext::new(qctx.clone());
 
-         // Convert the execution plan to an optimization graph
-         let mut root_group = self.plan_to_group(&plan)?;
-         root_group.root_group = true;
+        // Convert the execution plan to an optimization graph
+        let mut root_group = self.plan_to_group(&plan)?;
+        root_group.root_group = true;
 
-         // Iterative optimization with multiple rounds
-         const MAX_ITERATION_ROUNDS: usize = 5;
-         let mut round = 0;
+        // Iterative optimization with multiple rounds
+        const MAX_ITERATION_ROUNDS: usize = 5;
+        let mut round = 0;
 
-         while opt_ctx.changed && round < MAX_ITERATION_ROUNDS {
-             opt_ctx.changed = false;
-             opt_ctx.visited_groups.clear();
+        while opt_ctx.changed && round < MAX_ITERATION_ROUNDS {
+            opt_ctx.changed = false;
+            opt_ctx.visited_groups.clear();
 
-             for rule_set in &self.rule_sets {
-                 for rule in &rule_set.rules {
-                     // Apply the rule to the group
-                     self.apply_rule(&mut opt_ctx, &mut root_group, rule.as_ref())?;
-                 }
-             }
+            for rule_set in &self.rule_sets {
+                for rule in &rule_set.rules {
+                    // Apply the rule to the group
+                    self.apply_rule(&mut opt_ctx, &mut root_group, rule.as_ref())?;
+                }
+            }
 
-             round += 1;
-         }
+            round += 1;
+        }
 
-         // Perform post-processing validation
-         self.post_process(&mut opt_ctx, &mut root_group)?;
+        // Perform post-processing validation
+        self.post_process(&mut opt_ctx, &mut root_group)?;
 
-         // Convert the optimized group back to an execution plan
-         let optimized_plan = self.group_to_plan(&root_group)?;
+        // Convert the optimized group back to an execution plan
+        let optimized_plan = self.group_to_plan(&root_group)?;
 
-         Ok(optimized_plan)
-     }
+        Ok(optimized_plan)
+    }
 
-    fn post_process(&self, ctx: &mut OptContext, root_group: &mut OptGroup) -> Result<(), OptimizerError> {
+    fn post_process(
+        &self,
+        ctx: &mut OptContext,
+        root_group: &mut OptGroup,
+    ) -> Result<(), OptimizerError> {
         // In a complete implementation, we would perform post-processing operations
         // such as property pruning, plan validation, etc.
 
@@ -633,18 +662,20 @@ impl Optimizer {
             // Simple validation that all dependencies exist
             for &dep_id in &node.dependencies {
                 if !root_group.nodes.iter().any(|n| n.id == dep_id) {
-                    return Err(OptimizerError::OptimizationFailed(
-                        format!("Invalid dependency: node {} depends on non-existent node {}", node.id, dep_id)
-                    ));
+                    return Err(OptimizerError::OptimizationFailed(format!(
+                        "Invalid dependency: node {} depends on non-existent node {}",
+                        node.id, dep_id
+                    )));
                 }
             }
 
             // Validate data flow for this node against the root group as boundary
             let boundary = vec![&*root_group];
             if !ctx.validate_data_flow(node, &boundary) {
-                return Err(OptimizerError::OptimizationFailed(
-                    format!("Data flow validation failed for node {}", node.id)
-                ));
+                return Err(OptimizerError::OptimizationFailed(format!(
+                    "Data flow validation failed for node {}",
+                    node.id
+                )));
             }
         }
 
@@ -658,36 +689,50 @@ impl Optimizer {
             self.convert_node_to_group(root_node.as_ref(), &mut group, 0)?;
             Ok(group)
         } else {
-            Err(OptimizerError::PlanConversionError("Cannot convert empty plan to group".to_string()))
+            Err(OptimizerError::PlanConversionError(
+                "Cannot convert empty plan to group".to_string(),
+            ))
         }
     }
 
-    fn convert_node_to_group(&self, node: &dyn PlanNode, group: &mut OptGroup, node_id: usize) -> Result<(), OptimizerError> {
+    fn convert_node_to_group(
+        &self,
+        node: &dyn PlanNode,
+        group: &mut OptGroup,
+        node_id: usize,
+    ) -> Result<(), OptimizerError> {
         // Create an OptGroupNode from the PlanNode
         let opt_node = OptGroupNode::new(node_id, node.clone_plan_node());
         group.nodes.push(opt_node);
-        
+
         // Process dependencies
         for (i, dep) in node.dependencies().iter().enumerate() {
             // In a complete implementation, we would recursively process the dependencies
             // For now, we just call this function recursively
             self.convert_node_to_group(dep.as_ref(), group, node_id + i + 1)?;
         }
-        
+
         Ok(())
     }
 
     fn group_to_plan(&self, group: &OptGroup) -> Result<ExecutionPlan, OptimizerError> {
-         // Convert an optimization group back to an execution plan
-         if let Some(opt_node) = group.nodes.first() {
-             let root = Some(opt_node.plan_node.clone_plan_node());
-             Ok(ExecutionPlan::new(root))
-         } else {
-             Err(OptimizerError::PlanConversionError("Cannot convert empty group to plan".to_string()))
-         }
-     }
+        // Convert an optimization group back to an execution plan
+        if let Some(opt_node) = group.nodes.first() {
+            let root = Some(opt_node.plan_node.clone_plan_node());
+            Ok(ExecutionPlan::new(root))
+        } else {
+            Err(OptimizerError::PlanConversionError(
+                "Cannot convert empty group to plan".to_string(),
+            ))
+        }
+    }
 
-    fn apply_rule(&self, ctx: &mut OptContext, group: &mut OptGroup, rule: &dyn OptRule) -> Result<(), OptimizerError> {
+    fn apply_rule(
+        &self,
+        ctx: &mut OptContext,
+        group: &mut OptGroup,
+        rule: &dyn OptRule,
+    ) -> Result<(), OptimizerError> {
         // Check if this rule has already been applied to this group
         if group.is_explored(rule.name()) {
             return Ok(());
@@ -702,7 +747,12 @@ impl Optimizer {
         Ok(())
     }
 
-    fn explore_rule(&self, ctx: &mut OptContext, group: &mut OptGroup, rule: &dyn OptRule) -> Result<(), OptimizerError> {
+    fn explore_rule(
+        &self,
+        ctx: &mut OptContext,
+        group: &mut OptGroup,
+        rule: &dyn OptRule,
+    ) -> Result<(), OptimizerError> {
         // Explore the rule with multiple rounds up to maximum rounds
         const MAX_EXPLORATION_ROUNDS: usize = 128;
         let mut round = 0;
@@ -752,22 +802,22 @@ impl Optimizer {
     }
 
     fn matches_pattern(&self, node: &OptGroupNode, pattern: &Pattern) -> bool {
-         // Check if the node matches the given pattern using the new matching system
-         pattern.matches(node)
-     }
+        // Check if the node matches the given pattern using the new matching system
+        pattern.matches(node)
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum OptimizerError {
     #[error("Plan conversion error: {0}")]
     PlanConversionError(String),
-    
+
     #[error("Rule application error: {0}")]
     RuleApplicationError(String),
-    
+
     #[error("Optimization failed: {0}")]
     OptimizationFailed(String),
-    
+
     #[error("Invalid optimization context: {0}")]
     InvalidOptContext(String),
 }

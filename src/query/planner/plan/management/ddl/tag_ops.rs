@@ -1,12 +1,15 @@
 //! 标签操作相关的计划节点
 //! 包括创建/删除标签等操作
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
-use crate::query::context::validate::types::Variable;
 use super::space_ops::Schema;
+use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 /// 创建标签计划节点
@@ -155,7 +158,13 @@ impl DescTag {
             kind: PlanNodeKind::DescTag,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec!["Field".to_string(), "Type".to_string(), "Null".to_string(), "Default".to_string(), "Comment".to_string()],
+            col_names: vec![
+                "Field".to_string(),
+                "Type".to_string(),
+                "Null".to_string(),
+                "Default".to_string(),
+                "Comment".to_string(),
+            ],
             cost: 0.0,
             tag_name: tag_name.to_string(),
         }

@@ -4,7 +4,10 @@
 //! handling POSIX signals in a daemon environment.
 
 #[cfg(unix)]
-use signal_hook::{consts::SIGTERM, consts::SIGINT, consts::SIGQUIT, consts::SIGHUP, consts::SIGPIPE, iterator::Signals};
+use signal_hook::{
+    consts::SIGHUP, consts::SIGINT, consts::SIGPIPE, consts::SIGQUIT, consts::SIGTERM,
+    iterator::Signals,
+};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -16,8 +19,8 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct SignalInfo {
     pub signal: i32,
-    pub pid: Option<u32>,  // Process ID if available
-    pub uid: Option<u32>,  // User ID if available
+    pub pid: Option<u32>, // Process ID if available
+    pub uid: Option<u32>, // User ID if available
 }
 
 impl SignalInfo {
@@ -158,10 +161,10 @@ mod tests {
     fn test_signal_handler_creation() {
         let result = SignalHandler::init();
         assert!(result.is_ok());
-        
+
         let handler = result.unwrap();
         assert!(!handler.shutdown_requested());
-        
+
         // Test getting the global instance
         let global_handler = SignalHandler::get();
         assert!(global_handler.is_some());

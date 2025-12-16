@@ -1,11 +1,14 @@
 //! 数据更新操作相关的计划节点
 //! 包括更新顶点和边的操作
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 /// 更新顶点计划节点
@@ -19,9 +22,9 @@ pub struct UpdateVertex {
     pub cost: f64,
     pub space_id: i32,
     pub tag_id: i32,
-    pub filter: Option<String>,   // 过滤条件
+    pub filter: Option<String>,              // 过滤条件
     pub update_props: Vec<(String, String)>, // 要更新的属性
-    pub insertable: bool,         // 是否可插入
+    pub insertable: bool,                    // 是否可插入
 }
 
 impl UpdateVertex {
@@ -160,9 +163,9 @@ pub struct UpdateEdge {
     pub cost: f64,
     pub space_id: i32,
     pub edge_type_id: i32,
-    pub filter: Option<String>,   // 过滤条件
+    pub filter: Option<String>,              // 过滤条件
     pub update_props: Vec<(String, String)>, // 要更新的属性
-    pub insertable: bool,         // 是否可插入
+    pub insertable: bool,                    // 是否可插入
 }
 
 impl UpdateEdge {

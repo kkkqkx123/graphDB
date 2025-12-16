@@ -1,8 +1,8 @@
 //! 计划段连接器
 //! 连接多个计划段形成完整的执行计划
 
-use crate::query::planner::plan::{SubPlan, PlanNodeKind, BinaryInputNode};
 use crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable;
+use crate::query::planner::plan::{BinaryInputNode, PlanNodeKind, SubPlan};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -18,7 +18,12 @@ impl SegmentsConnector {
     }
 
     /// 内连接两个计划
-    pub fn inner_join(&self, left: SubPlan, right: SubPlan, intersected_aliases: HashSet<String>) -> SubPlan {
+    pub fn inner_join(
+        &self,
+        left: SubPlan,
+        right: SubPlan,
+        intersected_aliases: HashSet<String>,
+    ) -> SubPlan {
         if left.root.is_none() || right.root.is_none() {
             return if left.root.is_some() { left } else { right };
         }
@@ -37,11 +42,19 @@ impl SegmentsConnector {
         // 这里需要根据 intersected_aliases 创建相应的表达式
 
         // 使用新创建的节点作为根节点和尾节点
-        SubPlan::new(Some(inner_join_node.clone_plan_node()), Some(inner_join_node))
+        SubPlan::new(
+            Some(inner_join_node.clone_plan_node()),
+            Some(inner_join_node),
+        )
     }
 
     /// 左连接两个计划
-    pub fn left_join(&self, left: SubPlan, right: SubPlan, intersected_aliases: HashSet<String>) -> SubPlan {
+    pub fn left_join(
+        &self,
+        left: SubPlan,
+        right: SubPlan,
+        intersected_aliases: HashSet<String>,
+    ) -> SubPlan {
         if left.root.is_none() {
             return right;
         }
@@ -99,7 +112,7 @@ impl SegmentsConnector {
                 // 这里需要根据具体情况设置依赖关系和变量
                 SubPlan::new(left.root, right.tail)
             }
-            _ => SubPlan::new(left.root, right.tail)
+            _ => SubPlan::new(left.root, right.tail),
         }
     }
 

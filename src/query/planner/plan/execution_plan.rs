@@ -80,12 +80,8 @@ impl Clone for SubPlan {
     fn clone(&self) -> Self {
         // 正确克隆SubPlan，保留节点引用
         Self {
-            root: self.root.as_ref().map(|node| {
-                node.clone_plan_node()
-            }),
-            tail: self.tail.as_ref().map(|node| {
-                node.clone_plan_node()
-            }),
+            root: self.root.as_ref().map(|node| node.clone_plan_node()),
+            tail: self.tail.as_ref().map(|node| node.clone_plan_node()),
         }
     }
 }

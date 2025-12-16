@@ -1,11 +1,14 @@
 //! 空间操作相关的计划节点
 //! 包括创建/删除空间等操作
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 // 基础创建节点结构
@@ -17,7 +20,7 @@ pub struct CreateNode {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub if_not_exist: bool,  // 是否使用IF NOT EXISTS
+    pub if_not_exist: bool, // 是否使用IF NOT EXISTS
 }
 
 impl Clone for CreateNode {
@@ -142,7 +145,7 @@ pub struct DropNode {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub if_exist: bool,  // 是否使用IF EXISTS
+    pub if_exist: bool, // 是否使用IF EXISTS
 }
 
 impl Clone for DropNode {
@@ -267,7 +270,7 @@ pub struct Schema {
 #[derive(Debug, Clone)]
 pub struct SchemaField {
     pub name: String,
-    pub field_type: String,  // 简化为字符串，实际可能是复杂类型
+    pub field_type: String, // 简化为字符串，实际可能是复杂类型
     pub nullable: bool,
     pub default_value: Option<String>,
 }
@@ -427,7 +430,16 @@ impl DescSpace {
             kind: PlanNodeKind::DescSpace,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec!["Name".to_string(), "Space(space_id)".to_string(), "Charset".to_string(), "Collate".to_string(), "Partition Number".to_string(), "Replica Factor".to_string(), "Vid Type".to_string(), "Atomic Edge".to_string()],
+            col_names: vec![
+                "Name".to_string(),
+                "Space(space_id)".to_string(),
+                "Charset".to_string(),
+                "Collate".to_string(),
+                "Partition Number".to_string(),
+                "Replica Factor".to_string(),
+                "Vid Type".to_string(),
+                "Atomic Edge".to_string(),
+            ],
             cost: 0.0,
             space_name: space_name.to_string(),
         }

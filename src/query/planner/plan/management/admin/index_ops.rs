@@ -1,11 +1,14 @@
 //! 索引操作相关的计划节点
 //! 包括创建/删除索引等操作
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 /// 创建索引计划节点
@@ -287,7 +290,12 @@ impl ShowIndexes {
             kind: PlanNodeKind::ShowIndexes,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec!["Index Name".to_string(), "Schema Name".to_string(), "Fields".to_string(), "Type".to_string()],
+            col_names: vec![
+                "Index Name".to_string(),
+                "Schema Name".to_string(),
+                "Fields".to_string(),
+                "Type".to_string(),
+            ],
             cost: 0.0,
             schema_name,
         }

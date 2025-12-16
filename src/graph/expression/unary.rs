@@ -1,6 +1,6 @@
+use super::error::ExpressionError;
 use crate::core::Value;
 use crate::graph::expression::Expression;
-use super::error::ExpressionError;
 use crate::query::context::EvalContext;
 use serde::{Deserialize, Serialize};
 
@@ -25,12 +25,16 @@ pub fn evaluate_unary_op(
     let operand_val = evaluator.evaluate(operand, context)?;
 
     match op {
-        UnaryOperator::Plus => Ok(operand_val),  // Identity operation
+        UnaryOperator::Plus => Ok(operand_val), // Identity operation
         UnaryOperator::Minus => neg_value(operand_val),
         UnaryOperator::Negate => neg_value(operand_val),
         UnaryOperator::Not => Ok(Value::Bool(!value_to_bool(&operand_val))),
-        UnaryOperator::Increment => Err(ExpressionError::InvalidOperation("Increment operation not supported".to_string())),
-        UnaryOperator::Decrement => Err(ExpressionError::InvalidOperation("Decrement operation not supported".to_string())),
+        UnaryOperator::Increment => Err(ExpressionError::InvalidOperation(
+            "Increment operation not supported".to_string(),
+        )),
+        UnaryOperator::Decrement => Err(ExpressionError::InvalidOperation(
+            "Decrement operation not supported".to_string(),
+        )),
     }
 }
 
@@ -43,45 +47,49 @@ pub fn evaluate_extended_unary_op(
         Expression::UnaryPlus(operand) => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             evaluator.evaluate(operand, context)
-        },
+        }
         Expression::UnaryNegate(operand) => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             neg_value(value)
-        },
+        }
         Expression::UnaryNot(operand) => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             Ok(Value::Bool(!value_to_bool(&value)))
-        },
+        }
         Expression::UnaryIncr(operand) => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             match value {
                 Value::Int(n) => Ok(Value::Int(n + 1)),
                 Value::Float(n) => Ok(Value::Float(n + 1.0)),
-                _ => Err(ExpressionError::TypeError("Cannot increment non-numeric value".to_string())),
+                _ => Err(ExpressionError::TypeError(
+                    "Cannot increment non-numeric value".to_string(),
+                )),
             }
-        },
+        }
         Expression::UnaryDecr(operand) => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             match value {
                 Value::Int(n) => Ok(Value::Int(n - 1)),
                 Value::Float(n) => Ok(Value::Float(n - 1.0)),
-                _ => Err(ExpressionError::TypeError("Cannot decrement non-numeric value".to_string())),
+                _ => Err(ExpressionError::TypeError(
+                    "Cannot decrement non-numeric value".to_string(),
+                )),
             }
-        },
+        }
         Expression::IsNull(operand) => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             Ok(Value::Bool(matches!(value, Value::Null(_))))
-        },
+        }
         Expression::IsNotNull(operand) => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             Ok(Value::Bool(!matches!(value, Value::Null(_))))
-        },
+        }
         Expression::IsEmpty(operand) => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
@@ -93,7 +101,7 @@ pub fn evaluate_extended_unary_op(
                 _ => false,
             };
             Ok(Value::Bool(is_empty))
-        },
+        }
         Expression::IsNotEmpty(operand) => {
             let evaluator = super::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
@@ -105,9 +113,9 @@ pub fn evaluate_extended_unary_op(
                 _ => true,
             };
             Ok(Value::Bool(is_not_empty))
-        },
+        }
         _ => Err(ExpressionError::TypeError(
-            "Expression is not an extended unary operation".to_string()
+            "Expression is not an extended unary operation".to_string(),
         )),
     }
 }
@@ -116,7 +124,9 @@ fn neg_value(value: Value) -> Result<Value, ExpressionError> {
     match value {
         Value::Int(n) => Ok(Value::Int(-n)),
         Value::Float(n) => Ok(Value::Float(-n)),
-        _ => Err(ExpressionError::TypeError("Cannot negate this value type".to_string())),
+        _ => Err(ExpressionError::TypeError(
+            "Cannot negate this value type".to_string(),
+        )),
     }
 }
 

@@ -1,7 +1,7 @@
 //! Go planner implementation for handling GO queries
-use crate::query::context::AstContext;
+use super::plan::{ExecutionPlan, PlanNodeKind, SingleInputNode, SubPlan};
 use super::planner::{Planner, PlannerError};
-use super::plan::{SubPlan, PlanNodeKind, ExecutionPlan, SingleInputNode};
+use crate::query::context::ast::AstContext;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -13,11 +13,11 @@ impl GoPlanner {
     pub fn new() -> Self {
         Self {}
     }
-    
+
     pub fn make() -> Box<dyn Planner> {
         Box::new(Self::new())
     }
-    
+
     pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
         // Check if the AST context represents a go statement
         // In a real implementation, this would check specific properties of the AST
@@ -32,13 +32,15 @@ impl Planner for GoPlanner {
 
         // First, verify this is a go statement
         if !Self::match_ast_ctx(ast_ctx) {
-            return Err(PlannerError::InvalidAstContext("AST context is not a go statement".to_string()));
+            return Err(PlannerError::InvalidAstContext(
+                "AST context is not a go statement".to_string(),
+            ));
         }
 
         // Create a plan node for the go operation
         let go_node = Arc::new(SingleInputNode::new(
             PlanNodeKind::GetNeighbors, // Using GetNeighbors as a sample plan node for go queries
-            create_empty_node()?
+            create_empty_node()?,
         ));
 
         // Create the execution plan
@@ -47,7 +49,7 @@ impl Planner for GoPlanner {
         // For now, just return a subplan with the execution plan
         Ok(SubPlan::new(Some(execution_plan.root.unwrap()), None))
     }
-    
+
     fn match_planner(&self, ast_ctx: &AstContext) -> bool {
         Self::match_ast_ctx(ast_ctx)
     }
@@ -55,7 +57,7 @@ impl Planner for GoPlanner {
 
 // Helper function to create an empty start node
 fn create_empty_node() -> Result<Arc<dyn super::plan::PlanNode>, PlannerError> {
-    use super::plan::{SingleDependencyNode, PlanNodeKind};
+    use super::plan::{PlanNodeKind, SingleDependencyNode};
 
     Ok(Arc::new(SingleDependencyNode {
         id: -1,

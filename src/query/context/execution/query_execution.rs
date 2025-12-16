@@ -1,12 +1,12 @@
 //! 查询执行上下文 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
-use crate::query::context::{QueryExecutionContext, RequestContext, ValidateContext};
 use crate::core::{SymbolTable, Value};
 use crate::graph::utils::IdGenerator;
 use crate::query::context::managers::{
-    SchemaManager, IndexManager, StorageClient, MetaClient, CharsetInfo
+    CharsetInfo, IndexManager, MetaClient, SchemaManager, StorageClient,
 };
+use crate::query::context::{QueryExecutionContext, RequestContext, ValidateContext};
 use crate::utils::ObjectPool;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -427,8 +427,8 @@ impl Default for QueryContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::context::managers::{Index, Schema};
     use std::collections::HashMap;
-    use crate::query::context::managers::{Schema, Index};
 
     // Mock实现用于测试
     #[derive(Debug)]
@@ -504,7 +504,10 @@ mod tests {
     struct MockStorageClient;
 
     impl StorageClient for MockStorageClient {
-        fn execute(&self, _operation: crate::query::context::managers::StorageOperation) -> Result<crate::query::context::managers::StorageResponse, String> {
+        fn execute(
+            &self,
+            _operation: crate::query::context::managers::StorageOperation,
+        ) -> Result<crate::query::context::managers::StorageResponse, String> {
             Ok(crate::query::context::managers::StorageResponse {
                 success: true,
                 data: None,
@@ -529,7 +532,10 @@ mod tests {
             })
         }
 
-        fn get_space_info(&self, space_id: i32) -> Result<crate::query::context::managers::SpaceInfo, String> {
+        fn get_space_info(
+            &self,
+            space_id: i32,
+        ) -> Result<crate::query::context::managers::SpaceInfo, String> {
             Ok(crate::query::context::managers::SpaceInfo {
                 space_id,
                 space_name: "test_space".to_string(),
@@ -678,8 +684,12 @@ mod tests {
         ctx.set_plan(ExecutionPlan::new(ctx.gen_id()));
 
         // 添加一些变量到执行上下文
-        ctx.ectx().set_value("test_var1", crate::core::Value::Int(42)).unwrap();
-        ctx.ectx().set_value("test_var2", crate::core::Value::String("hello".to_string())).unwrap();
+        ctx.ectx()
+            .set_value("test_var1", crate::core::Value::Int(42))
+            .unwrap();
+        ctx.ectx()
+            .set_value("test_var2", crate::core::Value::String("hello".to_string()))
+            .unwrap();
 
         // 检查更新后的状态
         let status = ctx.get_status_info();

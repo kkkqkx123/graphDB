@@ -1,6 +1,6 @@
-use crate::query::types::{Query, QueryError, Condition};
 use crate::core::Value;
 use crate::query::parser::parser::Parser;
+use crate::query::types::{Condition, Query, QueryError};
 
 pub struct QueryConverter;
 

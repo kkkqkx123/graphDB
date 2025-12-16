@@ -2,16 +2,18 @@
 //! 这些规则负责将过滤条件下推到计划树的底层，以减少数据处理量
 
 use super::optimizer::OptimizerError;
-use super::rule_traits::{BaseOptRule, PushDownRule, FilterSplitResult, combine_conditions, combine_expression_list};
-use super::rule_patterns::{PatternBuilder, CommonPatterns};
+use super::rule_patterns::{CommonPatterns, PatternBuilder};
+use super::rule_traits::{
+    combine_conditions, combine_expression_list, BaseOptRule, FilterSplitResult, PushDownRule,
+};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::PlanNodeKind;
-use crate::query::planner::plan::operations::Filter as FilterPlanNode;
-use crate::query::planner::plan::operations::ScanVertices;
-use crate::query::planner::plan::operations::ScanEdges;
-use crate::query::planner::plan::operations::Traverse;
-use crate::query::planner::plan::operations::Expand;
 use crate::query::planner::plan::algorithms::IndexScan;
+use crate::query::planner::plan::operations::Expand;
+use crate::query::planner::plan::operations::Filter as FilterPlanNode;
+use crate::query::planner::plan::operations::ScanEdges;
+use crate::query::planner::plan::operations::ScanVertices;
+use crate::query::planner::plan::operations::Traverse;
+use crate::query::planner::plan::PlanNodeKind;
 
 /// 通用过滤条件下推规则
 #[derive(Debug)]
@@ -38,7 +40,9 @@ impl OptRule for FilterPushDownRule {
                 let child_node = &matched.dependencies[0];
 
                 // 获取过滤条件
-                if let Some(filter_plan_node) = node.plan_node.as_any().downcast_ref::<FilterPlanNode>() {
+                if let Some(filter_plan_node) =
+                    node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                {
                     let filter_condition = &filter_plan_node.condition;
 
                     // 根据子节点类型确定是否可以下推过滤条件
@@ -50,11 +54,17 @@ impl OptRule for FilterPushDownRule {
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有过滤条件的新扫描节点
-                                if let Some(scan_node) = child_node.plan_node().as_any().downcast_ref::<ScanVertices>() {
+                                if let Some(scan_node) = child_node
+                                    .plan_node()
+                                    .as_any()
+                                    .downcast_ref::<ScanVertices>()
+                                {
                                     let mut new_scan_node = scan_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
-                                    let new_filter = if let Some(existing_filter) = &new_scan_node.vertex_filter {
+                                    let new_filter = if let Some(existing_filter) =
+                                        &new_scan_node.vertex_filter
+                                    {
                                         combine_conditions(&pushable_condition, existing_filter)
                                     } else {
                                         pushable_condition
@@ -64,17 +74,22 @@ impl OptRule for FilterPushDownRule {
 
                                     // 创建带有修改后扫描节点的新OptGroupNode
                                     let mut new_scan_opt_node = child_node.node.clone();
-                                    new_scan_opt_node.plan_node = std::sync::Arc::new(new_scan_node);
+                                    new_scan_opt_node.plan_node =
+                                        std::sync::Arc::new(new_scan_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
-                                    if let Some(remaining_condition) = split_result.remaining_condition {
+                                    if let Some(remaining_condition) =
+                                        split_result.remaining_condition
+                                    {
                                         let mut new_filter_node = filter_plan_node.clone();
                                         new_filter_node.condition = remaining_condition;
                                         // new_filter_node.deps = vec![new_scan_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
-                                        new_filter_opt_node.dependencies = vec![new_scan_opt_node.id];
+                                        new_filter_opt_node.plan_node =
+                                            std::sync::Arc::new(new_filter_node);
+                                        new_filter_opt_node.dependencies =
+                                            vec![new_scan_opt_node.id];
 
                                         Ok(Some(new_filter_opt_node))
                                     } else {
@@ -95,11 +110,15 @@ impl OptRule for FilterPushDownRule {
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有过滤条件的新索引扫描节点
-                                if let Some(index_scan_node) = child_node.plan_node().as_any().downcast_ref::<IndexScan>() {
+                                if let Some(index_scan_node) =
+                                    child_node.plan_node().as_any().downcast_ref::<IndexScan>()
+                                {
                                     let mut new_index_scan_node = index_scan_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
-                                    let new_filter = if let Some(existing_filter) = &new_index_scan_node.filter {
+                                    let new_filter = if let Some(existing_filter) =
+                                        &new_index_scan_node.filter
+                                    {
                                         combine_conditions(&pushable_condition, existing_filter)
                                     } else {
                                         pushable_condition
@@ -109,17 +128,22 @@ impl OptRule for FilterPushDownRule {
 
                                     // 创建带有修改后索引扫描节点的新OptGroupNode
                                     let mut new_index_scan_opt_node = child_node.node.clone();
-                                    new_index_scan_opt_node.plan_node = std::sync::Arc::new(new_index_scan_node);
+                                    new_index_scan_opt_node.plan_node =
+                                        std::sync::Arc::new(new_index_scan_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
-                                    if let Some(remaining_condition) = split_result.remaining_condition {
+                                    if let Some(remaining_condition) =
+                                        split_result.remaining_condition
+                                    {
                                         let mut new_filter_node = filter_plan_node.clone();
                                         new_filter_node.condition = remaining_condition;
                                         // new_filter_node.deps = vec![new_index_scan_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
-                                        new_filter_opt_node.dependencies = vec![new_index_scan_opt_node.id];
+                                        new_filter_opt_node.plan_node =
+                                            std::sync::Arc::new(new_filter_node);
+                                        new_filter_opt_node.dependencies =
+                                            vec![new_index_scan_opt_node.id];
 
                                         Ok(Some(new_filter_opt_node))
                                     } else {
@@ -141,31 +165,39 @@ impl OptRule for FilterPushDownRule {
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有过滤条件的新遍历节点
-                                if let Some(traverse_node) = child_node.plan_node().as_any().downcast_ref::<Traverse>() {
+                                if let Some(traverse_node) =
+                                    child_node.plan_node().as_any().downcast_ref::<Traverse>()
+                                {
                                     let mut new_traverse_node = traverse_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
-                                    let new_filter = if let Some(existing_filter) = &new_traverse_node.filter {
-                                        combine_conditions(&pushable_condition, existing_filter)
-                                    } else {
-                                        pushable_condition
-                                    };
+                                    let new_filter =
+                                        if let Some(existing_filter) = &new_traverse_node.filter {
+                                            combine_conditions(&pushable_condition, existing_filter)
+                                        } else {
+                                            pushable_condition
+                                        };
 
                                     new_traverse_node.filter = Some(new_filter);
 
                                     // 创建带有修改后遍历节点的新OptGroupNode
                                     let mut new_traverse_opt_node = child_node.node.clone();
-                                    new_traverse_opt_node.plan_node = std::sync::Arc::new(new_traverse_node);
+                                    new_traverse_opt_node.plan_node =
+                                        std::sync::Arc::new(new_traverse_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
-                                    if let Some(remaining_condition) = split_result.remaining_condition {
+                                    if let Some(remaining_condition) =
+                                        split_result.remaining_condition
+                                    {
                                         let mut new_filter_node = filter_plan_node.clone();
                                         new_filter_node.condition = remaining_condition;
                                         // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
-                                        new_filter_opt_node.dependencies = vec![new_traverse_opt_node.id];
+                                        new_filter_opt_node.plan_node =
+                                            std::sync::Arc::new(new_filter_node);
+                                        new_filter_opt_node.dependencies =
+                                            vec![new_traverse_opt_node.id];
 
                                         Ok(Some(new_filter_opt_node))
                                     } else {
@@ -210,17 +242,23 @@ impl BaseOptRule for FilterPushDownRule {}
 
 impl PushDownRule for FilterPushDownRule {
     fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        matches!(child_kind, 
-            PlanNodeKind::ScanVertices | 
-            PlanNodeKind::ScanEdges |
-            PlanNodeKind::IndexScan |
-            PlanNodeKind::Traverse |
-            PlanNodeKind::GetNeighbors |
-            PlanNodeKind::GetVertices
+        matches!(
+            child_kind,
+            PlanNodeKind::ScanVertices
+                | PlanNodeKind::ScanEdges
+                | PlanNodeKind::IndexScan
+                | PlanNodeKind::Traverse
+                | PlanNodeKind::GetNeighbors
+                | PlanNodeKind::GetVertices
         )
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        _node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建下推后的节点
         // 目前简化实现，返回None
         Ok(None)
@@ -253,40 +291,49 @@ impl OptRule for PushFilterDownTraverseRule {
 
                 if child.plan_node().kind() == PlanNodeKind::Traverse {
                     // 将过滤条件下推到遍历操作
-                    if let Some(filter_plan_node) = node.plan_node.as_any().downcast_ref::<FilterPlanNode>() {
+                    if let Some(filter_plan_node) =
+                        node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                    {
                         let filter_condition = &filter_plan_node.condition;
-                        
+
                         // 分析过滤条件，确定哪些部分可以下推到遍历操作
                         let split_result = can_push_down_to_traverse(filter_condition);
-                        
+
                         if let Some(pushable_condition) = split_result.pushable_condition {
                             // 创建带有下推过滤条件的新遍历节点
-                            if let Some(traverse_node) = child.plan_node().as_any().downcast_ref::<Traverse>() {
+                            if let Some(traverse_node) =
+                                child.plan_node().as_any().downcast_ref::<Traverse>()
+                            {
                                 let mut new_traverse_node = traverse_node.clone();
-                                
+
                                 // 合并现有过滤条件和新的过滤条件
-                                let new_filter = if let Some(existing_filter) = &new_traverse_node.filter {
-                                    combine_conditions(&pushable_condition, existing_filter)
-                                } else {
-                                    pushable_condition
-                                };
-                                
+                                let new_filter =
+                                    if let Some(existing_filter) = &new_traverse_node.filter {
+                                        combine_conditions(&pushable_condition, existing_filter)
+                                    } else {
+                                        pushable_condition
+                                    };
+
                                 new_traverse_node.filter = Some(new_filter);
-                                
+
                                 // 创建带有修改后遍历节点的新OptGroupNode
                                 let mut new_traverse_opt_node = child.node.clone();
-                                new_traverse_opt_node.plan_node = std::sync::Arc::new(new_traverse_node);
-                                
+                                new_traverse_opt_node.plan_node =
+                                    std::sync::Arc::new(new_traverse_node);
+
                                 // 如果有剩余的过滤条件，创建新的过滤节点
-                                if let Some(remaining_condition) = split_result.remaining_condition {
+                                if let Some(remaining_condition) = split_result.remaining_condition
+                                {
                                     let mut new_filter_node = filter_plan_node.clone();
                                     new_filter_node.condition = remaining_condition;
                                     // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
-                                    
+
                                     let mut new_filter_opt_node = node.clone();
-                                    new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
-                                    new_filter_opt_node.dependencies = vec![new_traverse_opt_node.id];
-                                    
+                                    new_filter_opt_node.plan_node =
+                                        std::sync::Arc::new(new_filter_node);
+                                    new_filter_opt_node.dependencies =
+                                        vec![new_traverse_opt_node.id];
+
                                     Ok(Some(new_filter_opt_node))
                                 } else {
                                     // 没有剩余的过滤条件，直接返回遍历节点
@@ -326,7 +373,12 @@ impl PushDownRule for PushFilterDownTraverseRule {
         child_kind == PlanNodeKind::Traverse
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        _node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建下推后的节点
         // 目前简化实现，返回None
         Ok(None)
@@ -359,38 +411,45 @@ impl OptRule for PushFilterDownExpandRule {
 
                 if child.plan_node().kind() == PlanNodeKind::Expand {
                     // 将过滤条件下推到扩展操作
-                    if let Some(filter_plan_node) = node.plan_node.as_any().downcast_ref::<FilterPlanNode>() {
+                    if let Some(filter_plan_node) =
+                        node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                    {
                         let filter_condition = &filter_plan_node.condition;
-                        
+
                         // 分析过滤条件，确定哪些部分可以下推到扩展操作
                         let split_result = can_push_down_to_traverse(filter_condition);
-                        
+
                         if let Some(pushable_condition) = split_result.pushable_condition {
                             // 创建带有下推过滤条件的新扩展节点
-                            if let Some(expand_node) = child.plan_node().as_any().downcast_ref::<Expand>() {
+                            if let Some(expand_node) =
+                                child.plan_node().as_any().downcast_ref::<Expand>()
+                            {
                                 let _new_expand_node = expand_node.clone();
-                                
+
                                 // 扩展节点本身没有filter字段，我们需要创建一个新的过滤节点
                                 // 在实际实现中，可能需要修改扩展节点以支持过滤条件
                                 // 这里我们创建一个新的过滤节点，将扩展节点作为其子节点
                                 let mut new_filter_node = filter_plan_node.clone();
                                 new_filter_node.condition = pushable_condition;
                                 // new_filter_node.deps = vec![child.plan_node().clone()];
-                                
+
                                 let mut new_filter_opt_node = node.clone();
-                                new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
+                                new_filter_opt_node.plan_node =
+                                    std::sync::Arc::new(new_filter_node);
                                 new_filter_opt_node.dependencies = vec![child.node.id];
-                                
+
                                 // 如果有剩余的过滤条件，创建另一个过滤节点
-                                if let Some(remaining_condition) = split_result.remaining_condition {
+                                if let Some(remaining_condition) = split_result.remaining_condition
+                                {
                                     let mut top_filter_node = filter_plan_node.clone();
                                     top_filter_node.condition = remaining_condition;
                                     // top_filter_node.deps = vec![new_filter_opt_node.plan_node.clone()];
-                                    
+
                                     let mut top_filter_opt_node = node.clone();
-                                    top_filter_opt_node.plan_node = std::sync::Arc::new(top_filter_node);
+                                    top_filter_opt_node.plan_node =
+                                        std::sync::Arc::new(top_filter_node);
                                     top_filter_opt_node.dependencies = vec![new_filter_opt_node.id];
-                                    
+
                                     Ok(Some(top_filter_opt_node))
                                 } else {
                                     // 没有剩余的过滤条件，直接返回新的过滤节点
@@ -430,7 +489,12 @@ impl PushDownRule for PushFilterDownExpandRule {
         child_kind == PlanNodeKind::Expand
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        _node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建下推后的节点
         // 目前简化实现，返回None
         Ok(None)
@@ -488,7 +552,12 @@ impl PushDownRule for PushFilterDownHashInnerJoinRule {
         child_kind == PlanNodeKind::HashInnerJoin
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        _node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建下推后的节点
         // 目前简化实现，返回None
         Ok(None)
@@ -546,7 +615,12 @@ impl PushDownRule for PushFilterDownHashLeftJoinRule {
         child_kind == PlanNodeKind::HashLeftJoin
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        _node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建下推后的节点
         // 目前简化实现，返回None
         Ok(None)
@@ -604,7 +678,12 @@ impl PushDownRule for PushFilterDownInnerJoinRule {
         child_kind == PlanNodeKind::InnerJoin
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        _node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建下推后的节点
         // 目前简化实现，返回None
         Ok(None)
@@ -638,40 +717,51 @@ impl OptRule for PredicatePushDownRule {
                 match child.plan_node().kind() {
                     PlanNodeKind::ScanVertices => {
                         // 将谓词下推到扫描操作
-                        if let Some(filter_plan_node) = node.plan_node.as_any().downcast_ref::<FilterPlanNode>() {
+                        if let Some(filter_plan_node) =
+                            node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                        {
                             let filter_condition = &filter_plan_node.condition;
-                            
+
                             // 分析过滤条件，确定哪些部分可以下推到扫描操作
                             let split_result = can_push_down_to_scan(filter_condition);
-                            
+
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有下推谓词的新扫描节点
-                                if let Some(scan_node) = child.plan_node().as_any().downcast_ref::<ScanVertices>() {
+                                if let Some(scan_node) =
+                                    child.plan_node().as_any().downcast_ref::<ScanVertices>()
+                                {
                                     let mut new_scan_node = scan_node.clone();
-                                    
+
                                     // 合并现有过滤条件和新的谓词
-                                    let new_filter = if let Some(existing_filter) = &new_scan_node.vertex_filter {
+                                    let new_filter = if let Some(existing_filter) =
+                                        &new_scan_node.vertex_filter
+                                    {
                                         combine_conditions(&pushable_condition, existing_filter)
                                     } else {
                                         pushable_condition
                                     };
-                                    
+
                                     new_scan_node.vertex_filter = Some(new_filter);
-                                    
+
                                     // 创建带有修改后扫描节点的新OptGroupNode
                                     let mut new_scan_opt_node = child.node.clone();
-                                    new_scan_opt_node.plan_node = std::sync::Arc::new(new_scan_node);
-                                    
+                                    new_scan_opt_node.plan_node =
+                                        std::sync::Arc::new(new_scan_node);
+
                                     // 如果有剩余的过滤条件，创建新的过滤节点
-                                    if let Some(remaining_condition) = split_result.remaining_condition {
+                                    if let Some(remaining_condition) =
+                                        split_result.remaining_condition
+                                    {
                                         let mut new_filter_node = filter_plan_node.clone();
                                         new_filter_node.condition = remaining_condition;
                                         // new_filter_node.deps = vec![new_scan_opt_node.plan_node.clone()];
-                                        
+
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
-                                        new_filter_opt_node.dependencies = vec![new_scan_opt_node.id];
-                                        
+                                        new_filter_opt_node.plan_node =
+                                            std::sync::Arc::new(new_filter_node);
+                                        new_filter_opt_node.dependencies =
+                                            vec![new_scan_opt_node.id];
+
                                         Ok(Some(new_filter_opt_node))
                                     } else {
                                         // 没有剩余的过滤条件，直接返回扫描节点
@@ -691,40 +781,51 @@ impl OptRule for PredicatePushDownRule {
                     }
                     PlanNodeKind::ScanEdges => {
                         // 类似地处理边扫描
-                        if let Some(filter_plan_node) = node.plan_node.as_any().downcast_ref::<FilterPlanNode>() {
+                        if let Some(filter_plan_node) =
+                            node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                        {
                             let filter_condition = &filter_plan_node.condition;
-                            
+
                             // 分析过滤条件，确定哪些部分可以下推到边扫描操作
                             let split_result = can_push_down_to_scan(filter_condition);
-                            
+
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有下推谓词的新边扫描节点
-                                if let Some(scan_edges_node) = child.plan_node().as_any().downcast_ref::<ScanEdges>() {
+                                if let Some(scan_edges_node) =
+                                    child.plan_node().as_any().downcast_ref::<ScanEdges>()
+                                {
                                     let mut new_scan_edges_node = scan_edges_node.clone();
-                                    
+
                                     // 合并现有过滤条件和新的谓词
-                                    let new_filter = if let Some(existing_filter) = &new_scan_edges_node.filter {
+                                    let new_filter = if let Some(existing_filter) =
+                                        &new_scan_edges_node.filter
+                                    {
                                         combine_conditions(&pushable_condition, existing_filter)
                                     } else {
                                         pushable_condition
                                     };
-                                    
+
                                     new_scan_edges_node.filter = Some(new_filter);
-                                    
+
                                     // 创建带有修改后边扫描节点的新OptGroupNode
                                     let mut new_scan_edges_opt_node = child.node.clone();
-                                    new_scan_edges_opt_node.plan_node = std::sync::Arc::new(new_scan_edges_node);
-                                    
+                                    new_scan_edges_opt_node.plan_node =
+                                        std::sync::Arc::new(new_scan_edges_node);
+
                                     // 如果有剩余的过滤条件，创建新的过滤节点
-                                    if let Some(remaining_condition) = split_result.remaining_condition {
+                                    if let Some(remaining_condition) =
+                                        split_result.remaining_condition
+                                    {
                                         let mut new_filter_node = filter_plan_node.clone();
                                         new_filter_node.condition = remaining_condition;
                                         // new_filter_node.deps = vec![new_scan_edges_opt_node.plan_node.clone()];
-                                        
+
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
-                                        new_filter_opt_node.dependencies = vec![new_scan_edges_opt_node.id];
-                                        
+                                        new_filter_opt_node.plan_node =
+                                            std::sync::Arc::new(new_filter_node);
+                                        new_filter_opt_node.dependencies =
+                                            vec![new_scan_edges_opt_node.id];
+
                                         Ok(Some(new_filter_opt_node))
                                     } else {
                                         // 没有剩余的过滤条件，直接返回边扫描节点
@@ -744,40 +845,51 @@ impl OptRule for PredicatePushDownRule {
                     }
                     PlanNodeKind::IndexScan => {
                         // 类似地处理索引扫描
-                        if let Some(filter_plan_node) = node.plan_node.as_any().downcast_ref::<FilterPlanNode>() {
+                        if let Some(filter_plan_node) =
+                            node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                        {
                             let filter_condition = &filter_plan_node.condition;
-                            
+
                             // 分析过滤条件，确定哪些部分可以下推到索引扫描操作
                             let split_result = can_push_down_to_scan(filter_condition);
-                            
+
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有下推谓词的新索引扫描节点
-                                if let Some(index_scan_node) = child.plan_node().as_any().downcast_ref::<IndexScan>() {
+                                if let Some(index_scan_node) =
+                                    child.plan_node().as_any().downcast_ref::<IndexScan>()
+                                {
                                     let mut new_index_scan_node = index_scan_node.clone();
-                                    
+
                                     // 合并现有过滤条件和新的谓词
-                                    let new_filter = if let Some(existing_filter) = &new_index_scan_node.filter {
+                                    let new_filter = if let Some(existing_filter) =
+                                        &new_index_scan_node.filter
+                                    {
                                         combine_conditions(&pushable_condition, existing_filter)
                                     } else {
                                         pushable_condition
                                     };
-                                    
+
                                     new_index_scan_node.filter = Some(new_filter);
-                                    
+
                                     // 创建带有修改后索引扫描节点的新OptGroupNode
                                     let mut new_index_scan_opt_node = child.node.clone();
-                                    new_index_scan_opt_node.plan_node = std::sync::Arc::new(new_index_scan_node);
-                                    
+                                    new_index_scan_opt_node.plan_node =
+                                        std::sync::Arc::new(new_index_scan_node);
+
                                     // 如果有剩余的过滤条件，创建新的过滤节点
-                                    if let Some(remaining_condition) = split_result.remaining_condition {
+                                    if let Some(remaining_condition) =
+                                        split_result.remaining_condition
+                                    {
                                         let mut new_filter_node = filter_plan_node.clone();
                                         new_filter_node.condition = remaining_condition;
                                         // new_filter_node.deps = vec![new_index_scan_opt_node.plan_node.clone()];
-                                        
+
                                         let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node = std::sync::Arc::new(new_filter_node);
-                                        new_filter_opt_node.dependencies = vec![new_index_scan_opt_node.id];
-                                        
+                                        new_filter_opt_node.plan_node =
+                                            std::sync::Arc::new(new_filter_node);
+                                        new_filter_opt_node.dependencies =
+                                            vec![new_index_scan_opt_node.id];
+
                                         Ok(Some(new_filter_opt_node))
                                     } else {
                                         // 没有剩余的过滤条件，直接返回索引扫描节点
@@ -814,14 +926,18 @@ impl BaseOptRule for PredicatePushDownRule {}
 
 impl PushDownRule for PredicatePushDownRule {
     fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        matches!(child_kind, 
-            PlanNodeKind::ScanVertices | 
-            PlanNodeKind::ScanEdges |
-            PlanNodeKind::IndexScan
+        matches!(
+            child_kind,
+            PlanNodeKind::ScanVertices | PlanNodeKind::ScanEdges | PlanNodeKind::IndexScan
         )
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        _node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建下推后的节点
         // 目前简化实现，返回None
         Ok(None)
@@ -906,9 +1022,7 @@ fn can_push_down_to_traverse(condition: &str) -> FilterSplitResult {
 
 // 尝试解析过滤条件为表达式
 #[allow(unused_variables)]
-fn parse_filter_condition(
-    condition: &str,
-) -> Result<crate::graph::expression::Expression, String> {
+fn parse_filter_condition(condition: &str) -> Result<crate::graph::expression::Expression, String> {
     // 这里应该使用表达式解析器，但为了简化，我们使用一个简单的实现
     // 在实际实现中，应该使用完整的表达式解析器
     Err("Expression parser not implemented".to_string())
@@ -985,9 +1099,7 @@ fn analyze_expression_for_traverse(
 }
 
 // 检查表达式是否可以下推到扫描操作
-fn can_push_down_expression_to_scan(
-    expr: &crate::graph::expression::Expression,
-) -> bool {
+fn can_push_down_expression_to_scan(expr: &crate::graph::expression::Expression) -> bool {
     // 检查表达式是否可以下推到扫描操作
     match expr {
         crate::graph::expression::Expression::TagProperty { .. } => true,
@@ -1007,9 +1119,7 @@ fn can_push_down_expression_to_scan(
 }
 
 // 检查表达式是否可以下推到遍历操作
-fn can_push_down_expression_to_traverse(
-    expr: &crate::graph::expression::Expression,
-) -> bool {
+fn can_push_down_expression_to_traverse(expr: &crate::graph::expression::Expression) -> bool {
     // 检查表达式是否可以下推到遍历操作
     match expr {
         crate::graph::expression::Expression::SourceProperty { .. } => true,
@@ -1034,7 +1144,7 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::{Filter, ScanVertices, Traverse, Expand};
+    use crate::query::planner::plan::{Expand, Filter, ScanVertices, Traverse};
     use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
     fn create_test_context() -> OptContext {

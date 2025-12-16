@@ -9,11 +9,11 @@
 
 pub mod base_join;
 pub mod cross_join;
+pub mod full_outer_join;
 pub mod hash_table;
 pub mod inner_join;
 pub mod left_join;
 pub mod right_join;
-pub mod full_outer_join;
 
 // 重新导出主要类型
 pub use base_join::{
@@ -21,6 +21,7 @@ pub use base_join::{
     LeftJoinOperation,
 };
 pub use cross_join::CrossJoinExecutor;
+pub use full_outer_join::FullOuterJoinExecutor;
 pub use hash_table::{
     HashTableBuilder, HashTableProbe, HashTableStats, JoinKey, MultiKeyHashTable,
     SingleKeyHashTable,
@@ -28,7 +29,6 @@ pub use hash_table::{
 pub use inner_join::{HashInnerJoinExecutor, InnerJoinExecutor};
 pub use left_join::{HashLeftJoinExecutor, LeftJoinExecutor};
 pub use right_join::RightJoinExecutor;
-pub use full_outer_join::FullOuterJoinExecutor;
 
 /// Join操作的类型枚举
 #[derive(Debug, Clone, PartialEq)]
@@ -143,7 +143,8 @@ impl JoinExecutorFactory {
         id: usize,
         storage: std::sync::Arc<std::sync::Mutex<S>>,
         config: JoinConfig,
-    ) -> Result<Box<dyn crate::query::executor::traits::Executor<S>>, crate::query::QueryError> {
+    ) -> Result<Box<dyn crate::query::executor::traits::Executor<S>>, crate::query::QueryError>
+    {
         match config.join_type {
             JoinType::Inner => {
                 if config.enable_parallel {

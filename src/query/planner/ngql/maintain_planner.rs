@@ -1,13 +1,15 @@
 //! 维护操作规划器
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
-use crate::query::context::{AstContext, MaintainContext};
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::context::ast::{AstContext, MaintainContext};
+use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::plan_node_traits::{
+    PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
+};
 use crate::query::planner::plan::PlanNode;
 use crate::query::planner::plan::SubPlan;
-use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::{Project, Argument};
-use crate::query::planner::plan::core::plan_node_traits::{PlanNodeClonable, PlanNodeMutable, PlanNodeDependencies};
+use crate::query::planner::plan::{Argument, Project};
+use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
 
 /// 维护操作规划器
@@ -29,7 +31,9 @@ impl MaintainPlanner {
     /// 检查AST上下文是否匹配维护操作
     pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
         let stmt_type = ast_ctx.statement_type().to_uppercase();
-        stmt_type == "SUBMIT JOB" || stmt_type.starts_with("CREATE") || stmt_type.starts_with("DROP")
+        stmt_type == "SUBMIT JOB"
+            || stmt_type.starts_with("CREATE")
+            || stmt_type.starts_with("DROP")
     }
 
     /// 获取匹配和实例化函数
@@ -44,7 +48,9 @@ impl MaintainPlanner {
 impl Planner for MaintainPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         // 从ast_ctx创建MaintainContext
-        let maintain_ctx = MaintainContext { base: ast_ctx.clone() };
+        let maintain_ctx = MaintainContext {
+            base: ast_ctx.clone(),
+        };
 
         // 实现维护操作的规划逻辑
         println!("Processing MAINTENANCE query planning: {:?}", maintain_ctx);
@@ -54,19 +60,27 @@ impl Planner for MaintainPlanner {
 
         // 1. 创建参数节点来接收操作参数
         let mut arg_node = Arc::new(Argument::new(1, "maintain_args"));
-        std::sync::Arc::get_mut(&mut arg_node).unwrap().set_col_names(vec!["args".to_string()]);
-        std::sync::Arc::get_mut(&mut arg_node).unwrap().set_output_var(Variable {
-            name: "maintain_args".to_string(),
-            columns: vec![],
-        });
+        std::sync::Arc::get_mut(&mut arg_node)
+            .unwrap()
+            .set_col_names(vec!["args".to_string()]);
+        std::sync::Arc::get_mut(&mut arg_node)
+            .unwrap()
+            .set_output_var(Variable {
+                name: "maintain_args".to_string(),
+                columns: vec![],
+            });
 
         // 2. 根据不同类型创建相应的计划节点
         let mut project_node = Arc::new(Project::new(2, &format!("MAINTAIN_{}", stmt_type)));
-        std::sync::Arc::get_mut(&mut project_node).unwrap().add_dependency(arg_node.clone_plan_node());
-        std::sync::Arc::get_mut(&mut project_node).unwrap().set_output_var(Variable {
-            name: "maintain_result".to_string(),
-            columns: vec![],
-        });
+        std::sync::Arc::get_mut(&mut project_node)
+            .unwrap()
+            .add_dependency(arg_node.clone_plan_node());
+        std::sync::Arc::get_mut(&mut project_node)
+            .unwrap()
+            .set_output_var(Variable {
+                name: "maintain_result".to_string(),
+                columns: vec![],
+            });
 
         // 3. 不同类型的操作可能需要不同处理
         let final_node: Arc<dyn PlanNode> = if stmt_type == "SUBMIT JOB" {

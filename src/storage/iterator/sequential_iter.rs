@@ -8,7 +8,7 @@ use crate::core::Value;
 use std::sync::Arc;
 
 /// 顺序迭代器
-/// 
+///
 /// 用于遍历DataSet行，支持：
 /// - 行遍历：next、valid、reset
 /// - 行删除：erase（有序）、unstable_erase（快速）
@@ -16,18 +16,18 @@ use std::sync::Arc;
 /// - 列访问：get_column、get_column_by_index
 #[derive(Debug, Clone)]
 pub struct SequentialIter {
-    data: Arc<Value>,        // 原始DataSet值的引用
-    rows: Vec<Row>,           // 当前行数据（可能被修改）
-    col_names: Vec<String>,   // 列名
-    curr_pos: usize,          // 当前位置
+    data: Arc<Value>,       // 原始DataSet值的引用
+    rows: Vec<Row>,         // 当前行数据（可能被修改）
+    col_names: Vec<String>, // 列名
+    curr_pos: usize,        // 当前位置
 }
 
 impl SequentialIter {
     /// 创建新的顺序迭代器
-    /// 
+    ///
     /// # 参数
     /// - `data`: DataSet值的Arc指针
-    /// 
+    ///
     /// # 返回
     /// - Ok(SequentialIter): 创建成功
     /// - Err(String): 如果data不是DataSet则返回错误
@@ -257,7 +257,7 @@ mod tests {
         // 检查初始状态
         assert_eq!(iter.curr_pos(), 0);
         assert!(iter.valid());
-        
+
         // 移动到第二行
         iter.next();
         assert_eq!(iter.curr_pos(), 1);
@@ -367,7 +367,7 @@ mod tests {
         // 拷贝应该有相同的状态
         assert_eq!(copy.is_empty(), iter.is_empty());
         assert_eq!(copy.size(), iter.size());
-        
+
         // 修改原迭代器不应该影响拷贝
         iter.next();
         assert_eq!(copy.size(), iter.size());
@@ -431,11 +431,11 @@ mod tests {
         let mut iter = SequentialIter::new(data).unwrap();
 
         assert_eq!(iter.size(), 3);
-        
+
         // 快速删除第一行
         iter.unstable_erase();
         assert_eq!(iter.size(), 2);
-        
+
         // 由于是交换删除，顺序可能改变
         // 检查确实删除了一行
         assert_ne!(iter.size(), 3);

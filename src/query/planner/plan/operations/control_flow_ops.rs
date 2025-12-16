@@ -1,11 +1,14 @@
 //! 控制流操作节点
 //! 包含Start、Argument、Select、Loop等控制流相关的计划节点
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 /// Start节点 - 一个特殊的叶子节点，帮助调度器正常工作
@@ -259,7 +262,7 @@ pub struct StartNode {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub output_var_name: Option<String>,  // 逻辑节点的特有属性
+    pub output_var_name: Option<String>, // 逻辑节点的特有属性
 }
 
 impl StartNode {
@@ -381,8 +384,8 @@ pub struct ArgumentNode {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub alias: String,  // 参数别名
-    pub input_vertex_required: bool,  // 是否需要输入顶点
+    pub alias: String,               // 参数别名
+    pub input_vertex_required: bool, // 是否需要输入顶点
 }
 
 impl ArgumentNode {
@@ -518,7 +521,7 @@ pub struct BinarySelectNode {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub condition: String,  // 选择条件
+    pub condition: String, // 选择条件
 }
 
 impl BinarySelectNode {
@@ -642,7 +645,7 @@ pub struct SelectNode {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub condition: String,
-    pub if_branch: Option<Arc<dyn PlanNode>>,  // IF分支
+    pub if_branch: Option<Arc<dyn PlanNode>>,   // IF分支
     pub else_branch: Option<Arc<dyn PlanNode>>, // ELSE分支
 }
 
@@ -787,7 +790,7 @@ pub struct LoopNode {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub condition: String,
-    pub body: Option<Arc<dyn PlanNode>>,  // 循环体
+    pub body: Option<Arc<dyn PlanNode>>, // 循环体
 }
 
 impl LoopNode {

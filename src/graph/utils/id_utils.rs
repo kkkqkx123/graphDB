@@ -21,10 +21,10 @@ mod tests {
     fn test_generate_id() {
         let id1 = generate_id();
         let id2 = generate_id();
-        
+
         // IDs should be different
         assert_ne!(id1, id2);
-        
+
         // IDs should be valid
         assert!(is_valid_id(id1));
         assert!(is_valid_id(id2));

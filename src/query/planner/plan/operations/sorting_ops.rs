@@ -1,11 +1,14 @@
 //! 排序和限制操作节点
 //! 包含Sort、Limit、TopN等排序和限制相关的计划节点
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 // 排序节点
@@ -142,8 +145,8 @@ pub struct Limit {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub offset: i64,  // 偏移量
-    pub count: i64,   // 计数
+    pub offset: i64, // 偏移量
+    pub count: i64,  // 计数
 }
 
 impl Limit {
@@ -396,7 +399,7 @@ pub struct Sample {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub count: i64,  // 采样数量
+    pub count: i64, // 采样数量
 }
 
 impl Sample {

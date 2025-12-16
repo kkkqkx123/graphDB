@@ -1,9 +1,9 @@
+use crate::core::{Edge, Path, Value, Vertex};
+use crate::storage::StorageEngine;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::time;
-use crate::core::{Value, Vertex, Edge, Path};
-use crate::storage::StorageEngine;
 
 /// Global context for the graph database
 pub struct GraphContext<S: StorageEngine> {
@@ -49,31 +49,31 @@ impl Metrics {
             total_execution_time_ms: 0,
         }
     }
-    
+
     pub fn increment_vertices_created(&mut self) {
         self.vertices_created += 1;
     }
-    
+
     pub fn increment_edges_created(&mut self) {
         self.edges_created += 1;
     }
-    
+
     pub fn increment_vertices_read(&mut self) {
         self.vertices_read += 1;
     }
-    
+
     pub fn increment_edges_read(&mut self) {
         self.edges_read += 1;
     }
-    
+
     pub fn increment_queries_executed(&mut self) {
         self.queries_executed += 1;
     }
-    
+
     pub fn increment_errors_occurred(&mut self) {
         self.errors_occurred += 1;
     }
-    
+
     pub fn add_execution_time(&mut self, time_ms: u64) {
         self.total_execution_time_ms += time_ms;
     }
@@ -103,12 +103,12 @@ impl ExecutionContext {
             variables: HashMap::new(),
         }
     }
-    
+
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
     }
-    
+
     pub fn check_timeout(&self) -> Result<(), String> {
         match self.start_time.elapsed() {
             Ok(elapsed) => {
@@ -117,7 +117,7 @@ impl ExecutionContext {
                 } else {
                     Ok(())
                 }
-            },
+            }
             Err(_) => Err("Error checking elapsed time".to_string()),
         }
     }
@@ -133,7 +133,7 @@ impl<S: StorageEngine> GraphContext<S> {
             execution_context: Arc::new(Mutex::new(ExecutionContext::new("default".to_string()))),
         }
     }
-    
+
     pub fn with_execution_context(&self, execution_context: ExecutionContext) -> Self {
         Self {
             config: self.config.clone(),
@@ -143,60 +143,60 @@ impl<S: StorageEngine> GraphContext<S> {
             execution_context: Arc::new(Mutex::new(execution_context)),
         }
     }
-    
+
     pub fn increment_vertices_created(&self) {
         let mut metrics = self.metrics.lock().unwrap();
         metrics.increment_vertices_created();
     }
-    
+
     pub fn increment_edges_created(&self) {
         let mut metrics = self.metrics.lock().unwrap();
         metrics.increment_edges_created();
     }
-    
+
     pub fn increment_vertices_read(&self) {
         let mut metrics = self.metrics.lock().unwrap();
         metrics.increment_vertices_read();
     }
-    
+
     pub fn increment_edges_read(&self) {
         let mut metrics = self.metrics.lock().unwrap();
         metrics.increment_edges_read();
     }
-    
+
     pub fn increment_queries_executed(&self) {
         let mut metrics = self.metrics.lock().unwrap();
         metrics.increment_queries_executed();
     }
-    
+
     pub fn increment_errors_occurred(&self) {
         let mut metrics = self.metrics.lock().unwrap();
         metrics.increment_errors_occurred();
     }
-    
+
     pub fn add_execution_time(&self, time_ms: u64) {
         let mut metrics = self.metrics.lock().unwrap();
         metrics.add_execution_time(time_ms);
     }
-    
+
     /// Get a session variable
     pub fn get_session_var(&self, key: &str) -> Option<Value> {
         let vars = self.session_vars.lock().unwrap();
         vars.get(key).cloned()
     }
-    
+
     /// Set a session variable
     pub fn set_session_var(&self, key: String, value: Value) {
         let mut vars = self.session_vars.lock().unwrap();
         vars.insert(key, value);
     }
-    
+
     /// Remove a session variable
     pub fn remove_session_var(&self, key: &str) -> Option<Value> {
         let mut vars = self.session_vars.lock().unwrap();
         vars.remove(key)
     }
-    
+
     /// Wait for the context to be ready or timeout
     pub async fn wait_ready(&self, timeout: Duration) -> Result<(), String> {
         let start = std::time::Instant::now();
@@ -227,7 +227,7 @@ mod tests {
         let mut metrics = Metrics::new();
         metrics.increment_vertices_created();
         metrics.increment_edges_created();
-        
+
         assert_eq!(metrics.vertices_created, 1);
         assert_eq!(metrics.edges_created, 1);
     }
@@ -237,16 +237,16 @@ mod tests {
         let config = crate::config::Config::default();
         let storage = NativeStorage::new(config.storage_path.clone()).unwrap();
         let ctx = GraphContext::new(config, storage);
-        
+
         ctx.increment_vertices_created();
         ctx.increment_edges_created();
-        
+
         {
             let metrics = ctx.metrics.lock().unwrap();
             assert_eq!(metrics.vertices_created, 1);
             assert_eq!(metrics.edges_created, 1);
         }
-        
+
         // Test session variables
         ctx.set_session_var("test_key".to_string(), Value::Int(42));
         let value = ctx.get_session_var("test_key");

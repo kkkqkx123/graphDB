@@ -2,20 +2,17 @@
 //! 用于遍历和处理计划树
 
 use super::plan_node_traits::PlanNode as BasePlanNode;
-use crate::query::planner::plan::operations::{
-    GetNeighbors, GetEdges, GetVertices, ScanVertices, ScanEdges,
-    Traverse, AppendVertices, Expand, ExpandAll,
-    Filter, Project, Unwind, DataCollect, RollUpApply, PatternApply, Dedup, Union,
-    Aggregate,
-    Sort, Limit, TopN, Sample,
-    HashJoin, HashLeftJoin, HashInnerJoin, CrossJoin,
-    Start, Argument, StartNode, ArgumentNode,
-};
+use crate::query::planner::plan::algorithms::{FulltextIndexScan, IndexScan};
 use crate::query::planner::plan::management::dml::{
-    InsertVertices, InsertEdges, UpdateVertex, UpdateEdge, DeleteVertices, DeleteEdges, DeleteTags,
-    NewVertex, NewTag, NewProp, NewEdge,
+    DeleteEdges, DeleteTags, DeleteVertices, InsertEdges, InsertVertices, NewEdge, NewProp, NewTag,
+    NewVertex, UpdateEdge, UpdateVertex,
 };
-use crate::query::planner::plan::algorithms::{IndexScan, FulltextIndexScan};
+use crate::query::planner::plan::operations::{
+    Aggregate, AppendVertices, Argument, ArgumentNode, CrossJoin, DataCollect, Dedup, Expand,
+    ExpandAll, Filter, GetEdges, GetNeighbors, GetVertices, HashInnerJoin, HashJoin, HashLeftJoin,
+    Limit, PatternApply, Project, RollUpApply, Sample, ScanEdges, ScanVertices, Sort, Start,
+    StartNode, TopN, Traverse, Union, Unwind,
+};
 use std::fmt;
 
 /// 计划节点访问者特征

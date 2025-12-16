@@ -1,6 +1,8 @@
 use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
 use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
-use crate::query::executor::data_processing::graph_traversal::shortest_path::{ShortestPathAlgorithm, ShortestPathExecutor};
+use crate::query::executor::data_processing::graph_traversal::shortest_path::{
+    ShortestPathAlgorithm, ShortestPathExecutor,
+};
 use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
 
 /// 图遍历执行器工厂

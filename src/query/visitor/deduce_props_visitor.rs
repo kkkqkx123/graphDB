@@ -423,7 +423,11 @@ impl DeducePropsVisitor {
                 // 类型转换表达式
                 self.visit(expr)
             }
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 // 范围访问
                 self.visit(collection)?;
                 if let Some(start_expr) = start {
@@ -441,12 +445,12 @@ impl DeducePropsVisitor {
                 }
                 Ok(())
             }
-            }
-            }
+        }
+    }
 
-            /// 获取推导出的表达式属性
-            pub fn get_props(&self) -> &ExpressionProps {
-            &self.props
+    /// 获取推导出的表达式属性
+    pub fn get_props(&self) -> &ExpressionProps {
+        &self.props
     }
 
     /// 获取可变的表达式属性引用

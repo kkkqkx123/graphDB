@@ -1,6 +1,6 @@
 use crate::core::{NullType, Tag, Value, Vertex};
+use crate::query::types::{Condition, Query, QueryError, QueryResult};
 use crate::storage::{StorageEngine, StorageError};
-use crate::query::types::{Query, QueryError, QueryResult, Condition};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

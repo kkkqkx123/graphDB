@@ -2,8 +2,8 @@
 //! 这些规则负责优化扫描操作，如带过滤条件的扫描和索引全扫描优化
 
 use super::optimizer::OptimizerError;
-use super::rule_traits::{BaseOptRule};
 use super::rule_patterns::PatternBuilder;
+use super::rule_traits::BaseOptRule;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::PlanNodeKind;
 
@@ -27,8 +27,8 @@ impl OptRule for IndexFullScanRule {
         }
 
         // 在完整实现中，这会确定何时从索引扫描切换到全扫描
-         // 基于估计的选择性、数据分布等
-         if let Some(_matched) = self.match_pattern(ctx, node)? {
+        // 基于估计的选择性、数据分布等
+        if let Some(_matched) = self.match_pattern(ctx, node)? {
             // 从索引扫描切换到全扫描的决策将基于：
             // - 索引条件的选择性
             // - 表的大小
@@ -62,7 +62,9 @@ impl OptRule for ScanWithFilterOptimizationRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为扫描操作
-        if node.plan_node.kind() != PlanNodeKind::ScanVertices && node.plan_node.kind() != PlanNodeKind::ScanEdges {
+        if node.plan_node.kind() != PlanNodeKind::ScanVertices
+            && node.plan_node.kind() != PlanNodeKind::ScanEdges
+        {
             return Ok(None);
         }
 
@@ -74,7 +76,7 @@ impl OptRule for ScanWithFilterOptimizationRule {
                     if dep.plan_node().kind() == PlanNodeKind::Filter {
                         // 在完整实现中，我们会将过滤条件合并到扫描中
                         // 以减少处理的行数
-                        break;  // 只检查是否有过滤
+                        break; // 只检查是否有过滤
                     }
                 }
                 Ok(Some(node.clone()))
@@ -110,7 +112,8 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个扫描节点（作为索引扫描的占位符）
-        let scan_node = std::sync::Arc::new(ScanVertices::new(1, 0)) as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
+        let scan_node = std::sync::Arc::new(ScanVertices::new(1, 0))
+            as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -124,7 +127,8 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个扫描顶点节点
-        let scan_node = std::sync::Arc::new(ScanVertices::new(1, 0)) as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
+        let scan_node = std::sync::Arc::new(ScanVertices::new(1, 0))
+            as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, scan_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

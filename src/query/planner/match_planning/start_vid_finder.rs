@@ -3,8 +3,7 @@
 //! 负责在查询规划中找到起始顶点
 
 use crate::query::validator::structs::{
-    CypherClauseContext, MatchClauseContext,
-    path_structs::NodeInfo,
+    path_structs::NodeInfo, CypherClauseContext, MatchClauseContext,
 };
 
 /// 起始顶点ID查找器
@@ -73,7 +72,7 @@ impl StartVidFinder {
     /// 查找最优起始顶点
     pub fn find_best_start_vid(&self, clause_ctx: &CypherClauseContext) -> Option<String> {
         let start_vids = self.find_start_vids(clause_ctx);
-        
+
         if start_vids.is_empty() {
             return None;
         }

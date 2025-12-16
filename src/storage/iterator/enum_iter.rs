@@ -6,7 +6,7 @@ use super::{Iterator, IteratorKind, Row};
 use crate::core::Value;
 
 /// 迭代器枚举类型
-/// 
+///
 /// 替代 `Box<dyn Iterator>` 的枚举实现
 /// 消除动态分发开销，提供更好的性能
 #[derive(Debug, Clone)]
@@ -310,31 +310,31 @@ mod tests {
         assert_eq!(copy.kind(), IteratorKind::Default);
         assert!(copy.valid());
     }
-    
+
     #[cfg(all(test, not(debug_assertions)))]
     mod benches {
         use super::*;
         use std::sync::Arc;
         use std::time::Instant;
-    
+
         #[test]
         fn bench_iterator_copy_comparison() {
             // 测试枚举迭代器 vs Box<dyn Iterator> 的性能
             let value = Arc::new(Value::Int(42));
             let iter = IteratorEnum::Default(DefaultIter::new(value.clone()));
-            
+
             // 预热
             for _ in 0..1000 {
                 let _copy = iter.copy();
             }
-            
+
             // 基准测试：枚举迭代器
             let start = Instant::now();
             for _ in 0..100000 {
                 let _copy = iter.copy();
             }
             let enum_duration = start.elapsed();
-            
+
             // 基准测试：Box<dyn Iterator>（通过 to_boxed 方法）
             let boxed = iter.to_boxed();
             let start = Instant::now();
@@ -342,25 +342,28 @@ mod tests {
                 let _copy = boxed.copy();
             }
             let boxed_duration = start.elapsed();
-            
+
             println!("枚举迭代器 copy 时间: {:?}", enum_duration);
             println!("Box<dyn Iterator> copy 时间: {:?}", boxed_duration);
-            println!("性能提升: {:.2}x", boxed_duration.as_nanos() as f64 / enum_duration.as_nanos() as f64);
-            
+            println!(
+                "性能提升: {:.2}x",
+                boxed_duration.as_nanos() as f64 / enum_duration.as_nanos() as f64
+            );
+
             // 枚举迭代器应该更快
             assert!(enum_duration < boxed_duration);
         }
-    
+
         #[test]
         fn bench_iterator_enum_creation() {
             let value = Arc::new(Value::Int(42));
-            
+
             let start = Instant::now();
             for _ in 0..100000 {
                 let _iter = IteratorEnum::Default(DefaultIter::new(value.clone()));
             }
             let duration = start.elapsed();
-            
+
             println!("创建 100,000 个枚举迭代器: {:?}", duration);
             println!("平均每个: {:?}", duration / 100000);
         }

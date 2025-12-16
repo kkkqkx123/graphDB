@@ -1,19 +1,18 @@
 // Re-export all executor modules
-pub mod traits;
 pub mod base;
 pub mod data_access;
-pub mod data_processing;
 pub mod data_modification;
+pub mod data_processing;
 pub mod result_processing;
+pub mod traits;
 
 // Re-export the new trait types
 pub use traits::{
-    ExecutorCore, ExecutorLifecycle, ExecutorMetadata, Executor,
-    ExecutionResult, BaseExecutor as NewBaseExecutor
+    BaseExecutor as NewBaseExecutor, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle,
+    ExecutorMetadata,
 };
 
 // Re-export the base types
 pub use base::{
-    ExecutionContext, BaseExecutor,
-    InputExecutor, ChainableExecutor, EdgeDirection, StartExecutor
+    BaseExecutor, ChainableExecutor, EdgeDirection, ExecutionContext, InputExecutor, StartExecutor,
 };

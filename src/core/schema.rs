@@ -1,5 +1,5 @@
-use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 /// Schema definition for node labels and edge types
 #[derive(Debug, Clone, Serialize, Deserialize)]

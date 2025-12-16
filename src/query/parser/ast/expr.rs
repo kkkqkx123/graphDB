@@ -2,8 +2,8 @@
 //!
 //! 基于枚举的简化表达式定义，消除动态分发开销。
 
-use crate::core::Value;
 use super::types::*;
+use crate::core::Value;
 
 /// 表达式枚举 - 核心 AST 节点
 #[derive(Debug, Clone, PartialEq)]
@@ -38,7 +38,7 @@ impl Expr {
             Expr::Predicate(e) => e.span,
         }
     }
-    
+
     /// 检查表达式是否为常量
     pub fn is_constant(&self) -> bool {
         match self {
@@ -48,10 +48,14 @@ impl Expr {
             Expr::List(e) => e.elements.iter().all(|elem| elem.is_constant()),
             Expr::Map(e) => e.pairs.iter().all(|(_, value)| value.is_constant()),
             Expr::Case(e) => {
-                let match_constant = e.match_expr.as_ref().map_or(true, |expr| expr.is_constant());
-                let when_constant = e.when_then_pairs.iter().all(|(when, then)| {
-                    when.is_constant() && then.is_constant()
-                });
+                let match_constant = e
+                    .match_expr
+                    .as_ref()
+                    .map_or(true, |expr| expr.is_constant());
+                let when_constant = e
+                    .when_then_pairs
+                    .iter()
+                    .all(|(when, then)| when.is_constant() && then.is_constant());
                 let default_constant = e.default.as_ref().map_or(true, |expr| expr.is_constant());
                 match_constant && when_constant && default_constant
             }
@@ -59,20 +63,27 @@ impl Expr {
             _ => false,
         }
     }
-    
+
     /// 获取表达式的字符串表示
     pub fn to_string(&self) -> String {
         match self {
             Expr::Constant(e) => format!("{:?}", e.value),
             Expr::Variable(e) => e.name.clone(),
-            Expr::Binary(e) => format!("({} {} {})", e.left.to_string(), e.op.to_string(), e.right.to_string()),
+            Expr::Binary(e) => format!(
+                "({} {} {})",
+                e.left.to_string(),
+                e.op.to_string(),
+                e.right.to_string()
+            ),
             Expr::Unary(e) => format!("{} {}", e.op.to_string(), e.operand.to_string()),
             Expr::FunctionCall(e) => {
-                let args_str = e.args.iter()
+                let args_str = e
+                    .args
+                    .iter()
                     .map(|arg| arg.to_string())
                     .collect::<Vec<_>>()
                     .join(", ");
-                
+
                 if e.distinct {
                     format!("{}(DISTINCT {})", e.name, args_str)
                 } else {
@@ -81,14 +92,18 @@ impl Expr {
             }
             Expr::PropertyAccess(e) => format!("{}.{}", e.object.to_string(), e.property),
             Expr::List(e) => {
-                let elements_str = e.elements.iter()
+                let elements_str = e
+                    .elements
+                    .iter()
                     .map(|elem| elem.to_string())
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("[{}]", elements_str)
             }
             Expr::Map(e) => {
-                let pairs_str = e.pairs.iter()
+                let pairs_str = e
+                    .pairs
+                    .iter()
                     .map(|(key, value)| format!("{}: {}", key, value.to_string()))
                     .collect::<Vec<_>>()
                     .join(", ");
@@ -96,24 +111,29 @@ impl Expr {
             }
             Expr::Case(e) => {
                 let mut result = String::from("CASE");
-                
+
                 if let Some(ref expr) = e.match_expr {
                     result.push_str(&format!(" {}", expr.to_string()));
                 }
-                
+
                 for (when, then) in &e.when_then_pairs {
-                    result.push_str(&format!(" WHEN {} THEN {}", when.to_string(), then.to_string()));
+                    result.push_str(&format!(
+                        " WHEN {} THEN {}",
+                        when.to_string(),
+                        then.to_string()
+                    ));
                 }
-                
+
                 if let Some(ref default) = e.default {
                     result.push_str(&format!(" ELSE {}", default.to_string()));
                 }
-                
+
                 result.push_str(" END");
                 result
             }
             Expr::Subscript(e) => format!("{}[{}]", e.collection.to_string(), e.index.to_string()),
-            Expr::Predicate(e) => format!("{}(x IN {} WHERE {})", 
+            Expr::Predicate(e) => format!(
+                "{}(x IN {} WHERE {})",
                 e.predicate.to_string(),
                 e.list.to_string(),
                 e.condition.to_string()
@@ -197,7 +217,12 @@ pub struct FunctionCallExpr {
 
 impl FunctionCallExpr {
     pub fn new(name: String, args: Vec<Expr>, distinct: bool, span: Span) -> Self {
-        Self { span, name, args, distinct }
+        Self {
+            span,
+            name,
+            args,
+            distinct,
+        }
     }
 }
 
@@ -264,7 +289,8 @@ impl CaseExpr {
         Self {
             span,
             match_expr: match_expr.map(Box::new),
-            when_then_pairs: when_then_pairs.into_iter()
+            when_then_pairs: when_then_pairs
+                .into_iter()
                 .map(|(when, then)| (Box::new(when), Box::new(then)))
                 .collect(),
             default: default.map(Box::new),
@@ -375,7 +401,7 @@ impl ExprUtils {
         Self::find_variables_recursive(expr, &mut variables);
         variables
     }
-    
+
     fn find_variables_recursive(expr: &Expr, variables: &mut Vec<String>) {
         match expr {
             Expr::Variable(e) => variables.push(e.name.clone()),
@@ -423,42 +449,53 @@ impl ExprUtils {
             _ => {}
         }
     }
-    
+
     /// 检查表达式是否包含聚合函数
     pub fn contains_aggregate(expr: &Expr) -> bool {
         Self::contains_aggregate_recursive(expr)
     }
-    
+
     fn contains_aggregate_recursive(expr: &Expr) -> bool {
         match expr {
             Expr::FunctionCall(e) => {
                 let func_name = e.name.to_uppercase();
-                matches!(func_name.as_str(), 
+                matches!(
+                    func_name.as_str(),
                     "COUNT" | "SUM" | "AVG" | "MIN" | "MAX" | "COLLECT" | "AGGREGATE"
                 )
             }
             Expr::Binary(e) => {
-                Self::contains_aggregate_recursive(&e.left) || 
-                Self::contains_aggregate_recursive(&e.right)
+                Self::contains_aggregate_recursive(&e.left)
+                    || Self::contains_aggregate_recursive(&e.right)
             }
             Expr::Unary(e) => Self::contains_aggregate_recursive(&e.operand),
             Expr::List(e) => e.elements.iter().any(Self::contains_aggregate_recursive),
-            Expr::Map(e) => e.pairs.iter().any(|(_, value)| Self::contains_aggregate_recursive(value)),
+            Expr::Map(e) => e
+                .pairs
+                .iter()
+                .any(|(_, value)| Self::contains_aggregate_recursive(value)),
             Expr::Case(e) => {
-                let match_contains = e.match_expr.as_ref().map_or(false, |expr| Self::contains_aggregate_recursive(expr));
+                let match_contains = e
+                    .match_expr
+                    .as_ref()
+                    .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
                 let when_contains = e.when_then_pairs.iter().any(|(when, then)| {
-                    Self::contains_aggregate_recursive(when) || Self::contains_aggregate_recursive(then)
+                    Self::contains_aggregate_recursive(when)
+                        || Self::contains_aggregate_recursive(then)
                 });
-                let default_contains = e.default.as_ref().map_or(false, |expr| Self::contains_aggregate_recursive(expr));
+                let default_contains = e
+                    .default
+                    .as_ref()
+                    .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
                 match_contains || when_contains || default_contains
             }
             Expr::Subscript(e) => {
-                Self::contains_aggregate_recursive(&e.collection) || 
-                Self::contains_aggregate_recursive(&e.index)
+                Self::contains_aggregate_recursive(&e.collection)
+                    || Self::contains_aggregate_recursive(&e.index)
             }
             Expr::Predicate(e) => {
-                Self::contains_aggregate_recursive(&e.list) || 
-                Self::contains_aggregate_recursive(&e.condition)
+                Self::contains_aggregate_recursive(&e.list)
+                    || Self::contains_aggregate_recursive(&e.condition)
             }
             _ => false,
         }
@@ -468,45 +505,48 @@ impl ExprUtils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_constant_expr() {
         let expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
         assert!(expr.is_constant());
         assert_eq!(expr.to_string(), "Int(42)");
     }
-    
+
     #[test]
     fn test_variable_expr() {
         let expr = Expr::Variable(VariableExpr::new("x".to_string(), Span::default()));
         assert!(!expr.is_constant());
         assert_eq!(expr.to_string(), "x");
     }
-    
+
     #[test]
     fn test_binary_expr() {
         let left = Expr::Constant(ConstantExpr::new(Value::Int(5), Span::default()));
         let right = Expr::Constant(ConstantExpr::new(Value::Int(3), Span::default()));
         let expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Add, right, Span::default()));
-        
+
         assert!(expr.is_constant());
         assert_eq!(expr.to_string(), "(Int(5) + Int(3))");
     }
-    
+
     #[test]
     fn test_find_variables() {
         let expr = Expr::Variable(VariableExpr::new("test_var".to_string(), Span::default()));
         let variables = ExprUtils::find_variables(&expr);
         assert_eq!(variables, vec!["test_var"]);
     }
-    
+
     #[test]
     fn test_contains_aggregate() {
         let func_expr = Expr::FunctionCall(FunctionCallExpr::new(
             "COUNT".to_string(),
-            vec![Expr::Variable(VariableExpr::new("x".to_string(), Span::default()))],
+            vec![Expr::Variable(VariableExpr::new(
+                "x".to_string(),
+                Span::default(),
+            ))],
             false,
-            Span::default()
+            Span::default(),
         ));
         assert!(ExprUtils::contains_aggregate(&func_expr));
     }

@@ -3,13 +3,13 @@
 //! 包括顶点扫描、边扫描、索引扫描等操作
 
 use super::common::TagProp;
-use crate::query::planner::plan::core::plan_node_kind::PlanNodeKind;
-use crate::query::planner::plan::core::visitor::{PlanNodeVisitError, PlanNodeVisitor};
-use crate::query::planner::plan::core::plan_node_traits::{
-    PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies,
-    PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::plan_node_kind::PlanNodeKind;
+use crate::query::planner::plan::core::plan_node_traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+    PlanNodeProperties, PlanNodeVisitable,
+};
+use crate::query::planner::plan::core::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use std::sync::Arc;
 
 // 扫描顶点的计划节点

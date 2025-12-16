@@ -1,12 +1,10 @@
 // Re-export all scheduler modules
-pub mod types;
-pub mod execution_plan;
 pub mod async_scheduler;
+pub mod execution_plan;
+pub mod types;
 
 // Re-export the main types
-pub use types::{
-    ExecutorDep, QueryScheduler
-};
+pub use types::{ExecutorDep, QueryScheduler};
 
 // Re-export execution plan
 pub use execution_plan::ExecutionPlan;

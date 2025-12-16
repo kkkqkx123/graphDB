@@ -1,11 +1,14 @@
 //! 数据删除操作相关的计划节点
 //! 包括删除顶点、边和标签的操作
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 /// 删除顶点计划节点
@@ -23,12 +26,7 @@ pub struct DeleteVertices {
 }
 
 impl DeleteVertices {
-    pub fn new(
-        id: i64,
-        space_id: i32,
-        filter: Option<String>,
-        delete_all: bool,
-    ) -> Self {
+    pub fn new(id: i64, space_id: i32, filter: Option<String>, delete_all: bool) -> Self {
         Self {
             id,
             kind: PlanNodeKind::DeleteVertices,
@@ -292,11 +290,7 @@ pub struct DeleteTags {
 }
 
 impl DeleteTags {
-    pub fn new(
-        id: i64,
-        space_id: i32,
-        tag_ids: Vec<i32>,
-    ) -> Self {
+    pub fn new(id: i64, space_id: i32, tag_ids: Vec<i32>) -> Self {
         Self {
             id,
             kind: PlanNodeKind::DeleteTags,

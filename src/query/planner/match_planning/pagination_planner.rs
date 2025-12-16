@@ -20,21 +20,25 @@ impl PaginationPlanner {
     }
 
     /// 构建分页节点
-    fn build_limit(&mut self, pagination_ctx: &crate::query::validator::structs::PaginationContext, mut subplan: SubPlan) -> Result<SubPlan, PlannerError> {
-        let current_root = subplan.root.take().unwrap_or_else(|| create_empty_node().unwrap());
+    fn build_limit(
+        &mut self,
+        pagination_ctx: &crate::query::validator::structs::PaginationContext,
+        mut subplan: SubPlan,
+    ) -> Result<SubPlan, PlannerError> {
+        let current_root = subplan
+            .root
+            .take()
+            .unwrap_or_else(|| create_empty_node().unwrap());
 
         // 创建Limit节点
-        let limit_node = SingleInputNode::new(
-            PlanNodeKind::Limit,
-            current_root,
-        );
+        let limit_node = SingleInputNode::new(PlanNodeKind::Limit, current_root);
 
         // 将skip和limit值存储在列名中，供执行器使用
         let col_names = vec![
             format!("skip_{}", pagination_ctx.skip),
-            format!("limit_{}", pagination_ctx.limit)
+            format!("limit_{}", pagination_ctx.limit),
         ];
-        
+
         // 创建新的Limit节点并设置属性
         let mut new_limit_node = limit_node.clone();
         new_limit_node.set_col_names(col_names);

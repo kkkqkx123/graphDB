@@ -1,11 +1,14 @@
 //! 主机操作相关的计划节点
 //! 包括添加/删除主机等操作
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 // 主机信息结构
@@ -278,7 +281,13 @@ impl ShowHosts {
             kind: PlanNodeKind::ShowHosts,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec!["Host".to_string(), "Port".to_string(), "Status".to_string(), "Leader count".to_string(), "Leader distribution".to_string()],
+            col_names: vec![
+                "Host".to_string(),
+                "Port".to_string(),
+                "Status".to_string(),
+                "Leader count".to_string(),
+                "Leader distribution".to_string(),
+            ],
             cost: 0.0,
         }
     }
@@ -396,7 +405,14 @@ impl ShowHostsStatus {
             kind: PlanNodeKind::ShowHostsStatus,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec!["Host".to_string(), "Port".to_string(), "Status".to_string(), "Graph".to_string(), "Meta".to_string(), "Storage".to_string()],
+            col_names: vec![
+                "Host".to_string(),
+                "Port".to_string(),
+                "Status".to_string(),
+                "Graph".to_string(),
+                "Meta".to_string(),
+                "Storage".to_string(),
+            ],
             cost: 0.0,
         }
     }

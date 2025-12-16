@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// 属性查询迭代器
-/// 
+///
 /// 用于遍历属性查询结果
 /// 支持顶点和边的属性访问
 #[derive(Debug, Clone)]
@@ -39,7 +39,7 @@ impl PropIter {
             Value::DataSet(dataset) => {
                 let col_names = dataset.col_names.clone();
                 let rows = dataset.rows.clone();
-                
+
                 let mut iter = Self {
                     data: data.clone(),
                     rows,
@@ -51,7 +51,7 @@ impl PropIter {
                         props_map: HashMap::new(),
                     },
                 };
-                
+
                 iter.make_dataset_index()?;
                 Ok(iter)
             }
@@ -62,17 +62,17 @@ impl PropIter {
     /// 创建数据集索引
     fn make_dataset_index(&mut self) -> Result<(), String> {
         let ds = self.ds_index.ds.clone();
-        
+
         // 构建列索引
         for (i, col_name) in ds.col_names.iter().enumerate() {
             self.ds_index.col_indices.insert(col_name.clone(), i);
-            
+
             // 构建属性索引（如果列名包含点号）
             if col_name.contains('.') {
                 self.build_prop_index(col_name, i)?;
             }
         }
-        
+
         Ok(())
     }
 
@@ -82,13 +82,17 @@ impl PropIter {
         if pieces.len() != 2 {
             return Err(format!("错误的属性列名格式: {}", props));
         }
-        
+
         let name = pieces[0].to_string();
         let prop = pieces[1].to_string();
-        
-        let prop_map = self.ds_index.props_map.entry(name).or_insert(HashMap::new());
+
+        let prop_map = self
+            .ds_index
+            .props_map
+            .entry(name)
+            .or_insert(HashMap::new());
         prop_map.insert(prop, column_id);
-        
+
         Ok(())
     }
 
@@ -106,9 +110,9 @@ impl PropIter {
         if !self.valid() {
             return None;
         }
-        
+
         let row = self.curr_row()?;
-        
+
         if name == "*" {
             // 搜索所有属性
             for prop_map in self.ds_index.props_map.values() {
@@ -126,7 +130,7 @@ impl PropIter {
             // 搜索特定属性
             let prop_map = self.ds_index.props_map.get(name)?;
             let col_id = prop_map.get(prop)?;
-            
+
             if *col_id < row.len() {
                 Some(&row[*col_id])
             } else {
@@ -259,7 +263,7 @@ impl Iterator for PropIter {
             }
             adjusted as usize
         };
-        
+
         if idx < row.len() {
             Some(&row[idx])
         } else {
@@ -319,7 +323,7 @@ mod tests {
             "player.age".to_string(),
             "follow.weight".to_string(),
         ];
-        
+
         dataset.rows = vec![
             vec![
                 Value::String("player1".to_string()),
@@ -334,7 +338,7 @@ mod tests {
                 Value::Float(0.6),
             ],
         ];
-        
+
         Value::DataSet(dataset)
     }
 
@@ -349,7 +353,7 @@ mod tests {
     fn test_prop_iter_valid() {
         let data = Arc::new(create_test_prop_data());
         let iter = PropIter::new(data).unwrap();
-        
+
         assert_eq!(iter.kind(), IteratorKind::Prop);
         assert!(iter.valid());
         assert_eq!(iter.size(), 2);
@@ -359,15 +363,15 @@ mod tests {
     fn test_prop_iter_navigation() {
         let data = Arc::new(create_test_prop_data());
         let mut iter = PropIter::new(data).unwrap();
-        
+
         assert_eq!(iter.curr_pos(), 0);
         assert!(iter.valid());
-        
+
         // 移动到第二行
         iter.next();
         assert_eq!(iter.curr_pos(), 1);
         assert!(iter.valid());
-        
+
         // 移动到第三行（越界）
         iter.next();
         assert_eq!(iter.curr_pos(), 2);
@@ -378,12 +382,12 @@ mod tests {
     fn test_prop_iter_get_tag_prop() {
         let data = Arc::new(create_test_prop_data());
         let iter = PropIter::new(data).unwrap();
-        
+
         // 获取标签属性
         let name = iter.get_tag_prop("player", "name");
         assert!(name.is_some());
         assert_eq!(name.unwrap(), Value::String("Alice".to_string()));
-        
+
         let age = iter.get_tag_prop("player", "age");
         assert!(age.is_some());
         assert_eq!(age.unwrap(), Value::Int(25));
@@ -393,7 +397,7 @@ mod tests {
     fn test_prop_iter_get_edge_prop() {
         let data = Arc::new(create_test_prop_data());
         let iter = PropIter::new(data).unwrap();
-        
+
         // 获取边属性
         let weight = iter.get_edge_prop("follow", "weight");
         assert!(weight.is_some());
@@ -404,12 +408,12 @@ mod tests {
     fn test_prop_iter_get_column() {
         let data = Arc::new(create_test_prop_data());
         let iter = PropIter::new(data).unwrap();
-        
+
         // 按列名获取值
         let vid = iter.get_column("_vid");
         assert!(vid.is_some());
         assert_eq!(vid.unwrap(), &Value::String("player1".to_string()));
-        
+
         let name = iter.get_column("player.name");
         assert!(name.is_some());
         assert_eq!(name.unwrap(), &Value::String("Alice".to_string()));
@@ -419,7 +423,7 @@ mod tests {
     fn test_prop_iter_get_column_index() {
         let data = Arc::new(create_test_prop_data());
         let iter = PropIter::new(data).unwrap();
-        
+
         // 获取列索引
         assert_eq!(iter.get_column_index("_vid"), Some(0));
         assert_eq!(iter.get_column_index("player.name"), Some(1));
@@ -432,10 +436,10 @@ mod tests {
     fn test_prop_iter_reset() {
         let data = Arc::new(create_test_prop_data());
         let mut iter = PropIter::new(data).unwrap();
-        
+
         iter.next();
         assert_eq!(iter.curr_pos(), 1);
-        
+
         iter.reset(0);
         assert_eq!(iter.curr_pos(), 0);
         assert_eq!(
@@ -448,14 +452,14 @@ mod tests {
     fn test_prop_iter_copy() {
         let data = Arc::new(create_test_prop_data());
         let mut iter = PropIter::new(data).unwrap();
-        
+
         iter.next();
         let copy = iter.copy();
-        
+
         // 拷贝应该有相同的状态
         assert_eq!(copy.is_empty(), iter.is_empty());
         assert_eq!(copy.size(), iter.size());
-        
+
         // 修改原迭代器不应该影响拷贝
         iter.next();
         assert_eq!(copy.size(), iter.size());

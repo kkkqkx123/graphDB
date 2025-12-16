@@ -2,7 +2,7 @@
 //! 进行全表扫描操作的规划
 //! 负责规划全表扫描操作
 
-use crate::query::planner::plan::{SubPlan, PlanNodeKind, SingleInputNode};
+use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
 use std::sync::Arc;
@@ -16,9 +16,7 @@ pub struct ScanSeek {
 
 impl ScanSeek {
     pub fn new(node_info: NodeInfo) -> Self {
-        Self {
-            node_info,
-        }
+        Self { node_info }
     }
 
     /// 构建扫描查找计划
@@ -32,7 +30,10 @@ impl ScanSeek {
         // TODO: 设置扫描条件
         // 这里需要根据node_info设置扫描条件，如标签过滤等
 
-        Ok(SubPlan::new(Some(scan_vertices_node.clone()), Some(scan_vertices_node)))
+        Ok(SubPlan::new(
+            Some(scan_vertices_node.clone()),
+            Some(scan_vertices_node),
+        ))
     }
 
     /// 检查是否可以使用扫描查找
@@ -51,7 +52,7 @@ impl ScanSeek {
 /// 创建起始节点
 fn create_start_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     use crate::query::planner::plan::SingleDependencyNode;
-    
+
     Ok(Arc::new(SingleDependencyNode {
         id: -1,
         kind: PlanNodeKind::Start,

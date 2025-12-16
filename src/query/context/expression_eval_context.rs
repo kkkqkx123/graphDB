@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use crate::core::{Value, Vertex, Edge};
+use crate::core::{Edge, Value, Vertex};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Context for evaluating expressions, containing values for variables/properties
 #[derive(Clone, Debug)]

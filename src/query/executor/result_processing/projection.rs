@@ -5,19 +5,21 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
+use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
 use crate::graph::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::EvalContext;
-use crate::core::error::{DBError, DBResult};
-use crate::storage::StorageEngine;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
+use crate::storage::StorageEngine;
 
 /// 投影列定义
 #[derive(Debug, Clone)]
 pub struct ProjectionColumn {
-    pub name: String,                   // 输出列名
-    pub expression: Expression,         // 投影表达式
+    pub name: String,           // 输出列名
+    pub expression: Expression, // 投影表达式
 }
 
 impl ProjectionColumn {
@@ -31,16 +33,12 @@ impl ProjectionColumn {
 /// 执行列投影操作，支持表达式求值和列重命名
 pub struct ProjectExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    columns: Vec<ProjectionColumn>,    // 投影列定义
+    columns: Vec<ProjectionColumn>, // 投影列定义
     input_executor: Option<Box<dyn Executor<S>>>,
 }
 
 impl<S: StorageEngine> ProjectExecutor<S> {
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        columns: Vec<ProjectionColumn>,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>, columns: Vec<ProjectionColumn>) -> Self {
         Self {
             base: BaseExecutor::new(id, "ProjectExecutor".to_string(), storage),
             columns,
@@ -49,11 +47,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
     }
 
     /// 处理单行数据的投影
-    fn project_row(
-        &self,
-        row: &[Value],
-        col_names: &[String],
-    ) -> DBResult<Vec<Value>> {
+    fn project_row(&self, row: &[Value], col_names: &[String]) -> DBResult<Vec<Value>> {
         let mut projected_row = Vec::new();
         let evaluator = ExpressionEvaluator;
 
@@ -72,10 +66,12 @@ impl<S: StorageEngine> ProjectExecutor<S> {
             match evaluator.evaluate(&column.expression, &context) {
                 Ok(value) => projected_row.push(value),
                 Err(e) => {
-                    return Err(DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
-                        "Failed to evaluate projection expression '{}': {}",
-                        column.name, e
-                    ))));
+                    return Err(DBError::Expression(
+                        crate::core::error::ExpressionError::FunctionError(format!(
+                            "Failed to evaluate projection expression '{}': {}",
+                            column.name, e
+                        )),
+                    ));
                 }
             }
         }
@@ -126,10 +122,12 @@ impl<S: StorageEngine> ProjectExecutor<S> {
                 match evaluator.evaluate(&column.expression, &context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
-                        return Err(DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
-                            "Failed to evaluate projection expression '{}': {}",
-                            column.name, e
-                        ))));
+                        return Err(DBError::Expression(
+                            crate::core::error::ExpressionError::FunctionError(format!(
+                                "Failed to evaluate projection expression '{}': {}",
+                                column.name, e
+                            )),
+                        ));
                     }
                 }
             }
@@ -158,7 +156,10 @@ impl<S: StorageEngine> ProjectExecutor<S> {
             // 设置边属性作为变量
             context.set_variable("src".to_string(), *edge.src.clone());
             context.set_variable("dst".to_string(), *edge.dst.clone());
-            context.set_variable("edge_type".to_string(), Value::String(edge.edge_type.clone()));
+            context.set_variable(
+                "edge_type".to_string(),
+                Value::String(edge.edge_type.clone()),
+            );
             context.set_variable("ranking".to_string(), Value::Int(edge.ranking as i64));
 
             let mut projected_row = Vec::new();
@@ -166,10 +167,12 @@ impl<S: StorageEngine> ProjectExecutor<S> {
                 match evaluator.evaluate(&column.expression, &context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
-                        return Err(DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
-                            "Failed to evaluate projection expression '{}': {}",
-                            column.name, e
-                        ))));
+                        return Err(DBError::Expression(
+                            crate::core::error::ExpressionError::FunctionError(format!(
+                                "Failed to evaluate projection expression '{}': {}",
+                                column.name, e
+                            )),
+                        ));
                     }
                 }
             }
@@ -237,17 +240,20 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                     let mut context = EvalContext::new();
                     // 设置路径相关信息作为变量
                     context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
-                    context.set_variable("src".to_string(), Value::String(path.src.vid.to_string()));
+                    context
+                        .set_variable("src".to_string(), Value::String(path.src.vid.to_string()));
 
                     let mut projected_row = Vec::new();
                     for column in &self.columns {
                         match evaluator.evaluate(&column.expression, &context) {
                             Ok(value) => projected_row.push(value),
                             Err(e) => {
-                                return Err(DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
-                                    "Failed to evaluate projection expression '{}': {}",
-                                    column.name, e
-                                ))));
+                                return Err(DBError::Expression(
+                                    crate::core::error::ExpressionError::FunctionError(format!(
+                                        "Failed to evaluate projection expression '{}': {}",
+                                        column.name, e
+                                    )),
+                                ));
                             }
                         }
                     }

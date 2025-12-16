@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
-use crate::graph::expression::{ExpressionEvaluator, Expression};
+use crate::graph::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::EvalContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
@@ -72,7 +72,9 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
                     .evaluator
                     .evaluate(expr, &self.loop_context)
                     .map_err(|e| {
-                        DBError::Expression(crate::core::error::ExpressionError::FunctionError(e.to_string()))
+                        DBError::Expression(crate::core::error::ExpressionError::FunctionError(
+                            e.to_string(),
+                        ))
                     })?;
 
                 Ok(self.value_to_bool(&result))

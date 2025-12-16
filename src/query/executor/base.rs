@@ -1,10 +1,12 @@
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use async_trait::async_trait;
 
-use crate::core::{Value, Vertex, Edge};
+use crate::core::{Edge, Value, Vertex};
+use crate::query::executor::traits::{
+    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::storage::StorageEngine;
-use crate::query::executor::traits::{Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
 
 // Context for execution - holds variables and intermediate results
 #[derive(Debug, Clone)]
@@ -61,7 +63,12 @@ impl<S: StorageEngine> BaseExecutor<S> {
         }
     }
 
-    pub fn with_context(id: usize, name: String, storage: Arc<Mutex<S>>, context: ExecutionContext) -> Self {
+    pub fn with_context(
+        id: usize,
+        name: String,
+        storage: Arc<Mutex<S>>,
+        context: ExecutionContext,
+    ) -> Self {
         Self {
             id,
             name,
@@ -72,7 +79,12 @@ impl<S: StorageEngine> BaseExecutor<S> {
         }
     }
 
-    pub fn with_description(id: usize, name: String, description: String, storage: Arc<Mutex<S>>) -> Self {
+    pub fn with_description(
+        id: usize,
+        name: String,
+        description: String,
+        storage: Arc<Mutex<S>>,
+    ) -> Self {
         Self {
             id,
             name,
@@ -83,7 +95,13 @@ impl<S: StorageEngine> BaseExecutor<S> {
         }
     }
 
-    pub fn with_context_and_description(id: usize, name: String, description: String, storage: Arc<Mutex<S>>, context: ExecutionContext) -> Self {
+    pub fn with_context_and_description(
+        id: usize,
+        name: String,
+        description: String,
+        storage: Arc<Mutex<S>>,
+        context: ExecutionContext,
+    ) -> Self {
         Self {
             id,
             name,
@@ -132,7 +150,9 @@ pub trait InputExecutor<S: StorageEngine> {
 }
 
 // Trait for executors that can be chained together
-pub trait ChainableExecutor<S: StorageEngine + Send + 'static>: Executor<S> + InputExecutor<S> {
+pub trait ChainableExecutor<S: StorageEngine + Send + 'static>:
+    Executor<S> + InputExecutor<S>
+{
     fn chain(mut self, next: Box<dyn Executor<S>>) -> Box<dyn Executor<S>>
     where
         Self: Sized + 'static,
@@ -159,7 +179,12 @@ pub struct StartExecutor<S: StorageEngine> {
 impl<S: StorageEngine> StartExecutor<S> {
     pub fn new(id: usize, storage: Arc<Mutex<S>>) -> Self {
         Self {
-            base: BaseExecutor::with_description(id, "StartExecutor".to_string(), "Start executor - provides initial execution context".to_string(), storage),
+            base: BaseExecutor::with_description(
+                id,
+                "StartExecutor".to_string(),
+                "Start executor - provides initial execution context".to_string(),
+                storage,
+            ),
         }
     }
 }

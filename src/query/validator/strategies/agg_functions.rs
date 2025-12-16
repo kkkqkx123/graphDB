@@ -14,10 +14,10 @@ pub struct AggFunctionMeta {
 
 impl AggFunctionMeta {
     /// 根据函数名获取聚合函数元数据
-    /// 
+    ///
     /// # Arguments
     /// * `name` - 聚合函数名（大小写不敏感）
-    /// 
+    ///
     /// # Returns
     /// 如果函数有效则返回Some，否则返回None
     pub fn get(name: &str) -> Option<Self> {

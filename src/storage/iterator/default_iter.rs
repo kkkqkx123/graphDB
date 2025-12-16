@@ -1,5 +1,5 @@
 //! 默认迭代器 - 用于单个值
-//! 
+//!
 //! DefaultIter用于表示单个常量值，如数字、字符串等
 //! 逻辑上只有一"行"（值本身），next()后无效
 
@@ -8,7 +8,7 @@ use crate::core::Value;
 use std::sync::Arc;
 
 /// 默认迭代器
-/// 
+///
 /// 用于包装单个Value，使其可以通过迭代器接口访问
 /// 始终有一个有效行，代表该值本身
 #[derive(Debug, Clone)]
@@ -20,10 +20,7 @@ pub struct DefaultIter {
 impl DefaultIter {
     /// 创建新的默认迭代器
     pub fn new(value: Arc<Value>) -> Self {
-        Self {
-            value,
-            counter: 0,
-        }
+        Self { value, counter: 0 }
     }
 
     /// 创建新的默认迭代器（拥有所有权）
@@ -230,7 +227,7 @@ mod tests {
         assert!(!iter.valid());
 
         let mut copy = iter.copy();
-        assert!(!copy.valid());  // 深拷贝状态
+        assert!(!copy.valid()); // 深拷贝状态
 
         copy.reset(0);
         assert!(copy.valid());

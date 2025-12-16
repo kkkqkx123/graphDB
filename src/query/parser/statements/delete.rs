@@ -1,8 +1,8 @@
 //! DELETE语句解析器
 
-use crate::query::parser::{ParseError, TokenKind};
 use crate::query::parser::ast::*;
 use crate::query::parser::expressions::ExpressionParser;
+use crate::query::parser::{ParseError, TokenKind};
 
 pub trait DeleteStmtParser: ExpressionParser {
     /// 解析DELETE语句
@@ -18,7 +18,10 @@ pub trait DeleteStmtParser: ExpressionParser {
             }
             _ => {
                 return Err(ParseError::syntax_error(
-                    format!("Expected VERTEX or EDGE after DELETE, got {:?}", self.current_token().kind),
+                    format!(
+                        "Expected VERTEX or EDGE after DELETE, got {:?}",
+                        self.current_token().kind
+                    ),
                     self.current_token().line,
                     self.current_token().column,
                 ));

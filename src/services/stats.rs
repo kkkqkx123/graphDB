@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use std::fmt::Debug;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Statistics counter for a specific metric
 #[derive(Debug, Clone)]
@@ -109,24 +109,25 @@ impl Histogram {
         }
     }
 
-    pub fn get_summary(&self) -> (f64, f64, Vec<(f64, u64)>) { // (avg, sum, bucket_counts)
+    pub fn get_summary(&self) -> (f64, f64, Vec<(f64, u64)>) {
+        // (avg, sum, bucket_counts)
         let vals = self.value.lock().unwrap();
         let sum = *self.sum.lock().unwrap();
         let counts = self.counts.lock().unwrap();
-        
+
         let avg = if vals.len() > 0 {
             sum / vals.len() as f64
         } else {
             0.0
         };
-        
+
         let bucket_counts: Vec<(f64, u64)> = self
             .buckets
             .iter()
             .zip(counts.iter())
             .map(|(bucket, &count)| (*bucket, count))
             .collect();
-            
+
         (avg, sum, bucket_counts)
     }
 }
@@ -167,18 +168,24 @@ impl Timer {
         result
     }
 
-    pub fn get_stats(&self) -> (Duration, Duration, Duration, usize) { // (avg, min, max, count)
+    pub fn get_stats(&self) -> (Duration, Duration, Duration, usize) {
+        // (avg, min, max, count)
         let vals = self.value.lock().unwrap();
         if vals.is_empty() {
-            return (Duration::from_nanos(0), Duration::from_nanos(0), Duration::from_nanos(0), 0);
+            return (
+                Duration::from_nanos(0),
+                Duration::from_nanos(0),
+                Duration::from_nanos(0),
+                0,
+            );
         }
 
         let sum = vals.iter().sum::<Duration>();
         let avg = Duration::from_nanos(sum.as_nanos() as u64 / vals.len() as u64);
-        
+
         let min = *vals.iter().min().unwrap();
         let max = *vals.iter().max().unwrap();
-        
+
         (avg, min, max, vals.len())
     }
 }
@@ -219,7 +226,12 @@ impl StatsRegistry {
         gauge
     }
 
-    pub fn register_histogram(&self, name: &str, description: &str, buckets: Vec<f64>) -> Histogram {
+    pub fn register_histogram(
+        &self,
+        name: &str,
+        description: &str,
+        buckets: Vec<f64>,
+    ) -> Histogram {
         let histogram = Histogram::new(name, description, buckets);
         let mut histograms = self.histograms.lock().unwrap();
         histograms.insert(name.to_string(), histogram.clone());
@@ -302,22 +314,28 @@ pub struct StatsSnapshot {
 impl StatsSnapshot {
     pub fn print_summary(&self) {
         println!("=== Statistics Snapshot ===");
-        println!("Snapshot time: {:?}", self.snapshot_time.duration_since(UNIX_EPOCH).unwrap().as_secs());
-        
+        println!(
+            "Snapshot time: {:?}",
+            self.snapshot_time
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        );
+
         if !self.counters.is_empty() {
             println!("\nCounters:");
             for (name, value) in &self.counters {
                 println!("  {}: {}", name, value);
             }
         }
-        
+
         if !self.gauges.is_empty() {
             println!("\nGauges:");
             for (name, value) in &self.gauges {
                 println!("  {}: {:.2}", name, value);
             }
         }
-        
+
         if !self.histograms.is_empty() {
             println!("\nHistograms:");
             for (name, (avg, sum, bucket_counts)) in &self.histograms {
@@ -327,18 +345,21 @@ impl StatsSnapshot {
                 }
             }
         }
-        
+
         if !self.timers.is_empty() {
             println!("\nTimers:");
             for (name, (avg, min, max, count)) in &self.timers {
-                println!("  {}: avg={:?}, min={:?}, max={:?}, count={}", name, avg, min, max, count);
+                println!(
+                    "  {}: avg={:?}, min={:?}, max={:?}, count={}",
+                    name, avg, min, max, count
+                );
             }
         }
     }
 }
 
 /// Global statistics registry
-static GLOBAL_REGISTRY: once_cell::sync::Lazy<StatsRegistry> = 
+static GLOBAL_REGISTRY: once_cell::sync::Lazy<StatsRegistry> =
     once_cell::sync::Lazy::new(StatsRegistry::new);
 
 /// Get the global statistics registry
@@ -383,15 +404,15 @@ mod tests {
     #[test]
     fn test_histogram() {
         let histogram = Histogram::new("test_histogram", "A test histogram", vec![1.0, 2.0, 5.0]);
-        
+
         histogram.observe(0.5);
         histogram.observe(1.5);
         histogram.observe(4.0);
-        
+
         let (avg, sum, bucket_counts) = histogram.get_summary();
-        assert_eq!(sum, 6.0);  // 0.5 + 1.5 + 4.0
-        assert!((avg - 2.0).abs() < f64::EPSILON);  // 6.0 / 3
-        
+        assert_eq!(sum, 6.0); // 0.5 + 1.5 + 4.0
+        assert!((avg - 2.0).abs() < f64::EPSILON); // 6.0 / 3
+
         // Check bucket counts: <=1.0: 1, <=2.0: 2, <=5.0: 3
         assert_eq!(bucket_counts[0], (1.0, 1)); // <= 1.0: 1 observation
         assert_eq!(bucket_counts[1], (2.0, 2)); // <= 2.0: 2 observations
@@ -403,7 +424,7 @@ mod tests {
         let timer = Timer::new("test_timer", "A test timer");
         timer.record(Duration::from_millis(100));
         timer.record(Duration::from_millis(200));
-        
+
         let (_avg, min, max, count) = timer.get_stats();
         assert_eq!(count, 2);
         assert_eq!(min, Duration::from_millis(100));
@@ -413,43 +434,44 @@ mod tests {
     #[tokio::test]
     async fn test_stats_registry() {
         let registry = StatsRegistry::new();
-        
+
         let counter = registry.register_counter("req_count", "Request count");
         let gauge = registry.register_gauge("mem_usage", "Memory usage");
-        let histogram = registry.register_histogram("query_time", "Query execution time", vec![1.0, 5.0, 10.0]);
+        let histogram =
+            registry.register_histogram("query_time", "Query execution time", vec![1.0, 5.0, 10.0]);
         let timer = registry.register_timer("proc_time", "Processing time");
-        
+
         counter.inc_by(5);
         gauge.set(25.6);
         histogram.observe(3.5);
         timer.record(Duration::from_millis(150));
-        
+
         // Test getting the registered stats
         assert_eq!(registry.get_counter("req_count").unwrap().get(), 5);
         assert!((registry.get_gauge("mem_usage").unwrap().get() - 25.6).abs() < f64::EPSILON);
-        
+
         let snapshot = registry.snapshot();
         assert_eq!(snapshot.counters.get("req_count"), Some(&5));
         assert_eq!(snapshot.gauges.get("mem_usage"), Some(&25.6));
-        
+
         // Check the snapshot has the right values
         let hist_summary = snapshot.histograms.get("query_time").unwrap();
-        assert_eq!(hist_summary.1, 3.5);  // sum
+        assert_eq!(hist_summary.1, 3.5); // sum
     }
 
     #[tokio::test]
     async fn test_global_registry() {
         let registry = global_registry();
-        
+
         // Clean up in case of previous tests
         {
             let mut counters = registry.counters.lock().unwrap();
             counters.clear();
         }
-        
+
         let counter = registry.register_counter("global_test", "Global test counter");
         counter.inc_by(10);
-        
+
         assert_eq!(registry.get_counter("global_test").unwrap().get(), 10);
     }
 }

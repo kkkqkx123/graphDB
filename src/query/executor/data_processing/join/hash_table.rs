@@ -2,9 +2,9 @@
 //!
 //! 提供高效的哈希表用于join操作，支持单键和多键连接
 
+use crate::core::Value;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use crate::core::Value;
 
 /// Join键的表示，支持多键连接
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,16 +54,19 @@ impl HashTableBuilder {
         key_index: usize,
     ) -> Result<SingleKeyHashTable, String> {
         let mut hash_table = HashMap::new();
-        
+
         for row in &dataset.rows {
             if key_index < row.len() {
                 let key = row[key_index].clone();
-                hash_table.entry(key).or_insert_with(Vec::new).push(row.clone());
+                hash_table
+                    .entry(key)
+                    .or_insert_with(Vec::new)
+                    .push(row.clone());
             } else {
                 return Err(format!("键索引 {} 超出行长度 {}", key_index, row.len()));
             }
         }
-        
+
         Ok(hash_table)
     }
 
@@ -73,7 +76,7 @@ impl HashTableBuilder {
         key_indices: &[usize],
     ) -> Result<MultiKeyHashTable, String> {
         let mut hash_table = HashMap::new();
-        
+
         for row in &dataset.rows {
             let mut key_values = Vec::new();
             for &key_index in key_indices {
@@ -83,11 +86,14 @@ impl HashTableBuilder {
                     return Err(format!("键索引 {} 超出行长度 {}", key_index, row.len()));
                 }
             }
-            
+
             let join_key = JoinKey::new(key_values);
-            hash_table.entry(join_key).or_insert_with(Vec::new).push(row.clone());
+            hash_table
+                .entry(join_key)
+                .or_insert_with(Vec::new)
+                .push(row.clone());
         }
-        
+
         Ok(hash_table)
     }
 }
@@ -103,7 +109,7 @@ impl HashTableProbe {
         key_index: usize,
     ) -> Vec<(Vec<Value>, Vec<Vec<Value>>)> {
         let mut results = Vec::new();
-        
+
         for probe_row in &probe_dataset.rows {
             if key_index < probe_row.len() {
                 let key = probe_row[key_index].clone();
@@ -112,7 +118,7 @@ impl HashTableProbe {
                 }
             }
         }
-        
+
         results
     }
 
@@ -123,7 +129,7 @@ impl HashTableProbe {
         key_indices: &[usize],
     ) -> Vec<(Vec<Value>, Vec<Vec<Value>>)> {
         let mut results = Vec::new();
-        
+
         for probe_row in &probe_dataset.rows {
             let mut key_values = Vec::new();
             for &key_index in key_indices {
@@ -133,13 +139,13 @@ impl HashTableProbe {
                     continue; // 跳过无效行
                 }
             }
-            
+
             let join_key = JoinKey::new(key_values);
             if let Some(matching_rows) = hash_table.get(&join_key) {
                 results.push((probe_row.clone(), matching_rows.clone()));
             }
         }
-        
+
         results
     }
 }
@@ -163,8 +169,12 @@ impl HashTableStats {
         } else {
             0.0
         };
-        let max_bucket_size = hash_table.values().map(|bucket| bucket.len()).max().unwrap_or(0);
-        
+        let max_bucket_size = hash_table
+            .values()
+            .map(|bucket| bucket.len())
+            .max()
+            .unwrap_or(0);
+
         Self {
             total_rows,
             unique_keys,
@@ -182,8 +192,12 @@ impl HashTableStats {
         } else {
             0.0
         };
-        let max_bucket_size = hash_table.values().map(|bucket| bucket.len()).max().unwrap_or(0);
-        
+        let max_bucket_size = hash_table
+            .values()
+            .map(|bucket| bucket.len())
+            .max()
+            .unwrap_or(0);
+
         Self {
             total_rows,
             unique_keys,
@@ -209,7 +223,7 @@ mod tests {
         ];
 
         let hash_table = HashTableBuilder::build_single_key_table(&dataset, 0).unwrap();
-        
+
         assert_eq!(hash_table.len(), 2); // 两个不同的键: 1 和 2
         assert_eq!(hash_table[&Value::Int(1)].len(), 2); // 键1有两行
         assert_eq!(hash_table[&Value::Int(2)].len(), 1); // 键2有一行
@@ -220,15 +234,27 @@ mod tests {
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["id".to_string(), "name".to_string(), "age".to_string()];
         dataset.rows = vec![
-            vec![Value::Int(1), Value::String("Alice".to_string()), Value::Int(25)],
-            vec![Value::Int(2), Value::String("Bob".to_string()), Value::Int(30)],
-            vec![Value::Int(1), Value::String("Alice".to_string()), Value::Int(26)],
+            vec![
+                Value::Int(1),
+                Value::String("Alice".to_string()),
+                Value::Int(25),
+            ],
+            vec![
+                Value::Int(2),
+                Value::String("Bob".to_string()),
+                Value::Int(30),
+            ],
+            vec![
+                Value::Int(1),
+                Value::String("Alice".to_string()),
+                Value::Int(26),
+            ],
         ];
 
         let hash_table = HashTableBuilder::build_multi_key_table(&dataset, &[0, 1]).unwrap();
-        
+
         assert_eq!(hash_table.len(), 2); // 两个不同的键组合: (1,Alice) 和 (2,Bob)
-        
+
         let key1 = JoinKey::new(vec![Value::Int(1), Value::String("Alice".to_string())]);
         assert_eq!(hash_table[&key1].len(), 2); // 键(1,Alice)有两行
     }
@@ -251,10 +277,13 @@ mod tests {
 
         let hash_table = HashTableBuilder::build_single_key_table(&build_dataset, 0).unwrap();
         let results = HashTableProbe::probe_single_key(&hash_table, &probe_dataset, 0);
-        
+
         assert_eq!(results.len(), 1); // 只有一个匹配
         assert_eq!(results[0].0, vec![Value::Int(1), Value::Int(25)]); // 探测行
         assert_eq!(results[0].1.len(), 1); // 一个匹配的构建行
-        assert_eq!(results[0].1[0], vec![Value::Int(1), Value::String("Alice".to_string())]);
+        assert_eq!(
+            results[0].1[0],
+            vec![Value::Int(1), Value::String("Alice".to_string())]
+        );
     }
 }

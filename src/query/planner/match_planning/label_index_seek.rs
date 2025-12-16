@@ -97,7 +97,7 @@ impl LabelIndexSeek {
                 type_: "Vertex".to_string(),
             }],
         };
-        
+
         // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
         // 我们需要创建一个新的节点来设置属性
         let mut new_index_scan_node = (*index_scan_node).clone();
@@ -132,7 +132,7 @@ impl LabelIndexSeek {
                     type_: "Vertex".to_string(),
                 }],
             };
-            
+
             // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
             // 我们需要创建一个新的节点来设置属性
             let mut new_filter_node = (*filter_node).clone();
@@ -341,9 +341,9 @@ mod tests {
     #[test]
     fn test_build_plan_with_properties() {
         let mut node_info = create_test_node_info(vec!["Person"], vec![1]);
-        node_info.props = Some(Expression::Literal(crate::graph::expression::expression::LiteralValue::String(
-            "test".to_string(),
-        )));
+        node_info.props = Some(Expression::Literal(
+            crate::graph::expression::expression::LiteralValue::String("test".to_string()),
+        ));
 
         let seeker = LabelIndexSeek::new(node_info);
 
@@ -412,7 +412,9 @@ mod tests {
     fn test_index_scan_metadata_with_filter() {
         let mut metadata = IndexScanMetadata::new(vec![1], vec!["Person".to_string()], vec![1]);
 
-        let filter = Expression::Literal(crate::graph::expression::expression::LiteralValue::String("test".to_string()));
+        let filter = Expression::Literal(
+            crate::graph::expression::expression::LiteralValue::String("test".to_string()),
+        );
         metadata.set_property_filter(filter);
 
         assert!(metadata.has_property_filter);

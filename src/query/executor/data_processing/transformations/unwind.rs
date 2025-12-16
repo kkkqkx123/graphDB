@@ -5,11 +5,13 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
+use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
 use crate::graph::expression::{Expression, ExpressionContext, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
-use crate::core::error::{DBError, DBResult};
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::storage::StorageEngine;
 
 #[cfg(test)]
@@ -84,7 +86,10 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
             .context
             .get_result(&self.input_var)
             .ok_or_else(|| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Input variable '{}' not found", self.input_var)))
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "Input variable '{}' not found",
+                    self.input_var
+                )))
             })?;
 
         // 创建表达式上下文和评估器
@@ -113,7 +118,11 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     // 计算展开表达式
                     let unwind_value = evaluator
                         .evaluate(&self.unwind_expr, &expr_context)
-                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+                        .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     // 提取列表
                     let list_values = self.extract_list(&unwind_value);
@@ -142,7 +151,11 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
 
                     let unwind_value = evaluator
                         .evaluate(&self.unwind_expr, &expr_context)
-                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+                        .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     let list_values = self.extract_list(&unwind_value);
 
@@ -167,7 +180,11 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
 
                     let unwind_value = evaluator
                         .evaluate(&self.unwind_expr, &expr_context)
-                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+                        .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     let list_values = self.extract_list(&unwind_value);
 
@@ -191,7 +208,11 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
 
                 let unwind_value = evaluator
                     .evaluate(&self.unwind_expr, &expr_context)
-                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+                    .map_err(|e| {
+                        DBError::Query(crate::core::error::QueryError::ExecutionError(
+                            e.to_string(),
+                        ))
+                    })?;
 
                 let list_values = self.extract_list(&unwind_value);
 
@@ -209,7 +230,11 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
 
                     let unwind_value = evaluator
                         .evaluate(&self.unwind_expr, &expr_context)
-                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+                        .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     let list_values = self.extract_list(&unwind_value);
 
@@ -234,7 +259,11 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
 
                         let unwind_value = evaluator
                             .evaluate(&self.unwind_expr, &expr_context)
-                            .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+                            .map_err(|e| {
+                                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                    e.to_string(),
+                                ))
+                            })?;
 
                         let list_values = self.extract_list(&unwind_value);
 
@@ -253,14 +282,19 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                 }
             }
             ExecutionResult::Count(_) => {
-                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    "Cannot unwind count result".to_string(),
-                )));
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "Cannot unwind count result".to_string(),
+                    ),
+                ));
             }
             ExecutionResult::Error(e) => {
-                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    format!("Error in input result: {}", e),
-                )));
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(format!(
+                        "Error in input result: {}",
+                        e
+                    )),
+                ));
             }
         }
 

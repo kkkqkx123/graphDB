@@ -2,7 +2,7 @@
 //!
 //! 包含查询结果集和执行统计的相关数据结构
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// 表示可能包含多种类型数据的结果集
 #[derive(Debug, Clone, Serialize, Deserialize)]

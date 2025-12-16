@@ -1,5 +1,5 @@
-use crate::core::{Vertex, Edge, Value, Direction};
 use super::StorageError;
+use crate::core::{Direction, Edge, Value, Vertex};
 
 /// Transaction identifier
 pub type TransactionId = u64;
@@ -12,9 +12,23 @@ pub trait StorageEngine: Send + Sync {
     fn delete_node(&mut self, id: &Value) -> Result<(), StorageError>;
 
     fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError>;
-    fn get_edge(&self, src: &Value, dst: &Value, edge_type: &str) -> Result<Option<Edge>, StorageError>;
-    fn get_node_edges(&self, node_id: &Value, direction: Direction) -> Result<Vec<Edge>, StorageError>;
-    fn delete_edge(&mut self, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError>;
+    fn get_edge(
+        &self,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+    ) -> Result<Option<Edge>, StorageError>;
+    fn get_node_edges(
+        &self,
+        node_id: &Value,
+        direction: Direction,
+    ) -> Result<Vec<Edge>, StorageError>;
+    fn delete_edge(
+        &mut self,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+    ) -> Result<(), StorageError>;
 
     fn begin_transaction(&mut self) -> Result<TransactionId, StorageError>;
     fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError>;

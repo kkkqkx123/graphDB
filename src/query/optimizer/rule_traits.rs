@@ -350,7 +350,10 @@ pub fn has_dependency_of_kind(ctx: &OptContext, node: &OptGroupNode, kind: PlanN
 ///
 /// # 返回值
 /// 如果节点有依赖，返回第一个依赖节点的引用；否则返回None
-pub fn get_first_dependency<'a>(ctx: &'a OptContext, node: &OptGroupNode) -> Option<&'a OptGroupNode> {
+pub fn get_first_dependency<'a>(
+    ctx: &'a OptContext,
+    node: &OptGroupNode,
+) -> Option<&'a OptGroupNode> {
     // 检查是否有依赖
     if node.dependencies.is_empty() {
         return None;
@@ -358,7 +361,7 @@ pub fn get_first_dependency<'a>(ctx: &'a OptContext, node: &OptGroupNode) -> Opt
 
     // 获取第一个依赖的ID
     let first_dep_id = node.dependencies[0];
-    
+
     // 使用OptContext查找依赖节点
     ctx.find_group_node_by_plan_node_id(first_dep_id)
 }
@@ -373,7 +376,7 @@ pub fn get_first_dependency<'a>(ctx: &'a OptContext, node: &OptGroupNode) -> Opt
 /// 返回包含所有依赖节点引用的向量
 pub fn get_all_dependencies<'a>(ctx: &'a OptContext, node: &OptGroupNode) -> Vec<&'a OptGroupNode> {
     let mut dependencies = Vec::new();
-    
+
     // 遍历节点的依赖列表
     for &dep_id in &node.dependencies {
         // 使用OptContext查找依赖节点
@@ -381,7 +384,7 @@ pub fn get_all_dependencies<'a>(ctx: &'a OptContext, node: &OptGroupNode) -> Vec
             dependencies.push(dep_node);
         }
     }
-    
+
     dependencies
 }
 
@@ -394,26 +397,36 @@ pub fn get_all_dependencies<'a>(ctx: &'a OptContext, node: &OptGroupNode) -> Vec
 ///
 /// # 返回值
 /// 如果索引有效，返回对应依赖节点的引用；否则返回None
-pub fn get_dependency_at<'a>(ctx: &'a OptContext, node: &OptGroupNode, index: usize) -> Option<&'a OptGroupNode> {
+pub fn get_dependency_at<'a>(
+    ctx: &'a OptContext,
+    node: &OptGroupNode,
+    index: usize,
+) -> Option<&'a OptGroupNode> {
     // 检查索引是否有效
     if index >= node.dependencies.len() {
         return None;
     }
-    
+
     // 获取指定索引的依赖ID
     let dep_id = node.dependencies[index];
-    
+
     // 使用OptContext查找依赖节点
     ctx.find_group_node_by_plan_node_id(dep_id)
 }
 
 /// 辅助函数：创建新的OptGroupNode
-pub fn create_new_opt_group_node(id: usize, plan_node: std::sync::Arc<dyn PlanNode>) -> OptGroupNode {
+pub fn create_new_opt_group_node(
+    id: usize,
+    plan_node: std::sync::Arc<dyn PlanNode>,
+) -> OptGroupNode {
     OptGroupNode::new(id, plan_node)
 }
 
 /// 辅助函数：克隆OptGroupNode但替换计划节点
-pub fn clone_with_new_plan_node(node: &OptGroupNode, plan_node: std::sync::Arc<dyn PlanNode>) -> OptGroupNode {
+pub fn clone_with_new_plan_node(
+    node: &OptGroupNode,
+    plan_node: std::sync::Arc<dyn PlanNode>,
+) -> OptGroupNode {
     let mut new_node = node.clone();
     new_node.plan_node = plan_node;
     new_node
@@ -646,71 +659,71 @@ mod tests {
     #[test]
     fn test_dependency_functions() {
         use crate::query::context::QueryContext;
-        
+
         // 创建测试上下文
         let query_ctx = QueryContext::default();
         let mut opt_ctx = OptContext::new(query_ctx);
-        
+
         // 创建测试节点 - 使用 OptGroupNode::default() 创建默认节点
         let mut node1 = OptGroupNode::default();
         node1.id = 1;
-        
+
         let mut node2 = OptGroupNode::default();
         node2.id = 2;
-        
+
         let mut node3 = OptGroupNode::default();
         node3.id = 3;
-        
+
         // 添加节点到上下文
         opt_ctx.add_plan_node_and_group_node(1, &node1);
         opt_ctx.add_plan_node_and_group_node(2, &node2);
         opt_ctx.add_plan_node_and_group_node(3, &node3);
-        
+
         // 创建一个有依赖的节点
         let mut node_with_deps = OptGroupNode::default();
         node_with_deps.id = 4;
         node_with_deps.dependencies = vec![1, 2, 3]; // 依赖于节点1、2、3
-        
+
         // 测试 get_first_dependency
         let first_dep = get_first_dependency(&opt_ctx, &node_with_deps);
         assert!(first_dep.is_some());
         assert_eq!(first_dep.unwrap().id, 1);
-        
+
         // 测试 get_dependency_at
         let dep_at_1 = get_dependency_at(&opt_ctx, &node_with_deps, 1);
         assert!(dep_at_1.is_some());
         assert_eq!(dep_at_1.unwrap().id, 2);
-        
+
         let dep_at_2 = get_dependency_at(&opt_ctx, &node_with_deps, 2);
         assert!(dep_at_2.is_some());
         assert_eq!(dep_at_2.unwrap().id, 3);
-        
+
         // 测试越界索引
         let dep_at_3 = get_dependency_at(&opt_ctx, &node_with_deps, 3);
         assert!(dep_at_3.is_none());
-        
+
         // 测试 get_all_dependencies
         let all_deps = get_all_dependencies(&opt_ctx, &node_with_deps);
         assert_eq!(all_deps.len(), 3);
         assert_eq!(all_deps[0].id, 1);
         assert_eq!(all_deps[1].id, 2);
         assert_eq!(all_deps[2].id, 3);
-        
+
         // 测试 has_dependency_of_kind
         // 所有节点都是默认节点，类型为 Unknown
         let has_unknown = has_dependency_of_kind(&opt_ctx, &node_with_deps, PlanNodeKind::Unknown);
         assert!(has_unknown);
-        
+
         // 使用一个存在的类型进行测试
         let has_filter = has_dependency_of_kind(&opt_ctx, &node_with_deps, PlanNodeKind::Filter);
         assert!(!has_filter);
-        
+
         // 测试没有依赖的节点
         let mut node_no_deps = OptGroupNode::default();
         node_no_deps.id = 5;
         let first_dep_none = get_first_dependency(&opt_ctx, &node_no_deps);
         assert!(first_dep_none.is_none());
-        
+
         let all_deps_empty = get_all_dependencies(&opt_ctx, &node_no_deps);
         assert!(all_deps_empty.is_empty());
     }

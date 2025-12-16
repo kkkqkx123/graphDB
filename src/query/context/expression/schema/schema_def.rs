@@ -2,9 +2,9 @@
 //!
 //! 定义了存储层的Schema结构和相关操作
 
-use std::collections::HashMap;
-use crate::core::Value;
 use super::types::FieldDef;
+use crate::core::Value;
+use std::collections::HashMap;
 
 /// Schema定义
 #[derive(Debug, Clone)]

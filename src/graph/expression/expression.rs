@@ -413,7 +413,7 @@ impl Expression {
             }
             Expression::Path(items) => items.iter().collect(),
             Expression::Label(_) => vec![],
-            
+
             // 图数据库特有表达式
             Expression::TagProperty { .. } => vec![],
             Expression::EdgeProperty { .. } => vec![],
@@ -421,7 +421,7 @@ impl Expression {
             Expression::VariableProperty { .. } => vec![],
             Expression::SourceProperty { .. } => vec![],
             Expression::DestinationProperty { .. } => vec![],
-            
+
             // 一元操作扩展
             Expression::UnaryPlus(expr) => vec![expr.as_ref()],
             Expression::UnaryNegate(expr) => vec![expr.as_ref()],
@@ -432,10 +432,10 @@ impl Expression {
             Expression::IsNotNull(expr) => vec![expr.as_ref()],
             Expression::IsEmpty(expr) => vec![expr.as_ref()],
             Expression::IsNotEmpty(expr) => vec![expr.as_ref()],
-            
+
             // 类型转换
             Expression::TypeCasting { expr, .. } => vec![expr.as_ref()],
-            
+
             // 列表推导
             Expression::ListComprehension {
                 generator,
@@ -447,12 +447,12 @@ impl Expression {
                 }
                 children
             }
-            
+
             // 谓词表达式
             Expression::Predicate { list, condition } => {
                 vec![list.as_ref(), condition.as_ref()]
             }
-            
+
             // 归约表达式
             Expression::Reduce {
                 list,
@@ -462,16 +462,16 @@ impl Expression {
             } => {
                 vec![list.as_ref(), initial.as_ref(), expr.as_ref()]
             }
-            
+
             // 路径构建表达式
             Expression::PathBuild(items) => items.iter().collect(),
-            
+
             // 文本搜索表达式
             Expression::ESQuery(_) => vec![],
-            
+
             // UUID表达式
             Expression::UUID => vec![],
-            
+
             // 下标范围表达式
             Expression::SubscriptRange {
                 collection,
@@ -487,7 +487,7 @@ impl Expression {
                 }
                 children
             }
-            
+
             // 匹配路径模式表达式
             Expression::MatchPathPattern { patterns, .. } => patterns.iter().collect(),
         }
@@ -511,7 +511,7 @@ impl Expression {
             Expression::Range { .. } => ExpressionType::Range,
             Expression::Path(_) => ExpressionType::Path,
             Expression::Label(_) => ExpressionType::Label,
-            
+
             // 图数据库特有表达式
             Expression::TagProperty { .. } => ExpressionType::Property,
             Expression::EdgeProperty { .. } => ExpressionType::Property,
@@ -519,7 +519,7 @@ impl Expression {
             Expression::VariableProperty { .. } => ExpressionType::Property,
             Expression::SourceProperty { .. } => ExpressionType::Property,
             Expression::DestinationProperty { .. } => ExpressionType::Property,
-            
+
             // 一元操作扩展
             Expression::UnaryPlus(_) => ExpressionType::Unary,
             Expression::UnaryNegate(_) => ExpressionType::Unary,
@@ -530,31 +530,31 @@ impl Expression {
             Expression::IsNotNull(_) => ExpressionType::Unary,
             Expression::IsEmpty(_) => ExpressionType::Unary,
             Expression::IsNotEmpty(_) => ExpressionType::Unary,
-            
+
             // 类型转换
             Expression::TypeCasting { .. } => ExpressionType::TypeCast,
-            
+
             // 列表推导
             Expression::ListComprehension { .. } => ExpressionType::List,
-            
+
             // 谓词表达式
             Expression::Predicate { .. } => ExpressionType::Property,
-            
+
             // 归约表达式
             Expression::Reduce { .. } => ExpressionType::Aggregate,
-            
+
             // 路径构建表达式
             Expression::PathBuild(_) => ExpressionType::Path,
-            
+
             // 文本搜索表达式
             Expression::ESQuery(_) => ExpressionType::Function,
-            
+
             // UUID表达式
             Expression::UUID => ExpressionType::Literal,
-            
+
             // 下标范围表达式
             Expression::SubscriptRange { .. } => ExpressionType::Subscript,
-            
+
             // 匹配路径模式表达式
             Expression::MatchPathPattern { .. } => ExpressionType::Path,
         }
@@ -762,4 +762,3 @@ impl Expression {
         Self::unary(UnaryOperator::IsNotNull, expr)
     }
 }
-

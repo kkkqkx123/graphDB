@@ -7,8 +7,8 @@
 //! - 属性访问（标签、边、顶点）
 //! - 表达式内部变量管理
 
-use crate::core::Value;
 use super::QueryExecutionContext;
+use crate::core::Value;
 use crate::storage::iterator::IteratorEnum;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -192,14 +192,15 @@ impl QueryExpressionContext {
     pub fn get_var_prop(&self, var: &str, prop: &str) -> Result<Value, String> {
         // 获取变量值
         let var_val = self.get_var(var)?;
-        
+
         // 根据Value的类型提取属性
         match &var_val {
             Value::Vertex(vertex) => {
                 // 从顶点中获取属性（需要指定标签名，这里使用默认标签）
                 // 在实际使用中，可能需要指定标签名，这里先使用第一个标签
                 if let Some(tag) = vertex.tags.first() {
-                    tag.properties.get(prop)
+                    tag.properties
+                        .get(prop)
                         .ok_or_else(|| format!("顶点变量 {} 的属性 {} 不存在", var, prop))
                         .map(|v| v.clone())
                 } else {
@@ -208,7 +209,8 @@ impl QueryExpressionContext {
             }
             Value::Edge(edge) => {
                 // 从边中获取属性
-                edge.props.get(prop)
+                edge.props
+                    .get(prop)
                     .ok_or_else(|| format!("边变量 {} 的属性 {} 不存在", var, prop))
                     .map(|v| v.clone())
             }
@@ -220,16 +222,21 @@ impl QueryExpressionContext {
             }
             Value::DataSet(dataset) => {
                 // 从DataSet中获取列
-                let col_idx = dataset.col_names.iter().position(|c| c == prop)
+                let col_idx = dataset
+                    .col_names
+                    .iter()
+                    .position(|c| c == prop)
                     .ok_or_else(|| format!("DataSet变量 {} 的列 {} 不存在", var, prop))?;
-                
+
                 // 获取当前行的值（如果有迭代器）
                 let iter_guard = self.iter.lock().unwrap();
                 match iter_guard.as_ref() {
                     Some(iter) => {
                         if iter.valid() {
                             iter.get_column_by_index(col_idx as i32)
-                                .ok_or_else(|| format!("DataSet变量 {} 的列 {} 值不存在", var, prop))
+                                .ok_or_else(|| {
+                                    format!("DataSet变量 {} 的列 {} 值不存在", var, prop)
+                                })
                                 .map(|v| v.clone())
                         } else {
                             Err("迭代器无效".to_string())
@@ -363,14 +370,10 @@ impl QueryExpressionContext {
     pub fn get_edge(&self) -> Result<Value, String> {
         let iter_guard = self.iter.lock().unwrap();
         match iter_guard.as_ref() {
-            Some(iter) => iter
-                .get_edge()
-                .ok_or_else(|| "边不存在".to_string()),
+            Some(iter) => iter.get_edge().ok_or_else(|| "边不存在".to_string()),
             None => Err("没有设置迭代器".to_string()),
         }
     }
-
-
 
     // ===== 迭代器管理 =====
 

@@ -1,17 +1,19 @@
 //! RollUpApplyExecutor实现
-//! 
+//!
 //! 负责处理聚合操作，将右输入中的值根据左输入的键进行聚合
 
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use async_trait::async_trait;
 
-use crate::core::{Value, DataSet, List};
-use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
-use crate::storage::StorageEngine;
+use crate::core::{DataSet, List, Value};
 use crate::graph::expression::{Expression, ExpressionContext, ExpressionEvaluator};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
+use crate::storage::StorageEngine;
 
 /// RollUpApply执行器
 /// 用于将右输入中的值根据左输入的键进行聚合
@@ -65,7 +67,12 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         context: crate::query::executor::base::ExecutionContext,
     ) -> Self {
         Self {
-            base: BaseExecutor::with_context(id, "RollUpApplyExecutor".to_string(), storage, context),
+            base: BaseExecutor::with_context(
+                id,
+                "RollUpApplyExecutor".to_string(),
+                storage,
+                context,
+            ),
             left_input_var,
             right_input_var,
             compare_cols,
@@ -78,12 +85,28 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     /// 检查双输入数据集
     fn check_bi_input_data_sets(&self) -> DBResult<()> {
         // 检查左输入
-        let _left_result = self.base.context.get_result(&self.left_input_var)
-            .ok_or_else(|| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Left input variable '{}' not found", self.left_input_var))))?;
+        let _left_result = self
+            .base
+            .context
+            .get_result(&self.left_input_var)
+            .ok_or_else(|| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "Left input variable '{}' not found",
+                    self.left_input_var
+                )))
+            })?;
 
         // 检查右输入
-        let _right_result = self.base.context.get_result(&self.right_input_var)
-            .ok_or_else(|| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Right input variable '{}' not found", self.right_input_var))))?;
+        let _right_result = self
+            .base
+            .context
+            .get_result(&self.right_input_var)
+            .ok_or_else(|| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "Right input variable '{}' not found",
+                    self.right_input_var
+                )))
+            })?;
 
         Ok(())
     }
@@ -100,23 +123,31 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         for value in iter {
             // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
-            
+
             // 构建键列表
             let mut key_list = List { values: Vec::new() };
             for col in compare_cols {
                 let evaluator = ExpressionEvaluator::new();
-                let val = evaluator.evaluate(col, expr_context)
-                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+                let val = evaluator.evaluate(col, expr_context).map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
+                })?;
                 key_list.values.push(val);
             }
 
             // 获取收集列的值
             let evaluator = ExpressionEvaluator::new();
-            let collect_val = evaluator.evaluate(collect_col, expr_context)
-                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+            let collect_val = evaluator.evaluate(collect_col, expr_context).map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                    e.to_string(),
+                ))
+            })?;
 
             // 添加到哈希表
-            let entry = hash_table.entry(key_list).or_insert_with(|| List { values: Vec::new() });
+            let entry = hash_table
+                .entry(key_list)
+                .or_insert_with(|| List { values: Vec::new() });
             entry.values.push(collect_val);
         }
 
@@ -135,19 +166,27 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         for value in iter {
             // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
-            
+
             // 获取键值
             let evaluator = ExpressionEvaluator::new();
-            let key_val = evaluator.evaluate(compare_col, expr_context)
-                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+            let key_val = evaluator.evaluate(compare_col, expr_context).map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                    e.to_string(),
+                ))
+            })?;
 
             // 获取收集列的值
             let evaluator = ExpressionEvaluator::new();
-            let collect_val = evaluator.evaluate(collect_col, expr_context)
-                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+            let collect_val = evaluator.evaluate(collect_col, expr_context).map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                    e.to_string(),
+                ))
+            })?;
 
             // 添加到哈希表
-            let entry = hash_table.entry(key_val).or_insert_with(|| List { values: Vec::new() });
+            let entry = hash_table
+                .entry(key_val)
+                .or_insert_with(|| List { values: Vec::new() });
             entry.values.push(collect_val);
         }
 
@@ -163,16 +202,19 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         expr_context: &mut ExpressionContext,
     ) -> DBResult<()> {
         hash_table.values.reserve(iter.len());
-        
+
         for value in iter {
             // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
-            
+
             // 获取收集列的值
             let evaluator = ExpressionEvaluator::new();
-            let collect_val = evaluator.evaluate(collect_col, expr_context)
-                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
-            
+            let collect_val = evaluator.evaluate(collect_col, expr_context).map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                    e.to_string(),
+                ))
+            })?;
+
             hash_table.values.push(collect_val);
         }
 
@@ -196,15 +238,15 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         for value in probe_iter {
             // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
-            
+
             let mut row = Vec::new();
-            
+
             if self.movable {
                 row.push(value.clone());
             } else {
                 row.push(value.clone());
             }
-            
+
             row.push(Value::List(hash_table.values.clone()));
             dataset.rows.push(row);
         }
@@ -230,23 +272,29 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         for value in probe_iter {
             // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
-            
+
             // 获取探测键值
             let evaluator = ExpressionEvaluator::new();
-            let key_val = evaluator.evaluate(probe_key, expr_context)
-                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+            let key_val = evaluator.evaluate(probe_key, expr_context).map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                    e.to_string(),
+                ))
+            })?;
 
             // 查找哈希表
-            let vals = hash_table.get(&key_val).cloned().unwrap_or(List { values: Vec::new() });
+            let vals = hash_table
+                .get(&key_val)
+                .cloned()
+                .unwrap_or(List { values: Vec::new() });
 
             let mut row = Vec::new();
-            
+
             if self.movable {
                 row.push(value.clone());
             } else {
                 row.push(value.clone());
             }
-            
+
             row.push(Value::List(vals.values));
             dataset.rows.push(row);
         }
@@ -272,27 +320,33 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         for value in probe_iter {
             // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
-            
+
             // 构建键列表
             let mut key_list = List { values: Vec::new() };
             for col in probe_keys {
                 let evaluator = ExpressionEvaluator::new();
-                let val = evaluator.evaluate(col, expr_context)
-                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+                let val = evaluator.evaluate(col, expr_context).map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
+                })?;
                 key_list.values.push(val);
             }
 
             // 查找哈希表
-            let vals = hash_table.get(&key_list).cloned().unwrap_or(List { values: Vec::new() });
+            let vals = hash_table
+                .get(&key_list)
+                .cloned()
+                .unwrap_or(List { values: Vec::new() });
 
             let mut row = Vec::new();
-            
+
             if self.movable {
                 row.push(value.clone());
             } else {
                 row.push(value.clone());
             }
-            
+
             row.push(Value::List(vals.values));
             dataset.rows.push(row);
         }
@@ -312,29 +366,45 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         // 将结果转换为值列表
         let left_values = match left_result {
             ExecutionResult::Values(values) => values.clone(),
-            ExecutionResult::Vertices(vertices) => {
-                vertices.iter().map(|v| Value::Vertex(Box::new(v.clone()))).collect::<Vec<_>>()
-            },
-            ExecutionResult::Edges(edges) => {
-                edges.iter().map(|e| Value::Edge(e.clone())).collect::<Vec<_>>()
-            },
-            _ => return Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Invalid left input result type".to_string()))),
+            ExecutionResult::Vertices(vertices) => vertices
+                .iter()
+                .map(|v| Value::Vertex(Box::new(v.clone())))
+                .collect::<Vec<_>>(),
+            ExecutionResult::Edges(edges) => edges
+                .iter()
+                .map(|e| Value::Edge(e.clone()))
+                .collect::<Vec<_>>(),
+            _ => {
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "Invalid left input result type".to_string(),
+                    ),
+                ))
+            }
         };
 
         let right_values = match right_result {
             ExecutionResult::Values(values) => values.clone(),
-            ExecutionResult::Vertices(vertices) => {
-                vertices.iter().map(|v| Value::Vertex(Box::new(v.clone()))).collect::<Vec<_>>()
-            },
-            ExecutionResult::Edges(edges) => {
-                edges.iter().map(|e| Value::Edge(e.clone())).collect::<Vec<_>>()
-            },
-            _ => return Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Invalid right input result type".to_string()))),
+            ExecutionResult::Vertices(vertices) => vertices
+                .iter()
+                .map(|v| Value::Vertex(Box::new(v.clone())))
+                .collect::<Vec<_>>(),
+            ExecutionResult::Edges(edges) => edges
+                .iter()
+                .map(|e| Value::Edge(e.clone()))
+                .collect::<Vec<_>>(),
+            _ => {
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "Invalid right input result type".to_string(),
+                    ),
+                ))
+            }
         };
 
         // 创建表达式上下文
         let mut expr_context = ExpressionContext::new();
-        
+
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {
             expr_context.set_variable(name.clone(), value.clone());
@@ -344,7 +414,12 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         let result = if self.compare_cols.is_empty() {
             // 零键情况
             let mut hash_table = List { values: Vec::new() };
-            self.build_zero_key_hash_table(&self.collect_col, &right_values, &mut hash_table, &mut expr_context)?;
+            self.build_zero_key_hash_table(
+                &self.collect_col,
+                &right_values,
+                &mut hash_table,
+                &mut expr_context,
+            )?;
             self.probe_zero_key(&left_values, &hash_table, &mut expr_context)?
         } else if self.compare_cols.len() == 1 {
             // 单键情况
@@ -356,7 +431,12 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
                 &mut hash_table,
                 &mut expr_context,
             )?;
-            self.probe_single_key(&self.compare_cols[0], &left_values, &hash_table, &mut expr_context)?
+            self.probe_single_key(
+                &self.compare_cols[0],
+                &left_values,
+                &hash_table,
+                &mut expr_context,
+            )?
         } else {
             // 多键情况
             let mut hash_table = HashMap::new();
@@ -367,7 +447,12 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
                 &mut hash_table,
                 &mut expr_context,
             )?;
-            self.probe(&self.compare_cols, &left_values, &hash_table, &mut expr_context)?
+            self.probe(
+                &self.compare_cols,
+                &left_values,
+                &hash_table,
+                &mut expr_context,
+            )?
         };
 
         Ok(result)
@@ -379,12 +464,14 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for RollUpApplyExecutor<S> 
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 执行RollUpApply操作
         let dataset = self.execute_rollup_apply()?;
-        
+
         // 将数据集转换为值列表
-        let values: Vec<Value> = dataset.rows.into_iter()
+        let values: Vec<Value> = dataset
+            .rows
+            .into_iter()
             .flat_map(|row| row.into_iter())
             .collect();
-        
+
         Ok(ExecutionResult::Values(values))
     }
 }
@@ -429,41 +516,42 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RollUpApplyExecut
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::test_config::test_config;
     use crate::core::Value;
     use crate::graph::expression::Expression;
     use crate::storage::NativeStorage;
-    use crate::config::test_config::test_config;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_rollup_apply_executor() {
         let config = test_config();
-        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db_rollup_apply")).unwrap()));
-        
+        let storage = Arc::new(Mutex::new(
+            NativeStorage::new(config.test_db_path("test_db_rollup_apply")).unwrap(),
+        ));
+
         // 创建左输入数据
-        let left_values = vec![
-            Value::Int(1),
-            Value::Int(2),
-        ];
-        
+        let left_values = vec![Value::Int(1), Value::Int(2)];
+
         // 创建右输入数据
-        let right_values = vec![
-            Value::Int(1),
-            Value::Int(1),
-            Value::Int(2),
-        ];
-        
+        let right_values = vec![Value::Int(1), Value::Int(1), Value::Int(2)];
+
         // 创建执行上下文
         let mut context = crate::query::executor::base::ExecutionContext::new();
-        context.set_result("left".to_string(), ExecutionResult::Values(left_values.clone()));
-        context.set_result("right".to_string(), ExecutionResult::Values(right_values.clone()));
-        
+        context.set_result(
+            "left".to_string(),
+            ExecutionResult::Values(left_values.clone()),
+        );
+        context.set_result(
+            "right".to_string(),
+            ExecutionResult::Values(right_values.clone()),
+        );
+
         // 创建RollUpApplyExecutor
         let compare_cols = vec![
             Expression::literal(0i64), // 简化的比较列
         ];
         let collect_col = Expression::InputProperty("_".to_string());
-        
+
         let mut executor = RollUpApplyExecutor::with_context(
             1,
             storage,
@@ -474,10 +562,10 @@ mod tests {
             vec!["key".to_string(), "collected".to_string()],
             context,
         );
-        
+
         // 执行RollUpApply
         let result = executor.execute().await.unwrap();
-        
+
         // 检查结果
         if let ExecutionResult::Values(values) = result {
             // 应该有4个值（2个左值 × 2个聚合组）

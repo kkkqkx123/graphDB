@@ -1,14 +1,14 @@
 //! 额外的访问者实现
 //!
 //! 这个模块提供了更多的访问者实现，用于不同的 Value 操作
-//! 
+//!
 //! 注意：此文件已被重构为模块化结构，请使用 `src/core/visitor/mod.rs` 中的新实现
 //! 此文件保留是为了向后兼容，建议迁移到新的模块化结构
 
 // 重新导出新模块化结构的内容，保持向后兼容性
 pub use crate::core::visitor::{
-    DeepCloneVisitor, SizeCalculatorVisitor, HashCalculatorVisitor, TypeConversionVisitor, TransformationError,
-    deep_clone, calculate_size, calculate_hash, convert_type,
+    calculate_hash, calculate_size, convert_type, deep_clone, DeepCloneVisitor,
+    HashCalculatorVisitor, SizeCalculatorVisitor, TransformationError, TypeConversionVisitor,
 };
 
 // 为了向后兼容，保留一些旧的类型别名
@@ -16,10 +16,13 @@ pub use crate::core::visitor::{
 pub mod legacy {
     //! 旧版访问者实现，保留用于向后兼容
     //! 建议使用新的模块化结构
-    
+
+    use crate::core::value::{
+        DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue,
+        Value,
+    };
+    use crate::core::vertex_edge_path::{Edge, Path, Vertex};
     use crate::core::visitor::ValueVisitor;
-    use crate::core::value::{Value, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, DataSet};
-    use crate::core::vertex_edge_path::{Vertex, Edge, Path};
     use std::collections::HashMap;
 
     /// 旧版深度克隆访问者
@@ -94,10 +97,8 @@ pub mod legacy {
         }
 
         fn visit_set(&mut self, value: &std::collections::HashSet<Value>) -> Self::Result {
-            let cloned_set: std::collections::HashSet<Value> = value
-                .iter()
-                .map(|v| Self::clone_value(v))
-                .collect();
+            let cloned_set: std::collections::HashSet<Value> =
+                value.iter().map(|v| Self::clone_value(v)).collect();
             Value::Set(cloned_set)
         }
 
@@ -205,7 +206,8 @@ pub mod legacy {
             self.size += Self::calculate_size(&Value::Vertex(Box::new(value.src.as_ref().clone())));
             for step in &value.steps {
                 self.size += std::mem::size_of::<crate::core::vertex_edge_path::Step>();
-                self.size += Self::calculate_size(&Value::Vertex(Box::new(step.dst.as_ref().clone())));
+                self.size +=
+                    Self::calculate_size(&Value::Vertex(Box::new(step.dst.as_ref().clone())));
                 self.size += Self::calculate_size(&Value::Edge(step.edge.as_ref().clone()));
             }
         }
@@ -239,12 +241,14 @@ pub mod legacy {
                 self.size += std::mem::size_of::<(f64, f64)>();
             }
             if let Some(ref line) = value.linestring {
-                self.size += std::mem::size_of::<Vec<(f64, f64)>>() + line.len() * std::mem::size_of::<(f64, f64)>();
+                self.size += std::mem::size_of::<Vec<(f64, f64)>>()
+                    + line.len() * std::mem::size_of::<(f64, f64)>();
             }
             if let Some(ref poly) = value.polygon {
                 self.size += std::mem::size_of::<Vec<Vec<(f64, f64)>>>();
                 for ring in poly {
-                    self.size += std::mem::size_of::<Vec<(f64, f64)>>() + ring.len() * std::mem::size_of::<(f64, f64)>();
+                    self.size += std::mem::size_of::<Vec<(f64, f64)>>()
+                        + ring.len() * std::mem::size_of::<(f64, f64)>();
                 }
             }
         }
@@ -427,9 +431,10 @@ mod tests {
         let original = Value::List(vec![
             Value::Int(42),
             Value::String("test".to_string()),
-            Value::Map(std::collections::HashMap::from([
-                ("key".to_string(), Value::Bool(true))
-            ])),
+            Value::Map(std::collections::HashMap::from([(
+                "key".to_string(),
+                Value::Bool(true),
+            )])),
         ]);
 
         let cloned = deep_clone(&original).expect("克隆失败");
@@ -451,11 +456,17 @@ mod tests {
         // 测试边的 src 和 dst 访问
         use crate::core::vertex_edge_path::Edge;
         use crate::core::Value;
-        
+
         let src_id = Value::Int(1);
         let dst_id = Value::Int(2);
-        let edge = Edge::new(src_id, dst_id, "关系".to_string(), 0, std::collections::HashMap::new());
-        
+        let edge = Edge::new(
+            src_id,
+            dst_id,
+            "关系".to_string(),
+            0,
+            std::collections::HashMap::new(),
+        );
+
         let _src = &edge.src;
         let _dst = &edge.dst;
     }
@@ -466,9 +477,10 @@ mod tests {
         let original = Value::List(vec![
             Value::Int(42),
             Value::String("test".to_string()),
-            Value::Map(std::collections::HashMap::from([
-                ("key".to_string(), Value::Bool(true))
-            ])),
+            Value::Map(std::collections::HashMap::from([(
+                "key".to_string(),
+                Value::Bool(true),
+            )])),
         ]);
 
         // 使用新的便捷函数

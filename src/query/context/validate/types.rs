@@ -1,13 +1,12 @@
 //! 验证上下文基础数据类型定义
 //! 包含所有验证上下文相关的核心数据结构
 
-
 /// 图空间信息
 #[derive(Debug, Clone)]
 pub struct SpaceInfo {
     pub id: i32,
     pub name: String,
-    pub vid_type: String,  // 顶点ID类型
+    pub vid_type: String, // 顶点ID类型
 }
 
 /// 列定义
@@ -32,15 +31,18 @@ impl Variable {
     pub fn new(name: String, columns: ColsDef) -> Self {
         Self { name, columns }
     }
-    
+
     /// 检查变量是否有指定的列
     pub fn has_column(&self, col_name: &str) -> bool {
         self.columns.iter().any(|c| c.name == col_name)
     }
-    
+
     /// 获取指定列的类型
     pub fn get_column_type(&self, col_name: &str) -> Option<&String> {
-        self.columns.iter().find(|c| c.name == col_name).map(|c| &c.type_)
+        self.columns
+            .iter()
+            .find(|c| c.name == col_name)
+            .map(|c| &c.type_)
     }
 }
 
@@ -68,7 +70,7 @@ mod tests {
             Column::new("id".to_string(), "INT".to_string()),
             Column::new("name".to_string(), "STRING".to_string()),
         ];
-        
+
         let var = Variable::new("person".to_string(), cols);
         assert_eq!(var.name, "person");
         assert_eq!(var.columns.len(), 2);
@@ -80,7 +82,7 @@ mod tests {
             Column::new("id".to_string(), "INT".to_string()),
             Column::new("name".to_string(), "STRING".to_string()),
         ];
-        
+
         let var = Variable::new("person".to_string(), cols);
         assert!(var.has_column("id"));
         assert!(var.has_column("name"));
@@ -93,7 +95,7 @@ mod tests {
             Column::new("id".to_string(), "INT".to_string()),
             Column::new("name".to_string(), "STRING".to_string()),
         ];
-        
+
         let var = Variable::new("person".to_string(), cols);
         assert_eq!(var.get_column_type("id"), Some(&"INT".to_string()));
         assert_eq!(var.get_column_type("name"), Some(&"STRING".to_string()));

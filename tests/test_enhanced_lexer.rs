@@ -1,11 +1,19 @@
 #[cfg(test)]
 mod test_enhanced_lexer {
-    use graphdb::query::parser::lexer::lexer::Lexer;
     use graphdb::query::parser::core::token::{Token, TokenKind};
+    use graphdb::query::parser::lexer::lexer::Lexer;
 
     fn assert_token(token: &Token, expected_kind: TokenKind, expected_lexeme: &str) {
-        assert_eq!(token.kind, expected_kind, "Token kind mismatch. Expected: {:?}, Got: {:?}", expected_kind, token.kind);
-        assert_eq!(token.lexeme, expected_lexeme, "Lexeme mismatch for token {:?}. Expected: '{}', Got: '{}'", expected_kind, expected_lexeme, token.lexeme);
+        assert_eq!(
+            token.kind, expected_kind,
+            "Token kind mismatch. Expected: {:?}, Got: {:?}",
+            expected_kind, token.kind
+        );
+        assert_eq!(
+            token.lexeme, expected_lexeme,
+            "Lexeme mismatch for token {:?}. Expected: '{}', Got: '{}'",
+            expected_kind, expected_lexeme, token.lexeme
+        );
     }
 
     #[test]
@@ -65,8 +73,16 @@ mod test_enhanced_lexer {
 
         assert_token(&lexer.next_token(), TokenKind::Create, "CREATE");
         assert_token(&lexer.next_token(), TokenKind::LParen, "(");
-        assert_token(&lexer.next_token(), TokenKind::Identifier("n".to_string()), "n");
+        assert_token(
+            &lexer.next_token(),
+            TokenKind::Identifier("n".to_string()),
+            "n",
+        );
         assert_token(&lexer.next_token(), TokenKind::Colon, ":");
-        assert_token(&lexer.next_token(), TokenKind::Identifier("Person".to_string()), "Person");
+        assert_token(
+            &lexer.next_token(),
+            TokenKind::Identifier("Person".to_string()),
+            "Person",
+        );
     }
 }

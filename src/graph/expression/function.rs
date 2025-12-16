@@ -1,7 +1,7 @@
 use super::error::ExpressionError;
-use crate::query::context::EvalContext;
 use crate::core::Value;
 use crate::graph::expression::Expression;
+use crate::query::context::EvalContext;
 
 /// 评估函数表达式
 pub fn evaluate_function(

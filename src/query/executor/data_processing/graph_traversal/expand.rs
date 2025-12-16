@@ -2,13 +2,13 @@ use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
-use crate::core::Value;
 use crate::core::error::{DBError, DBResult};
-use crate::query::{QueryError};
-use crate::query::executor::base::{
-    BaseExecutor, EdgeDirection, InputExecutor,
+use crate::core::Value;
+use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
+use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
 /// ExpandExecutor - 单步路径扩展执行器
@@ -197,14 +197,13 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandExecutor<S> {
                 }
                 nodes
             }
-            ExecutionResult::Values(values) => {
-                values.into_iter().filter_map(|v| {
-                    match v {
-                        Value::Vertex(vertex) => Some(*vertex.vid),
-                        _ => None,
-                    }
-                }).collect()
-            },
+            ExecutionResult::Values(values) => values
+                .into_iter()
+                .filter_map(|v| match v {
+                    Value::Vertex(vertex) => Some(*vertex.vid),
+                    _ => None,
+                })
+                .collect(),
             _ => Vec::new(),
         };
 

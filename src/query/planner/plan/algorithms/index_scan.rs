@@ -1,11 +1,14 @@
 //! 搜索算法相关的计划节点
 //! 包含索引扫描、全文索引扫描等搜索相关操作
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -27,11 +30,11 @@ pub struct IndexScan {
     pub space_id: i32,
     pub tag_id: i32,
     pub index_id: i32,
-    pub scan_type: String,  // "RANGE", "PREFIX", "UNIQUE"等
-    pub scan_limits: Vec<IndexLimit>,  // 索引扫描限制
+    pub scan_type: String,            // "RANGE", "PREFIX", "UNIQUE"等
+    pub scan_limits: Vec<IndexLimit>, // 索引扫描限制
     pub filter: Option<String>,
     pub return_columns: Vec<String>,
-    pub limit: Option<i64>,           // 限制返回的记录数量
+    pub limit: Option<i64>, // 限制返回的记录数量
 }
 
 impl IndexScan {
@@ -177,7 +180,7 @@ pub struct FulltextIndexScan {
     pub cost: f64,
     pub space_id: i32,
     pub index_name: String,
-    pub query: String,  // 全文检索查询
+    pub query: String, // 全文检索查询
     pub limit: Option<i64>,
 }
 

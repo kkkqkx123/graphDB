@@ -6,8 +6,10 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
+use crate::query::executor::traits::{
+    DBResult, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::query::QueryError;
-use crate::query::executor::traits::{ExecutorCore, ExecutorLifecycle, ExecutorMetadata, ExecutionResult, DBResult};
 use crate::storage::StorageEngine;
 
 use super::base::SetExecutor;
@@ -90,7 +92,11 @@ impl<S: StorageEngine> IntersectExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for IntersectExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_intersect().await.map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+        let dataset = self.execute_intersect().await.map_err(|e| {
+            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
+                e.to_string(),
+            ))
+        })?;
 
         // 将DataSet转换为Values结果
         let values: Vec<Value> = dataset
@@ -132,7 +138,9 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for IntersectExecutor<S
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S> for IntersectExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
+    for IntersectExecutor<S>
+{
     fn storage(&self) -> &Arc<Mutex<S>> {
         self.set_executor.storage()
     }
@@ -145,13 +153,13 @@ mod tests {
 
     // 创建测试用的存储引擎
     fn create_test_storage() -> Arc<Mutex<crate::storage::NativeStorage>> {
-        use std::time::{SystemTime, UNIX_EPOCH};
         use std::sync::atomic::{AtomicUsize, Ordering};
-        
+        use std::time::{SystemTime, UNIX_EPOCH};
+
         // 使用原子计数器确保每个测试使用唯一的数据库路径
         static TEST_COUNTER: AtomicUsize = AtomicUsize::new(0);
         let test_id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
-        
+
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
@@ -473,7 +481,10 @@ mod tests {
         let result = executor.execute().await;
         assert!(result.is_err());
 
-        if let Err(crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(msg))) = result {
+        if let Err(crate::core::error::DBError::Query(
+            crate::core::error::QueryError::ExecutionError(msg),
+        )) = result
+        {
             assert!(msg.contains("列名不匹配"));
         } else {
             panic!("期望列名不匹配错误");

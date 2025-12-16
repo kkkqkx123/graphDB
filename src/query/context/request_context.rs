@@ -168,7 +168,6 @@ impl RequestContext {
         }
     }
 
-
     /// 创建带会话信息的请求上下文
     pub fn with_session(
         query: String,

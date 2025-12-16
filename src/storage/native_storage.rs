@@ -1,7 +1,7 @@
-use crate::core::{Vertex, Edge, Value, Direction};
-use super::{StorageError, StorageEngine, TransactionId};
-use sled::{Db, Tree};
+use super::{StorageEngine, StorageError, TransactionId};
+use crate::core::{Direction, Edge, Value, Vertex};
 use serde_json;
+use sled::{Db, Tree};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Native storage implementation using sled database
@@ -13,7 +13,7 @@ pub struct NativeStorage {
     #[allow(dead_code)]
     schema_tree: Tree,
     node_edge_index: Tree, // Index: node_id -> [edge_id]
-    db_path: String, // Store the path for cloning
+    db_path: String,       // Store the path for cloning
 }
 
 impl Clone for NativeStorage {
@@ -65,24 +65,27 @@ impl NativeStorage {
     }
 
     fn value_to_bytes(&self, value: &Value) -> Result<Vec<u8>, StorageError> {
-        serde_json::to_vec(value)
-            .map_err(|e| StorageError::SerializationError(e.to_string()))
+        serde_json::to_vec(value).map_err(|e| StorageError::SerializationError(e.to_string()))
     }
 
     #[allow(dead_code)]
     fn value_from_bytes(&self, bytes: &[u8]) -> Result<Value, StorageError> {
-        serde_json::from_slice(bytes)
-            .map_err(|e| StorageError::SerializationError(e.to_string()))
+        serde_json::from_slice(bytes).map_err(|e| StorageError::SerializationError(e.to_string()))
     }
 
-    fn update_node_edge_index(&self, node_id: &Value, edge_key: &[u8], add: bool) -> Result<(), StorageError> {
+    fn update_node_edge_index(
+        &self,
+        node_id: &Value,
+        edge_key: &[u8],
+        add: bool,
+    ) -> Result<(), StorageError> {
         let node_id_bytes = self.value_to_bytes(node_id)?;
         let mut edge_list = match self.node_edge_index.get(&node_id_bytes)? {
             Some(list_bytes) => {
                 let result: Vec<Vec<u8>> = serde_json::from_slice(&list_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 result
-            },
+            }
             None => Vec::new(),
         };
 
@@ -197,7 +200,12 @@ impl StorageEngine for NativeStorage {
         Ok(())
     }
 
-    fn get_edge(&self, src: &Value, dst: &Value, edge_type: &str) -> Result<Option<Edge>, StorageError> {
+    fn get_edge(
+        &self,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+    ) -> Result<Option<Edge>, StorageError> {
         let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
@@ -211,7 +219,11 @@ impl StorageEngine for NativeStorage {
         }
     }
 
-    fn get_node_edges(&self, node_id: &Value, direction: Direction) -> Result<Vec<Edge>, StorageError> {
+    fn get_node_edges(
+        &self,
+        node_id: &Value,
+        direction: Direction,
+    ) -> Result<Vec<Edge>, StorageError> {
         let edge_keys = self.get_node_edge_keys(node_id)?;
         let mut edges = Vec::new();
 
@@ -232,7 +244,12 @@ impl StorageEngine for NativeStorage {
         Ok(edges)
     }
 
-    fn delete_edge(&mut self, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
+    fn delete_edge(
+        &mut self,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+    ) -> Result<(), StorageError> {
         let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 

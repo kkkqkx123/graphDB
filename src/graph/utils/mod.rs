@@ -5,4 +5,4 @@ pub mod id_utils;
 pub use id_utils::{generate_id, is_valid_id};
 
 pub mod id_generator;
-pub use id_generator::{IdGenerator, EPIdGenerator, INVALID_ID};
+pub use id_generator::{EPIdGenerator, IdGenerator, INVALID_ID};

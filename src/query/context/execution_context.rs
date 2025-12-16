@@ -3,15 +3,15 @@
 //!
 //! 注意：这是查询级别的执行上下文，不同于应用级别的 services::context::ExecutionContext
 
-use std::collections::HashMap;
-use std::sync::{RwLock, Arc};
 use crate::core::{Result, Value};
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 /// 查询执行上下文
-/// 
+///
 /// 每个查询请求的执行上下文，存储查询变量值和查询结果的多版本历史
 /// 对应原C++中的ExecutionContext类
-/// 
+///
 /// 与 services::context::ExecutionContext 的区别：
 /// - services::context::ExecutionContext: 应用级，追踪单个操作的超时和统计
 /// - QueryExecutionContext: 查询级，管理查询变量的多版本
@@ -31,14 +31,18 @@ impl QueryExecutionContext {
 
     /// 初始化变量
     pub fn init_var(&self, name: &str) {
-        let mut value_map = self.value_map.write()
+        let mut value_map = self
+            .value_map
+            .write()
             .expect("Failed to acquire write lock");
         value_map.entry(name.to_string()).or_insert_with(Vec::new);
     }
 
     /// 获取变量的最新值
     pub fn get_value(&self, name: &str) -> std::result::Result<Value, String> {
-        let value_map = self.value_map.read()
+        let value_map = self
+            .value_map
+            .read()
             .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
 
         if let Some(results) = value_map.get(name) {
@@ -54,7 +58,9 @@ impl QueryExecutionContext {
 
     /// 获取变量的最新结果
     pub fn get_result(&self, name: &str) -> std::result::Result<Result, String> {
-        let value_map = self.value_map.read()
+        let value_map = self
+            .value_map
+            .read()
             .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
 
         if let Some(results) = value_map.get(name) {
@@ -69,8 +75,14 @@ impl QueryExecutionContext {
     }
 
     /// 获取变量的指定版本结果
-    pub fn get_versioned_result(&self, name: &str, version: i64) -> std::result::Result<Result, String> {
-        let value_map = self.value_map.read()
+    pub fn get_versioned_result(
+        &self,
+        name: &str,
+        version: i64,
+    ) -> std::result::Result<Result, String> {
+        let value_map = self
+            .value_map
+            .read()
             .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
 
         if let Some(results) = value_map.get(name) {
@@ -99,8 +111,15 @@ impl QueryExecutionContext {
     }
 
     /// 设置变量的指定版本结果
-    pub fn set_versioned_result(&self, name: &str, result: Result, version: i64) -> std::result::Result<(), String> {
-        let mut value_map = self.value_map.write()
+    pub fn set_versioned_result(
+        &self,
+        name: &str,
+        result: Result,
+        version: i64,
+    ) -> std::result::Result<(), String> {
+        let mut value_map = self
+            .value_map
+            .write()
             .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
 
         let results = value_map.entry(name.to_string()).or_insert_with(Vec::new);
@@ -131,7 +150,9 @@ impl QueryExecutionContext {
 
     /// 获取变量的版本数量
     pub fn num_versions(&self, name: &str) -> std::result::Result<usize, String> {
-        let value_map = self.value_map.read()
+        let value_map = self
+            .value_map
+            .read()
             .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
 
         if let Some(results) = value_map.get(name) {
@@ -143,7 +164,9 @@ impl QueryExecutionContext {
 
     /// 获取变量的所有历史结果（最新的在前，最老的在后）
     pub fn get_history(&self, name: &str) -> std::result::Result<Vec<Result>, String> {
-        let value_map = self.value_map.read()
+        let value_map = self
+            .value_map
+            .read()
             .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
 
         if let Some(results) = value_map.get(name) {
@@ -155,7 +178,9 @@ impl QueryExecutionContext {
 
     /// 设置变量的最新值
     pub fn set_value(&self, name: &str, value: Value) -> std::result::Result<(), String> {
-        let mut value_map = self.value_map.write()
+        let mut value_map = self
+            .value_map
+            .write()
             .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
 
         let results = value_map.entry(name.to_string()).or_insert_with(Vec::new);
@@ -167,7 +192,9 @@ impl QueryExecutionContext {
 
     /// 设置变量的最新结果
     pub fn set_result(&self, name: &str, result: Result) -> std::result::Result<(), String> {
-        let mut value_map = self.value_map.write()
+        let mut value_map = self
+            .value_map
+            .write()
             .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
 
         let results = value_map.entry(name.to_string()).or_insert_with(Vec::new);
@@ -178,7 +205,9 @@ impl QueryExecutionContext {
 
     /// 删除变量的结果
     pub fn drop_result(&self, name: &str) -> std::result::Result<(), String> {
-        let mut value_map = self.value_map.write()
+        let mut value_map = self
+            .value_map
+            .write()
             .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
 
         value_map.remove(name);
@@ -186,8 +215,14 @@ impl QueryExecutionContext {
     }
 
     /// 只保留最近几个版本的结果
-    pub fn trunc_history(&self, name: &str, num_versions_to_keep: usize) -> std::result::Result<(), String> {
-        let mut value_map = self.value_map.write()
+    pub fn trunc_history(
+        &self,
+        name: &str,
+        num_versions_to_keep: usize,
+    ) -> std::result::Result<(), String> {
+        let mut value_map = self
+            .value_map
+            .write()
             .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
 
         if let Some(results) = value_map.get_mut(name) {
@@ -206,7 +241,7 @@ impl QueryExecutionContext {
             Ok(map) => map,
             Err(_) => return false, // 如果无法获取读锁，返回false
         };
-        
+
         value_map.contains_key(name)
     }
 
@@ -216,7 +251,7 @@ impl QueryExecutionContext {
             Ok(map) => map,
             Err(_) => return 0, // 如果无法获取读锁，返回0
         };
-        
+
         value_map.len()
     }
 }
@@ -234,19 +269,22 @@ mod tests {
     #[test]
     fn test_query_execution_context() {
         let ctx = QueryExecutionContext::new();
-        
+
         // 测试初始化变量
         ctx.init_var("test_var");
         assert!(ctx.exists("test_var"));
-        
+
         // 测试设置和获取值
         let value = Value::Int(42);
         ctx.set_value("test_var", value.clone()).unwrap();
         let retrieved_value = ctx.get_value("test_var").unwrap();
         assert_eq!(retrieved_value, value);
-        
+
         // 测试结果操作
-        let result = Result::new(Value::String("test_result".to_string()), crate::core::ResultState::Success);
+        let result = Result::new(
+            Value::String("test_result".to_string()),
+            crate::core::ResultState::Success,
+        );
         ctx.set_result("result_var", result.clone()).unwrap();
         let retrieved_result = ctx.get_result("result_var").unwrap();
         assert_eq!(retrieved_result, result);
@@ -255,20 +293,20 @@ mod tests {
     #[test]
     fn test_versioned_operations() {
         let ctx = QueryExecutionContext::new();
-        
+
         // 创建一些测试结果
         let result1 = Result::new(Value::Int(1), crate::core::ResultState::Success);
         let result2 = Result::new(Value::Int(2), crate::core::ResultState::Success);
         let result3 = Result::new(Value::Int(3), crate::core::ResultState::Success);
-        
+
         // 设置不同版本的结果
         ctx.set_result("versioned_var", result1.clone()).unwrap();
         ctx.set_result("versioned_var", result2.clone()).unwrap();
         ctx.set_result("versioned_var", result3.clone()).unwrap();
-        
+
         // 检查版本数量
         assert_eq!(ctx.num_versions("versioned_var").unwrap(), 3);
-        
+
         // 获取历史记录
         let history = ctx.get_history("versioned_var").unwrap();
         assert_eq!(history.len(), 3);
@@ -276,13 +314,25 @@ mod tests {
         assert_eq!(history[0], result3); // 最新
         assert_eq!(history[1], result2);
         assert_eq!(history[2], result1); // 最老
-        
+
         // 获取指定版本（0是最新的）
-        assert_eq!(ctx.get_versioned_result("versioned_var", 0).unwrap(), result3);
-        assert_eq!(ctx.get_versioned_result("versioned_var", -1).unwrap(), result2);
-        assert_eq!(ctx.get_versioned_result("versioned_var", 1).unwrap(), result2);
-        assert_eq!(ctx.get_versioned_result("versioned_var", 2).unwrap(), result1);
-        
+        assert_eq!(
+            ctx.get_versioned_result("versioned_var", 0).unwrap(),
+            result3
+        );
+        assert_eq!(
+            ctx.get_versioned_result("versioned_var", -1).unwrap(),
+            result2
+        );
+        assert_eq!(
+            ctx.get_versioned_result("versioned_var", 1).unwrap(),
+            result2
+        );
+        assert_eq!(
+            ctx.get_versioned_result("versioned_var", 2).unwrap(),
+            result1
+        );
+
         // 版本截断
         ctx.trunc_history("versioned_var", 2).unwrap();
         assert_eq!(ctx.num_versions("versioned_var").unwrap(), 2);
@@ -291,23 +341,24 @@ mod tests {
     #[test]
     fn test_variable_count() {
         let ctx = QueryExecutionContext::new();
-        
+
         // 初始变量数量应为0
         assert_eq!(ctx.variable_count(), 0);
-        
+
         // 添加变量
         ctx.set_value("var1", Value::Int(1)).unwrap();
         assert_eq!(ctx.variable_count(), 1);
-        
+
         // 添加更多变量
-        ctx.set_value("var2", Value::String("test".to_string())).unwrap();
+        ctx.set_value("var2", Value::String("test".to_string()))
+            .unwrap();
         ctx.set_value("var3", Value::Bool(true)).unwrap();
         assert_eq!(ctx.variable_count(), 3);
-        
+
         // 删除变量
         ctx.drop_result("var2").unwrap();
         assert_eq!(ctx.variable_count(), 2);
-        
+
         // 删除不存在的变量不应影响计数
         ctx.drop_result("non_existent").unwrap();
         assert_eq!(ctx.variable_count(), 2);

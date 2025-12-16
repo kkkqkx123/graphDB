@@ -19,10 +19,10 @@ pub trait ExecutorCore {
 pub trait ExecutorLifecycle {
     /// 打开执行器
     fn open(&mut self) -> DBResult<()>;
-    
+
     /// 关闭执行器
     fn close(&mut self) -> DBResult<()>;
-    
+
     /// 检查执行器是否已打开
     fn is_open(&self) -> bool;
 }
@@ -31,21 +31,19 @@ pub trait ExecutorLifecycle {
 pub trait ExecutorMetadata {
     /// 获取执行器ID
     fn id(&self) -> usize;
-    
+
     /// 获取执行器名称
     fn name(&self) -> &str;
-    
+
     /// 获取执行器描述
     fn description(&self) -> &str;
 }
 
 /// 组合 Executor trait - 组合所有 Executor 相关 trait
 #[async_trait]
-pub trait Executor<S: StorageEngine>: ExecutorCore
-                                    + ExecutorLifecycle
-                                    + ExecutorMetadata
-                                    + Send
-                                    + Sync {
+pub trait Executor<S: StorageEngine>:
+    ExecutorCore + ExecutorLifecycle + ExecutorMetadata + Send + Sync
+{
     /// 获取存储引擎引用
     fn storage(&self) -> &Arc<Mutex<S>>;
 }
@@ -123,12 +121,12 @@ impl<S: StorageEngine> ExecutorLifecycle for BaseExecutor<S> {
         self.is_open = true;
         Ok(())
     }
-    
+
     fn close(&mut self) -> DBResult<()> {
         self.is_open = false;
         Ok(())
     }
-    
+
     fn is_open(&self) -> bool {
         self.is_open
     }
@@ -138,11 +136,11 @@ impl<S: StorageEngine> ExecutorMetadata for BaseExecutor<S> {
     fn id(&self) -> usize {
         self.id
     }
-    
+
     fn name(&self) -> &str {
         &self.name
     }
-    
+
     fn description(&self) -> &str {
         &self.description
     }
@@ -154,39 +152,43 @@ macro_rules! impl_executor_for {
     ($type:ty, $storage_type:ty) => {
         #[async_trait::async_trait]
         impl $crate::query::executor::traits::ExecutorCore for $type {
-            async fn execute(&mut self) -> $crate::query::executor::traits::DBResult<$crate::query::executor::traits::ExecutionResult> {
+            async fn execute(
+                &mut self,
+            ) -> $crate::query::executor::traits::DBResult<
+                $crate::query::executor::traits::ExecutionResult,
+            > {
                 self.execute().await
             }
         }
-        
+
         impl $crate::query::executor::traits::ExecutorLifecycle for $type {
             fn open(&mut self) -> $crate::query::executor::traits::DBResult<()> {
                 self.open()
             }
-            
+
             fn close(&mut self) -> $crate::query::executor::traits::DBResult<()> {
                 self.close()
             }
-            
+
             fn is_open(&self) -> bool {
                 self.is_open()
             }
         }
-        
+
         impl $crate::query::executor::traits::ExecutorMetadata for $type {
             fn id(&self) -> usize {
                 self.id()
             }
-            
+
             fn name(&self) -> &str {
                 self.name()
             }
-            
+
             fn description(&self) -> &str {
                 self.description()
             }
         }
-        
+
         #[async_trait::async_trait]
         impl $crate::query::executor::traits::Executor<$storage_type> for $type {
             fn storage(&self) -> &$storage_type {

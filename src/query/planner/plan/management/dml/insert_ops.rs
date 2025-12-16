@@ -1,11 +1,14 @@
 //! 数据插入操作相关的计划节点
 //! 包括插入顶点和边的操作
 
-use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
-    PlanNodeKind, PlanNodeVisitor, PlanNodeVisitError,
-};
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::{
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
+    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+};
 use std::sync::Arc;
 
 /// 插入顶点计划节点
@@ -20,7 +23,7 @@ pub struct InsertVertices {
     pub space_id: i32,
     pub tag_id: i32,
     pub props: Vec<(String, String)>, // 属性名和值
-    pub insertable: bool,            // 是否可插入
+    pub insertable: bool,             // 是否可插入
 }
 
 impl InsertVertices {
@@ -157,7 +160,7 @@ pub struct InsertEdges {
     pub space_id: i32,
     pub edge_type_id: i32,
     pub props: Vec<(String, String)>, // 属性名和值
-    pub insertable: bool,            // 是否可插入
+    pub insertable: bool,             // 是否可插入
 }
 
 impl InsertEdges {

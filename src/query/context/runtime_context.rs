@@ -3,7 +3,7 @@
 //! RuntimeContext用于存储层执行节点，包含计划上下文引用和运行时可变信息
 //! 对应C++版本中的RuntimeContext结构
 
-use crate::common::base::id::{TagId, EdgeType};
+use crate::common::base::id::{EdgeType, TagId};
 use crate::core::Value;
 use std::sync::Arc;
 
@@ -72,11 +72,25 @@ pub trait StorageEngine: Send + Sync + std::fmt::Debug {
     fn get_node(&self, id: &Value) -> Result<Option<Vertex>, StorageError>;
     fn update_node(&mut self, vertex: Vertex) -> Result<(), StorageError>;
     fn delete_node(&mut self, id: &Value) -> Result<(), StorageError>;
-    
+
     fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError>;
-    fn get_edge(&self, src: &Value, dst: &Value, edge_type: &str) -> Result<Option<Edge>, StorageError>;
-    fn get_node_edges(&self, node_id: &Value, direction: Direction) -> Result<Vec<Edge>, StorageError>;
-    fn delete_edge(&mut self, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError>;
+    fn get_edge(
+        &self,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+    ) -> Result<Option<Edge>, StorageError>;
+    fn get_node_edges(
+        &self,
+        node_id: &Value,
+        direction: Direction,
+    ) -> Result<Vec<Edge>, StorageError>;
+    fn delete_edge(
+        &mut self,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+    ) -> Result<(), StorageError>;
 }
 
 /// 存储Schema管理器trait
@@ -100,26 +114,26 @@ pub trait IndexManager: Send + Sync + std::fmt::Debug {
 pub struct RuntimeContext {
     /// 计划上下文引用
     pub plan_context: Arc<PlanContext>,
-    
+
     /// 标签ID
     pub tag_id: TagId,
     /// 标签名称
     pub tag_name: String,
     /// 标签Schema（可选）
     pub tag_schema: Option<Arc<dyn SchemaManager>>,
-    
+
     /// 边类型
     pub edge_type: EdgeType,
     /// 边名称
     pub edge_name: String,
     /// 边Schema（可选）
     pub edge_schema: Option<Arc<dyn SchemaManager>>,
-    
+
     /// 列索引（用于GetNeighbors）
     pub column_idx: usize,
     /// 属性上下文列表（可选）
     pub props: Option<Vec<PropContext>>,
-    
+
     /// 是否为插入操作
     pub insert: bool,
     /// 是否过滤无效结果
@@ -178,14 +192,24 @@ impl RuntimeContext {
     }
 
     /// 设置标签信息
-    pub fn set_tag_info(&mut self, tag_id: TagId, tag_name: String, tag_schema: Option<Arc<dyn SchemaManager>>) {
+    pub fn set_tag_info(
+        &mut self,
+        tag_id: TagId,
+        tag_name: String,
+        tag_schema: Option<Arc<dyn SchemaManager>>,
+    ) {
         self.tag_id = tag_id;
         self.tag_name = tag_name;
         self.tag_schema = tag_schema;
     }
 
     /// 设置边信息
-    pub fn set_edge_info(&mut self, edge_type: EdgeType, edge_name: String, edge_schema: Option<Arc<dyn SchemaManager>>) {
+    pub fn set_edge_info(
+        &mut self,
+        edge_type: EdgeType,
+        edge_name: String,
+        edge_schema: Option<Arc<dyn SchemaManager>>,
+    ) {
         self.edge_type = edge_type;
         self.edge_name = edge_name;
         self.edge_schema = edge_schema;
@@ -265,15 +289,29 @@ mod tests {
             Ok(())
         }
 
-        fn get_edge(&self, _src: &Value, _dst: &Value, _edge_type: &str) -> Result<Option<Edge>, StorageError> {
+        fn get_edge(
+            &self,
+            _src: &Value,
+            _dst: &Value,
+            _edge_type: &str,
+        ) -> Result<Option<Edge>, StorageError> {
             Ok(None)
         }
 
-        fn get_node_edges(&self, _node_id: &Value, _direction: Direction) -> Result<Vec<Edge>, StorageError> {
+        fn get_node_edges(
+            &self,
+            _node_id: &Value,
+            _direction: Direction,
+        ) -> Result<Vec<Edge>, StorageError> {
             Ok(Vec::new())
         }
 
-        fn delete_edge(&mut self, _src: &Value, _dst: &Value, _edge_type: &str) -> Result<(), StorageError> {
+        fn delete_edge(
+            &mut self,
+            _src: &Value,
+            _dst: &Value,
+            _edge_type: &str,
+        ) -> Result<(), StorageError> {
             Ok(())
         }
     }

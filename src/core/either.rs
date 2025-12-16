@@ -155,17 +155,23 @@ pub mod error_or {
     }
 
     /// Get the error code if present
-    pub fn error<ErrorCode, ResultType>(error_or: &ErrorOr<ErrorCode, ResultType>) -> Option<&ErrorCode> {
+    pub fn error<ErrorCode, ResultType>(
+        error_or: &ErrorOr<ErrorCode, ResultType>,
+    ) -> Option<&ErrorCode> {
         error_or.left_ref()
     }
 
     /// Get the result if present
-    pub fn result<ErrorCode, ResultType>(error_or: &ErrorOr<ErrorCode, ResultType>) -> Option<&ResultType> {
+    pub fn result<ErrorCode, ResultType>(
+        error_or: &ErrorOr<ErrorCode, ResultType>,
+    ) -> Option<&ResultType> {
         error_or.right_ref()
     }
 
     /// Unwrap the result or panic with a default message
-    pub fn unwrap<ErrorCode: Debug, ResultType>(error_or: Either<ErrorCode, ResultType>) -> ResultType {
+    pub fn unwrap<ErrorCode: Debug, ResultType>(
+        error_or: Either<ErrorCode, ResultType>,
+    ) -> ResultType {
         match error_or {
             Either::Right(r) => r,
             Either::Left(e) => panic!("Attempted to unwrap error: {:?}", e),
@@ -173,7 +179,10 @@ pub mod error_or {
     }
 
     /// Unwrap the result or return a default value
-    pub fn unwrap_or<ErrorCode, ResultType>(error_or: Either<ErrorCode, ResultType>, default: ResultType) -> ResultType {
+    pub fn unwrap_or<ErrorCode, ResultType>(
+        error_or: Either<ErrorCode, ResultType>,
+        default: ResultType,
+    ) -> ResultType {
         match error_or {
             Either::Right(r) => r,
             Either::Left(_) => default,
@@ -181,7 +190,10 @@ pub mod error_or {
     }
 
     /// Unwrap the result or compute a default value
-    pub fn unwrap_or_else<ErrorCode, ResultType, F>(error_or: Either<ErrorCode, ResultType>, f: F) -> ResultType
+    pub fn unwrap_or_else<ErrorCode, ResultType, F>(
+        error_or: Either<ErrorCode, ResultType>,
+        f: F,
+    ) -> ResultType
     where
         F: FnOnce() -> ResultType,
     {
@@ -238,11 +250,11 @@ mod tests {
     #[test]
     fn test_error_or() {
         type MyErrorOr<T> = ErrorOr<&'static str, T>;
-        
+
         let success: MyErrorOr<i32> = Either::right(123);
         assert!(is_ok(&success));
         assert_eq!(result(&success), Some(&123));
-        
+
         let error_value: MyErrorOr<i32> = Either::left("error occurred");
         assert!(is_error(&error_value));
         assert_eq!(error(&error_value), Some(&"error occurred"));

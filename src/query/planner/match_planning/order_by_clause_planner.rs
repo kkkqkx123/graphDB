@@ -6,9 +6,7 @@ use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePl
 use crate::query::planner::plan::core::PlanNodeMutable;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{
-    CypherClauseContext, CypherClauseKind,
-};
+use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 use std::sync::Arc;
 
 /// ORDER BY子句规划器
@@ -22,15 +20,19 @@ impl OrderByClausePlanner {
     }
 
     /// 构建排序节点
-    fn build_sort(&mut self, order_by_ctx: &crate::query::validator::structs::OrderByClauseContext, mut subplan: SubPlan) -> Result<SubPlan, PlannerError> {
+    fn build_sort(
+        &mut self,
+        order_by_ctx: &crate::query::validator::structs::OrderByClauseContext,
+        mut subplan: SubPlan,
+    ) -> Result<SubPlan, PlannerError> {
         // 获取当前的根节点作为输入
-        let current_root = subplan.root.take().unwrap_or_else(|| create_empty_node().unwrap());
+        let current_root = subplan
+            .root
+            .take()
+            .unwrap_or_else(|| create_empty_node().unwrap());
 
         // 创建排序节点，使用当前根节点作为输入
-        let sort_node = SingleInputNode::new(
-            PlanNodeKind::Sort,
-            current_root,
-        );
+        let sort_node = SingleInputNode::new(PlanNodeKind::Sort, current_root);
 
         // 将排序因子信息存储在节点的列名中，以便执行阶段使用
         // 在实际执行时，排序逻辑会根据这些信息进行排序
@@ -40,7 +42,7 @@ impl OrderByClausePlanner {
             // 使用特殊格式存储排序信息，供执行器使用
             col_names.push(format!("sort_factor_{}", idx));
         }
-        
+
         // 创建新的排序节点并设置属性
         let mut new_sort_node = sort_node.clone();
         new_sort_node.set_col_names(col_names);

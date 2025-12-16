@@ -1,8 +1,8 @@
 //! Path planner implementation for handling PATH queries in NebulaGraph
 
-use crate::query::context::AstContext;
+use super::plan::{ExecutionPlan, PlanNodeKind, SingleInputNode, SubPlan};
 use super::planner::{Planner, PlannerError};
-use super::plan::{SubPlan, PlanNodeKind, ExecutionPlan, SingleInputNode};
+use crate::query::context::ast::AstContext;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -30,18 +30,20 @@ impl Planner for PathPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         // Generate the execution plan for the path statement
         if !Self::match_ast_ctx(ast_ctx) {
-            return Err(PlannerError::InvalidAstContext("AST context is not a path statement".to_string()));
+            return Err(PlannerError::InvalidAstContext(
+                "AST context is not a path statement".to_string(),
+            ));
         }
 
         // Create a plan node for the path operation
         let path_node = Arc::new(SingleInputNode::new(
             PlanNodeKind::ShortestPath, // Using ShortestPath as the base node for path queries
-            create_empty_node()?
+            create_empty_node()?,
         ));
 
         // Create the execution plan
         let execution_plan = ExecutionPlan::new(Some(path_node));
-        
+
         // For now, just return a subplan with the execution plan
         Ok(SubPlan::new(Some(execution_plan.root.unwrap()), None))
     }
@@ -53,7 +55,7 @@ impl Planner for PathPlanner {
 
 // Helper function to create an empty start node
 fn create_empty_node() -> Result<Arc<dyn super::plan::PlanNode>, PlannerError> {
-    use super::plan::{SingleDependencyNode, PlanNodeKind};
+    use super::plan::{PlanNodeKind, SingleDependencyNode};
 
     Ok(Arc::new(SingleDependencyNode {
         id: -1,

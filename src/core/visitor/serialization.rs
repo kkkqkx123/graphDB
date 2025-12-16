@@ -2,9 +2,11 @@
 //!
 //! 这个模块提供了用于序列化 Value 的访问者实现
 
+use crate::core::value::{
+    DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
+};
+use crate::core::vertex_edge_path::{Edge, Path, Vertex};
 use crate::core::visitor::core::ValueVisitor;
-use crate::core::value::{Value, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, DataSet};
-use crate::core::vertex_edge_path::{Vertex, Edge, Path};
 use std::collections::HashMap;
 
 /// 序列化格式
@@ -125,9 +127,7 @@ impl ValueVisitor for JsonSerializationVisitor {
     fn visit_string(&mut self, value: &str) -> Self::Result {
         self.result.push('"');
         // 简单的 JSON 转义
-        let escaped = value
-            .replace('\\', "\\\\")
-            .replace('"', "\\\"");
+        let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
         self.result.push_str(&escaped);
         self.result.push('"');
         Ok(())
@@ -135,14 +135,16 @@ impl ValueVisitor for JsonSerializationVisitor {
 
     fn visit_date(&mut self, value: &DateValue) -> Self::Result {
         self.result.push('"');
-        self.result.push_str(&format!("{}-{}-{}", value.year, value.month, value.day));
+        self.result
+            .push_str(&format!("{}-{}-{}", value.year, value.month, value.day));
         self.result.push('"');
         Ok(())
     }
 
     fn visit_time(&mut self, value: &TimeValue) -> Self::Result {
         self.result.push('"');
-        self.result.push_str(&format!("{}:{}:{}", value.hour, value.minute, value.sec));
+        self.result
+            .push_str(&format!("{}:{}:{}", value.hour, value.minute, value.sec));
         self.result.push('"');
         Ok(())
     }
@@ -168,14 +170,18 @@ impl ValueVisitor for JsonSerializationVisitor {
         self.add_comma();
         self.indent();
         self.result.push_str("\"properties\": ");
-        
+
         // 简化的顶点属性序列化
         let mut props = Vec::new();
         for (name, prop_value) in value.get_all_properties() {
-            props.push(format!("\"{}\": {}", name, Self::serialize_value(prop_value)?));
+            props.push(format!(
+                "\"{}\": {}",
+                name,
+                Self::serialize_value(prop_value)?
+            ));
         }
         self.result.push_str(&format!("{{{}}}", props.join(", ")));
-        
+
         self.end_object();
         Ok(())
     }
@@ -200,14 +206,18 @@ impl ValueVisitor for JsonSerializationVisitor {
         self.add_comma();
         self.indent();
         self.result.push_str("\"properties\": ");
-        
+
         // 简化的边属性序列化
         let mut props = Vec::new();
         for (name, prop_value) in value.get_all_properties() {
-            props.push(format!("\"{}\": {}", name, Self::serialize_value(prop_value)?));
+            props.push(format!(
+                "\"{}\": {}",
+                name,
+                Self::serialize_value(prop_value)?
+            ));
         }
         self.result.push_str(&format!("{{{}}}", props.join(", ")));
-        
+
         self.end_object();
         Ok(())
     }
@@ -250,7 +260,7 @@ impl ValueVisitor for JsonSerializationVisitor {
         self.start_object();
         let mut pairs: Vec<(&String, &Value)> = value.iter().collect();
         pairs.sort_by_key(|&(k, _)| k);
-        
+
         for (i, (key, val)) in pairs.iter().enumerate() {
             self.result.push('"');
             self.result.push_str(key);
@@ -273,7 +283,7 @@ impl ValueVisitor for JsonSerializationVisitor {
         self.start_array();
         let mut items: Vec<_> = value.iter().collect();
         items.sort();
-        
+
         for (i, item) in items.iter().enumerate() {
             Self::serialize_value(item)?;
             if i < items.len() - 1 {
@@ -402,20 +412,13 @@ impl ValueVisitor for XmlSerializationVisitor {
     fn visit_date(&mut self, value: &DateValue) -> Self::Result {
         self.start_element("date");
         self.indent();
-        self.result.push_str(&format!(
-            "<year>{}</year>",
-            value.year
-        ));
+        self.result
+            .push_str(&format!("<year>{}</year>", value.year));
         self.indent();
-        self.result.push_str(&format!(
-            "<month>{}</month>",
-            value.month
-        ));
+        self.result
+            .push_str(&format!("<month>{}</month>", value.month));
         self.indent();
-        self.result.push_str(&format!(
-            "<day>{}</day>",
-            value.day
-        ));
+        self.result.push_str(&format!("<day>{}</day>", value.day));
         self.end_element("date");
         Ok(())
     }
@@ -423,20 +426,14 @@ impl ValueVisitor for XmlSerializationVisitor {
     fn visit_time(&mut self, value: &TimeValue) -> Self::Result {
         self.start_element("time");
         self.indent();
-        self.result.push_str(&format!(
-            "<hour>{}</hour>",
-            value.hour
-        ));
+        self.result
+            .push_str(&format!("<hour>{}</hour>", value.hour));
         self.indent();
-        self.result.push_str(&format!(
-            "<minute>{}</minute>",
-            value.minute
-        ));
+        self.result
+            .push_str(&format!("<minute>{}</minute>", value.minute));
         self.indent();
-        self.result.push_str(&format!(
-            "<second>{}</second>",
-            value.sec
-        ));
+        self.result
+            .push_str(&format!("<second>{}</second>", value.sec));
         self.end_element("time");
         Ok(())
     }
@@ -444,35 +441,22 @@ impl ValueVisitor for XmlSerializationVisitor {
     fn visit_datetime(&mut self, value: &DateTimeValue) -> Self::Result {
         self.start_element("datetime");
         self.indent();
-        self.result.push_str(&format!(
-            "<year>{}</year>",
-            value.year
-        ));
+        self.result
+            .push_str(&format!("<year>{}</year>", value.year));
         self.indent();
-        self.result.push_str(&format!(
-            "<month>{}</month>",
-            value.month
-        ));
+        self.result
+            .push_str(&format!("<month>{}</month>", value.month));
         self.indent();
-        self.result.push_str(&format!(
-            "<day>{}</day>",
-            value.day
-        ));
+        self.result.push_str(&format!("<day>{}</day>", value.day));
         self.indent();
-        self.result.push_str(&format!(
-            "<hour>{}</hour>",
-            value.hour
-        ));
+        self.result
+            .push_str(&format!("<hour>{}</hour>", value.hour));
         self.indent();
-        self.result.push_str(&format!(
-            "<minute>{}</minute>",
-            value.minute
-        ));
+        self.result
+            .push_str(&format!("<minute>{}</minute>", value.minute));
         self.indent();
-        self.result.push_str(&format!(
-            "<second>{}</second>",
-            value.sec
-        ));
+        self.result
+            .push_str(&format!("<second>{}</second>", value.sec));
         self.end_element("datetime");
         Ok(())
     }
@@ -480,15 +464,10 @@ impl ValueVisitor for XmlSerializationVisitor {
     fn visit_vertex(&mut self, value: &Vertex) -> Self::Result {
         self.start_element("vertex");
         self.indent();
-        self.result.push_str(&format!(
-            "<id>{:?}</id>",
-            value.id()
-        ));
+        self.result.push_str(&format!("<id>{:?}</id>", value.id()));
         self.indent();
-        self.result.push_str(&format!(
-            "<tags>{}</tags>",
-            value.tags().len()
-        ));
+        self.result
+            .push_str(&format!("<tags>{}</tags>", value.tags().len()));
         self.end_element("vertex");
         Ok(())
     }
@@ -496,25 +475,15 @@ impl ValueVisitor for XmlSerializationVisitor {
     fn visit_edge(&mut self, value: &Edge) -> Self::Result {
         self.start_element("edge");
         self.indent();
-        self.result.push_str(&format!(
-            "<src>{:?}</src>",
-            value.src
-        ));
+        self.result.push_str(&format!("<src>{:?}</src>", value.src));
         self.indent();
-        self.result.push_str(&format!(
-            "<dst>{:?}</dst>",
-            value.dst
-        ));
+        self.result.push_str(&format!("<dst>{:?}</dst>", value.dst));
         self.indent();
-        self.result.push_str(&format!(
-            "<type>{}</type>",
-            value.edge_type()
-        ));
+        self.result
+            .push_str(&format!("<type>{}</type>", value.edge_type()));
         self.indent();
-        self.result.push_str(&format!(
-            "<ranking>{}</ranking>",
-            value.ranking()
-        ));
+        self.result
+            .push_str(&format!("<ranking>{}</ranking>", value.ranking()));
         self.end_element("edge");
         Ok(())
     }
@@ -522,10 +491,8 @@ impl ValueVisitor for XmlSerializationVisitor {
     fn visit_path(&mut self, value: &Path) -> Self::Result {
         self.start_element("path");
         self.indent();
-        self.result.push_str(&format!(
-            "<length>{}</length>",
-            value.len()
-        ));
+        self.result
+            .push_str(&format!("<length>{}</length>", value.len()));
         self.end_element("path");
         Ok(())
     }
@@ -578,10 +545,8 @@ impl ValueVisitor for XmlSerializationVisitor {
     fn visit_duration(&mut self, value: &DurationValue) -> Self::Result {
         self.start_element("duration");
         self.indent();
-        self.result.push_str(&format!(
-            "<seconds>{}</seconds>",
-            value.seconds
-        ));
+        self.result
+            .push_str(&format!("<seconds>{}</seconds>", value.seconds));
         self.end_element("duration");
         Ok(())
     }
@@ -589,15 +554,11 @@ impl ValueVisitor for XmlSerializationVisitor {
     fn visit_dataset(&mut self, value: &DataSet) -> Self::Result {
         self.start_element("dataset");
         self.indent();
-        self.result.push_str(&format!(
-            "<columns>{}</columns>",
-            value.col_names.len()
-        ));
+        self.result
+            .push_str(&format!("<columns>{}</columns>", value.col_names.len()));
         self.indent();
-        self.result.push_str(&format!(
-            "<rows>{}</rows>",
-            value.rows.len()
-        ));
+        self.result
+            .push_str(&format!("<rows>{}</rows>", value.rows.len()));
         self.end_element("dataset");
         Ok(())
     }
@@ -625,11 +586,11 @@ mod tests {
         let int_value = Value::Int(42);
         let json = JsonSerializationVisitor::serialize(&int_value).unwrap();
         assert_eq!(json, "42");
-        
+
         let string_value = Value::String("test".to_string());
         let json = JsonSerializationVisitor::serialize(&string_value).unwrap();
         assert_eq!(json, "\"test\"");
-        
+
         let bool_value = Value::Bool(true);
         let json = JsonSerializationVisitor::serialize(&bool_value).unwrap();
         assert_eq!(json, "true");
@@ -641,7 +602,7 @@ mod tests {
             ("name".to_string(), Value::String("Alice".to_string())),
             ("age".to_string(), Value::Int(30)),
         ]));
-        
+
         let json = JsonSerializationVisitor::serialize_pretty(&complex_value).unwrap();
         assert!(json.contains("{\n"));
         assert!(json.contains("\"name\": \"Alice\""));
@@ -653,7 +614,7 @@ mod tests {
         let int_value = Value::Int(42);
         let xml = XmlSerializationVisitor::serialize(&int_value).unwrap();
         assert!(xml.contains("<int>42</int>"));
-        
+
         let string_value = Value::String("test".to_string());
         let xml = XmlSerializationVisitor::serialize(&string_value).unwrap();
         assert!(xml.contains("<test>test</test>"));

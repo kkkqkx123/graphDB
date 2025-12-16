@@ -1,6 +1,5 @@
 //! 通用计划节点结构定义
 
-
 // 标签属性结构
 #[derive(Debug, Clone)]
 pub struct TagProp {

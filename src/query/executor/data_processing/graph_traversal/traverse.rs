@@ -2,12 +2,12 @@ use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
-use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::core::error::{DBError, DBResult};
-use crate::query::executor::base::{
-    BaseExecutor, EdgeDirection, InputExecutor,
+use crate::core::{Edge, Path, Step, Value, Vertex};
+use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -347,14 +347,18 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for TraverseExecutor<S> {
         }
 
         // 初始化遍历
-        self.initialize_traversal(input_nodes).await.map_err(DBError::from)?;
+        self.initialize_traversal(input_nodes)
+            .await
+            .map_err(DBError::from)?;
 
         // 确定最大深度
         let max_depth = self.max_depth.unwrap_or(3); // 默认深度为3
 
         // 执行遍历
         for current_depth in 0..max_depth {
-            self.traverse_step(current_depth, max_depth).await.map_err(DBError::from)?;
+            self.traverse_step(current_depth, max_depth)
+                .await
+                .map_err(DBError::from)?;
 
             // 如果没有更多路径可以扩展，提前结束
             if self.current_paths.is_empty() {

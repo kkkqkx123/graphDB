@@ -1,12 +1,16 @@
 //! GO语句规划器
 //! 处理Nebula GO查询的规划
 
+use crate::query::context::ast::{AstContext, GoContext};
 use crate::query::context::validate::types::Variable;
-use crate::query::context::{AstContext, GoContext};
-use crate::query::planner::plan::core::common::{TagProp, EdgeProp};
-use crate::query::planner::plan::core::plan_node_traits::{PlanNode, PlanNodeMutable, PlanNodeClonable, PlanNodeDependencies};
-use crate::query::planner::plan::{Argument, Start, Expand, ExpandAll, HashLeftJoin, Filter, Project, Dedup};
+use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
+use crate::query::planner::plan::core::plan_node_traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
+};
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::{
+    Argument, Dedup, Expand, ExpandAll, Filter, HashLeftJoin, Project, Start,
+};
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
 

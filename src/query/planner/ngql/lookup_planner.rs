@@ -1,12 +1,14 @@
 //! LOOKUP语句规划器
 //! 处理Nebula LOOKUP查询的规划
 
-use crate::query::context::{AstContext, LookupContext};
-use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::planner::plan::SubPlan;
+use crate::query::context::ast::{AstContext, LookupContext};
 use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::{Filter, Project, Dedup};
-use crate::query::planner::plan::core::plan_node_traits::{PlanNodeMutable, PlanNodeDependencies, PlanNodeClonable};
+use crate::query::planner::plan::core::plan_node_traits::{
+    PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
+};
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::{Dedup, Filter, Project};
+use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
 
 /// LOOKUP查询规划器
@@ -48,25 +50,29 @@ impl Planner for LookupPlanner {
         println!("Processing LOOKUP query planning: {:?}", lookup_ctx);
 
         // 1. 创建索引扫描节点
-        let mut index_scan_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if lookup_ctx.is_edge {
-            // 如果是边的查找，创建GetEdges节点
-            let mut get_edges_node = Arc::new(crate::query::planner::plan::GetEdges::new(1, 1, "", "", "", ""));
-            let get_edges_node_mut = Arc::get_mut(&mut get_edges_node).unwrap();
-            get_edges_node_mut.set_output_var(Variable {
-                name: "index_scanned_edges".to_string(),
-                columns: vec![],
-            });
-            get_edges_node
-        } else {
-            // 如果是顶点的查找，创建GetVertices节点
-            let mut get_vertices_node = Arc::new(crate::query::planner::plan::GetVertices::new(1, 1, ""));
-            let get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
-            get_vertices_node_mut.set_output_var(Variable {
-                name: "index_scanned_vertices".to_string(),
-                columns: vec![],
-            });
-            get_vertices_node
-        };
+        let mut index_scan_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
+            if lookup_ctx.is_edge {
+                // 如果是边的查找，创建GetEdges节点
+                let mut get_edges_node = Arc::new(crate::query::planner::plan::GetEdges::new(
+                    1, 1, "", "", "", "",
+                ));
+                let get_edges_node_mut = Arc::get_mut(&mut get_edges_node).unwrap();
+                get_edges_node_mut.set_output_var(Variable {
+                    name: "index_scanned_edges".to_string(),
+                    columns: vec![],
+                });
+                get_edges_node
+            } else {
+                // 如果是顶点的查找，创建GetVertices节点
+                let mut get_vertices_node =
+                    Arc::new(crate::query::planner::plan::GetVertices::new(1, 1, ""));
+                let get_vertices_node_mut = Arc::get_mut(&mut get_vertices_node).unwrap();
+                get_vertices_node_mut.set_output_var(Variable {
+                    name: "index_scanned_vertices".to_string(),
+                    columns: vec![],
+                });
+                get_vertices_node
+            };
 
         // 2. 创建过滤节点（基于索引搜索条件）
         if let Some(ref condition) = lookup_ctx.filter {
@@ -90,15 +96,17 @@ impl Planner for LookupPlanner {
         }
 
         // 3. 创建投影节点
-        let mut project_node = Arc::new(Project::new(3, &lookup_ctx.yield_expr.clone().unwrap_or("*".to_string())));
+        let mut project_node = Arc::new(Project::new(
+            3,
+            &lookup_ctx.yield_expr.clone().unwrap_or("*".to_string()),
+        ));
         let project_node_mut = Arc::get_mut(&mut project_node).unwrap();
         project_node_mut.add_dependency(index_scan_node.clone_plan_node());
-        let result_columns: Vec<crate::query::context::validate::types::Column> = vec![
-            crate::query::context::validate::types::Column {
+        let result_columns: Vec<crate::query::context::validate::types::Column> =
+            vec![crate::query::context::validate::types::Column {
                 name: "result".to_string(),
                 type_: "STRING".to_string(),
-            }
-        ];
+            }];
         project_node_mut.set_output_var(Variable {
             name: "project_result".to_string(),
             columns: result_columns,

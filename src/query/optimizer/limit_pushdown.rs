@@ -2,12 +2,12 @@
 //! 这些规则负责将LIMIT操作下推到计划树的底层，以减少数据处理量
 
 use super::optimizer::OptimizerError;
-use super::rule_traits::{BaseOptRule, PushDownRule};
 use super::rule_patterns::PatternBuilder;
+use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::PlanNodeKind;
 use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
 use crate::query::planner::plan::IndexScan as IndexScanPlanNode;
+use crate::query::planner::plan::PlanNodeKind;
 use std::sync::Arc;
 // 注释掉不存在的导入
 // use crate::query::planner::plan::operations::AllPaths;
@@ -57,19 +57,29 @@ impl BaseOptRule for PushLimitDownRule {}
 
 impl PushDownRule for PushLimitDownRule {
     fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        matches!(child_kind, 
-            PlanNodeKind::IndexScan |
-            PlanNodeKind::GetVertices |
-            PlanNodeKind::GetEdges |
-            PlanNodeKind::ScanVertices |
-            PlanNodeKind::ScanEdges |
-            PlanNodeKind::Sort
+        matches!(
+            child_kind,
+            PlanNodeKind::IndexScan
+                | PlanNodeKind::GetVertices
+                | PlanNodeKind::GetEdges
+                | PlanNodeKind::ScanVertices
+                | PlanNodeKind::ScanEdges
+                | PlanNodeKind::Sort
         )
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        limit_node: &OptGroupNode,
+        child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 获取Limit节点的值
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+        if let Some(_limit_plan_node) = limit_node
+            .plan_node
+            .as_any()
+            .downcast_ref::<crate::query::planner::plan::operations::Limit>(
+        ) {
             // 根据子节点类型创建新的带有LIMIT的节点
             match child.plan_node.kind() {
                 PlanNodeKind::GetVertices => {
@@ -120,11 +130,13 @@ impl PushDownRule for PushLimitDownRule {
                 }
                 PlanNodeKind::IndexScan => {
                     // 为IndexScan创建带有LIMIT的节点
-                    if let Some(index_scan_plan_node) = child.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+                    if let Some(index_scan_plan_node) =
+                        child.plan_node.as_any().downcast_ref::<IndexScanPlanNode>()
+                    {
                         // 克隆节点并设置限制和输出变量
                         let mut new_index_scan = index_scan_plan_node.clone();
                         new_index_scan.set_limit(_limit_plan_node.count());
-                        
+
                         // 设置输出变量
                         if let Some(output_var) = limit_node.plan_node.output_var() {
                             new_index_scan.set_output_var(output_var.clone());
@@ -187,7 +199,7 @@ impl PushDownRule for PushLimitDownRule {
                         Ok(None)
                     }
                 }
-                _ => Ok(None),  // 对于其他类型，暂时不支持LIMIT下推
+                _ => Ok(None), // 对于其他类型，暂时不支持LIMIT下推
             }
         } else {
             Ok(None)
@@ -204,7 +216,11 @@ impl OptRule for PushLimitDownGetVerticesRule {
         "PushLimitDownGetVerticesRule"
     }
 
-    fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为LIMIT操作
         if node.plan_node.kind() != PlanNodeKind::Limit {
             return Ok(None);
@@ -237,11 +253,20 @@ impl PushDownRule for PushLimitDownGetVerticesRule {
         child_kind == PlanNodeKind::GetVertices
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        limit_node: &OptGroupNode,
+        child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 根据参考的NebulaGraph PushLimitDownGetVerticesRule实现
         // 我们需要将LIMIT的值应用到GetVertices操作上
 
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+        if let Some(_limit_plan_node) = limit_node
+            .plan_node
+            .as_any()
+            .downcast_ref::<crate::query::planner::plan::operations::Limit>(
+        ) {
             if let Some(get_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::GetVertices>() {
                 // 检查LIMIT的计数是否是可计算的
                 // 在实际实现中，我们需要验证limit表达式是否可评估
@@ -282,7 +307,11 @@ impl OptRule for PushLimitDownGetNeighborsRule {
         "PushLimitDownGetNeighborsRule"
     }
 
-    fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为LIMIT操作
         if node.plan_node.kind() != PlanNodeKind::Limit {
             return Ok(None);
@@ -315,8 +344,17 @@ impl PushDownRule for PushLimitDownGetNeighborsRule {
         child_kind == PlanNodeKind::GetNeighbors
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        limit_node: &OptGroupNode,
+        child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(_limit_plan_node) = limit_node
+            .plan_node
+            .as_any()
+            .downcast_ref::<crate::query::planner::plan::operations::Limit>(
+        ) {
             if let Some(get_neighbors_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::GetNeighbors>() {
                 // 创建新的带有限制的GetNeighbors节点
                 let mut new_get_neighbors = get_neighbors_plan_node.clone();
@@ -354,7 +392,11 @@ impl OptRule for PushLimitDownGetEdgesRule {
         "PushLimitDownGetEdgesRule"
     }
 
-    fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为LIMIT操作
         if node.plan_node.kind() != PlanNodeKind::Limit {
             return Ok(None);
@@ -387,8 +429,17 @@ impl PushDownRule for PushLimitDownGetEdgesRule {
         child_kind == PlanNodeKind::GetEdges
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        limit_node: &OptGroupNode,
+        child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(_limit_plan_node) = limit_node
+            .plan_node
+            .as_any()
+            .downcast_ref::<crate::query::planner::plan::operations::Limit>(
+        ) {
             if let Some(get_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::GetEdges>() {
                 // 创建新的带有限制的GetEdges节点
                 let mut new_get_edges = get_edges_plan_node.clone();
@@ -426,7 +477,11 @@ impl OptRule for PushLimitDownScanVerticesRule {
         "PushLimitDownScanVerticesRule"
     }
 
-    fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为LIMIT操作
         if node.plan_node.kind() != PlanNodeKind::Limit {
             return Ok(None);
@@ -459,8 +514,17 @@ impl PushDownRule for PushLimitDownScanVerticesRule {
         child_kind == PlanNodeKind::ScanVertices
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        limit_node: &OptGroupNode,
+        child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(_limit_plan_node) = limit_node
+            .plan_node
+            .as_any()
+            .downcast_ref::<crate::query::planner::plan::operations::Limit>(
+        ) {
             if let Some(scan_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::ScanVertices>() {
                 // 创建新的带有限制的ScanVertices节点
                 let mut new_scan_vertices = scan_vertices_plan_node.clone();
@@ -498,7 +562,11 @@ impl OptRule for PushLimitDownScanEdgesRule {
         "PushLimitDownScanEdgesRule"
     }
 
-    fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为LIMIT操作
         if node.plan_node.kind() != PlanNodeKind::Limit {
             return Ok(None);
@@ -531,8 +599,17 @@ impl PushDownRule for PushLimitDownScanEdgesRule {
         child_kind == PlanNodeKind::ScanEdges
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        limit_node: &OptGroupNode,
+        child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(_limit_plan_node) = limit_node
+            .plan_node
+            .as_any()
+            .downcast_ref::<crate::query::planner::plan::operations::Limit>(
+        ) {
             if let Some(scan_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::graph_scan_ops::ScanEdges>() {
                 // 创建新的带有限制的ScanEdges节点
                 let mut new_scan_edges = scan_edges_plan_node.clone();
@@ -570,7 +647,11 @@ impl OptRule for PushLimitDownIndexScanRule {
         "PushLimitDownIndexScanRule"
     }
 
-    fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为LIMIT操作
         if node.plan_node.kind() != PlanNodeKind::Limit {
             return Ok(None);
@@ -603,16 +684,27 @@ impl PushDownRule for PushLimitDownIndexScanRule {
         child_kind == PlanNodeKind::IndexScan
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
-            if let Some(index_scan_plan_node) = child.plan_node.as_any().downcast_ref::<IndexScanPlanNode>() {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        limit_node: &OptGroupNode,
+        child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(_limit_plan_node) = limit_node
+            .plan_node
+            .as_any()
+            .downcast_ref::<crate::query::planner::plan::operations::Limit>(
+        ) {
+            if let Some(index_scan_plan_node) =
+                child.plan_node.as_any().downcast_ref::<IndexScanPlanNode>()
+            {
                 // 创建新的带有限制的IndexScan节点
                 let mut new_index_scan = index_scan_plan_node.clone();
 
                 // 设置IndexScan的limit值为LIMIT操作的计数值
                 let limit_value = _limit_plan_node.count();
                 new_index_scan.set_limit(limit_value);
-                
+
                 // 设置输出变量
                 if let Some(output_var) = limit_node.plan_node.output_var() {
                     new_index_scan.set_output_var(output_var.clone());
@@ -642,7 +734,11 @@ impl OptRule for PushLimitDownProjectRule {
         "PushLimitDownProjectRule"
     }
 
-    fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(
+        &self,
+        ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为LIMIT操作
         if node.plan_node.kind() != PlanNodeKind::Limit {
             return Ok(None);
@@ -675,16 +771,29 @@ impl PushDownRule for PushLimitDownProjectRule {
         child_kind == PlanNodeKind::Project
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, limit_node: &OptGroupNode, child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Limit>() {
-            if let Some(project_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::operations::Project>() {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        limit_node: &OptGroupNode,
+        child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        if let Some(_limit_plan_node) = limit_node
+            .plan_node
+            .as_any()
+            .downcast_ref::<crate::query::planner::plan::operations::Limit>(
+        ) {
+            if let Some(project_plan_node) = child
+                .plan_node
+                .as_any()
+                .downcast_ref::<crate::query::planner::plan::operations::Project>(
+            ) {
                 // 对于Project操作，我们不能直接在Project节点上设置limit
                 // 而是创建一个新的计划结构，将LIMIT应用到Project的输入上
                 // 这需要重新构建计划树
 
                 // 克隆Project节点并设置输出变量
                 let mut new_project = project_plan_node.clone();
-                
+
                 // 设置输出变量
                 if let Some(output_var) = limit_node.plan_node.output_var() {
                     new_project.set_output_var(output_var.clone());
@@ -823,7 +932,9 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::{Limit, GetVertices, GetNeighbors, GetEdges, Project, IndexScan, ScanVertices, ScanEdges};
+    use crate::query::planner::plan::{
+        GetEdges, GetNeighbors, GetVertices, IndexScan, Limit, Project, ScanEdges, ScanVertices,
+    };
     use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
     fn create_test_context() -> OptContext {

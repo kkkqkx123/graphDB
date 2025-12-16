@@ -2,8 +2,8 @@
 //!
 //! 图模式匹配相关的 AST 定义，支持节点、边和路径模式。
 
-use super::types::*;
 use super::expr::{Expr, ExprUtils};
+use super::types::*;
 
 /// 模式枚举 - 图模式匹配
 #[derive(Debug, Clone, PartialEq)]
@@ -44,7 +44,13 @@ impl NodePattern {
         predicates: Vec<Expr>,
         span: Span,
     ) -> Self {
-        Self { span, variable, labels, properties, predicates }
+        Self {
+            span,
+            variable,
+            labels,
+            properties,
+            predicates,
+        }
     }
 }
 
@@ -70,7 +76,15 @@ impl EdgePattern {
         range: Option<EdgeRange>,
         span: Span,
     ) -> Self {
-        Self { span, variable, edge_types, properties, predicates, direction, range }
+        Self {
+            span,
+            variable,
+            edge_types,
+            properties,
+            predicates,
+            direction,
+            range,
+        }
     }
 }
 
@@ -85,35 +99,35 @@ impl EdgeRange {
     pub fn new(min: Option<usize>, max: Option<usize>) -> Self {
         Self { min, max }
     }
-    
+
     pub fn fixed(steps: usize) -> Self {
         Self {
             min: Some(steps),
             max: Some(steps),
         }
     }
-    
+
     pub fn range(min: usize, max: usize) -> Self {
         Self {
             min: Some(min),
             max: Some(max),
         }
     }
-    
+
     pub fn at_least(min: usize) -> Self {
         Self {
             min: Some(min),
             max: None,
         }
     }
-    
+
     pub fn at_most(max: usize) -> Self {
         Self {
             min: None,
             max: Some(max),
         }
     }
-    
+
     pub fn any() -> Self {
         Self {
             min: None,
@@ -148,10 +162,10 @@ pub enum PathElement {
 /// 重复类型
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RepetitionType {
-    ZeroOrMore,     // *
-    OneOrMore,      // +
-    ZeroOrOne,      // ?
-    Exactly(usize), // {n}
+    ZeroOrMore,          // *
+    OneOrMore,           // +
+    ZeroOrOne,           // ?
+    Exactly(usize),      // {n}
     Range(usize, usize), // {n,m}
 }
 
@@ -178,7 +192,7 @@ impl PatternUtils {
         Self::find_variables_recursive(pattern, &mut variables);
         variables
     }
-    
+
     fn find_variables_recursive(pattern: &Pattern, variables: &mut Vec<String>) {
         match pattern {
             Pattern::Node(p) => {
@@ -213,7 +227,7 @@ impl PatternUtils {
             }
         }
     }
-    
+
     fn find_variables_in_element(element: &PathElement, variables: &mut Vec<String>) {
         match element {
             PathElement::Node(p) => {
@@ -251,19 +265,19 @@ impl PatternUtils {
             }
         }
     }
-    
+
     /// 检查模式是否包含变量
     pub fn has_variables(pattern: &Pattern) -> bool {
         !Self::find_variables(pattern).is_empty()
     }
-    
+
     /// 获取模式中的所有标签
     pub fn get_labels(pattern: &Pattern) -> Vec<String> {
         let mut labels = Vec::new();
         Self::get_labels_recursive(pattern, &mut labels);
         labels
     }
-    
+
     fn get_labels_recursive(pattern: &Pattern, labels: &mut Vec<String>) {
         match pattern {
             Pattern::Node(p) => {
@@ -277,7 +291,7 @@ impl PatternUtils {
             _ => {}
         }
     }
-    
+
     fn get_labels_in_element(element: &PathElement, labels: &mut Vec<String>) {
         match element {
             PathElement::Node(p) => {
@@ -302,7 +316,7 @@ impl PatternUtils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_node_pattern() {
         let pattern = Pattern::Node(NodePattern::new(
@@ -312,12 +326,12 @@ mod tests {
             vec![],
             Span::default(),
         ));
-        
+
         assert!(matches!(pattern, Pattern::Node(_)));
         let vars = PatternUtils::find_variables(&pattern);
         assert_eq!(vars, vec!["n"]);
     }
-    
+
     #[test]
     fn test_edge_pattern() {
         let pattern = Pattern::Edge(EdgePattern::new(
@@ -329,12 +343,12 @@ mod tests {
             None,
             Span::default(),
         ));
-        
+
         assert!(matches!(pattern, Pattern::Edge(_)));
         let vars = PatternUtils::find_variables(&pattern);
         assert_eq!(vars, vec!["e"]);
     }
-    
+
     #[test]
     fn test_path_pattern() {
         let elements = vec![
@@ -362,26 +376,26 @@ mod tests {
                 Span::default(),
             )),
         ];
-        
+
         let pattern = Pattern::Path(PathPattern::new(elements, Span::default()));
         let vars = PatternUtils::find_variables(&pattern);
         assert_eq!(vars, vec!["a", "e", "b"]);
     }
-    
+
     #[test]
     fn test_edge_range() {
         let range1 = EdgeRange::fixed(2);
         assert_eq!(range1.min, Some(2));
         assert_eq!(range1.max, Some(2));
-        
+
         let range2 = EdgeRange::range(1, 3);
         assert_eq!(range2.min, Some(1));
         assert_eq!(range2.max, Some(3));
-        
+
         let range3 = EdgeRange::at_least(1);
         assert_eq!(range3.min, Some(1));
         assert_eq!(range3.max, None);
-        
+
         let range4 = EdgeRange::any();
         assert_eq!(range4.min, None);
         assert_eq!(range4.max, None);

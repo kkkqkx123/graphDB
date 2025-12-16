@@ -1,12 +1,14 @@
-use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
 
-use crate::core::{Value, DataSet};
+use crate::core::error::{DBError, DBResult};
+use crate::core::{DataSet, Value};
 use crate::graph::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::EvalContext;
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
-use crate::core::error::{DBError, DBResult};
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::storage::StorageEngine;
 
 /// 排序顺序枚举
@@ -62,19 +64,13 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
     }
 
     /// 带内存限制创建SortExecutor
-    pub fn with_memory_limit(
-        mut self,
-        memory_limit: usize,
-    ) -> Self {
+    pub fn with_memory_limit(mut self, memory_limit: usize) -> Self {
         self.memory_limit = memory_limit;
         self
     }
 
     /// 启用磁盘溢出
-    pub fn with_disk_spill(
-        mut self,
-        enable: bool,
-    ) -> Self {
+    pub fn with_disk_spill(mut self, enable: bool) -> Self {
         self.use_disk = enable;
         self
     }
@@ -83,23 +79,31 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
     async fn process_input(&mut self) -> DBResult<DataSet> {
         if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute().await?;
-            
+
             match input_result {
                 ExecutionResult::DataSet(mut data_set) => {
                     // 执行排序
                     self.sort_dataset(&mut data_set)?;
-                    
+
                     // 应用限制
                     if let Some(limit) = self.limit {
                         data_set.rows.truncate(limit);
                     }
-                    
+
                     Ok(data_set)
                 }
-                _ => Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Sort executor expects DataSet input".to_string()))),
+                _ => Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "Sort executor expects DataSet input".to_string(),
+                    ),
+                )),
             }
         } else {
-            Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Sort executor requires input executor".to_string())))
+            Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(
+                    "Sort executor requires input executor".to_string(),
+                ),
+            ))
         }
     }
 
@@ -113,7 +117,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
         // 为每行计算排序键值
         let mut rows_with_keys: Vec<(Vec<Value>, Vec<Value>)> = Vec::new();
         let evaluator = ExpressionEvaluator;
-        
+
         for row in &data_set.rows {
             // 构建表达式上下文
             let mut expr_context = EvalContext::new();
@@ -126,8 +130,13 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
             // 计算排序键值
             let mut sort_values = Vec::new();
             for sort_key in &self.sort_keys {
-                let sort_value = evaluator.evaluate(&sort_key.expression, &expr_context)
-                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+                let sort_value = evaluator
+                    .evaluate(&sort_key.expression, &expr_context)
+                    .map_err(|e| {
+                        DBError::Query(crate::core::error::QueryError::ExecutionError(
+                            e.to_string(),
+                        ))
+                    })?;
                 sort_values.push(sort_value);
             }
 
@@ -138,7 +147,8 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
         rows_with_keys.sort_by(|a, b| {
             // 逐个比较排序键
             for ((idx, sort_val_a), sort_val_b) in a.0.iter().enumerate().zip(b.0.iter()) {
-                let comparison = self.compare_values(sort_val_a, sort_val_b, &self.sort_keys[idx].order);
+                let comparison =
+                    self.compare_values(sort_val_a, sort_val_b, &self.sort_keys[idx].order);
                 if !comparison.is_eq() {
                     return comparison;
                 }
@@ -155,7 +165,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
     /// 比较两个值，根据排序方向
     fn compare_values(&self, a: &Value, b: &Value, order: &SortOrder) -> std::cmp::Ordering {
         let comparison = a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal);
-        
+
         match order {
             SortOrder::Asc => comparison,
             SortOrder::Desc => comparison.reverse(),
@@ -212,7 +222,9 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for SortExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::base::InputExecutor<S> for SortExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::base::InputExecutor<S>
+    for SortExecutor<S>
+{
     fn set_input(&mut self, input: Box<dyn Executor<S>>) {
         self.input_executor = Some(input);
     }

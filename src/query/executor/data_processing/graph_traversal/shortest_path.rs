@@ -2,12 +2,12 @@ use async_trait::async_trait;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 
-use crate::core::{Edge, Path, Step, Value};
 use crate::core::error::{DBError, DBResult};
-use crate::query::executor::base::{
-    BaseExecutor, EdgeDirection, InputExecutor,
+use crate::core::{Edge, Path, Step, Value};
+use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -367,7 +367,10 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ShortestPathExecutor<S>
             ExecutionResult::Edges(edges) => {
                 if !edges.is_empty() {
                     let first_edge = &edges[0];
-                    (vec![(*first_edge.src).clone()], vec![(*first_edge.dst).clone()])
+                    (
+                        vec![(*first_edge.src).clone()],
+                        vec![(*first_edge.dst).clone()],
+                    )
                 } else {
                     (Vec::new(), Vec::new())
                 }

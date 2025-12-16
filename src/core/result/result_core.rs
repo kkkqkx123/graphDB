@@ -1,9 +1,12 @@
 //! 结果核心模块 - 定义Result的核心结构和功能
 
-use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
-use crate::core::{Value, NullType};
 use super::memory_manager::MemoryManager;
 use super::result_iterator::ResultIterator;
+use crate::core::{NullType, Value};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
 
 /// 查询执行结果状态
 #[derive(Debug, Clone, PartialEq)]
@@ -109,9 +112,7 @@ impl Clone for ResultCore {
 impl PartialEq for ResultCore {
     fn eq(&self, other: &Self) -> bool {
         // 比较主要属性：状态、消息和值
-        self.state == other.state && 
-        self.msg == other.msg && 
-        self.value == other.value
+        self.state == other.state && self.msg == other.msg && self.value == other.value
     }
 }
 
@@ -126,7 +127,7 @@ impl Clone for Result {
         // 克隆ResultCore并标记为共享
         let mut cloned_core = (*self.core).clone();
         cloned_core.is_shared = true;
-        
+
         Self {
             core: Arc::new(cloned_core),
         }
@@ -139,7 +140,7 @@ impl Result {
         let mut memory_stats = MemoryStats::new();
         let value_bytes = std::mem::size_of_val(&value) as u64;
         memory_stats.update_value_bytes(value_bytes);
-        
+
         let core = ResultCore {
             check_memory: false,
             state,
@@ -203,7 +204,7 @@ impl Result {
     pub(crate) fn update_iterator_and_value(&mut self, iterator: Option<Arc<dyn ResultIterator>>) {
         if let Some(core) = Arc::get_mut(&mut self.core) {
             core.iterator = iterator;
-            
+
             // 如果迭代器存在，更新值为迭代器的值
             if let Some(iter) = &core.iterator {
                 if !iter.is_empty() {
@@ -306,9 +307,12 @@ impl Result {
             // 简化的内存检查逻辑
             let total_bytes = self.core.memory_stats.total();
             const MEMORY_LIMIT: u64 = 100 * 1024 * 1024; // 100MB
-            
+
             if total_bytes > MEMORY_LIMIT {
-                Err(format!("Memory usage exceeded limit: {} bytes > {} bytes", total_bytes, MEMORY_LIMIT))
+                Err(format!(
+                    "Memory usage exceeded limit: {} bytes > {} bytes",
+                    total_bytes, MEMORY_LIMIT
+                ))
             } else {
                 Ok(true)
             }
@@ -323,7 +327,7 @@ impl Result {
                 let iter_bytes = (iter_size * std::mem::size_of::<Value>()) as u64;
                 core.memory_stats.update_iterator_bytes(iter_bytes);
             }
-            
+
             let value_bytes = std::mem::size_of_val(&*core.value) as u64;
             core.memory_stats.update_value_bytes(value_bytes);
         }
@@ -361,7 +365,7 @@ mod tests {
     fn test_result_creation() {
         let value = Value::String("test_value".to_string());
         let result = Result::new(value.clone(), ResultState::Success);
-        
+
         assert_eq!(result.state(), &ResultState::Success);
         assert_eq!(result.value(), &value);
         assert_eq!(result.access_count(), 1); // 调用value()会增加访问计数
@@ -371,8 +375,12 @@ mod tests {
     #[test]
     fn test_result_with_message() {
         let value = Value::Int(42);
-        let result = Result::with_message(value.clone(), ResultState::Success, "Test message".to_string());
-        
+        let result = Result::with_message(
+            value.clone(),
+            ResultState::Success,
+            "Test message".to_string(),
+        );
+
         assert_eq!(result.value(), &value);
         assert_eq!(result.state(), &ResultState::Success);
         assert_eq!(result.msg(), "Test message");
@@ -382,13 +390,13 @@ mod tests {
     fn test_memory_stats() {
         let mut stats = MemoryStats::new();
         assert_eq!(stats.total(), 0);
-        
+
         stats.update_value_bytes(100);
         assert_eq!(stats.total(), 100);
-        
+
         stats.update_iterator_bytes(200);
         assert_eq!(stats.total(), 300);
-        
+
         stats.update_overhead_bytes(50);
         assert_eq!(stats.total(), 350);
     }
@@ -396,13 +404,13 @@ mod tests {
     #[test]
     fn test_access_count() {
         let result = Result::new(Value::Int(42), ResultState::Success);
-        
+
         assert_eq!(result.access_count(), 0);
-        
+
         // 访问值会增加访问计数
         let _ = result.value();
         assert_eq!(result.access_count(), 1);
-        
+
         let _ = result.value_arc();
         assert_eq!(result.access_count(), 2);
     }
@@ -411,7 +419,7 @@ mod tests {
     fn test_to_string() {
         let result = Result::new(Value::Int(42), ResultState::Success);
         let result_str = result.to_string();
-        
+
         assert!(result_str.contains("Result"));
         assert!(result_str.contains("Success"));
         assert!(result_str.contains("size: 0"));
@@ -423,7 +431,7 @@ mod tests {
     fn test_clone_behavior() {
         let result1 = Result::new(Value::Int(42), ResultState::Success);
         let _ = result1.value(); // 增加访问计数
-        
+
         let result2 = result1.clone();
         assert!(result2.is_shared()); // 克隆后应该标记为共享
         assert_eq!(result2.value(), result1.value()); // 值应该相同

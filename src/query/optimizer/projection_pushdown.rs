@@ -2,8 +2,8 @@
 //! 这些规则负责将投影操作下推到计划树的底层，以减少数据传输量
 
 use super::optimizer::OptimizerError;
-use super::rule_traits::{BaseOptRule, PushDownRule};
 use super::rule_patterns::PatternBuilder;
+use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::PlanNodeKind;
 
@@ -36,17 +36,23 @@ impl BaseOptRule for ProjectionPushDownRule {}
 impl PushDownRule for ProjectionPushDownRule {
     fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
         // 投影可以下推到大多数数据访问操作
-        matches!(child_kind, 
-            PlanNodeKind::ScanVertices |
-            PlanNodeKind::ScanEdges |
-            PlanNodeKind::IndexScan |
-            PlanNodeKind::GetVertices |
-            PlanNodeKind::GetEdges |
-            PlanNodeKind::GetNeighbors
+        matches!(
+            child_kind,
+            PlanNodeKind::ScanVertices
+                | PlanNodeKind::ScanEdges
+                | PlanNodeKind::IndexScan
+                | PlanNodeKind::GetVertices
+                | PlanNodeKind::GetEdges
+                | PlanNodeKind::GetNeighbors
         )
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        _node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建下推后的节点
         // 目前简化实现，返回None
         Ok(None)
@@ -86,14 +92,18 @@ impl BaseOptRule for PushProjectDownRule {}
 impl PushDownRule for PushProjectDownRule {
     fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
         // 投影可以下推到数据访问操作
-        matches!(child_kind, 
-            PlanNodeKind::ScanVertices |
-            PlanNodeKind::ScanEdges |
-            PlanNodeKind::IndexScan
+        matches!(
+            child_kind,
+            PlanNodeKind::ScanVertices | PlanNodeKind::ScanEdges | PlanNodeKind::IndexScan
         )
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(
+        &self,
+        _ctx: &mut OptContext,
+        _node: &OptGroupNode,
+        _child: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这里会创建下推后的节点
         // 目前简化实现，返回None
         Ok(None)
@@ -117,7 +127,8 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = std::sync::Arc::new(Project::new(1, "")) as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
+        let project_node = std::sync::Arc::new(Project::new(1, ""))
+            as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -131,7 +142,8 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = std::sync::Arc::new(Project::new(1, "")) as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
+        let project_node = std::sync::Arc::new(Project::new(1, ""))
+            as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

@@ -1,8 +1,8 @@
 //! CREATE语句解析器
 
 use crate::query::parser::ast::*;
-use crate::query::parser::{ParseError, TokenKind};
 use crate::query::parser::expressions::ExpressionParser;
+use crate::query::parser::{ParseError, TokenKind};
 
 pub trait CreateStmtParser: ExpressionParser {
     /// 解析CREATE语句

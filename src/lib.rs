@@ -1,26 +1,37 @@
 //! GraphDB - A lightweight single-node graph database implemented in Rust
-//! 
+//!
 //! This crate provides the core functionality for a graph database that runs
 //! as a single executable for personal and small-scale applications.
 
-pub mod core;
-pub mod storage;
-pub mod query;
 pub mod api;
-pub mod utils;
-pub mod config;
 pub mod common;
+pub mod config;
+pub mod core;
 pub mod graph;
+pub mod query;
 pub mod services;
 pub mod stats;
+pub mod storage;
+pub mod utils;
 
 // Re-export common types at the crate root for convenience
-pub use crate::core::{Vertex, Edge, Value, Direction, Tag, Path, Step, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, error::{Status, StatusOr}};
-pub use crate::storage::{StorageEngine, NativeStorage, StorageError};
-pub use crate::query::{Query, QueryResult, QueryExecutor, QueryError, QueryConverter};
 pub use crate::config::Config;
+pub use crate::core::{
+    error::{Status, StatusOr},
+    DateTimeValue, DateValue, Direction, DurationValue, Edge, GeographyValue, NullType, Path, Step,
+    Tag, TimeValue, Value, Vertex,
+};
+pub use crate::query::{Query, QueryConverter, QueryError, QueryExecutor, QueryResult};
+pub use crate::storage::{NativeStorage, StorageEngine, StorageError};
 
 // Re-export commonly used types from submodules
-pub use crate::common::{base::id::*, time::*, memory::*, thread::*, process::*, network::*, fs::*, log::*, charset::*};
-pub use crate::graph::{transaction::*, index::*, expression::*, utils::{IdGenerator, EPIdGenerator, INVALID_ID, generate_id, is_valid_id}};
-pub use crate::services::{session::*, stats::*, function::*, algorithm::*, context::*};
+pub use crate::common::{
+    base::id::*, charset::*, fs::*, log::*, memory::*, network::*, process::*, thread::*, time::*,
+};
+pub use crate::graph::{
+    expression::*,
+    index::*,
+    transaction::*,
+    utils::{generate_id, is_valid_id, EPIdGenerator, IdGenerator, INVALID_ID},
+};
+pub use crate::services::{algorithm::*, context::*, function::*, session::*, stats::*};

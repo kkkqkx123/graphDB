@@ -2,7 +2,7 @@
 
 use super::plan::{ExecutionPlan, PlanNodeKind, SingleInputNode, SubPlan};
 use super::planner::{Planner, PlannerError};
-use crate::query::context::AstContext;
+use crate::query::context::ast::AstContext;
 use std::sync::Arc;
 
 #[derive(Debug)]

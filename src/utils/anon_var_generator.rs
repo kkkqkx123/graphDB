@@ -1,9 +1,9 @@
 //! 匿名变量生成器模块 - 提供匿名变量生成功能
 //! 对应原C++中的AnonVarGenerator.h/cpp
 
-use std::sync::Arc;
-use crate::graph::utils::IdGenerator;
 use crate::core::SymbolTable;
+use crate::graph::utils::IdGenerator;
+use std::sync::Arc;
 
 /// 匿名变量生成器
 pub struct AnonVarGenerator {
@@ -23,7 +23,8 @@ impl AnonVarGenerator {
     /// 生成一个新的匿名变量名
     pub fn get_var(&self) -> String {
         let var_name = format!("__VAR_{}", self.id_generator.id());
-        self.symbol_table.new_variable(&var_name)
+        self.symbol_table
+            .new_variable(&var_name)
             .expect("Failed to create new variable");
         log::trace!("Build anon var: {}", var_name);
         var_name
@@ -31,7 +32,8 @@ impl AnonVarGenerator {
 
     /// 在符号表中创建指定名称的变量
     pub fn create_var(&self, var: &str) {
-        self.symbol_table.new_variable(var)
+        self.symbol_table
+            .new_variable(var)
             .expect("Failed to create variable");
     }
 

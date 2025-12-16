@@ -30,7 +30,7 @@ where
 impl<Fut, Evaluator, Output> CollectNSucceeded<Fut, Evaluator>
 where
     Fut: Future<Output = Output>,
-    Evaluator: Fn(&Output) -> bool,  // Returns true if the output is considered successful
+    Evaluator: Fn(&Output) -> bool, // Returns true if the output is considered successful
 {
     /// Create a new CollectNSucceeded future
     pub fn new(futures: Vec<Fut>, target_success_count: usize, evaluator: Evaluator) -> Self {
@@ -59,7 +59,7 @@ where
 
         // 收集需要处理的索引列表，以避免借用冲突
         let mut completed_indices = Vec::new();
-        
+
         // Poll 每个未完成的future
         for (idx, future_option) in this.futures.iter_mut().enumerate() {
             if let Some(fut) = future_option {
@@ -83,7 +83,10 @@ where
                 // 检查是否达到目标成功数
                 if this.results.len() >= this.target_success_count {
                     return Poll::Ready(CollectResult::Success(
-                        this.results.iter().map(|(_, output)| output.clone()).collect()
+                        this.results
+                            .iter()
+                            .map(|(_, output)| output.clone())
+                            .collect(),
                     ));
                 }
             }
@@ -92,7 +95,10 @@ where
         // 如果所有futures已完成但仍未获得足够的成功
         if this.completed_count == this.futures.len() {
             return Poll::Ready(CollectResult::Partial(
-                this.results.iter().map(|(_, output)| output.clone()).collect()
+                this.results
+                    .iter()
+                    .map(|(_, output)| output.clone())
+                    .collect(),
             ));
         }
 
@@ -113,45 +119,48 @@ where
     Evaluator: Fn(&Output) -> bool + Send + Sync + 'static,
 {
     use futures::stream::{FuturesUnordered, StreamExt};
-    
+
     let mut futures_stream: FuturesUnordered<_> = futures.into_iter().collect();
     let mut results = Vec::new();
-    
+
     while let Some(output) = futures_stream.next().await {
         if evaluator(&output) {
             results.push(output.clone());
-            
+
             if results.len() >= target_success_count {
                 return CollectResult::Success(results);
             }
         }
     }
-    
+
     CollectResult::Partial(results)
 }
 
 /// A simplified version that treats Ok results as successful in Result types
-pub async fn collect_n_ok<T, Fut, E>(futures: Vec<Fut>, target_success_count: usize) -> CollectResult<T>
+pub async fn collect_n_ok<T, Fut, E>(
+    futures: Vec<Fut>,
+    target_success_count: usize,
+) -> CollectResult<T>
 where
     Fut: Future<Output = Result<T, E>> + Send + 'static,
     T: Send + Clone,
     E: Send,
 {
     use futures::stream::{FuturesUnordered, StreamExt};
-    
+
     let mut futures_stream: FuturesUnordered<_> = futures.into_iter().collect();
     let mut results = Vec::new();
-    
+
     while let Some(output) = futures_stream.next().await {
         if let Ok(value) = output {
             results.push(value);
-            
+
             if results.len() >= target_success_count {
                 return CollectResult::Success(results);
             }
         }
     }
-    
+
     CollectResult::Partial(results)
 }
 
@@ -163,8 +172,10 @@ mod tests {
     #[tokio::test]
     async fn test_collect_n_succeeded() {
         // 使用futures创建统一类型的async blocks
-        async fn make_value(v: i32) -> i32 { v }
-        
+        async fn make_value(v: i32) -> i32 {
+            v
+        }
+
         let futures = vec![
             make_value(1),
             make_value(2),
@@ -175,9 +186,9 @@ mod tests {
 
         // 评估器认为所有值都成功
         let evaluator = |_: &i32| true;
-        
+
         let result = collect_n_succeeded(futures, 3, evaluator).await;
-        
+
         match result {
             CollectResult::Success(values) => {
                 assert_eq!(values.len(), 3);
@@ -190,26 +201,28 @@ mod tests {
     #[tokio::test]
     async fn test_collect_n_with_evaluator() {
         // 使用统一函数创建async futures
-        async fn make_pair(v: i32, b: bool) -> (i32, bool) { (v, b) }
-        
+        async fn make_pair(v: i32, b: bool) -> (i32, bool) {
+            (v, b)
+        }
+
         let futures = vec![
-            make_pair(1, true),   // 成功
-            make_pair(2, false),  // 失败
-            make_pair(3, true),   // 成功
-            make_pair(4, false),  // 失败
-            make_pair(5, true),   // 成功
+            make_pair(1, true),  // 成功
+            make_pair(2, false), // 失败
+            make_pair(3, true),  // 成功
+            make_pair(4, false), // 失败
+            make_pair(5, true),  // 成功
         ];
 
         // 评估器只认为第二个元素为true时成功
         let evaluator = |value: &(i32, bool)| value.1;
-        
+
         let result = collect_n_succeeded(futures, 2, evaluator).await;
-        
+
         match result {
             CollectResult::Success(values) => {
                 assert_eq!(values.len(), 2);
                 for val in &values {
-                    assert!(val.1);  // 第二个元素应该为true
+                    assert!(val.1); // 第二个元素应该为true
                 }
             }
             CollectResult::Partial(_) => panic!("期望 Success"),
@@ -220,19 +233,23 @@ mod tests {
     async fn test_collect_n_ok() {
         // 使用统一函数创建async futures
         async fn make_result(v: i32, ok: bool) -> Result<i32, ()> {
-            if ok { Ok(v) } else { Err(()) }
+            if ok {
+                Ok(v)
+            } else {
+                Err(())
+            }
         }
-        
+
         let futures = vec![
-            make_result(1, true),   // ok
-            make_result(2, false),  // err - 这个会被忽略
-            make_result(3, true),   // ok
-            make_result(4, false),  // err - 这个会被忽略
-            make_result(5, true),   // ok
+            make_result(1, true),  // ok
+            make_result(2, false), // err - 这个会被忽略
+            make_result(3, true),  // ok
+            make_result(4, false), // err - 这个会被忽略
+            make_result(5, true),  // ok
         ];
 
         let result = collect_n_ok(futures, 2).await;
-        
+
         match result {
             CollectResult::Success(values) => {
                 assert_eq!(values.len(), 2);
@@ -246,22 +263,24 @@ mod tests {
     #[tokio::test]
     async fn test_collect_n_partial() {
         // 使用统一函数创建async futures
-        async fn make_pair(v: i32, b: bool) -> (i32, bool) { (v, b) }
-        
+        async fn make_pair(v: i32, b: bool) -> (i32, bool) {
+            (v, b)
+        }
+
         let futures = vec![
-            make_pair(1, false),  // 失败
-            make_pair(2, false),  // 失败
-            make_pair(3, false),  // 失败
+            make_pair(1, false), // 失败
+            make_pair(2, false), // 失败
+            make_pair(3, false), // 失败
         ];
 
         // 评估器只认为true值成功
         let evaluator = |value: &(i32, bool)| value.1;
-        
+
         let result = collect_n_succeeded(futures, 3, evaluator).await;
-        
+
         match result {
             CollectResult::Partial(values) => {
-                assert_eq!(values.len(), 0);  // 没有成功的值
+                assert_eq!(values.len(), 0); // 没有成功的值
             }
             CollectResult::Success(_) => panic!("期望 Partial"),
         }

@@ -352,7 +352,7 @@ impl Iterator for GetNeighborsIter {
                             self.col_idx += 1;
                             continue;
                         }
-                        
+
                         match &ds_guard.rows[self.current_row][col_idx] {
                             Value::List(list) if !list.is_empty() => Some(list.clone()),
                             _ => {
@@ -384,7 +384,8 @@ impl Iterator for GetNeighborsIter {
                         self.current_ds_index += 1;
                         if self.current_ds_index < self.ds_indices.len() {
                             self.current_row = 0;
-                            self.col_idx = self.ds_indices[self.current_ds_index].col_lower_bound + 1;
+                            self.col_idx =
+                                self.ds_indices[self.current_ds_index].col_lower_bound + 1;
                         } else {
                             self.valid = false;
                             break;
@@ -957,7 +958,7 @@ mod tests {
         let mut iter = GetNeighborsIter::new(data).unwrap();
 
         assert_eq!(iter.kind(), IteratorKind::GetNeighbors);
-        
+
         // 调试信息
         println!("valid: {}", iter.valid());
         println!("current_ds_index: {}", iter.current_ds_index);
@@ -970,14 +971,14 @@ mod tests {
         if !iter.ds_indices.is_empty() {
             println!("col_upper_bound: {}", iter.ds_indices[0].col_upper_bound);
         }
-        
+
         // 如果迭代器无效，尝试重置
         if !iter.valid() {
             println!("迭代器无效，尝试重置");
             iter.reset(0);
             println!("重置后 valid: {}", iter.valid());
         }
-        
+
         assert!(iter.valid());
     }
 

@@ -1,6 +1,6 @@
+use super::error::ExpressionError;
 use crate::core::Value;
 use crate::graph::expression::Expression;
-use super::error::ExpressionError;
 use crate::query::context::EvalContext;
 use serde::{Deserialize, Serialize};
 
@@ -108,6 +108,9 @@ pub fn evaluate_aggregate_expr(
             // 收集所有值到列表中
             Ok(Value::List(vec![arg_val]))
         }
-        _ => Err(ExpressionError::FunctionError(format!("Unknown aggregate function: {}", func))),
+        _ => Err(ExpressionError::FunctionError(format!(
+            "Unknown aggregate function: {}",
+            func
+        ))),
     }
 }

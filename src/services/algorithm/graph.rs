@@ -1,6 +1,6 @@
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::Hash;
-use std::cmp::Ordering;
 
 /// Graph algorithm utilities
 pub struct GraphAlgorithms;
@@ -30,7 +30,7 @@ impl GraphAlgorithms {
                         result_path.push(neighbor.clone());
                         return Some(result_path);
                     }
-                    
+
                     if !visited.contains(neighbor) {
                         visited.insert(neighbor.clone());
                         let mut new_path = path.clone();
@@ -54,7 +54,7 @@ impl GraphAlgorithms {
         let mut all_paths = Vec::new();
         let mut current_path = Vec::new();
         let mut visited = HashSet::new();
-        
+
         Self::dfs_find_all_paths(
             graph,
             start,
@@ -64,7 +64,7 @@ impl GraphAlgorithms {
             &mut visited,
             &mut all_paths,
         );
-        
+
         all_paths
     }
 
@@ -107,9 +107,7 @@ impl GraphAlgorithms {
     }
 
     /// Find connected components in an undirected graph
-    pub fn connected_components<T: Clone + Eq + Hash>(
-        graph: &HashMap<T, Vec<T>>,
-    ) -> Vec<Vec<T>> {
+    pub fn connected_components<T: Clone + Eq + Hash>(graph: &HashMap<T, Vec<T>>) -> Vec<Vec<T>> {
         let mut components = Vec::new();
         let mut visited = HashSet::new();
         let all_nodes: HashSet<&T> = graph.keys().collect();
@@ -117,12 +115,7 @@ impl GraphAlgorithms {
         for node in all_nodes {
             if !visited.contains(node) {
                 let mut component = Vec::new();
-                Self::dfs_collect_component(
-                    graph,
-                    node,
-                    &mut visited,
-                    &mut component,
-                );
+                Self::dfs_collect_component(graph, node, &mut visited, &mut component);
                 components.push(component);
             }
         }
@@ -149,21 +142,14 @@ impl GraphAlgorithms {
     }
 
     /// Check if the graph contains a cycle (for directed graphs)
-    pub fn has_cycle_directed<T: Clone + Eq + Hash>(
-        graph: &HashMap<T, Vec<T>>,
-    ) -> bool {
+    pub fn has_cycle_directed<T: Clone + Eq + Hash>(graph: &HashMap<T, Vec<T>>) -> bool {
         let mut white: HashSet<T> = graph.keys().map(|k| k.clone()).collect();
         let mut gray: HashSet<T> = HashSet::new();
         let mut black: HashSet<T> = HashSet::new();
 
         while let Some(node) = white.iter().next() {
-            if Self::dfs_has_cycle_directed(
-                graph,
-                &node.clone(),
-                &mut white,
-                &mut gray,
-                &mut black,
-            ) {
+            if Self::dfs_has_cycle_directed(graph, &node.clone(), &mut white, &mut gray, &mut black)
+            {
                 return true;
             }
         }
@@ -214,12 +200,7 @@ impl GraphAlgorithms {
 
         for node in all_nodes {
             if !visited.contains(node) {
-                Self::dfs_topological_sort(
-                    graph,
-                    node,
-                    &mut visited,
-                    &mut stack,
-                );
+                Self::dfs_topological_sort(graph, node, &mut visited, &mut stack);
             }
         }
 
@@ -271,12 +252,7 @@ impl GraphAlgorithms {
         while let Some(node) = stack.pop() {
             if !visited.contains(&node) {
                 let mut component = Vec::new();
-                Self::dfs_collect_component(
-                    &reversed_graph,
-                    &node,
-                    &mut visited,
-                    &mut component,
-                );
+                Self::dfs_collect_component(&reversed_graph, &node, &mut visited, &mut component);
                 sccs.push(component);
             }
         }
@@ -303,9 +279,7 @@ impl GraphAlgorithms {
         stack.push(node.clone());
     }
 
-    fn reverse_graph<T: Clone + Eq + Hash>(
-        graph: &HashMap<T, Vec<T>>,
-    ) -> HashMap<T, Vec<T>> {
+    fn reverse_graph<T: Clone + Eq + Hash>(graph: &HashMap<T, Vec<T>>) -> HashMap<T, Vec<T>> {
         let mut reversed = HashMap::new();
 
         for (node, neighbors) in graph {
@@ -313,7 +287,10 @@ impl GraphAlgorithms {
             reversed.entry(node.clone()).or_insert_with(Vec::new);
 
             for neighbor in neighbors {
-                reversed.entry(neighbor.clone()).or_insert_with(Vec::new).push(node.clone());
+                reversed
+                    .entry(neighbor.clone())
+                    .or_insert_with(Vec::new)
+                    .push(node.clone());
             }
         }
 
@@ -326,26 +303,26 @@ impl GraphAlgorithms {
         start: &T,
     ) -> HashMap<T, u32> {
         use std::collections::BinaryHeap;
-        
+
         #[derive(Debug, Clone, Eq, PartialEq)]
         struct NodeDistance<T> {
             node: T,
             distance: u32,
         }
-        
+
         impl<T: Eq> Ord for NodeDistance<T> {
             fn cmp(&self, other: &Self) -> Ordering {
                 // Reverse the ordering to create a min-heap
                 other.distance.cmp(&self.distance)
             }
         }
-        
+
         impl<T: Eq> PartialOrd for NodeDistance<T> {
             fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
                 Some(self.cmp(other))
             }
         }
-        
+
         let mut distances: HashMap<T, u32> = HashMap::new();
         let mut visited: HashSet<T> = HashSet::new();
         let mut to_visit: BinaryHeap<NodeDistance<T>> = BinaryHeap::new();
@@ -365,14 +342,14 @@ impl GraphAlgorithms {
             if visited.contains(&node) {
                 continue;
             }
-            
+
             visited.insert(node.clone());
 
             // Update distances for neighbors
             if let Some(neighbors) = graph.get(&node) {
                 for (neighbor, weight) in neighbors {
                     let new_distance = distance + weight;
-                    
+
                     if new_distance < *distances.get(neighbor).unwrap_or(&u32::MAX) {
                         distances.insert(neighbor.clone(), new_distance);
                         to_visit.push(NodeDistance {
@@ -426,7 +403,10 @@ mod tests {
         graph.insert("C".to_string(), vec![]);
 
         let sorted = GraphAlgorithms::topological_sort(&graph).unwrap();
-        assert_eq!(sorted, vec!["A".to_string(), "B".to_string(), "C".to_string()]);
+        assert_eq!(
+            sorted,
+            vec!["A".to_string(), "B".to_string(), "C".to_string()]
+        );
     }
 
     #[test]

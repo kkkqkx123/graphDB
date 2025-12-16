@@ -9,9 +9,7 @@ use crate::query::planner::match_planning::segments_connector::SegmentsConnector
 use crate::query::planner::match_planning::yield_clause_planner::YieldClausePlanner;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{
-    CypherClauseContext, CypherClauseKind,
-};
+use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 use std::sync::Arc;
 
 /// RETURN子句规划器

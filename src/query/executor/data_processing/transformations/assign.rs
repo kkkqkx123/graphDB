@@ -1,16 +1,18 @@
 //! AssignExecutor实现
-//! 
+//!
 //! 负责处理变量赋值操作，将表达式的结果赋值给变量
 
-use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
 
-use crate::core::Value;
-use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
-use crate::storage::StorageEngine;
+use crate::core::Value;
 use crate::graph::expression::{Expression, ExpressionContext, ExpressionEvaluator};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
+use crate::storage::StorageEngine;
 
 /// Assign执行器
 /// 用于将表达式的结果赋值给变量
@@ -22,13 +24,14 @@ pub struct AssignExecutor<S: StorageEngine + Send + 'static> {
 
 impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
     /// 创建新的AssignExecutor
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        assign_items: Vec<(String, Expression)>,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>, assign_items: Vec<(String, Expression)>) -> Self {
         Self {
-            base: BaseExecutor::with_description(id, "AssignExecutor".to_string(), "Assign executor - assigns expression results to variables".to_string(), storage),
+            base: BaseExecutor::with_description(
+                id,
+                "AssignExecutor".to_string(),
+                "Assign executor - assigns expression results to variables".to_string(),
+                storage,
+            ),
             assign_items,
         }
     }
@@ -41,7 +44,13 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
         context: crate::query::executor::base::ExecutionContext,
     ) -> Self {
         Self {
-            base: BaseExecutor::with_context_and_description(id, "AssignExecutor".to_string(), "Assign executor - assigns expression results to variables".to_string(), storage, context),
+            base: BaseExecutor::with_context_and_description(
+                id,
+                "AssignExecutor".to_string(),
+                "Assign executor - assigns expression results to variables".to_string(),
+                storage,
+                context,
+            ),
             assign_items,
         }
     }
@@ -49,7 +58,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
     /// 执行赋值操作
     fn execute_assign(&mut self) -> DBResult<()> {
         let mut expr_context = ExpressionContext::new();
-        
+
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {
             expr_context.set_variable(name.clone(), value.clone());
@@ -59,21 +68,30 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
         for (var_name, expr) in &self.assign_items {
             // 计算表达式的值
             let evaluator = ExpressionEvaluator::new();
-            let value = evaluator.evaluate(expr, &expr_context)
-                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
+            let value = evaluator.evaluate(expr, &expr_context).map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                    e.to_string(),
+                ))
+            })?;
 
             // 根据值的类型设置到执行上下文中
             match &value {
                 Value::DataSet(dataset) => {
                     // 如果是数据集，创建一个Values结果
-                    let values: Vec<Value> = dataset.rows.iter()
+                    let values: Vec<Value> = dataset
+                        .rows
+                        .iter()
                         .flat_map(|row| row.iter().cloned())
                         .collect();
-                    self.base.context.set_result(var_name.clone(), ExecutionResult::Values(values));
-                },
+                    self.base
+                        .context
+                        .set_result(var_name.clone(), ExecutionResult::Values(values));
+                }
                 _ => {
                     // 其他类型直接设置为变量
-                    self.base.context.set_variable(var_name.clone(), value.clone());
+                    self.base
+                        .context
+                        .set_variable(var_name.clone(), value.clone());
                 }
             }
 
@@ -90,7 +108,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for AssignExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 执行赋值操作
         self.execute_assign()?;
-        
+
         // AssignExecutor通常返回Success，表示赋值操作完成
         Ok(ExecutionResult::Success)
     }
@@ -136,17 +154,19 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AssignExecutor<S>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::test_config::test_config;
     use crate::core::Value;
     use crate::graph::expression::Expression;
     use crate::storage::NativeStorage;
-    use crate::config::test_config::test_config;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_assign_executor() {
         let config = test_config();
-        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db_assign")).unwrap()));
-        
+        let storage = Arc::new(Mutex::new(
+            NativeStorage::new(config.test_db_path("test_db_assign")).unwrap(),
+        ));
+
         // 创建赋值项
         let assign_items = vec![
             ("var1".to_string(), Expression::literal(42i64)),
@@ -154,13 +174,19 @@ mod tests {
         ];
 
         let mut executor = AssignExecutor::new(1, storage, assign_items);
-        
+
         // 执行赋值
         let result = executor.execute().await.unwrap();
         assert!(matches!(result, ExecutionResult::Success));
-        
+
         // 检查变量是否正确设置
-        assert_eq!(executor.base.context.get_variable("var1"), Some(&Value::Int(42)));
-        assert_eq!(executor.base.context.get_variable("var2"), Some(&Value::String("hello".to_string())));
+        assert_eq!(
+            executor.base.context.get_variable("var1"),
+            Some(&Value::Int(42))
+        );
+        assert_eq!(
+            executor.base.context.get_variable("var2"),
+            Some(&Value::String("hello".to_string()))
+        );
     }
 }

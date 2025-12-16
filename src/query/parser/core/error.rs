@@ -1,9 +1,9 @@
 //! Error handling for the query parser
-//! 
+//!
 //! This module defines error types for the parsing process.
 
-use std::fmt;
 use crate::query::QueryError;
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParseError {
@@ -14,7 +14,11 @@ pub struct ParseError {
 
 impl ParseError {
     pub fn new(message: String, line: usize, column: usize) -> Self {
-        ParseError { message, line, column }
+        ParseError {
+            message,
+            line,
+            column,
+        }
     }
 
     pub fn syntax_error<T: fmt::Display>(msg: T, line: usize, column: usize) -> ParseError {
@@ -24,7 +28,11 @@ impl ParseError {
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Parse error at line {}, column {}: {}", self.line, self.column, self.message)
+        write!(
+            f,
+            "Parse error at line {}, column {}: {}",
+            self.line, self.column, self.message
+        )
     }
 }
 

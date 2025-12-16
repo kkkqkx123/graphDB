@@ -2,9 +2,9 @@
 //!
 //! 包含图数据库模式定义的相关数据结构
 
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 use crate::core::Value;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// 表示图模式定义
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,7 +39,7 @@ pub enum DataType {
     Path,
     List(Box<DataType>),
     Map(String, Box<DataType>), // (键类型, 值类型)
-    Custom(String), // 自定义类型名称
+    Custom(String),             // 自定义类型名称
 }
 
 /// 表示索引定义

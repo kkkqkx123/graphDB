@@ -1,11 +1,14 @@
 //! 角色操作相关的计划节点
 //! 包括创建/删除角色、授权/撤销权限等操作
 
+use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
-    plan_node_traits::{PlanNode, PlanNodeIdentifiable, PlanNodeProperties, PlanNodeDependencies, PlanNodeMutable, PlanNodeVisitable, PlanNodeClonable},
+    plan_node_traits::{
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNodeProperties, PlanNodeVisitable,
+    },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
-use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
 // 定义角色类型

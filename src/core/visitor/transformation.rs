@@ -2,9 +2,11 @@
 //!
 //! 这个模块提供了用于转换 Value 的访问者实现
 
-use crate::core::visitor::core::{ValueVisitor, utils};
-use crate::core::value::{Value, NullType, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, DataSet};
-use crate::core::vertex_edge_path::{Vertex, Edge, Path, Tag, Step};
+use crate::core::value::{
+    DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
+};
+use crate::core::vertex_edge_path::{Edge, Path, Step, Tag, Vertex};
+use crate::core::visitor::core::{utils, ValueVisitor};
 use std::collections::HashMap;
 
 /// 深度克隆访问者 - 创建 Value 的深度副本
@@ -111,16 +113,25 @@ impl ValueVisitor for DeepCloneVisitor {
         let mut cloned_steps = Vec::with_capacity(value.steps.len());
 
         for step in &value.steps {
-            let cloned_dst = Self::clone_value(&Value::Vertex(Box::new(step.dst.as_ref().clone())))?;
+            let cloned_dst =
+                Self::clone_value(&Value::Vertex(Box::new(step.dst.as_ref().clone())))?;
             let cloned_edge = Self::clone_value(&Value::Edge(step.edge.as_ref().clone()))?;
             cloned_steps.push(Step {
                 dst: Box::new(match cloned_dst {
                     Value::Vertex(v) => *v,
-                    _ => return Err(TransformationError::Transformation("Expected vertex".to_string())),
+                    _ => {
+                        return Err(TransformationError::Transformation(
+                            "Expected vertex".to_string(),
+                        ))
+                    }
                 }),
                 edge: Box::new(match cloned_edge {
                     Value::Edge(e) => e,
-                    _ => return Err(TransformationError::Transformation("Expected edge".to_string())),
+                    _ => {
+                        return Err(TransformationError::Transformation(
+                            "Expected edge".to_string(),
+                        ))
+                    }
                 }),
             });
         }
@@ -128,7 +139,11 @@ impl ValueVisitor for DeepCloneVisitor {
         Ok(Value::Path(Path {
             src: Box::new(match cloned_src {
                 Value::Vertex(v) => *v,
-                _ => return Err(TransformationError::Transformation("Expected vertex".to_string())),
+                _ => {
+                    return Err(TransformationError::Transformation(
+                        "Expected vertex".to_string(),
+                    ))
+                }
             }),
             steps: cloned_steps,
         }))
@@ -341,7 +356,8 @@ impl ValueVisitor for SizeCalculatorVisitor {
             self.size += std::mem::size_of::<(f64, f64)>();
         }
         if let Some(ref line) = value.linestring {
-            self.size += std::mem::size_of::<Vec<(f64, f64)>>() + line.len() * std::mem::size_of::<(f64, f64)>();
+            self.size += std::mem::size_of::<Vec<(f64, f64)>>()
+                + line.len() * std::mem::size_of::<(f64, f64)>();
         }
         if let Some(ref poly) = value.polygon {
             self.size += std::mem::size_of::<Vec<Vec<(f64, f64)>>>();
@@ -612,41 +628,33 @@ impl ValueVisitor for TypeConversionVisitor {
 
     fn visit_string(&mut self, value: &str) -> Self::Result {
         match self.target_type {
-            Some(ValueTypeDef::Int) => {
-                value.parse::<i64>()
-                    .map(Value::Int)
-                    .map_err(|_| TransformationError::Transformation(
-                        format!("无法将字符串 '{}' 转换为整数", value)
-                    ))
-            }
-            Some(ValueTypeDef::Float) => {
-                value.parse::<f64>()
-                    .map(Value::Float)
-                    .map_err(|_| TransformationError::Transformation(
-                        format!("无法将字符串 '{}' 转换为浮点数", value)
-                    ))
-            }
-            Some(ValueTypeDef::Bool) => {
-                match value.to_lowercase().as_str() {
-                    "true" => Ok(Value::Bool(true)),
-                    "false" => Ok(Value::Bool(false)),
-                    _ => Err(TransformationError::Transformation(
-                        format!("无法将字符串 '{}' 转换为布尔值", value)
-                    )),
-                }
-            }
+            Some(ValueTypeDef::Int) => value.parse::<i64>().map(Value::Int).map_err(|_| {
+                TransformationError::Transformation(format!("无法将字符串 '{}' 转换为整数", value))
+            }),
+            Some(ValueTypeDef::Float) => value.parse::<f64>().map(Value::Float).map_err(|_| {
+                TransformationError::Transformation(format!(
+                    "无法将字符串 '{}' 转换为浮点数",
+                    value
+                ))
+            }),
+            Some(ValueTypeDef::Bool) => match value.to_lowercase().as_str() {
+                "true" => Ok(Value::Bool(true)),
+                "false" => Ok(Value::Bool(false)),
+                _ => Err(TransformationError::Transformation(format!(
+                    "无法将字符串 '{}' 转换为布尔值",
+                    value
+                ))),
+            },
             _ => Ok(Value::String(value.to_string())),
         }
     }
 
     fn visit_date(&mut self, value: &DateValue) -> Self::Result {
         match self.target_type {
-            Some(ValueTypeDef::String) => {
-                Ok(Value::String(format!(
-                    "{}-{}-{}",
-                    value.year, value.month, value.day
-                )))
-            }
+            Some(ValueTypeDef::String) => Ok(Value::String(format!(
+                "{}-{}-{}",
+                value.year, value.month, value.day
+            ))),
             Some(ValueTypeDef::DateTime) => Ok(Value::DateTime(DateTimeValue {
                 year: value.year,
                 month: value.month,
@@ -662,12 +670,10 @@ impl ValueVisitor for TypeConversionVisitor {
 
     fn visit_time(&mut self, value: &TimeValue) -> Self::Result {
         match self.target_type {
-            Some(ValueTypeDef::String) => {
-                Ok(Value::String(format!(
-                    "{}:{}:{}",
-                    value.hour, value.minute, value.sec
-                )))
-            }
+            Some(ValueTypeDef::String) => Ok(Value::String(format!(
+                "{}:{}:{}",
+                value.hour, value.minute, value.sec
+            ))),
             Some(ValueTypeDef::DateTime) => Ok(Value::DateTime(DateTimeValue {
                 year: 1970,
                 month: 1,
@@ -683,36 +689,27 @@ impl ValueVisitor for TypeConversionVisitor {
 
     fn visit_datetime(&mut self, value: &DateTimeValue) -> Self::Result {
         match self.target_type {
-            Some(ValueTypeDef::String) => {
-                Ok(Value::String(format!(
-                    "{}-{}-{} {}:{}:{}",
-                    value.year, value.month, value.day, value.hour, value.minute, value.sec
-                )))
-            }
+            Some(ValueTypeDef::String) => Ok(Value::String(format!(
+                "{}-{}-{} {}:{}:{}",
+                value.year, value.month, value.day, value.hour, value.minute, value.sec
+            ))),
             _ => Ok(Value::DateTime(value.clone())),
         }
     }
 
     fn visit_vertex(&mut self, value: &Vertex) -> Self::Result {
         match self.target_type {
-            Some(ValueTypeDef::String) => {
-                Ok(Value::String(format!(
-                    "Vertex({:?})",
-                    value.id()
-                )))
-            }
+            Some(ValueTypeDef::String) => Ok(Value::String(format!("Vertex({:?})", value.id()))),
             _ => Ok(Value::Vertex(Box::new(value.clone()))),
         }
     }
 
     fn visit_edge(&mut self, value: &Edge) -> Self::Result {
         match self.target_type {
-            Some(ValueTypeDef::String) => {
-                Ok(Value::String(format!(
-                    "Edge({:?} -> {:?}, type: {})",
-                    &*value.src, &*value.dst, value.edge_type
-                )))
-            }
+            Some(ValueTypeDef::String) => Ok(Value::String(format!(
+                "Edge({:?} -> {:?}, type: {})",
+                &*value.src, &*value.dst, value.edge_type
+            ))),
             _ => Ok(Value::Edge(value.clone())),
         }
     }
@@ -720,10 +717,7 @@ impl ValueVisitor for TypeConversionVisitor {
     fn visit_path(&mut self, value: &Path) -> Self::Result {
         match self.target_type {
             Some(ValueTypeDef::String) => {
-                Ok(Value::String(format!(
-                    "Path(length: {})",
-                    value.len()
-                )))
+                Ok(Value::String(format!("Path(length: {})", value.len())))
             }
             _ => Ok(Value::Path(value.clone())),
         }
@@ -734,17 +728,16 @@ impl ValueVisitor for TypeConversionVisitor {
             Some(ValueTypeDef::String) => {
                 let items: Vec<String> = value
                     .iter()
-                    .map(|v| {
-                        match v {
-                            Value::String(s) => s.clone(),
-                            _ => format!("{:?}", v),
-                        }
+                    .map(|v| match v {
+                        Value::String(s) => s.clone(),
+                        _ => format!("{:?}", v),
                     })
                     .collect();
                 Ok(Value::String(format!("[{}]", items.join(", "))))
             }
             _ => Ok(Value::List(
-                value.iter()
+                value
+                    .iter()
                     .map(|v| Self::convert(v, self.target_type.clone().unwrap()))
                     .collect::<Result<Vec<_>, _>>()?,
             )),
@@ -783,11 +776,9 @@ impl ValueVisitor for TypeConversionVisitor {
             Some(ValueTypeDef::String) => {
                 let items: Vec<String> = value
                     .iter()
-                    .map(|v| {
-                        match v {
-                            Value::String(s) => s.clone(),
-                            _ => format!("{:?}", v),
-                        }
+                    .map(|v| match v {
+                        Value::String(s) => s.clone(),
+                        _ => format!("{:?}", v),
                     })
                     .collect();
                 Ok(Value::String(format!("[{}]", items.join(", "))))
@@ -810,25 +801,18 @@ impl ValueVisitor for TypeConversionVisitor {
 
     fn visit_duration(&mut self, value: &DurationValue) -> Self::Result {
         match self.target_type {
-            Some(ValueTypeDef::String) => {
-                Ok(Value::String(format!(
-                    "{} seconds",
-                    value.seconds
-                )))
-            }
+            Some(ValueTypeDef::String) => Ok(Value::String(format!("{} seconds", value.seconds))),
             _ => Ok(Value::Duration(value.clone())),
         }
     }
 
     fn visit_dataset(&mut self, value: &DataSet) -> Self::Result {
         match self.target_type {
-            Some(ValueTypeDef::String) => {
-                Ok(Value::String(format!(
-                    "Dataset({} rows, {} columns)",
-                    value.rows.len(),
-                    value.col_names.len()
-                )))
-            }
+            Some(ValueTypeDef::String) => Ok(Value::String(format!(
+                "Dataset({} rows, {} columns)",
+                value.rows.len(),
+                value.col_names.len()
+            ))),
             _ => Ok(Value::DataSet(value.clone())),
         }
     }
@@ -858,9 +842,10 @@ mod tests {
         let original = Value::List(vec![
             Value::Int(42),
             Value::String("test".to_string()),
-            Value::Map(std::collections::HashMap::from([
-                ("key".to_string(), Value::Bool(true))
-            ])),
+            Value::Map(std::collections::HashMap::from([(
+                "key".to_string(),
+                Value::Bool(true),
+            )])),
         ]);
 
         let cloned = DeepCloneVisitor::clone_value(&original).unwrap();
@@ -888,7 +873,7 @@ mod tests {
         let string_value = Value::String("123".to_string());
         let int_value = TypeConversionVisitor::convert(&string_value, ValueTypeDef::Int).unwrap();
         assert_eq!(int_value, Value::Int(123));
-        
+
         let bool_value = TypeConversionVisitor::convert(&string_value, ValueTypeDef::Bool).unwrap();
         assert_eq!(bool_value, Value::Bool(true));
     }

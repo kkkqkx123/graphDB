@@ -11,7 +11,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, DBResult};
+use crate::query::executor::traits::{
+    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -380,7 +382,12 @@ impl<S: StorageEngine> GroupByExecutor<S> {
         aggregate_functions: Vec<AggregateFunction>,
     ) -> Self {
         Self {
-            aggregate_executor: AggregateExecutor::new(id, storage, group_keys, aggregate_functions),
+            aggregate_executor: AggregateExecutor::new(
+                id,
+                storage,
+                group_keys,
+                aggregate_functions,
+            ),
         }
     }
 }
@@ -448,11 +455,7 @@ pub struct HavingExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> HavingExecutor<S> {
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        condition: String,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>, condition: String) -> Self {
         Self {
             base: BaseExecutor::new(id, "HavingExecutor".to_string(), storage),
             input_executor: None,

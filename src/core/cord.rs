@@ -232,7 +232,7 @@ mod tests {
         cord.append_str("Hello");
         cord.append_str(" ");
         cord.append_str("World");
-        
+
         assert_eq!(cord.len(), 11);
         assert_eq!(cord.to_string(), "Hello World");
     }
@@ -243,7 +243,7 @@ mod tests {
         cord.append_bytes(b"Hello");
         cord.append_bytes(b" ");
         cord.append_bytes(b"World");
-        
+
         assert_eq!(cord.len(), 11);
         assert_eq!(cord.to_string(), "Hello World");
     }
@@ -257,17 +257,15 @@ mod tests {
             .write_f64(3.14)
             .write(", Bool: ")
             .write_bool(true);
-        
+
         assert_eq!(cord.to_string(), "Number: 42, Float: 3.14, Bool: true");
     }
 
     #[test]
     fn test_cord_flatten() {
         let mut cord = Cord::new();
-        cord.append_str("Hello")
-            .append_str(" ")
-            .append_str("World");
-        
+        cord.append_str("Hello").append_str(" ").append_str("World");
+
         let flattened = cord.flatten();
         assert_eq!(flattened, b"Hello World");
     }
@@ -275,16 +273,14 @@ mod tests {
     #[test]
     fn test_cord_apply_to() {
         let mut cord = Cord::new();
-        cord.append_str("Hello")
-            .append_str(" ")
-            .append_str("World");
-        
+        cord.append_str("Hello").append_str(" ").append_str("World");
+
         let mut result = Vec::new();
         cord.apply_to(|block| {
             result.push(block.to_vec());
             true
         });
-        
+
         // Check that we got the blocks
         assert!(!result.is_empty());
     }
@@ -294,7 +290,7 @@ mod tests {
         let mut cord = Cord::new();
         cord.append_str("Hello, World!");
         assert!(!cord.is_empty());
-        
+
         cord.clear();
         assert!(cord.is_empty());
         assert_eq!(cord.len(), 0);
@@ -304,8 +300,11 @@ mod tests {
     fn test_cord_with_small_block_size() {
         let mut cord = Cord::with_block_size(5); // Very small block size
         cord.append_str("Hello, this is a longer string for testing");
-        
+
         // Make sure it still works correctly
-        assert_eq!(cord.to_string(), "Hello, this is a longer string for testing");
+        assert_eq!(
+            cord.to_string(),
+            "Hello, this is a longer string for testing"
+        );
     }
 }

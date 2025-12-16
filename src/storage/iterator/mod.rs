@@ -9,16 +9,16 @@
 //! - PropIter: 属性查询迭代器
 
 pub mod default_iter;
-pub mod sequential_iter;
+pub mod enum_iter;
 pub mod get_neighbors_iter;
 pub mod prop_iter;
-pub mod enum_iter;
+pub mod sequential_iter;
 
 pub use default_iter::DefaultIter;
-pub use sequential_iter::SequentialIter;
+pub use enum_iter::IteratorEnum;
 pub use get_neighbors_iter::GetNeighborsIter;
 pub use prop_iter::PropIter;
-pub use enum_iter::IteratorEnum;
+pub use sequential_iter::SequentialIter;
 
 use crate::core::Value;
 use std::fmt::Debug;
@@ -40,7 +40,7 @@ pub enum IteratorKind {
 }
 
 /// 迭代器基类接口
-/// 
+///
 /// 定义所有迭代器必须实现的接口
 /// 支持以下操作：
 /// 1. 基本迭代：next、valid、reset

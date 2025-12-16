@@ -137,7 +137,7 @@ pub enum PlanNodeKind {
     UpdateVertex,
     DeleteTags,
     UpdateEdge,
-    
+
     // 数据构造器节点
     NewVertex,
     NewTag,
@@ -313,7 +313,7 @@ impl PlanNodeKind {
             PlanNodeKind::UpdateVertex => "UpdateVertex",
             PlanNodeKind::DeleteTags => "DeleteTags",
             PlanNodeKind::UpdateEdge => "UpdateEdge",
-            
+
             // 数据构造器节点
             PlanNodeKind::NewVertex => "NewVertex",
             PlanNodeKind::NewTag => "NewTag",

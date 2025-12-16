@@ -19,7 +19,7 @@ pub mod structs;
 
 pub use base_validator::Validator;
 pub use match_validator::MatchValidator;
-pub use validate_context::{ValidateContext, Variable, Column};
+pub use validate_context::{Column, ValidateContext, Variable};
 pub use validation_factory::ValidationFactory;
 
 // 导出策略模块

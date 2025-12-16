@@ -53,7 +53,8 @@ impl OptRule for CombineFilterRule {
 
                         // 创建一个新的OptGroupNode
                         let mut combined_filter_opt_node = node.clone();
-                        combined_filter_opt_node.plan_node = std::sync::Arc::new(combined_filter_node);
+                        combined_filter_opt_node.plan_node =
+                            std::sync::Arc::new(combined_filter_node);
 
                         // 设置依赖关系
                         if !child.node.dependencies.is_empty() {
@@ -440,8 +441,8 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::{Dedup, Filter, GetNeighbors, GetVertices, Project};
     use crate::query::planner::plan::PlanNodeKind;
+    use crate::query::planner::plan::{Dedup, Filter, GetNeighbors, GetVertices, Project};
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())

@@ -2,16 +2,20 @@
 //!
 //! 实现基于哈希的内连接算法，支持单键和多键连接
 
-use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
 
-use crate::core::{Value, DataSet};
 use crate::core::error::{DBError, DBResult};
-use crate::storage::StorageEngine;
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
-use crate::query::QueryError;
+use crate::core::{DataSet, Value};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
-use crate::query::executor::data_processing::join::hash_table::{HashTableBuilder, HashTableProbe, SingleKeyHashTable, MultiKeyHashTable};
+use crate::query::executor::data_processing::join::hash_table::{
+    HashTableBuilder, HashTableProbe, MultiKeyHashTable, SingleKeyHashTable,
+};
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
+use crate::query::QueryError;
+use crate::storage::StorageEngine;
 
 /// 内连接执行器
 pub struct InnerJoinExecutor<S: StorageEngine> {
@@ -49,13 +53,7 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
         let use_multi_key = hash_keys.len() > 1;
         Self {
             base_executor: BaseJoinExecutor::new(
-                id,
-                storage,
-                left_var,
-                right_var,
-                hash_keys,
-                probe_keys,
-                col_names,
+                id, storage, left_var, right_var, hash_keys, probe_keys, col_names,
             ),
             single_key_hash_table: None,
             multi_key_hash_table: None,
@@ -78,21 +76,36 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
             .map_err(|_| QueryError::ExecutionError("无效的右键索引".to_string()))?;
 
         // 决定是否交换左右输入以优化性能
-        let (build_dataset, probe_dataset, build_key_idx, probe_key_idx, exchange) =
-            if self.base_executor.should_exchange(left_dataset.rows.len(), right_dataset.rows.len()) {
-                // 交换：右表作为构建表，左表作为探测表
-                (right_dataset, left_dataset, right_key_idx, left_key_idx, true)
-            } else {
-                // 不交换：左表作为构建表，右表作为探测表
-                (left_dataset, right_dataset, left_key_idx, right_key_idx, false)
-            };
+        let (build_dataset, probe_dataset, build_key_idx, probe_key_idx, exchange) = if self
+            .base_executor
+            .should_exchange(left_dataset.rows.len(), right_dataset.rows.len())
+        {
+            // 交换：右表作为构建表，左表作为探测表
+            (
+                right_dataset,
+                left_dataset,
+                right_key_idx,
+                left_key_idx,
+                true,
+            )
+        } else {
+            // 不交换：左表作为构建表，右表作为探测表
+            (
+                left_dataset,
+                right_dataset,
+                left_key_idx,
+                right_key_idx,
+                false,
+            )
+        };
 
         // 构建哈希表
         let hash_table = HashTableBuilder::build_single_key_table(build_dataset, build_key_idx)
             .map_err(|e| QueryError::ExecutionError(format!("构建哈希表失败: {}", e)))?;
 
         // 探测哈希表
-        let probe_results = HashTableProbe::probe_single_key(&hash_table, probe_dataset, probe_key_idx);
+        let probe_results =
+            HashTableProbe::probe_single_key(&hash_table, probe_dataset, probe_key_idx);
 
         // 构建结果集
         let mut result = DataSet::new();
@@ -125,33 +138,50 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
         let mut right_key_indices = Vec::new();
 
         for key in self.base_executor.get_hash_keys() {
-            let idx = key.parse::<usize>()
+            let idx = key
+                .parse::<usize>()
                 .map_err(|_| QueryError::ExecutionError("无效的左键索引".to_string()))?;
             left_key_indices.push(idx);
         }
 
         for key in self.base_executor.get_probe_keys() {
-            let idx = key.parse::<usize>()
+            let idx = key
+                .parse::<usize>()
                 .map_err(|_| QueryError::ExecutionError("无效的右键索引".to_string()))?;
             right_key_indices.push(idx);
         }
 
         // 决定是否交换左右输入以优化性能
-        let (build_dataset, probe_dataset, build_key_indices, probe_key_indices, exchange) = 
-            if self.base_executor.should_exchange(left_dataset.rows.len(), right_dataset.rows.len()) {
-                // 交换：右表作为构建表，左表作为探测表
-                (right_dataset, left_dataset, &right_key_indices, &left_key_indices, true)
-            } else {
-                // 不交换：左表作为构建表，右表作为探测表
-                (left_dataset, right_dataset, &left_key_indices, &right_key_indices, false)
-            };
+        let (build_dataset, probe_dataset, build_key_indices, probe_key_indices, exchange) = if self
+            .base_executor
+            .should_exchange(left_dataset.rows.len(), right_dataset.rows.len())
+        {
+            // 交换：右表作为构建表，左表作为探测表
+            (
+                right_dataset,
+                left_dataset,
+                &right_key_indices,
+                &left_key_indices,
+                true,
+            )
+        } else {
+            // 不交换：左表作为构建表，右表作为探测表
+            (
+                left_dataset,
+                right_dataset,
+                &left_key_indices,
+                &right_key_indices,
+                false,
+            )
+        };
 
         // 构建哈希表
         let hash_table = HashTableBuilder::build_multi_key_table(build_dataset, build_key_indices)
             .map_err(|e| QueryError::ExecutionError(format!("构建多键哈希表失败: {}", e)))?;
 
         // 探测哈希表
-        let probe_results = HashTableProbe::probe_multi_key(&hash_table, probe_dataset, probe_key_indices);
+        let probe_results =
+            HashTableProbe::probe_multi_key(&hash_table, probe_dataset, probe_key_indices);
 
         // 构建结果集
         let mut result = DataSet::new();
@@ -178,7 +208,10 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
 impl<S: StorageEngine + Send + 'static> ExecutorCore for InnerJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 检查输入数据集
-        let (left_dataset, right_dataset) = self.base_executor.check_input_datasets().map_err(DBError::from)?;
+        let (left_dataset, right_dataset) = self
+            .base_executor
+            .check_input_datasets()
+            .map_err(DBError::from)?;
 
         // 处理空集情况
         if left_dataset.rows.is_empty() || right_dataset.rows.is_empty() {
@@ -191,9 +224,11 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for InnerJoinExecutor<S> {
 
         // 根据键的数量选择连接算法
         let result = if self.use_multi_key {
-            self.execute_multi_key_join(&left_dataset, &right_dataset).map_err(DBError::from)?
+            self.execute_multi_key_join(&left_dataset, &right_dataset)
+                .map_err(DBError::from)?
         } else {
-            self.execute_single_key_join(&left_dataset, &right_dataset).map_err(DBError::from)?
+            self.execute_single_key_join(&left_dataset, &right_dataset)
+                .map_err(DBError::from)?
         };
 
         Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
@@ -257,13 +292,7 @@ impl<S: StorageEngine> HashInnerJoinExecutor<S> {
     ) -> Self {
         Self {
             inner: InnerJoinExecutor::new(
-                id,
-                storage,
-                left_var,
-                right_var,
-                hash_keys,
-                probe_keys,
-                col_names,
+                id, storage, left_var, right_var, hash_keys, probe_keys, col_names,
             ),
         }
     }
@@ -319,49 +348,84 @@ mod tests {
 
     // 模拟存储引擎
     struct MockStorage;
-    
+
     impl crate::storage::StorageEngine for MockStorage {
-        fn insert_node(&mut self, _vertex: crate::core::vertex_edge_path::Vertex) -> Result<crate::core::Value, crate::storage::StorageError> {
+        fn insert_node(
+            &mut self,
+            _vertex: crate::core::vertex_edge_path::Vertex,
+        ) -> Result<crate::core::Value, crate::storage::StorageError> {
             Ok(crate::core::Value::Null(crate::core::value::NullType::NaN))
         }
-        
-        fn get_node(&self, _id: &crate::core::Value) -> Result<Option<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+
+        fn get_node(
+            &self,
+            _id: &crate::core::Value,
+        ) -> Result<Option<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(None)
         }
-        
-        fn update_node(&mut self, _vertex: crate::core::vertex_edge_path::Vertex) -> Result<(), crate::storage::StorageError> {
+
+        fn update_node(
+            &mut self,
+            _vertex: crate::core::vertex_edge_path::Vertex,
+        ) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
-        
-        fn delete_node(&mut self, _id: &crate::core::Value) -> Result<(), crate::storage::StorageError> {
+
+        fn delete_node(
+            &mut self,
+            _id: &crate::core::Value,
+        ) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
-        
-        fn insert_edge(&mut self, _edge: crate::core::vertex_edge_path::Edge) -> Result<(), crate::storage::StorageError> {
+
+        fn insert_edge(
+            &mut self,
+            _edge: crate::core::vertex_edge_path::Edge,
+        ) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
-        
-        fn get_edge(&self, _src: &crate::core::Value, _dst: &crate::core::Value, _edge_type: &str) -> Result<Option<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError> {
+
+        fn get_edge(
+            &self,
+            _src: &crate::core::Value,
+            _dst: &crate::core::Value,
+            _edge_type: &str,
+        ) -> Result<Option<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError>
+        {
             Ok(None)
         }
-        
-        fn get_node_edges(&self, _node_id: &crate::core::Value, _direction: crate::core::vertex_edge_path::Direction) -> Result<Vec<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError> {
+
+        fn get_node_edges(
+            &self,
+            _node_id: &crate::core::Value,
+            _direction: crate::core::vertex_edge_path::Direction,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
-        
-        fn delete_edge(&mut self, _src: &crate::core::Value, _dst: &crate::core::Value, _edge_type: &str) -> Result<(), crate::storage::StorageError> {
+
+        fn delete_edge(
+            &mut self,
+            _src: &crate::core::Value,
+            _dst: &crate::core::Value,
+            _edge_type: &str,
+        ) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
-        
+
         fn begin_transaction(&mut self) -> Result<u64, crate::storage::StorageError> {
             Ok(1)
         }
-        
+
         fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
-        
-        fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
+
+        fn rollback_transaction(
+            &mut self,
+            _tx_id: u64,
+        ) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
     }
@@ -369,7 +433,7 @@ mod tests {
     #[tokio::test]
     async fn test_inner_join_single_key() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建执行器
         let mut executor = InnerJoinExecutor::new(
             1,
@@ -380,7 +444,7 @@ mod tests {
             vec!["0".to_string()], // 右表第0列作为键
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
         );
-        
+
         // 设置执行上下文
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
@@ -389,7 +453,7 @@ mod tests {
                 vec![Value::Int(2), Value::String("Bob".to_string())],
             ],
         };
-        
+
         let right_dataset = DataSet {
             col_names: vec!["id".to_string(), "age".to_string()],
             rows: vec![
@@ -397,20 +461,20 @@ mod tests {
                 vec![Value::Int(3), Value::Int(35)],
             ],
         };
-        
+
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
         );
-        
+
         executor.base_executor.get_base_mut().context.set_result(
             "right".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
-        
+
         // 执行连接
         let result = executor.execute().await.unwrap();
-        
+
         // 验证结果
         match result {
             ExecutionResult::Values(values) => {
@@ -421,15 +485,18 @@ mod tests {
                         println!("行{}: {:?}", i, row);
                     }
                     assert_eq!(dataset.rows.len(), 1); // 只有一个匹配
-                    assert_eq!(dataset.rows[0], vec![
-                        Value::Int(1),
-                        Value::String("Alice".to_string()),
-                        Value::Int(25),
-                    ]);
+                    assert_eq!(
+                        dataset.rows[0],
+                        vec![
+                            Value::Int(1),
+                            Value::String("Alice".to_string()),
+                            Value::Int(25),
+                        ]
+                    );
                 } else {
                     panic!("期望DataSet结果");
                 }
-            },
+            }
             _ => panic!("期望Values结果"),
         }
     }

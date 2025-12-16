@@ -2,55 +2,46 @@
 //! Contains the Optimizer implementation and various optimization rules
 
 // 基础设施模块
-pub mod rule_traits;
 pub mod rule_patterns;
+pub mod rule_traits;
 
 // 优化策略模块
 pub mod elimination_rules;
-pub mod operation_merge;
-pub mod predicate_pushdown;
-pub mod limit_pushdown;
-pub mod projection_pushdown;
-pub mod scan_optimization;
 pub mod index_optimization;
 pub mod join_optimization;
-pub mod transformation_rules;
+pub mod limit_pushdown;
+pub mod operation_merge;
 pub mod optimizer;
+pub mod predicate_pushdown;
+pub mod projection_pushdown;
+pub mod scan_optimization;
+pub mod transformation_rules;
 
 // Re-export all rule structs for convenient access
 pub use elimination_rules::{
-    EliminateFilterRule, DedupEliminationRule, RemoveNoopProjectRule,
-    EliminateAppendVerticesRule, RemoveAppendVerticesBelowJoinRule
-};
-pub use operation_merge::{
-    CombineFilterRule, CollapseProjectRule, MergeGetVerticesAndProjectRule,
-    MergeGetVerticesAndDedupRule, MergeGetNbrsAndDedupRule, MergeGetNbrsAndProjectRule
-};
-pub use transformation_rules::{
-    TopNRule
-};
-pub use predicate_pushdown::{
-    FilterPushDownRule, PushFilterDownTraverseRule, PushFilterDownExpandRule,
-    PushFilterDownHashInnerJoinRule, PushFilterDownHashLeftJoinRule,
-    PushFilterDownInnerJoinRule, PredicatePushDownRule
-};
-pub use limit_pushdown::{
-    PushLimitDownRule, PushLimitDownGetVerticesRule, PushLimitDownGetNeighborsRule,
-    PushLimitDownGetEdgesRule, PushLimitDownScanVerticesRule,
-    PushLimitDownScanEdgesRule, PushLimitDownIndexScanRule,
-    PushLimitDownProjectRule
-};
-pub use projection_pushdown::{
-    ProjectionPushDownRule, PushProjectDownRule
-};
-pub use scan_optimization::{
-    IndexFullScanRule, ScanWithFilterOptimizationRule
+    DedupEliminationRule, EliminateAppendVerticesRule, EliminateFilterRule,
+    RemoveAppendVerticesBelowJoinRule, RemoveNoopProjectRule,
 };
 pub use index_optimization::{
-    OptimizeEdgeIndexScanByFilterRule, OptimizeTagIndexScanByFilterRule,
-    EdgeIndexFullScanRule, TagIndexFullScanRule, IndexScanRule,
-    UnionAllEdgeIndexScanRule, UnionAllTagIndexScanRule
+    EdgeIndexFullScanRule, IndexScanRule, OptimizeEdgeIndexScanByFilterRule,
+    OptimizeTagIndexScanByFilterRule, TagIndexFullScanRule, UnionAllEdgeIndexScanRule,
+    UnionAllTagIndexScanRule,
 };
-pub use join_optimization::{
-    JoinOptimizationRule
+pub use join_optimization::JoinOptimizationRule;
+pub use limit_pushdown::{
+    PushLimitDownGetEdgesRule, PushLimitDownGetNeighborsRule, PushLimitDownGetVerticesRule,
+    PushLimitDownIndexScanRule, PushLimitDownProjectRule, PushLimitDownRule,
+    PushLimitDownScanEdgesRule, PushLimitDownScanVerticesRule,
 };
+pub use operation_merge::{
+    CollapseProjectRule, CombineFilterRule, MergeGetNbrsAndDedupRule, MergeGetNbrsAndProjectRule,
+    MergeGetVerticesAndDedupRule, MergeGetVerticesAndProjectRule,
+};
+pub use predicate_pushdown::{
+    FilterPushDownRule, PredicatePushDownRule, PushFilterDownExpandRule,
+    PushFilterDownHashInnerJoinRule, PushFilterDownHashLeftJoinRule, PushFilterDownInnerJoinRule,
+    PushFilterDownTraverseRule,
+};
+pub use projection_pushdown::{ProjectionPushDownRule, PushProjectDownRule};
+pub use scan_optimization::{IndexFullScanRule, ScanWithFilterOptimizationRule};
+pub use transformation_rules::TopNRule;

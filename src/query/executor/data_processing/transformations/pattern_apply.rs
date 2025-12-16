@@ -1,17 +1,19 @@
 //! PatternApplyExecutor实现
-//! 
+//!
 //! 负责处理模式匹配操作，将输入数据与指定模式进行匹配
 
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use async_trait::async_trait;
 
-use crate::core::{Value, Vertex, Edge, Path, DataSet};
-use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::{DBError, DBResult};
-use crate::storage::StorageEngine;
+use crate::core::{DataSet, Edge, Path, Value, Vertex};
 use crate::graph::expression::{Expression, ExpressionContext, ExpressionEvaluator};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
+use crate::storage::StorageEngine;
 
 /// 模式类型
 #[derive(Debug, Clone, PartialEq)]
@@ -100,7 +102,12 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
         context: crate::query::executor::base::ExecutionContext,
     ) -> Self {
         Self {
-            base: BaseExecutor::with_context(id, "PatternApplyExecutor".to_string(), storage, context),
+            base: BaseExecutor::with_context(
+                id,
+                "PatternApplyExecutor".to_string(),
+                storage,
+                context,
+            ),
             input_var,
             pattern,
             col_names,
@@ -109,14 +116,21 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     }
 
     /// 检查顶点是否匹配节点模式
-    fn match_node_pattern(&self, vertex: &Vertex, pattern: &PatternType, expr_context: &ExpressionContext) -> DBResult<bool> {
-        if let PatternType::Node { labels, properties, .. } = pattern {
+    fn match_node_pattern(
+        &self,
+        vertex: &Vertex,
+        pattern: &PatternType,
+        expr_context: &ExpressionContext,
+    ) -> DBResult<bool> {
+        if let PatternType::Node {
+            labels, properties, ..
+        } = pattern
+        {
             // 检查标签
             if !labels.is_empty() {
-                let vertex_labels: Vec<String> = vertex.tags.iter()
-                    .map(|tag| tag.name.clone())
-                    .collect();
-                
+                let vertex_labels: Vec<String> =
+                    vertex.tags.iter().map(|tag| tag.name.clone()).collect();
+
                 // 检查顶点是否包含所有指定的标签
                 for label in labels {
                     if !vertex_labels.contains(label) {
@@ -129,19 +143,24 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
             if !properties.is_empty() {
                 for (prop_name, prop_expr) in properties {
                     // 获取顶点属性值
-                    let prop_value = vertex.properties.get(prop_name)
+                    let prop_value = vertex
+                        .properties
+                        .get(prop_name)
                         .cloned()
                         .unwrap_or(Value::Null(crate::core::NullType::UnknownProp));
-                    
+
                     // 创建临时表达式上下文
                     let mut temp_context = expr_context.clone();
                     temp_context.set_variable("_".to_string(), prop_value);
-                    
+
                     // 评估属性表达式
                     let evaluator = ExpressionEvaluator::new();
-                    let result = evaluator.evaluate(prop_expr, &temp_context)
-                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
-                    
+                    let result = evaluator.evaluate(prop_expr, &temp_context).map_err(|e| {
+                        DBError::Query(crate::core::error::QueryError::ExecutionError(
+                            e.to_string(),
+                        ))
+                    })?;
+
                     // 如果结果是布尔值且为false，则不匹配
                     if let Value::Bool(false) = result {
                         return Ok(false);
@@ -156,8 +175,19 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     }
 
     /// 检查边是否匹配边模式
-    fn match_edge_pattern(&self, edge: &Edge, pattern: &PatternType, expr_context: &ExpressionContext) -> DBResult<bool> {
-        if let PatternType::Edge { edge_type, direction, properties, .. } = pattern {
+    fn match_edge_pattern(
+        &self,
+        edge: &Edge,
+        pattern: &PatternType,
+        expr_context: &ExpressionContext,
+    ) -> DBResult<bool> {
+        if let PatternType::Edge {
+            edge_type,
+            direction,
+            properties,
+            ..
+        } = pattern
+        {
             // 检查边类型
             if let Some(expected_type) = edge_type {
                 if edge.edge_type != *expected_type {
@@ -175,19 +205,24 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
             if !properties.is_empty() {
                 for (prop_name, prop_expr) in properties {
                     // 获取边属性值
-                    let prop_value = edge.properties().get(prop_name)
+                    let prop_value = edge
+                        .properties()
+                        .get(prop_name)
                         .cloned()
                         .unwrap_or(Value::Null(crate::core::NullType::UnknownProp));
-                    
+
                     // 创建临时表达式上下文
                     let mut temp_context = expr_context.clone();
                     temp_context.set_variable("_".to_string(), prop_value);
-                    
+
                     // 评估属性表达式
                     let evaluator = ExpressionEvaluator::new();
-                    let result = evaluator.evaluate(prop_expr, &temp_context)
-                        .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))?;
-                    
+                    let result = evaluator.evaluate(prop_expr, &temp_context).map_err(|e| {
+                        DBError::Query(crate::core::error::QueryError::ExecutionError(
+                            e.to_string(),
+                        ))
+                    })?;
+
                     // 如果结果是布尔值且为false，则不匹配
                     if let Value::Bool(false) = result {
                         return Ok(false);
@@ -202,16 +237,21 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     }
 
     /// 检查路径是否匹配路径模式
-    fn match_path_pattern(&self, path: &Path, pattern: &PatternType, _expr_context: &ExpressionContext) -> DBResult<bool> {
+    fn match_path_pattern(
+        &self,
+        path: &Path,
+        pattern: &PatternType,
+        _expr_context: &ExpressionContext,
+    ) -> DBResult<bool> {
         if let PatternType::Path { length_range, .. } = pattern {
             // 检查路径长度
             let path_length = path.steps.len();
-            
+
             if let Some((min_len, max_len)) = length_range {
                 if path_length < *min_len {
                     return Ok(false);
                 }
-                
+
                 if let Some(max) = max_len {
                     if path_length > *max {
                         return Ok(false);
@@ -228,12 +268,20 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     /// 执行模式匹配操作
     fn execute_pattern_apply(&mut self) -> DBResult<DataSet> {
         // 获取输入结果
-        let input_result = self.base.context.get_result(&self.input_var)
-            .ok_or_else(|| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("Input variable '{}' not found", self.input_var))))?;
+        let input_result = self
+            .base
+            .context
+            .get_result(&self.input_var)
+            .ok_or_else(|| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "Input variable '{}' not found",
+                    self.input_var
+                )))
+            })?;
 
         // 创建表达式上下文
         let mut expr_context = ExpressionContext::new();
-        
+
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {
             expr_context.set_variable(name.clone(), value.clone());
@@ -251,7 +299,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                 for value in values {
                     // 设置当前值到表达式上下文
                     expr_context.set_variable("_".to_string(), value.clone());
-                    
+
                     // 根据模式类型进行匹配
                     let matches = match &self.pattern {
                         PatternType::Node { .. } => {
@@ -260,27 +308,27 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                             } else {
                                 false
                             }
-                        },
+                        }
                         PatternType::Edge { .. } => {
                             if let Value::Edge(edge) = value {
                                 self.match_edge_pattern(&edge, &self.pattern, &expr_context)?
                             } else {
                                 false
                             }
-                        },
+                        }
                         PatternType::Path { .. } => {
                             if let Value::Path(path) = value {
                                 self.match_path_pattern(&path, &self.pattern, &expr_context)?
                             } else {
                                 false
                             }
-                        },
+                        }
                     };
 
                     // 如果匹配，添加到结果集
                     if matches {
                         let mut row = Vec::new();
-                        
+
                         if !self.track_prev_path {
                             // 不跟踪前一个路径，只返回匹配的值
                             row.push(value.clone());
@@ -289,16 +337,16 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                             // 这里简化处理，实际应该从输入结果中获取原始行
                             row.push(value.clone());
                         }
-                        
+
                         dataset.rows.push(row);
                     }
                 }
-            },
+            }
             ExecutionResult::Vertices(vertices) => {
                 for vertex in vertices {
                     let vertex_value = Value::Vertex(Box::new(vertex.clone()));
                     expr_context.set_variable("_".to_string(), vertex_value.clone());
-                    
+
                     if let PatternType::Node { .. } = &self.pattern {
                         if self.match_node_pattern(&vertex, &self.pattern, &expr_context)? {
                             let mut row = Vec::new();
@@ -307,12 +355,12 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                         }
                     }
                 }
-            },
+            }
             ExecutionResult::Edges(edges) => {
                 for edge in edges {
                     let edge_value = Value::Edge(edge.clone());
                     expr_context.set_variable("_".to_string(), edge_value.clone());
-                    
+
                     if let PatternType::Edge { .. } = &self.pattern {
                         if self.match_edge_pattern(&edge, &self.pattern, &expr_context)? {
                             let mut row = Vec::new();
@@ -321,9 +369,13 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                         }
                     }
                 }
-            },
+            }
             _ => {
-                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError("Invalid input result type for PatternApply".to_string())));
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "Invalid input result type for PatternApply".to_string(),
+                    ),
+                ));
             }
         }
 
@@ -336,12 +388,14 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for PatternApplyExecutor<S>
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 执行模式匹配操作
         let dataset = self.execute_pattern_apply()?;
-        
+
         // 将数据集转换为值列表
-        let values: Vec<Value> = dataset.rows.into_iter()
+        let values: Vec<Value> = dataset
+            .rows
+            .into_iter()
             .flat_map(|row| row.into_iter())
             .collect();
-        
+
         Ok(ExecutionResult::Values(values))
     }
 }
@@ -386,44 +440,46 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for PatternApplyExecu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Value, Vertex, Tag};
-    use crate::storage::NativeStorage;
     use crate::config::test_config::test_config;
+    use crate::core::{Tag, Value, Vertex};
+    use crate::storage::NativeStorage;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_pattern_apply_executor() {
         let config = test_config();
-        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db_pattern_apply")).unwrap()));
-        
+        let storage = Arc::new(Mutex::new(
+            NativeStorage::new(config.test_db_path("test_db_pattern_apply")).unwrap(),
+        ));
+
         // 创建测试顶点
         let tag = Tag {
             name: "Person".to_string(),
             properties: HashMap::new(),
         };
-        
+
         let vertex = Vertex {
             vid: Box::new(Value::String("vertex1".to_string())),
             tags: vec![tag],
             properties: HashMap::new(),
         };
-        
+
         let vertex_value = Value::Vertex(Box::new(vertex));
-        
+
         // 创建输入数据
         let input_result = ExecutionResult::Values(vec![vertex_value.clone()]);
-        
+
         // 创建执行上下文
         let mut context = crate::query::executor::base::ExecutionContext::new();
         context.set_result("input".to_string(), input_result);
-        
+
         // 创建节点模式
         let pattern = PatternType::Node {
             variable: Some("v".to_string()),
             labels: vec!["Person".to_string()],
             properties: HashMap::new(),
         };
-        
+
         // 创建PatternApplyExecutor
         let mut executor = PatternApplyExecutor::with_context(
             1,
@@ -434,10 +490,10 @@ mod tests {
             false, // 不跟踪前一个路径
             context,
         );
-        
+
         // 执行模式匹配
         let result = executor.execute().await.unwrap();
-        
+
         // 检查结果
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 1);

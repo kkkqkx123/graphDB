@@ -98,17 +98,17 @@ impl Arena {
 
         // Calculate aligned size
         let adjusted_size = (size + align - 1) & !(align - 1);
-        
+
         // Check if we have enough space in the current chunk
         if self.has_space(adjusted_size) {
             let ptr = self.current_ptr;
             self.current_ptr = unsafe { self.current_ptr.add(adjusted_size) };
-            
+
             #[cfg(debug_assertions)]
             {
                 self.allocated_size += adjusted_size;
             }
-            
+
             Some(ptr)
         } else {
             // Allocate a new chunk
@@ -135,7 +135,7 @@ impl Arena {
         if self.current_ptr.is_null() || self.end_ptr.is_null() {
             return false;
         }
-        
+
         // Safety: Both pointers are non-null and point to the same allocation
         unsafe {
             let offset = self.end_ptr.offset_from(self.current_ptr) as usize;
@@ -146,33 +146,30 @@ impl Arena {
     /// Allocate a new chunk and allocate the requested memory in it
     fn allocate_new_chunk(&mut self, size: usize) -> Option<*mut u8> {
         // Calculate chunk size (at least the requested size, but aligned to MIN_CHUNK_SIZE)
-        let chunk_size = std::cmp::max(
-            size,
-            MIN_CHUNK_SIZE,
-        );
-        
+        let chunk_size = std::cmp::max(size, MIN_CHUNK_SIZE);
+
         let new_chunk = Chunk::new(chunk_size)?;
-        
+
         // Save the old chunk as the next chunk
         let old_chunks = self.chunks.take();
         let mut boxed_chunk = new_chunk;
         boxed_chunk.next = old_chunks;
-        
+
         // Update pointers
         self.current_ptr = boxed_chunk.data;
         self.end_ptr = unsafe { self.current_ptr.add(boxed_chunk.size) };
         self.chunks = Some(boxed_chunk);
-        
+
         // Now allocate from the new chunk
         if self.has_space(size) {
             let ptr = self.current_ptr;
             self.current_ptr = unsafe { self.current_ptr.add(size) };
-            
+
             #[cfg(debug_assertions)]
             {
                 self.allocated_size += size;
             }
-            
+
             Some(ptr)
         } else {
             // This shouldn't happen if our math is correct
@@ -184,7 +181,7 @@ impl Arena {
     pub fn alloc_item<T>(&mut self, value: T) -> Option<&mut T> {
         let size = std::mem::size_of::<T>();
         let align = std::mem::align_of::<T>();
-        
+
         if let Some(ptr) = self.allocate(size, align) {
             unsafe {
                 std::ptr::write(ptr as *mut T, value);
@@ -222,17 +219,17 @@ mod tests {
     #[test]
     fn test_arena_allocation() {
         let mut arena = Arena::new();
-        
+
         // Allocate some memory
         let ptr1 = arena.alloc(10).expect("Allocation should succeed");
         let ptr2 = arena.alloc(20).expect("Allocation should succeed");
-        
+
         // Write some data
         unsafe {
             std::ptr::write_bytes(ptr1, 1, 10);
             std::ptr::write_bytes(ptr2, 2, 20);
         }
-        
+
         // Verify the data
         unsafe {
             for i in 0..10 {
@@ -247,11 +244,13 @@ mod tests {
     #[test]
     fn test_arena_item_allocation() {
         let mut arena = Arena::new();
-        
+
         // Allocate and store a value
-        let value: &mut i32 = arena.alloc_item(42).expect("Item allocation should succeed");
+        let value: &mut i32 = arena
+            .alloc_item(42)
+            .expect("Item allocation should succeed");
         assert_eq!(*value, 42);
-        
+
         // Modify the value
         *value = 100;
         assert_eq!(*value, 100);
@@ -260,10 +259,12 @@ mod tests {
     #[test]
     fn test_arena_aligned_allocation() {
         let mut arena = Arena::new();
-        
+
         // Allocate aligned memory
-        let ptr = arena.allocate_aligned(32).expect("Allocation should succeed");
-        
+        let ptr = arena
+            .allocate_aligned(32)
+            .expect("Allocation should succeed");
+
         // Check alignment
         assert_eq!(ptr as usize % ALIGNMENT, 0);
     }

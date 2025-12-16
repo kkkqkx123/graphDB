@@ -2,8 +2,10 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use super::base::BaseExecutor;
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, DBResult};
 use crate::core::{Edge, Value, Vertex};
+use crate::query::executor::traits::{
+    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::storage::StorageEngine;
 
 // Executor for inserting new vertices/edges
@@ -114,7 +116,7 @@ pub struct UpdateExecutor<S: StorageEngine> {
     vertex_updates: Option<Vec<VertexUpdate>>, // Updates to apply to vertices
     edge_updates: Option<Vec<EdgeUpdate>>,     // Updates to apply to edges
     #[allow(dead_code)]
-    condition: Option<String>,                 // Condition for selecting items to update
+    condition: Option<String>, // Condition for selecting items to update
 }
 
 #[derive(Debug, Clone)]
@@ -226,9 +228,9 @@ pub struct DeleteExecutor<S: StorageEngine> {
     vertex_ids: Option<Vec<Value>>, // IDs of vertices to delete
     edge_ids: Option<Vec<Value>>,   // IDs of edges to delete
     #[allow(dead_code)]
-    condition: Option<String>,      // Condition for selecting items to delete
+    condition: Option<String>, // Condition for selecting items to delete
     #[allow(dead_code)]
-    cascade: bool,                  // Whether to delete related items
+    cascade: bool, // Whether to delete related items
 }
 
 impl<S: StorageEngine> DeleteExecutor<S> {
@@ -330,7 +332,7 @@ pub struct CreateIndexExecutor<S: StorageEngine> {
     #[allow(dead_code)]
     index_type: IndexType,
     #[allow(dead_code)]
-    properties: Vec<String>,  // Properties to index
+    properties: Vec<String>, // Properties to index
     #[allow(dead_code)]
     tag_name: Option<String>, // Tag name for vertex indexes
 }

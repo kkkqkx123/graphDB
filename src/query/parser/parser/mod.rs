@@ -29,12 +29,7 @@ impl Parser {
     pub fn new(input: &str) -> Self {
         let mut lexer = Lexer::new(input);
         let current_token = lexer.peek().unwrap_or_else(|_| {
-            Token::new(
-                crate::query::parser::TokenKind::Eof,
-                String::new(),
-                0,
-                0,
-            )
+            Token::new(crate::query::parser::TokenKind::Eof, String::new(), 0, 0)
         });
 
         Self {

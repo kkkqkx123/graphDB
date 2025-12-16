@@ -43,8 +43,8 @@ impl ExtractFilterExprVisitor {
                     self.filter_exprs.push(expr.clone());
                 }
                 Ok(())
-            },
-            
+            }
+
             // 函数调用，检查是否是过滤相关的函数
             Expression::Function { name, args: _ } => {
                 // 某些函数可能用于过滤，如 is_empty, is_null 等
@@ -54,8 +54,8 @@ impl ExtractFilterExprVisitor {
                     }
                 }
                 Ok(())
-            },
-            
+            }
+
             // 处理其他可能的过滤表达式
             _ => {
                 // 检查是否为其他类型的过滤表达式
@@ -79,19 +79,17 @@ impl ExtractFilterExprVisitor {
 
     fn visit_children(&mut self, expr: &Expression) -> Result<(), String> {
         match expr {
-            Expression::Unary { op: _, operand } => {
-                self.visit(operand)
-            },
+            Expression::Unary { op: _, operand } => self.visit(operand),
             Expression::Binary { left, op: _, right } => {
                 self.visit(left)?;
                 self.visit(right)
-            },
+            }
             Expression::Function { name: _, args } => {
                 for arg in args {
                     self.visit(arg)?;
                 }
                 Ok(())
-            },
+            }
             // 其他表达式类型，通常不需要进一步访问子节点
             _ => Ok(()),
         }
@@ -104,15 +102,24 @@ impl ExtractFilterExprVisitor {
 
 fn is_filter_function(func_name: &str) -> bool {
     // 检查函数名是否为过滤相关函数
-    matches!(func_name.to_lowercase().as_str(), 
-             "isempty" | "isnull" | "isnotnull" | "isnullorempty" | 
-             "has" | "haslabel" | "hastag" | "contains")
+    matches!(
+        func_name.to_lowercase().as_str(),
+        "isempty"
+            | "isnull"
+            | "isnotnull"
+            | "isnullorempty"
+            | "has"
+            | "haslabel"
+            | "hastag"
+            | "contains"
+    )
 }
 
 fn is_filter_expression(expr: &Expression) -> bool {
     // 检查表达式是否为过滤表达式
     // 通常关系表达式和函数调用是过滤表达式
-    matches!(expr,
-             Expression::Binary { .. } |
-             Expression::Function { .. })
+    matches!(
+        expr,
+        Expression::Binary { .. } | Expression::Function { .. }
+    )
 }

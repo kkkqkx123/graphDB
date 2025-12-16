@@ -1,10 +1,10 @@
 //! Function module for GraphDB
-//! 
+//!
 //! This module provides built-in functions similar to NebulaGraph's FunctionManager system
 
+use crate::core::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use crate::core::Value;
 
 /// Type signature for function arguments and return types
 #[derive(Debug, Clone)]
@@ -51,8 +51,10 @@ impl From<&Value> for ValueType {
             Value::Edge(_) => ValueType::Edge,
             Value::Path(_) => ValueType::Path,
             Value::List(_) => ValueType::List(Box::new(ValueType::Empty)), // Generic list
-            Value::Map(_) => ValueType::Map(Box::new(ValueType::String), Box::new(ValueType::Empty)), // Generic map
-            Value::Set(_) => ValueType::Set(Box::new(ValueType::Empty)), // Generic set
+            Value::Map(_) => {
+                ValueType::Map(Box::new(ValueType::String), Box::new(ValueType::Empty))
+            } // Generic map
+            Value::Set(_) => ValueType::Set(Box::new(ValueType::Empty)),   // Generic set
             Value::Geography(_) => ValueType::Geography,
             Value::Duration(_) => ValueType::Duration,
             Value::DataSet(_) => ValueType::Empty, // For now, treat DataSet as Empty
@@ -102,7 +104,7 @@ impl FunctionManager {
         let mut manager = FunctionManager {
             functions: Arc::new(Mutex::new(HashMap::new())),
         };
-        
+
         // Register built-in functions
         manager.register_builtin_functions();
         manager
@@ -111,182 +113,203 @@ impl FunctionManager {
     /// Register all built-in functions
     fn register_builtin_functions(&mut self) {
         // String functions
-        self.register_function("strlen", FunctionAttributes {
-            min_arity: 1,
-            max_arity: 1,
-            is_pure: true,
-            body: Arc::new(|args| {
-                if let Value::String(s) = &args[0] {
-                    Value::Int(s.len() as i64)
-                } else {
-                    Value::Null(crate::core::NullType::BadType)
-                }
-            }),
-            type_signature: vec![TypeSignature {
-                args_type: vec![ValueType::String],
-                return_type: ValueType::Int,
-            }],
-        });
+        self.register_function(
+            "strlen",
+            FunctionAttributes {
+                min_arity: 1,
+                max_arity: 1,
+                is_pure: true,
+                body: Arc::new(|args| {
+                    if let Value::String(s) = &args[0] {
+                        Value::Int(s.len() as i64)
+                    } else {
+                        Value::Null(crate::core::NullType::BadType)
+                    }
+                }),
+                type_signature: vec![TypeSignature {
+                    args_type: vec![ValueType::String],
+                    return_type: ValueType::Int,
+                }],
+            },
+        );
 
-        self.register_function("upper", FunctionAttributes {
-            min_arity: 1,
-            max_arity: 1,
-            is_pure: true,
-            body: Arc::new(|args| {
-                if let Value::String(s) = &args[0] {
-                    Value::String(s.to_uppercase())
-                } else {
-                    Value::Null(crate::core::NullType::BadType)
-                }
-            }),
-            type_signature: vec![TypeSignature {
-                args_type: vec![ValueType::String],
-                return_type: ValueType::String,
-            }],
-        });
+        self.register_function(
+            "upper",
+            FunctionAttributes {
+                min_arity: 1,
+                max_arity: 1,
+                is_pure: true,
+                body: Arc::new(|args| {
+                    if let Value::String(s) = &args[0] {
+                        Value::String(s.to_uppercase())
+                    } else {
+                        Value::Null(crate::core::NullType::BadType)
+                    }
+                }),
+                type_signature: vec![TypeSignature {
+                    args_type: vec![ValueType::String],
+                    return_type: ValueType::String,
+                }],
+            },
+        );
 
-        self.register_function("lower", FunctionAttributes {
-            min_arity: 1,
-            max_arity: 1,
-            is_pure: true,
-            body: Arc::new(|args| {
-                if let Value::String(s) = &args[0] {
-                    Value::String(s.to_lowercase())
-                } else {
-                    Value::Null(crate::core::NullType::BadType)
-                }
-            }),
-            type_signature: vec![TypeSignature {
-                args_type: vec![ValueType::String],
-                return_type: ValueType::String,
-            }],
-        });
+        self.register_function(
+            "lower",
+            FunctionAttributes {
+                min_arity: 1,
+                max_arity: 1,
+                is_pure: true,
+                body: Arc::new(|args| {
+                    if let Value::String(s) = &args[0] {
+                        Value::String(s.to_lowercase())
+                    } else {
+                        Value::Null(crate::core::NullType::BadType)
+                    }
+                }),
+                type_signature: vec![TypeSignature {
+                    args_type: vec![ValueType::String],
+                    return_type: ValueType::String,
+                }],
+            },
+        );
 
-        self.register_function("trim", FunctionAttributes {
-            min_arity: 1,
-            max_arity: 1,
-            is_pure: true,
-            body: Arc::new(|args| {
-                if let Value::String(s) = &args[0] {
-                    Value::String(s.trim().to_string())
-                } else {
-                    Value::Null(crate::core::NullType::BadType)
-                }
-            }),
-            type_signature: vec![TypeSignature {
-                args_type: vec![ValueType::String],
-                return_type: ValueType::String,
-            }],
-        });
+        self.register_function(
+            "trim",
+            FunctionAttributes {
+                min_arity: 1,
+                max_arity: 1,
+                is_pure: true,
+                body: Arc::new(|args| {
+                    if let Value::String(s) = &args[0] {
+                        Value::String(s.trim().to_string())
+                    } else {
+                        Value::Null(crate::core::NullType::BadType)
+                    }
+                }),
+                type_signature: vec![TypeSignature {
+                    args_type: vec![ValueType::String],
+                    return_type: ValueType::String,
+                }],
+            },
+        );
 
         // Math functions
-        self.register_function("abs", FunctionAttributes {
-            min_arity: 1,
-            max_arity: 1,
-            is_pure: true,
-            body: Arc::new(|args| {
-                match &args[0] {
+        self.register_function(
+            "abs",
+            FunctionAttributes {
+                min_arity: 1,
+                max_arity: 1,
+                is_pure: true,
+                body: Arc::new(|args| match &args[0] {
                     Value::Int(n) => Value::Int(n.abs()),
                     Value::Float(f) => Value::Float(f.abs()),
                     _ => Value::Null(crate::core::NullType::BadType),
-                }
-            }),
-            type_signature: vec![
-                TypeSignature {
-                    args_type: vec![ValueType::Int],
-                    return_type: ValueType::Int,
-                },
-                TypeSignature {
-                    args_type: vec![ValueType::Float],
-                    return_type: ValueType::Float,
-                },
-            ],
-        });
+                }),
+                type_signature: vec![
+                    TypeSignature {
+                        args_type: vec![ValueType::Int],
+                        return_type: ValueType::Int,
+                    },
+                    TypeSignature {
+                        args_type: vec![ValueType::Float],
+                        return_type: ValueType::Float,
+                    },
+                ],
+            },
+        );
 
-        self.register_function("ceil", FunctionAttributes {
-            min_arity: 1,
-            max_arity: 1,
-            is_pure: true,
-            body: Arc::new(|args| {
-                if let Value::Float(f) = &args[0] {
-                    Value::Float(f.ceil())
-                } else if let Value::Int(i) = &args[0] {
-                    Value::Float(*i as f64)
-                } else {
-                    Value::Null(crate::core::NullType::BadType)
-                }
-            }),
-            type_signature: vec![
-                TypeSignature {
-                    args_type: vec![ValueType::Int],
-                    return_type: ValueType::Float,
-                },
-                TypeSignature {
-                    args_type: vec![ValueType::Float],
-                    return_type: ValueType::Float,
-                },
-            ],
-        });
+        self.register_function(
+            "ceil",
+            FunctionAttributes {
+                min_arity: 1,
+                max_arity: 1,
+                is_pure: true,
+                body: Arc::new(|args| {
+                    if let Value::Float(f) = &args[0] {
+                        Value::Float(f.ceil())
+                    } else if let Value::Int(i) = &args[0] {
+                        Value::Float(*i as f64)
+                    } else {
+                        Value::Null(crate::core::NullType::BadType)
+                    }
+                }),
+                type_signature: vec![
+                    TypeSignature {
+                        args_type: vec![ValueType::Int],
+                        return_type: ValueType::Float,
+                    },
+                    TypeSignature {
+                        args_type: vec![ValueType::Float],
+                        return_type: ValueType::Float,
+                    },
+                ],
+            },
+        );
 
-        self.register_function("floor", FunctionAttributes {
-            min_arity: 1,
-            max_arity: 1,
-            is_pure: true,
-            body: Arc::new(|args| {
-                if let Value::Float(f) = &args[0] {
-                    Value::Float(f.floor())
-                } else if let Value::Int(i) = &args[0] {
-                    Value::Float(*i as f64)
-                } else {
-                    Value::Null(crate::core::NullType::BadType)
-                }
-            }),
-            type_signature: vec![
-                TypeSignature {
-                    args_type: vec![ValueType::Int],
-                    return_type: ValueType::Float,
-                },
-                TypeSignature {
-                    args_type: vec![ValueType::Float],
-                    return_type: ValueType::Float,
-                },
-            ],
-        });
+        self.register_function(
+            "floor",
+            FunctionAttributes {
+                min_arity: 1,
+                max_arity: 1,
+                is_pure: true,
+                body: Arc::new(|args| {
+                    if let Value::Float(f) = &args[0] {
+                        Value::Float(f.floor())
+                    } else if let Value::Int(i) = &args[0] {
+                        Value::Float(*i as f64)
+                    } else {
+                        Value::Null(crate::core::NullType::BadType)
+                    }
+                }),
+                type_signature: vec![
+                    TypeSignature {
+                        args_type: vec![ValueType::Int],
+                        return_type: ValueType::Float,
+                    },
+                    TypeSignature {
+                        args_type: vec![ValueType::Float],
+                        return_type: ValueType::Float,
+                    },
+                ],
+            },
+        );
 
         // Type conversion functions
-        self.register_function("to_string", FunctionAttributes {
-            min_arity: 1,
-            max_arity: 1,
-            is_pure: true,
-            body: Arc::new(|args| {
-                Value::String(args[0].to_string())
-            }),
-            type_signature: vec![
-                TypeSignature {
-                    args_type: vec![ValueType::Int],
-                    return_type: ValueType::String,
-                },
-                TypeSignature {
-                    args_type: vec![ValueType::Float],
-                    return_type: ValueType::String,
-                },
-                TypeSignature {
-                    args_type: vec![ValueType::Bool],
-                    return_type: ValueType::String,
-                },
-                TypeSignature {
-                    args_type: vec![ValueType::String],
-                    return_type: ValueType::String,
-                },
-            ],
-        });
+        self.register_function(
+            "to_string",
+            FunctionAttributes {
+                min_arity: 1,
+                max_arity: 1,
+                is_pure: true,
+                body: Arc::new(|args| Value::String(args[0].to_string())),
+                type_signature: vec![
+                    TypeSignature {
+                        args_type: vec![ValueType::Int],
+                        return_type: ValueType::String,
+                    },
+                    TypeSignature {
+                        args_type: vec![ValueType::Float],
+                        return_type: ValueType::String,
+                    },
+                    TypeSignature {
+                        args_type: vec![ValueType::Bool],
+                        return_type: ValueType::String,
+                    },
+                    TypeSignature {
+                        args_type: vec![ValueType::String],
+                        return_type: ValueType::String,
+                    },
+                ],
+            },
+        );
 
-        self.register_function("to_int", FunctionAttributes {
-            min_arity: 1,
-            max_arity: 1,
-            is_pure: true,
-            body: Arc::new(|args| {
-                match &args[0] {
+        self.register_function(
+            "to_int",
+            FunctionAttributes {
+                min_arity: 1,
+                max_arity: 1,
+                is_pure: true,
+                body: Arc::new(|args| match &args[0] {
                     Value::Int(i) => Value::Int(*i),
                     Value::Float(f) => Value::Int(f.trunc() as i64),
                     Value::String(s) => {
@@ -295,137 +318,152 @@ impl FunctionManager {
                         } else {
                             Value::Null(crate::core::NullType::BadData)
                         }
-                    },
+                    }
                     Value::Bool(b) => Value::Int(if *b { 1 } else { 0 }),
                     _ => Value::Null(crate::core::NullType::BadType),
-                }
-            }),
-            type_signature: vec![
-                TypeSignature {
-                    args_type: vec![ValueType::String],
-                    return_type: ValueType::Int,
-                },
-                TypeSignature {
-                    args_type: vec![ValueType::Float],
-                    return_type: ValueType::Int,
-                },
-                TypeSignature {
-                    args_type: vec![ValueType::Bool],
-                    return_type: ValueType::Int,
-                },
-            ],
-        });
+                }),
+                type_signature: vec![
+                    TypeSignature {
+                        args_type: vec![ValueType::String],
+                        return_type: ValueType::Int,
+                    },
+                    TypeSignature {
+                        args_type: vec![ValueType::Float],
+                        return_type: ValueType::Int,
+                    },
+                    TypeSignature {
+                        args_type: vec![ValueType::Bool],
+                        return_type: ValueType::Int,
+                    },
+                ],
+            },
+        );
 
         // Utility functions
-        self.register_function("hash", FunctionAttributes {
-            min_arity: 1,
-            max_arity: 1,
-            is_pure: true,
-            body: Arc::new(|args| {
-                use std::collections::hash_map::DefaultHasher;
-                use std::hash::{Hash, Hasher};
-                
-                let mut hasher = DefaultHasher::new();
-                args[0].hash(&mut hasher);
-                Value::Int(hasher.finish() as i64)
-            }),
-            type_signature: vec![TypeSignature {
-                args_type: vec![ValueType::String],
-                return_type: ValueType::Int,
-            }],
-        });
+        self.register_function(
+            "hash",
+            FunctionAttributes {
+                min_arity: 1,
+                max_arity: 1,
+                is_pure: true,
+                body: Arc::new(|args| {
+                    use std::collections::hash_map::DefaultHasher;
+                    use std::hash::{Hash, Hasher};
 
-        self.register_function("range", FunctionAttributes {
-            min_arity: 2,
-            max_arity: 3, // range(start, end, step)
-            is_pure: true,
-            body: Arc::new(|args| {
-                let start = match &args[0] {
-                    Value::Int(i) => *i,
-                    _ => return Value::List(vec![]),
-                };
-                
-                let end = match &args[1] {
-                    Value::Int(i) => *i,
-                    _ => return Value::List(vec![]),
-                };
-                
-                let step = if args.len() > 2 {
-                    match &args[2] {
+                    let mut hasher = DefaultHasher::new();
+                    args[0].hash(&mut hasher);
+                    Value::Int(hasher.finish() as i64)
+                }),
+                type_signature: vec![TypeSignature {
+                    args_type: vec![ValueType::String],
+                    return_type: ValueType::Int,
+                }],
+            },
+        );
+
+        self.register_function(
+            "range",
+            FunctionAttributes {
+                min_arity: 2,
+                max_arity: 3, // range(start, end, step)
+                is_pure: true,
+                body: Arc::new(|args| {
+                    let start = match &args[0] {
                         Value::Int(i) => *i,
-                        _ => 1,
+                        _ => return Value::List(vec![]),
+                    };
+
+                    let end = match &args[1] {
+                        Value::Int(i) => *i,
+                        _ => return Value::List(vec![]),
+                    };
+
+                    let step = if args.len() > 2 {
+                        match &args[2] {
+                            Value::Int(i) => *i,
+                            _ => 1,
+                        }
+                    } else {
+                        1
+                    };
+
+                    let mut result = Vec::new();
+                    let mut current = start;
+
+                    if step > 0 {
+                        while current <= end {
+                            result.push(Value::Int(current));
+                            current += step;
+                        }
+                    } else if step < 0 {
+                        while current >= end {
+                            result.push(Value::Int(current));
+                            current += step;
+                        }
                     }
-                } else {
-                    1
-                };
-                
-                let mut result = Vec::new();
-                let mut current = start;
-                
-                if step > 0 {
-                    while current <= end {
-                        result.push(Value::Int(current));
-                        current += step;
-                    }
-                } else if step < 0 {
-                    while current >= end {
-                        result.push(Value::Int(current));
-                        current += step;
-                    }
-                }
-                
-                Value::List(result)
-            }),
-            type_signature: vec![TypeSignature {
-                args_type: vec![ValueType::Int, ValueType::Int, ValueType::Int],
-                return_type: ValueType::List(Box::new(ValueType::Int)),
-            }],
-        });
+
+                    Value::List(result)
+                }),
+                type_signature: vec![TypeSignature {
+                    args_type: vec![ValueType::Int, ValueType::Int, ValueType::Int],
+                    return_type: ValueType::List(Box::new(ValueType::Int)),
+                }],
+            },
+        );
 
         // Time functions
-        self.register_function("now", FunctionAttributes {
-            min_arity: 0,
-            max_arity: 0,
-            is_pure: false, // Not pure as it returns different values over time
-            body: Arc::new(|_| {
-                use std::time::{SystemTime, UNIX_EPOCH};
-                let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("Time went backwards");
-                Value::Int(now.as_secs() as i64)
-            }),
-            type_signature: vec![TypeSignature {
-                args_type: vec![],
-                return_type: ValueType::Int,
-            }],
-        });
-
-        self.register_function("timestamp", FunctionAttributes {
-            min_arity: 0,
-            max_arity: 1, // timestamp() or timestamp(date)
-            is_pure: false, // Not pure when called without arguments
-            body: Arc::new(|args| {
-                if args.is_empty() {
+        self.register_function(
+            "now",
+            FunctionAttributes {
+                min_arity: 0,
+                max_arity: 0,
+                is_pure: false, // Not pure as it returns different values over time
+                body: Arc::new(|_| {
                     use std::time::{SystemTime, UNIX_EPOCH};
                     let now = SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .expect("Time went backwards");
                     Value::Int(now.as_secs() as i64)
-                } else {
-                    // For now, just return the input timestamp if provided
-                    args[0].clone()
-                }
-            }),
-            type_signature: vec![TypeSignature {
-                args_type: vec![],
-                return_type: ValueType::Int,
-            }],
-        });
+                }),
+                type_signature: vec![TypeSignature {
+                    args_type: vec![],
+                    return_type: ValueType::Int,
+                }],
+            },
+        );
+
+        self.register_function(
+            "timestamp",
+            FunctionAttributes {
+                min_arity: 0,
+                max_arity: 1,   // timestamp() or timestamp(date)
+                is_pure: false, // Not pure when called without arguments
+                body: Arc::new(|args| {
+                    if args.is_empty() {
+                        use std::time::{SystemTime, UNIX_EPOCH};
+                        let now = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .expect("Time went backwards");
+                        Value::Int(now.as_secs() as i64)
+                    } else {
+                        // For now, just return the input timestamp if provided
+                        args[0].clone()
+                    }
+                }),
+                type_signature: vec![TypeSignature {
+                    args_type: vec![],
+                    return_type: ValueType::Int,
+                }],
+            },
+        );
     }
 
     /// Register a new function
     pub fn register_function(&mut self, name: &str, attributes: FunctionAttributes) {
-        self.functions.lock().unwrap().insert(name.to_string(), attributes);
+        self.functions
+            .lock()
+            .unwrap()
+            .insert(name.to_string(), attributes);
     }
 
     /// Get a function by name and arity
@@ -485,10 +523,10 @@ impl FunctionManager {
             (ValueType::DateTime, ValueType::DateTime) => true,
             (ValueType::List(expected_elem), ValueType::List(actual_elem)) => {
                 self.type_matches(expected_elem, actual_elem)
-            },
+            }
             (ValueType::Map(expected_k, expected_v), ValueType::Map(actual_k, actual_v)) => {
                 self.type_matches(expected_k, actual_k) && self.type_matches(expected_v, actual_v)
-            },
+            }
             _ => false,
         }
     }
@@ -498,7 +536,7 @@ impl FunctionManager {
 pub fn execute_function(func_name: &str, args: &[Value]) -> Option<Value> {
     let manager = FunctionManager::instance();
     let manager_guard = manager.lock().unwrap();
-    
+
     if let Some(attr) = manager_guard.get(func_name, args.len()) {
         Some((attr.body)(args))
     } else {
@@ -510,7 +548,7 @@ pub fn execute_function(func_name: &str, args: &[Value]) -> Option<Value> {
 pub fn is_function_pure(func_name: &str, arity: usize) -> bool {
     let manager = FunctionManager::instance();
     let manager_guard = manager.lock().unwrap();
-    
+
     if let Some(attr) = manager_guard.get(func_name, arity) {
         attr.is_pure
     } else {
@@ -550,14 +588,18 @@ mod tests {
     fn test_range_function() {
         let result = execute_function("range", &[Value::Int(1), Value::Int(5)]);
         let expected = Value::List(vec![
-            Value::Int(1), Value::Int(2), Value::Int(3), Value::Int(4), Value::Int(5)
+            Value::Int(1),
+            Value::Int(2),
+            Value::Int(3),
+            Value::Int(4),
+            Value::Int(5),
         ]);
         assert_eq!(result, Some(expected));
     }
 
     #[test]
     fn test_function_purity() {
-        assert!(is_function_pure("upper", 1));  // Pure function
-        assert!(!is_function_pure("now", 0));   // Non-pure function
+        assert!(is_function_pure("upper", 1)); // Pure function
+        assert!(!is_function_pure("now", 0)); // Non-pure function
     }
 }

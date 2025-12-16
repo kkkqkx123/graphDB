@@ -1,9 +1,11 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::query::executor::base::{BaseExecutor, InputExecutor};
-use crate::query::executor::traits::{Executor, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata};
 use crate::core::error::DBResult;
+use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
 use crate::storage::StorageEngine;
 
 /// TopNExecutor - TOP N 结果执行器
@@ -11,10 +13,10 @@ use crate::storage::StorageEngine;
 /// 返回排序后的前 N 个结果，是 Sort + Limit 的优化版本
 pub struct TopNExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    n: usize,                  // 返回的结果数量
+    n: usize, // 返回的结果数量
     #[allow(dead_code)]
     sort_columns: Vec<String>, // 排序列
-    ascending: bool,           // 排序方向
+    ascending: bool, // 排序方向
     input_executor: Option<Box<dyn Executor<S>>>,
 }
 

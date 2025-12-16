@@ -125,19 +125,19 @@ impl Vertex {
     /// Get all properties from all tags and vertex-level properties
     pub fn get_all_properties(&self) -> HashMap<String, &Value> {
         let mut all_props = HashMap::new();
-        
+
         // Add vertex-level properties
         for (name, value) in &self.properties {
             all_props.insert(name.clone(), value);
         }
-        
+
         // Add tag properties (later tags override earlier ones)
         for tag in &self.tags {
             for (name, value) in &tag.properties {
                 all_props.insert(name.clone(), value);
             }
         }
-        
+
         all_props
     }
 
@@ -250,12 +250,7 @@ impl Edge {
     }
 
     /// Create a new edge with empty properties
-    pub fn new_empty(
-        src: Value,
-        dst: Value,
-        edge_type: String,
-        ranking: i64,
-    ) -> Self {
+    pub fn new_empty(src: Value, dst: Value, edge_type: String, ranking: i64) -> Self {
         Self {
             src: Box::new(src),
             dst: Box::new(dst),

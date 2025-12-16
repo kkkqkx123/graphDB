@@ -2,10 +2,10 @@
 //!
 //! 负责从二进制数据中解析字段值
 
+use super::schema_def::Schema;
+use super::types::{EncodingFormat, FieldDef};
 use crate::core::{NullType, Value};
 use std::collections::HashMap;
-use super::types::{FieldDef, EncodingFormat};
-use super::schema_def::Schema;
 
 /// 行读取器包装器 - 负责从二进制数据中解析字段值
 #[derive(Debug, Clone)]
@@ -286,8 +286,8 @@ impl RowReaderWrapper {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::FieldType;
+    use super::*;
 
     #[test]
     fn test_row_reader_wrapper() {

@@ -1,7 +1,7 @@
 //! MATCH查询主规划器
 //! 负责将MATCH查询转换为执行计划
 
-use crate::query::context::AstContext;
+use crate::query::context::ast::AstContext;
 use crate::query::planner::match_planning::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::match_planning::match_clause_planner::MatchClausePlanner;
 use crate::query::planner::match_planning::order_by_clause_planner::OrderByClausePlanner;
@@ -337,7 +337,7 @@ impl Default for MatchPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::AstContext;
+    use crate::query::context::ast::AstContext;
     use crate::query::validator::structs::{
         AliasType, CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
     };

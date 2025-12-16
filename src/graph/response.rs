@@ -2,9 +2,9 @@
 //!
 //! 包含图数据库查询响应的相关数据结构
 
+use crate::core::{Edge, Path, Value, Vertex};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
-use crate::core::{Vertex, Edge, Value, Path};
 
 /// 表示图数据库查询的响应
 #[derive(Debug, Clone, Serialize, Deserialize)]

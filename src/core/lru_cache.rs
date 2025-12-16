@@ -146,7 +146,7 @@ where
             if !self.head.is_null() {
                 (*self.head).prev = node_ptr;
             } else {
-                self.tail = node_ptr;  // If list was empty, this node is also the tail
+                self.tail = node_ptr; // If list was empty, this node is also the tail
             }
 
             self.head = node_ptr;
@@ -225,11 +225,11 @@ where
         let buckets_num = 1 << buckets_exp;
         let cap_per_bucket = capacity >> buckets_exp;
         let mut buckets = Vec::with_capacity(buckets_num);
-        
+
         for _ in 0..buckets_num {
             buckets.push(Arc::new(Mutex::new(LRUCache::new(cap_per_bucket))));
         }
-        
+
         ConcurrentLRUCache {
             buckets,
             bucket_mask: buckets_num - 1,
@@ -243,13 +243,13 @@ where
     pub fn get(&self, key: &K) -> Option<V> {
         let bucket_idx = self.bucket_index(key, None);
         let mut bucket = self.buckets[bucket_idx].lock().unwrap();
-        
+
         let result = bucket.get(key);
         if result.is_some() {
             self.stats_hits.fetch_add(1, Ordering::Relaxed);
         }
         self.stats_total.fetch_add(1, Ordering::Relaxed);
-        
+
         result
     }
 
@@ -257,7 +257,7 @@ where
     pub fn put(&self, key: K, value: V) {
         let bucket_idx = self.bucket_index(&key, None);
         let mut bucket = self.buckets[bucket_idx].lock().unwrap();
-        
+
         // If replacing, we need to remove first to get the old value out of the map
         bucket.put(key, value);
     }
@@ -266,7 +266,7 @@ where
     pub fn contains(&self, key: &K) -> bool {
         let bucket_idx = self.bucket_index(key, None);
         let bucket = self.buckets[bucket_idx].lock().unwrap();
-        
+
         bucket.contains(key)
     }
 
@@ -282,7 +282,7 @@ where
         if let Some(existing) = self.get(&key) {
             return existing;
         }
-        
+
         // If not found, insert the new value
         self.insert(key, value.clone());
         value
@@ -295,7 +295,7 @@ where
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         key.hash(&mut hasher);
         let hash = hasher.finish();
-        
+
         (hash as usize) & self.bucket_mask
     }
 
@@ -332,13 +332,13 @@ mod tests {
     #[test]
     fn test_lru_cache_basic() {
         let mut cache = LRUCache::new(2);
-        
+
         cache.put("a", 1);
         cache.put("b", 2);
-        
+
         assert_eq!(cache.get(&"a"), Some(1)); // Access "a" to make it recently used
         cache.put("c", 3); // This should evict "b" as it's least recently used
-        
+
         assert_eq!(cache.get(&"b"), None);
         assert_eq!(cache.get(&"a"), Some(1));
         assert_eq!(cache.get(&"c"), Some(3));
@@ -347,19 +347,19 @@ mod tests {
     #[test]
     fn test_concurrent_lru_cache() {
         let cache = ConcurrentLRUCache::new(100, 2); // 4 buckets
-        
+
         cache.put("a", 1);
         cache.put("b", 2);
-        
+
         assert_eq!(cache.get(&"a"), Some(1));
         assert_eq!(cache.get(&"b"), Some(2));
-        
+
         assert!(cache.contains(&"a"));
         assert!(!cache.contains(&"c"));
-        
+
         let value = cache.get_or_insert("c", 3);
         assert_eq!(value, 3);
-        
+
         let value = cache.get_or_insert("c", 4); // Should return existing value
         assert_eq!(value, 3);
     }
@@ -367,12 +367,12 @@ mod tests {
     #[test]
     fn test_cache_statistics() {
         let cache = ConcurrentLRUCache::new(10, 2);
-        
+
         cache.put("a", 1);
-        
+
         assert_eq!(cache.get(&"a"), Some(1)); // Hit
-        assert_eq!(cache.get(&"b"), None);   // Miss
-        
+        assert_eq!(cache.get(&"b"), None); // Miss
+
         assert_eq!(cache.total(), 2);
         assert_eq!(cache.hits(), 1);
         assert!(cache.hit_rate() > 0.0);

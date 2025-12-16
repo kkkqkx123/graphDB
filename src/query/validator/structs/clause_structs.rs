@@ -1,9 +1,9 @@
 //! 子句相关数据结构
 
+use super::alias_structs::AliasType;
+use super::path_structs::Path;
 use crate::graph::expression::Expression;
 use std::collections::HashMap;
-use super::path_structs::Path;
-use super::alias_structs::AliasType;
 
 /// Match子句上下文
 #[derive(Debug, Clone)]
@@ -112,7 +112,7 @@ impl YieldColumn {
             is_matched: false,
         }
     }
-    
+
     pub fn name(&self) -> &str {
         &self.alias
     }
