@@ -44,6 +44,7 @@ use super::yield_planner::YieldClausePlanner;
 use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 use std::sync::Arc;

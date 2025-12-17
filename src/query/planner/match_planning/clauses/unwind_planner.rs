@@ -44,6 +44,7 @@
 use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 use std::sync::Arc;
@@ -296,16 +297,16 @@ pub fn validate_unwind_expression_type(
     Ok(())
 }
 
-/// 注意：UNWIND 子句规划器不应该创建起始节点
-/// 起始节点应该在查询的最开始（如 MATCH 子句）创建
-/// UNWIND 子句必须接收来自上游子句的输入数据
-///
-/// # 正确的架构设计
-/// 1. 数据流从上游子句流向 UNWIND 子句
-/// 2. UNWIND 子句处理展开逻辑
-/// 3. 结果传递给下游子句
-///
-/// # 错误的做法
-/// - 在 UNWIND 子句中创建起始节点
-/// - 假设 UNWIND 是查询的起点
-/// - 忽略输入数据的依赖关系
+// 注意：UNWIND 子句规划器不应该创建起始节点
+// 起始节点应该在查询的最开始（如 MATCH 子句）创建
+// UNWIND 子句必须接收来自上游子句的输入数据
+//
+// # 正确的架构设计
+// 1. 数据流从上游子句流向 UNWIND 子句
+// 2. UNWIND 子句处理展开逻辑
+// 3. 结果传递给下游子句
+//
+// # 错误的做法
+// - 在 UNWIND 子句中创建起始节点
+// - 假设 UNWIND 是查询的起点
+// - 忽略输入数据的依赖关系
