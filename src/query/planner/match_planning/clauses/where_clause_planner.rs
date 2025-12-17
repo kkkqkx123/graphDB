@@ -9,7 +9,8 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::paths::match_path_planner::MatchPathPlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::{PlanNodeKind, SubPlan};
+use crate::query::planner::plan::core::{PlanNodeFactory, StartNode};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
@@ -127,19 +128,16 @@ impl WhereClausePlanner {
         if let Some(filter) = &where_clause_ctx.filter {
             let mut where_plan = SubPlan::new(None, None);
 
+            // 创建起始节点作为输入
+            let start_node = PlanNodeFactory::create_start_node()?;
+            
             // 创建过滤器节点
-            let filter_node = Arc::new(SingleInputNode::new(
-                PlanNodeKind::Filter,
-                create_empty_node()?,
-            ));
+            let filter_node = PlanNodeFactory::create_filter(
+                start_node,
+                filter.clone(),
+            )?;
 
-            // 设置过滤条件表达式
-            // 这里需要根据filter表达式创建相应的计划节点
-            // TODO: 实现完整的过滤逻辑
-            let _ = filter; // 暂时避免未使用警告
-
-            where_plan.root = Some(filter_node.clone());
-            where_plan.tail = Some(filter_node);
+            where_plan = SubPlan::from_single_node(filter_node);
 
             if plan.root.is_none() {
                 return Ok(where_plan);
@@ -234,20 +232,6 @@ impl CypherClausePlanner for WhereClausePlanner {
     }
 }
 
-/// 创建空节点
-fn create_empty_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
-    use crate::query::planner::plan::SingleDependencyNode;
-
-    // 创建一个空的计划节点作为占位符
-    Ok(Arc::new(SingleDependencyNode {
-        id: -1,
-        kind: PlanNodeKind::Start,
-        dependencies: vec![],
-        output_var: None,
-        col_names: vec![],
-        cost: 0.0,
-    }))
-}
 
 #[cfg(test)]
 mod tests {

@@ -2,6 +2,7 @@
 //! 用于遍历和处理计划树
 
 use super::plan_node_traits::PlanNode as BasePlanNode;
+use super::nodes::{FilterNode, ProjectNode, InnerJoinNode, StartNode, PlaceholderNode};
 use crate::query::planner::plan::algorithms::{FulltextIndexScan, IndexScan};
 use crate::query::planner::plan::management::dml::{
     DeleteEdges, DeleteTags, DeleteVertices, InsertEdges, InsertVertices, NewEdge, NewProp, NewTag,
@@ -251,6 +252,31 @@ pub trait PlanNodeVisitor: std::fmt::Debug {
         Ok(())
     }
 
+    /// 访问新的过滤节点
+    fn visit_filter_node(&mut self, _node: &FilterNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+    
+    /// 访问新的投影节点
+    fn visit_project_node(&mut self, _node: &ProjectNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+    
+    /// 访问新的内连接节点
+    fn visit_inner_join_node(&mut self, _node: &InnerJoinNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+    
+    /// 访问新的起始节点
+    fn visit_start_node(&mut self, _node: &StartNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+    
+    /// 访问新的占位符节点
+    fn visit_placeholder_node(&mut self, _node: &PlaceholderNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
     /// 在访问节点后调用的方法
     fn post_visit(&mut self) -> Result<(), PlanNodeVisitError> {
         Ok(())
@@ -471,6 +497,26 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
     }
 
     fn visit_new_edge(&mut self, _node: &NewEdge) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+    
+    fn visit_filter_node(&mut self, _node: &FilterNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+    
+    fn visit_project_node(&mut self, _node: &ProjectNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+    
+    fn visit_inner_join_node(&mut self, _node: &InnerJoinNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+    
+    fn visit_start_node(&mut self, _node: &StartNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+    
+    fn visit_placeholder_node(&mut self, _node: &PlaceholderNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 

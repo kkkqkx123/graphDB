@@ -2,6 +2,7 @@
 //! 包含PlanNode特征、节点类型枚举、访问者模式和通用类型
 
 pub mod common;
+pub mod nodes;
 pub mod plan_node;
 pub mod plan_node_kind;
 pub mod plan_node_traits;
@@ -9,6 +10,10 @@ pub mod visitor;
 
 // 重新导出核心类型
 pub use common::{EdgeProp, TagProp};
+pub use nodes::{
+    FilterNode, InnerJoinNode, PlaceholderNode, PlanNodeFactory, ProjectNode, StartNode,
+    BinaryInputPlanNode, SingleInputPlanNode,
+};
 pub use plan_node::{
     BinaryInputNode, SingleDependencyNode, SingleInputNode, VariableDependencyNode,
 };

@@ -12,7 +12,8 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::{PlanNodeKind, SubPlan};
+use crate::query::planner::plan::core::{PlanNodeFactory, SingleInputNode};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
@@ -109,15 +110,19 @@ impl ReturnClausePlanner {
         // 步骤4: 处理去重 (DISTINCT)
         if return_clause_ctx.distinct {
             let current_root = plan.root.as_ref().unwrap().clone();
+            
+            // 创建去重节点 - 使用新的节点类型
+            // 注意：这里我们暂时使用 SingleInputNode，因为 DedupNode 还没有实现
+            // 在完整的实现中，应该创建一个专门的 DedupNode
             let dedup_node = Arc::new(SingleInputNode::new(PlanNodeKind::Dedup, current_root));
 
             // 设置去重键 - 使用投影列作为去重依据
             // 暂时简化去重节点创建
-            // TODO: 实现完整的去重逻辑
+            // TODO: 实现完整的去重逻辑，创建专门的 DedupNode
 
             plan = UnifiedConnector::add_input(
                 context.query_context(),
-                &SubPlan::new(Some(dedup_node.clone()), Some(dedup_node)),
+                &SubPlan::from_single_node(dedup_node),
                 &plan,
                 true,
             )?;
