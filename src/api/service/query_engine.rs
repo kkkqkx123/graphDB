@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::api::session::ClientSession;
-use crate::query::{QueryConverter, QueryExecutor as QueryExecutorImpl};
+use crate::query::{ExecutorFactory, QueryPipelineManager};
 use crate::storage::NativeStorage;
 
 #[derive(Debug)]
@@ -27,38 +27,29 @@ pub struct AuthResponse {
 #[derive(Debug)]
 pub struct QueryEngine {
     storage: Arc<Mutex<NativeStorage>>,
+    pipeline_manager: QueryPipelineManager<NativeStorage>,
 }
 
 impl QueryEngine {
     pub fn new(storage: Arc<NativeStorage>) -> Arc<Self> {
+        let storage_clone = Arc::new(Mutex::new((*storage).clone()));
         Arc::new(Self {
-            storage: Arc::new(Mutex::new((*storage).clone())),
+            storage: Arc::clone(&storage_clone),
+            pipeline_manager: QueryPipelineManager::new(storage_clone),
         })
     }
 
     pub async fn execute(&self, rctx: RequestContext) -> ExecutionResponse {
         let start_time = std::time::Instant::now();
 
-        // Parse the query
-        let parser = QueryConverter;
-        match parser.parse(&rctx.statement) {
-            Ok(query) => {
-                // Use the shared storage to create a query executor
-                let storage_clone = Arc::clone(&self.storage);
-                let mut executor = QueryExecutorImpl::new(storage_clone);
-                match executor.execute(query) {
-                    Ok(result) => ExecutionResponse {
-                        result: Ok(format!("{:?}", result)),
-                        latency_us: start_time.elapsed().as_micros() as u64,
-                    },
-                    Err(e) => ExecutionResponse {
-                        result: Err(e.to_string()),
-                        latency_us: start_time.elapsed().as_micros() as u64,
-                    },
-                }
-            }
+        // 使用新的查询管道管理器执行查询
+        match self.pipeline_manager.execute_query(&rctx.statement).await {
+            Ok(result) => ExecutionResponse {
+                result: Ok(format!("{:?}", result)),
+                latency_us: start_time.elapsed().as_micros() as u64,
+            },
             Err(e) => ExecutionResponse {
-                result: Err(format!("Query parsing error: {}", e)),
+                result: Err(e.to_string()),
                 latency_us: start_time.elapsed().as_micros() as u64,
             },
         }

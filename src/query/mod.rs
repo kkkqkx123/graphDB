@@ -17,11 +17,11 @@ pub mod validator;
 pub mod visitor;
 
 // Module-specific implementations
-pub mod query_converter;
-pub mod query_executor;
+pub mod executor_factory;
+pub mod query_pipeline_manager;
 pub mod types;
 
 // Re-export commonly used types for convenience
-pub use query_converter::QueryConverter;
-pub use query_executor::QueryExecutor;
+pub use executor_factory::ExecutorFactory;
+pub use query_pipeline_manager::QueryPipelineManager;
 pub use types::{Condition, Query, QueryError, QueryResult};

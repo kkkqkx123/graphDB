@@ -5,6 +5,7 @@ pub mod data_modification;
 pub mod data_processing;
 pub mod result_processing;
 pub mod traits;
+pub mod factory;
 
 // Cypher执行器模块
 pub mod cypher;
@@ -19,6 +20,9 @@ pub use traits::{
 pub use base::{
     BaseExecutor, ChainableExecutor, EdgeDirection, ExecutionContext, InputExecutor, StartExecutor,
 };
+
+// Re-export factory types
+pub use factory::{ExecutorFactory, ExecutorCreator};
 
 // Re-export Cypher executor types
 pub use cypher::{
