@@ -314,6 +314,14 @@ mod tests {
         ) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
+
+        fn scan_all_vertices(&self) -> Result<Vec<crate::core::Vertex>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<crate::core::Vertex>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
     }
 
     #[test]

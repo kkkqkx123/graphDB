@@ -13,8 +13,10 @@ use crate::storage::StorageEngine;
 pub struct GetVerticesExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
-    tags: Option<Vec<String>>,
+    tag_filter: Option<crate::graph::expression::Expression>,
+    vertex_filter: Option<crate::graph::expression::Expression>,
     limit: Option<usize>,
+    tag_processor: crate::query::executor::tag_filter::TagFilterProcessor,
 }
 
 impl<S: StorageEngine> GetVerticesExecutor<S> {
@@ -22,14 +24,17 @@ impl<S: StorageEngine> GetVerticesExecutor<S> {
         id: usize,
         storage: Arc<Mutex<S>>,
         vertex_ids: Option<Vec<Value>>,
-        tags: Option<Vec<String>>,
+        tag_filter: Option<crate::graph::expression::Expression>,
+        vertex_filter: Option<crate::graph::expression::Expression>,
         limit: Option<usize>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetVerticesExecutor".to_string(), storage),
             vertex_ids,
-            tags,
+            tag_filter,
+            vertex_filter,
             limit,
+            tag_processor: crate::query::executor::tag_filter::TagFilterProcessor::new(),
         }
     }
 }
@@ -45,15 +50,14 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
 
                 for id in ids {
                     if let Some(vertex) = storage.get_node(id)? {
-                        // Filter by tags if specified
-                        if let Some(ref req_tags) = self.tags {
-                            if req_tags
-                                .iter()
-                                .all(|tag_name| vertex.tags.iter().any(|tag| tag.name == *tag_name))
-                            {
-                                result_vertices.push(vertex.clone());
-                            }
+                        // 应用标签过滤表达式（如果存在）
+                        let include_vertex = if let Some(ref tag_filter_expr) = self.tag_filter {
+                            self.tag_processor.process_tag_filter(tag_filter_expr, &vertex)
                         } else {
+                            true // 没有标签过滤器，包含所有顶点
+                        };
+                        
+                        if include_vertex {
                             result_vertices.push(vertex.clone());
                         }
                     }
@@ -71,32 +75,60 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                 // ScanVertices操作：扫描所有顶点
                 let storage = self.base.storage.lock().unwrap();
                 
-                // 根据标签过滤条件选择扫描方式
-                let all_vertices = match &self.tags {
-                    Some(tags) if tags.len() == 1 => {
-                        // 单个标签，使用标签扫描
-                        storage.scan_vertices_by_tag(&tags[0])?
-                    }
-                    Some(tags) if tags.len() > 1 => {
-                        // 多个标签，扫描所有顶点然后过滤
-                        let vertices = storage.scan_all_vertices()?;
-                        vertices.into_iter()
-                            .filter(|vertex| {
-                                tags.iter().any(|tag_name| {
-                                    vertex.tags.iter().any(|tag| tag.name == *tag_name)
-                                })
-                            })
-                            .collect()
-                    }
-                    Some(tags) if tags.is_empty() => {
-                        // 空标签列表，扫描所有顶点
-                        storage.scan_all_vertices()?
-                    }
-                    None => {
-                        // 无标签过滤，扫描所有顶点
-                        storage.scan_all_vertices()?
-                    }
-                };
+                // 获取所有顶点
+                let mut all_vertices = storage.scan_all_vertices()?;
+                
+                // 应用标签过滤表达式
+                if let Some(ref tag_filter_expr) = self.tag_filter {
+                    all_vertices = all_vertices.into_iter()
+                        .filter(|vertex| {
+                            self.tag_processor.process_tag_filter(tag_filter_expr, vertex)
+                        })
+                        .collect();
+                }
+                
+                // 应用顶点过滤表达式
+                if let Some(ref filter_expr) = self.vertex_filter {
+                    let evaluator = crate::graph::expression::ExpressionEvaluator::new();
+                    all_vertices = all_vertices.into_iter()
+                        .filter(|vertex| {
+                            // 创建评估上下文
+                            let mut context = crate::query::context::EvalContext::new();
+                            context.set_variable("vertex".to_string(), crate::core::Value::Vertex(Box::new(vertex.clone())));
+                            
+                            // 评估过滤表达式
+                            match evaluator.evaluate(filter_expr, &context) {
+                                Ok(value) => {
+                                    // 将 Value 转换为 bool
+                                    match value {
+                                        crate::core::Value::Bool(b) => b,
+                                        crate::core::Value::Int(i) => i != 0,
+                                        crate::core::Value::Float(f) => f != 0.0,
+                                        crate::core::Value::String(s) => !s.is_empty(),
+                                        crate::core::Value::List(l) => !l.is_empty(),
+                                        crate::core::Value::Map(m) => !m.is_empty(),
+                                        crate::core::Value::Set(s) => !s.is_empty(),
+                                        crate::core::Value::Vertex(_) => true, // 顶点对象视为true
+                                        crate::core::Value::Edge(_) => true,   // 边对象视为true
+                                        crate::core::Value::Path(_) => true,   // 路径对象视为true
+                                        crate::core::Value::Null(_) => false,  // null视为false
+                                        crate::core::Value::Empty => false,    // empty视为false
+                                        crate::core::Value::Date(_) => true,   // 日期对象视为true
+                                        crate::core::Value::Time(_) => true,   // 时间对象视为true
+                                        crate::core::Value::DateTime(_) => true, // 日期时间对象视为true
+                                        crate::core::Value::Geography(_) => true, // 地理对象视为true
+                                        crate::core::Value::Duration(_) => true, // 持续时间对象视为true
+                                        crate::core::Value::DataSet(ds) => !ds.rows.is_empty(), // 数据集非空视为true
+                                    }
+                                },
+                                Err(e) => {
+                                    eprintln!("顶点过滤表达式评估失败: {}", e);
+                                    false // 过滤失败时默认排除该顶点
+                                }
+                            }
+                        })
+                        .collect();
+                }
                 
                 // 应用limit限制
                 if let Some(limit) = self.limit {

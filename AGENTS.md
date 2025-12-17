@@ -85,6 +85,12 @@ cargo check # Detailed Type check(Only use it when you need that. when use this,
    cargo run --release -- query --query "MATCH (n) RETURN n LIMIT 10"
    ```
 
+5. **Temporary verify**:
+   create a rs file, then:
+   ```bash
+   rustc <script name>.rs && ./<script name>.exe
+   ```
+
 ## Development Conventions
 
 - **Coding Style**: Employ Rust standard formatting (`cargo fmt`) and adhere to Rust naming conventions

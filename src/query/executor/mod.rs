@@ -4,6 +4,7 @@ pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
 pub mod result_processing;
+pub mod tag_filter;
 pub mod traits;
 pub mod factory;
 

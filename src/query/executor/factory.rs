@@ -117,6 +117,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for ScanVe
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         use crate::query::executor::data_access::GetVerticesExecutor;
+        use crate::query::executor::tag_filter::TagFilterProcessor;
         use crate::query::planner::plan::ScanVertices;
 
         let id = plan_node.id() as usize;
@@ -130,20 +131,21 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for ScanVe
         }
 
         // 尝试从具体的ScanVertices计划节点中提取参数
-        let (vertex_ids, tags, limit) =
+        let (vertex_ids, tag_filter, limit) =
             if let Some(scan_node) = plan_node.as_any().downcast_ref::<ScanVertices>() {
                 // ScanVertices是全表扫描操作，vertex_ids应为None
                 let vertex_ids = None;
                 
-                // 处理标签过滤条件
-                // tag_filter可能是表达式字符串，需要解析为具体的标签列表
-                // 目前先简单处理，假设是逗号分隔的标签名称
-                let tags = scan_node.tag_filter.as_ref().map(|filter_str| {
-                    filter_str
-                        .split(',')
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty())
-                        .collect::<Vec<String>>()
+                // 使用标签过滤器处理器处理标签过滤条件
+                let tag_filter = scan_node.tag_filter.as_ref().and_then(|filter_str| {
+                    let processor = TagFilterProcessor::new();
+                    match processor.parse_tag_filter(filter_str) {
+                        Ok(expr) => Some(expr),
+                        Err(e) => {
+                            eprintln!("标签过滤表达式解析失败: {}, 使用无过滤", e);
+                            None
+                        }
+                    }
                 });
                 
                 // 处理limit参数，确保为正数
@@ -155,7 +157,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for ScanVe
                     }
                 });
                 
-                (vertex_ids, tags, limit)
+                (vertex_ids, tag_filter, limit)
             } else {
                 // 类型转换失败，返回错误
                 return Err(QueryError::ExecutionError(
@@ -163,7 +165,22 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for ScanVe
                 ));
             };
 
-        let executor = GetVerticesExecutor::new(id, storage, vertex_ids, tags, limit);
+        // 解析顶点过滤表达式
+        let vertex_filter = if let Some(scan_node) = plan_node.as_any().downcast_ref::<ScanVertices>() {
+            scan_node.vertex_filter.as_ref().and_then(|filter_str| {
+                match crate::query::parser::expressions::parse_expression_from_string(filter_str) {
+                    Ok(expr) => Some(expr),
+                    Err(e) => {
+                        eprintln!("顶点过滤表达式解析失败: {}, 使用无过滤", e);
+                        None
+                    }
+                }
+            })
+        } else {
+            None
+        };
+        
+        let executor = GetVerticesExecutor::new(id, storage, vertex_ids, tag_filter, vertex_filter, limit);
         Ok(Box::new(executor))
     }
 }

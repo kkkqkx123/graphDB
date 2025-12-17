@@ -2,11 +2,11 @@
 //! 处理RETURN子句的规划
 //! 负责规划RETURN子句中的结果投影
 
-use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
 use super::order_by_planner::OrderByClausePlanner;
 use super::pagination_planner::PaginationPlanner;
-use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
 use super::yield_planner::YieldClausePlanner;
+use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
+use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
