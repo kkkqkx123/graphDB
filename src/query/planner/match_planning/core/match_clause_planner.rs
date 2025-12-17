@@ -6,6 +6,7 @@ use crate::query::planner::match_planning::core::{
     ClauseType, CypherClausePlanner, PlanningContext,
 };
 use crate::query::planner::match_planning::utils::finder::Finder;
+use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::{PlanNodeKind, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
@@ -88,11 +89,12 @@ impl CypherClausePlanner for MatchClausePlanner {
             if plan.root.is_none() {
                 plan = path_plan;
             } else {
-                // 使用连接器连接多个路径
-                let connector =
-                    crate::query::planner::match_planning::utils::connector::SegmentsConnector::new(
-                    );
-                plan = connector.cartesian_product(plan, path_plan);
+                // 使用新的统一连接器连接多个路径
+                plan = UnifiedConnector::cartesian_product(
+                    context.query_context(),
+                    &plan,
+                    &path_plan,
+                )?;
             }
         }
 
@@ -102,9 +104,13 @@ impl CypherClausePlanner for MatchClausePlanner {
         // if let Some(where_clause) = &match_clause_ctx.where_clause {
         //     let mut where_planner = WhereClausePlanner::new(false);
         //     let where_clause_ctx = CypherClauseContext::Where(where_clause.clone());
-        //     let where_plan = where_planner.transform(&where_clause_ctx)?;
-        //     let connector = crate::query::planner::match_planning::utils::connector::SegmentsConnector::new();
-        //     plan = connector.add_input(where_plan, plan, true);
+        //     let where_plan = where_planner.transform(&where_clause_ctx, Some(&plan), context)?;
+        //     plan = UnifiedConnector::add_input(
+        //         context.query_context(),
+        //         &where_plan,
+        //         &plan,
+        //         true,
+        //     )?;
         // }
 
         // 处理分页（如果存在）

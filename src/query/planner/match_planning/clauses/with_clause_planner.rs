@@ -4,6 +4,7 @@
 use crate::query::planner::match_planning::core::{
     CypherClausePlanner, ClauseType, PlanningContext
 };
+use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
@@ -72,9 +73,13 @@ impl CypherClausePlanner for WithClausePlanner {
         // if let Some(where_clause) = &with_clause_ctx.where_clause {
         //     let mut where_planner = super::where_clause_planner::WhereClausePlanner::new(false);
         //     let where_clause_ctx = CypherClauseContext::Where(where_clause.clone());
-        //     let where_plan = where_planner.transform(&where_clause_ctx)?;
-        //     let connector = SegmentsConnector::new();
-        //     plan = connector.add_input(where_plan, plan, true);
+        //     let where_plan = where_planner.transform(&where_clause_ctx, Some(&plan), context)?;
+        //     plan = UnifiedConnector::add_input(
+        //         context.query_context(),
+        //         &where_plan,
+        //         &plan,
+        //         true,
+        //     )?;
         // }
 
         // 步骤3: 更新上下文中的变量

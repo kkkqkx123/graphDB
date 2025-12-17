@@ -7,7 +7,7 @@ use super::match_clause_planner::MatchClausePlanner;
 use crate::query::planner::match_planning::clauses::order_by_planner::OrderByClausePlanner;
 use crate::query::planner::match_planning::clauses::pagination_planner::PaginationPlanner;
 use crate::query::planner::match_planning::clauses::return_clause_planner::ReturnClausePlanner;
-use crate::query::planner::match_planning::SegmentsConnector;
+use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::match_planning::clauses::unwind_planner::UnwindClausePlanner;
 use crate::query::planner::match_planning::clauses::with_clause_planner::WithClausePlanner;
 use crate::query::planner::match_planning::clauses::where_clause_planner::WhereClausePlanner;
@@ -144,7 +144,7 @@ impl MatchPlanner {
             }
         }
 
-        let connector = SegmentsConnector::new();
+        let ast_ctx = crate::query::context::ast::AstContext::new("MATCH", "test");
 
         if !inter_aliases.is_empty() {
             if match_ctx.is_optional {
@@ -153,30 +153,38 @@ impl MatchPlanner {
                     // 连接WHERE过滤条件
                     let where_plan =
                         self.gen_plan(&CypherClauseContext::Where(where_ctx.clone()))?;
-                    let match_plan_with_where = connector.add_input(where_plan, match_plan, true);
-                    *query_plan = connector.left_join(
-                        query_plan.clone(),
-                        match_plan_with_where,
+                    let match_plan_with_where = UnifiedConnector::add_input(
+                        &ast_ctx,
+                        &where_plan,
+                        &match_plan,
+                        true,
+                    )?;
+                    *query_plan = UnifiedConnector::left_join(
+                        &ast_ctx,
+                        query_plan,
+                        &match_plan_with_where,
                         inter_aliases.into_iter().collect(),
-                    );
+                    )?;
                 } else {
-                    *query_plan = connector.left_join(
-                        query_plan.clone(),
-                        match_plan,
+                    *query_plan = UnifiedConnector::left_join(
+                        &ast_ctx,
+                        query_plan,
+                        &match_plan,
                         inter_aliases.into_iter().collect(),
-                    );
+                    )?;
                 }
             } else {
                 // 内连接
-                *query_plan = connector.inner_join(
-                    query_plan.clone(),
-                    match_plan,
+                *query_plan = UnifiedConnector::inner_join(
+                    &ast_ctx,
+                    query_plan,
+                    &match_plan,
                     inter_aliases.into_iter().collect(),
-                );
+                )?;
             }
         } else {
             // 笛卡尔积
-            *query_plan = connector.cartesian_product(query_plan.clone(), match_plan);
+            *query_plan = UnifiedConnector::cartesian_product(&ast_ctx, query_plan, &match_plan)?;
         }
 
         Ok(())
@@ -197,8 +205,13 @@ impl MatchPlanner {
                 if !match_ctx.is_optional {
                     let where_plan =
                         self.gen_plan(&CypherClauseContext::Where(where_ctx.clone()))?;
-                    let connector = SegmentsConnector::new();
-                    *query_plan = connector.add_input(where_plan, query_plan.clone(), true);
+                    let ast_ctx = crate::query::context::ast::AstContext::new("MATCH", "test");
+                    *query_plan = UnifiedConnector::add_input(
+                        &ast_ctx,
+                        &where_plan,
+                        query_plan,
+                        true,
+                    )?;
                 }
             }
         }
@@ -237,8 +250,13 @@ impl MatchPlanner {
             if query_plan.root.is_none() {
                 *query_plan = boundary_plan;
             } else {
-                let connector = SegmentsConnector::new();
-                *query_plan = connector.add_input(boundary_plan, query_plan.clone(), false);
+                let ast_ctx = crate::query::context::ast::AstContext::new("MATCH", "test");
+                *query_plan = UnifiedConnector::add_input(
+                    &ast_ctx,
+                    &boundary_plan,
+                    query_plan,
+                    false,
+                )?;
             }
 
             // 处理 WITH/UNWIND 子句中的 ORDER BY 和 Pagination
@@ -250,17 +268,26 @@ impl MatchPlanner {
                     if let Some(order_by_ctx) = &with_ctx.order_by {
                         let order_plan =
                             self.gen_plan(&CypherClauseContext::OrderBy(order_by_ctx.clone()))?;
-                        let connector = SegmentsConnector::new();
-                        *query_plan = connector.add_input(order_plan, query_plan.clone(), true);
+                        let ast_ctx = crate::query::context::ast::AstContext::new("MATCH", "test");
+                        *query_plan = UnifiedConnector::add_input(
+                            &ast_ctx,
+                            &order_plan,
+                            query_plan,
+                            true,
+                        )?;
                     }
 
                     // 处理分页子句 (SKIP/LIMIT)
                     if let Some(pagination_ctx) = &with_ctx.pagination {
                         let pagination_plan = self
                             .gen_plan(&CypherClauseContext::Pagination(pagination_ctx.clone()))?;
-                        let connector = SegmentsConnector::new();
-                        *query_plan =
-                            connector.add_input(pagination_plan, query_plan.clone(), true);
+                        let ast_ctx = crate::query::context::ast::AstContext::new("MATCH", "test");
+                        *query_plan = UnifiedConnector::add_input(
+                            &ast_ctx,
+                            &pagination_plan,
+                            query_plan,
+                            true,
+                        )?;
                     }
                 }
                 crate::query::validator::structs::alias_structs::BoundaryClauseContext::Unwind(

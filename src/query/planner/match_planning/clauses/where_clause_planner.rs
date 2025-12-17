@@ -8,12 +8,13 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::paths::match_path_planner::MatchPathPlanner;
-use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
+use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
 use std::sync::Arc;
+use std::collections::HashSet;
 
 /// WHERE 子句规划器
 /// 
@@ -82,15 +83,38 @@ impl WhereClausePlanner {
                 );
 
                 // 暂时使用旧接口，因为 MatchPathPlanner 还没有更新
-                let path_plan = path_planner.transform(None, &mut std::collections::HashSet::new())?;
+                let path_plan = path_planner.transform(None, &mut HashSet::new())?;
 
-                let connector = SegmentsConnector::new();
+                // 使用新的统一连接器
+                let mut intersected_aliases = HashSet::new();
+                // 添加路径中的别名
+                for node_info in &path.node_infos {
+                    if !node_info.alias.is_empty() {
+                        intersected_aliases.insert(node_info.alias.clone());
+                    }
+                }
+                for edge_info in &path.edge_infos {
+                    if !edge_info.alias.is_empty() {
+                        intersected_aliases.insert(edge_info.alias.clone());
+                    }
+                }
+
                 if path.is_pred {
                     // 构建模式谓词的计划
-                    paths_plan = connector.pattern_apply(paths_plan, path_plan, path);
+                    paths_plan = UnifiedConnector::pattern_apply(
+                        &crate::query::context::ast::base::AstContext::new("WHERE", "test"),
+                        &paths_plan,
+                        &path_plan,
+                        intersected_aliases,
+                    )?;
                 } else {
                     // 构建路径收集的计划
-                    paths_plan = connector.roll_up_apply(paths_plan, path_plan, path);
+                    paths_plan = UnifiedConnector::roll_up_apply(
+                        &crate::query::context::ast::base::AstContext::new("WHERE", "test"),
+                        &paths_plan,
+                        &path_plan,
+                        intersected_aliases,
+                    )?;
                 }
             }
 
@@ -121,8 +145,12 @@ impl WhereClausePlanner {
                 return Ok(where_plan);
             }
 
-            let connector = SegmentsConnector::new();
-            plan = connector.add_input(where_plan, plan, true);
+            plan = UnifiedConnector::add_input(
+                &crate::query::context::ast::base::AstContext::new("WHERE", "test"),
+                &where_plan,
+                &plan,
+                true,
+            )?;
         }
 
         Ok(plan)

@@ -4,7 +4,7 @@
 
 use super::order_by_planner::OrderByClausePlanner;
 use super::pagination_planner::PaginationPlanner;
-use crate::query::planner::match_planning::SegmentsConnector;
+use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use super::where_clause_planner::WhereClausePlanner;
 use super::yield_planner::YieldClausePlanner;
 use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
@@ -69,9 +69,13 @@ impl ProjectionPlanner {
             
             let order_plan = order_by_planner.transform(&order_by_clause_ctx, Some(&plan), &mut context)?;
 
-            // 使用现有的连接器
-            let connector = SegmentsConnector::new();
-            plan = connector.add_input(order_plan, plan, true);
+            // 使用新的统一连接器
+            plan = UnifiedConnector::add_input(
+                &crate::query::context::ast::AstContext::new("PROJECTION", "test"),
+                &order_plan,
+                &plan,
+                true,
+            )?;
         }
 
         // 处理分页（LIMIT/OFFSET）
@@ -92,9 +96,13 @@ impl ProjectionPlanner {
                 
                 let pagination_plan = pagination_planner.transform(&pagination_clause_ctx, Some(&plan), &mut context)?;
 
-                // 使用现有的连接器
-                let connector = SegmentsConnector::new();
-                plan = connector.add_input(pagination_plan, plan, true);
+                // 使用新的统一连接器
+                plan = UnifiedConnector::add_input(
+                    &crate::query::context::ast::AstContext::new("PROJECTION", "test"),
+                    &pagination_plan,
+                    &plan,
+                    true,
+                )?;
             }
         }
 
@@ -115,9 +123,13 @@ impl ProjectionPlanner {
             
             let where_plan = where_planner.transform(&where_clause_ctx, Some(&plan), &mut context)?;
 
-            // 使用现有的连接器
-            let connector = SegmentsConnector::new();
-            plan = connector.add_input(where_plan, plan, true);
+            // 使用新的统一连接器
+            plan = UnifiedConnector::add_input(
+                &crate::query::context::ast::AstContext::new("PROJECTION", "test"),
+                &where_plan,
+                &plan,
+                true,
+            )?;
         }
 
         // 处理去重（主要用于RETURN子句）
@@ -131,9 +143,13 @@ impl ProjectionPlanner {
             // TODO: 设置去重键
 
             let dedup_plan = SubPlan::new(Some(dedup_node.clone()), Some(dedup_node));
-            // 使用现有的连接器
-            let connector = SegmentsConnector::new();
-            plan = connector.add_input(dedup_plan, plan, true);
+            // 使用新的统一连接器
+            plan = UnifiedConnector::add_input(
+                &crate::query::context::ast::AstContext::new("PROJECTION", "test"),
+                &dedup_plan,
+                &plan,
+                true,
+            )?;
         }
 
         Ok(plan)

@@ -9,6 +9,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
     CypherClausePlanner, ClauseType, PlanningContext, VariableRequirement, VariableProvider,
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
+use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
@@ -95,13 +96,13 @@ impl YieldClausePlanner {
                 plan.root = Some(project_node.clone());
                 plan.tail = Some(project_node);
             } else {
-                // 将投影节点连接到现有计划的尾部
-                let connector = crate::query::planner::match_planning::utils::connector::SegmentsConnector::new();
-                plan = connector.add_input(
-                    SubPlan::new(Some(project_node.clone()), Some(project_node)),
-                    plan,
+                // 使用新的统一连接器将投影节点连接到现有计划的尾部
+                plan = UnifiedConnector::add_input(
+                    &crate::query::context::ast::base::AstContext::new("YIELD", "test"),
+                    &SubPlan::new(Some(project_node.clone()), Some(project_node)),
+                    &plan,
                     true,
-                );
+                )?;
             }
         }
 
@@ -125,13 +126,13 @@ impl YieldClausePlanner {
                 plan.root = Some(dedup_node.clone());
                 plan.tail = Some(dedup_node);
             } else {
-                // 将去重节点连接到现有计划的尾部
-                let connector = crate::query::planner::match_planning::utils::connector::SegmentsConnector::new();
-                plan = connector.add_input(
-                    SubPlan::new(Some(dedup_node.clone()), Some(dedup_node)),
-                    plan,
+                // 使用新的统一连接器将去重节点连接到现有计划的尾部
+                plan = UnifiedConnector::add_input(
+                    &crate::query::context::ast::base::AstContext::new("YIELD", "test"),
+                    &SubPlan::new(Some(dedup_node.clone()), Some(dedup_node)),
+                    &plan,
                     true,
-                );
+                )?;
             }
         }
 

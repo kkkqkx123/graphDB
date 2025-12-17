@@ -11,7 +11,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
     CypherClausePlanner, ClauseType, PlanningContext, VariableProvider, VariableRequirement,
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
-use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
+use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
@@ -77,9 +77,13 @@ impl ReturnClausePlanner {
             let order_by_clause_ctx = CypherClauseContext::OrderBy(order_by.clone());
             let order_plan = order_by_planner.transform(&order_by_clause_ctx, Some(&plan), context)?;
 
-            // 使用连接机制连接排序计划
-            let connector = SegmentsConnector::new();
-            plan = connector.add_input(order_plan, plan, true);
+            // 使用新的统一连接器连接排序计划
+            plan = UnifiedConnector::add_input(
+                context.query_context(),
+                &order_plan,
+                &plan,
+                true,
+            )?;
         }
 
         // 步骤3: 处理分页（LIMIT/OFFSET）
@@ -93,8 +97,12 @@ impl ReturnClausePlanner {
                 let pagination_clause_ctx = CypherClauseContext::Pagination(pagination.clone());
                 let pagination_plan = pagination_planner.transform(&pagination_clause_ctx, Some(&plan), context)?;
 
-                let connector = SegmentsConnector::new();
-                plan = connector.add_input(pagination_plan, plan, true);
+                plan = UnifiedConnector::add_input(
+                    context.query_context(),
+                    &pagination_plan,
+                    &plan,
+                    true,
+                )?;
             }
         }
 
@@ -107,12 +115,12 @@ impl ReturnClausePlanner {
             // 暂时简化去重节点创建
             // TODO: 实现完整的去重逻辑
 
-            let connector = SegmentsConnector::new();
-            plan = connector.add_input(
-                SubPlan::new(Some(dedup_node.clone()), Some(dedup_node)),
-                plan,
+            plan = UnifiedConnector::add_input(
+                context.query_context(),
+                &SubPlan::new(Some(dedup_node.clone()), Some(dedup_node)),
+                &plan,
                 true,
-            );
+            )?;
         }
 
         Ok(plan)

@@ -45,7 +45,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
     CypherClausePlanner, ClauseType, PlanningContext, VariableRequirement, VariableProvider,
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
-use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
+use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
 use crate::query::planner::planner::PlannerError;
@@ -306,12 +306,15 @@ pub fn connect_unwind_to_input(
         ));
     }
 
-    // 使用 SegmentsConnector 连接两个计划
-    let connector = SegmentsConnector::new();
-    
+    // 使用新的统一连接器连接两个计划
     // 将 UNWIND 计划连接到输入计划的输出
     // 数据流：input_plan -> unwind_plan
-    let connected_plan = connector.add_input(unwind_plan, input_plan, true);
+    let connected_plan = UnifiedConnector::add_input(
+        &crate::query::context::ast::base::AstContext::new("UNWIND", "test"),
+        &unwind_plan,
+        &input_plan,
+        true,
+    )?;
     
     Ok(connected_plan)
 }

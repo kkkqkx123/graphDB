@@ -43,8 +43,12 @@ pub use clauses::yield_planner::YieldClausePlanner;
 
 // 重新导出辅助工具模块的主要类型
 pub use utils::finder::{Finder, FinderResult};
-pub use utils::connector::SegmentsConnector;
 pub use utils::node_factory::{create_start_node, create_nested_start_node, create_empty_node};
+pub use utils::connection_strategy::{
+    ConnectionType, ConnectionParams, ConnectionStrategy, UnifiedConnector,
+    InnerJoinStrategy, LeftJoinStrategy, CartesianStrategy, SequentialStrategy,
+    PatternApplyStrategy, RollUpApplyStrategy,
+};
 
 // 为了向后兼容，保留一些旧的导出（已废弃）
 #[deprecated(note = "使用 Finder 替代")]
