@@ -41,7 +41,10 @@
 //! - 空列表将产生零行结果
 //! - NULL 值将产生零行结果
 
-use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
+use crate::query::planner::match_planning::core::cypher_clause_planner::{
+    CypherClausePlanner, ClauseType, PlanningContext, VariableRequirement, VariableProvider,
+};
+use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
@@ -60,11 +63,23 @@ impl UnwindClausePlanner {
     }
 }
 
+impl ClausePlanner for UnwindClausePlanner {
+    fn name(&self) -> &'static str {
+        "UnwindClausePlanner"
+    }
+
+    fn supported_clause_kind(&self) -> crate::query::validator::structs::CypherClauseKind {
+        crate::query::validator::structs::CypherClauseKind::Unwind
+    }
+}
+
 impl CypherClausePlanner for UnwindClausePlanner {
     /// 将 UNWIND 子句上下文转换为执行计划
     ///
     /// # 参数
     /// * `clause_ctx` - Cypher 子句上下文，必须是 Unwind 类型
+    /// * `input_plan` - 输入的执行计划
+    /// * `context` - 规划上下文
     ///
     /// # 返回
     /// * `Result<SubPlan, PlannerError>` - 执行计划或错误
@@ -74,7 +89,15 @@ impl CypherClausePlanner for UnwindClausePlanner {
     /// * 如果无法提取 UnwindClauseContext，返回 InvalidAstContext 错误
     /// * 如果别名验证失败，返回相应的 PlannerError
     /// * 如果表达式验证失败，返回相应的 PlannerError
-    fn transform(&mut self, clause_ctx: &CypherClauseContext) -> Result<SubPlan, PlannerError> {
+    fn transform(
+        &self,
+        clause_ctx: &CypherClauseContext,
+        input_plan: Option<&SubPlan>,
+        _context: &mut PlanningContext,
+    ) -> Result<SubPlan, PlannerError> {
+        // 验证输入
+        self.validate_input(input_plan)?;
+
         // 验证输入上下文类型
         if !matches!(clause_ctx.kind(), CypherClauseKind::Unwind) {
             return Err(PlannerError::InvalidAstContext(
@@ -95,17 +118,51 @@ impl CypherClausePlanner for UnwindClausePlanner {
         // 验证 UNWIND 子句上下文的完整性
         validate_unwind_clause(&unwind_clause_ctx)?;
 
-        // UNWIND 子句不应该创建起始节点
-        // 它应该接收来自上游子句的输入数据
-        // 这里我们创建一个不包含输入的 UNWIND 节点
-        // 实际的输入连接由更高层的规划器负责
-        let unwind_node = create_unwind_node_without_input(&unwind_clause_ctx)?;
+        // 确保有输入计划
+        let input_plan = input_plan.ok_or_else(|| {
+            PlannerError::PlanGenerationFailed(
+                "UNWIND clause requires input plan".to_string()
+            )
+        })?;
+
+        // 创建 UNWIND 节点
+        let unwind_node = create_unwind_node(&unwind_clause_ctx, input_plan)?;
 
         // 创建包含 UNWIND 节点的子计划
-        // 注意：这个计划没有输入，需要由调用者连接到上游计划
         let unwind_plan = SubPlan::new(Some(unwind_node.clone()), Some(unwind_node));
 
         Ok(unwind_plan)
+    }
+
+    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), PlannerError> {
+        if input_plan.is_none() {
+            return Err(PlannerError::PlanGenerationFailed(
+                "UNWIND clause requires input from previous clauses".to_string()
+            ));
+        }
+        Ok(())
+    }
+
+    fn clause_type(&self) -> ClauseType {
+        ClauseType::Transform
+    }
+
+    fn can_start_flow(&self) -> bool {
+        false  // UNWIND 不能开始数据流
+    }
+
+    fn requires_input(&self) -> bool {
+        true   // UNWIND 需要输入
+    }
+
+    fn input_requirements(&self) -> Vec<VariableRequirement> {
+        // UNWIND 需要输入中的集合变量
+        vec![]
+    }
+
+    fn output_provides(&self) -> Vec<VariableProvider> {
+        // UNWIND 输出展开后的变量
+        vec![]
     }
 }
 
@@ -165,36 +222,27 @@ fn is_valid_identifier(identifier: &str) -> bool {
     true
 }
 
-/// 创建 UNWIND 节点（不包含输入）
+/// 创建 UNWIND 节点
 ///
 /// # 参数
 /// * `ctx` - UNWIND 子句上下文
+/// * `input_plan` - 输入的执行计划
 ///
 /// # 返回
 /// * `Result<Arc<dyn PlanNode>, PlannerError>` - UNWIND 节点或错误
-///
-/// # 说明
-/// 此函数创建一个 UNWIND 节点，但不包含输入节点。
-/// 实际的输入连接由更高层的规划器负责。
-/// 这种设计确保了数据流的正确性和模块化。
-fn create_unwind_node_without_input(
+fn create_unwind_node(
     ctx: &crate::query::validator::structs::UnwindClauseContext,
+    input_plan: &SubPlan,
 ) -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
-    use crate::query::planner::plan::SingleDependencyNode;
-
-    // 创建一个占位符节点，实际执行时会被替换为真正的输入
-    // 注意：这不是起始节点，只是一个占位符
-    let placeholder_node = Arc::new(SingleDependencyNode {
-        id: -1,
-        kind: PlanNodeKind::Start, // 使用 Start 作为占位符类型
-        dependencies: vec![],
-        output_var: None,
-        col_names: vec![],
-        cost: 0.0,
-    });
+    // 获取输入计划的根节点
+    let input_root = input_plan.root.as_ref().ok_or_else(|| {
+        PlannerError::PlanGenerationFailed(
+            "UNWIND clause requires input plan".to_string()
+        )
+    })?;
 
     // 创建 UNWIND 节点
-    let mut unwind_node = SingleInputNode::new(PlanNodeKind::Unwind, placeholder_node);
+    let mut unwind_node = SingleInputNode::new(PlanNodeKind::Unwind, input_root.clone());
 
     // 设置 UNWIND 节点的属性
     // 将表达式和别名信息存储在列名中，供执行器使用
@@ -203,10 +251,6 @@ fn create_unwind_node_without_input(
         format!("unwind_expr:{}", serialize_expression(&ctx.unwind_expr)),
         format!("unwind_alias:{}", ctx.alias),
     ]);
-
-    // 设置输出变量为别名
-    // 注意：这里可能需要根据实际的变量系统进行调整
-    // unwind_node.output_var = Some(Variable::new(&ctx.alias));
 
     Ok(Arc::new(unwind_node))
 }

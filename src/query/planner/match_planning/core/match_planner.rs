@@ -51,39 +51,48 @@ impl MatchPlanner {
         crate::query::planner::planner::MatchAndInstantiate {
             match_func: Self::match_ast_ctx,
             instantiate_func: Self::make,
+            priority: 100,
         }
     }
 
     /// 生成子句计划
     fn gen_plan(&mut self, clause_ctx: &CypherClauseContext) -> Result<SubPlan, PlannerError> {
+        // 创建规划上下文
+        let query_ctx = crate::query::context::ast::AstContext::new("test", "test");
+        let mut context = crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext::new(query_ctx);
+        
         match clause_ctx.kind() {
             CypherClauseKind::Match => {
-                let mut planner = MatchClausePlanner::new();
-                planner.transform(clause_ctx)
+                let match_ctx = match clause_ctx {
+                    CypherClauseContext::Match(ctx) => ctx,
+                    _ => return Err(PlannerError::InvalidAstContext("Expected MatchClauseContext".to_string())),
+                };
+                let planner = MatchClausePlanner::new(match_ctx.paths.clone());
+                planner.transform(clause_ctx, None, &mut context)
             }
             CypherClauseKind::Where => {
-                let mut planner = WhereClausePlanner::new(false);
-                planner.transform(clause_ctx)
+                let planner = WhereClausePlanner::new(false);
+                planner.transform(clause_ctx, None, &mut context)
             }
             CypherClauseKind::Unwind => {
-                let mut planner = UnwindClausePlanner::new();
-                planner.transform(clause_ctx)
+                let planner = UnwindClausePlanner::new();
+                planner.transform(clause_ctx, None, &mut context)
             }
             CypherClauseKind::With => {
-                let mut planner = WithClausePlanner::new();
-                planner.transform(clause_ctx)
+                let planner = WithClausePlanner::new();
+                planner.transform(clause_ctx, None, &mut context)
             }
             CypherClauseKind::Return => {
-                let mut planner = ReturnClausePlanner::new();
-                planner.transform(clause_ctx)
+                let planner = ReturnClausePlanner::new();
+                planner.transform(clause_ctx, None, &mut context)
             }
             CypherClauseKind::OrderBy => {
-                let mut planner = OrderByClausePlanner::new();
-                planner.transform(clause_ctx)
+                let planner = OrderByClausePlanner::new();
+                planner.transform(clause_ctx, None, &mut context)
             }
             CypherClauseKind::Pagination => {
-                let mut planner = PaginationPlanner::new();
-                planner.transform(clause_ctx)
+                let planner = PaginationPlanner::new();
+                planner.transform(clause_ctx, None, &mut context)
             }
             _ => Err(PlannerError::UnsupportedOperation(
                 "Unsupported clause type in MATCH query".to_string(),

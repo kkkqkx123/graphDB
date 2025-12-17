@@ -36,6 +36,7 @@ impl FetchVerticesPlanner {
         crate::query::planner::planner::MatchAndInstantiate {
             match_func: Self::match_ast_ctx,
             instantiate_func: Self::make,
+            priority: 100,
         }
     }
 }

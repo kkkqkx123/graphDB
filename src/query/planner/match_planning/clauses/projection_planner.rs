@@ -40,16 +40,20 @@ impl ProjectionPlanner {
         distinct: bool,
         need_stable_filter: bool,
     ) -> Result<SubPlan, PlannerError> {
+        // 创建规划上下文
+        let query_ctx = crate::query::context::ast::AstContext::new("test", "test");
+        let mut context = crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext::new(query_ctx);
+        
         // 首先处理YIELD子句（投影部分）
-        let mut yield_planner = YieldClausePlanner::new();
+        let yield_planner = YieldClausePlanner::new();
         let yield_clause_ctx = CypherClauseContext::Yield(yield_clause.clone());
-        let mut plan = yield_planner.transform(&yield_clause_ctx)?;
+        let mut plan = yield_planner.transform(&yield_clause_ctx, None, &mut context)?;
 
         // 处理ORDER BY子句
         if let Some(order_by) = order_by {
-            let mut order_by_planner = OrderByClausePlanner::new();
+            let order_by_planner = OrderByClausePlanner::new();
             let order_by_clause_ctx = CypherClauseContext::OrderBy(order_by.clone());
-            let order_plan = order_by_planner.transform(&order_by_clause_ctx)?;
+            let order_plan = order_by_planner.transform(&order_by_clause_ctx, Some(&plan), &mut context)?;
 
             let connector = SegmentsConnector::new();
             plan = connector.add_input(order_plan, plan, true);
@@ -58,9 +62,9 @@ impl ProjectionPlanner {
         // 处理分页（LIMIT/OFFSET）
         if let Some(pagination) = pagination {
             if pagination.skip != 0 || pagination.limit != i64::MAX {
-                let mut pagination_planner = PaginationPlanner::new();
+                let pagination_planner = PaginationPlanner::new();
                 let pagination_clause_ctx = CypherClauseContext::Pagination(pagination.clone());
-                let pagination_plan = pagination_planner.transform(&pagination_clause_ctx)?;
+                let pagination_plan = pagination_planner.transform(&pagination_clause_ctx, Some(&plan), &mut context)?;
 
                 let connector = SegmentsConnector::new();
                 plan = connector.add_input(pagination_plan, plan, true);
@@ -69,9 +73,9 @@ impl ProjectionPlanner {
 
         // 处理WHERE子句（主要用于WITH子句）
         if let Some(where_clause) = where_clause {
-            let mut where_planner = WhereClausePlanner::new(need_stable_filter);
+            let where_planner = WhereClausePlanner::new(need_stable_filter);
             let where_clause_ctx = CypherClauseContext::Where(where_clause.clone());
-            let where_plan = where_planner.transform(&where_clause_ctx)?;
+            let where_plan = where_planner.transform(&where_clause_ctx, Some(&plan), &mut context)?;
 
             let connector = SegmentsConnector::new();
             plan = connector.add_input(where_plan, plan, true);

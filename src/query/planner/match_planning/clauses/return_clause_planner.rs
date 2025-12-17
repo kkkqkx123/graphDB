@@ -1,61 +1,64 @@
-//! 新的 RETURN 子句规划器
+//! RETURN 子句规划器
 //! 实现新的 CypherClausePlanner 接口
+//! 
+//! RETURN 子句是 Cypher 查询的输出子句，负责将查询结果返回给客户端。
+//! 它可以包含投影列、排序、分页和去重等操作。
 
 use super::order_by_planner::OrderByClausePlanner;
 use super::pagination_planner::PaginationPlanner;
 use super::yield_planner::YieldClausePlanner;
-use crate::query::planner::match_planning::core::{
-    ClauseType, CypherClausePlanner, PlanningContext, VariableProvider, VariableRequirement,
+use crate::query::planner::match_planning::core::cypher_clause_planner::{
+    CypherClausePlanner, ClauseType, PlanningContext, VariableProvider, VariableRequirement,
 };
+use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
+use crate::query::validator::structs::common_structs::CypherClauseContext;
+use crate::query::validator::structs::CypherClauseKind;
 use std::sync::Arc;
 
-/// 新的 RETURN子句规划器
-/// 实现新的 CypherClausePlanner 接口
+/// RETURN 子句规划器
+/// 
+/// 负责规划 RETURN 子句的执行。RETURN 子句是一个输出子句，
+/// 它需要输入数据流并根据指定的投影列、排序、分页和去重选项对结果进行处理。
+/// 
+/// # 示例
+/// 
+/// ```cypher
+/// MATCH (n:Person)
+/// RETURN n.name, n.age
+/// ORDER BY n.age DESC
+/// LIMIT 10
+/// ```
+/// 
+/// 在上面的例子中，RETURN 子句会返回人员的姓名和年龄，按年龄降序排列，并限制返回10条记录。
 #[derive(Debug)]
 pub struct ReturnClausePlanner;
 
 impl ReturnClausePlanner {
+    /// 创建新的 RETURN 子句规划器
     pub fn new() -> Self {
         Self
     }
-}
 
-impl CypherClausePlanner for ReturnClausePlanner {
-    fn transform(
+    /// 构建 RETURN 子句的执行计划
+    /// 
+    /// # 参数
+    /// 
+    /// * `return_clause_ctx` - RETURN 子句的上下文信息
+    /// * `input_plan` - 输入的执行计划
+    /// * `context` - 规划上下文
+    /// 
+    /// # 返回值
+    /// 
+    /// 返回包含 RETURN 子句执行计划的 SubPlan
+    fn build_return(
         &self,
-        clause_ctx: &CypherClauseContext,
-        input_plan: Option<&SubPlan>,
+        return_clause_ctx: &crate::query::validator::structs::clause_structs::ReturnClauseContext,
+        input_plan: &SubPlan,
         context: &mut PlanningContext,
-    ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
-        // 验证输入
-        self.validate_input(input_plan)?;
-
-        // 确保有输入计划
-        let _input_plan = input_plan.ok_or_else(|| {
-            PlannerError::missing_input("RETURN clause requires input".to_string())
-        })?;
-
-        // 验证上下文类型
-        if !matches!(clause_ctx.kind(), CypherClauseKind::Return) {
-            return Err(PlannerError::InvalidAstContext(
-                "ReturnClausePlanner 只能处理 RETURN 子句上下文".to_string(),
-            ));
-        }
-
-        // 提取具体的 RETURN 子句上下文
-        let return_clause_ctx = match clause_ctx {
-            CypherClauseContext::Return(ctx) => ctx,
-            _ => {
-                return Err(PlannerError::InvalidAstContext(
-                    "无法提取 ReturnClauseContext".to_string(),
-                ))
-            }
-        };
-
+    ) -> Result<SubPlan, PlannerError> {
         // 验证 RETURN 子句上下文的完整性
         if return_clause_ctx.yield_clause.yield_columns.is_empty() {
             return Err(PlannerError::PlanGenerationFailed(
@@ -66,22 +69,15 @@ impl CypherClausePlanner for ReturnClausePlanner {
         // 步骤1: 处理YIELD子句（RETURN的投影部分）
         let yield_planner = YieldClausePlanner::new();
         let yield_clause_ctx = CypherClauseContext::Yield(return_clause_ctx.yield_clause.clone());
-        // 使用适配器包装旧的规划器
-        let yield_adapter = crate::query::planner::match_planning::core::YieldPlannerAdapter::new(yield_planner);
-        let mut plan = yield_adapter.transform(&yield_clause_ctx, input_plan, context)?;
+        let mut plan = yield_planner.transform(&yield_clause_ctx, Some(input_plan), context)?;
 
         // 步骤2: 处理ORDER BY子句（排序）
         if let Some(order_by) = &return_clause_ctx.order_by {
             let order_by_planner = OrderByClausePlanner::new();
             let order_by_clause_ctx = CypherClauseContext::OrderBy(order_by.clone());
-            // 使用适配器包装旧的规划器
-            let order_by_adapter = crate::query::planner::match_planning::core::LegacyPlannerAdapter::new(
-                order_by_planner,
-                ClauseType::Modifier
-            );
-            let order_plan = order_by_adapter.transform(&order_by_clause_ctx, Some(&plan), context)?;
+            let order_plan = order_by_planner.transform(&order_by_clause_ctx, Some(&plan), context)?;
 
-            // 使用新的连接机制
+            // 使用连接机制连接排序计划
             let connector = SegmentsConnector::new();
             plan = connector.add_input(order_plan, plan, true);
         }
@@ -95,12 +91,7 @@ impl CypherClausePlanner for ReturnClausePlanner {
             if pagination.skip != 0 || pagination.limit != i64::MAX {
                 let pagination_planner = PaginationPlanner::new();
                 let pagination_clause_ctx = CypherClauseContext::Pagination(pagination.clone());
-                // 使用适配器包装旧的规划器
-                let pagination_adapter = crate::query::planner::match_planning::core::LegacyPlannerAdapter::new(
-                    pagination_planner,
-                    ClauseType::Modifier
-                );
-                let pagination_plan = pagination_adapter.transform(&pagination_clause_ctx, Some(&plan), context)?;
+                let pagination_plan = pagination_planner.transform(&pagination_clause_ctx, Some(&plan), context)?;
 
                 let connector = SegmentsConnector::new();
                 plan = connector.add_input(pagination_plan, plan, true);
@@ -126,11 +117,55 @@ impl CypherClausePlanner for ReturnClausePlanner {
 
         Ok(plan)
     }
+}
 
-    fn validate_input(
+impl ClausePlanner for ReturnClausePlanner {
+    fn name(&self) -> &'static str {
+        "ReturnClausePlanner"
+    }
+
+    fn supported_clause_kind(&self) -> CypherClauseKind {
+        CypherClauseKind::Return
+    }
+}
+
+impl CypherClausePlanner for ReturnClausePlanner {
+    fn transform(
         &self,
+        clause_ctx: &CypherClauseContext,
         input_plan: Option<&SubPlan>,
-    ) -> Result<(), crate::query::planner::planner::PlannerError> {
+        context: &mut PlanningContext,
+    ) -> Result<SubPlan, PlannerError> {
+        // 验证输入
+        self.validate_input(input_plan)?;
+
+        // 确保有输入计划
+        let input_plan = input_plan.ok_or_else(|| {
+            PlannerError::missing_input("RETURN clause requires input".to_string())
+        })?;
+
+        // 验证上下文类型
+        if !matches!(clause_ctx.kind(), CypherClauseKind::Return) {
+            return Err(PlannerError::InvalidAstContext(
+                "ReturnClausePlanner 只能处理 RETURN 子句上下文".to_string(),
+            ));
+        }
+
+        // 提取具体的 RETURN 子句上下文
+        let return_clause_ctx = match clause_ctx {
+            CypherClauseContext::Return(ctx) => ctx,
+            _ => {
+                return Err(PlannerError::InvalidAstContext(
+                    "无法提取 ReturnClauseContext".to_string(),
+                ))
+            }
+        };
+
+        // 构建 RETURN 子句的执行计划
+        self.build_return(return_clause_ctx, input_plan, context)
+    }
+
+    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), PlannerError> {
         if input_plan.is_none() {
             return Err(PlannerError::missing_input(
                 "RETURN clause requires input from previous clauses".to_string(),
@@ -167,7 +202,7 @@ impl CypherClausePlanner for ReturnClausePlanner {
 /// 用于设置去重键
 #[allow(dead_code)]
 fn get_yield_columns(
-    yield_clause: &crate::query::validator::structs::YieldClauseContext,
+    yield_clause: &crate::query::validator::structs::clause_structs::YieldClauseContext,
 ) -> Option<Vec<String>> {
     // 优先使用投影输出列名
     if !yield_clause.proj_output_column_names.is_empty() {

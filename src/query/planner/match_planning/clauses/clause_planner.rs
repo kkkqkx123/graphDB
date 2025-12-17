@@ -4,11 +4,13 @@
 use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
+use crate::query::validator::structs::common_structs::CypherClauseContext;
+use crate::query::validator::structs::CypherClauseKind;
 
 /// 子句规划器trait
 ///
 /// 所有子句规划器都应该实现这个trait，提供统一的接口
+/// 这个trait扩展了CypherClausePlanner，添加了额外的功能
 pub trait ClausePlanner: CypherClausePlanner {
     /// 获取子句规划器的名称
     fn name(&self) -> &'static str;
@@ -18,12 +20,24 @@ pub trait ClausePlanner: CypherClausePlanner {
 
     /// 验证子句上下文是否有效
     fn validate_context(&self, clause_ctx: &CypherClauseContext) -> Result<(), PlannerError> {
-        if clause_ctx.kind() != self.supported_clause_kind() {
+        // 将CypherClauseContext转换为CypherClauseKind进行比较
+        let clause_kind = match clause_ctx {
+            CypherClauseContext::Match(_) => CypherClauseKind::Match,
+            CypherClauseContext::Where(_) => CypherClauseKind::Where,
+            CypherClauseContext::Return(_) => CypherClauseKind::Return,
+            CypherClauseContext::With(_) => CypherClauseKind::With,
+            CypherClauseContext::OrderBy(_) => CypherClauseKind::OrderBy,
+            CypherClauseContext::Pagination(_) => CypherClauseKind::Pagination,
+            CypherClauseContext::Unwind(_) => CypherClauseKind::Unwind,
+            CypherClauseContext::Yield(_) => CypherClauseKind::Yield,
+        };
+
+        if clause_kind != self.supported_clause_kind() {
             return Err(PlannerError::InvalidAstContext(format!(
                 "Invalid clause context for {}: expected {:?}, got {:?}",
                 self.name(),
                 self.supported_clause_kind(),
-                clause_ctx.kind()
+                clause_kind
             )));
         }
         Ok(())
@@ -91,12 +105,24 @@ impl ClausePlanner for BaseClausePlanner {
     }
 
     fn validate_context(&self, clause_ctx: &CypherClauseContext) -> Result<(), PlannerError> {
-        if clause_ctx.kind() != self.supported_clause_kind() {
+        // 将CypherClauseContext转换为CypherClauseKind进行比较
+        let clause_kind = match clause_ctx {
+            CypherClauseContext::Match(_) => CypherClauseKind::Match,
+            CypherClauseContext::Where(_) => CypherClauseKind::Where,
+            CypherClauseContext::Return(_) => CypherClauseKind::Return,
+            CypherClauseContext::With(_) => CypherClauseKind::With,
+            CypherClauseContext::OrderBy(_) => CypherClauseKind::OrderBy,
+            CypherClauseContext::Pagination(_) => CypherClauseKind::Pagination,
+            CypherClauseContext::Unwind(_) => CypherClauseKind::Unwind,
+            CypherClauseContext::Yield(_) => CypherClauseKind::Yield,
+        };
+
+        if clause_kind != self.supported_kind {
             return Err(PlannerError::InvalidAstContext(format!(
                 "Invalid clause context for {}: expected {:?}, got {:?}",
                 self.name(),
-                self.supported_clause_kind(),
-                clause_ctx.kind()
+                self.supported_kind(),
+                clause_kind
             )));
         }
         Ok(())
@@ -104,7 +130,12 @@ impl ClausePlanner for BaseClausePlanner {
 }
 
 impl CypherClausePlanner for BaseClausePlanner {
-    fn transform(&mut self, clause_ctx: &CypherClauseContext) -> Result<SubPlan, PlannerError> {
+    fn transform(
+        &self,
+        clause_ctx: &CypherClauseContext,
+        input_plan: Option<&SubPlan>,
+        context: &mut crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext,
+    ) -> Result<SubPlan, PlannerError> {
         // 验证上下文
         self.validate_context(clause_ctx)?;
 
@@ -114,6 +145,22 @@ impl CypherClausePlanner for BaseClausePlanner {
             "BaseClausePlanner does not implement transform for {}",
             self.name()
         )))
+    }
+
+    fn clause_type(
+        &self,
+    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType {
+        // 根据支持的子句类型返回对应的ClauseType
+        match self.supported_kind {
+            CypherClauseKind::Match => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Source,
+            CypherClauseKind::Where => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Transform,
+            CypherClauseKind::Return => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Output,
+            CypherClauseKind::With => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Transform,
+            CypherClauseKind::OrderBy => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Modifier,
+            CypherClauseKind::Pagination => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Modifier,
+            CypherClauseKind::Unwind => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Transform,
+            CypherClauseKind::Yield => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Output,
+        }
     }
 }
 
@@ -199,7 +246,9 @@ impl ClausePlannerFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::validator::structs::clause_structs::MatchClauseContext;
     use crate::query::validator::structs::CypherClauseKind;
+    use std::collections::HashMap;
 
     #[test]
     fn test_base_clause_planner_new() {
@@ -211,16 +260,15 @@ mod tests {
     #[test]
     fn test_base_clause_planner_validate_context_success() {
         let planner = BaseClausePlanner::new("TestPlanner", CypherClauseKind::Match);
-        let clause_ctx =
-            CypherClauseContext::Match(crate::query::validator::structs::MatchClauseContext {
-                paths: vec![],
-                aliases_available: std::collections::HashMap::new(),
-                aliases_generated: std::collections::HashMap::new(),
-                where_clause: None,
-                is_optional: false,
-                skip: None,
-                limit: None,
-            });
+        let clause_ctx = CypherClauseContext::Match(MatchClauseContext {
+            paths: vec![],
+            aliases_available: HashMap::new(),
+            aliases_generated: HashMap::new(),
+            where_clause: None,
+            is_optional: false,
+            skip: None,
+            limit: None,
+        });
 
         let result = planner.validate_context(&clause_ctx);
         assert!(result.is_ok());
@@ -232,8 +280,8 @@ mod tests {
         let clause_ctx = CypherClauseContext::Where(
             crate::query::validator::structs::clause_structs::WhereClauseContext {
                 filter: None,
-                aliases_available: std::collections::HashMap::new(),
-                aliases_generated: std::collections::HashMap::new(),
+                aliases_available: HashMap::new(),
+                aliases_generated: HashMap::new(),
                 paths: vec![],
             },
         );
@@ -244,19 +292,21 @@ mod tests {
 
     #[test]
     fn test_base_clause_planner_transform() {
-        let mut planner = BaseClausePlanner::new("TestPlanner", CypherClauseKind::Match);
-        let clause_ctx =
-            CypherClauseContext::Match(crate::query::validator::structs::MatchClauseContext {
-                paths: vec![],
-                aliases_available: std::collections::HashMap::new(),
-                aliases_generated: std::collections::HashMap::new(),
-                where_clause: None,
-                is_optional: false,
-                skip: None,
-                limit: None,
-            });
+        let planner = BaseClausePlanner::new("TestPlanner", CypherClauseKind::Match);
+        let query_ctx = crate::query::context::ast::AstContext::new("test", "test");
+        let mut context = crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext::new(query_ctx);
 
-        let result = planner.transform(&clause_ctx);
+        let clause_ctx = CypherClauseContext::Match(MatchClauseContext {
+            paths: vec![],
+            aliases_available: HashMap::new(),
+            aliases_generated: HashMap::new(),
+            where_clause: None,
+            is_optional: false,
+            skip: None,
+            limit: None,
+        });
+
+        let result = planner.transform(&clause_ctx, None, &mut context);
         assert!(result.is_err());
     }
 

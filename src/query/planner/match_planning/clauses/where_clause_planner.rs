@@ -1,60 +1,66 @@
-//! 新的 WHERE子句规划器
+//! WHERE 子句规划器
 //! 实现新的 CypherClausePlanner 接口
+//! 
+//! WHERE 子句是 Cypher 查询的过滤子句，负责根据指定的条件过滤输入数据流。
 
-use crate::query::planner::match_planning::core::{
-    CypherClausePlanner, ClauseType, PlanningContext
+use crate::query::planner::match_planning::core::cypher_clause_planner::{
+    CypherClausePlanner, ClauseType, PlanningContext, VariableRequirement, VariableProvider,
 };
+use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::paths::match_path_planner::MatchPathPlanner;
 use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
+use crate::query::validator::structs::common_structs::CypherClauseContext;
+use crate::query::validator::structs::CypherClauseKind;
 use std::sync::Arc;
 
-/// 新的 WHERE子句规划器
-/// 实现新的 CypherClausePlanner 接口
+/// WHERE 子句规划器
+/// 
+/// 负责规划 WHERE 子句的执行。WHERE 子句是一个转换子句，
+/// 它需要输入数据流并根据指定的过滤条件对结果进行过滤。
+/// 
+/// # 示例
+/// 
+/// ```cypher
+/// MATCH (n:Person)
+/// WHERE n.age > 25 AND n.name STARTS WITH 'John'
+/// RETURN n.name, n.age
+/// ```
+/// 
+/// 在上面的例子中，WHERE 子句会过滤出年龄大于25且姓名以'John'开头的人员。
 #[derive(Debug)]
 pub struct WhereClausePlanner {
     need_stable_filter: bool, // 是否需要稳定的过滤器（用于ORDER BY场景）
 }
 
 impl WhereClausePlanner {
+    /// 创建新的 WHERE 子句规划器
+    /// 
+    /// # 参数
+    /// 
+    /// * `need_stable_filter` - 是否需要稳定的过滤器，用于ORDER BY场景
     pub fn new(need_stable_filter: bool) -> Self {
         Self { need_stable_filter }
     }
-}
 
-impl CypherClausePlanner for WhereClausePlanner {
-    fn transform(
+    /// 构建 WHERE 子句的执行计划
+    /// 
+    /// # 参数
+    /// 
+    /// * `where_clause_ctx` - WHERE 子句的上下文信息
+    /// * `input_plan` - 输入的执行计划
+    /// * `context` - 规划上下文
+    /// 
+    /// # 返回值
+    /// 
+    /// 返回包含 WHERE 子句执行计划的 SubPlan
+    fn build_where(
         &self,
-        clause_ctx: &CypherClauseContext,
-        _input_plan: Option<&SubPlan>,
+        where_clause_ctx: &crate::query::validator::structs::clause_structs::WhereClauseContext,
+        input_plan: &SubPlan,
         _context: &mut PlanningContext,
-    ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
-        // 验证输入
-        self.validate_input(_input_plan)?;
-        
-        // 确保有输入计划
-        let _input_plan = _input_plan.ok_or_else(|| {
-            PlannerError::missing_input("WHERE clause requires input".to_string())
-        })?;
-        
-        // 验证上下文类型
-        if !matches!(clause_ctx.kind(), CypherClauseKind::Where) {
-            return Err(PlannerError::InvalidAstContext(
-                "Not a valid context for WhereClausePlanner".to_string(),
-            ));
-        }
-
-        let where_clause_ctx = match clause_ctx {
-            CypherClauseContext::Where(ctx) => ctx,
-            _ => {
-                return Err(PlannerError::InvalidAstContext(
-                    "Expected WhereClauseContext".to_string(),
-                ))
-            }
-        };
-
+    ) -> Result<SubPlan, PlannerError> {
         // 处理路径表达式（模式谓词）
         let mut plan = if !where_clause_ctx.paths.is_empty() {
             let mut paths_plan = SubPlan::new(None, None);
@@ -63,7 +69,7 @@ impl CypherClausePlanner for WhereClausePlanner {
             for path in &where_clause_ctx.paths {
                 let mut path_planner = MatchPathPlanner::new(
                     // 这里需要创建一个临时的MatchClauseContext
-                    crate::query::validator::structs::MatchClauseContext {
+                    crate::query::validator::structs::clause_structs::MatchClauseContext {
                         paths: vec![path.clone()],
                         aliases_available: where_clause_ctx.aliases_available.clone(),
                         aliases_generated: where_clause_ctx.aliases_generated.clone(),
@@ -121,8 +127,54 @@ impl CypherClausePlanner for WhereClausePlanner {
 
         Ok(plan)
     }
+}
+
+impl ClausePlanner for WhereClausePlanner {
+    fn name(&self) -> &'static str {
+        "WhereClausePlanner"
+    }
+
+    fn supported_clause_kind(&self) -> CypherClauseKind {
+        CypherClauseKind::Where
+    }
+}
+
+impl CypherClausePlanner for WhereClausePlanner {
+    fn transform(
+        &self,
+        clause_ctx: &CypherClauseContext,
+        input_plan: Option<&SubPlan>,
+        context: &mut PlanningContext,
+    ) -> Result<SubPlan, PlannerError> {
+        // 验证输入
+        self.validate_input(input_plan)?;
+        
+        // 确保有输入计划
+        let input_plan = input_plan.ok_or_else(|| {
+            PlannerError::missing_input("WHERE clause requires input".to_string())
+        })?;
+        
+        // 验证上下文类型
+        if !matches!(clause_ctx.kind(), CypherClauseKind::Where) {
+            return Err(PlannerError::InvalidAstContext(
+                "Not a valid context for WhereClausePlanner".to_string(),
+            ));
+        }
+
+        let where_clause_ctx = match clause_ctx {
+            CypherClauseContext::Where(ctx) => ctx,
+            _ => {
+                return Err(PlannerError::InvalidAstContext(
+                    "Expected WhereClauseContext".to_string(),
+                ))
+            }
+        };
+
+        // 构建 WHERE 子句的执行计划
+        self.build_where(where_clause_ctx, input_plan, context)
+    }
     
-    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), crate::query::planner::planner::PlannerError> {
+    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), PlannerError> {
         if input_plan.is_none() {
             return Err(PlannerError::missing_input(
                 "WHERE clause requires input from previous clauses".to_string()
@@ -143,12 +195,12 @@ impl CypherClausePlanner for WhereClausePlanner {
         true   // WHERE 需要输入
     }
     
-    fn input_requirements(&self) -> Vec<crate::query::planner::match_planning::core::VariableRequirement> {
+    fn input_requirements(&self) -> Vec<VariableRequirement> {
         // WHERE 子句需要输入数据，但不强制要求特定变量
         vec![]
     }
     
-    fn output_provides(&self) -> Vec<crate::query::planner::match_planning::core::VariableProvider> {
+    fn output_provides(&self) -> Vec<VariableProvider> {
         // WHERE 子句不产生新的变量，只是过滤输入
         vec![]
     }
