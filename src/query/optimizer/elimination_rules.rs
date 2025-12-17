@@ -10,11 +10,6 @@ use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Patt
 use crate::query::planner::plan::core::plan_node_traits::{PlanNodeIdentifiable, PlanNodeMutable};
 use crate::query::planner::plan::operations::{Filter, Project};
 use crate::query::planner::plan::{PlanNode, PlanNodeKind};
-// 显式导入类型以消除歧义
-use crate::query::planner::plan::operations::{
-    AppendVertices, Dedup, Sort, Limit, ScanVertices, ScanEdges, GetVertices, GetEdges,
-};
-use crate::query::planner::plan::algorithms::IndexScan;
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]

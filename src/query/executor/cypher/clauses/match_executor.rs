@@ -13,7 +13,6 @@ use crate::query::executor::cypher::clauses::match_path::TraversalEngine;
 use crate::query::executor::cypher::context::CypherExecutionContext;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::parser::cypher::ast::clauses::MatchClause;
-use crate::query::parser::cypher::ast::expressions::Expression;
 use crate::query::parser::cypher::ast::patterns::PatternPart;
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};

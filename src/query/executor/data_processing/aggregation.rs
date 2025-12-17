@@ -14,7 +14,6 @@ use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
-use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
 /// 聚合函数类型
@@ -27,214 +26,12 @@ pub enum AggregateFunction {
     Min(String), // 字段名
 }
 
-/// 聚合数据状态
-#[derive(Debug, Clone)]
-struct AggData {
-    count: usize,
-    sum: Option<Value>,
-    max: Option<Value>,
-    min: Option<Value>,
-}
-
-impl AggData {
-    fn new() -> Self {
-        Self {
-            count: 0,
-            sum: None,
-            max: None,
-            min: None,
-        }
-    }
-
-    /// 应用聚合函数到新值
-    fn apply(&mut self, func: &AggregateFunction, value: &Value) -> Result<(), QueryError> {
-        match func {
-            AggregateFunction::Count => {
-                self.count += 1;
-            }
-            AggregateFunction::Sum(_) => {
-                self.apply_sum(value)?;
-            }
-            AggregateFunction::Avg(_) => {
-                self.apply_sum(value)?;
-                self.count += 1;
-            }
-            AggregateFunction::Max(_) => {
-                self.apply_max(value)?;
-            }
-            AggregateFunction::Min(_) => {
-                self.apply_min(value)?;
-            }
-        }
-        Ok(())
-    }
-
-    /// 应用求和操作
-    fn apply_sum(&mut self, value: &Value) -> Result<(), QueryError> {
-        if value.is_null() {
-            return Ok(());
-        }
-
-        match value {
-            Value::Int(i) => {
-                if let Some(Value::Int(current)) = &self.sum {
-                    self.sum = Some(Value::Int(current + i));
-                } else {
-                    self.sum = Some(Value::Int(*i));
-                }
-            }
-            Value::Float(f) => {
-                if let Some(Value::Float(current)) = &self.sum {
-                    self.sum = Some(Value::Float(current + f));
-                } else {
-                    self.sum = Some(Value::Float(*f));
-                }
-            }
-            _ => {
-                return Err(QueryError::ExecutionError(format!(
-                    "Cannot sum non-numeric value: {}",
-                    value
-                )));
-            }
-        }
-        Ok(())
-    }
-
-    /// 应用最大值操作
-    fn apply_max(&mut self, value: &Value) -> Result<(), QueryError> {
-        if value.is_null() {
-            return Ok(());
-        }
-
-        match value {
-            Value::Int(i) => {
-                if let Some(Value::Int(current)) = &self.max {
-                    if i > current {
-                        self.max = Some(Value::Int(*i));
-                    }
-                } else {
-                    self.max = Some(Value::Int(*i));
-                }
-            }
-            Value::Float(f) => {
-                if let Some(Value::Float(current)) = &self.max {
-                    if f > current {
-                        self.max = Some(Value::Float(*f));
-                    }
-                } else {
-                    self.max = Some(Value::Float(*f));
-                }
-            }
-            Value::String(s) => {
-                if let Some(Value::String(current)) = &self.max {
-                    if s > current {
-                        self.max = Some(Value::String(s.clone()));
-                    }
-                } else {
-                    self.max = Some(Value::String(s.clone()));
-                }
-            }
-            _ => {
-                return Err(QueryError::ExecutionError(format!(
-                    "Cannot compare value for max: {}",
-                    value
-                )));
-            }
-        }
-        Ok(())
-    }
-
-    /// 应用最小值操作
-    fn apply_min(&mut self, value: &Value) -> Result<(), QueryError> {
-        if value.is_null() {
-            return Ok(());
-        }
-
-        match value {
-            Value::Int(i) => {
-                if let Some(Value::Int(current)) = &self.min {
-                    if i < current {
-                        self.min = Some(Value::Int(*i));
-                    }
-                } else {
-                    self.min = Some(Value::Int(*i));
-                }
-            }
-            Value::Float(f) => {
-                if let Some(Value::Float(current)) = &self.min {
-                    if f < current {
-                        self.min = Some(Value::Float(*f));
-                    }
-                } else {
-                    self.min = Some(Value::Float(*f));
-                }
-            }
-            Value::String(s) => {
-                if let Some(Value::String(current)) = &self.min {
-                    if s < current {
-                        self.min = Some(Value::String(s.clone()));
-                    }
-                } else {
-                    self.min = Some(Value::String(s.clone()));
-                }
-            }
-            _ => {
-                return Err(QueryError::ExecutionError(format!(
-                    "Cannot compare value for min: {}",
-                    value
-                )));
-            }
-        }
-        Ok(())
-    }
-
-    /// 获取聚合结果
-    fn result(&self, func: &AggregateFunction) -> Result<Value, QueryError> {
-        match func {
-            AggregateFunction::Count => Ok(Value::Int(self.count as i64)),
-            AggregateFunction::Sum(_) => {
-                if let Some(sum) = &self.sum {
-                    Ok(sum.clone())
-                } else {
-                    Ok(Value::Int(0))
-                }
-            }
-            AggregateFunction::Avg(_) => {
-                if self.count == 0 {
-                    Ok(Value::Float(0.0))
-                } else if let Some(Value::Int(sum)) = &self.sum {
-                    Ok(Value::Float(*sum as f64 / self.count as f64))
-                } else if let Some(Value::Float(sum)) = &self.sum {
-                    Ok(Value::Float(*sum / self.count as f64))
-                } else {
-                    Ok(Value::Float(0.0))
-                }
-            }
-            AggregateFunction::Max(_) => {
-                if let Some(max) = &self.max {
-                    Ok(max.clone())
-                } else {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-            }
-            AggregateFunction::Min(_) => {
-                if let Some(min) = &self.min {
-                    Ok(min.clone())
-                } else {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-            }
-        }
-    }
-}
 
 /// AggregateExecutor - 聚合执行器
 ///
 /// 执行聚合操作，支持 COUNT, SUM, AVG, MAX, MIN 等聚合函数
 pub struct AggregateExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    group_keys: Vec<String>,                     // 分组键
-    aggregate_functions: Vec<AggregateFunction>, // 聚合函数
     input_executor: Option<Box<dyn Executor<S>>>,
 }
 
@@ -242,57 +39,10 @@ impl<S: StorageEngine> AggregateExecutor<S> {
     pub fn new(
         id: usize,
         storage: Arc<Mutex<S>>,
-        group_keys: Vec<String>,
-        aggregate_functions: Vec<AggregateFunction>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AggregateExecutor".to_string(), storage),
-            group_keys,
-            aggregate_functions,
             input_executor: None,
-        }
-    }
-
-    /// 从行中提取分组键值
-    fn extract_group_key(&self, row: &[Value]) -> Vec<Value> {
-        self.group_keys
-            .iter()
-            .map(|key| {
-                // 在实际实现中，这里需要根据列名找到对应的值
-                // 现在简化实现，假设行顺序与列名顺序一致
-                if let Some(index) = self.group_keys.iter().position(|k| k == key) {
-                    if index < row.len() {
-                        row[index].clone()
-                    } else {
-                        Value::Null(crate::core::value::NullType::Null)
-                    }
-                } else {
-                    Value::Null(crate::core::value::NullType::Null)
-                }
-            })
-            .collect()
-    }
-
-    /// 从行中提取聚合函数需要的值
-    fn extract_aggregate_value(&self, row: &[Value], func: &AggregateFunction) -> Value {
-        match func {
-            AggregateFunction::Count => Value::Int(1), // COUNT 总是返回 1
-            AggregateFunction::Sum(column)
-            | AggregateFunction::Avg(column)
-            | AggregateFunction::Max(column)
-            | AggregateFunction::Min(column) => {
-                // 在实际实现中，这里需要根据列名找到对应的值
-                // 现在简化实现，假设列名存在
-                if let Some(index) = self.group_keys.iter().position(|k| k == column) {
-                    if index < row.len() {
-                        row[index].clone()
-                    } else {
-                        Value::Null(crate::core::value::NullType::Null)
-                    }
-                } else {
-                    Value::Null(crate::core::value::NullType::Null)
-                }
-            }
         }
     }
 }
@@ -378,15 +128,11 @@ impl<S: StorageEngine> GroupByExecutor<S> {
     pub fn new(
         id: usize,
         storage: Arc<Mutex<S>>,
-        group_keys: Vec<String>,
-        aggregate_functions: Vec<AggregateFunction>,
     ) -> Self {
         Self {
             aggregate_executor: AggregateExecutor::new(
                 id,
                 storage,
-                group_keys,
-                aggregate_functions,
             ),
         }
     }
@@ -450,16 +196,13 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for GroupByExecutor<S> {
 pub struct HavingExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     input_executor: Option<Box<dyn Executor<S>>>,
-    // 条件表达式（简化实现）
-    condition: String,
 }
 
 impl<S: StorageEngine> HavingExecutor<S> {
-    pub fn new(id: usize, storage: Arc<Mutex<S>>, condition: String) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>) -> Self {
         Self {
             base: BaseExecutor::new(id, "HavingExecutor".to_string(), storage),
             input_executor: None,
-            condition,
         }
     }
 }

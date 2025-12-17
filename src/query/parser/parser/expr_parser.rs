@@ -345,14 +345,6 @@ impl super::Parser {
         }
     }
 
-    /// 解析指数操作符
-    fn parse_exponentiation_op(&mut self) -> Option<BinaryOp> {
-        if self.match_token(LexerToken::Exp) {
-            Some(BinaryOp::Exp)
-        } else {
-            None
-        }
-    }
 
     /// 解析整数
     fn parse_integer(&mut self) -> Result<i64, ParseError> {

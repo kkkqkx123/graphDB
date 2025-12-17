@@ -800,11 +800,6 @@ impl Optimizer {
     fn node_exists_in_group(&self, node: &OptGroupNode, group: &OptGroup) -> bool {
         group.nodes.iter().any(|n| n.id == node.id)
     }
-
-    fn matches_pattern(&self, node: &OptGroupNode, pattern: &Pattern) -> bool {
-        // Check if the node matches the given pattern using the new matching system
-        pattern.matches(node)
-    }
 }
 
 #[derive(Debug, thiserror::Error)]

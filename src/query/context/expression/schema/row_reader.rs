@@ -3,7 +3,7 @@
 //! 负责从二进制数据中解析字段值
 
 use super::schema_def::Schema;
-use super::types::{EncodingFormat, FieldDef};
+use super::types::FieldDef;
 use crate::core::Value;
 use std::collections::HashMap;
 
@@ -16,8 +16,6 @@ pub struct RowReaderWrapper {
     pub schema: Schema,
     /// 字段偏移量缓存（字段名 -> (偏移量, 长度)）
     field_offsets: HashMap<String, (usize, usize)>,
-    /// 编码格式
-    encoding: EncodingFormat,
 }
 
 impl RowReaderWrapper {
@@ -26,7 +24,6 @@ impl RowReaderWrapper {
             data,
             schema,
             field_offsets: HashMap::new(),
-            encoding: EncodingFormat::Nebula,
         };
 
         // 预计算字段偏移量
@@ -40,7 +37,6 @@ impl RowReaderWrapper {
             data,
             schema,
             field_offsets: HashMap::new(),
-            encoding: EncodingFormat::Simple,
         };
 
         wrapper.calculate_field_offsets()?;

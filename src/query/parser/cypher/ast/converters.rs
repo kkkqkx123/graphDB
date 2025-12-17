@@ -16,8 +16,6 @@ pub struct CypherConverter {
 /// 转换上下文
 #[derive(Debug, Default)]
 pub struct ConversionContext {
-    /// 可用的别名映射
-    aliases_available: HashMap<String, AliasType>,
     /// 生成的别名映射
     aliases_generated: HashMap<String, AliasType>,
     /// 变量绑定

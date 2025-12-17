@@ -432,10 +432,6 @@ impl ExprParser {
         }
     }
 
-    fn skip_optional_semicolon(&mut self) {
-        self.match_token(LexerToken::Semicolon);
-    }
-
     fn current_span(&self) -> Span {
         let pos = self.lexer.current_position();
         Span::new(

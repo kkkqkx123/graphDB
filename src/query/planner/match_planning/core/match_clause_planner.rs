@@ -71,32 +71,22 @@ impl CypherClausePlanner for MatchClausePlanner {
         for component in connected_components {
             for path_idx in component {
                 if let Some(path_info) = match_clause_ctx.paths.get(path_idx) {
-                    let mut path_plan = SubPlan::new(None, None);
-
                     // 根据路径类型选择不同的规划器
-                    if path_info.path_type == PathType::Default {
+                    let path_plan = if path_info.path_type == PathType::Default {
                         let mut match_path_planner =
                             MatchPathPlanner::new(match_clause_ctx.clone(), path_info.clone());
-                        let result = match_path_planner.transform(
+                        match_path_planner.transform(
                             match_clause_ctx.where_clause.as_ref(),
                             &mut node_aliases_seen,
-                        );
-                        match result {
-                            Ok(plan) => path_plan = plan,
-                            Err(e) => return Err(e),
-                        }
+                        )?
                     } else {
                         let mut shortest_path_planner =
                             ShortestPathPlanner::new(match_clause_ctx.clone(), path_info.clone());
-                        let result = shortest_path_planner.transform(
+                        shortest_path_planner.transform(
                             match_clause_ctx.where_clause.as_ref(),
                             &mut node_aliases_seen,
-                        );
-                        match result {
-                            Ok(plan) => path_plan = plan,
-                            Err(e) => return Err(e),
-                        }
-                    }
+                        )?
+                    };
 
                     // 连接路径计划
                     match Self::connect_path_plan(

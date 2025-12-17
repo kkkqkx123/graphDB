@@ -9,7 +9,6 @@ use std::collections::HashMap;
 /// Cypher解析器核心结构
 #[derive(Debug)]
 pub struct CypherParserCore {
-    lexer: CypherLexer,
     pub tokens: Vec<Token>,
     pub current_token_index: usize,
 }
@@ -25,9 +24,8 @@ impl CypherParserCore {
                 position: 0,
             }]
         });
-        
+
         Self {
-            lexer,
             tokens,
             current_token_index: 0,
         }

@@ -40,14 +40,10 @@ impl ProjectionPlanner {
         distinct: bool,
         need_stable_filter: bool,
     ) -> Result<SubPlan, PlannerError> {
-        let mut plan = SubPlan::new(None, None);
-
         // 首先处理YIELD子句（投影部分）
         let mut yield_planner = YieldClausePlanner::new();
         let yield_clause_ctx = CypherClauseContext::Yield(yield_clause.clone());
-        let yield_plan = yield_planner.transform(&yield_clause_ctx)?;
-
-        plan = yield_plan;
+        let mut plan = yield_planner.transform(&yield_clause_ctx)?;
 
         // 处理ORDER BY子句
         if let Some(order_by) = order_by {

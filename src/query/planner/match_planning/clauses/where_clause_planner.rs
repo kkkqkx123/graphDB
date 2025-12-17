@@ -40,10 +40,8 @@ impl CypherClausePlanner for WhereClausePlanner {
             }
         };
 
-        let mut plan = SubPlan::new(None, None);
-
         // 处理路径表达式（模式谓词）
-        if !where_clause_ctx.paths.is_empty() {
+        let mut plan = if !where_clause_ctx.paths.is_empty() {
             let mut paths_plan = SubPlan::new(None, None);
 
             // 为模式表达式构建计划
@@ -75,8 +73,10 @@ impl CypherClausePlanner for WhereClausePlanner {
                 }
             }
 
-            plan = paths_plan;
-        }
+            paths_plan
+        } else {
+            SubPlan::new(None, None)
+        };
 
         // 处理过滤条件
         if let Some(_filter) = &where_clause_ctx.filter {

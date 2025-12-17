@@ -485,34 +485,6 @@ impl StorageExpressionContext {
         }
     }
 
-    /// 从字符串解析值
-    fn parse_value_from_string(&self, value_str: &str, data_type: &str) -> Value {
-        match data_type {
-            "Bool" => {
-                if let Ok(b) = value_str.parse::<bool>() {
-                    Value::Bool(b)
-                } else {
-                    Value::Bool(false)
-                }
-            }
-            "Int" => {
-                if let Ok(i) = value_str.parse::<i64>() {
-                    Value::Int(i)
-                } else {
-                    Value::Int(0)
-                }
-            }
-            "Float" | "Double" => {
-                if let Ok(f) = value_str.parse::<f64>() {
-                    Value::Float(f)
-                } else {
-                    Value::Float(0.0)
-                }
-            }
-            "String" => Value::String(value_str.to_string()),
-            _ => Value::String(value_str.to_string()),
-        }
-    }
 
     /// 获取顶点ID长度
     pub fn v_id_len(&self) -> usize {

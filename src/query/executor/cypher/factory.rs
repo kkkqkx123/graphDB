@@ -5,7 +5,6 @@
 
 use crate::query::executor::cypher::base::CypherExecutor;
 use crate::query::executor::cypher::{CypherExecutorError, CypherExecutorTrait};
-use crate::query::executor::traits::ExecutorMetadata;
 use crate::query::parser::cypher::ast::statements::CypherStatement;
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};

@@ -30,13 +30,13 @@ pub trait ClausePlanner: CypherClausePlanner {
     }
 
     /// 估算子句执行成本
-    fn estimate_cost(&self, clause_ctx: &CypherClauseContext) -> f64 {
+    fn estimate_cost(&self, _clause_ctx: &CypherClauseContext) -> f64 {
         // 默认实现，子类可以重写
         10.0
     }
 
     /// 检查是否可以优化
-    fn can_optimize(&self, clause_ctx: &CypherClauseContext) -> bool {
+    fn can_optimize(&self, _clause_ctx: &CypherClauseContext) -> bool {
         // 默认实现，子类可以重写
         false
     }
@@ -44,7 +44,7 @@ pub trait ClausePlanner: CypherClausePlanner {
     /// 应用优化
     fn apply_optimization(
         &self,
-        clause_ctx: &CypherClauseContext,
+        _clause_ctx: &CypherClauseContext,
         plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
         // 默认实现，子类可以重写
@@ -177,10 +177,6 @@ impl ClausePlannerFactory {
                     "YieldClausePlanner creation not implemented in factory".to_string(),
                 ))
             }
-            _ => Err(PlannerError::UnsupportedOperation(format!(
-                "Unsupported clause kind: {:?}",
-                clause_kind
-            ))),
         }
     }
 

@@ -90,17 +90,6 @@ impl Lexer {
         self.input[start_position..self.position].iter().collect()
     }
 
-    fn read_float(&mut self) -> String {
-        let start_position = self.position;
-        while let Some(ch) = self.ch {
-            if ch.is_ascii_digit() || ch == '.' {
-                self.read_char();
-            } else {
-                break;
-            }
-        }
-        self.input[start_position..self.position].iter().collect()
-    }
 
     fn read_string(&mut self) -> String {
         self.read_char(); // Skip opening quote

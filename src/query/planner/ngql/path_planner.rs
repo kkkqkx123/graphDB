@@ -1,7 +1,6 @@
 //! PATH查询规划器
 //! 处理Nebula PATH查询的规划
 
-use crate::query::context::ast::common::{ExpressionProps, Over, Starts, StepClause};
 use crate::query::context::ast::{AstContext, PathContext};
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::common::{EdgeProp, TagProp};

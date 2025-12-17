@@ -36,10 +36,8 @@ impl CypherClausePlanner for YieldClausePlanner {
             }
         };
 
-        let mut plan = SubPlan::new(None, None);
-
-        // 处理聚合函数
-        if yield_clause_ctx.has_agg {
+        let mut plan = if yield_clause_ctx.has_agg {
+            // 处理聚合函数
             // 创建聚合节点
             let agg_node = Arc::new(SingleInputNode::new(
                 PlanNodeKind::Aggregate,
@@ -49,9 +47,10 @@ impl CypherClausePlanner for YieldClausePlanner {
             // TODO: 设置聚合相关的参数
             // 这里需要根据group_keys和group_items设置聚合逻辑
 
-            plan.root = Some(agg_node.clone());
-            plan.tail = Some(agg_node);
-        }
+            SubPlan::new(Some(agg_node.clone()), Some(agg_node))
+        } else {
+            SubPlan::new(None, None)
+        };
 
         // 处理投影（列选择）
         if yield_clause_ctx.need_gen_project {

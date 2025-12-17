@@ -317,29 +317,6 @@ impl PatternParser {
         }
     }
 
-    /// 解析范围模式
-    fn parse_range_pattern(&mut self) -> Result<EdgeRange, ParseError> {
-        self.expect_token(LexerToken::LBrace)?;
-
-        let min = if self.match_token(LexerToken::IntegerLiteral(0)) {
-            Some(self.parse_integer()? as usize)
-        } else {
-            None
-        };
-
-        self.expect_token(LexerToken::Comma)?;
-
-        let max = if self.match_token(LexerToken::IntegerLiteral(0)) {
-            Some(self.parse_integer()? as usize)
-        } else {
-            None
-        };
-
-        self.expect_token(LexerToken::RBrace)?;
-
-        Ok(EdgeRange::new(min, max))
-    }
-
     /// 辅助方法
 
     fn match_token(&mut self, expected: LexerToken) -> bool {

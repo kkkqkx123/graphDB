@@ -6,7 +6,7 @@ use crate::core::error::DBError;
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::cypher::context::CypherExecutionContext;
 use crate::query::executor::cypher::clauses::match_path::expression_evaluator::ExpressionEvaluator;
-use crate::query::parser::cypher::ast::patterns::{NodePattern, RelationshipPattern};
+use crate::query::parser::cypher::ast::patterns::NodePattern;
 use crate::storage::StorageEngine;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
