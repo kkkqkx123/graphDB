@@ -11,6 +11,7 @@ use std::sync::Arc;
 /// YIELD子句规划器
 /// 负责规划YIELD子句中的结果产出
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct YieldClausePlanner;
 
 impl YieldClausePlanner {

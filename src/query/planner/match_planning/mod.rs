@@ -7,20 +7,18 @@ pub mod paths;
 pub mod seeks;
 pub mod clauses;
 pub mod utils;
-pub mod match_planner_v2;
+pub mod match_planner;
 
 // 重新导出核心模块的主要类型
-pub use core::match_planner::MatchPlanner;
-pub use match_planner_v2::MatchPlannerV2;
+pub use match_planner::MatchPlanner;
 pub use core::cypher_clause_planner::CypherClausePlanner;
 pub use core::match_clause_planner::MatchClausePlanner;
 
 // 重新导出新的核心接口
-pub use core::cypher_clause_planner_v2::{
-    CypherClausePlanner as CypherClausePlannerV2, ClauseType, PlanningContext,
+pub use core::cypher_clause_planner::{
+    ClauseType, PlanningContext,
     FlowDirection, VariableRequirement, VariableProvider, VariableType, DataFlowValidator
 };
-pub use core::match_clause_planner_v2::MatchClausePlannerV2;
 
 // 重新导出路径模块的主要类型
 pub use paths::match_path_planner::MatchPathPlanner;
@@ -42,11 +40,6 @@ pub use clauses::order_by_planner::OrderByClausePlanner;
 pub use clauses::pagination_planner::PaginationPlanner;
 pub use clauses::unwind_planner::UnwindClausePlanner;
 pub use clauses::yield_planner::YieldClausePlanner;
-
-// 重新导出新的子句规划器
-pub use clauses::return_clause_planner_v2::ReturnClausePlannerV2;
-pub use clauses::where_clause_planner_v2::WhereClausePlannerV2;
-pub use clauses::with_clause_planner_v2::WithClausePlannerV2;
 
 // 重新导出辅助工具模块的主要类型
 pub use utils::finder::{Finder, FinderResult};

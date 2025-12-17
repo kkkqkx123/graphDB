@@ -12,6 +12,7 @@ use std::sync::Arc;
 /// 分页规划器
 /// 负责规划LIMIT和OFFSET子句
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct PaginationPlanner;
 
 impl PaginationPlanner {
@@ -52,7 +53,7 @@ impl PaginationPlanner {
     }
 }
 
-impl CypherClausePlanner for PaginationPlanner {
+impl crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner for PaginationPlanner {
     fn transform(&mut self, clause_ctx: &CypherClauseContext) -> Result<SubPlan, PlannerError> {
         if !matches!(clause_ctx.kind(), CypherClauseKind::Pagination) {
             return Err(PlannerError::InvalidAstContext(

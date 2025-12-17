@@ -4,11 +4,11 @@ use graphdb::query::planner::match_planning::core::{
     CypherClausePlanner, ClauseType, PlanningContext, DataFlowValidator, FlowDirection
 };
 use graphdb::query::planner::match_planning::clauses::{
-    ReturnClausePlannerV2, WhereClausePlannerV2, WithClausePlannerV2
+    ReturnClausePlanner, WhereClausePlanner, WithClausePlanner
 };
-use graphdb::query::planner::match_planning::MatchPlannerV2;
-use graphdb::query::planner::planner_v2::{
-    PlannerRegistry, SentenceKind, MatchAndInstantiate, SequentialPlannerV2
+use graphdb::query::planner::match_planning::MatchPlanner;
+use graphdb::query::planner::planner::{
+    PlannerRegistry, SentenceKind, MatchAndInstantiate, SequentialPlanner
 };
 use graphdb::query::planner::plan::SubPlan;
 use graphdb::query::context::ast::AstContext;
@@ -93,7 +93,7 @@ impl TestPlanner {
         Self { should_fail: true }
     }
     
-    fn make() -> Box<dyn graphdb::query::planner::planner_v2::Planner> {
+    fn make() -> Box<dyn graphdb::query::planner::planner::Planner> {
         Box::new(Self::new())
     }
     
@@ -102,7 +102,7 @@ impl TestPlanner {
     }
 }
 
-impl graphdb::query::planner::planner_v2::Planner for TestPlanner {
+impl graphdb::query::planner::planner::Planner for TestPlanner {
     fn transform(&mut self, _ast_ctx: &AstContext) -> Result<SubPlan, graphdb::query::planner::planner::PlannerError> {
         if self.should_fail {
             Err(graphdb::query::planner::planner::PlannerError::PlanGenerationFailed(
@@ -217,9 +217,9 @@ mod tests {
     }
     
     #[test]
-    fn test_sequential_planner_v2() {
-        let planner = SequentialPlannerV2::new();
-        assert!(SequentialPlannerV2::match_ast_ctx(&AstContext::new("test", "test")));
+    fn test_sequential_planner() {
+        let planner = SequentialPlanner::new();
+        assert!(SequentialPlanner::match_ast_ctx(&AstContext::new("test", "test")));
     }
     
     #[test]
@@ -242,8 +242,8 @@ mod tests {
     }
     
     #[test]
-    fn test_return_clause_planner_v2() {
-        let planner = ReturnClausePlannerV2::new();
+    fn test_return_clause_planner() {
+        let planner = ReturnClausePlanner::new();
         assert_eq!(planner.clause_type(), ClauseType::Output);
         assert!(!planner.can_start_flow());
         assert!(planner.requires_input());
@@ -275,8 +275,8 @@ mod tests {
     }
     
     #[test]
-    fn test_where_clause_planner_v2() {
-        let planner = WhereClausePlannerV2::new(false);
+    fn test_where_clause_planner() {
+        let planner = WhereClausePlanner::new(false);
         assert_eq!(planner.clause_type(), ClauseType::Transform);
         assert!(!planner.can_start_flow());
         assert!(planner.requires_input());
@@ -287,8 +287,8 @@ mod tests {
     }
     
     #[test]
-    fn test_with_clause_planner_v2() {
-        let planner = WithClausePlannerV2::new();
+    fn test_with_clause_planner() {
+        let planner = WithClausePlanner::new();
         assert_eq!(planner.clause_type(), ClauseType::Transform);
         assert!(!planner.can_start_flow());
         assert!(planner.requires_input());
@@ -299,8 +299,8 @@ mod tests {
     }
     
     #[test]
-    fn test_match_planner_v2() {
-        let planner = MatchPlannerV2::make();
+    fn test_match_planner() {
+        let planner = MatchPlanner::make();
         assert!(planner.match_planner(&AstContext::new("MATCH", "MATCH (n)")));
         assert!(!planner.match_planner(&AstContext::new("GO", "GO 1 TO 2")));
     }

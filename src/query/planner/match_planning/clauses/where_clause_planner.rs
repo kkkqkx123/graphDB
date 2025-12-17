@@ -1,8 +1,9 @@
-//! WHERE子句规划器
-//! 处理WHERE条件的规划
-//! 负责规划WHERE子句中的过滤条件
+//! 新的 WHERE子句规划器
+//! 实现新的 CypherClausePlanner 接口
 
-use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
+use crate::query::planner::match_planning::core::{
+    CypherClausePlanner, ClauseType, PlanningContext
+};
 use crate::query::planner::match_planning::paths::match_path_planner::MatchPathPlanner;
 use crate::query::planner::match_planning::utils::connector::SegmentsConnector;
 use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
@@ -10,8 +11,8 @@ use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 use std::sync::Arc;
 
-/// WHERE子句规划器
-/// 负责规划WHERE子句中的过滤条件
+/// 新的 WHERE子句规划器
+/// 实现新的 CypherClausePlanner 接口
 #[derive(Debug)]
 pub struct WhereClausePlanner {
     need_stable_filter: bool, // 是否需要稳定的过滤器（用于ORDER BY场景）
@@ -24,7 +25,21 @@ impl WhereClausePlanner {
 }
 
 impl CypherClausePlanner for WhereClausePlanner {
-    fn transform(&mut self, clause_ctx: &CypherClauseContext) -> Result<SubPlan, PlannerError> {
+    fn transform(
+        &self,
+        clause_ctx: &CypherClauseContext,
+        _input_plan: Option<&SubPlan>,
+        _context: &mut PlanningContext,
+    ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
+        // 验证输入
+        self.validate_input(_input_plan)?;
+        
+        // 确保有输入计划
+        let _input_plan = _input_plan.ok_or_else(|| {
+            PlannerError::missing_input("WHERE clause requires input".to_string())
+        })?;
+        
+        // 验证上下文类型
         if !matches!(clause_ctx.kind(), CypherClauseKind::Where) {
             return Err(PlannerError::InvalidAstContext(
                 "Not a valid context for WhereClausePlanner".to_string(),
@@ -60,8 +75,8 @@ impl CypherClausePlanner for WhereClausePlanner {
                     path.clone(),
                 );
 
-                let path_plan =
-                    path_planner.transform(None, &mut std::collections::HashSet::new())?;
+                // 暂时使用旧接口，因为 MatchPathPlanner 还没有更新
+                let path_plan = path_planner.transform(None, &mut std::collections::HashSet::new())?;
 
                 let connector = SegmentsConnector::new();
                 if path.is_pred {
@@ -79,7 +94,7 @@ impl CypherClausePlanner for WhereClausePlanner {
         };
 
         // 处理过滤条件
-        if let Some(_filter) = &where_clause_ctx.filter {
+        if let Some(filter) = &where_clause_ctx.filter {
             let mut where_plan = SubPlan::new(None, None);
 
             // 创建过滤器节点
@@ -88,8 +103,10 @@ impl CypherClausePlanner for WhereClausePlanner {
                 create_empty_node()?,
             ));
 
-            // TODO: 设置过滤条件表达式
+            // 设置过滤条件表达式
             // 这里需要根据filter表达式创建相应的计划节点
+            // TODO: 实现完整的过滤逻辑
+            let _ = filter; // 暂时避免未使用警告
 
             where_plan.root = Some(filter_node.clone());
             where_plan.tail = Some(filter_node);
@@ -103,6 +120,37 @@ impl CypherClausePlanner for WhereClausePlanner {
         }
 
         Ok(plan)
+    }
+    
+    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), crate::query::planner::planner::PlannerError> {
+        if input_plan.is_none() {
+            return Err(PlannerError::missing_input(
+                "WHERE clause requires input from previous clauses".to_string()
+            ));
+        }
+        Ok(())
+    }
+    
+    fn clause_type(&self) -> ClauseType {
+        ClauseType::Transform
+    }
+    
+    fn can_start_flow(&self) -> bool {
+        false  // WHERE 不能开始数据流
+    }
+    
+    fn requires_input(&self) -> bool {
+        true   // WHERE 需要输入
+    }
+    
+    fn input_requirements(&self) -> Vec<crate::query::planner::match_planning::core::VariableRequirement> {
+        // WHERE 子句需要输入数据，但不强制要求特定变量
+        vec![]
+    }
+    
+    fn output_provides(&self) -> Vec<crate::query::planner::match_planning::core::VariableProvider> {
+        // WHERE 子句不产生新的变量，只是过滤输入
+        vec![]
     }
 }
 
@@ -119,4 +167,41 @@ fn create_empty_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>,
         col_names: vec![],
         cost: 0.0,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::planner::match_planning::core::ClauseType;
+    
+    #[test]
+    fn test_where_clause_planner_interface() {
+        let planner = WhereClausePlanner::new(false);
+        assert_eq!(planner.clause_type(), ClauseType::Transform);
+        assert!(!planner.can_start_flow());
+        assert!(planner.requires_input());
+    }
+    
+    #[test]
+    fn test_where_clause_planner_validate_input() {
+        let planner = WhereClausePlanner::new(false);
+        
+        // 测试没有输入的情况
+        let result = planner.validate_input(None);
+        assert!(result.is_err());
+        
+        // 测试有输入的情况
+        let dummy_plan = SubPlan::new(None, None);
+        let result = planner.validate_input(Some(&dummy_plan));
+        assert!(result.is_ok());
+    }
+    
+    #[test]
+    fn test_where_clause_planner_stable_filter() {
+        let planner = WhereClausePlanner::new(true);
+        assert!(planner.need_stable_filter);
+        
+        let planner = WhereClausePlanner::new(false);
+        assert!(!planner.need_stable_filter);
+    }
 }

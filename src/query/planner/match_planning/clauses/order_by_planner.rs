@@ -12,6 +12,7 @@ use std::sync::Arc;
 /// ORDER BY子句规划器
 /// 负责规划ORDER BY子句中的排序操作
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct OrderByClausePlanner;
 
 impl OrderByClausePlanner {
@@ -56,7 +57,7 @@ impl OrderByClausePlanner {
     }
 }
 
-impl CypherClausePlanner for OrderByClausePlanner {
+impl crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner for OrderByClausePlanner {
     fn transform(&mut self, clause_ctx: &CypherClauseContext) -> Result<SubPlan, PlannerError> {
         if !matches!(clause_ctx.kind(), CypherClauseKind::OrderBy) {
             return Err(PlannerError::InvalidAstContext(

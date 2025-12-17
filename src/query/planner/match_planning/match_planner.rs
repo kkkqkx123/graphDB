@@ -3,24 +3,23 @@
 
 use crate::query::context::ast::AstContext;
 use crate::query::planner::match_planning::core::{
-    MatchClausePlannerV2, CypherClausePlanner, PlanningContext, DataFlowValidator
+    MatchClausePlanner, CypherClausePlanner, PlanningContext, DataFlowValidator
 };
 use crate::query::planner::match_planning::clauses::{
-    ReturnClausePlannerV2, WhereClausePlannerV2, WithClausePlannerV2
+    ReturnClausePlanner, WhereClausePlanner, WithClausePlanner
 };
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner_v2::{Planner, PlannerError};
-use crate::query::planner::planner::PlannerError as OldPlannerError;
+use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::validator::structs::CypherClauseContext;
 
 /// 新的 MATCH 规划器
 /// 使用新的子句规划器接口
 #[derive(Debug)]
-pub struct MatchPlannerV2 {
+pub struct MatchPlanner {
     query_context: AstContext,
 }
 
-impl MatchPlannerV2 {
+impl MatchPlanner {
     pub fn new(query_context: AstContext) -> Self {
         Self { query_context }
     }
@@ -54,7 +53,7 @@ impl MatchPlannerV2 {
     }
 }
 
-impl Planner for MatchPlannerV2 {
+impl Planner for MatchPlanner {
     fn transform(&mut self, _ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         // 解析查询子句
         let clauses = self.parse_clauses()?;
@@ -75,17 +74,17 @@ impl Planner for MatchPlannerV2 {
             match clause_ctx.kind() {
                 crate::query::validator::structs::CypherClauseKind::Match => {
                     if let CypherClauseContext::Match(match_ctx) = clause_ctx {
-                        clause_planners.push(Box::new(MatchClausePlannerV2::new(match_ctx.paths.clone())));
+                        clause_planners.push(Box::new(MatchClausePlanner::new(match_ctx.paths.clone())));
                     }
                 }
                 crate::query::validator::structs::CypherClauseKind::Where => {
-                    clause_planners.push(Box::new(WhereClausePlannerV2::new(false)));
+                    clause_planners.push(Box::new(WhereClausePlanner::new(false)));
                 }
                 crate::query::validator::structs::CypherClauseKind::With => {
-                    clause_planners.push(Box::new(WithClausePlannerV2::new()));
+                    clause_planners.push(Box::new(WithClausePlanner::new()));
                 }
                 crate::query::validator::structs::CypherClauseKind::Return => {
-                    clause_planners.push(Box::new(ReturnClausePlannerV2::new()));
+                    clause_planners.push(Box::new(ReturnClausePlanner::new()));
                 }
                 _ => {
                     return Err(PlannerError::UnsupportedOperation(
@@ -97,30 +96,14 @@ impl Planner for MatchPlannerV2 {
         
         // 验证查询的数据流
         let clause_planner_refs: Vec<&dyn CypherClausePlanner> = clause_planners.iter().map(|p| p.as_ref()).collect();
-        DataFlowValidator::validate_query_flow(&clause_planner_refs, &context).map_err(|e| {
-            // 转换错误类型
-            match e {
-                OldPlannerError::PlanGenerationFailed(msg) => PlannerError::PlanGenerationFailed(msg),
-                OldPlannerError::InvalidAstContext(msg) => PlannerError::InvalidAstContext(msg),
-                OldPlannerError::NoSuitablePlanner(msg) => PlannerError::NoSuitablePlanner(msg),
-                OldPlannerError::UnsupportedOperation(msg) => PlannerError::UnsupportedOperation(msg),
-            }
-        })?;
+        DataFlowValidator::validate_query_flow(&clause_planner_refs, &context)?;
         
         // 执行规划
         let mut current_plan: Option<SubPlan> = None;
         
         for (i, planner) in clause_planners.iter().enumerate() {
             let input_plan = current_plan.as_ref();
-            let plan = planner.transform(&clauses[i], input_plan, &mut context).map_err(|e| {
-                // 转换错误类型
-                match e {
-                    OldPlannerError::PlanGenerationFailed(msg) => PlannerError::PlanGenerationFailed(msg),
-                    OldPlannerError::InvalidAstContext(msg) => PlannerError::InvalidAstContext(msg),
-                    OldPlannerError::NoSuitablePlanner(msg) => PlannerError::NoSuitablePlanner(msg),
-                    OldPlannerError::UnsupportedOperation(msg) => PlannerError::UnsupportedOperation(msg),
-                }
-            })?;
+            let plan = planner.transform(&clauses[i], input_plan, &mut context)?;
             current_plan = Some(plan);
         }
         
@@ -142,23 +125,23 @@ mod tests {
     use crate::query::context::ast::AstContext;
     
     #[test]
-    fn test_match_planner_v2_creation() {
+    fn test_match_planner_creation() {
         let query_ctx = AstContext::new("MATCH", "MATCH (n)");
-        let planner = MatchPlannerV2::new(query_ctx);
+        let planner = MatchPlanner::new(query_ctx);
         assert_eq!(planner.query_context.statement_type(), "MATCH");
     }
     
     #[test]
-    fn test_match_planner_v2_make() {
-        let planner = MatchPlannerV2::make();
+    fn test_match_planner_make() {
+        let planner = MatchPlanner::make();
         assert!(planner.match_planner(&AstContext::new("MATCH", "MATCH (n)")));
         assert!(!planner.match_planner(&AstContext::new("GO", "GO 1 TO 2")));
     }
     
     #[test]
-    fn test_match_planner_v2_match_ast_ctx() {
-        assert!(MatchPlannerV2::match_ast_ctx(&AstContext::new("MATCH", "MATCH (n)")));
-        assert!(MatchPlannerV2::match_ast_ctx(&AstContext::new("match", "match (n)")));
-        assert!(!MatchPlannerV2::match_ast_ctx(&AstContext::new("GO", "GO 1 TO 2")));
+    fn test_match_planner_match_ast_ctx() {
+        assert!(MatchPlanner::match_ast_ctx(&AstContext::new("MATCH", "MATCH (n)")));
+        assert!(MatchPlanner::match_ast_ctx(&AstContext::new("match", "match (n)")));
+        assert!(!MatchPlanner::match_ast_ctx(&AstContext::new("GO", "GO 1 TO 2")));
     }
 }
