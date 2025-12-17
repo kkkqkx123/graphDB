@@ -228,14 +228,16 @@ impl<S: StorageEngine> MatchClauseExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::test_config::test_config;
     use crate::query::parser::cypher::ast::clauses::*;
     use crate::query::parser::cypher::ast::expressions::*;
     use crate::query::parser::cypher::ast::patterns::*;
 
     #[test]
     fn test_match_executor_creation() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db"))
                 .expect("failed to create storage"),
         ));
         let executor = MatchClauseExecutor::new(1, storage);
@@ -244,8 +246,9 @@ mod tests {
 
     #[test]
     fn test_set_limits() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db"))
                 .expect("failed to create storage"),
         ));
         let mut executor = MatchClauseExecutor::new(1, storage);
@@ -260,8 +263,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_match_empty_pattern() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db"))
                 .expect("failed to create storage"),
         ));
         let mut executor = MatchClauseExecutor::new(1, storage);
@@ -280,8 +284,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_match_simple_node_pattern() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db"))
                 .expect("failed to create storage"),
         ));
         let mut executor = MatchClauseExecutor::new(1, storage);
@@ -314,8 +319,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_match_with_where_clause() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db"))
                 .expect("failed to create storage"),
         ));
         let mut executor = MatchClauseExecutor::new(1, storage);
@@ -353,8 +359,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_match_with_false_where_clause() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db"))
                 .expect("failed to create storage"),
         ));
         let mut executor = MatchClauseExecutor::new(1, storage);
@@ -393,8 +400,9 @@ mod tests {
 
     #[test]
     fn test_reset_state() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db"))
                 .expect("failed to create storage"),
         ));
         let mut executor = MatchClauseExecutor::new(1, storage);
@@ -415,8 +423,9 @@ mod tests {
 
     #[test]
     fn test_analyze_paths() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db"))
                 .expect("failed to create storage"),
         ));
         let executor = MatchClauseExecutor::new(1, storage);

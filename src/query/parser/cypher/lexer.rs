@@ -305,27 +305,30 @@ mod tests {
     fn test_tokenize_simple_match() {
         let input = "MATCH (n:Person)".to_string();
         let mut lexer = CypherLexer::new(input);
-        
+
         let result = lexer.tokenize();
         assert!(result.is_ok());
-        
+
         let tokens = result.unwrap();
-        assert_eq!(tokens.len(), 5); // MATCH, (, n, :, Person, )
-        
+        assert_eq!(tokens.len(), 7); // MATCH, (, n, :, Person, ), EOF
+
         assert_eq!(tokens[0].token_type, TokenType::Keyword);
         assert_eq!(tokens[0].value, "MATCH");
-        
+
         assert_eq!(tokens[1].token_type, TokenType::Punctuation);
         assert_eq!(tokens[1].value, "(");
-        
+
         assert_eq!(tokens[2].token_type, TokenType::Identifier);
         assert_eq!(tokens[2].value, "n");
-        
+
         assert_eq!(tokens[3].token_type, TokenType::Punctuation);
         assert_eq!(tokens[3].value, ":");
-        
+
         assert_eq!(tokens[4].token_type, TokenType::Identifier);
         assert_eq!(tokens[4].value, "Person");
+
+        assert_eq!(tokens[5].token_type, TokenType::Punctuation);
+        assert_eq!(tokens[5].value, ")");
     }
 
     #[test]
@@ -365,19 +368,19 @@ mod tests {
     fn test_tokenize_operators() {
         let input = "= == != < <= > >= + - * /".to_string();
         let mut lexer = CypherLexer::new(input);
-        
+
         let result = lexer.tokenize();
         assert!(result.is_ok());
-        
+
         let tokens = result.unwrap();
-        assert_eq!(tokens.len(), 11); // 10个操作符 + EOF
-        
+        assert_eq!(tokens.len(), 12); // 11个操作符 + EOF
+
         assert_eq!(tokens[0].token_type, TokenType::Operator);
         assert_eq!(tokens[0].value, "=");
-        
+
         assert_eq!(tokens[1].token_type, TokenType::Operator);
         assert_eq!(tokens[1].value, "==");
-        
+
         assert_eq!(tokens[2].token_type, TokenType::Operator);
         assert_eq!(tokens[2].value, "!=");
     }
@@ -386,31 +389,31 @@ mod tests {
     fn test_tokenize_relationship_pattern() {
         let input = "(a)-[:FRIENDS_WITH]->(b)".to_string();
         let mut lexer = CypherLexer::new(input);
-        
+
         let result = lexer.tokenize();
         assert!(result.is_ok());
-        
+
         let tokens = result.unwrap();
-        assert_eq!(tokens.len(), 10); // (, a, ), -, [, :, FRIENDS_WITH, ], ->, (, b, )
-        
+        assert_eq!(tokens.len(), 13); // (, a, ), -, [, :, FRIENDS_WITH, ], ->, (, b, ), EOF
+
         assert_eq!(tokens[2].token_type, TokenType::Punctuation);
         assert_eq!(tokens[2].value, ")");
-        
+
         assert_eq!(tokens[3].token_type, TokenType::Operator);
         assert_eq!(tokens[3].value, "-");
-        
+
         assert_eq!(tokens[4].token_type, TokenType::Punctuation);
         assert_eq!(tokens[4].value, "[");
-        
+
         assert_eq!(tokens[5].token_type, TokenType::Punctuation);
         assert_eq!(tokens[5].value, ":");
-        
+
         assert_eq!(tokens[6].token_type, TokenType::Identifier);
         assert_eq!(tokens[6].value, "FRIENDS_WITH");
-        
+
         assert_eq!(tokens[7].token_type, TokenType::Punctuation);
         assert_eq!(tokens[7].value, "]");
-        
+
         assert_eq!(tokens[8].token_type, TokenType::Operator);
         assert_eq!(tokens[8].value, "->");
     }

@@ -129,12 +129,13 @@ impl CypherParserCore {
 
     /// 解析DELETE子句
     pub fn parse_delete_clause(&mut self) -> Result<DeleteClause, String> {
-        self.expect_keyword("DELETE")?;
-
+        // 检查是否是DETACH DELETE语句
         let detach = self.is_current_keyword("DETACH");
         if detach {
             self.consume_token(); // 消费 DETACH
         }
+
+        self.expect_keyword("DELETE")?; // 消费 DELETE
 
         let expressions = self.parse_expressions()?;
         Ok(DeleteClause {
@@ -333,34 +334,7 @@ impl CypherParserCore {
     pub fn parse_set_items(&mut self) -> Result<Vec<SetItem>, String> {
         let mut items = Vec::new();
 
-        let left = self.parse_expression_full()?;
-        self.skip_whitespace();
-
-        let operator = if self.is_current_token_value("+=") {
-            self.consume_token(); // 消费 '+='
-            SetOperator::Add
-        } else if self.is_current_token_value("-=") {
-            self.consume_token(); // 消费 '-='
-            SetOperator::Subtract
-        } else {
-            self.expect_token_value("=")?; // 消费 '='
-            SetOperator::Replace
-        };
-
-        self.skip_whitespace();
-        let right = self.parse_expression_full()?;
-
-        items.push(SetItem {
-            left,
-            operator,
-            right,
-        });
-
-        self.skip_whitespace();
-        while self.is_current_token_value(",") {
-            self.consume_token(); // 消费 ','
-            self.skip_whitespace();
-
+        loop {
             let left = self.parse_expression_full()?;
             self.skip_whitespace();
 
@@ -383,6 +357,13 @@ impl CypherParserCore {
                 operator,
                 right,
             });
+
+            self.skip_whitespace();
+            if !self.is_current_token_value(",") {
+                break;
+            }
+
+            self.consume_token(); // 消费 ','
             self.skip_whitespace();
         }
 

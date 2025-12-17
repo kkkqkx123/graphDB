@@ -168,8 +168,7 @@ impl CypherClausePlanner for OrderByClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::structs::OrderByClauseContext;
-    use crate::query::validator::structs::OrderFactor;
+    use crate::query::validator::structs::clause_structs::OrderByClauseContext;
     use std::collections::HashMap;
 
     #[test]

@@ -33,6 +33,7 @@ impl CypherParserCore {
             "RETURN" => self.parse_return_statement(),
             "CREATE" => self.parse_create_statement(),
             "DELETE" => self.parse_delete_statement(),
+            "DETACH" => self.parse_detach_statement(), // 处理DETACH DELETE语句
             "SET" => self.parse_set_statement(),
             "REMOVE" => self.parse_remove_statement(),
             "MERGE" => self.parse_merge_statement(),
@@ -40,6 +41,22 @@ impl CypherParserCore {
             "UNWIND" => self.parse_unwind_statement(),
             "CALL" => self.parse_call_statement(),
             _ => Err(format!("不支持的Cypher关键字: {}", keyword)),
+        }
+    }
+
+    /// 解析DETACH语句 (如 DETACH DELETE)
+    fn parse_detach_statement(&mut self) -> Result<CypherStatement, String> {
+        // 先读取DETACH关键字
+        self.expect_keyword("DETACH")?;
+
+        // 检查是否是DETACH DELETE语句
+        if self.is_current_keyword("DELETE") {
+            // 解析DETACH DELETE语句
+            let delete_clause = self.parse_delete_clause()?;
+            Ok(CypherStatement::Delete(delete_clause))
+        } else {
+            Err(format!("DETACH关键字后期望DELETE，但得到 '{}' 在位置 {}",
+                self.current_token().value, self.current_token().position))
         }
     }
 

@@ -225,16 +225,19 @@ mod tests {
     fn test_estimate_cost() {
         let node_info = create_test_node_info();
         let single_id_seeker = VertexSeek::new_fixed(node_info.clone(), vec!["1".to_string()]);
-        assert_eq!(single_id_seeker.estimate_cost(), 0.1);
+        assert!((single_id_seeker.estimate_cost() - 0.1).abs() < f64::EPSILON);
 
         let multi_id_seeker = VertexSeek::new_fixed(node_info.clone(), vec!["1".to_string(), "2".to_string(), "3".to_string()]);
-        assert_eq!(multi_id_seeker.estimate_cost(), 0.3);
+        // 使用近似比较处理浮点数精度问题
+        let expected_cost = 0.3;
+        let actual_cost = multi_id_seeker.estimate_cost();
+        assert!((actual_cost - expected_cost).abs() < 1e-10, "Expected {}, but got {}", expected_cost, actual_cost);
 
         let variable_seeker = VertexSeek::new_variable(
             node_info,
             Expression::Variable("x".to_string()),
         );
-        assert_eq!(variable_seeker.estimate_cost(), 5.0);
+        assert!((variable_seeker.estimate_cost() - 5.0).abs() < f64::EPSILON);
     }
 
     #[test]

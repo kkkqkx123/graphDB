@@ -307,12 +307,14 @@ impl<S: StorageEngine + Send + 'static> CypherExecutorTrait<S> for CypherExecuto
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::test_config::test_config;
     use crate::storage::NativeStorage;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_cypher_executor_creation() {
-        let storage = Arc::new(Mutex::new(NativeStorage::new("test_db").unwrap()));
+        let config = test_config();
+        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db")).unwrap()));
         let executor = CypherExecutor::new(1, storage);
 
         assert_eq!(executor.id(), 1);
@@ -322,7 +324,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_cypher_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(NativeStorage::new("test_db_lifecycle").unwrap()));
+        let config = test_config();
+        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db_lifecycle")).unwrap()));
         let mut executor = CypherExecutor::new(1, storage);
 
         // 测试打开
@@ -340,7 +343,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_cypher_executor_with_name() {
-        let storage = Arc::new(Mutex::new(NativeStorage::new("test_db_with_name").unwrap()));
+        let config = test_config();
+        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db_with_name")).unwrap()));
         let executor = CypherExecutor::with_name(2, "TestExecutor".to_string(), storage);
 
         assert_eq!(executor.id(), 2);

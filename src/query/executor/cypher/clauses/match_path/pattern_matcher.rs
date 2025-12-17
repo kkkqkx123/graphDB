@@ -183,14 +183,16 @@ impl<S: StorageEngine> PatternMatcher<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::test_config::test_config;
     use crate::core::vertex_edge_path::Tag;
     use crate::query::executor::cypher::context::{CypherExecutionContext, CypherVariable, CypherVariableType};
     use crate::query::parser::cypher::ast::expressions::*;
 
     #[test]
     fn test_filter_vertices_by_labels() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db").expect("Failed to create storage")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db")).expect("Failed to create storage")
         ));
         let matcher = PatternMatcher::new(storage);
         
@@ -229,8 +231,9 @@ mod tests {
 
     #[test]
     fn test_filter_edges_by_types() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db").expect("Failed to create storage")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db")).expect("Failed to create storage")
         ));
         let matcher = PatternMatcher::new(storage);
         
@@ -273,8 +276,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_filter_vertices_by_properties() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db").expect("Failed to create storage")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db")).expect("Failed to create storage")
         ));
         let mut matcher = PatternMatcher::new(storage);
         let mut context = CypherExecutionContext::new();
@@ -315,8 +319,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_filter_edges_by_properties() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db").expect("Failed to create storage")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db")).expect("Failed to create storage")
         ));
         let mut matcher = PatternMatcher::new(storage);
         let mut context = CypherExecutionContext::new();
@@ -359,8 +364,9 @@ mod tests {
 
     #[test]
     fn test_values_equal() {
+        let config = test_config();
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("test_db").expect("Failed to create storage")
+            crate::storage::native_storage::NativeStorage::new(config.test_db_path("test_db")).expect("Failed to create storage")
         ));
         let matcher = PatternMatcher::new(storage);
         

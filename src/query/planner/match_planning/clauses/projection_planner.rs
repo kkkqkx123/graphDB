@@ -47,14 +47,29 @@ impl ProjectionPlanner {
         // 首先处理YIELD子句（投影部分）
         let yield_planner = YieldClausePlanner::new();
         let yield_clause_ctx = CypherClauseContext::Yield(yield_clause.clone());
-        let mut plan = yield_planner.transform(&yield_clause_ctx, None, &mut context)?;
+        
+        // 创建空的输入计划用于YIELD子句
+        let empty_input_plan = SubPlan::new(None, None);
+        let mut plan = yield_planner.transform(&yield_clause_ctx, Some(&empty_input_plan), &mut context)?;
 
         // 处理ORDER BY子句
         if let Some(order_by) = order_by {
             let order_by_planner = OrderByClausePlanner::new();
             let order_by_clause_ctx = CypherClauseContext::OrderBy(order_by.clone());
+            
+            // 确保plan有有效的root节点
+            if plan.root.is_none() {
+                // 如果YIELD没有产生有效的计划，创建一个空的起始节点
+                let start_node = Arc::new(crate::query::planner::plan::SingleInputNode::new(
+                    crate::query::planner::plan::PlanNodeKind::Start,
+                    create_empty_node()?,
+                ));
+                plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
+            }
+            
             let order_plan = order_by_planner.transform(&order_by_clause_ctx, Some(&plan), &mut context)?;
 
+            // 使用现有的连接器
             let connector = SegmentsConnector::new();
             plan = connector.add_input(order_plan, plan, true);
         }
@@ -64,8 +79,20 @@ impl ProjectionPlanner {
             if pagination.skip != 0 || pagination.limit != i64::MAX {
                 let pagination_planner = PaginationPlanner::new();
                 let pagination_clause_ctx = CypherClauseContext::Pagination(pagination.clone());
+                
+                // 确保plan有有效的root节点
+                if plan.root.is_none() {
+                    // 如果前面的步骤没有产生有效的计划，创建一个空的起始节点
+                    let start_node = Arc::new(crate::query::planner::plan::SingleInputNode::new(
+                        crate::query::planner::plan::PlanNodeKind::Start,
+                        create_empty_node()?,
+                    ));
+                    plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
+                }
+                
                 let pagination_plan = pagination_planner.transform(&pagination_clause_ctx, Some(&plan), &mut context)?;
 
+                // 使用现有的连接器
                 let connector = SegmentsConnector::new();
                 plan = connector.add_input(pagination_plan, plan, true);
             }
@@ -75,8 +102,20 @@ impl ProjectionPlanner {
         if let Some(where_clause) = where_clause {
             let where_planner = WhereClausePlanner::new(need_stable_filter);
             let where_clause_ctx = CypherClauseContext::Where(where_clause.clone());
+            
+            // 确保plan有有效的root节点
+            if plan.root.is_none() {
+                // 如果前面的步骤没有产生有效的计划，创建一个空的起始节点
+                let start_node = Arc::new(crate::query::planner::plan::SingleInputNode::new(
+                    crate::query::planner::plan::PlanNodeKind::Start,
+                    create_empty_node()?,
+                ));
+                plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
+            }
+            
             let where_plan = where_planner.transform(&where_clause_ctx, Some(&plan), &mut context)?;
 
+            // 使用现有的连接器
             let connector = SegmentsConnector::new();
             plan = connector.add_input(where_plan, plan, true);
         }
@@ -91,12 +130,10 @@ impl ProjectionPlanner {
 
             // TODO: 设置去重键
 
+            let dedup_plan = SubPlan::new(Some(dedup_node.clone()), Some(dedup_node));
+            // 使用现有的连接器
             let connector = SegmentsConnector::new();
-            plan = connector.add_input(
-                SubPlan::new(Some(dedup_node.clone()), Some(dedup_node)),
-                plan,
-                true,
-            );
+            plan = connector.add_input(dedup_plan, plan, true);
         }
 
         Ok(plan)
@@ -262,6 +299,9 @@ mod tests {
         let pagination = Some(create_test_pagination());
 
         let result = planner.build_return_projection(&yield_clause, order_by.as_ref(), pagination.as_ref(), true);
+        if let Err(e) = &result {
+            println!("Error in test_build_return_projection: {:?}", e);
+        }
         assert!(result.is_ok());
     }
 
@@ -279,6 +319,9 @@ mod tests {
             pagination.as_ref(),
             where_clause.as_ref(),
         );
+        if let Err(e) = &result {
+            println!("Error in test_build_with_projection: {:?}", e);
+        }
         assert!(result.is_ok());
     }
 
@@ -352,6 +395,9 @@ mod tests {
             true,
         );
 
+        if let Err(e) = &result {
+            println!("Error in test_build_projection_plan_all_features: {:?}", e);
+        }
         assert!(result.is_ok());
     }
 
@@ -369,6 +415,9 @@ mod tests {
             false,
         );
 
+        if let Err(e) = &result {
+            println!("Error in test_build_projection_plan_yield_only: {:?}", e);
+        }
         assert!(result.is_ok());
     }
 }
