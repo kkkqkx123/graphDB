@@ -14,6 +14,7 @@ pub struct GetVerticesExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
     tags: Option<Vec<String>>,
+    limit: Option<usize>,
 }
 
 impl<S: StorageEngine> GetVerticesExecutor<S> {
@@ -22,11 +23,13 @@ impl<S: StorageEngine> GetVerticesExecutor<S> {
         storage: Arc<Mutex<S>>,
         vertex_ids: Option<Vec<Value>>,
         tags: Option<Vec<String>>,
+        limit: Option<usize>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetVerticesExecutor".to_string(), storage),
             vertex_ids,
             tags,
+            limit,
         }
     }
 }
@@ -36,6 +39,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let vertices = match &self.vertex_ids {
             Some(ids) => {
+                // 获取特定顶点ID的顶点
                 let mut result_vertices = Vec::new();
                 let storage = self.base.storage.lock().unwrap();
 
@@ -53,13 +57,53 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                             result_vertices.push(vertex.clone());
                         }
                     }
+                    
+                    // Apply limit if specified
+                    if let Some(limit) = self.limit {
+                        if result_vertices.len() >= limit {
+                            break;
+                        }
+                    }
                 }
                 result_vertices
             }
             None => {
-                // In a real implementation, this would scan all vertices
-                // For now return empty list
-                Vec::new()
+                // ScanVertices操作：扫描所有顶点
+                let storage = self.base.storage.lock().unwrap();
+                
+                // 根据标签过滤条件选择扫描方式
+                let all_vertices = match &self.tags {
+                    Some(tags) if tags.len() == 1 => {
+                        // 单个标签，使用标签扫描
+                        storage.scan_vertices_by_tag(&tags[0])?
+                    }
+                    Some(tags) if tags.len() > 1 => {
+                        // 多个标签，扫描所有顶点然后过滤
+                        let vertices = storage.scan_all_vertices()?;
+                        vertices.into_iter()
+                            .filter(|vertex| {
+                                tags.iter().any(|tag_name| {
+                                    vertex.tags.iter().any(|tag| tag.name == *tag_name)
+                                })
+                            })
+                            .collect()
+                    }
+                    Some(tags) if tags.is_empty() => {
+                        // 空标签列表，扫描所有顶点
+                        storage.scan_all_vertices()?
+                    }
+                    None => {
+                        // 无标签过滤，扫描所有顶点
+                        storage.scan_all_vertices()?
+                    }
+                };
+                
+                // 应用limit限制
+                if let Some(limit) = self.limit {
+                    all_vertices.into_iter().take(limit).collect()
+                } else {
+                    all_vertices
+                }
             }
         };
 

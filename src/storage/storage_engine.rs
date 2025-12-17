@@ -10,6 +10,11 @@ pub trait StorageEngine: Send + Sync {
     fn get_node(&self, id: &Value) -> Result<Option<Vertex>, StorageError>;
     fn update_node(&mut self, vertex: Vertex) -> Result<(), StorageError>;
     fn delete_node(&mut self, id: &Value) -> Result<(), StorageError>;
+    
+    /// 全表扫描所有顶点
+    fn scan_all_vertices(&self) -> Result<Vec<Vertex>, StorageError>;
+    /// 按标签扫描顶点
+    fn scan_vertices_by_tag(&self, tag: &str) -> Result<Vec<Vertex>, StorageError>;
 
     fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError>;
     fn get_edge(

@@ -754,6 +754,14 @@ mod tests {
             Ok(())
         }
 
+        fn scan_all_vertices(&self) -> Result<Vec<Vertex>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<Vertex>, StorageError> {
+            Ok(Vec::new())
+        }
+
         fn insert_edge(&mut self, _edge: Edge) -> Result<(), StorageError> {
             Ok(())
         }

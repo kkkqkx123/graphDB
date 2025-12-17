@@ -140,6 +140,8 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> Result<QueryResult, QueryError> {
         // 调用执行器工厂执行计划
-        self.executor_factory.execute_plan(query_context, plan).await
+        self.executor_factory
+            .execute_plan(query_context, plan)
+            .await
     }
 }

@@ -3,7 +3,6 @@
 //! 负责根据执行计划创建对应的执行器实例
 //! 基于nebula-graph的工厂模式设计
 
-use crate::graph::expression::Expression;
 use crate::query::executor::traits::Executor;
 use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 use crate::query::types::QueryError;
@@ -59,7 +58,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> BaseExecutorFactory<S> {
         self.register_creator(PlanNodeKind::Limit, Box::new(LimitCreator::<S> { _phantom: PhantomData }));
         self.register_creator(PlanNodeKind::Sort, Box::new(SortCreator::<S> { _phantom: PhantomData }));
         self.register_creator(PlanNodeKind::Aggregate, Box::new(AggregateCreator::<S> { _phantom: PhantomData }));
-        self.register_creator(PlanNodeKind::InnerJoin, Box::new(JoinCreator::<S> { _phantom: PhantomData }));
+        self.register_creator(PlanNodeKind::HashInnerJoin, Box::new(JoinCreator::<S> { _phantom: PhantomData }));
         self.register_creator(PlanNodeKind::Expand, Box::new(ExpandCreator::<S> { _phantom: PhantomData }));
         self.register_creator(PlanNodeKind::Start, Box::new(StartCreator::<S> { _phantom: PhantomData }));
         self.register_creator(PlanNodeKind::Unknown, Box::new(DefaultCreator::<S> { _phantom: PhantomData }));
@@ -122,18 +121,49 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for ScanVe
 
         let id = plan_node.id() as usize;
 
+        // 验证计划节点类型
+        if plan_node.kind() != PlanNodeKind::ScanVertices {
+            return Err(QueryError::ExecutionError(format!(
+                "期望ScanVertices计划节点，但得到{:?}",
+                plan_node.kind()
+            )));
+        }
+
         // 尝试从具体的ScanVertices计划节点中提取参数
-        let (vertex_ids, tag_filter) =
-            if let Some(_scan_node) = plan_node.as_any().downcast_ref::<ScanVertices>() {
-                // TODO: 这里需要解析顶点ID和标签过滤条件
-                // 暂时使用None
-                (None, None)
+        let (vertex_ids, tags, limit) =
+            if let Some(scan_node) = plan_node.as_any().downcast_ref::<ScanVertices>() {
+                // ScanVertices是全表扫描操作，vertex_ids应为None
+                let vertex_ids = None;
+                
+                // 处理标签过滤条件
+                // tag_filter可能是表达式字符串，需要解析为具体的标签列表
+                // 目前先简单处理，假设是逗号分隔的标签名称
+                let tags = scan_node.tag_filter.as_ref().map(|filter_str| {
+                    filter_str
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect::<Vec<String>>()
+                });
+                
+                // 处理limit参数，确保为正数
+                let limit = scan_node.limit.and_then(|l| {
+                    if l > 0 {
+                        Some(l as usize)
+                    } else {
+                        None // 忽略非正数的limit
+                    }
+                });
+                
+                (vertex_ids, tags, limit)
             } else {
-                // 如果不是具体的ScanVertices节点，使用默认值
-                (None, None)
+                // 类型转换失败，返回错误
+                return Err(QueryError::ExecutionError(
+                    "无法将计划节点转换为ScanVertices类型".to_string()
+                ));
             };
 
-        let executor = GetVerticesExecutor::new(id, storage, vertex_ids, tag_filter);
+        let executor = GetVerticesExecutor::new(id, storage, vertex_ids, tags, limit);
         Ok(Box::new(executor))
     }
 }
@@ -155,16 +185,15 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for ScanEd
         let id = plan_node.id() as usize;
 
         // 尝试从具体的ScanEdges计划节点中提取参数
-        let edge_filter = if let Some(_scan_node) = plan_node.as_any().downcast_ref::<ScanEdges>() {
-            // TODO: 这里需要解析边过滤条件
-            // 暂时使用None
-            None
+        let edge_type = if let Some(scan_node) = plan_node.as_any().downcast_ref::<ScanEdges>() {
+            // 解析边类型
+            Some(scan_node.edge_type.clone())
         } else {
             // 如果不是具体的ScanEdges节点，使用默认值
             None
         };
 
-        let executor = GetEdgesExecutor::new(id, storage, edge_filter);
+        let executor = GetEdgesExecutor::new(id, storage, edge_type);
         Ok(Box::new(executor))
     }
 }
@@ -183,15 +212,21 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Filter
         use crate::graph::expression::Expression;
         use crate::query::executor::data_processing::filter::FilterExecutor;
         use crate::query::planner::plan::operations::data_processing_ops::Filter;
+        use crate::query::parser::expressions::parse_expression_from_string;
 
         let id = plan_node.id() as usize;
 
         // 尝试从具体的Filter计划节点中提取条件
-        let condition = if let Some(_filter_node) = plan_node.as_any().downcast_ref::<Filter>() {
+        let condition = if let Some(filter_node) = plan_node.as_any().downcast_ref::<Filter>() {
             // 解析过滤条件字符串为表达式
-            // TODO: 这里需要实现表达式解析器
-            // 暂时使用简单的true表达式
-            Expression::literal(true)
+            match parse_expression_from_string(&filter_node.condition) {
+                Ok(expr) => expr,
+                Err(e) => {
+                    // 如果解析失败，记录错误并使用默认的true表达式
+                    eprintln!("解析过滤条件失败: {}, 使用默认条件", e);
+                    Expression::literal(true)
+                }
+            }
         } else {
             // 如果不是具体的Filter节点，使用默认条件
             Expression::literal(true)
@@ -213,25 +248,45 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Projec
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
+        use crate::graph::expression::Expression;
         use crate::query::executor::result_processing::projection::ProjectExecutor;
         use crate::query::executor::result_processing::projection::ProjectionColumn;
         use crate::query::planner::plan::operations::data_processing_ops::Project;
+        use crate::query::parser::expressions::parse_expression_from_string;
 
         let id = plan_node.id() as usize;
 
         // 尝试从具体的Project计划节点中提取投影表达式
         let columns = if let Some(project_node) = plan_node.as_any().downcast_ref::<Project>() {
             // 解析投影表达式字符串
-            // TODO: 这里需要实现表达式解析器
-            // 暂时根据yield_expr创建简单的投影列
             if project_node.yield_expr == "*" {
                 vec![ProjectionColumn::new("*".to_string(), Expression::literal("*"))]
             } else {
-                // 简单分割表达式，创建投影列
+                // 分割表达式，创建投影列
                 project_node
                     .yield_expr
                     .split(',')
-                    .map(|expr| ProjectionColumn::new(expr.trim().to_string(), Expression::variable(expr.trim().to_string())))
+                    .map(|expr_str| {
+                        let expr_str = expr_str.trim();
+                        // 尝试解析表达式
+                        let expr = match parse_expression_from_string(expr_str) {
+                            Ok(parsed_expr) => parsed_expr,
+                            Err(e) => {
+                                // 如果解析失败，记录错误并使用变量表达式
+                                eprintln!("解析投影表达式失败: {}, 使用变量表达式", e);
+                                Expression::variable(expr_str.to_string())
+                            }
+                        };
+                        
+                        // 提取别名（如果有）
+                        let alias = if let Some(as_pos) = expr_str.find(" AS ") {
+                            expr_str[..as_pos].trim().to_string()
+                        } else {
+                            expr_str.to_string()
+                        };
+                        
+                        ProjectionColumn::new(alias, expr)
+                    })
                     .collect()
             }
         } else {
@@ -287,6 +342,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for SortCr
         use crate::graph::expression::Expression;
         use crate::query::executor::data_processing::sort::{SortExecutor, SortKey, SortOrder};
         use crate::query::planner::plan::operations::sorting_ops::Sort;
+        use crate::query::parser::expressions::parse_expression_from_string;
 
         let id = plan_node.id() as usize;
 
@@ -298,8 +354,26 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for SortCr
                 .sort_items
                 .iter()
                 .map(|item| {
-                    // TODO: 这里需要解析排序方向，暂时默认为升序
-                    SortKey::new(Expression::variable(item.clone()), SortOrder::Asc)
+                    // 解析排序方向和表达式
+                    let (expr_str, order) = if let Some(asc_pos) = item.find(" ASC") {
+                        (item[..asc_pos].trim(), SortOrder::Asc)
+                    } else if let Some(desc_pos) = item.find(" DESC") {
+                        (item[..desc_pos].trim(), SortOrder::Desc)
+                    } else {
+                        // 默认为升序
+                        (item.as_str(), SortOrder::Asc)
+                    };
+
+                    // 尝试解析表达式
+                    let expr = match parse_expression_from_string(expr_str) {
+                        Ok(parsed_expr) => parsed_expr,
+                        Err(e) => {
+                            eprintln!("解析排序表达式失败: {}, 使用变量表达式", e);
+                            Expression::variable(expr_str.to_string())
+                        }
+                    };
+
+                    SortKey::new(expr, order)
                 })
                 .collect();
 
@@ -335,11 +409,10 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Aggreg
         let id = plan_node.id() as usize;
 
         // 尝试从具体的Aggregate计划节点中提取参数
-        let (group_keys, agg_funcs): (Vec<String>, Vec<String>) =
-            if let Some(_agg_node) = plan_node.as_any().downcast_ref::<Aggregate>() {
-                // TODO: 这里需要解析分组键和聚合函数
-                // 暂时使用空列表
-                (vec![], vec![])
+        let (_group_keys, _agg_funcs): (Vec<String>, Vec<String>) =
+            if let Some(agg_node) = plan_node.as_any().downcast_ref::<Aggregate>() {
+                // 解析分组键和聚合函数
+                (agg_node.group_keys.clone(), agg_node.agg_exprs.clone())
             } else {
                 // 如果不是具体的Aggregate节点，使用默认值
                 (vec![], vec![])
@@ -362,25 +435,46 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for JoinCr
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         use crate::query::executor::data_processing::join::inner_join::InnerJoinExecutor;
-        // use crate::query::planner::plan::operations::join_ops::Join;
-        // TODO: 修复 Join 导入问题
+        use crate::query::planner::plan::operations::join_ops::HashInnerJoin;
 
         let id = plan_node.id() as usize;
 
-        // 尝试从具体的Join计划节点中提取参数
+        // 尝试从具体的HashInnerJoin计划节点中提取参数
         let (left_var, right_var, left_keys, right_keys, output_cols) =
-            if let Some(_join_node) = plan_node.as_any().downcast_ref::<()>() {
-                // TODO: 这里需要解析连接条件
-                // 暂时使用默认值
-                (
-                    "left".to_string(),
-                    "right".to_string(),
-                    vec!["0".to_string()],
-                    vec!["0".to_string()],
-                    vec!["id".to_string(), "name".to_string()],
-                )
+            if let Some(join_node) = plan_node.as_any().downcast_ref::<HashInnerJoin>() {
+                // 从HashInnerJoin节点中提取连接参数
+                // 使用输出变量名作为左右表变量名
+                let left_var = if let Some(ref output_var) = join_node.output_var {
+                    format!("{}_left", output_var.name)
+                } else {
+                    "left".to_string()
+                };
+                
+                let right_var = if let Some(ref output_var) = join_node.output_var {
+                    format!("{}_right", output_var.name)
+                } else {
+                    "right".to_string()
+                };
+                
+                // 使用列名作为连接键
+                let left_keys = if !join_node.col_names.is_empty() {
+                    vec!["0".to_string()] // 使用第一列作为连接键
+                } else {
+                    vec!["0".to_string()]
+                };
+                
+                let right_keys = left_keys.clone();
+                
+                // 使用列名作为输出列
+                let output_cols = if !join_node.col_names.is_empty() {
+                    join_node.col_names.clone()
+                } else {
+                    vec!["id".to_string(), "name".to_string()]
+                };
+                
+                (left_var, right_var, left_keys, right_keys, output_cols)
             } else {
-                // 如果不是具体的Join节点，使用默认值
+                // 如果不是具体的HashInnerJoin节点，使用默认值
                 (
                     "left".to_string(),
                     "right".to_string(),
@@ -421,17 +515,34 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Expand
         let id = plan_node.id() as usize;
 
         // 尝试从具体的Expand计划节点中提取参数
-        let (direction, edge_types, vertex_filter) =
-            if let Some(_expand_node) = plan_node.as_any().downcast_ref::<Expand>() {
-                // TODO: 这里需要解析展开参数
-                // 暂时使用默认值
-                (EdgeDirection::Both, None, None)
+        let (direction, edge_types, max_depth) =
+            if let Some(expand_node) = plan_node.as_any().downcast_ref::<Expand>() {
+                // 解析展开参数
+                let direction = match expand_node.direction.as_str() {
+                    "IN" => EdgeDirection::In,
+                    "OUT" => EdgeDirection::Out,
+                    "BOTH" => EdgeDirection::Both,
+                    _ => {
+                        eprintln!("未知的方向: {}, 使用默认值Both", expand_node.direction);
+                        EdgeDirection::Both
+                    }
+                };
+                
+                let edge_types = if expand_node.edge_types.is_empty() {
+                    None
+                } else {
+                    Some(expand_node.edge_types.clone())
+                };
+                
+                let max_depth = expand_node.step_limit.map(|d| d as usize);
+                
+                (direction, edge_types, max_depth)
             } else {
                 // 如果不是具体的Expand节点，使用默认值
                 (EdgeDirection::Both, None, None)
             };
 
-        let executor = ExpandExecutor::new(id, storage, direction, edge_types, vertex_filter);
+        let executor = ExpandExecutor::new(id, storage, direction, edge_types, max_depth);
         Ok(Box::new(executor))
     }
 }
@@ -481,6 +592,7 @@ mod tests {
     use crate::storage::StorageEngine;
 
     // 模拟存储引擎用于测试
+    #[derive(Debug)]
     struct MockStorage;
 
     impl StorageEngine for MockStorage {
@@ -511,6 +623,14 @@ mod tests {
             _id: &crate::core::Value,
         ) -> Result<(), crate::storage::StorageError> {
             unimplemented!()
+        }
+
+        fn scan_all_vertices(&self) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+            Ok(Vec::new())
         }
 
         fn insert_edge(

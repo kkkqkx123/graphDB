@@ -73,6 +73,11 @@ pub trait StorageEngine: Send + Sync + std::fmt::Debug {
     fn update_node(&mut self, vertex: Vertex) -> Result<(), StorageError>;
     fn delete_node(&mut self, id: &Value) -> Result<(), StorageError>;
 
+    /// 全表扫描所有顶点
+    fn scan_all_vertices(&self) -> Result<Vec<Vertex>, StorageError>;
+    /// 按标签扫描顶点
+    fn scan_vertices_by_tag(&self, tag: &str) -> Result<Vec<Vertex>, StorageError>;
+
     fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError>;
     fn get_edge(
         &self,
@@ -283,6 +288,14 @@ mod tests {
 
         fn delete_node(&mut self, _id: &Value) -> Result<(), StorageError> {
             Ok(())
+        }
+
+        fn scan_all_vertices(&self) -> Result<Vec<Vertex>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<Vertex>, StorageError> {
+            Ok(Vec::new())
         }
 
         fn insert_edge(&mut self, _edge: Edge) -> Result<(), StorageError> {
