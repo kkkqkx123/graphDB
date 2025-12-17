@@ -2,6 +2,7 @@
 //! 包含Filter、Project、Unwind等数据处理相关的计划节点
 
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::match_planning::utils::join_params::JoinParams;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
         PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
@@ -632,6 +633,7 @@ pub struct RollUpApply {
     pub cost: f64,
     pub collect_exprs: Vec<String>,
     pub lambda_vars: Vec<String>,
+    pub join_params: Option<JoinParams>,
 }
 
 impl RollUpApply {
@@ -645,7 +647,13 @@ impl RollUpApply {
             cost: 0.0,
             collect_exprs,
             lambda_vars,
+            join_params: None,
         }
+    }
+
+    pub fn with_join_params(mut self, join_params: JoinParams) -> Self {
+        self.join_params = Some(join_params);
+        self
     }
 }
 
@@ -660,6 +668,7 @@ impl Clone for RollUpApply {
             cost: self.cost,
             collect_exprs: self.collect_exprs.clone(),
             lambda_vars: self.lambda_vars.clone(),
+            join_params: self.join_params.clone(),
         }
     }
 }
@@ -757,6 +766,7 @@ pub struct PatternApply {
     pub cost: f64,
     pub pattern: String,
     pub join_type: String,
+    pub join_params: Option<JoinParams>,
 }
 
 impl PatternApply {
@@ -770,7 +780,13 @@ impl PatternApply {
             cost: 0.0,
             pattern: pattern.to_string(),
             join_type: join_type.to_string(),
+            join_params: None,
         }
+    }
+
+    pub fn with_join_params(mut self, join_params: JoinParams) -> Self {
+        self.join_params = Some(join_params);
+        self
     }
 }
 
@@ -785,6 +801,7 @@ impl Clone for PatternApply {
             cost: self.cost,
             pattern: self.pattern.clone(),
             join_type: self.join_type.clone(),
+            join_params: self.join_params.clone(),
         }
     }
 }

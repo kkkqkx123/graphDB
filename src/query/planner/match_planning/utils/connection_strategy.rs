@@ -3,6 +3,7 @@
 
 use crate::query::context::ast::base::AstContext;
 use crate::query::parser::ast::expr::Expr;
+use crate::query::planner::match_planning::utils::join_params::{JoinAlgorithm, JoinParams};
 use crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable;
 use crate::query::planner::plan::{BinaryInputNode, PlanNodeKind, SubPlan};
 use crate::query::planner::planner::PlannerError;
@@ -39,86 +40,81 @@ impl std::fmt::Display for ConnectionType {
 }
 
 /// 连接参数
+/// 保持向后兼容的包装器，内部使用新的 JoinParams
 #[derive(Debug, Clone)]
 pub struct ConnectionParams {
     pub connection_type: ConnectionType,
-    pub intersected_aliases: HashSet<String>,
-    pub copy_col_names: bool,
-    pub join_keys: Option<Vec<Expr>>,
-    pub filter_condition: Option<Expr>,
+    pub join_params: JoinParams,
 }
 
 impl ConnectionParams {
     pub fn inner_join(intersected_aliases: HashSet<String>) -> Self {
         Self {
             connection_type: ConnectionType::InnerJoin,
-            intersected_aliases,
-            copy_col_names: false,
-            join_keys: None,
-            filter_condition: None,
+            join_params: JoinParams::inner_join(Vec::new(), intersected_aliases),
         }
     }
 
     pub fn left_join(intersected_aliases: HashSet<String>) -> Self {
         Self {
             connection_type: ConnectionType::LeftJoin,
-            intersected_aliases,
-            copy_col_names: false,
-            join_keys: None,
-            filter_condition: None,
+            join_params: JoinParams::left_join(Vec::new(), intersected_aliases),
         }
     }
 
     pub fn cartesian() -> Self {
         Self {
             connection_type: ConnectionType::Cartesian,
-            intersected_aliases: HashSet::new(),
-            copy_col_names: false,
-            join_keys: None,
-            filter_condition: None,
+            join_params: JoinParams::cartesian(),
         }
     }
 
     pub fn sequential(copy_col_names: bool) -> Self {
         Self {
             connection_type: ConnectionType::Sequential,
-            intersected_aliases: HashSet::new(),
-            copy_col_names,
-            join_keys: None,
-            filter_condition: None,
+            join_params: JoinParams::sequential(copy_col_names),
         }
     }
 
     pub fn pattern_apply(intersected_aliases: HashSet<String>) -> Self {
         Self {
             connection_type: ConnectionType::PatternApply,
-            intersected_aliases,
-            copy_col_names: false,
-            join_keys: None,
-            filter_condition: None,
+            join_params: JoinParams::pattern_apply(intersected_aliases),
         }
     }
 
     pub fn roll_up_apply(intersected_aliases: HashSet<String>) -> Self {
         Self {
             connection_type: ConnectionType::RollUpApply,
-            intersected_aliases,
-            copy_col_names: false,
-            join_keys: None,
-            filter_condition: None,
+            join_params: JoinParams::roll_up_apply(intersected_aliases, Vec::new(), Vec::new()),
         }
     }
 
     /// 设置连接键
     pub fn with_join_keys(mut self, join_keys: Vec<Expr>) -> Self {
-        self.join_keys = Some(join_keys);
+        self.join_params = self.join_params.with_join_keys(join_keys);
         self
     }
 
     /// 设置过滤条件
     pub fn with_filter_condition(mut self, filter_condition: Expr) -> Self {
-        self.filter_condition = Some(filter_condition);
+        self.join_params = self.join_params.with_filter_condition(filter_condition);
         self
+    }
+
+    /// 获取交集别名
+    pub fn intersected_aliases(&self) -> &HashSet<String> {
+        &self.join_params.intersected_aliases
+    }
+
+    /// 获取连接键
+    pub fn join_keys(&self) -> &Vec<Expr> {
+        &self.join_params.join_keys
+    }
+
+    /// 获取过滤条件
+    pub fn filter_condition(&self) -> &Option<Expr> {
+        &self.join_params.filter_condition
     }
 }
 
@@ -159,36 +155,17 @@ impl ConnectionStrategy for InnerJoinStrategy {
         let right_root = right.root.as_ref().unwrap();
 
         // 创建内连接节点
-        let join_node = Arc::new(BinaryInputNode::new(
-            PlanNodeKind::HashInnerJoin,
-            left_root.clone_plan_node(),
-            right_root.clone_plan_node(),
-        ));
+        let mut join_node =
+            crate::query::planner::plan::operations::join_ops::HashInnerJoin::new(0);
+        join_node.deps.push(left_root.clone_plan_node());
+        join_node.deps.push(right_root.clone_plan_node());
 
-        // 设置连接键
-        if let Some(join_keys) = &params.join_keys {
-            // 将连接键信息存储在节点的列名中，供执行器使用
-            let mut join_node_mut = join_node.as_ref().clone();
-            let mut col_names = vec![];
-
-            // 为每个连接键创建列名条目
-            for (i, key) in join_keys.iter().enumerate() {
-                col_names.push(format!("join_key_{}:{}", i, key.to_string()));
-            }
-
-            // 添加交集别名信息
-            for alias in &params.intersected_aliases {
-                col_names.push(format!("intersect_alias:{}", alias));
-            }
-
-            // 更新节点的列名
-            // 注意：这里需要根据实际的 PlanNode 实现来设置连接键
-            // 由于当前实现限制，我们只能将信息存储在列名中
-        }
+        // 设置连接参数
+        join_node.join_params = Some(params.join_params.clone());
 
         Ok(SubPlan::new(
-            Some(join_node.clone_plan_node()),
-            Some(join_node),
+            Some(Arc::new(join_node.clone())),
+            Some(Arc::new(join_node)),
         ))
     }
 
@@ -220,36 +197,16 @@ impl ConnectionStrategy for LeftJoinStrategy {
         let right_root = right.root.as_ref().unwrap();
 
         // 创建左连接节点
-        let join_node = Arc::new(BinaryInputNode::new(
-            PlanNodeKind::HashLeftJoin,
-            left_root.clone_plan_node(),
-            right_root.clone_plan_node(),
-        ));
+        let mut join_node = crate::query::planner::plan::operations::join_ops::HashLeftJoin::new(0);
+        join_node.deps.push(left_root.clone_plan_node());
+        join_node.deps.push(right_root.clone_plan_node());
 
-        // 设置连接键
-        if let Some(join_keys) = &params.join_keys {
-            // 将连接键信息存储在节点的列名中，供执行器使用
-            let mut join_node_mut = join_node.as_ref().clone();
-            let mut col_names = vec![];
-
-            // 为每个连接键创建列名条目
-            for (i, key) in join_keys.iter().enumerate() {
-                col_names.push(format!("left_join_key_{}:{}", i, key.to_string()));
-            }
-
-            // 添加交集别名信息
-            for alias in &params.intersected_aliases {
-                col_names.push(format!("intersect_alias:{}", alias));
-            }
-
-            // 更新节点的列名
-            // 注意：这里需要根据实际的 PlanNode 实现来设置连接键
-            // 由于当前实现限制，我们只能将信息存储在列名中
-        }
+        // 设置连接参数
+        join_node.join_params = Some(params.join_params.clone());
 
         Ok(SubPlan::new(
-            Some(join_node.clone_plan_node()),
-            Some(join_node),
+            Some(Arc::new(join_node.clone())),
+            Some(Arc::new(join_node)),
         ))
     }
 
@@ -268,7 +225,7 @@ impl ConnectionStrategy for CartesianStrategy {
         _qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        _params: &ConnectionParams,
+        params: &ConnectionParams,
     ) -> Result<SubPlan, PlannerError> {
         if left.root.is_none() || right.root.is_none() {
             return Ok(if left.root.is_some() {
@@ -282,15 +239,17 @@ impl ConnectionStrategy for CartesianStrategy {
         let right_root = right.root.as_ref().unwrap();
 
         // 创建笛卡尔积节点
-        let cartesian_node = Arc::new(BinaryInputNode::new(
-            PlanNodeKind::CartesianProduct,
-            left_root.clone_plan_node(),
-            right_root.clone_plan_node(),
-        ));
+        let mut cartesian_node =
+            crate::query::planner::plan::operations::join_ops::CrossJoin::new(0);
+        cartesian_node.deps.push(left_root.clone_plan_node());
+        cartesian_node.deps.push(right_root.clone_plan_node());
+
+        // 设置连接参数
+        cartesian_node.join_params = Some(params.join_params.clone());
 
         Ok(SubPlan::new(
-            Some(cartesian_node.clone_plan_node()),
-            Some(cartesian_node),
+            Some(Arc::new(cartesian_node.clone())),
+            Some(Arc::new(cartesian_node)),
         ))
     }
 
@@ -320,7 +279,13 @@ impl ConnectionStrategy for SequentialStrategy {
             (Some(_), Some(_)) => {
                 // 设置输入变量和列名
                 // 根据 copy_col_names 参数决定是否复制列名
-                let mut col_names = if params.copy_col_names {
+                let copy_col_names = params
+                    .join_params
+                    .as_sequential()
+                    .map(|p| p.copy_col_names)
+                    .unwrap_or(false);
+
+                let mut col_names = if copy_col_names {
                     // 复制左侧计划的列名
                     left.root
                         .as_ref()
@@ -372,30 +337,20 @@ impl ConnectionStrategy for PatternApplyStrategy {
         let right_root = right.root.as_ref().unwrap();
 
         // 创建模式应用节点
-        let pattern_apply_node = Arc::new(BinaryInputNode::new(
-            PlanNodeKind::PatternApply,
-            left_root.clone_plan_node(),
-            right_root.clone_plan_node(),
-        ));
+        let mut pattern_apply_node =
+            crate::query::planner::plan::operations::data_processing_ops::PatternApply::new(
+                0, "pattern", "apply",
+            );
+        pattern_apply_node.deps.push(left_root.clone_plan_node());
+        pattern_apply_node.deps.push(right_root.clone_plan_node());
 
-        // 设置模式应用相关的参数
-        // 将交集别名信息存储在节点的列名中，供执行器使用
-        let mut pattern_apply_node_mut = pattern_apply_node.as_ref().clone();
-        let mut col_names = vec![];
+        // 设置连接参数
+        pattern_apply_node.join_params = Some(params.join_params.clone());
 
-        // 添加交集别名信息
-        for alias in &params.intersected_aliases {
-            col_names.push(format!("pattern_alias:{}", alias));
-        }
-
-        // 添加模式应用类型标识
-        col_names.push("pattern_apply".to_string());
-
-        // 更新节点的列名
-        // 注意：这里需要根据实际的 PlanNode 实现来设置参数
-        // 由于当前实现限制，我们只能将信息存储在列名中
-
-        Ok(SubPlan::new(Some(pattern_apply_node), None))
+        Ok(SubPlan::new(
+            Some(Arc::new(pattern_apply_node.clone())),
+            Some(Arc::new(pattern_apply_node)),
+        ))
     }
 
     fn can_handle(&self, connection_type: &ConnectionType) -> bool {
@@ -427,30 +382,22 @@ impl ConnectionStrategy for RollUpApplyStrategy {
         let right_root = right.root.as_ref().unwrap();
 
         // 创建卷起应用节点
-        let roll_up_apply_node = Arc::new(BinaryInputNode::new(
-            PlanNodeKind::RollUpApply,
-            left_root.clone_plan_node(),
-            right_root.clone_plan_node(),
-        ));
+        let mut roll_up_apply_node =
+            crate::query::planner::plan::operations::data_processing_ops::RollUpApply::new(
+                0,
+                Vec::new(),
+                Vec::new(),
+            );
+        roll_up_apply_node.deps.push(left_root.clone_plan_node());
+        roll_up_apply_node.deps.push(right_root.clone_plan_node());
 
-        // 设置卷起应用相关的参数
-        // 将交集别名信息存储在节点的列名中，供执行器使用
-        let mut roll_up_apply_node_mut = roll_up_apply_node.as_ref().clone();
-        let mut col_names = vec![];
+        // 设置连接参数
+        roll_up_apply_node.join_params = Some(params.join_params.clone());
 
-        // 添加交集别名信息
-        for alias in &params.intersected_aliases {
-            col_names.push(format!("rollup_alias:{}", alias));
-        }
-
-        // 添加卷起应用类型标识
-        col_names.push("roll_up_apply".to_string());
-
-        // 更新节点的列名
-        // 注意：这里需要根据实际的 PlanNode 实现来设置参数
-        // 由于当前实现限制，我们只能将信息存储在列名中
-
-        Ok(SubPlan::new(Some(roll_up_apply_node), None))
+        Ok(SubPlan::new(
+            Some(Arc::new(roll_up_apply_node.clone())),
+            Some(Arc::new(roll_up_apply_node)),
+        ))
     }
 
     fn can_handle(&self, connection_type: &ConnectionType) -> bool {
@@ -617,13 +564,16 @@ mod tests {
 
         let params = ConnectionParams::inner_join(aliases.clone());
         assert_eq!(params.connection_type, ConnectionType::InnerJoin);
-        assert_eq!(params.intersected_aliases, aliases);
-        assert!(!params.copy_col_names);
-        assert!(params.join_keys.is_none());
-        assert!(params.filter_condition.is_none());
+        assert_eq!(params.intersected_aliases(), &aliases);
+        assert!(params.join_keys().is_empty());
+        assert!(params.filter_condition().is_none());
 
-        let params_with_keys = params.with_join_keys(vec![]);
-        assert!(params_with_keys.join_keys.is_some());
+        // 创建一个非空的连接键列表
+        use crate::query::parser::ast::expr::{Expr, VariableExpr};
+        use crate::query::parser::ast::types::Span;
+        let mock_expr = Expr::Variable(VariableExpr::new("test".to_string(), Span::default()));
+        let params_with_keys = params.with_join_keys(vec![mock_expr]);
+        assert!(!params_with_keys.join_keys().is_empty());
     }
 
     #[test]

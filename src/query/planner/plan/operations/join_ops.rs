@@ -2,6 +2,7 @@
 //! 包含HashJoin、CrossJoin等连接操作相关的计划节点
 
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::match_planning::utils::join_params::JoinParams;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
         PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
@@ -20,6 +21,7 @@ pub struct HashJoin {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
+    pub join_params: Option<JoinParams>,
 }
 
 impl HashJoin {
@@ -31,7 +33,13 @@ impl HashJoin {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            join_params: None,
         }
+    }
+
+    pub fn with_join_params(mut self, join_params: JoinParams) -> Self {
+        self.join_params = Some(join_params);
+        self
     }
 }
 
@@ -44,6 +52,7 @@ impl Clone for HashJoin {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
+            join_params: self.join_params.clone(),
         }
     }
 }
@@ -139,6 +148,7 @@ pub struct HashLeftJoin {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
+    pub join_params: Option<JoinParams>,
 }
 
 impl HashLeftJoin {
@@ -150,7 +160,13 @@ impl HashLeftJoin {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            join_params: None,
         }
+    }
+
+    pub fn with_join_params(mut self, join_params: JoinParams) -> Self {
+        self.join_params = Some(join_params);
+        self
     }
 }
 
@@ -163,6 +179,7 @@ impl Clone for HashLeftJoin {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
+            join_params: self.join_params.clone(),
         }
     }
 }
@@ -258,6 +275,7 @@ pub struct HashInnerJoin {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
+    pub join_params: Option<JoinParams>,
 }
 
 impl HashInnerJoin {
@@ -269,7 +287,13 @@ impl HashInnerJoin {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            join_params: None,
         }
+    }
+
+    pub fn with_join_params(mut self, join_params: JoinParams) -> Self {
+        self.join_params = Some(join_params);
+        self
     }
 }
 
@@ -282,6 +306,7 @@ impl Clone for HashInnerJoin {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
+            join_params: self.join_params.clone(),
         }
     }
 }
@@ -377,6 +402,7 @@ pub struct CrossJoin {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
+    pub join_params: Option<JoinParams>,
 }
 
 impl CrossJoin {
@@ -388,7 +414,13 @@ impl CrossJoin {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            join_params: None,
         }
+    }
+
+    pub fn with_join_params(mut self, join_params: JoinParams) -> Self {
+        self.join_params = Some(join_params);
+        self
     }
 }
 
@@ -401,6 +433,7 @@ impl Clone for CrossJoin {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
+            join_params: self.join_params.clone(),
         }
     }
 }
