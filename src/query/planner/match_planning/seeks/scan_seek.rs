@@ -1,8 +1,10 @@
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::PlanNodeKind;
 //! 扫描查找规划器
 //! 进行全表扫描操作的规划
 //! 负责规划全表扫描操作
 
-use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
 use std::sync::Arc;
@@ -22,9 +24,7 @@ impl ScanSeek {
     /// 构建扫描查找计划
     pub fn build_plan(&self) -> Result<SubPlan, PlannerError> {
         // 创建扫描顶点节点
-        let scan_vertices_node = Arc::new(SingleInputNode::new(
-            PlanNodeKind::ScanVertices,
-            create_start_node()?,
+        let scan_vertices_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
         ));
 
         // TODO: 设置扫描条件
@@ -51,14 +51,7 @@ impl ScanSeek {
 
 /// 创建起始节点
 fn create_start_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
-    use crate::query::planner::plan::SingleDependencyNode;
+    use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 
-    Ok(Arc::new(SingleDependencyNode {
-        id: -1,
-        kind: PlanNodeKind::Start,
-        dependencies: vec![],
-        output_var: None,
-        col_names: vec![],
-        cost: 0.0,
-    }))
+    Ok(PlanNodeFactory::create_start_node()?)
 }

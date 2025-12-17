@@ -1,5 +1,7 @@
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::PlanNodeKind;
 //! Go planner implementation for handling GO queries
-use super::plan::{ExecutionPlan, PlanNodeKind, SingleInputNode, SubPlan};
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
 use std::sync::Arc;
@@ -38,9 +40,7 @@ impl Planner for GoPlanner {
         }
 
         // Create a plan node for the go operation
-        let go_node = Arc::new(SingleInputNode::new(
-            PlanNodeKind::GetNeighbors, // Using GetNeighbors as a sample plan node for go queries
-            create_empty_node()?,
+        let go_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
         ));
 
         // Create the execution plan
@@ -57,14 +57,6 @@ impl Planner for GoPlanner {
 
 // Helper function to create an empty start node
 fn create_empty_node() -> Result<Arc<dyn super::plan::PlanNode>, PlannerError> {
-    use super::plan::{PlanNodeKind, SingleDependencyNode};
 
-    Ok(Arc::new(SingleDependencyNode {
-        id: -1,
-        kind: PlanNodeKind::Start,
-        dependencies: vec![],
-        output_var: None,
-        col_names: vec![],
-        cost: 0.0,
-    }))
+    Ok(PlanNodeFactory::create_start_node()?)
 }

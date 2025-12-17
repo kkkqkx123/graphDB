@@ -10,7 +10,7 @@ use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanne
 use crate::query::planner::match_planning::paths::match_path_planner::MatchPathPlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::{PlanNodeKind, SubPlan};
-use crate::query::planner::plan::core::{PlanNodeFactory, StartNode};
+use crate::query::planner::plan::core::nodes::{PlanNodeFactory, StartNode};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;

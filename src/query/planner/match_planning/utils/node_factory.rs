@@ -1,9 +1,10 @@
+use crate::query::planner::plan::PlanNodeKind;
 //! 节点工厂模块
 //! 提供统一的节点创建逻辑，消除重复代码
 
 use crate::query::planner::plan::{PlanNodeKind, PlanNode};
 use crate::query::planner::planner::PlannerError;
-use crate::query::planner::plan::SingleDependencyNode;
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use std::sync::Arc;
 
 /// 创建起始节点
@@ -11,27 +12,16 @@ use std::sync::Arc;
 /// 这是所有查找策略的公共起始节点创建函数
 /// 返回一个标准的起始节点，作为执行计划的根节点
 pub fn create_start_node() -> Result<Arc<dyn PlanNode>, PlannerError> {
-    Ok(Arc::new(SingleDependencyNode {
-        id: -1,
-        kind: PlanNodeKind::Start,
-        dependencies: vec![],
-        output_var: None,
-        col_names: vec![],
-        cost: 0.0,
-    }))
+    Ok(PlanNodeFactory::create_start_node()?)
 }
 
 /// 创建嵌套起始节点
 /// 
 /// 创建一个嵌套的起始节点结构，用于某些需要多层嵌套的场景
 pub fn create_nested_start_node() -> Result<Arc<dyn PlanNode>, PlannerError> {
-    use crate::query::planner::plan::SingleInputNode;
+    use crate::query::planner::plan::core::nodes::PlanNodeFactory;
     
-    Ok(Arc::new(SingleInputNode::new(
-        PlanNodeKind::Start,
-        Arc::new(SingleInputNode::new(
-            PlanNodeKind::Start,
-            create_start_node()?,
+    Ok(Arc::new(PlanNodeFactory::create_placeholder_node()??,
         )),
     )))
 }
@@ -40,14 +30,7 @@ pub fn create_nested_start_node() -> Result<Arc<dyn PlanNode>, PlannerError> {
 /// 
 /// 创建一个空的计划节点作为占位符
 pub fn create_empty_node() -> Result<Arc<dyn PlanNode>, PlannerError> {
-    Ok(Arc::new(SingleDependencyNode {
-        id: -1,
-        kind: PlanNodeKind::Start,
-        dependencies: vec![],
-        output_var: None,
-        col_names: vec![],
-        cost: 0.0,
-    }))
+    Ok(PlanNodeFactory::create_start_node()?)
 }
 
 #[cfg(test)]

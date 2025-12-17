@@ -1,3 +1,5 @@
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::PlanNodeKind;
 //! 新的 MATCH子句规划器
 //! 实现新的 CypherClausePlanner 接口
 
@@ -140,11 +142,7 @@ impl CypherClausePlanner for MatchClausePlanner {
 
             if limit_value != i64::MAX {
                 // 创建限制节点
-                let limit_node = crate::query::planner::plan::SingleInputNode::new(
-                    PlanNodeKind::Limit,
-                    plan.root.ok_or_else(|| {
-                        PlannerError::PlanGenerationFailed(
-                            "Cannot create limit node without root".to_string(),
+                let limit_node = crate::query::planner::plan::PlanNodeFactory::create_placeholder_node()?,
                         )
                     })?,
                 );

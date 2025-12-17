@@ -1,3 +1,5 @@
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::PlanNodeKind;
 //! 投影规划器
 //! 提供RETURN和WITH子句的公共逻辑
 //! 处理结果投影、排序、分页等公共功能
@@ -9,7 +11,7 @@ use super::where_clause_planner::WhereClausePlanner;
 use super::yield_planner::YieldClausePlanner;
 use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::match_planning::utils::node_factory::create_empty_node;
-use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
     clause_structs::{OrderByClauseContext, PaginationContext, WhereClauseContext, YieldClauseContext},
@@ -60,9 +62,7 @@ impl ProjectionPlanner {
             // 确保plan有有效的root节点
             if plan.root.is_none() {
                 // 如果YIELD没有产生有效的计划，创建一个空的起始节点
-                let start_node = Arc::new(crate::query::planner::plan::SingleInputNode::new(
-                    crate::query::planner::plan::PlanNodeKind::Start,
-                    create_empty_node()?,
+                let start_node = Arc::new(crate::query::planner::plan::PlanNodeFactory::create_placeholder_node()??,
                 ));
                 plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
             }
@@ -87,9 +87,7 @@ impl ProjectionPlanner {
                 // 确保plan有有效的root节点
                 if plan.root.is_none() {
                     // 如果前面的步骤没有产生有效的计划，创建一个空的起始节点
-                    let start_node = Arc::new(crate::query::planner::plan::SingleInputNode::new(
-                        crate::query::planner::plan::PlanNodeKind::Start,
-                        create_empty_node()?,
+                    let start_node = Arc::new(crate::query::planner::plan::PlanNodeFactory::create_placeholder_node()??,
                     ));
                     plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
                 }
@@ -114,9 +112,7 @@ impl ProjectionPlanner {
             // 确保plan有有效的root节点
             if plan.root.is_none() {
                 // 如果前面的步骤没有产生有效的计划，创建一个空的起始节点
-                let start_node = Arc::new(crate::query::planner::plan::SingleInputNode::new(
-                    crate::query::planner::plan::PlanNodeKind::Start,
-                    create_empty_node()?,
+                let start_node = Arc::new(crate::query::planner::plan::PlanNodeFactory::create_placeholder_node()??,
                 ));
                 plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
             }
@@ -135,9 +131,7 @@ impl ProjectionPlanner {
         // 处理去重（主要用于RETURN子句）
         if distinct {
             // 创建去重节点
-            let dedup_node = Arc::new(SingleInputNode::new(
-                PlanNodeKind::Dedup,
-                create_empty_node()?,
+            let dedup_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
             ));
 
             // TODO: 设置去重键

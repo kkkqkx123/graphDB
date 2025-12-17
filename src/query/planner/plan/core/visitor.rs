@@ -12,7 +12,7 @@ use crate::query::planner::plan::operations::{
     Aggregate, AppendVertices, Argument, ArgumentNode, CrossJoin, DataCollect, Dedup, Expand,
     ExpandAll, Filter, GetEdges, GetNeighbors, GetVertices, HashInnerJoin, HashJoin, HashLeftJoin,
     Limit, PatternApply, Project, RollUpApply, Sample, ScanEdges, ScanVertices, Sort, Start,
-    StartNode, TopN, Traverse, Union, Unwind,
+    TopN, Traverse, Union, Unwind,
 };
 use std::fmt;
 
@@ -267,10 +267,6 @@ pub trait PlanNodeVisitor: std::fmt::Debug {
         Ok(())
     }
     
-    /// 访问新的起始节点
-    fn visit_start_node(&mut self, _node: &StartNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
     
     /// 访问新的占位符节点
     fn visit_placeholder_node(&mut self, _node: &PlaceholderNode) -> Result<(), PlanNodeVisitError> {
@@ -512,9 +508,6 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
     
-    fn visit_start_node(&mut self, _node: &StartNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
     
     fn visit_placeholder_node(&mut self, _node: &PlaceholderNode) -> Result<(), PlanNodeVisitError> {
         Ok(())

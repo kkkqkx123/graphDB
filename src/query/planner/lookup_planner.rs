@@ -1,6 +1,8 @@
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::PlanNodeKind;
 //! Lookup planner implementation for handling LOOKUP queries in NebulaGraph
 
-use super::plan::{ExecutionPlan, PlanNodeKind, SingleInputNode, SubPlan};
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
 use std::sync::Arc;
@@ -36,9 +38,7 @@ impl Planner for LookupPlanner {
         }
 
         // Create a plan node for the lookup operation
-        let lookup_node = Arc::new(SingleInputNode::new(
-            PlanNodeKind::IndexScan, // Using IndexScan as the base node for lookup
-            create_empty_node()?,
+        let lookup_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
         ));
 
         // Create the execution plan
@@ -56,15 +56,7 @@ impl Planner for LookupPlanner {
 
 // Helper function to create an empty start node
 fn create_empty_node() -> Result<Arc<dyn super::plan::PlanNode>, PlannerError> {
-    use super::plan::{PlanNodeKind, SingleDependencyNode};
     use std::sync::Arc;
 
-    Ok(Arc::new(SingleDependencyNode {
-        id: -1,
-        kind: PlanNodeKind::Start,
-        dependencies: vec![],
-        output_var: None,
-        col_names: vec![],
-        cost: 0.0,
-    }))
+    Ok(PlanNodeFactory::create_start_node()?)
 }

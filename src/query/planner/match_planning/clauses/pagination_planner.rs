@@ -1,3 +1,5 @@
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::PlanNodeKind;
 //! 分页规划器
 //! 处理LIMIT和OFFSET子句的规划
 //! 负责规划LIMIT和OFFSET子句
@@ -7,7 +9,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::plan::core::PlanNodeMutable;
-use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use std::sync::Arc;
@@ -64,7 +66,7 @@ impl PaginationPlanner {
         })?;
 
         // 创建Limit节点
-        let limit_node = SingleInputNode::new(PlanNodeKind::Limit, input_root.clone());
+        let limit_node = PlanNodeFactory::create_placeholder_node()?);
 
         // 将skip和limit值存储在列名中，供执行器使用
         let col_names = vec![

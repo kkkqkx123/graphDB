@@ -1,0 +1,133 @@
+//! 起始节点实现
+//! 
+//! StartNode 用于表示执行计划的起始点
+
+use super::super::plan_node_kind::PlanNodeKind;
+use super::traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
+    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
+};
+use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+use crate::query::context::validate::types::Variable;
+use std::sync::Arc;
+
+/// 起始节点
+/// 
+/// 表示执行计划的起始点，没有输入依赖
+#[derive(Debug, Clone)]
+pub struct StartNode {
+    id: i64,
+    output_var: Option<Variable>,
+    col_names: Vec<String>,
+    cost: f64,
+}
+
+impl StartNode {
+    /// 创建新的起始节点
+    pub fn new() -> Self {
+        Self {
+            id: -1,
+            output_var: None,
+            col_names: vec![],
+            cost: 0.0,
+        }
+    }
+}
+
+impl PlanNodeIdentifiable for StartNode {
+    fn id(&self) -> i64 { self.id }
+    fn kind(&self) -> PlanNodeKind { PlanNodeKind::Start }
+}
+
+impl PlanNodeProperties for StartNode {
+    fn output_var(&self) -> &Option<Variable> { &self.output_var }
+    fn col_names(&self) -> &Vec<String> { &self.col_names }
+    fn cost(&self) -> f64 { self.cost }
+}
+
+impl PlanNodeDependencies for StartNode {
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] { &[] }
+    
+    fn replace_dependencies(&mut self, _deps: Vec<Arc<dyn PlanNode>>) {
+        // 起始节点不支持依赖，忽略
+    }
+    
+    fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
+        // 起始节点不支持依赖
+    }
+    
+    fn remove_dependency(&mut self, _id: i64) -> bool {
+        false
+    }
+    
+    fn clear_dependencies(&mut self) {
+        // 起始节点没有依赖，无需操作
+    }
+}
+
+impl PlanNodeMutable for StartNode {
+    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
+    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
+    fn set_cost(&mut self, cost: f64) { self.cost = cost; }
+}
+
+impl PlanNodeClonable for StartNode {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(Self {
+            id: self.id,
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        })
+    }
+}
+
+impl PlanNodeVisitable for StartNode {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.visit_start_node(self)?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for StartNode {
+    fn as_any(&self) -> &dyn std::any::Any { self }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_start_node_creation() {
+        let start_node = StartNode::new();
+        
+        assert_eq!(start_node.kind(), PlanNodeKind::Start);
+        assert_eq!(start_node.dependencies().len(), 0);
+        assert_eq!(start_node.col_names().len(), 0);
+        assert_eq!(start_node.cost(), 0.0);
+    }
+    
+    #[test]
+    fn test_start_node_dependencies() {
+        let start_node = StartNode::new();
+        
+        assert_eq!(start_node.dependency_count(), 0);
+        assert!(!start_node.has_dependency(1));
+        assert!(!start_node.has_dependency(2));
+    }
+    
+    #[test]
+    fn test_start_node_mutable() {
+        let mut start_node = StartNode::new();
+        
+        // 测试设置属性
+        start_node.set_cost(10.0);
+        assert_eq!(start_node.cost(), 10.0);
+        
+        start_node.set_col_names(vec!["test".to_string()]);
+        assert_eq!(start_node.col_names().len(), 1);
+        assert_eq!(start_node.col_names()[0], "test");
+    }
+}

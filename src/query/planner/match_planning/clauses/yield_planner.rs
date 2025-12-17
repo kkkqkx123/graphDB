@@ -1,3 +1,5 @@
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::PlanNodeKind;
 //! YIELD子句规划器
 //! 处理YIELD子句的规划
 //! 负责规划YIELD子句中的结果产出
@@ -10,7 +12,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
@@ -60,11 +62,7 @@ impl YieldClausePlanner {
         // 处理聚合函数
         if yield_clause_ctx.has_agg {
             // 创建聚合节点
-            let agg_node = Arc::new(SingleInputNode::new(
-                PlanNodeKind::Aggregate,
-                plan.root.ok_or_else(|| {
-                    PlannerError::PlanGenerationFailed(
-                        "YIELD clause requires input plan for aggregation".to_string()
+            let agg_node = Arc::new(PlanNodeFactory::create_placeholder_node()?
                     )
                 })?,
             ));
@@ -84,9 +82,7 @@ impl YieldClausePlanner {
                 )
             })?;
             
-            let project_node = Arc::new(SingleInputNode::new(
-                PlanNodeKind::Project,
-                input_root.clone(),
+            let project_node = Arc::new(PlanNodeFactory::create_placeholder_node()?,
             ));
 
             // TODO: 设置投影列
@@ -115,9 +111,7 @@ impl YieldClausePlanner {
                 )
             })?;
             
-            let dedup_node = Arc::new(SingleInputNode::new(
-                PlanNodeKind::Dedup,
-                input_root.clone(),
+            let dedup_node = Arc::new(PlanNodeFactory::create_placeholder_node()?,
             ));
 
             // TODO: 设置去重键

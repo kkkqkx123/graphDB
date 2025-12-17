@@ -1,3 +1,5 @@
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::PlanNodeKind;
 //! UNWIND 子句规划器
 //!
 //! 负责将 Cypher 查询中的 UNWIND 子句转换为执行计划。
@@ -46,7 +48,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
@@ -242,7 +244,7 @@ fn create_unwind_node(
     })?;
 
     // 创建 UNWIND 节点
-    let mut unwind_node = SingleInputNode::new(PlanNodeKind::Unwind, input_root.clone());
+    let mut unwind_node = PlanNodeFactory::create_placeholder_node()?);
 
     // 设置 UNWIND 节点的属性
     // 将表达式和别名信息存储在列名中，供执行器使用

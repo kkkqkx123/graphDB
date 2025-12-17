@@ -1,3 +1,5 @@
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::PlanNodeKind;
 //! 索引查找规划器
 //! 根据标签索引和属性索引进行查找
 //! 负责规划基于索引的查找操作，包括标签索引、属性索引和可变属性索引
@@ -6,7 +8,7 @@ use crate::graph::expression::Expression;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 use crate::query::planner::match_planning::utils::node_factory::create_start_node;
 use crate::query::planner::plan::core::{PlanNode, PlanNodeMutable};
-use crate::query::planner::plan::{PlanNodeKind, SingleInputNode, SubPlan};
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
 use std::sync::Arc;
@@ -96,9 +98,7 @@ impl IndexSeek {
         self.validate_conditions()?;
 
         // 创建索引扫描节点
-        let index_scan_node = Arc::new(SingleInputNode::new(
-            PlanNodeKind::IndexScan,
-            create_start_node()?,
+        let index_scan_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
         ));
 
         // 根据查找类型设置不同的参数
@@ -148,9 +148,7 @@ impl IndexSeek {
         // 处理节点过滤条件 - 创建独立的Filter节点而不是修改IndexScan
         if let Some(_filter) = &self.node_info.filter {
             // 创建Filter节点来处理过滤条件
-            let filter_node = Arc::new(SingleInputNode::new(
-                PlanNodeKind::Filter,
-                index_scan_node.clone(),
+            let filter_node = Arc::new(PlanNodeFactory::create_placeholder_node()?,
             ));
 
             // 设置Filter节点的输出变量
