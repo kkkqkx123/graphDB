@@ -73,8 +73,8 @@ impl PlanNodeIdentifiable for InnerJoinNode {
 }
 
 impl PlanNodeProperties for InnerJoinNode {
-    fn output_var(&self) -> &Option<Variable> { &self.output_var }
-    fn col_names(&self) -> &Vec<String> { &self.col_names }
+    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
+    fn col_names(&self) -> &[String] { &self.col_names }
     fn cost(&self) -> f64 { self.cost }
 }
 

@@ -62,7 +62,7 @@ impl OrderByClausePlanner {
         })?;
 
         // 创建排序节点，使用输入根节点作为输入
-        let sort_node = PlanNodeFactory::create_placeholder_node()?;
+        let mut sort_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 将排序因子信息存储在节点的列名中，以便执行阶段使用
         // 在实际执行时，排序逻辑会根据这些信息进行排序
@@ -78,10 +78,8 @@ impl OrderByClausePlanner {
             col_names.push(format!("sort_factor_{}_{}", idx, direction));
         }
 
-        // 创建新的排序节点并设置属性
-        let mut new_sort_node = sort_node.clone_plan_node();
-        new_sort_node.set_col_names(col_names);
-        let sort_node = new_sort_node;
+        // 设置列名
+        sort_node.set_col_names(col_names);
 
         // 创建新的子计划
         let mut subplan = input_plan.clone();

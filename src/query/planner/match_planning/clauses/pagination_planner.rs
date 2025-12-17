@@ -66,7 +66,7 @@ impl PaginationPlanner {
         })?;
 
         // 创建Limit节点
-        let limit_node = PlanNodeFactory::create_placeholder_node()?;
+        let mut limit_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 将skip和limit值存储在列名中，供执行器使用
         let col_names = vec![
@@ -74,10 +74,8 @@ impl PaginationPlanner {
             format!("limit_{}", pagination_ctx.limit),
         ];
 
-        // 创建新的Limit节点并设置属性
-        let mut new_limit_node = limit_node.clone_plan_node();
-        new_limit_node.set_col_names(col_names);
-        let limit_node = new_limit_node;
+        // 设置列名
+        limit_node.set_col_names(col_names);
 
         // 创建新的子计划
         let mut subplan = input_plan.clone();

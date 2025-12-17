@@ -66,11 +66,11 @@ impl PlanNodeIdentifiable for CreateNode {
 }
 
 impl PlanNodeProperties for CreateNode {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -180,11 +180,11 @@ impl PlanNodeIdentifiable for DropNode {
 }
 
 impl PlanNodeProperties for DropNode {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -319,11 +319,11 @@ impl PlanNodeIdentifiable for CreateSpace {
 }
 
 impl PlanNodeProperties for CreateSpace {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -438,11 +438,11 @@ impl PlanNodeIdentifiable for DescSpace {
 }
 
 impl PlanNodeProperties for DescSpace {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -548,11 +548,11 @@ impl PlanNodeIdentifiable for ShowCreateSpace {
 }
 
 impl PlanNodeProperties for ShowCreateSpace {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -655,11 +655,11 @@ impl PlanNodeIdentifiable for ShowSpaces {
 }
 
 impl PlanNodeProperties for ShowSpaces {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -765,11 +765,11 @@ impl PlanNodeIdentifiable for SwitchSpace {
 }
 
 impl PlanNodeProperties for SwitchSpace {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 

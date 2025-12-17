@@ -117,14 +117,23 @@ impl MatchPathPlanner {
                         },
                     ],
                 };
-                let edge_scan_node = PlanNodeFactory::create_placeholder_node()?;
-                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-                // 我们需要创建一个新的节点来设置属性
-                let mut new_edge_scan_node = (*edge_scan_node).clone();
-                new_edge_scan_node.set_output_var(variable);
-                new_edge_scan_node.set_col_names(vec!["src".to_string(), "dst".to_string()]);
-                let edge_scan_node = Arc::new(new_edge_scan_node);
-                let plan = SubPlan::new(Some(edge_scan_node.clone()), Some(edge_scan_node));
+                let mut edge_scan_node = PlanNodeFactory::create_placeholder_node()?;
+                let variable = Variable {
+                    name: var_name,
+                    columns: vec![
+                        crate::query::context::validate::types::Column {
+                            name: "src".to_string(),
+                            type_: "Vertex".to_string(),
+                        },
+                        crate::query::context::validate::types::Column {
+                            name: "dst".to_string(),
+                            type_: "Vertex".to_string(),
+                        },
+                    ],
+                };
+                edge_scan_node.set_output_var(variable);
+                edge_scan_node.set_col_names(vec!["src".to_string(), "dst".to_string()]);
+                let plan = SubPlan::new(Some(edge_scan_node.clone_plan_node()), Some(edge_scan_node));
                 return Ok((i, true, plan));
             }
         }
@@ -190,8 +199,8 @@ impl MatchPathPlanner {
             let dst = &node_infos[i + 1];
             let edge = &edge_infos[i];
 
-            // 创建遍历节点
-            let traverse_node = PlanNodeFactory::create_placeholder_node()?;
+            // 创建新的遍历节点
+            let mut traverse_node = PlanNodeFactory::create_placeholder_node()?;
 
             // 设置遍历参数
             let var_name = format!("traverse_{}_{}", node.alias, dst.alias);
@@ -208,6 +217,7 @@ impl MatchPathPlanner {
                     },
                 ],
             };
+            traverse_node.set_output_var(variable);
 
             // 设置列名
             let mut col_names = if let Some(root) = &subplan.root {
@@ -217,6 +227,7 @@ impl MatchPathPlanner {
             };
             col_names.push(dst.alias.clone());
             col_names.push(edge.alias.clone());
+            traverse_node.set_col_names(col_names);
 
             // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
             if let Some(_filter) = &node.filter {
@@ -276,8 +287,8 @@ impl MatchPathPlanner {
             let dst = &node_infos[i - 1];
             let edge = &edge_infos[i - 1];
 
-            // 创建遍历节点
-            let traverse_node = PlanNodeFactory::create_placeholder_node()?;
+            // 创建新的遍历节点
+            let mut traverse_node = PlanNodeFactory::create_placeholder_node()?;
 
             // 设置遍历参数
             let var_name = format!("traverse_{}_{}", node.alias, dst.alias);
@@ -294,6 +305,7 @@ impl MatchPathPlanner {
                     },
                 ],
             };
+            traverse_node.set_output_var(variable);
 
             // 设置列名
             let mut col_names = if let Some(root) = &subplan.root {
@@ -303,6 +315,7 @@ impl MatchPathPlanner {
             };
             col_names.push(dst.alias.clone());
             col_names.push(edge.alias.clone());
+            traverse_node.set_col_names(col_names);
 
             // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
             if let Some(_filter) = &node.filter {

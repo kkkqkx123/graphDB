@@ -69,11 +69,11 @@ impl PlanNodeIdentifiable for CreateTag {
 }
 
 impl PlanNodeProperties for CreateTag {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -185,11 +185,11 @@ impl PlanNodeIdentifiable for DescTag {
 }
 
 impl PlanNodeProperties for DescTag {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 

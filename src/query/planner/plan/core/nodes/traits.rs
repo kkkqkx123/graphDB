@@ -33,6 +33,9 @@ pub trait PlanNodeDependencies {
     /// 获取节点的依赖节点列表
     fn dependencies(&self) -> &[Arc<dyn PlanNode>];
 
+    /// 获取依赖节点的可变引用列表
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>>;
+
     /// 获取依赖节点的数量
     fn dependency_count(&self) -> usize {
         self.dependencies().len()
@@ -45,6 +48,9 @@ pub trait PlanNodeDependencies {
 
     /// 添加依赖节点（主要用于构建阶段）
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>);
+
+    /// 移除指定ID的依赖节点
+    fn remove_dependency(&mut self, id: i64) -> bool;
 }
 
 /// 可变性 trait - 提供节点的可变操作

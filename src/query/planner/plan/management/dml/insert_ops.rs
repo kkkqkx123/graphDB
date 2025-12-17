@@ -77,11 +77,11 @@ impl PlanNodeIdentifiable for InsertVertices {
 }
 
 impl PlanNodeProperties for InsertVertices {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -203,11 +203,11 @@ impl PlanNodeIdentifiable for InsertEdges {
 }
 
 impl PlanNodeProperties for InsertEdges {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 

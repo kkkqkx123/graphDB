@@ -81,11 +81,11 @@ impl PlanNodeIdentifiable for UpdateVertex {
 }
 
 impl PlanNodeProperties for UpdateVertex {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -211,11 +211,11 @@ impl PlanNodeIdentifiable for UpdateEdge {
 }
 
 impl PlanNodeProperties for UpdateEdge {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 

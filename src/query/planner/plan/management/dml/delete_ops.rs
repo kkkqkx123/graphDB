@@ -68,11 +68,11 @@ impl PlanNodeIdentifiable for DeleteVertices {
 }
 
 impl PlanNodeProperties for DeleteVertices {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -194,11 +194,11 @@ impl PlanNodeIdentifiable for DeleteEdges {
 }
 
 impl PlanNodeProperties for DeleteEdges {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -308,11 +308,11 @@ impl PlanNodeIdentifiable for DeleteTags {
 }
 
 impl PlanNodeProperties for DeleteTags {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 

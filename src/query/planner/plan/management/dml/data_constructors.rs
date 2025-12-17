@@ -65,11 +65,11 @@ impl PlanNodeIdentifiable for NewVertex {
 }
 
 impl PlanNodeProperties for NewVertex {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -179,11 +179,11 @@ impl PlanNodeIdentifiable for NewTag {
 }
 
 impl PlanNodeProperties for NewTag {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -293,11 +293,11 @@ impl PlanNodeIdentifiable for NewProp {
 }
 
 impl PlanNodeProperties for NewProp {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -407,11 +407,11 @@ impl PlanNodeIdentifiable for NewEdge {
 }
 
 impl PlanNodeProperties for NewEdge {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 

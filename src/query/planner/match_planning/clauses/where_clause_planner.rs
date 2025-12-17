@@ -250,7 +250,7 @@ fn convert_expression_to_expr(expr: &crate::graph::expression::Expression) -> Ex
                 crate::graph::expression::expression::LiteralValue::Int(i) => Value::Int(*i),
                 crate::graph::expression::expression::LiteralValue::Float(f) => Value::Float(*f),
                 crate::graph::expression::expression::LiteralValue::Bool(b) => Value::Bool(*b),
-                crate::graph::expression::expression::LiteralValue::Null => Value::Null,
+                crate::graph::expression::expression::LiteralValue::Null => Value::Null(crate::core::NullType::Null),
             };
             Expr::Constant(ConstantExpr::new(const_val, Span::default()))
         }
