@@ -22,7 +22,7 @@ pub use base::{
 };
 
 // Re-export factory types
-pub use factory::{ExecutorFactory, ExecutorCreator};
+pub use factory::{BaseExecutorFactory, ExecutorCreator};
 
 // Re-export Cypher executor types
 pub use cypher::{

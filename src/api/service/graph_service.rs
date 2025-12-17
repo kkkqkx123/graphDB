@@ -2,11 +2,11 @@ use crate::api::service::QueryEngine;
 use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
 use crate::storage::NativeStorage;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub struct GraphService {
     session_manager: Arc<GraphSessionManager>,
-    query_engine: Arc<QueryEngine>,
+    query_engine: Arc<Mutex<QueryEngine>>,
     #[allow(dead_code)]
     config: Config,
 }
@@ -14,7 +14,7 @@ pub struct GraphService {
 impl GraphService {
     pub fn new(config: Config, storage: Arc<NativeStorage>) -> Arc<Self> {
         let session_manager = GraphSessionManager::new(format!("{}:{}", config.host, config.port));
-        let query_engine = QueryEngine::new(storage);
+        let query_engine = Arc::new(Mutex::new(QueryEngine::new(storage)));
 
         Arc::new(Self {
             session_manager,
@@ -54,7 +54,7 @@ impl GraphService {
         };
 
         // Execute the query
-        let response = self.query_engine.execute(request_context).await;
+        let response = self.query_engine.lock().unwrap().execute(request_context).await;
 
         match response.result {
             Ok(result) => Ok(result),
@@ -66,7 +66,7 @@ impl GraphService {
         &self.session_manager
     }
 
-    pub fn get_query_engine(&self) -> &QueryEngine {
+    pub fn get_query_engine(&self) -> &Mutex<QueryEngine> {
         &self.query_engine
     }
 }

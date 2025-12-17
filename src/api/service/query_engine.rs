@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::api::session::ClientSession;
-use crate::query::{ExecutorFactory, QueryPipelineManager};
+use crate::query::QueryPipelineManager;
 use crate::storage::NativeStorage;
 
 #[derive(Debug)]
@@ -24,22 +24,21 @@ pub struct AuthResponse {
     pub result: Result<(), String>,
 }
 
-#[derive(Debug)]
 pub struct QueryEngine {
     storage: Arc<Mutex<NativeStorage>>,
     pipeline_manager: QueryPipelineManager<NativeStorage>,
 }
 
 impl QueryEngine {
-    pub fn new(storage: Arc<NativeStorage>) -> Arc<Self> {
+    pub fn new(storage: Arc<NativeStorage>) -> Self {
         let storage_clone = Arc::new(Mutex::new((*storage).clone()));
-        Arc::new(Self {
+        Self {
             storage: Arc::clone(&storage_clone),
             pipeline_manager: QueryPipelineManager::new(storage_clone),
-        })
+        }
     }
 
-    pub async fn execute(&self, rctx: RequestContext) -> ExecutionResponse {
+    pub async fn execute(&mut self, rctx: RequestContext) -> ExecutionResponse {
         let start_time = std::time::Instant::now();
 
         // 使用新的查询管道管理器执行查询
@@ -105,7 +104,7 @@ mod tests {
         };
 
         let storage = Arc::new(NativeStorage::new(&config.storage_path).unwrap());
-        let query_engine = QueryEngine::new(storage);
+        let mut query_engine = QueryEngine::new(storage);
 
         // Create a dummy session
         let session = Session {

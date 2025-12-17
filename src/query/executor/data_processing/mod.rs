@@ -50,18 +50,18 @@ pub use transformations::{
 };
 
 // 聚合操作执行器
-mod aggregation;
+pub mod aggregation;
 pub use aggregation::{
     AggregateExecutor, AggregateState as SingleAggregateState, GroupAggregateState,
     GroupByExecutor, HavingExecutor,
 };
 
 // 排序操作执行器
-mod sort;
+pub mod sort;
 pub use sort::{SortExecutor, SortKey, SortOrder};
 
 // 分页和限制操作执行器
-mod pagination;
+pub mod pagination;
 pub use pagination::LimitExecutor;
 
 // 循环控制
