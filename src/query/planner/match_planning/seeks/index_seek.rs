@@ -1,8 +1,8 @@
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::PlanNodeKind;
-//! 索引查找规划器
-//! 根据标签索引和属性索引进行查找
-//! 负责规划基于索引的查找操作，包括标签索引、属性索引和可变属性索引
+/// 索引查找规划器
+/// 根据标签索引和属性索引进行查找
+/// 负责规划基于索引的查找操作，包括标签索引、属性索引和可变属性索引
 
 use crate::graph::expression::Expression;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
@@ -98,8 +98,7 @@ impl IndexSeek {
         self.validate_conditions()?;
 
         // 创建索引扫描节点
-        let index_scan_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
-        ));
+        let index_scan_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 根据查找类型设置不同的参数
         let (label_id, label_name) = self.get_primary_label_info()?;
@@ -115,19 +114,12 @@ impl IndexSeek {
             }],
         };
 
-        // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-        // 我们需要创建一个新的节点来设置属性
-        let mut new_index_scan_node = (*index_scan_node).clone();
-        new_index_scan_node.set_output_var(variable);
-        new_index_scan_node.set_col_names(vec!["vid".to_string()]);
-        let index_scan_node = Arc::new(new_index_scan_node);
-
-        // 构建索引元数据用于执行器
+        // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
         let mut metadata =
             IndexScanMetadata::new(vec![label_id], vec![label_name.clone()], vec![index_id]);
 
         // 处理节点属性过滤
-        let mut root: Arc<dyn PlanNode> = index_scan_node.clone();
+        let mut root: Arc<dyn PlanNode> = index_scan_node.clone_plan_node();
         if let Some(props) = &self.node_info.props {
             metadata.set_property_filter(props.clone());
         }
@@ -148,8 +140,7 @@ impl IndexSeek {
         // 处理节点过滤条件 - 创建独立的Filter节点而不是修改IndexScan
         if let Some(_filter) = &self.node_info.filter {
             // 创建Filter节点来处理过滤条件
-            let filter_node = Arc::new(PlanNodeFactory::create_placeholder_node()?,
-            ));
+            let filter_node = PlanNodeFactory::create_placeholder_node()?;
 
             // 设置Filter节点的输出变量
             let filter_var_name = format!("filtered_{}", label_name);
@@ -161,19 +152,13 @@ impl IndexSeek {
                 }],
             };
 
-            // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-            // 我们需要创建一个新的节点来设置属性
-            let mut new_filter_node = (*filter_node).clone();
-            new_filter_node.set_output_var(filter_variable);
-            new_filter_node.set_col_names(vec!["vid".to_string()]);
-            let filter_node = Arc::new(new_filter_node);
-
-            root = filter_node;
+            // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
+            root = filter_node.clone_plan_node();
         }
 
         // 对于索引查找，tail应该是IndexScan节点
         // root可能是Filter节点（如果有过滤条件）或IndexScan节点
-        let tail = index_scan_node.clone();
+        let tail = index_scan_node.clone_plan_node();
         Ok(SubPlan::new(Some(root), Some(tail)))
     }
 

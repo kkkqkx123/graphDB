@@ -1,9 +1,9 @@
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
-//! Go planner implementation for handling GO queries
+/// Go planner implementation for handling GO queries
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::PlanNodeKind;
+use crate::query::planner::plan::SubPlan;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -40,14 +40,10 @@ impl Planner for GoPlanner {
         }
 
         // Create a plan node for the go operation
-        let go_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
-        ));
+        let go_node = PlanNodeFactory::create_placeholder_node()?;
 
-        // Create the execution plan
-        let execution_plan = ExecutionPlan::new(Some(go_node));
-
-        // For now, just return a subplan with the execution plan
-        Ok(SubPlan::new(Some(execution_plan.root.unwrap()), None))
+        // For now, just return a subplan with the go node
+        Ok(SubPlan::new(Some(go_node.clone_plan_node()), Some(go_node)))
     }
 
     fn match_planner(&self, ast_ctx: &AstContext) -> bool {
@@ -57,6 +53,5 @@ impl Planner for GoPlanner {
 
 // Helper function to create an empty start node
 fn create_empty_node() -> Result<Arc<dyn super::plan::PlanNode>, PlannerError> {
-
-    Ok(PlanNodeFactory::create_start_node()?)
+    Ok(PlanNodeFactory::create_placeholder_node()?)
 }

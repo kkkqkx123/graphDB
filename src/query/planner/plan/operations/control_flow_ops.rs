@@ -59,11 +59,11 @@ impl PlanNodeIdentifiable for Start {
 }
 
 impl PlanNodeProperties for Start {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -77,8 +77,8 @@ impl PlanNodeDependencies for Start {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -92,6 +92,10 @@ impl PlanNodeDependencies for Start {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -181,11 +185,11 @@ impl PlanNodeIdentifiable for Argument {
 }
 
 impl PlanNodeProperties for Argument {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -199,8 +203,8 @@ impl PlanNodeDependencies for Argument {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -214,6 +218,10 @@ impl PlanNodeDependencies for Argument {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -304,11 +312,11 @@ impl PlanNodeIdentifiable for StartNode {
 }
 
 impl PlanNodeProperties for StartNode {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -322,8 +330,8 @@ impl PlanNodeDependencies for StartNode {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -337,6 +345,10 @@ impl PlanNodeDependencies for StartNode {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -441,11 +453,11 @@ impl PlanNodeIdentifiable for ArgumentNode {
 }
 
 impl PlanNodeProperties for ArgumentNode {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -459,8 +471,8 @@ impl PlanNodeDependencies for ArgumentNode {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -474,6 +486,10 @@ impl PlanNodeDependencies for ArgumentNode {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -563,11 +579,11 @@ impl PlanNodeIdentifiable for BinarySelectNode {
 }
 
 impl PlanNodeProperties for BinarySelectNode {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -581,8 +597,8 @@ impl PlanNodeDependencies for BinarySelectNode {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -596,6 +612,10 @@ impl PlanNodeDependencies for BinarySelectNode {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -708,11 +728,11 @@ impl PlanNodeIdentifiable for SelectNode {
 }
 
 impl PlanNodeProperties for SelectNode {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -726,8 +746,8 @@ impl PlanNodeDependencies for SelectNode {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -741,6 +761,10 @@ impl PlanNodeDependencies for SelectNode {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -842,11 +866,11 @@ impl PlanNodeIdentifiable for LoopNode {
 }
 
 impl PlanNodeProperties for LoopNode {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -860,8 +884,8 @@ impl PlanNodeDependencies for LoopNode {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -875,6 +899,10 @@ impl PlanNodeDependencies for LoopNode {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -962,11 +990,11 @@ impl PlanNodeIdentifiable for PassThroughNode {
 }
 
 impl PlanNodeProperties for PassThroughNode {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -980,8 +1008,8 @@ impl PlanNodeDependencies for PassThroughNode {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -995,6 +1023,10 @@ impl PlanNodeDependencies for PassThroughNode {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 

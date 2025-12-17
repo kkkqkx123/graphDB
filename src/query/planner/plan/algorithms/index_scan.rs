@@ -98,11 +98,11 @@ impl PlanNodeIdentifiable for IndexScan {
 }
 
 impl PlanNodeProperties for IndexScan {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -116,8 +116,8 @@ impl PlanNodeDependencies for IndexScan {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -131,6 +131,10 @@ impl PlanNodeDependencies for IndexScan {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -229,11 +233,11 @@ impl PlanNodeIdentifiable for FulltextIndexScan {
 }
 
 impl PlanNodeProperties for FulltextIndexScan {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -247,8 +251,8 @@ impl PlanNodeDependencies for FulltextIndexScan {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -262,6 +266,10 @@ impl PlanNodeDependencies for FulltextIndexScan {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 

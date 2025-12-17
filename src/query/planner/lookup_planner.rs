@@ -1,10 +1,9 @@
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
-//! Lookup planner implementation for handling LOOKUP queries in NebulaGraph
-
+/// Lookup planner implementation for handling LOOKUP queries in NebulaGraph
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::PlanNodeKind;
+use crate::query::planner::plan::SubPlan;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -38,15 +37,14 @@ impl Planner for LookupPlanner {
         }
 
         // Create a plan node for the lookup operation
-        let lookup_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
-        ));
+        let lookup_node = PlanNodeFactory::create_placeholder_node()?;
 
-        // Create the execution plan
-        let execution_plan = ExecutionPlan::new(Some(lookup_node));
-
-        // For now, just return a subplan with the execution plan
+        // For now, just return a subplan with the lookup node
         // In a complete implementation, this would be more complex
-        Ok(SubPlan::new(Some(execution_plan.root.unwrap()), None))
+        Ok(SubPlan::new(
+            Some(lookup_node.clone_plan_node()),
+            Some(lookup_node),
+        ))
     }
 
     fn match_planner(&self, ast_ctx: &AstContext) -> bool {
@@ -56,7 +54,5 @@ impl Planner for LookupPlanner {
 
 // Helper function to create an empty start node
 fn create_empty_node() -> Result<Arc<dyn super::plan::PlanNode>, PlannerError> {
-    use std::sync::Arc;
-
-    Ok(PlanNodeFactory::create_start_node()?)
+    Ok(PlanNodeFactory::create_placeholder_node()?)
 }

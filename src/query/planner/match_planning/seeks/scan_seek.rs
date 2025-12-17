@@ -1,8 +1,8 @@
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::PlanNodeKind;
-//! 扫描查找规划器
-//! 进行全表扫描操作的规划
-//! 负责规划全表扫描操作
+/// 扫描查找规划器
+/// 进行全表扫描操作的规划
+/// 负责规划全表扫描操作
 
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
@@ -24,14 +24,13 @@ impl ScanSeek {
     /// 构建扫描查找计划
     pub fn build_plan(&self) -> Result<SubPlan, PlannerError> {
         // 创建扫描顶点节点
-        let scan_vertices_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
-        ));
+        let scan_vertices_node = PlanNodeFactory::create_placeholder_node()?;
 
         // TODO: 设置扫描条件
         // 这里需要根据node_info设置扫描条件，如标签过滤等
 
         Ok(SubPlan::new(
-            Some(scan_vertices_node.clone()),
+            Some(scan_vertices_node.clone_plan_node()),
             Some(scan_vertices_node),
         ))
     }
@@ -53,5 +52,5 @@ impl ScanSeek {
 fn create_start_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 
-    Ok(PlanNodeFactory::create_start_node()?)
+    Ok(PlanNodeFactory::create_placeholder_node()?)
 }

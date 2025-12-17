@@ -1,8 +1,8 @@
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::PlanNodeKind;
-//! 顶点查找规划器
-//! 根据顶点ID进行查找
-//! 负责规划基于顶点ID的查找操作，包括固定ID和可变ID
+/// 顶点查找规划器
+/// 根据顶点ID进行查找
+/// 负责规划基于顶点ID的查找操作，包括固定ID和可变ID
 
 use crate::graph::expression::Expression;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
@@ -49,8 +49,7 @@ impl VertexSeek {
     /// 构建顶点查找计划
     pub fn build_plan(&self) -> Result<SubPlan, PlannerError> {
         // 创建获取顶点节点
-        let get_vertices_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
-        ));
+        let get_vertices_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 根据查找类型设置不同的参数
         match &self.seek_type {
@@ -75,7 +74,7 @@ impl VertexSeek {
         }
 
         Ok(SubPlan::new(
-            Some(get_vertices_node.clone()),
+            Some(get_vertices_node.clone_plan_node()),
             Some(get_vertices_node),
         ))
     }

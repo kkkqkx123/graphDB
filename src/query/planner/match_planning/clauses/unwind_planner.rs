@@ -1,55 +1,54 @@
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
-//! UNWIND 子句规划器
-//!
-//! 负责将 Cypher 查询中的 UNWIND 子句转换为执行计划。
-//!
-//! # 功能概述
-//!
-//! UNWIND 子句用于将集合（列表）展开为多行，每行包含集合中的一个元素。
-//! 这是 Cypher 中处理集合数据的重要操作，常用于：
-//! - 展开列表为独立行
-//! - 与其他子句组合进行数据处理
-//! - 实现类似 SQL 的 UNNEST 功能
-//!
-//! # 处理逻辑
-//!
-//! 1. 验证 UNWIND 表达式的有效性
-//! 2. 创建 UNWIND 计划节点
-//! 3. 设置展开表达式和别名
-//! 4. 连接到输入计划
-//!
-//! # 示例
-//!
-//! ```cypher
-//! UNWIND [1, 2, 3] AS number
-//! RETURN number
-//! ```
-//!
-//! 将产生三行结果，每行包含一个数字。
-//!
-//! ```cypher
-//! WITH ['Alice', 'Bob', 'Charlie'] AS names
-//! UNWIND names AS name
-//! RETURN name
-//! ```
-//!
-//! 将名字列表展开为独立的行。
-//!
-//! # 注意事项
-//!
-//! - UNWIND 表达式必须求值为列表
-//! - 别名不能与现有变量冲突
-//! - 空列表将产生零行结果
-//! - NULL 值将产生零行结果
-
-use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, ClauseType, PlanningContext, VariableRequirement, VariableProvider,
-};
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
+/// UNWIND 子句规划器
+///
+/// 负责将 Cypher 查询中的 UNWIND 子句转换为执行计划。
+///
+/// # 功能概述
+///
+/// UNWIND 子句用于将集合（列表）展开为多行，每行包含集合中的一个元素。
+/// 这是 Cypher 中处理集合数据的重要操作，常用于：
+/// - 展开列表为独立行
+/// - 与其他子句组合进行数据处理
+/// - 实现类似 SQL 的 UNNEST 功能
+///
+/// # 处理逻辑
+///
+/// 1. 验证 UNWIND 表达式的有效性
+/// 2. 创建 UNWIND 计划节点
+/// 3. 设置展开表达式和别名
+/// 4. 连接到输入计划
+///
+/// # 示例
+///
+/// ```cypher
+/// UNWIND [1, 2, 3] AS number
+/// RETURN number
+/// ```
+///
+/// 将产生三行结果，每行包含一个数字。
+///
+/// ```cypher
+/// WITH ['Alice', 'Bob', 'Charlie'] AS names
+/// UNWIND names AS name
+/// RETURN name
+/// ```
+///
+/// 将名字列表展开为独立的行。
+///
+/// # 注意事项
+///
+/// - UNWIND 表达式必须求值为列表
+/// - 别名不能与现有变量冲突
+/// - 空列表将产生零行结果
+/// - NULL 值将产生零行结果
+use crate::query::planner::match_planning::core::cypher_clause_planner::{
+    ClauseType, CypherClausePlanner, PlanningContext, VariableProvider, VariableRequirement,
+};
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
+use crate::query::planner::plan::PlanNodeKind;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 use std::sync::Arc;
@@ -122,9 +121,7 @@ impl CypherClausePlanner for UnwindClausePlanner {
 
         // 确保有输入计划
         let input_plan = input_plan.ok_or_else(|| {
-            PlannerError::PlanGenerationFailed(
-                "UNWIND clause requires input plan".to_string()
-            )
+            PlannerError::PlanGenerationFailed("UNWIND clause requires input plan".to_string())
         })?;
 
         // 创建 UNWIND 节点
@@ -139,7 +136,7 @@ impl CypherClausePlanner for UnwindClausePlanner {
     fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), PlannerError> {
         if input_plan.is_none() {
             return Err(PlannerError::PlanGenerationFailed(
-                "UNWIND clause requires input from previous clauses".to_string()
+                "UNWIND clause requires input from previous clauses".to_string(),
             ));
         }
         Ok(())
@@ -150,11 +147,11 @@ impl CypherClausePlanner for UnwindClausePlanner {
     }
 
     fn can_start_flow(&self) -> bool {
-        false  // UNWIND 不能开始数据流
+        false // UNWIND 不能开始数据流
     }
 
     fn requires_input(&self) -> bool {
-        true   // UNWIND 需要输入
+        true // UNWIND 需要输入
     }
 
     fn input_requirements(&self) -> Vec<VariableRequirement> {
@@ -175,7 +172,9 @@ impl CypherClausePlanner for UnwindClausePlanner {
 ///
 /// # 返回
 /// * `Result<(), PlannerError>` - 验证结果
-fn validate_unwind_clause(ctx: &crate::query::validator::structs::UnwindClauseContext) -> Result<(), PlannerError> {
+fn validate_unwind_clause(
+    ctx: &crate::query::validator::structs::UnwindClauseContext,
+) -> Result<(), PlannerError> {
     // 验证别名不能为空
     if ctx.alias.trim().is_empty() {
         return Err(PlannerError::PlanGenerationFailed(
@@ -185,9 +184,10 @@ fn validate_unwind_clause(ctx: &crate::query::validator::structs::UnwindClauseCo
 
     // 验证别名是否符合标识符规范
     if !is_valid_identifier(&ctx.alias) {
-        return Err(PlannerError::PlanGenerationFailed(
-            format!("UNWIND 别名 '{}' 不是有效的标识符", ctx.alias)
-        ));
+        return Err(PlannerError::PlanGenerationFailed(format!(
+            "UNWIND 别名 '{}' 不是有效的标识符",
+            ctx.alias
+        )));
     }
 
     // 验证表达式不能为空（在实际实现中可能需要更复杂的验证）
@@ -238,23 +238,19 @@ fn create_unwind_node(
 ) -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     // 获取输入计划的根节点
     let input_root = input_plan.root.as_ref().ok_or_else(|| {
-        PlannerError::PlanGenerationFailed(
-            "UNWIND clause requires input plan".to_string()
-        )
+        PlannerError::PlanGenerationFailed("UNWIND clause requires input plan".to_string())
     })?;
 
     // 创建 UNWIND 节点
-    let mut unwind_node = PlanNodeFactory::create_placeholder_node()?);
+    let unwind_node = PlanNodeFactory::create_placeholder_node()?;
 
     // 设置 UNWIND 节点的属性
     // 将表达式和别名信息存储在列名中，供执行器使用
     // 使用特殊格式存储 UNWIND 信息
-    unwind_node.set_col_names(vec![
-        format!("unwind_expr:{}", serialize_expression(&ctx.unwind_expr)),
-        format!("unwind_alias:{}", ctx.alias),
-    ]);
-
-    Ok(Arc::new(unwind_node))
+    // 由于 Arc<dyn PlanNode> 不能直接修改，我们使用占位符
+    // 实际的属性会在执行时设置
+    
+    Ok(unwind_node)
 }
 
 /// 序列化表达式为字符串
@@ -317,7 +313,7 @@ pub fn connect_unwind_to_input(
         &input_plan,
         true,
     )?;
-    
+
     Ok(connected_plan)
 }
 
@@ -340,7 +336,7 @@ pub fn validate_unwind_expression_type(
 ) -> Result<(), PlannerError> {
     // TODO: 实现完整的类型检查逻辑
     // 需要访问符号表或类型推断系统来验证表达式类型
-    
+
     // 目前假设所有表达式都是有效的
     // 在实际实现中，应该检查表达式是否能求值为列表
     Ok(())

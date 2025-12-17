@@ -14,6 +14,7 @@ use crate::query::planner::plan::core::nodes::{PlanNodeFactory, StartNode};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
+use crate::query::parser::ast::expr::Expr;
 use std::sync::Arc;
 use std::collections::HashSet;
 
@@ -131,10 +132,11 @@ impl WhereClausePlanner {
             // 创建起始节点作为输入
             let start_node = PlanNodeFactory::create_start_node()?;
             
-            // 创建过滤器节点
+            // 创建过滤器节点 - 将 Expression 转换为 Expr
+            let expr = convert_expression_to_expr(filter);
             let filter_node = PlanNodeFactory::create_filter(
                 start_node,
-                filter.clone(),
+                expr,
             )?;
 
             where_plan = SubPlan::from_single_node(filter_node);
@@ -232,6 +234,32 @@ impl CypherClausePlanner for WhereClausePlanner {
     }
 }
 
+/// 将 Expression 转换为 Expr
+fn convert_expression_to_expr(expr: &crate::graph::expression::Expression) -> Expr {
+    use crate::query::parser::ast::expr::*;
+    use crate::query::parser::ast::types::Span;
+    
+    match expr {
+        crate::graph::expression::Expression::Variable(name) => {
+            Expr::Variable(VariableExpr::new(name.clone(), Span::default()))
+        }
+        crate::graph::expression::Expression::Literal(val) => {
+            use crate::core::Value;
+            let const_val = match val {
+                crate::graph::expression::expression::LiteralValue::String(s) => Value::String(s.clone()),
+                crate::graph::expression::expression::LiteralValue::Int(i) => Value::Int(*i),
+                crate::graph::expression::expression::LiteralValue::Float(f) => Value::Float(*f),
+                crate::graph::expression::expression::LiteralValue::Bool(b) => Value::Bool(*b),
+                crate::graph::expression::expression::LiteralValue::Null => Value::Null,
+            };
+            Expr::Constant(ConstantExpr::new(const_val, Span::default()))
+        }
+        _ => {
+            // 其他表达式类型暂时使用默认的 true 表达式
+            Expr::Constant(ConstantExpr::new(crate::core::Value::Bool(true), Span::default()))
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

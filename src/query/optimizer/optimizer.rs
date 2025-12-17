@@ -1,5 +1,5 @@
 //! Optimizer implementation for optimizing execution plans
-use crate::query::context::QueryContext;
+use crate::query::context::{validate, QueryContext};
 use crate::query::planner::plan::core::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::planner::plan::{ExecutionPlan, PlanNode, PlanNodeKind};
 
@@ -202,11 +202,11 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeIdentifiable f
 }
 
 impl crate::query::planner::plan::core::plan_node_traits::PlanNodeProperties for DummyPlanNode {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> std::option::Option<&validate::types::Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[std::string::String] {
         &self.col_names
     }
 
@@ -220,8 +220,8 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies f
         &self.dependencies
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<std::sync::Arc<dyn PlanNode>> {
-        &mut self.dependencies
+    fn replace_dependencies(&mut self, deps: Vec<std::sync::Arc<dyn PlanNode>>) {
+        self.dependencies = deps;
     }
 
     fn add_dependency(&mut self, dep: std::sync::Arc<dyn PlanNode>) {
@@ -235,6 +235,10 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies f
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.dependencies.clear();
     }
 }
 

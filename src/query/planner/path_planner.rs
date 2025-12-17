@@ -1,7 +1,7 @@
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::PlanNodeKind;
-//! Path planner implementation for handling PATH queries in NebulaGraph
+/// Path planner implementation for handling PATH queries in NebulaGraph
 
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
@@ -38,14 +38,10 @@ impl Planner for PathPlanner {
         }
 
         // Create a plan node for the path operation
-        let path_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
-        ));
+        let path_node = PlanNodeFactory::create_placeholder_node()?;
 
-        // Create the execution plan
-        let execution_plan = ExecutionPlan::new(Some(path_node));
-
-        // For now, just return a subplan with the execution plan
-        Ok(SubPlan::new(Some(execution_plan.root.unwrap()), None))
+        // For now, just return a subplan with the path node
+        Ok(SubPlan::new(Some(path_node.clone_plan_node()), Some(path_node)))
     }
 
     fn match_planner(&self, ast_ctx: &AstContext) -> bool {
@@ -55,6 +51,5 @@ impl Planner for PathPlanner {
 
 // Helper function to create an empty start node
 fn create_empty_node() -> Result<Arc<dyn super::plan::PlanNode>, PlannerError> {
-
-    Ok(PlanNodeFactory::create_start_node()?)
+    Ok(PlanNodeFactory::create_placeholder_node()?)
 }

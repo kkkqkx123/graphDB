@@ -72,11 +72,11 @@ impl PlanNodeIdentifiable for Expand {
 }
 
 impl PlanNodeProperties for Expand {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -90,8 +90,8 @@ impl PlanNodeDependencies for Expand {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -105,6 +105,10 @@ impl PlanNodeDependencies for Expand {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -209,11 +213,11 @@ impl PlanNodeIdentifiable for ExpandAll {
 }
 
 impl PlanNodeProperties for ExpandAll {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -227,8 +231,8 @@ impl PlanNodeDependencies for ExpandAll {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -242,6 +246,10 @@ impl PlanNodeDependencies for ExpandAll {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -343,11 +351,11 @@ impl PlanNodeIdentifiable for Traverse {
 }
 
 impl PlanNodeProperties for Traverse {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -361,8 +369,8 @@ impl PlanNodeDependencies for Traverse {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -376,6 +384,10 @@ impl PlanNodeDependencies for Traverse {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -474,11 +486,11 @@ impl PlanNodeIdentifiable for AppendVertices {
 }
 
 impl PlanNodeProperties for AppendVertices {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -492,8 +504,8 @@ impl PlanNodeDependencies for AppendVertices {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -507,6 +519,10 @@ impl PlanNodeDependencies for AppendVertices {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -616,11 +632,11 @@ impl PlanNodeIdentifiable for ScanEdges {
 }
 
 impl PlanNodeProperties for ScanEdges {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -634,8 +650,8 @@ impl PlanNodeDependencies for ScanEdges {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -649,6 +665,10 @@ impl PlanNodeDependencies for ScanEdges {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 

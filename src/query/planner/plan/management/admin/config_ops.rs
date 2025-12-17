@@ -107,8 +107,8 @@ impl PlanNodeDependencies for ShowConfigs {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -122,6 +122,10 @@ impl PlanNodeDependencies for ShowConfigs {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -234,8 +238,8 @@ impl PlanNodeDependencies for SetConfig {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -249,6 +253,10 @@ impl PlanNodeDependencies for SetConfig {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 
@@ -364,8 +372,8 @@ impl PlanNodeDependencies for GetConfig {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
+        self.deps = deps;
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -379,6 +387,10 @@ impl PlanNodeDependencies for GetConfig {
         } else {
             false
         }
+    }
+
+    fn clear_dependencies(&mut self) {
+        self.deps.clear();
     }
 }
 

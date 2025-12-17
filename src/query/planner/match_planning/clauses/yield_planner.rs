@@ -1,11 +1,11 @@
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::PlanNodeKind;
-//! YIELD子句规划器
-//! 处理YIELD子句的规划
-//! 负责规划YIELD子句中的结果产出
-//! 
-//! YIELD子句是Cypher查询中的核心投影操作，负责选择和计算要输出的列。
-//! 它可以包含聚合函数、投影列和去重操作。
+/// YIELD子句规划器
+/// 处理YIELD子句的规划
+/// 负责规划YIELD子句中的结果产出
+///
+/// YIELD子句是Cypher查询中的核心投影操作，负责选择和计算要输出的列。
+/// 它可以包含聚合函数、投影列和去重操作。
 
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
     CypherClausePlanner, ClauseType, PlanningContext, VariableRequirement, VariableProvider,
@@ -62,15 +62,12 @@ impl YieldClausePlanner {
         // 处理聚合函数
         if yield_clause_ctx.has_agg {
             // 创建聚合节点
-            let agg_node = Arc::new(PlanNodeFactory::create_placeholder_node()?
-                    )
-                })?,
-            ));
+            let agg_node = PlanNodeFactory::create_placeholder_node()?;
 
             // TODO: 设置聚合相关的参数
             // 这里需要根据group_keys和group_items设置聚合逻辑
 
-            plan = SubPlan::new(Some(agg_node.clone()), Some(agg_node));
+            plan = SubPlan::new(Some(agg_node.clone_plan_node()), Some(agg_node));
         }
 
         // 处理投影（列选择）
@@ -82,20 +79,19 @@ impl YieldClausePlanner {
                 )
             })?;
             
-            let project_node = Arc::new(PlanNodeFactory::create_placeholder_node()?,
-            ));
+            let project_node = PlanNodeFactory::create_placeholder_node()?;
 
             // TODO: 设置投影列
             // 这里需要根据proj_cols设置投影逻辑
 
             if plan.root.is_none() {
-                plan.root = Some(project_node.clone());
+                plan.root = Some(project_node.clone_plan_node());
                 plan.tail = Some(project_node);
             } else {
                 // 使用新的统一连接器将投影节点连接到现有计划的尾部
                 plan = UnifiedConnector::add_input(
                     &crate::query::context::ast::base::AstContext::new("YIELD", "test"),
-                    &SubPlan::new(Some(project_node.clone()), Some(project_node)),
+                    &SubPlan::new(Some(project_node.clone_plan_node()), Some(project_node)),
                     &plan,
                     true,
                 )?;
@@ -111,19 +107,18 @@ impl YieldClausePlanner {
                 )
             })?;
             
-            let dedup_node = Arc::new(PlanNodeFactory::create_placeholder_node()?,
-            ));
+            let dedup_node = PlanNodeFactory::create_placeholder_node()?;
 
             // TODO: 设置去重键
 
             if plan.root.is_none() {
-                plan.root = Some(dedup_node.clone());
+                plan.root = Some(dedup_node.clone_plan_node());
                 plan.tail = Some(dedup_node);
             } else {
                 // 使用新的统一连接器将去重节点连接到现有计划的尾部
                 plan = UnifiedConnector::add_input(
                     &crate::query::context::ast::base::AstContext::new("YIELD", "test"),
-                    &SubPlan::new(Some(dedup_node.clone()), Some(dedup_node)),
+                    &SubPlan::new(Some(dedup_node.clone_plan_node()), Some(dedup_node)),
                     &plan,
                     true,
                 )?;

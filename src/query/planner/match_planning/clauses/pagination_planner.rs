@@ -1,8 +1,8 @@
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::PlanNodeKind;
-//! 分页规划器
-//! 处理LIMIT和OFFSET子句的规划
-//! 负责规划LIMIT和OFFSET子句
+/// 分页规划器
+/// 处理LIMIT和OFFSET子句的规划
+/// 负责规划LIMIT和OFFSET子句
 
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
     CypherClausePlanner, ClauseType, PlanningContext, VariableRequirement, VariableProvider,
@@ -66,7 +66,7 @@ impl PaginationPlanner {
         })?;
 
         // 创建Limit节点
-        let limit_node = PlanNodeFactory::create_placeholder_node()?);
+        let limit_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 将skip和limit值存储在列名中，供执行器使用
         let col_names = vec![
@@ -75,13 +75,13 @@ impl PaginationPlanner {
         ];
 
         // 创建新的Limit节点并设置属性
-        let mut new_limit_node = limit_node.clone();
+        let mut new_limit_node = limit_node.clone_plan_node();
         new_limit_node.set_col_names(col_names);
-        let limit_node = Arc::new(new_limit_node);
+        let limit_node = new_limit_node;
 
         // 创建新的子计划
         let mut subplan = input_plan.clone();
-        subplan.root = Some(limit_node.clone());
+        subplan.root = Some(limit_node.clone_plan_node());
         subplan.tail = Some(limit_node);
 
         Ok(subplan)

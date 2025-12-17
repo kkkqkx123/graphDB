@@ -1,15 +1,13 @@
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
-//! 新的 MATCH子句规划器
-//! 实现新的 CypherClausePlanner 接口
-
+/// 新的 MATCH子句规划器
+/// 实现新的 CypherClausePlanner 接口
 use crate::graph::expression::Expression;
 use crate::query::planner::match_planning::core::{
     ClauseType, CypherClausePlanner, PlanningContext,
 };
-use crate::query::planner::match_planning::utils::finder::Finder;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::{PlanNodeKind, SubPlan};
+use crate::query::planner::match_planning::utils::finder::Finder;
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::core::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 use std::collections::HashSet;
@@ -28,6 +26,12 @@ impl MatchClausePlanner {
 }
 
 impl CypherClausePlanner for MatchClausePlanner {
+    fn clause_type(
+        &self,
+    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType {
+        crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Source
+    }
+
     fn transform(
         &self,
         clause_ctx: &CypherClauseContext,
@@ -141,36 +145,29 @@ impl CypherClausePlanner for MatchClausePlanner {
             };
 
             if limit_value != i64::MAX {
-                // 创建限制节点
-                let limit_node = crate::query::planner::plan::PlanNodeFactory::create_placeholder_node()?,
-                        )
-                    })?,
-                );
+                 // 创建限制节点
+                 let limit_node =
+                     PlanNodeFactory::create_placeholder_node()?;
 
-                let limit_node_arc = std::sync::Arc::new(limit_node);
-                plan = SubPlan::new(Some(limit_node_arc.clone()), Some(limit_node_arc));
-            }
+                 plan = SubPlan::new(Some(limit_node.clone()), Some(limit_node));
+             }
         }
 
         Ok(plan)
     }
 
     fn validate_input(
-        &self,
-        input_plan: Option<&SubPlan>,
-    ) -> Result<(), crate::query::planner::planner::PlannerError> {
-        // MATCH 子句可以开始数据流，所以不应该有输入
-        if input_plan.is_some() {
-            return Err(PlannerError::PlanGenerationFailed(
-                "MATCH clause should not have input".to_string(),
-            ));
-        }
-        Ok(())
-    }
-
-    fn clause_type(&self) -> ClauseType {
-        ClauseType::Source
-    }
+         &self,
+         input_plan: Option<&SubPlan>,
+     ) -> Result<(), crate::query::planner::planner::PlannerError> {
+         // MATCH 子句可以开始数据流，所以不应该有输入
+         if input_plan.is_some() {
+             return Err(PlannerError::PlanGenerationFailed(
+                 "MATCH clause should not have input".to_string(),
+             ));
+         }
+         Ok(())
+     }
 
     fn can_start_flow(&self) -> bool {
         true // MATCH 可以开始数据流

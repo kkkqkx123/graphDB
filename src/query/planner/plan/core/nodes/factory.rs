@@ -8,7 +8,7 @@ use super::project_node::ProjectNode;
 use super::join_node::InnerJoinNode;
 use super::start_node::StartNode;
 use super::placeholder_node::PlaceholderNode;
-use crate::query::validator::structs::common_structs::YieldColumn;
+use crate::query::validator::YieldColumn;
 use crate::query::parser::ast::expr::Expr;
 use std::sync::Arc;
 

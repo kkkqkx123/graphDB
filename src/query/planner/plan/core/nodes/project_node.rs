@@ -9,7 +9,7 @@ use super::traits::{
 };
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
-use crate::query::validator::structs::common_structs::YieldColumn;
+use crate::query::validator::YieldColumn;
 use std::sync::Arc;
 
 /// 投影节点

@@ -1,8 +1,8 @@
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::PlanNodeKind;
-//! 投影规划器
-//! 提供RETURN和WITH子句的公共逻辑
-//! 处理结果投影、排序、分页等公共功能
+/// 投影规划器
+/// 提供RETURN和WITH子句的公共逻辑
+/// 处理结果投影、排序、分页等公共功能
 
 use super::order_by_planner::OrderByClausePlanner;
 use super::pagination_planner::PaginationPlanner;
@@ -62,9 +62,8 @@ impl ProjectionPlanner {
             // 确保plan有有效的root节点
             if plan.root.is_none() {
                 // 如果YIELD没有产生有效的计划，创建一个空的起始节点
-                let start_node = Arc::new(crate::query::planner::plan::PlanNodeFactory::create_placeholder_node()??,
-                ));
-                plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
+                let start_node = PlanNodeFactory::create_placeholder_node()?;
+                plan = SubPlan::new(Some(start_node.clone_plan_node()), Some(start_node));
             }
             
             let order_plan = order_by_planner.transform(&order_by_clause_ctx, Some(&plan), &mut context)?;
@@ -87,9 +86,8 @@ impl ProjectionPlanner {
                 // 确保plan有有效的root节点
                 if plan.root.is_none() {
                     // 如果前面的步骤没有产生有效的计划，创建一个空的起始节点
-                    let start_node = Arc::new(crate::query::planner::plan::PlanNodeFactory::create_placeholder_node()??,
-                    ));
-                    plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
+                    let start_node = PlanNodeFactory::create_placeholder_node()?;
+                    plan = SubPlan::new(Some(start_node.clone_plan_node()), Some(start_node));
                 }
                 
                 let pagination_plan = pagination_planner.transform(&pagination_clause_ctx, Some(&plan), &mut context)?;
@@ -112,9 +110,8 @@ impl ProjectionPlanner {
             // 确保plan有有效的root节点
             if plan.root.is_none() {
                 // 如果前面的步骤没有产生有效的计划，创建一个空的起始节点
-                let start_node = Arc::new(crate::query::planner::plan::PlanNodeFactory::create_placeholder_node()??,
-                ));
-                plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
+                let start_node = PlanNodeFactory::create_placeholder_node()?;
+                plan = SubPlan::new(Some(start_node.clone_plan_node()), Some(start_node));
             }
             
             let where_plan = where_planner.transform(&where_clause_ctx, Some(&plan), &mut context)?;
@@ -131,12 +128,11 @@ impl ProjectionPlanner {
         // 处理去重（主要用于RETURN子句）
         if distinct {
             // 创建去重节点
-            let dedup_node = Arc::new(PlanNodeFactory::create_placeholder_node()??,
-            ));
+            let dedup_node = PlanNodeFactory::create_placeholder_node()?;
 
             // TODO: 设置去重键
 
-            let dedup_plan = SubPlan::new(Some(dedup_node.clone()), Some(dedup_node));
+            let dedup_plan = SubPlan::new(Some(dedup_node.clone_plan_node()), Some(dedup_node));
             // 使用新的统一连接器
             plan = UnifiedConnector::add_input(
                 &crate::query::context::ast::AstContext::new("PROJECTION", "test"),

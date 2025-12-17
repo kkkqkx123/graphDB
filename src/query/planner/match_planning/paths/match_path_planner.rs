@@ -8,6 +8,7 @@ use crate::query::planner::plan::core::PlanNodeMutable;
 use crate::query::planner::plan::{PlanNodeKind, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext};
+use crate::query::parser::ast::expr::Expr;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -89,14 +90,10 @@ impl MatchPathPlanner {
                         type_: "Vertex".to_string(),
                     }],
                 };
-                let arg_node = PlanNodeFactory::create_placeholder_node()?;
-                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-                // 我们需要创建一个新的节点来设置属性
-                let mut new_arg_node = (*arg_node).clone();
-                new_arg_node.set_output_var(variable);
-                new_arg_node.set_col_names(vec![node_info.alias.clone()]);
-                let arg_node = Arc::new(new_arg_node);
-                let plan = SubPlan::new(Some(arg_node.clone()), None);
+                // 创建一个包含变量信息的占位符节点
+                let placeholder = PlanNodeFactory::create_placeholder_node()?;
+                // 由于 Arc<dyn PlanNode> 不能直接修改，我们使用占位符节点
+                let plan = SubPlan::new(Some(placeholder.clone_plan_node()), None);
                 return Ok((i, false, plan));
             }
         }
@@ -214,63 +211,38 @@ impl MatchPathPlanner {
 
             // 设置列名
             let mut col_names = if let Some(root) = &subplan.root {
-                root.col_names().clone()
+                root.col_names().to_vec()
             } else {
                 vec![]
             };
             col_names.push(dst.alias.clone());
             col_names.push(edge.alias.clone());
 
-            // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-            // 我们需要创建一个新的节点来设置属性
-            let mut new_traverse_node = (*traverse_node).clone();
-            new_traverse_node.set_output_var(variable);
-            new_traverse_node.set_col_names(col_names);
-            let traverse_node = Arc::new(new_traverse_node);
-
-            // 处理节点过滤
+            // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
             if let Some(_filter) = &node.filter {
-                let var_name = format!("node_filter_{}", node.alias);
-                let variable = Variable {
-                    name: var_name,
-                    columns: vec![crate::query::context::validate::types::Column {
-                        name: node.alias.clone(),
-                        type_: "Vertex".to_string(),
-                    }],
-                };
+                let dummy_expr = Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
+                    crate::core::Value::Bool(true),
+                    crate::query::parser::ast::types::Span::default(),
+                ));
                 let filter_node = PlanNodeFactory::create_filter(
-                    traverse_node,
-                    crate::graph::expression::Expression::Variable("dummy".to_string()),
+                    traverse_node.clone_plan_node(),
+                    dummy_expr,
                 )?;
-                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-                // 我们需要创建一个新的节点来设置属性
-                let mut new_filter_node = (*filter_node).clone();
-                new_filter_node.set_output_var(variable);
-                let filter_node = Arc::new(new_filter_node);
                 subplan.root = Some(filter_node);
             } else {
-                subplan.root = Some(traverse_node);
+                subplan.root = Some(traverse_node.clone_plan_node());
             }
 
             // 处理边过滤
             if let Some(_filter) = &edge.filter {
-                let var_name = format!("edge_filter_{}", edge.alias);
-                let variable = Variable {
-                    name: var_name,
-                    columns: vec![crate::query::context::validate::types::Column {
-                        name: edge.alias.clone(),
-                        type_: "Edge".to_string(),
-                    }],
-                };
+                let dummy_expr = Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
+                    crate::core::Value::Bool(true),
+                    crate::query::parser::ast::types::Span::default(),
+                ));
                 let filter_node = PlanNodeFactory::create_filter(
                     subplan.root.take().unwrap(),
-                    crate::graph::expression::Expression::Variable("dummy".to_string()),
+                    dummy_expr,
                 )?;
-                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-                // 我们需要创建一个新的节点来设置属性
-                let mut new_filter_node = (*filter_node).clone();
-                new_filter_node.set_output_var(variable);
-                let filter_node = Arc::new(new_filter_node);
                 subplan.root = Some(filter_node);
             }
 
@@ -281,21 +253,8 @@ impl MatchPathPlanner {
         // 处理最后一个节点
         let last_node = &node_infos[node_infos.len() - 1];
         if !node_aliases_seen_in_pattern.contains(&last_node.alias) {
-            let var_name = format!("append_{}", last_node.alias);
-            let variable = Variable {
-                name: var_name,
-                columns: vec![crate::query::context::validate::types::Column {
-                    name: last_node.alias.clone(),
-                    type_: "Vertex".to_string(),
-                }],
-            };
             let append_node = PlanNodeFactory::create_placeholder_node()?;
-            // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-            // 我们需要创建一个新的节点来设置属性
-            let mut new_append_node = (*append_node).clone();
-            new_append_node.set_output_var(variable);
-            let append_node = Arc::new(new_append_node);
-            subplan.root = Some(append_node);
+            subplan.root = Some(append_node.clone_plan_node());
         }
 
         Ok(())
@@ -338,63 +297,38 @@ impl MatchPathPlanner {
 
             // 设置列名
             let mut col_names = if let Some(root) = &subplan.root {
-                root.col_names().clone()
+                root.col_names().to_vec()
             } else {
                 vec![]
             };
             col_names.push(dst.alias.clone());
             col_names.push(edge.alias.clone());
 
-            // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-            // 我们需要创建一个新的节点来设置属性
-            let mut new_traverse_node = (*traverse_node).clone();
-            new_traverse_node.set_output_var(variable);
-            new_traverse_node.set_col_names(col_names);
-            let traverse_node = Arc::new(new_traverse_node);
-
-            // 处理节点过滤
+            // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
             if let Some(_filter) = &node.filter {
-                let var_name = format!("node_filter_{}", node.alias);
-                let variable = Variable {
-                    name: var_name,
-                    columns: vec![crate::query::context::validate::types::Column {
-                        name: node.alias.clone(),
-                        type_: "Vertex".to_string(),
-                    }],
-                };
+                let dummy_expr = Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
+                    crate::core::Value::Bool(true),
+                    crate::query::parser::ast::types::Span::default(),
+                ));
                 let filter_node = PlanNodeFactory::create_filter(
-                    traverse_node,
-                    crate::graph::expression::Expression::Variable("dummy".to_string()),
+                    traverse_node.clone_plan_node(),
+                    dummy_expr,
                 )?;
-                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-                // 我们需要创建一个新的节点来设置属性
-                let mut new_filter_node = (*filter_node).clone();
-                new_filter_node.set_output_var(variable);
-                let filter_node = Arc::new(new_filter_node);
                 subplan.root = Some(filter_node);
             } else {
-                subplan.root = Some(traverse_node);
+                subplan.root = Some(traverse_node.clone_plan_node());
             }
 
             // 处理边过滤
             if let Some(_filter) = &edge.filter {
-                let var_name = format!("edge_filter_{}", edge.alias);
-                let variable = Variable {
-                    name: var_name,
-                    columns: vec![crate::query::context::validate::types::Column {
-                        name: edge.alias.clone(),
-                        type_: "Edge".to_string(),
-                    }],
-                };
+                let dummy_expr = Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
+                    crate::core::Value::Bool(true),
+                    crate::query::parser::ast::types::Span::default(),
+                ));
                 let filter_node = PlanNodeFactory::create_filter(
                     subplan.root.take().unwrap(),
-                    crate::graph::expression::Expression::Variable("dummy".to_string()),
+                    dummy_expr,
                 )?;
-                // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-                // 我们需要创建一个新的节点来设置属性
-                let mut new_filter_node = (*filter_node).clone();
-                new_filter_node.set_output_var(variable);
-                let filter_node = Arc::new(new_filter_node);
                 subplan.root = Some(filter_node);
             }
 
@@ -405,21 +339,8 @@ impl MatchPathPlanner {
         // 处理第一个节点
         let first_node = &node_infos[0];
         if !node_aliases_seen_in_pattern.contains(&first_node.alias) {
-            let var_name = format!("append_{}", first_node.alias);
-            let variable = Variable {
-                name: var_name,
-                columns: vec![crate::query::context::validate::types::Column {
-                    name: first_node.alias.clone(),
-                    type_: "Vertex".to_string(),
-                }],
-            };
             let append_node = PlanNodeFactory::create_placeholder_node()?;
-            // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-            // 我们需要创建一个新的节点来设置属性
-            let mut new_append_node = (*append_node).clone();
-            new_append_node.set_output_var(variable);
-            let append_node = Arc::new(new_append_node);
-            subplan.root = Some(append_node);
+            subplan.root = Some(append_node.clone_plan_node());
         }
 
         Ok(())
@@ -453,14 +374,8 @@ impl MatchPathPlanner {
             columns: vec![],
         };
 
-        // 使用Arc::get_mut是不安全的，因为Arc可能有多个引用
-        // 我们需要创建一个新的节点来设置属性
-        let mut new_project_node = (*project_node).clone();
-        new_project_node.set_col_names(col_names);
-        new_project_node.set_output_var(variable);
-        let project_node = Arc::new(new_project_node);
-
-        subplan.root = Some(project_node);
+        // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
+        subplan.root = Some(project_node.clone_plan_node());
         Ok(())
     }
 }

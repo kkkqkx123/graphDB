@@ -1,6 +1,6 @@
 use crate::query::planner::plan::PlanNodeKind;
-//! MATCH查询主规划器
-//! 负责将MATCH查询转换为执行计划
+/// MATCH查询主规划器
+/// 负责将MATCH查询转换为执行计划
 
 use crate::query::context::ast::AstContext;
 use super::cypher_clause_planner::CypherClausePlanner;
@@ -14,6 +14,7 @@ use crate::query::planner::match_planning::clauses::with_clause_planner::WithCla
 use crate::query::planner::match_planning::clauses::where_clause_planner::WhereClausePlanner;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::PlanNode;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::validator::structs::{
     alias_structs::QueryPart, clause_structs::MatchClauseContext, CypherClauseContext,
@@ -342,7 +343,7 @@ impl Planner for MatchPlanner {
         // 但现在为了演示目的，我们创建一个简化的查询计划
 
         // 创建起始节点
-        let start_node = PlanNodeFactory::create_start_node()? as Arc<dyn PlanNode>;
+        let _start_node = PlanNodeFactory::create_start_node()?;
 
         // 创建一个GetNeighbors节点作为示例
         let get_neighbors_node =
@@ -651,8 +652,13 @@ mod tests {
 
         let match_ctx = create_test_match_clause_context();
 
+        let start_node = match PlanNodeFactory::create_start_node() {
+            Ok(node) => Some(node),
+            Err(_) => None,
+        };
+
         let existing_plan = SubPlan::new(
-            Some(PlanNodeFactory::create_start_node()?),
+            start_node,
             None,
         );
 
@@ -677,8 +683,13 @@ mod tests {
             .aliases_available
             .insert("n".to_string(), AliasType::Node);
 
+        let start_node = match PlanNodeFactory::create_start_node() {
+            Ok(node) => Some(node),
+            Err(_) => None,
+        };
+
         let existing_plan = SubPlan::new(
-            Some(PlanNodeFactory::create_start_node()?),
+            start_node,
             None,
         );
 
@@ -715,8 +726,13 @@ mod tests {
 
         match_ctx.where_clause = Some(where_ctx);
 
+        let start_node = match PlanNodeFactory::create_start_node() {
+            Ok(node) => Some(node),
+            Err(_) => None,
+        };
+
         let existing_plan = SubPlan::new(
-            Some(PlanNodeFactory::create_start_node()?),
+            start_node,
             None,
         );
 
@@ -727,7 +743,7 @@ mod tests {
         // 连接可选 MATCH 带 WHERE 子句应该成功
         assert!(result.is_ok());
         assert!(query_plan.root.is_some());
-    }
+        }
 
     #[test]
     fn test_transform_match_statement() {

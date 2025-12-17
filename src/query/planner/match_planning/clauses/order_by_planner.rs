@@ -9,6 +9,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::core::PlanNodeMutable;
 use crate::query::planner::planner::PlannerError;
+use crate::query::planner::SubPlan;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use std::sync::Arc;
 
@@ -78,13 +79,13 @@ impl OrderByClausePlanner {
         }
 
         // 创建新的排序节点并设置属性
-        let mut new_sort_node = sort_node.clone();
+        let mut new_sort_node = sort_node.clone_plan_node();
         new_sort_node.set_col_names(col_names);
-        let sort_node = Arc::new(new_sort_node);
+        let sort_node = new_sort_node;
 
         // 创建新的子计划
         let mut subplan = input_plan.clone();
-        subplan.root = Some(sort_node.clone());
+        subplan.root = Some(sort_node.clone_plan_node());
         subplan.tail = Some(sort_node);
 
         Ok(subplan)
