@@ -9,6 +9,7 @@ pub mod management;
 pub mod operations;
 pub mod plan_node;
 pub mod plan_node_visitor;
+pub mod utils;
 
 
 
@@ -25,3 +26,4 @@ pub use algorithms::*;
 pub use common::*;
 pub use management::*;
 pub use operations::*;
+pub use utils::*;

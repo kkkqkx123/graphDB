@@ -2,7 +2,7 @@
 //! 包含Filter、Project、Unwind等数据处理相关的计划节点
 
 use crate::query::context::validate::types::Variable;
-use crate::query::planner::match_planning::utils::join_params::JoinParams;
+use crate::query::planner::plan::utils::join_params::JoinParams;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
         PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,

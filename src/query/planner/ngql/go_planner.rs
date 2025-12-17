@@ -8,6 +8,7 @@ use crate::query::planner::plan::core::plan_node_traits::{PlanNodeDependencies, 
 use crate::query::planner::plan::operations::{
     Argument, Dedup, Expand, ExpandAll, Filter, HashLeftJoin, Project,
 };
+use crate::query::planner::plan::utils::join_params::JoinParams;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
@@ -133,6 +134,18 @@ impl Planner for GoPlanner {
                 name: "joined_result".to_string(),
                 columns: vec![],
             });
+            
+            // 设置连接参数
+            use crate::query::parser::ast::expr::{Expr, VariableExpr};
+            use crate::query::parser::ast::types::Span;
+            
+            let join_key = Expr::Variable(VariableExpr::new("_expandall_vid".to_string(), Span::default()));
+            let mut intersected_aliases = std::collections::HashSet::new();
+            intersected_aliases.insert("vid".to_string());
+            
+            let join_params = JoinParams::left_join(vec![join_key], intersected_aliases);
+            join_mut.join_params = Some(join_params);
+            
             Some(join)
         } else {
             None

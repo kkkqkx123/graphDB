@@ -312,6 +312,151 @@ impl JoinParams {
             _ => None,
         }
     }
+
+    /// 获取内连接参数的可变引用
+    pub fn as_inner_join_mut(&mut self) -> Option<&mut InnerJoinParams> {
+        match &mut self.type_specific_params {
+            TypeSpecificParams::InnerJoin(params) => Some(params),
+            _ => None,
+        }
+    }
+
+    /// 获取左连接参数的可变引用
+    pub fn as_left_join_mut(&mut self) -> Option<&mut LeftJoinParams> {
+        match &mut self.type_specific_params {
+            TypeSpecificParams::LeftJoin(params) => Some(params),
+            _ => None,
+        }
+    }
+
+    /// 获取右连接参数的可变引用
+    pub fn as_right_join_mut(&mut self) -> Option<&mut RightJoinParams> {
+        match &mut self.type_specific_params {
+            TypeSpecificParams::RightJoin(params) => Some(params),
+            _ => None,
+        }
+    }
+
+    /// 获取全连接参数的可变引用
+    pub fn as_full_join_mut(&mut self) -> Option<&mut FullJoinParams> {
+        match &mut self.type_specific_params {
+            TypeSpecificParams::FullJoin(params) => Some(params),
+            _ => None,
+        }
+    }
+
+    /// 获取笛卡尔积参数的可变引用
+    pub fn as_cartesian_mut(&mut self) -> Option<&mut CartesianParams> {
+        match &mut self.type_specific_params {
+            TypeSpecificParams::Cartesian(params) => Some(params),
+            _ => None,
+        }
+    }
+
+    /// 获取RollUp应用参数的可变引用
+    pub fn as_roll_up_apply_mut(&mut self) -> Option<&mut RollUpApplyParams> {
+        match &mut self.type_specific_params {
+            TypeSpecificParams::RollUpApply(params) => Some(params),
+            _ => None,
+        }
+    }
+
+    /// 获取模式应用参数的可变引用
+    pub fn as_pattern_apply_mut(&mut self) -> Option<&mut PatternApplyParams> {
+        match &mut self.type_specific_params {
+            TypeSpecificParams::PatternApply(params) => Some(params),
+            _ => None,
+        }
+    }
+
+    /// 获取顺序连接参数的可变引用
+    pub fn as_sequential_mut(&mut self) -> Option<&mut SequentialParams> {
+        match &mut self.type_specific_params {
+            TypeSpecificParams::Sequential(params) => Some(params),
+            _ => None,
+        }
+    }
+
+    /// 获取左输入变量名
+    pub fn left_input_var(&self) -> &str {
+        // 从连接键中推断左输入变量名
+        // 这是一个简化的实现，实际可能需要更复杂的逻辑
+        if let Some(expr) = self.join_keys.first() {
+            match expr {
+                Expr::Variable(var_expr) => &var_expr.name,
+                _ => "left",
+            }
+        } else {
+            "left"
+        }
+    }
+
+    /// 获取右输入变量名
+    pub fn right_input_var(&self) -> &str {
+        // 从交集别名中推断右输入变量名
+        // 这是一个简化的实现，实际可能需要更复杂的逻辑
+        if let Some(alias) = self.intersected_aliases.iter().next() {
+            alias
+        } else {
+            "right"
+        }
+    }
+
+    /// 获取左键列表
+    pub fn left_keys(&self) -> Vec<String> {
+        // 将 Expr 转换为字符串
+        self.join_keys
+            .iter()
+            .map(|expr| match expr {
+                Expr::Variable(var_expr) => var_expr.name.clone(),
+                _ => format!("{:?}", expr),
+            })
+            .collect()
+    }
+
+    /// 获取右键列表
+    pub fn right_keys(&self) -> Vec<String> {
+        // 使用交集别名作为右键
+        self.intersected_aliases.iter().cloned().collect()
+    }
+
+    /// 获取输出列列表
+    pub fn output_columns(&self) -> Vec<String> {
+        // 根据连接类型生成输出列
+        match &self.type_specific_params {
+            TypeSpecificParams::InnerJoin(_) => {
+                let mut cols = self.left_keys();
+                cols.extend(self.right_keys());
+                cols
+            }
+            TypeSpecificParams::LeftJoin(_) => {
+                let mut cols = self.left_keys();
+                cols.extend(self.right_keys());
+                cols
+            }
+            TypeSpecificParams::Cartesian(_) => {
+                vec!["id".to_string(), "name".to_string()]
+            }
+            _ => {
+                vec![]
+            }
+        }
+    }
+
+    /// 获取输入变量列表（用于笛卡尔积）
+    pub fn input_vars(&self) -> Vec<String> {
+        match &self.type_specific_params {
+            TypeSpecificParams::Cartesian(_) => {
+                vec!["left".to_string(), "right".to_string()]
+            }
+            _ => {
+                vec![
+                    self.left_input_var().to_string(),
+                    self.right_input_var().to_string(),
+                ]
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -336,7 +481,7 @@ mod tests {
     fn test_with_methods() {
         use crate::query::parser::ast::expr::{Expr, VariableExpr};
         use crate::query::parser::ast::types::Span;
-        
+
         let mock_expr = Expr::Variable(VariableExpr::new("test".to_string(), Span::default()));
         let params = JoinParams::cartesian()
             .with_join_keys(vec![mock_expr])

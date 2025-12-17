@@ -50,18 +50,85 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> BaseExecutorFactory<S> {
         // 注册各种计划节点类型的执行器创建器
         self.register_creator(
             PlanNodeKind::ScanVertices,
-            Box::new(ScanVerticesCreator::<S> { _phantom: PhantomData }),
+            Box::new(ScanVerticesCreator::<S> {
+                _phantom: PhantomData,
+            }),
         );
-        self.register_creator(PlanNodeKind::ScanEdges, Box::new(ScanEdgesCreator::<S> { _phantom: PhantomData }));
-        self.register_creator(PlanNodeKind::Filter, Box::new(FilterCreator::<S> { _phantom: PhantomData }));
-        self.register_creator(PlanNodeKind::Project, Box::new(ProjectCreator::<S> { _phantom: PhantomData }));
-        self.register_creator(PlanNodeKind::Limit, Box::new(LimitCreator::<S> { _phantom: PhantomData }));
-        self.register_creator(PlanNodeKind::Sort, Box::new(SortCreator::<S> { _phantom: PhantomData }));
-        self.register_creator(PlanNodeKind::Aggregate, Box::new(AggregateCreator::<S> { _phantom: PhantomData }));
-        self.register_creator(PlanNodeKind::HashInnerJoin, Box::new(JoinCreator::<S> { _phantom: PhantomData }));
-        self.register_creator(PlanNodeKind::Expand, Box::new(ExpandCreator::<S> { _phantom: PhantomData }));
-        self.register_creator(PlanNodeKind::Start, Box::new(StartCreator::<S> { _phantom: PhantomData }));
-        self.register_creator(PlanNodeKind::Unknown, Box::new(DefaultCreator::<S> { _phantom: PhantomData }));
+        self.register_creator(
+            PlanNodeKind::ScanEdges,
+            Box::new(ScanEdgesCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
+        self.register_creator(
+            PlanNodeKind::Filter,
+            Box::new(FilterCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
+        self.register_creator(
+            PlanNodeKind::Project,
+            Box::new(ProjectCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
+        self.register_creator(
+            PlanNodeKind::Limit,
+            Box::new(LimitCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
+        self.register_creator(
+            PlanNodeKind::Sort,
+            Box::new(SortCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
+        self.register_creator(
+            PlanNodeKind::Aggregate,
+            Box::new(AggregateCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
+
+        // 注册所有连接类型的执行器创建器
+        self.register_creator(
+            PlanNodeKind::HashInnerJoin,
+            Box::new(JoinCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
+        self.register_creator(
+            PlanNodeKind::HashLeftJoin,
+            Box::new(JoinCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
+        self.register_creator(
+            PlanNodeKind::CartesianProduct,
+            Box::new(JoinCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
+
+        self.register_creator(
+            PlanNodeKind::Expand,
+            Box::new(ExpandCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
+        self.register_creator(
+            PlanNodeKind::Start,
+            Box::new(StartCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
+        self.register_creator(
+            PlanNodeKind::Unknown,
+            Box::new(DefaultCreator::<S> {
+                _phantom: PhantomData,
+            }),
+        );
     }
 
     /// 注册执行器创建器
@@ -135,7 +202,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for ScanVe
             if let Some(scan_node) = plan_node.as_any().downcast_ref::<ScanVertices>() {
                 // ScanVertices是全表扫描操作，vertex_ids应为None
                 let vertex_ids = None;
-                
+
                 // 使用标签过滤器处理器处理标签过滤条件
                 let tag_filter = scan_node.tag_filter.as_ref().and_then(|filter_str| {
                     let processor = TagFilterProcessor::new();
@@ -147,7 +214,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for ScanVe
                         }
                     }
                 });
-                
+
                 // 处理limit参数，确保为正数
                 let limit = scan_node.limit.and_then(|l| {
                     if l > 0 {
@@ -156,17 +223,19 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for ScanVe
                         None // 忽略非正数的limit
                     }
                 });
-                
+
                 (vertex_ids, tag_filter, limit)
             } else {
                 // 类型转换失败，返回错误
                 return Err(QueryError::ExecutionError(
-                    "无法将计划节点转换为ScanVertices类型".to_string()
+                    "无法将计划节点转换为ScanVertices类型".to_string(),
                 ));
             };
 
         // 解析顶点过滤表达式
-        let vertex_filter = if let Some(scan_node) = plan_node.as_any().downcast_ref::<ScanVertices>() {
+        let vertex_filter = if let Some(scan_node) =
+            plan_node.as_any().downcast_ref::<ScanVertices>()
+        {
             scan_node.vertex_filter.as_ref().and_then(|filter_str| {
                 match crate::query::parser::expressions::parse_expression_from_string(filter_str) {
                     Ok(expr) => Some(expr),
@@ -179,8 +248,9 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for ScanVe
         } else {
             None
         };
-        
-        let executor = GetVerticesExecutor::new(id, storage, vertex_ids, tag_filter, vertex_filter, limit);
+
+        let executor =
+            GetVerticesExecutor::new(id, storage, vertex_ids, tag_filter, vertex_filter, limit);
         Ok(Box::new(executor))
     }
 }
@@ -228,8 +298,8 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Filter
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         use crate::graph::expression::Expression;
         use crate::query::executor::data_processing::filter::FilterExecutor;
-        use crate::query::planner::plan::operations::data_processing_ops::Filter;
         use crate::query::parser::expressions::parse_expression_from_string;
+        use crate::query::planner::plan::operations::data_processing_ops::Filter;
 
         let id = plan_node.id() as usize;
 
@@ -268,8 +338,8 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Projec
         use crate::graph::expression::Expression;
         use crate::query::executor::result_processing::projection::ProjectExecutor;
         use crate::query::executor::result_processing::projection::ProjectionColumn;
-        use crate::query::planner::plan::operations::data_processing_ops::Project;
         use crate::query::parser::expressions::parse_expression_from_string;
+        use crate::query::planner::plan::operations::data_processing_ops::Project;
 
         let id = plan_node.id() as usize;
 
@@ -277,7 +347,10 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Projec
         let columns = if let Some(project_node) = plan_node.as_any().downcast_ref::<Project>() {
             // 解析投影表达式字符串
             if project_node.yield_expr == "*" {
-                vec![ProjectionColumn::new("*".to_string(), Expression::literal("*"))]
+                vec![ProjectionColumn::new(
+                    "*".to_string(),
+                    Expression::literal("*"),
+                )]
             } else {
                 // 分割表达式，创建投影列
                 project_node
@@ -294,21 +367,24 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Projec
                                 Expression::variable(expr_str.to_string())
                             }
                         };
-                        
+
                         // 提取别名（如果有）
                         let alias = if let Some(as_pos) = expr_str.find(" AS ") {
                             expr_str[..as_pos].trim().to_string()
                         } else {
                             expr_str.to_string()
                         };
-                        
+
                         ProjectionColumn::new(alias, expr)
                     })
                     .collect()
             }
         } else {
             // 如果不是具体的Project节点，使用默认投影
-            vec![ProjectionColumn::new("*".to_string(), Expression::literal("*"))]
+            vec![ProjectionColumn::new(
+                "*".to_string(),
+                Expression::literal("*"),
+            )]
         };
 
         let executor = ProjectExecutor::new(id, storage, columns);
@@ -334,7 +410,10 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for LimitC
 
         // 尝试从具体的Limit计划节点中提取参数
         let (limit, offset) = if let Some(limit_node) = plan_node.as_any().downcast_ref::<Limit>() {
-            (limit_node.count.try_into().ok(), limit_node.offset.try_into().unwrap_or(0))
+            (
+                limit_node.count.try_into().ok(),
+                limit_node.offset.try_into().unwrap_or(0),
+            )
         } else {
             // 如果不是具体的Limit节点，使用默认值
             (None, 0)
@@ -358,8 +437,8 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for SortCr
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         use crate::graph::expression::Expression;
         use crate::query::executor::data_processing::sort::{SortExecutor, SortKey, SortOrder};
-        use crate::query::planner::plan::operations::sorting_ops::Sort;
         use crate::query::parser::expressions::parse_expression_from_string;
+        use crate::query::planner::plan::operations::sorting_ops::Sort;
 
         let id = plan_node.id() as usize;
 
@@ -451,66 +530,117 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for JoinCr
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
+        use crate::query::executor::data_processing::join::cross_join::CrossJoinExecutor;
         use crate::query::executor::data_processing::join::inner_join::InnerJoinExecutor;
-        use crate::query::planner::plan::operations::join_ops::HashInnerJoin;
+        use crate::query::executor::data_processing::join::left_join::LeftJoinExecutor;
+        use crate::query::planner::plan::operations::join_ops::{
+            CrossJoin, HashInnerJoin, HashLeftJoin,
+        };
+        use crate::query::planner::plan::utils::join_params::JoinParams;
 
         let id = plan_node.id() as usize;
 
-        // 尝试从具体的HashInnerJoin计划节点中提取参数
-        let (left_var, right_var, left_keys, right_keys, output_cols) =
-            if let Some(join_node) = plan_node.as_any().downcast_ref::<HashInnerJoin>() {
-                // 从HashInnerJoin节点中提取连接参数
-                // 使用输出变量名作为左右表变量名
-                let left_var = if let Some(ref output_var) = join_node.output_var {
-                    format!("{}_left", output_var.name)
-                } else {
-                    "left".to_string()
-                };
-                
-                let right_var = if let Some(ref output_var) = join_node.output_var {
-                    format!("{}_right", output_var.name)
-                } else {
-                    "right".to_string()
-                };
-                
-                // 使用列名作为连接键
-                let left_keys = if !join_node.col_names.is_empty() {
-                    vec!["0".to_string()] // 使用第一列作为连接键
-                } else {
-                    vec!["0".to_string()]
-                };
-                
-                let right_keys = left_keys.clone();
-                
-                // 使用列名作为输出列
-                let output_cols = if !join_node.col_names.is_empty() {
-                    join_node.col_names.clone()
-                } else {
-                    vec!["id".to_string(), "name".to_string()]
-                };
-                
-                (left_var, right_var, left_keys, right_keys, output_cols)
-            } else {
-                // 如果不是具体的HashInnerJoin节点，使用默认值
-                (
-                    "left".to_string(),
-                    "right".to_string(),
-                    vec!["0".to_string()],
-                    vec!["0".to_string()],
-                    vec!["id".to_string(), "name".to_string()],
-                )
-            };
+        // 根据计划节点类型创建不同的执行器
+        match plan_node.kind() {
+            PlanNodeKind::HashInnerJoin => {
+                // 从HashInnerJoin计划节点中提取参数
+                let (left_var, right_var, left_keys, right_keys, output_cols) =
+                    if let Some(join_node) = plan_node.as_any().downcast_ref::<HashInnerJoin>() {
+                        // 从JoinParams中提取参数
+                        if let Some(ref join_params) = join_node.join_params {
+                            (
+                                join_params.left_input_var().clone(),
+                                join_params.right_input_var().clone(),
+                                join_params.left_keys().clone(),
+                                join_params.right_keys().clone(),
+                                join_params.output_columns().clone(),
+                            )
+                        } else {
+                            return Err(QueryError::ExecutionError(
+                                "HashInnerJoin 节点缺少 JoinParams".to_string(),
+                            ));
+                        }
+                    } else {
+                        return Err(QueryError::ExecutionError(
+                            "无法将计划节点转换为 HashInnerJoin 类型".to_string(),
+                        ));
+                    };
 
-        let executor = InnerJoinExecutor::new(
-            id,
-            storage,
-            left_var,
-            right_var,
-            left_keys,
-            right_keys,
-            output_cols,
-        );
-        Ok(Box::new(executor))
+                let executor = InnerJoinExecutor::new(
+                    id,
+                    storage,
+                    left_var.to_string(),
+                    right_var.to_string(),
+                    left_keys,
+                    right_keys,
+                    output_cols,
+                );
+                Ok(Box::new(executor))
+            }
+            PlanNodeKind::HashLeftJoin => {
+                // 处理左连接
+                let (left_var, right_var, left_keys, right_keys, output_cols) =
+                    if let Some(join_node) = plan_node.as_any().downcast_ref::<HashLeftJoin>() {
+                        // 从JoinParams中提取参数
+                        if let Some(ref join_params) = join_node.join_params {
+                            (
+                                join_params.left_input_var().clone(),
+                                join_params.right_input_var().clone(),
+                                join_params.left_keys().clone(),
+                                join_params.right_keys().clone(),
+                                join_params.output_columns().clone(),
+                            )
+                        } else {
+                            return Err(QueryError::ExecutionError(
+                                "HashLeftJoin 节点缺少 JoinParams".to_string(),
+                            ));
+                        }
+                    } else {
+                        return Err(QueryError::ExecutionError(
+                            "无法将计划节点转换为 HashLeftJoin 类型".to_string(),
+                        ));
+                    };
+
+                let executor = LeftJoinExecutor::new(
+                    id,
+                    storage,
+                    left_var.to_string(),
+                    right_var.to_string(),
+                    left_keys,
+                    right_keys,
+                    output_cols,
+                );
+                Ok(Box::new(executor))
+            }
+            PlanNodeKind::CartesianProduct => {
+                // 处理笛卡尔积
+                let (input_vars, output_cols) =
+                    if let Some(join_node) = plan_node.as_any().downcast_ref::<CrossJoin>() {
+                        // 从JoinParams中提取参数
+                        if let Some(ref join_params) = join_node.join_params {
+                            (
+                                join_params.input_vars().clone(),
+                                join_params.output_columns().clone(),
+                            )
+                        } else {
+                            return Err(QueryError::ExecutionError(
+                                "CrossJoin 节点缺少 JoinParams".to_string(),
+                            ));
+                        }
+                    } else {
+                        return Err(QueryError::ExecutionError(
+                            "无法将计划节点转换为 CrossJoin 类型".to_string(),
+                        ));
+                    };
+
+                let executor = CrossJoinExecutor::new(id, storage, input_vars, output_cols);
+                Ok(Box::new(executor))
+            }
+            _ => Err(QueryError::ExecutionError(format!(
+                "不支持的连接类型: {:?}",
+                plan_node.kind()
+            ))),
+        }
     }
 }
 
@@ -544,15 +674,15 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Expand
                         EdgeDirection::Both
                     }
                 };
-                
+
                 let edge_types = if expand_node.edge_types.is_empty() {
                     None
                 } else {
                     Some(expand_node.edge_types.clone())
                 };
-                
+
                 let max_depth = expand_node.step_limit.map(|d| d as usize);
-                
+
                 (direction, edge_types, max_depth)
             } else {
                 // 如果不是具体的Expand节点，使用默认值
@@ -642,11 +772,18 @@ mod tests {
             unimplemented!()
         }
 
-        fn scan_all_vertices(&self) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_all_vertices(
+            &self,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_vertices_by_tag(
+            &self,
+            _tag: &str,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
 

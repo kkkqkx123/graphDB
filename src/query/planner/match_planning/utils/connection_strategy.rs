@@ -3,7 +3,7 @@
 
 use crate::query::context::ast::base::AstContext;
 use crate::query::parser::ast::expr::Expr;
-use crate::query::planner::match_planning::utils::join_params::{JoinAlgorithm, JoinParams};
+use crate::query::planner::plan::utils::join_params::{JoinAlgorithm, JoinParams};
 use crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable;
 use crate::query::planner::plan::{BinaryInputNode, PlanNodeKind, SubPlan};
 use crate::query::planner::planner::PlannerError;
@@ -39,84 +39,6 @@ impl std::fmt::Display for ConnectionType {
     }
 }
 
-/// 连接参数
-/// 保持向后兼容的包装器，内部使用新的 JoinParams
-#[derive(Debug, Clone)]
-pub struct ConnectionParams {
-    pub connection_type: ConnectionType,
-    pub join_params: JoinParams,
-}
-
-impl ConnectionParams {
-    pub fn inner_join(intersected_aliases: HashSet<String>) -> Self {
-        Self {
-            connection_type: ConnectionType::InnerJoin,
-            join_params: JoinParams::inner_join(Vec::new(), intersected_aliases),
-        }
-    }
-
-    pub fn left_join(intersected_aliases: HashSet<String>) -> Self {
-        Self {
-            connection_type: ConnectionType::LeftJoin,
-            join_params: JoinParams::left_join(Vec::new(), intersected_aliases),
-        }
-    }
-
-    pub fn cartesian() -> Self {
-        Self {
-            connection_type: ConnectionType::Cartesian,
-            join_params: JoinParams::cartesian(),
-        }
-    }
-
-    pub fn sequential(copy_col_names: bool) -> Self {
-        Self {
-            connection_type: ConnectionType::Sequential,
-            join_params: JoinParams::sequential(copy_col_names),
-        }
-    }
-
-    pub fn pattern_apply(intersected_aliases: HashSet<String>) -> Self {
-        Self {
-            connection_type: ConnectionType::PatternApply,
-            join_params: JoinParams::pattern_apply(intersected_aliases),
-        }
-    }
-
-    pub fn roll_up_apply(intersected_aliases: HashSet<String>) -> Self {
-        Self {
-            connection_type: ConnectionType::RollUpApply,
-            join_params: JoinParams::roll_up_apply(intersected_aliases, Vec::new(), Vec::new()),
-        }
-    }
-
-    /// 设置连接键
-    pub fn with_join_keys(mut self, join_keys: Vec<Expr>) -> Self {
-        self.join_params = self.join_params.with_join_keys(join_keys);
-        self
-    }
-
-    /// 设置过滤条件
-    pub fn with_filter_condition(mut self, filter_condition: Expr) -> Self {
-        self.join_params = self.join_params.with_filter_condition(filter_condition);
-        self
-    }
-
-    /// 获取交集别名
-    pub fn intersected_aliases(&self) -> &HashSet<String> {
-        &self.join_params.intersected_aliases
-    }
-
-    /// 获取连接键
-    pub fn join_keys(&self) -> &Vec<Expr> {
-        &self.join_params.join_keys
-    }
-
-    /// 获取过滤条件
-    pub fn filter_condition(&self) -> &Option<Expr> {
-        &self.join_params.filter_condition
-    }
-}
 
 /// 连接策略特征
 pub trait ConnectionStrategy: std::fmt::Debug + Send + Sync {
@@ -125,7 +47,7 @@ pub trait ConnectionStrategy: std::fmt::Debug + Send + Sync {
         qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        params: &ConnectionParams,
+        params: &JoinParams,
     ) -> Result<SubPlan, PlannerError>;
 
     fn can_handle(&self, connection_type: &ConnectionType) -> bool;
@@ -141,7 +63,7 @@ impl ConnectionStrategy for InnerJoinStrategy {
         _qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        params: &ConnectionParams,
+        params: &JoinParams,
     ) -> Result<SubPlan, PlannerError> {
         if left.root.is_none() || right.root.is_none() {
             return Ok(if left.root.is_some() {
@@ -161,7 +83,7 @@ impl ConnectionStrategy for InnerJoinStrategy {
         join_node.deps.push(right_root.clone_plan_node());
 
         // 设置连接参数
-        join_node.join_params = Some(params.join_params.clone());
+        join_node.join_params = Some(params.clone());
 
         Ok(SubPlan::new(
             Some(Arc::new(join_node.clone())),
@@ -184,7 +106,7 @@ impl ConnectionStrategy for LeftJoinStrategy {
         _qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        params: &ConnectionParams,
+        params: &JoinParams,
     ) -> Result<SubPlan, PlannerError> {
         if left.root.is_none() {
             return Ok(right.clone());
@@ -202,7 +124,7 @@ impl ConnectionStrategy for LeftJoinStrategy {
         join_node.deps.push(right_root.clone_plan_node());
 
         // 设置连接参数
-        join_node.join_params = Some(params.join_params.clone());
+        join_node.join_params = Some(params.clone());
 
         Ok(SubPlan::new(
             Some(Arc::new(join_node.clone())),
@@ -225,7 +147,7 @@ impl ConnectionStrategy for CartesianStrategy {
         _qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        params: &ConnectionParams,
+        params: &JoinParams,
     ) -> Result<SubPlan, PlannerError> {
         if left.root.is_none() || right.root.is_none() {
             return Ok(if left.root.is_some() {
@@ -245,7 +167,7 @@ impl ConnectionStrategy for CartesianStrategy {
         cartesian_node.deps.push(right_root.clone_plan_node());
 
         // 设置连接参数
-        cartesian_node.join_params = Some(params.join_params.clone());
+        cartesian_node.join_params = Some(params.clone());
 
         Ok(SubPlan::new(
             Some(Arc::new(cartesian_node.clone())),
@@ -268,7 +190,7 @@ impl ConnectionStrategy for SequentialStrategy {
         _qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        params: &ConnectionParams,
+        params: &JoinParams,
     ) -> Result<SubPlan, PlannerError> {
         if left.root.is_none() {
             return Ok(right.clone());
@@ -280,7 +202,6 @@ impl ConnectionStrategy for SequentialStrategy {
                 // 设置输入变量和列名
                 // 根据 copy_col_names 参数决定是否复制列名
                 let copy_col_names = params
-                    .join_params
                     .as_sequential()
                     .map(|p| p.copy_col_names)
                     .unwrap_or(false);
@@ -323,7 +244,7 @@ impl ConnectionStrategy for PatternApplyStrategy {
         _qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        params: &ConnectionParams,
+        params: &JoinParams,
     ) -> Result<SubPlan, PlannerError> {
         if left.root.is_none() || right.root.is_none() {
             return Ok(if left.root.is_some() {
@@ -345,7 +266,7 @@ impl ConnectionStrategy for PatternApplyStrategy {
         pattern_apply_node.deps.push(right_root.clone_plan_node());
 
         // 设置连接参数
-        pattern_apply_node.join_params = Some(params.join_params.clone());
+        pattern_apply_node.join_params = Some(params.clone());
 
         Ok(SubPlan::new(
             Some(Arc::new(pattern_apply_node.clone())),
@@ -368,7 +289,7 @@ impl ConnectionStrategy for RollUpApplyStrategy {
         _qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        params: &ConnectionParams,
+        params: &JoinParams,
     ) -> Result<SubPlan, PlannerError> {
         if left.root.is_none() || right.root.is_none() {
             return Ok(if left.root.is_some() {
@@ -392,7 +313,7 @@ impl ConnectionStrategy for RollUpApplyStrategy {
         roll_up_apply_node.deps.push(right_root.clone_plan_node());
 
         // 设置连接参数
-        roll_up_apply_node.join_params = Some(params.join_params.clone());
+        roll_up_apply_node.join_params = Some(params.clone());
 
         Ok(SubPlan::new(
             Some(Arc::new(roll_up_apply_node.clone())),
@@ -430,15 +351,27 @@ impl UnifiedConnector {
         qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        params: &ConnectionParams,
+        params: &JoinParams,
     ) -> Result<SubPlan, PlannerError> {
+        // 根据 JoinParams 的类型确定连接类型
+        let connection_type = match params.type_specific_params {
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::InnerJoin(_) => ConnectionType::InnerJoin,
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::LeftJoin(_) => ConnectionType::LeftJoin,
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::RightJoin(_) => ConnectionType::RightJoin,
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::FullJoin(_) => ConnectionType::FullJoin,
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::Cartesian(_) => ConnectionType::Cartesian,
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::RollUpApply(_) => ConnectionType::RollUpApply,
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::PatternApply(_) => ConnectionType::PatternApply,
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::Sequential(_) => ConnectionType::Sequential,
+        };
+
         let strategy = self
             .strategies
-            .get(&params.connection_type)
+            .get(&connection_type)
             .ok_or_else(|| {
                 PlannerError::UnsupportedOperation(format!(
                     "Unsupported connection type: {}",
-                    params.connection_type
+                    connection_type
                 ))
             })?;
 
@@ -475,9 +408,8 @@ impl UnifiedConnector {
         right: &SubPlan,
         intersected_aliases: HashSet<String>,
     ) -> Result<SubPlan, PlannerError> {
-        let connector = Self::new();
-        let params = ConnectionParams::inner_join(intersected_aliases);
-        connector.connect(qctx, left, right, &params)
+        let params = JoinParams::inner_join(vec![], intersected_aliases);
+        Self::new().connect(qctx, left, right, &params)
     }
 
     /// 左连接（静态方法，向后兼容）
@@ -487,9 +419,8 @@ impl UnifiedConnector {
         right: &SubPlan,
         intersected_aliases: HashSet<String>,
     ) -> Result<SubPlan, PlannerError> {
-        let connector = Self::new();
-        let params = ConnectionParams::left_join(intersected_aliases);
-        connector.connect(qctx, left, right, &params)
+        let params = JoinParams::left_join(vec![], intersected_aliases);
+        Self::new().connect(qctx, left, right, &params)
     }
 
     /// 笛卡尔积（静态方法，向后兼容）
@@ -498,9 +429,8 @@ impl UnifiedConnector {
         left: &SubPlan,
         right: &SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        let connector = Self::new();
-        let params = ConnectionParams::cartesian();
-        connector.connect(qctx, left, right, &params)
+        let params = JoinParams::cartesian();
+        Self::new().connect(qctx, left, right, &params)
     }
 
     /// 添加输入（静态方法，向后兼容）
@@ -510,9 +440,8 @@ impl UnifiedConnector {
         right: &SubPlan,
         copy_col_names: bool,
     ) -> Result<SubPlan, PlannerError> {
-        let connector = Self::new();
-        let params = ConnectionParams::sequential(copy_col_names);
-        connector.connect(qctx, left, right, &params)
+        let params = JoinParams::sequential(copy_col_names);
+        Self::new().connect(qctx, left, right, &params)
     }
 
     /// 模式应用（静态方法，向后兼容）
@@ -522,9 +451,8 @@ impl UnifiedConnector {
         right: &SubPlan,
         intersected_aliases: HashSet<String>,
     ) -> Result<SubPlan, PlannerError> {
-        let connector = Self::new();
-        let params = ConnectionParams::pattern_apply(intersected_aliases);
-        connector.connect(qctx, left, right, &params)
+        let params = JoinParams::pattern_apply(intersected_aliases);
+        Self::new().connect(qctx, left, right, &params)
     }
 
     /// 卷起应用（静态方法，向后兼容）
@@ -534,9 +462,8 @@ impl UnifiedConnector {
         right: &SubPlan,
         intersected_aliases: HashSet<String>,
     ) -> Result<SubPlan, PlannerError> {
-        let connector = Self::new();
-        let params = ConnectionParams::roll_up_apply(intersected_aliases);
-        connector.connect(qctx, left, right, &params)
+        let params = JoinParams::roll_up_apply(intersected_aliases, vec![], vec![]);
+        Self::new().connect(qctx, left, right, &params)
     }
 }
 
@@ -557,23 +484,22 @@ mod tests {
     }
 
     #[test]
-    fn test_connection_params() {
+    fn test_join_params() {
         let mut aliases = HashSet::new();
         aliases.insert("a".to_string());
         aliases.insert("b".to_string());
 
-        let params = ConnectionParams::inner_join(aliases.clone());
-        assert_eq!(params.connection_type, ConnectionType::InnerJoin);
-        assert_eq!(params.intersected_aliases(), &aliases);
-        assert!(params.join_keys().is_empty());
-        assert!(params.filter_condition().is_none());
+        let params = JoinParams::inner_join(vec![], aliases.clone());
+        assert_eq!(params.intersected_aliases, aliases);
+        assert!(params.join_keys.is_empty());
+        assert!(params.filter_condition.is_none());
 
         // 创建一个非空的连接键列表
         use crate::query::parser::ast::expr::{Expr, VariableExpr};
         use crate::query::parser::ast::types::Span;
         let mock_expr = Expr::Variable(VariableExpr::new("test".to_string(), Span::default()));
         let params_with_keys = params.with_join_keys(vec![mock_expr]);
-        assert!(!params_with_keys.join_keys().is_empty());
+        assert!(!params_with_keys.join_keys.is_empty());
     }
 
     #[test]
@@ -585,7 +511,7 @@ mod tests {
         let qctx = AstContext::new("test", "test");
         let left = SubPlan::new(None, None);
         let right = SubPlan::new(None, None);
-        let params = ConnectionParams::inner_join(HashSet::new());
+        let params = JoinParams::inner_join(vec![], HashSet::new());
 
         // 测试空计划的情况
         let result = strategy.connect(&qctx, &left, &right, &params);
@@ -605,7 +531,7 @@ mod tests {
         let qctx = AstContext::new("test", "test");
         let left = SubPlan::new(None, None);
         let right = SubPlan::new(None, None);
-        let params = ConnectionParams::cartesian();
+        let params = JoinParams::cartesian();
 
         let result = connector.connect(&qctx, &left, &right, &params);
         assert!(result.is_ok());

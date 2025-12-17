@@ -45,7 +45,7 @@ pub use clauses::yield_planner::YieldClausePlanner;
 pub use utils::finder::{Finder, FinderResult};
 pub use utils::node_factory::{create_start_node, create_nested_start_node, create_empty_node};
 pub use utils::connection_strategy::{
-    ConnectionType, ConnectionParams, ConnectionStrategy, UnifiedConnector,
+    ConnectionType, ConnectionStrategy, UnifiedConnector,
     InnerJoinStrategy, LeftJoinStrategy, CartesianStrategy, SequentialStrategy,
     PatternApplyStrategy, RollUpApplyStrategy,
 };
