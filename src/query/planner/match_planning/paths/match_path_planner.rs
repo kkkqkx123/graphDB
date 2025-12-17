@@ -581,7 +581,6 @@ mod tests {
         assert_eq!(node.kind(), PlanNodeKind::Start);
         assert_eq!(node.id(), -1);
         assert_eq!(node.dependencies().len(), 0);
-        assert_eq!(node.cost(), 0.0);
     }
 
     #[test]

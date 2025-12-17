@@ -106,26 +106,8 @@ impl PlanNodeDependencies for GetVertices {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -137,15 +119,17 @@ impl PlanNodeMutable for GetVertices {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for GetVertices {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -270,26 +254,8 @@ impl PlanNodeDependencies for GetEdges {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -301,15 +267,17 @@ impl PlanNodeMutable for GetEdges {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for GetEdges {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -425,26 +393,8 @@ impl PlanNodeDependencies for GetNeighbors {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -456,15 +406,17 @@ impl PlanNodeMutable for GetNeighbors {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for GetNeighbors {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -568,26 +520,8 @@ impl PlanNodeDependencies for ScanVertices {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -599,15 +533,17 @@ impl PlanNodeMutable for ScanVertices {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for ScanVertices {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -714,26 +650,8 @@ impl PlanNodeDependencies for ScanEdges {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -745,15 +663,17 @@ impl PlanNodeMutable for ScanEdges {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for ScanEdges {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 

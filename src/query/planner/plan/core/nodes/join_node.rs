@@ -5,7 +5,7 @@
 use super::super::plan_node_kind::PlanNodeKind;
 use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
-    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable, BinaryInputPlanNode
+    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
 };
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
@@ -82,55 +82,39 @@ impl PlanNodeDependencies for InnerJoinNode {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.inner_deps
     }
-    
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        // 内连接节点需要恰好两个依赖
-        match deps.len() {
-            2 => {
-                self.left = deps[0].clone();
-                self.right = deps[1].clone();
-                self.inner_deps = deps;
-            }
-            1 => {
-                self.left = deps[0].clone();
-                // 创建一个默认的右节点
-                let start_node = super::factory::PlanNodeFactory::create_start_node().unwrap();
-                self.right = start_node.clone();
-                self.inner_deps = vec![deps[0].clone(), start_node];
-            }
-            _ => {
-                // 无效的依赖数量，不做任何操作
-            }
-        }
-    }
-    
+
     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
         // 内连接节点不支持添加依赖，它需要恰好两个输入
-    }
-    
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if self.left.id() == id || self.right.id() == id {
-            false
-        } else {
-            false
-        }
-    }
-    
-    fn clear_dependencies(&mut self) {
-        // 内连接节点必须有输入，不能清空
+        // 在实际使用中，内连接节点在创建时就确定了依赖
+        panic!("内连接节点不支持添加依赖，它需要恰好两个输入")
     }
 }
 
 impl PlanNodeMutable for InnerJoinNode {
     fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
-    fn set_cost(&mut self, cost: f64) { self.cost = cost; }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for InnerJoinNode {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(Self {
             id: self.id,
+            left: self.left.clone_plan_node(),
+            right: self.right.clone_plan_node(),
+            hash_keys: self.hash_keys.clone(),
+            probe_keys: self.probe_keys.clone(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            inner_deps: self.inner_deps.clone(),
+        })
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        Arc::new(Self {
+            id: new_id,
             left: self.left.clone_plan_node(),
             right: self.right.clone_plan_node(),
             hash_keys: self.hash_keys.clone(),
@@ -156,27 +140,6 @@ impl PlanNode for InnerJoinNode {
     fn as_any(&self) -> &dyn std::any::Any { self }
 }
 
-impl BinaryInputPlanNode for InnerJoinNode {
-    fn left(&self) -> &Arc<dyn PlanNode> {
-        &self.left
-    }
-    
-    fn right(&self) -> &Arc<dyn PlanNode> {
-        &self.right
-    }
-    
-    fn set_left(&mut self, left: Arc<dyn PlanNode>) {
-        self.left = left.clone();
-        self.inner_deps[0] = left;
-    }
-    
-    fn set_right(&mut self, right: Arc<dyn PlanNode>) {
-        self.right = right.clone();
-        if self.inner_deps.len() > 1 {
-            self.inner_deps[1] = right;
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -95,21 +95,8 @@ impl PlanNodeDependencies for InsertVertices {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
-    }
-
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
     }
 }
 
@@ -121,15 +108,17 @@ impl PlanNodeMutable for InsertVertices {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for InsertVertices {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -232,21 +221,8 @@ impl PlanNodeDependencies for InsertEdges {
         &self.deps
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
-    }
-
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
     }
 }
 
@@ -258,15 +234,17 @@ impl PlanNodeMutable for InsertEdges {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for InsertEdges {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 

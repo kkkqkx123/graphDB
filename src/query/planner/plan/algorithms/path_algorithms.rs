@@ -148,15 +148,17 @@ impl PlanNodeMutable for MultiShortestPath {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for MultiShortestPath {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -292,15 +294,17 @@ impl PlanNodeMutable for BFSShortest {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for BFSShortest {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -449,15 +453,17 @@ impl PlanNodeMutable for AllPaths {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for AllPaths {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -597,15 +603,17 @@ impl PlanNodeMutable for ShortestPath {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for ShortestPath {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 

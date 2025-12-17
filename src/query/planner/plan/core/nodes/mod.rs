@@ -22,6 +22,5 @@ pub use factory::PlanNodeFactory;
 // 重新导出 trait
 pub use traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
-    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable, SingleInputPlanNode,
-    BinaryInputPlanNode
+    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
 };

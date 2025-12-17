@@ -46,35 +46,36 @@ impl PlanNodeProperties for PlaceholderNode {
 }
 
 impl PlanNodeDependencies for PlaceholderNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] { &[] }
-    
-    fn replace_dependencies(&mut self, _deps: Vec<Arc<dyn PlanNode>>) {
-        // 占位符节点不支持依赖，忽略
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &[]
     }
-    
+
     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
         // 占位符节点不支持依赖
-    }
-    
-    fn remove_dependency(&mut self, _id: i64) -> bool {
-        false
-    }
-    
-    fn clear_dependencies(&mut self) {
-        // 占位符节点没有依赖，无需操作
+        panic!("占位符节点不支持依赖")
     }
 }
 
 impl PlanNodeMutable for PlaceholderNode {
     fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
-    fn set_cost(&mut self, cost: f64) { self.cost = cost; }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for PlaceholderNode {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(Self {
             id: self.id,
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        })
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        Arc::new(Self {
+            id: new_id,
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -106,7 +107,6 @@ mod tests {
         assert_eq!(placeholder_node.kind(), PlanNodeKind::Argument);
         assert_eq!(placeholder_node.dependencies().len(), 0);
         assert_eq!(placeholder_node.col_names().len(), 0);
-        assert_eq!(placeholder_node.cost(), 0.0);
     }
     
     #[test]
@@ -123,9 +123,6 @@ mod tests {
         let mut placeholder_node = PlaceholderNode::new();
         
         // 测试设置属性
-        placeholder_node.set_cost(5.0);
-        assert_eq!(placeholder_node.cost(), 5.0);
-        
         placeholder_node.set_col_names(vec!["param".to_string()]);
         assert_eq!(placeholder_node.col_names().len(), 1);
         assert_eq!(placeholder_node.col_names()[0], "param");

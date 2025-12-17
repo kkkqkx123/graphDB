@@ -220,25 +220,8 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies f
         &self.dependencies
     }
 
-    fn replace_dependencies(&mut self, deps: Vec<std::sync::Arc<dyn PlanNode>>) {
-        self.dependencies = deps;
-    }
-
     fn add_dependency(&mut self, dep: std::sync::Arc<dyn PlanNode>) {
         self.dependencies.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
-            self.dependencies.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.dependencies.clear();
     }
 }
 
@@ -250,16 +233,22 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable for Du
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable for DummyPlanNode {
     fn clone_plan_node(&self) -> std::sync::Arc<dyn PlanNode> {
         std::sync::Arc::new(DummyPlanNode {
             id: self.id,
+            dependencies: Vec::new(), // Don't clone dependencies to avoid infinite recursion
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        })
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> std::sync::Arc<dyn PlanNode> {
+        std::sync::Arc::new(DummyPlanNode {
+            id: new_id,
             dependencies: Vec::new(), // Don't clone dependencies to avoid infinite recursion
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),

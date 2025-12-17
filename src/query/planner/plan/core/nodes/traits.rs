@@ -43,22 +43,8 @@ pub trait PlanNodeDependencies {
         self.dependencies().iter().any(|dep| dep.id() == id)
     }
 
-    /// 获取指定ID的依赖节点
-    fn get_dependency(&self, id: i64) -> Option<&Arc<dyn PlanNode>> {
-        self.dependencies().iter().find(|dep| dep.id() == id)
-    }
-
-    /// 替换依赖节点列表
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>);
-
-    /// 添加依赖节点
+    /// 添加依赖节点（主要用于构建阶段）
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>);
-
-    /// 移除指定ID的依赖节点
-    fn remove_dependency(&mut self, id: i64) -> bool;
-
-    /// 清空所有依赖
-    fn clear_dependencies(&mut self);
 }
 
 /// 可变性 trait - 提供节点的可变操作
@@ -68,9 +54,6 @@ pub trait PlanNodeMutable {
 
     /// 设置列名
     fn set_col_names(&mut self, names: Vec<String>);
-
-    /// 设置成本
-    fn set_cost(&mut self, cost: f64);
 }
 
 /// 访问者支持 trait - 支持访问者模式
@@ -83,6 +66,9 @@ pub trait PlanNodeVisitable {
 pub trait PlanNodeClonable {
     /// 克隆节点
     fn clone_plan_node(&self) -> Arc<dyn PlanNode>;
+
+    /// 克隆节点并分配新的ID
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode>;
 }
 
 /// 组合 trait - 组合所有 PlanNode 相关 trait
@@ -99,18 +85,4 @@ pub trait PlanNode:
 {
     /// 将节点作为Any类型返回，以支持downcast
     fn as_any(&self) -> &dyn std::any::Any;
-}
-
-/// 单输入节点特征
-pub trait SingleInputPlanNode: PlanNode {
-    fn input(&self) -> &Arc<dyn PlanNode>;
-    fn set_input(&mut self, input: Arc<dyn PlanNode>);
-}
-
-/// 双输入节点特征
-pub trait BinaryInputPlanNode: PlanNode {
-    fn left(&self) -> &Arc<dyn PlanNode>;
-    fn right(&self) -> &Arc<dyn PlanNode>;
-    fn set_left(&mut self, left: Arc<dyn PlanNode>);
-    fn set_right(&mut self, right: Arc<dyn PlanNode>);
 }

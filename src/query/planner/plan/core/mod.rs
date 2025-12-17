@@ -9,9 +9,7 @@ pub mod visitor;
 // 重新导出核心类型
 pub use common::{EdgeProp, TagProp};
 pub use nodes::{
-    FilterNode, InnerJoinNode, PlaceholderNode, PlanNodeFactory, ProjectNode, StartNode,
-    BinaryInputPlanNode, SingleInputPlanNode,
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
+    FilterNode, InnerJoinNode, PlaceholderNode, PlanNodeFactory, ProjectNode, StartNode, PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
     PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
 };
 pub use plan_node_kind::PlanNodeKind;

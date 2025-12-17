@@ -81,25 +81,9 @@ impl PlanNodeDependencies for Filter {
         &self.deps
     }
 
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -111,15 +95,17 @@ impl PlanNodeMutable for Filter {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for Filter {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -207,25 +193,9 @@ impl PlanNodeDependencies for Project {
         &self.deps
     }
 
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -237,15 +207,17 @@ impl PlanNodeMutable for Project {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for Project {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -335,26 +307,9 @@ impl PlanNodeDependencies for Unwind {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
+    
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -366,15 +321,17 @@ impl PlanNodeMutable for Unwind {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for Unwind {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -458,26 +415,9 @@ impl PlanNodeDependencies for Dedup {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
+    
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -489,15 +429,17 @@ impl PlanNodeMutable for Dedup {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for Dedup {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -584,26 +526,9 @@ impl PlanNodeDependencies for Union {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
+    
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -615,15 +540,17 @@ impl PlanNodeMutable for Union {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for Union {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -721,26 +648,9 @@ impl PlanNodeDependencies for RollUpApply {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
+    
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -752,15 +662,17 @@ impl PlanNodeMutable for RollUpApply {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for RollUpApply {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -858,26 +770,9 @@ impl PlanNodeDependencies for PatternApply {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
+    
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -889,15 +784,17 @@ impl PlanNodeMutable for PatternApply {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for PatternApply {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -984,26 +881,9 @@ impl PlanNodeDependencies for DataCollect {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
+    
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
@@ -1015,15 +895,17 @@ impl PlanNodeMutable for DataCollect {
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
 }
 
 impl PlanNodeClonable for DataCollect {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 

@@ -115,46 +115,31 @@ impl PlanNodeDependencies for IndexScan {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
+    
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
     }
 }
 
 impl PlanNodeMutable for IndexScan {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
+     fn set_output_var(&mut self, var: Variable) {
+         self.output_var = Some(var);
+     }
 
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
+     fn set_col_names(&mut self, names: Vec<String>) {
+         self.col_names = names;
+     }
 }
 
 impl PlanNodeClonable for IndexScan {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 
@@ -250,11 +235,6 @@ impl PlanNodeDependencies for FulltextIndexScan {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        self.deps = deps;
-    }
-
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
     }
@@ -266,30 +246,27 @@ impl PlanNodeDependencies for FulltextIndexScan {
         } else {
             false
         }
-    }
-
-    fn clear_dependencies(&mut self) {
-        self.deps.clear();
-    }
-}
+    }}
 
 impl PlanNodeMutable for FulltextIndexScan {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
+     fn set_output_var(&mut self, var: Variable) {
+         self.output_var = Some(var);
+     }
 
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    fn set_cost(&mut self, cost: f64) {
-        self.cost = cost;
-    }
+     fn set_col_names(&mut self, names: Vec<String>) {
+         self.col_names = names;
+     }
 }
 
 impl PlanNodeClonable for FulltextIndexScan {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
     }
 }
 

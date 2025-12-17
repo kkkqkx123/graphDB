@@ -46,35 +46,36 @@ impl PlanNodeProperties for StartNode {
 }
 
 impl PlanNodeDependencies for StartNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] { &[] }
-    
-    fn replace_dependencies(&mut self, _deps: Vec<Arc<dyn PlanNode>>) {
-        // 起始节点不支持依赖，忽略
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        &[]
     }
-    
+
     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
         // 起始节点不支持依赖
-    }
-    
-    fn remove_dependency(&mut self, _id: i64) -> bool {
-        false
-    }
-    
-    fn clear_dependencies(&mut self) {
-        // 起始节点没有依赖，无需操作
+        panic!("起始节点不支持依赖")
     }
 }
 
 impl PlanNodeMutable for StartNode {
     fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
-    fn set_cost(&mut self, cost: f64) { self.cost = cost; }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for StartNode {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(Self {
             id: self.id,
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        })
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        Arc::new(Self {
+            id: new_id,
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -106,7 +107,6 @@ mod tests {
         assert_eq!(start_node.kind(), PlanNodeKind::Start);
         assert_eq!(start_node.dependencies().len(), 0);
         assert_eq!(start_node.col_names().len(), 0);
-        assert_eq!(start_node.cost(), 0.0);
     }
     
     #[test]
@@ -123,9 +123,6 @@ mod tests {
         let mut start_node = StartNode::new();
         
         // 测试设置属性
-        start_node.set_cost(10.0);
-        assert_eq!(start_node.cost(), 10.0);
-        
         start_node.set_col_names(vec!["test".to_string()]);
         assert_eq!(start_node.col_names().len(), 1);
         assert_eq!(start_node.col_names()[0], "test");

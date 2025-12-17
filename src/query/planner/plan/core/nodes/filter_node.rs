@@ -5,7 +5,7 @@
 use super::super::plan_node_kind::PlanNodeKind;
 use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
-    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable, SingleInputPlanNode
+    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
 };
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
@@ -62,48 +62,38 @@ impl PlanNodeProperties for FilterNode {
 }
 
 impl PlanNodeDependencies for FilterNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] { 
-        std::slice::from_ref(&self.input) 
+    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+        std::slice::from_ref(&self.input)
     }
-    
-    fn replace_dependencies(&mut self, deps: Vec<Arc<dyn PlanNode>>) {
-        // 过滤节点只支持单个输入，取第一个
-        if let Some(dep) = deps.into_iter().next() {
-            self.input = dep;
-        }
-    }
-    
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         // 过滤节点只支持单个输入，替换现有输入
         self.input = dep;
-    }
-    
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if self.input.id() == id {
-            // 不能移除唯一的输入，返回 false
-            false
-        } else {
-            false
-        }
-    }
-    
-    fn clear_dependencies(&mut self) {
-        // 过滤节点必须有输入，不能清空
-        // 这里可以选择创建一个默认的起始节点
-        // 但为了安全，我们选择不做任何操作
     }
 }
 
 impl PlanNodeMutable for FilterNode {
     fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
-    fn set_cost(&mut self, cost: f64) { self.cost = cost; }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for FilterNode {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(Self {
             id: self.id,
+            input: self.input.clone_plan_node(),
+            condition: self.condition.clone(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        })
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        Arc::new(Self {
+            id: new_id,
             input: self.input.clone_plan_node(),
             condition: self.condition.clone(),
             output_var: self.output_var.clone(),
@@ -126,15 +116,6 @@ impl PlanNode for FilterNode {
     fn as_any(&self) -> &dyn std::any::Any { self }
 }
 
-impl SingleInputPlanNode for FilterNode {
-    fn input(&self) -> &Arc<dyn PlanNode> {
-        &self.input
-    }
-    
-    fn set_input(&mut self, input: Arc<dyn PlanNode>) {
-        self.input = input;
-    }
-}
 
 #[cfg(test)]
 mod tests {
