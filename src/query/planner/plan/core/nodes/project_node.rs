@@ -8,7 +8,6 @@ use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
     PlanNodeProperties, PlanNodeVisitable,
 };
-use crate::graph::expression::Expression;
 use crate::query::context::validate::types::Variable;
 use crate::query::validator::YieldColumn;
 use std::sync::Arc;
@@ -156,7 +155,7 @@ impl PlanNodeClonable for ProjectNode {
 impl PlanNodeVisitable for ProjectNode {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_project_node(self)?;
+        visitor.visit_project(self)?;
         visitor.post_visit()?;
         Ok(())
     }

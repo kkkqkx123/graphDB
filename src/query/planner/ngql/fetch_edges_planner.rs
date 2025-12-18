@@ -8,7 +8,7 @@ use crate::query::planner::plan::core::plan_node_traits::{
     PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
 };
 use crate::query::planner::plan::execution_plan::SubPlan;
-use crate::query::planner::plan::operations::{Argument, Dedup, Filter, GetEdges, Project};
+use crate::query::planner::plan::core::nodes::{ArgumentNode, DedupNode, FilterNode, GetEdgesNode, ProjectNode};
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
 

@@ -7,10 +7,27 @@ use super::join_node::InnerJoinNode;
 use super::placeholder_node::PlaceholderNode;
 use super::project_node::ProjectNode;
 use super::start_node::StartNode;
+use super::aggregate_node::AggregateNode;
+use super::sort_node::{SortNode, LimitNode};
+use super::graph_scan_node::{
+    GetVerticesNode, GetEdgesNode, GetNeighborsNode, 
+    ScanVerticesNode, ScanEdgesNode
+};
+use super::traversal_node::{
+    ExpandNode, ExpandAllNode, TraverseNode, AppendVerticesNode
+};
+use super::control_flow_node::{
+    ArgumentNode, SelectNode, LoopNode, PassThroughNode
+};
+use super::data_processing_node::{
+    UnionNode, UnwindNode, DedupNode, RollUpApplyNode, 
+    PatternApplyNode, DataCollectNode
+};
 use super::traits::PlanNode;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::parser::expressions::convert_ast_to_graph_expression;
 use crate::query::validator::YieldColumn;
+use crate::core::Value;
 use std::sync::Arc;
 
 /// 节点工厂
@@ -78,6 +95,191 @@ impl PlanNodeFactory {
     pub fn create_placeholder_node(
     ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
         Ok(Arc::new(PlaceholderNode::new()))
+    }
+
+    /// 创建聚合节点
+    pub fn create_aggregate(
+        input: Arc<dyn PlanNode>,
+        group_keys: Vec<String>,
+        agg_exprs: Vec<String>,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(AggregateNode::new(input, group_keys, agg_exprs)?))
+    }
+
+    /// 创建排序节点
+    pub fn create_sort(
+        input: Arc<dyn PlanNode>,
+        sort_items: Vec<String>,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(SortNode::new(input, sort_items)?))
+    }
+
+    /// 创建限制节点
+    pub fn create_limit(
+        input: Arc<dyn PlanNode>,
+        offset: i64,
+        count: i64,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(LimitNode::new(input, offset, count)?))
+    }
+
+    /// 创建获取顶点节点
+    pub fn create_get_vertices(
+        space_id: i32,
+        src_vids: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(GetVerticesNode::new(space_id, src_vids)))
+    }
+
+    /// 创建获取边节点
+    pub fn create_get_edges(
+        space_id: i32,
+        src: &str,
+        edge_type: &str,
+        rank: &str,
+        dst: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(GetEdgesNode::new(space_id, src, edge_type, rank, dst)))
+    }
+
+    /// 创建获取邻居节点
+    pub fn create_get_neighbors(
+        space_id: i32,
+        src_vids: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(GetNeighborsNode::new(space_id, src_vids)))
+    }
+
+    /// 创建扫描顶点节点
+    pub fn create_scan_vertices(
+        space_id: i32,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(ScanVerticesNode::new(space_id)))
+    }
+
+    /// 创建扫描边节点
+    pub fn create_scan_edges(
+        space_id: i32,
+        edge_type: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(ScanEdgesNode::new(space_id, edge_type)))
+    }
+
+    /// 创建扩展节点
+    pub fn create_expand(
+        space_id: i32,
+        edge_types: Vec<String>,
+        direction: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(ExpandNode::new(space_id, edge_types, direction)))
+    }
+
+    /// 创建扩展全部节点
+    pub fn create_expand_all(
+        space_id: i32,
+        edge_types: Vec<String>,
+        direction: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(ExpandAllNode::new(space_id, edge_types, direction)))
+    }
+
+    /// 创建遍历节点
+    pub fn create_traverse(
+        space_id: i32,
+        edge_types: Vec<String>,
+        direction: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(TraverseNode::new(space_id, edge_types, direction)))
+    }
+
+    /// 创建追加顶点节点
+    pub fn create_append_vertices(
+        space_id: i32,
+        vids: Vec<Value>,
+        tag_ids: Vec<i32>,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(AppendVerticesNode::new(space_id, vids, tag_ids)))
+    }
+
+    /// 创建参数节点
+    pub fn create_argument(
+        id: i64,
+        var: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(ArgumentNode::new(id, var)))
+    }
+
+    /// 创建选择节点
+    pub fn create_select(
+        id: i64,
+        condition: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(SelectNode::new(id, condition)))
+    }
+
+    /// 创建循环节点
+    pub fn create_loop(
+        id: i64,
+        condition: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(LoopNode::new(id, condition)))
+    }
+
+    /// 创建透传节点
+    pub fn create_pass_through(
+        id: i64,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(PassThroughNode::new(id)))
+    }
+
+    /// 创建联合节点
+    pub fn create_union(
+        input: Arc<dyn PlanNode>,
+        distinct: bool,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(UnionNode::new(input, distinct)?))
+    }
+
+    /// 创建展开节点
+    pub fn create_unwind(
+        input: Arc<dyn PlanNode>,
+        alias: &str,
+        list_expr: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(UnwindNode::new(input, alias, list_expr)?))
+    }
+
+    /// 创建去重节点
+    pub fn create_dedup(
+        input: Arc<dyn PlanNode>,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(DedupNode::new(input)?))
+    }
+
+    /// 创建RollUp应用节点
+    pub fn create_roll_up_apply(
+        input: Arc<dyn PlanNode>,
+        collect_exprs: Vec<String>,
+        lambda_vars: Vec<String>,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(RollUpApplyNode::new(input, collect_exprs, lambda_vars)?))
+    }
+
+    /// 创建模式应用节点
+    pub fn create_pattern_apply(
+        input: Arc<dyn PlanNode>,
+        pattern: &str,
+        join_type: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(PatternApplyNode::new(input, pattern, join_type)?))
+    }
+
+    /// 创建数据收集节点
+    pub fn create_data_collect(
+        input: Arc<dyn PlanNode>,
+        collect_kind: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(DataCollectNode::new(input, collect_kind)?))
     }
 }
 
@@ -166,5 +368,43 @@ mod tests {
         );
         assert_eq!(placeholder_node.dependencies().len(), 0);
         assert_eq!(placeholder_node.col_names().len(), 0);
+    }
+
+    #[test]
+    fn test_create_aggregate_node() {
+        let start_node = PlanNodeFactory::create_start_node().unwrap();
+        let group_keys = vec!["category".to_string()];
+        let agg_exprs = vec!["COUNT(*)".to_string()];
+        
+        let aggregate_node = PlanNodeFactory::create_aggregate(start_node, group_keys, agg_exprs).unwrap();
+        
+        assert_eq!(aggregate_node.kind(), PlanNodeKind::Aggregate);
+        assert_eq!(aggregate_node.dependencies().len(), 1);
+        assert_eq!(aggregate_node.group_keys().len(), 1);
+        assert_eq!(aggregate_node.agg_exprs().len(), 1);
+    }
+
+    #[test]
+    fn test_create_sort_node() {
+        let start_node = PlanNodeFactory::create_start_node().unwrap();
+        let sort_items = vec!["name".to_string(), "age".to_string()];
+        
+        let sort_node = PlanNodeFactory::create_sort(start_node, sort_items).unwrap();
+        
+        assert_eq!(sort_node.kind(), PlanNodeKind::Sort);
+        assert_eq!(sort_node.dependencies().len(), 1);
+        assert_eq!(sort_node.sort_items().len(), 2);
+    }
+
+    #[test]
+    fn test_create_limit_node() {
+        let start_node = PlanNodeFactory::create_start_node().unwrap();
+        
+        let limit_node = PlanNodeFactory::create_limit(start_node, 10, 100).unwrap();
+        
+        assert_eq!(limit_node.kind(), PlanNodeKind::Limit);
+        assert_eq!(limit_node.dependencies().len(), 1);
+        assert_eq!(limit_node.offset(), 10);
+        assert_eq!(limit_node.count(), 100);
     }
 }

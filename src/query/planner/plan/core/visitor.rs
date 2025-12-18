@@ -1,120 +1,88 @@
-//! PlanNode访问者模式的定义
-//! 用于遍历和处理计划树
-
 use super::plan_node_traits::PlanNode as BasePlanNode;
-use super::nodes::{FilterNode, ProjectNode, InnerJoinNode, StartNode, PlaceholderNode};
+use super::nodes::{
+    FilterNode, ProjectNode, InnerJoinNode, StartNode, PlaceholderNode,
+    AggregateNode, SortNode, LimitNode,
+    GetVerticesNode, GetEdgesNode, GetNeighborsNode, ScanVerticesNode, ScanEdgesNode,
+    ExpandNode, ExpandAllNode, TraverseNode, AppendVerticesNode,
+    ArgumentNode, SelectNode, LoopNode, PassThroughNode,
+    UnionNode, UnwindNode, DedupNode, RollUpApplyNode, PatternApplyNode, DataCollectNode
+};
 use crate::query::planner::plan::algorithms::{FulltextIndexScan, IndexScan};
 use crate::query::planner::plan::management::dml::{
     DeleteEdges, DeleteTags, DeleteVertices, InsertEdges, InsertVertices, NewEdge, NewProp, NewTag,
     NewVertex, UpdateEdge, UpdateVertex,
 };
-use crate::query::planner::plan::operations::{
-    Aggregate, AppendVertices, Argument, ArgumentNode, CrossJoin, DataCollect, Dedup, Expand,
-    ExpandAll, Filter, GetEdges, GetNeighbors, GetVertices, HashInnerJoin, HashJoin, HashLeftJoin,
-    Limit, PatternApply, Project, RollUpApply, Sample, ScanEdges, ScanVertices, Sort, Start,
-    TopN, Traverse, Union, Unwind,
-};
 use std::fmt;
 
-/// 计划节点访问者特征
-/// 用于实现访问者模式，遍历和处理计划树
 pub trait PlanNodeVisitor: std::fmt::Debug {
-    /// 在访问节点前调用的方法
     fn pre_visit(&mut self) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问一般计划节点
     fn visit_plan_node(&mut self, _node: &dyn BasePlanNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问GetNeighbors节点
-    fn visit_get_neighbors(&mut self, _node: &GetNeighbors) -> Result<(), PlanNodeVisitError> {
+    fn visit_get_neighbors(&mut self, _node: &GetNeighborsNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问GetVertices节点
-    fn visit_get_vertices(&mut self, _node: &GetVertices) -> Result<(), PlanNodeVisitError> {
+    fn visit_get_vertices(&mut self, _node: &GetVerticesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问GetEdges节点
-    fn visit_get_edges(&mut self, _node: &GetEdges) -> Result<(), PlanNodeVisitError> {
+    fn visit_get_edges(&mut self, _node: &GetEdgesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Traverse节点
-    fn visit_traverse(&mut self, _node: &Traverse) -> Result<(), PlanNodeVisitError> {
+    fn visit_traverse(&mut self, _node: &TraverseNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问AppendVertices节点
-    fn visit_append_vertices(&mut self, _node: &AppendVertices) -> Result<(), PlanNodeVisitError> {
+    fn visit_append_vertices(&mut self, _node: &AppendVerticesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Filter节点
-    fn visit_filter(&mut self, _node: &Filter) -> Result<(), PlanNodeVisitError> {
+    fn visit_filter(&mut self, _node: &FilterNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Project节点
-    fn visit_project(&mut self, _node: &Project) -> Result<(), PlanNodeVisitError> {
+    fn visit_project(&mut self, _node: &ProjectNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Union节点
-    fn visit_union(&mut self, _node: &Union) -> Result<(), PlanNodeVisitError> {
+    fn visit_union(&mut self, _node: &UnionNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Unwind节点
-    fn visit_unwind(&mut self, _node: &Unwind) -> Result<(), PlanNodeVisitError> {
+    fn visit_unwind(&mut self, _node: &UnwindNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Aggregate节点
-    fn visit_aggregate(&mut self, _node: &Aggregate) -> Result<(), PlanNodeVisitError> {
+    fn visit_aggregate(&mut self, _node: &AggregateNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Sort节点
-    fn visit_sort(&mut self, _node: &Sort) -> Result<(), PlanNodeVisitError> {
+    fn visit_sort(&mut self, _node: &SortNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Limit节点
-    fn visit_limit(&mut self, _node: &Limit) -> Result<(), PlanNodeVisitError> {
+    fn visit_limit(&mut self, _node: &LimitNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问TopN节点
-    fn visit_top_n(&mut self, _node: &TopN) -> Result<(), PlanNodeVisitError> {
+    fn visit_data_collect(&mut self, _node: &DataCollectNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Sample节点
-    fn visit_sample(&mut self, _node: &Sample) -> Result<(), PlanNodeVisitError> {
+    fn visit_scan_vertices(&mut self, _node: &ScanVerticesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问DataCollect节点
-    fn visit_data_collect(&mut self, _node: &DataCollect) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-
-    /// 访问ScanVertices节点
-    fn visit_scan_vertices(&mut self, _node: &ScanVertices) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-
-    /// 访问IndexScan节点
     fn visit_index_scan(&mut self, _node: &IndexScan) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问FulltextIndexScan节点
     fn visit_fulltext_index_scan(
         &mut self,
         _node: &FulltextIndexScan,
@@ -122,78 +90,55 @@ pub trait PlanNodeVisitor: std::fmt::Debug {
         Ok(())
     }
 
-    /// 访问Expand节点
-    fn visit_expand(&mut self, _node: &Expand) -> Result<(), PlanNodeVisitError> {
+    fn visit_expand(&mut self, _node: &ExpandNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问ExpandAll节点
-    fn visit_expand_all(&mut self, _node: &ExpandAll) -> Result<(), PlanNodeVisitError> {
+    fn visit_expand_all(&mut self, _node: &ExpandAllNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Start节点
-    fn visit_start(&mut self, _node: &Start) -> Result<(), PlanNodeVisitError> {
+    fn visit_start(&mut self, _node: &StartNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问StartNode节点
     fn visit_start_node(&mut self, _node: &StartNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Argument节点
-    fn visit_argument(&mut self, _node: &Argument) -> Result<(), PlanNodeVisitError> {
+    fn visit_argument(&mut self, _node: &ArgumentNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问ArgumentNode节点
     fn visit_argument_node(&mut self, _node: &ArgumentNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问HashLeftJoin节点
-    fn visit_hash_left_join(&mut self, _node: &HashLeftJoin) -> Result<(), PlanNodeVisitError> {
+    fn visit_hash_left_join(&mut self, _node: &InnerJoinNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问HashInnerJoin节点
-    fn visit_hash_inner_join(&mut self, _node: &HashInnerJoin) -> Result<(), PlanNodeVisitError> {
+    fn visit_hash_inner_join(&mut self, _node: &InnerJoinNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问CrossJoin节点
-    fn visit_cross_join(&mut self, _node: &CrossJoin) -> Result<(), PlanNodeVisitError> {
+    fn visit_roll_up_apply(&mut self, _node: &RollUpApplyNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问RollUpApply节点
-    fn visit_roll_up_apply(&mut self, _node: &RollUpApply) -> Result<(), PlanNodeVisitError> {
+    fn visit_pattern_apply(&mut self, _node: &PatternApplyNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问PatternApply节点
-    fn visit_pattern_apply(&mut self, _node: &PatternApply) -> Result<(), PlanNodeVisitError> {
+    fn visit_dedup(&mut self, _node: &DedupNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问Dedup节点
-    fn visit_dedup(&mut self, _node: &Dedup) -> Result<(), PlanNodeVisitError> {
+    fn visit_scan_edges(&mut self, _node: &ScanEdgesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    /// 访问ScanEdges节点
-    fn visit_scan_edges(&mut self, _node: &ScanEdges) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-
-    /// 访问ScanEdges节点（graph_scan_ops模块）
-    fn visit_scan_edges_node(&mut self, _node: &ScanEdges) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-
-    /// 访问HashJoin节点
-    fn visit_hash_join(&mut self, _node: &HashJoin) -> Result<(), PlanNodeVisitError> {
+    fn visit_scan_edges_node(&mut self, _node: &ScanEdgesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
@@ -252,26 +197,6 @@ pub trait PlanNodeVisitor: std::fmt::Debug {
         Ok(())
     }
 
-    /// 访问新的过滤节点
-    fn visit_filter_node(&mut self, _node: &FilterNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-    
-    /// 访问新的投影节点
-    fn visit_project_node(&mut self, _node: &ProjectNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-    
-    /// 访问新的内连接节点
-    fn visit_inner_join_node(&mut self, _node: &InnerJoinNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-    
-    
-    /// 访问新的占位符节点
-    fn visit_placeholder_node(&mut self, _node: &PlaceholderNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
 
     /// 在访问节点后调用的方法
     fn post_visit(&mut self) -> Result<(), PlanNodeVisitError> {
@@ -317,95 +242,79 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
 
-    fn visit_get_neighbors(&mut self, _node: &GetNeighbors) -> Result<(), PlanNodeVisitError> {
+    fn visit_get_neighbors(&mut self, _node: &GetNeighborsNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_get_vertices(&mut self, _node: &GetVertices) -> Result<(), PlanNodeVisitError> {
+    fn visit_get_vertices(&mut self, _node: &GetVerticesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_get_edges(&mut self, _node: &GetEdges) -> Result<(), PlanNodeVisitError> {
+    fn visit_get_edges(&mut self, _node: &GetEdgesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_traverse(&mut self, _node: &Traverse) -> Result<(), PlanNodeVisitError> {
+    fn visit_traverse(&mut self, _node: &TraverseNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_append_vertices(&mut self, _node: &AppendVertices) -> Result<(), PlanNodeVisitError> {
+    fn visit_append_vertices(&mut self, _node: &AppendVerticesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_filter(&mut self, _node: &Filter) -> Result<(), PlanNodeVisitError> {
+    fn visit_filter(&mut self, _node: &FilterNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_project(&mut self, _node: &Project) -> Result<(), PlanNodeVisitError> {
+    fn visit_project(&mut self, _node: &ProjectNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_union(&mut self, _node: &Union) -> Result<(), PlanNodeVisitError> {
+    fn visit_union(&mut self, _node: &UnionNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_unwind(&mut self, _node: &Unwind) -> Result<(), PlanNodeVisitError> {
+    fn visit_unwind(&mut self, _node: &UnwindNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_aggregate(&mut self, _node: &Aggregate) -> Result<(), PlanNodeVisitError> {
+    fn visit_aggregate(&mut self, _node: &AggregateNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_dedup(&mut self, _node: &Dedup) -> Result<(), PlanNodeVisitError> {
+    fn visit_dedup(&mut self, _node: &DedupNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_scan_edges(&mut self, _node: &ScanEdges) -> Result<(), PlanNodeVisitError> {
+    fn visit_scan_edges(&mut self, _node: &ScanEdgesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_scan_edges_node(&mut self, _node: &ScanEdges) -> Result<(), PlanNodeVisitError> {
+    fn visit_scan_edges_node(&mut self, _node: &ScanEdgesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_hash_join(&mut self, _node: &HashJoin) -> Result<(), PlanNodeVisitError> {
+    fn visit_roll_up_apply(&mut self, _node: &RollUpApplyNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_cross_join(&mut self, _node: &CrossJoin) -> Result<(), PlanNodeVisitError> {
+    fn visit_pattern_apply(&mut self, _node: &PatternApplyNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_roll_up_apply(&mut self, _node: &RollUpApply) -> Result<(), PlanNodeVisitError> {
+    fn visit_sort(&mut self, _node: &SortNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_pattern_apply(&mut self, _node: &PatternApply) -> Result<(), PlanNodeVisitError> {
+    fn visit_limit(&mut self, _node: &LimitNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_sort(&mut self, _node: &Sort) -> Result<(), PlanNodeVisitError> {
+    fn visit_data_collect(&mut self, _node: &DataCollectNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_limit(&mut self, _node: &Limit) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-
-    fn visit_top_n(&mut self, _node: &TopN) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-
-    fn visit_sample(&mut self, _node: &Sample) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-
-    fn visit_data_collect(&mut self, _node: &DataCollect) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-
-    fn visit_scan_vertices(&mut self, _node: &ScanVertices) -> Result<(), PlanNodeVisitError> {
+    fn visit_scan_vertices(&mut self, _node: &ScanVerticesNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
@@ -420,15 +329,15 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
 
-    fn visit_expand(&mut self, _node: &Expand) -> Result<(), PlanNodeVisitError> {
+    fn visit_expand(&mut self, _node: &ExpandNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_expand_all(&mut self, _node: &ExpandAll) -> Result<(), PlanNodeVisitError> {
+    fn visit_expand_all(&mut self, _node: &ExpandAllNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_start(&mut self, _node: &Start) -> Result<(), PlanNodeVisitError> {
+    fn visit_start(&mut self, _node: &StartNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
@@ -436,7 +345,7 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
 
-    fn visit_argument(&mut self, _node: &Argument) -> Result<(), PlanNodeVisitError> {
+    fn visit_argument(&mut self, _node: &ArgumentNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
@@ -444,11 +353,11 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
 
-    fn visit_hash_left_join(&mut self, _node: &HashLeftJoin) -> Result<(), PlanNodeVisitError> {
+    fn visit_hash_left_join(&mut self, _node: &InnerJoinNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
-    fn visit_hash_inner_join(&mut self, _node: &HashInnerJoin) -> Result<(), PlanNodeVisitError> {
+    fn visit_hash_inner_join(&mut self, _node: &InnerJoinNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
@@ -496,22 +405,6 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
     
-    fn visit_filter_node(&mut self, _node: &FilterNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-    
-    fn visit_project_node(&mut self, _node: &ProjectNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-    
-    fn visit_inner_join_node(&mut self, _node: &InnerJoinNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-    
-    
-    fn visit_placeholder_node(&mut self, _node: &PlaceholderNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
 
     fn post_visit(&mut self) -> Result<(), PlanNodeVisitError> {
         Ok(())

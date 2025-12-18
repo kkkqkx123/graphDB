@@ -5,7 +5,7 @@ use crate::query::context::ast::{AstContext, FetchVerticesContext};
 use crate::query::context::validate::types::{Column, Variable};
 use crate::query::planner::plan::core::common::TagProp;
 use crate::query::planner::plan::core::plan_node_traits::{PlanNodeDependencies, PlanNodeMutable};
-use crate::query::planner::plan::operations::{Argument, Dedup, GetVertices, Project};
+use crate::query::planner::plan::core::nodes::{ArgumentNode, DedupNode, GetVerticesNode, ProjectNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
@@ -50,7 +50,7 @@ impl Planner for FetchVerticesPlanner {
         println!("Processing FETCH VERTICES query planning: {:?}", fetch_ctx);
 
         // 1. 创建参数节点，获取顶点ID
-        let mut arg_node = Arc::new(Argument::new(1, &fetch_ctx.from.user_defined_var_name));
+        let mut arg_node = Arc::new(ArgumentNode::new(1, &fetch_ctx.from.user_defined_var_name));
         Arc::get_mut(&mut arg_node)
             .unwrap()
             .set_col_names(vec!["vid".to_string()]);
@@ -62,11 +62,7 @@ impl Planner for FetchVerticesPlanner {
             });
 
         // 2. 创建获取顶点的节点
-        let mut get_vertices_node = Arc::new(GetVertices::new(
-            2,
-            1,
-            &fetch_ctx.from.user_defined_var_name,
-        ));
+        let mut get_vertices_node = Arc::new(GetVerticesNode::new(1, &fetch_ctx.from.user_defined_var_name));
         Arc::get_mut(&mut get_vertices_node)
             .unwrap()
             .add_dependency(arg_node.clone());
@@ -79,19 +75,20 @@ impl Planner for FetchVerticesPlanner {
 
         // 设置顶点属性
         if let Some(node) = Arc::get_mut(&mut get_vertices_node) {
-            node.tag_props = fetch_ctx
+            let tag_props = fetch_ctx
                 .expr_props
                 .tag_props
                 .iter()
                 .map(|(tag, props)| TagProp::new(tag, props.clone()))
                 .collect();
+            node.set_tag_props(tag_props);
         }
 
         // 3. 创建投影节点
-        let mut project_node = Arc::new(Project::new(
-            3,
-            &fetch_ctx.yield_expr.clone().unwrap_or("*".to_string()),
-        ));
+        let mut project_node = Arc::new(ProjectNode::new(
+            get_vertices_node.clone(),
+            vec![], // 这里需要提供YieldColumn列表
+        )?);
         Arc::get_mut(&mut project_node)
             .unwrap()
             .add_dependency(get_vertices_node.clone());
@@ -117,7 +114,7 @@ impl Planner for FetchVerticesPlanner {
         // 4. 如果需要去重，创建去重节点
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if fetch_ctx.distinct
         {
-            let mut dedup_node = Arc::new(Dedup::new(4));
+            let mut dedup_node = Arc::new(DedupNode::new(project_node.clone())?);
             Arc::get_mut(&mut dedup_node)
                 .unwrap()
                 .add_dependency(project_node.clone());

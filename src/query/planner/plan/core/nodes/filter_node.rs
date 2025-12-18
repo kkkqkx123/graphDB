@@ -135,7 +135,7 @@ impl PlanNodeClonable for FilterNode {
 impl PlanNodeVisitable for FilterNode {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_filter_node(self)?;
+        visitor.visit_filter(self)?;
         visitor.post_visit()?;
         Ok(())
     }

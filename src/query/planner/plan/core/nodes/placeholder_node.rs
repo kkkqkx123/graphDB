@@ -99,7 +99,7 @@ impl PlanNodeClonable for PlaceholderNode {
 impl PlanNodeVisitable for PlaceholderNode {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_placeholder_node(self)?;
+        visitor.visit_argument(self)?;
         visitor.post_visit()?;
         Ok(())
     }
