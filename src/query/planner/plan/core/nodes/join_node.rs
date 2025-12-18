@@ -83,10 +83,37 @@ impl PlanNodeDependencies for InnerJoinNode {
         &self.inner_deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.inner_deps
+    }
+
     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
         // 内连接节点不支持添加依赖，它需要恰好两个输入
         // 在实际使用中，内连接节点在创建时就确定了依赖
         panic!("内连接节点不支持添加依赖，它需要恰好两个输入")
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.inner_deps.len();
+        self.inner_deps.retain(|dep| dep.id() != id);
+        let final_len = self.inner_deps.len();
+
+        if initial_len != final_len {
+            // 更新 left 和 right 输入，如果原来的输入被移除
+            if self.left.id() == id {
+                if let Some(new_left) = self.inner_deps.get(0) {
+                    self.left = new_left.clone();
+                }
+            }
+            if self.right.id() == id {
+                if let Some(new_right) = self.inner_deps.get(1) {
+                    self.right = new_right.clone();
+                }
+            }
+            true
+        } else {
+            false
+        }
     }
 }
 

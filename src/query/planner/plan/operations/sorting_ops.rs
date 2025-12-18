@@ -82,17 +82,30 @@ impl PlanNodeDependencies for Sort {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-    
+
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn dependency_count(&self) -> usize {
         self.deps.len()
     }
-    
+
     fn has_dependency(&self, id: i64) -> bool {
         self.deps.iter().any(|dep| dep.id() == id)
     }
-    
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -208,17 +221,30 @@ impl PlanNodeDependencies for Limit {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-    
+
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn dependency_count(&self) -> usize {
         self.deps.len()
     }
-    
+
     fn has_dependency(&self, id: i64) -> bool {
         self.deps.iter().any(|dep| dep.id() == id)
     }
-    
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -330,17 +356,30 @@ impl PlanNodeDependencies for TopN {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-    
+
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn dependency_count(&self) -> usize {
         self.deps.len()
     }
-    
+
     fn has_dependency(&self, id: i64) -> bool {
         self.deps.iter().any(|dep| dep.id() == id)
     }
-    
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -449,17 +488,30 @@ impl PlanNodeDependencies for Sample {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
-    
+
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn dependency_count(&self) -> usize {
         self.deps.len()
     }
-    
+
     fn has_dependency(&self, id: i64) -> bool {
         self.deps.iter().any(|dep| dep.id() == id)
     }
-    
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
     }
 }
 

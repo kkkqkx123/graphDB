@@ -72,11 +72,11 @@ impl PlanNodeIdentifiable for AddHosts {
 }
 
 impl PlanNodeProperties for AddHosts {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -90,8 +90,20 @@ impl PlanNodeDependencies for AddHosts {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 
@@ -182,11 +194,11 @@ impl PlanNodeIdentifiable for DropHosts {
 }
 
 impl PlanNodeProperties for DropHosts {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -200,8 +212,20 @@ impl PlanNodeDependencies for DropHosts {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 
@@ -295,11 +319,11 @@ impl PlanNodeIdentifiable for ShowHosts {
 }
 
 impl PlanNodeProperties for ShowHosts {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -313,8 +337,20 @@ impl PlanNodeDependencies for ShowHosts {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 
@@ -409,11 +445,11 @@ impl PlanNodeIdentifiable for ShowHostsStatus {
 }
 
 impl PlanNodeProperties for ShowHostsStatus {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -427,8 +463,20 @@ impl PlanNodeDependencies for ShowHostsStatus {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 

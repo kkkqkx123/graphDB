@@ -84,8 +84,20 @@ impl PlanNodeDependencies for CreateNode {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 
@@ -198,8 +210,20 @@ impl PlanNodeDependencies for DropNode {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 
@@ -337,8 +361,20 @@ impl PlanNodeDependencies for CreateSpace {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 
@@ -456,8 +492,20 @@ impl PlanNodeDependencies for DescSpace {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 
@@ -566,8 +614,20 @@ impl PlanNodeDependencies for ShowCreateSpace {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 
@@ -673,8 +733,20 @@ impl PlanNodeDependencies for ShowSpaces {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 
@@ -783,8 +855,20 @@ impl PlanNodeDependencies for SwitchSpace {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 

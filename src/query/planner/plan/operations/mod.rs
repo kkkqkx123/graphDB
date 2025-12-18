@@ -13,7 +13,6 @@ pub mod traversal_ops;
 pub use aggregation_ops::Aggregate;
 pub use control_flow_ops::{
     Argument, ArgumentNode, BinarySelectNode, LoopNode, PassThroughNode, SelectNode, Start,
-    StartNode,
 };
 pub use data_processing_ops::{
     DataCollect, Dedup, Filter, PatternApply, Project, RollUpApply, Union, Unwind,

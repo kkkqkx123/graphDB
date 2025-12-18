@@ -23,6 +23,7 @@ pub struct ProjectNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies_vec: Vec<Arc<dyn PlanNode>>, // 添加一个 Vec 来满足 trait 要求
 }
 
 impl ProjectNode {
@@ -34,7 +35,10 @@ impl ProjectNode {
         let col_names: Vec<String> = columns.iter()
             .map(|col| col.alias.clone())
             .collect();
-        
+
+        let mut dependencies_vec = Vec::new();
+        dependencies_vec.push(input.clone());
+
         Ok(Self {
             id: -1,
             input,
@@ -42,6 +46,7 @@ impl ProjectNode {
             output_var: None,
             col_names,
             cost: 0.0,
+            dependencies_vec,
         })
     }
     
@@ -64,11 +69,35 @@ impl PlanNodeProperties for ProjectNode {
 
 impl PlanNodeDependencies for ProjectNode {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        std::slice::from_ref(&self.input)
+        &self.dependencies_vec
+    }
+
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.dependencies_vec
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-        self.input = dep;
+        self.input = dep.clone();
+        self.dependencies_vec.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.dependencies_vec.len();
+        self.dependencies_vec.retain(|dep| dep.id() != id);
+        let final_len = self.dependencies_vec.len();
+
+        if initial_len != final_len {
+            // 更新 input，如果原来的 input 被移除
+            if self.input.id() == id {
+                // 如果移除了唯一的输入节点，使用 Vec 中的第一个元素作为新的输入
+                if let Some(first_dep) = self.dependencies_vec.first() {
+                    self.input = first_dep.clone();
+                }
+            }
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -88,9 +117,10 @@ impl PlanNodeClonable for ProjectNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
+            dependencies_vec: self.dependencies_vec.iter().map(|dep| dep.clone_plan_node()).collect(),
         })
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         Arc::new(Self {
             id: new_id,
@@ -99,6 +129,7 @@ impl PlanNodeClonable for ProjectNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
+            dependencies_vec: self.dependencies_vec.iter().map(|dep| dep.clone_plan_node()).collect(),
         })
     }
 }

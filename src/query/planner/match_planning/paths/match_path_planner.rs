@@ -200,48 +200,22 @@ impl MatchPathPlanner {
             let edge = &edge_infos[i];
 
             // 创建新的遍历节点
-            let mut traverse_node = PlanNodeFactory::create_placeholder_node()?;
+            let traverse_node = PlanNodeFactory::create_placeholder_node()?;
 
-            // 设置遍历参数
-            let var_name = format!("traverse_{}_{}", node.alias, dst.alias);
-            let variable = Variable {
-                name: var_name,
-                columns: vec![
-                    crate::query::context::validate::types::Column {
-                        name: dst.alias.clone(),
-                        type_: "Vertex".to_string(),
-                    },
-                    crate::query::context::validate::types::Column {
-                        name: "edge".to_string(),
-                        type_: "Edge".to_string(),
-                    },
-                ],
-            };
-            traverse_node.set_output_var(variable);
-
-            // 设置列名
-            let mut col_names = if let Some(root) = &subplan.root {
-                root.col_names().to_vec()
-            } else {
-                vec![]
-            };
-            col_names.push(dst.alias.clone());
-            col_names.push(edge.alias.clone());
-            traverse_node.set_col_names(col_names);
-
-            // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
-            if let Some(_filter) = &node.filter {
+            // 由于无法直接修改 Arc<dyn PlanNode>，我们先创建节点然后通过工厂创建带过滤条件的节点
+            let node_to_use = if let Some(_filter) = &node.filter {
                 let dummy_expr =
                     Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
                         crate::core::Value::Bool(true),
                         crate::query::parser::ast::types::Span::default(),
                     ));
-                let filter_node =
-                    PlanNodeFactory::create_filter(traverse_node.clone_plan_node(), dummy_expr)?;
-                subplan.root = Some(filter_node);
+                PlanNodeFactory::create_filter(traverse_node.clone_plan_node(), dummy_expr)?
             } else {
-                subplan.root = Some(traverse_node.clone_plan_node());
-            }
+                traverse_node.clone_plan_node()
+            };
+
+            // 更新subplan根节点
+            subplan.root = Some(node_to_use);
 
             // 处理边过滤
             if let Some(_filter) = &edge.filter {
@@ -250,8 +224,9 @@ impl MatchPathPlanner {
                         crate::core::Value::Bool(true),
                         crate::query::parser::ast::types::Span::default(),
                     ));
+                let current_root = subplan.root.take().unwrap();
                 let filter_node =
-                    PlanNodeFactory::create_filter(subplan.root.take().unwrap(), dummy_expr)?;
+                    PlanNodeFactory::create_filter(current_root, dummy_expr)?;
                 subplan.root = Some(filter_node);
             }
 
@@ -286,48 +261,22 @@ impl MatchPathPlanner {
             let edge = &edge_infos[i - 1];
 
             // 创建新的遍历节点
-            let mut traverse_node = PlanNodeFactory::create_placeholder_node()?;
+            let traverse_node = PlanNodeFactory::create_placeholder_node()?;
 
-            // 设置遍历参数
-            let var_name = format!("traverse_{}_{}", node.alias, dst.alias);
-            let variable = Variable {
-                name: var_name,
-                columns: vec![
-                    crate::query::context::validate::types::Column {
-                        name: dst.alias.clone(),
-                        type_: "Vertex".to_string(),
-                    },
-                    crate::query::context::validate::types::Column {
-                        name: "edge".to_string(),
-                        type_: "Edge".to_string(),
-                    },
-                ],
-            };
-            traverse_node.set_output_var(variable);
-
-            // 设置列名
-            let mut col_names = if let Some(root) = &subplan.root {
-                root.col_names().to_vec()
-            } else {
-                vec![]
-            };
-            col_names.push(dst.alias.clone());
-            col_names.push(edge.alias.clone());
-            traverse_node.set_col_names(col_names);
-
-            // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
-            if let Some(_filter) = &node.filter {
+            // 由于无法直接修改 Arc<dyn PlanNode>，我们先创建节点然后通过工厂创建带过滤条件的节点
+            let node_to_use = if let Some(_filter) = &node.filter {
                 let dummy_expr =
                     Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
                         crate::core::Value::Bool(true),
                         crate::query::parser::ast::types::Span::default(),
                     ));
-                let filter_node =
-                    PlanNodeFactory::create_filter(traverse_node.clone_plan_node(), dummy_expr)?;
-                subplan.root = Some(filter_node);
+                PlanNodeFactory::create_filter(traverse_node.clone_plan_node(), dummy_expr)?
             } else {
-                subplan.root = Some(traverse_node.clone_plan_node());
-            }
+                traverse_node.clone_plan_node()
+            };
+
+            // 更新subplan根节点
+            subplan.root = Some(node_to_use);
 
             // 处理边过滤
             if let Some(_filter) = &edge.filter {
@@ -336,8 +285,9 @@ impl MatchPathPlanner {
                         crate::core::Value::Bool(true),
                         crate::query::parser::ast::types::Span::default(),
                     ));
+                let current_root = subplan.root.take().unwrap();
                 let filter_node =
-                    PlanNodeFactory::create_filter(subplan.root.take().unwrap(), dummy_expr)?;
+                    PlanNodeFactory::create_filter(current_root, dummy_expr)?;
                 subplan.root = Some(filter_node);
             }
 

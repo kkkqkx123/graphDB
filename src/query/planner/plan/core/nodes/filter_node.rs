@@ -1,5 +1,5 @@
 //! 过滤节点实现
-//! 
+//!
 //! FilterNode 用于根据指定的条件过滤输入数据流
 
 use super::super::plan_node_kind::PlanNodeKind;
@@ -11,15 +11,17 @@ use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
 use crate::query::parser::ast::expr::Expr;
 use std::sync::Arc;
+use std::cell::RefCell;
 
 
 /// 过滤节点
-/// 
+///
 /// 根据指定的条件表达式过滤输入数据流
 #[derive(Debug, Clone)]
 pub struct FilterNode {
     id: i64,
     input: Arc<dyn PlanNode>,
+    deps: Vec<Arc<dyn PlanNode>>, // 添加这个字段以满足PlanNodeDependencies trait
     condition: Expr,
     output_var: Option<Variable>,
     col_names: Vec<String>,
@@ -33,17 +35,20 @@ impl FilterNode {
         condition: Expr,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
-        
+        let mut deps = Vec::new();
+        deps.push(input.clone());
+
         Ok(Self {
             id: -1,  // 将在后续分配
             input,
+            deps,
             condition,
             output_var: None,
             col_names,
             cost: 0.0,
         })
     }
-    
+
     /// 获取过滤条件
     pub fn condition(&self) -> &Expr {
         &self.condition
@@ -63,12 +68,35 @@ impl PlanNodeProperties for FilterNode {
 
 impl PlanNodeDependencies for FilterNode {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        std::slice::from_ref(&self.input)
+        &self.deps
+    }
+
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         // 过滤节点只支持单个输入，替换现有输入
-        self.input = dep;
+        self.input = dep.clone();
+        self.deps.clear();
+        self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            // 还需要更新input字段，保持一致性
+            if self.deps.len() == 1 {
+                self.input = self.deps[0].clone();
+            } else if self.deps.is_empty() {
+                // 这种情况不应该发生，因为FilterNode应该始终有一个输入
+                // 但为了安全，我们可以创建一个占位符节点
+                self.input = Arc::new(crate::query::planner::plan::core::nodes::start_node::StartNode::new());
+            }
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -84,17 +112,19 @@ impl PlanNodeClonable for FilterNode {
         Arc::new(Self {
             id: self.id,
             input: self.input.clone_plan_node(),
+            deps: self.deps.clone(),
             condition: self.condition.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
         })
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         Arc::new(Self {
             id: new_id,
             input: self.input.clone_plan_node(),
+            deps: self.deps.clone(), // 包含deps字段
             condition: self.condition.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),

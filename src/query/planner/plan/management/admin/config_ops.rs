@@ -89,11 +89,11 @@ impl PlanNodeIdentifiable for ShowConfigs {
 }
 
 impl PlanNodeProperties for ShowConfigs {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -106,8 +106,21 @@ impl PlanNodeDependencies for ShowConfigs {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
+
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 
@@ -204,11 +217,11 @@ impl PlanNodeIdentifiable for SetConfig {
 }
 
 impl PlanNodeProperties for SetConfig {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -221,8 +234,21 @@ impl PlanNodeDependencies for SetConfig {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
+
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 
@@ -322,11 +348,11 @@ impl PlanNodeIdentifiable for GetConfig {
 }
 
 impl PlanNodeProperties for GetConfig {
-    fn output_var(&self) -> &Option<Variable> {
-        &self.output_var
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
     }
 
-    fn col_names(&self) -> &Vec<String> {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -339,8 +365,21 @@ impl PlanNodeDependencies for GetConfig {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
         &self.deps
     }
+
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
     }
 }
 

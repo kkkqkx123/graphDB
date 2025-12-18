@@ -20,6 +20,7 @@ pub struct StartNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies_vec: Vec<Arc<dyn PlanNode>>, // 添加依赖向量
 }
 
 impl StartNode {
@@ -30,6 +31,7 @@ impl StartNode {
             output_var: None,
             col_names: vec![],
             cost: 0.0,
+            dependencies_vec: vec![],
         }
     }
 }
@@ -47,12 +49,21 @@ impl PlanNodeProperties for StartNode {
 
 impl PlanNodeDependencies for StartNode {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &[]
+        &self.dependencies_vec
+    }
+
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.dependencies_vec
     }
 
     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
         // 起始节点不支持依赖
         panic!("起始节点不支持依赖")
+    }
+
+    fn remove_dependency(&mut self, _id: i64) -> bool {
+        // 起始节点没有依赖，所以无法移除依赖
+        false
     }
 }
 
@@ -70,15 +81,17 @@ impl PlanNodeClonable for StartNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
+            dependencies_vec: vec![],
         })
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         Arc::new(Self {
             id: new_id,
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
+            dependencies_vec: vec![],
         })
     }
 }
