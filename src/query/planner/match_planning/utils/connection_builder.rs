@@ -157,32 +157,6 @@ impl ConnectionBuilder {
         connector.connect(qctx, left, right, &self.join_params)
     }
 
-    /// 获取连接类型
-    fn connection_type(&self) -> super::connection_strategy::ConnectionType {
-        use crate::query::planner::plan::utils::join_params::TypeSpecificParams;
-        match &self.join_params.type_specific_params {
-            TypeSpecificParams::InnerJoin(_) => {
-                super::connection_strategy::ConnectionType::InnerJoin
-            }
-            TypeSpecificParams::LeftJoin(_) => super::connection_strategy::ConnectionType::LeftJoin,
-            TypeSpecificParams::RightJoin(_) => {
-                super::connection_strategy::ConnectionType::RightJoin
-            }
-            TypeSpecificParams::FullJoin(_) => super::connection_strategy::ConnectionType::FullJoin,
-            TypeSpecificParams::Cartesian(_) => {
-                super::connection_strategy::ConnectionType::Cartesian
-            }
-            TypeSpecificParams::RollUpApply(_) => {
-                super::connection_strategy::ConnectionType::RollUpApply
-            }
-            TypeSpecificParams::PatternApply(_) => {
-                super::connection_strategy::ConnectionType::PatternApply
-            }
-            TypeSpecificParams::Sequential(_) => {
-                super::connection_strategy::ConnectionType::Sequential
-            }
-        }
-    }
 
     /// 获取构建的连接参数
     pub fn build(&self) -> &JoinParams {

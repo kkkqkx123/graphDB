@@ -303,63 +303,6 @@ impl IndexSeek {
         Ok(filter_expr)
     }
 
-    /// 验证属性表达式是否有效
-    fn validate_property_expressions(&self, prop_exprs: &[Expression]) -> Result<(), PlannerError> {
-        if prop_exprs.is_empty() {
-            return Err(PlannerError::InvalidAstContext(
-                "属性表达式列表不能为空".to_string(),
-            ));
-        }
-
-        // 检查每个表达式是否有效
-        for expr in prop_exprs {
-            match expr {
-                Expression::Binary { left: _, op, right: _ } => {
-                    // 验证二元表达式
-                    if !self.is_valid_binary_operator(op) {
-                        return Err(PlannerError::InvalidAstContext(format!(
-                            "不支持的二元操作符: {:?}",
-                            op
-                        )));
-                    }
-                }
-                Expression::Function { name, args } => {
-                    // 验证函数调用
-                    if args.is_empty() {
-                        return Err(PlannerError::InvalidAstContext(format!(
-                            "函数 {} 的参数不能为空",
-                            name
-                        )));
-                    }
-                }
-                Expression::Variable(_) | Expression::Label(_) => {
-                    // 变量和标签表达式是有效的
-                }
-                _ => {
-                    return Err(PlannerError::InvalidAstContext(format!(
-                        "不支持的表达式类型: {:?}",
-                        expr.expression_type()
-                    )));
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// 检查是否是有效的二元操作符
-    fn is_valid_binary_operator(&self, op: &crate::graph::expression::BinaryOperator) -> bool {
-        matches!(
-            op,
-            crate::graph::expression::BinaryOperator::Equal
-                | crate::graph::expression::BinaryOperator::NotEqual
-                | crate::graph::expression::BinaryOperator::LessThan
-                | crate::graph::expression::BinaryOperator::LessThanOrEqual
-                | crate::graph::expression::BinaryOperator::GreaterThan
-                | crate::graph::expression::BinaryOperator::GreaterThanOrEqual
-                | crate::graph::expression::BinaryOperator::In
-        )
-    }
 
     /// 将 Expression 转换为 Expr
     fn convert_expression_to_expr(&self, expr: Expression) -> Result<Expr, PlannerError> {

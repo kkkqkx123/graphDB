@@ -168,24 +168,6 @@ impl ShortestPathPlanner {
         }
     }
 
-    /// 获取最大步数
-    fn get_max_step(&self) -> Result<usize, PlannerError> {
-        let edge_info = &self.path.edge_infos[0];
-        
-        if let Some(range) = &edge_info.range {
-            Ok(range.max as usize)
-        } else {
-            // 默认最大步数
-            Ok(10)
-        }
-    }
-
-    /// 获取权重表达式
-    fn get_weight_expression(&self) -> Result<Option<String>, PlannerError> {
-        // 从边属性中提取权重表达式
-        // 这里需要根据实际的需求来实现
-        Ok(None)
-    }
 
     /// 构建项目列 - 对照 nebula-graph 实现
     fn build_project_columns(&self, _subplan: &mut SubPlan) -> Result<(), PlannerError> {

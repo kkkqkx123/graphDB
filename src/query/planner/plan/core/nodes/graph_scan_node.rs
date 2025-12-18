@@ -11,8 +11,7 @@ use super::traits::{
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
 use crate::graph::expression::Expression;
-use std::sync::Arc;
-use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
 
 /// 获取顶点节点
 #[derive(Debug)]
@@ -32,7 +31,7 @@ pub struct GetVerticesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: RefCell<Vec<Arc<dyn PlanNode>>>,
+    dependencies: std::sync::Mutex<Vec<Arc<dyn PlanNode>>>,
 }
 
 // 为 GetVerticesNode 实现 Clone
@@ -50,7 +49,7 @@ impl Clone for GetVerticesNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: RefCell::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+            dependencies: std::sync::Mutex::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -110,20 +109,19 @@ impl PlanNodeProperties for GetVerticesNode {
 
 impl PlanNodeDependencies for GetVerticesNode {
      fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-         let deps = self.dependencies.borrow();
-         &*deps
+         self.dependencies.get_mut().unwrap().as_slice()
      }
 
      fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         self.dependencies.get_mut()
+         self.dependencies.get_mut().unwrap()
      }
 
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.dependencies.get_mut().push(dep);
+         self.dependencies.lock().unwrap().push(dep);
      }
 
      fn remove_dependency(&mut self, id: i64) -> bool {
-         let mut deps = self.dependencies.get_mut();
+         let mut deps = self.dependencies.lock().unwrap();
          if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
              deps.remove(pos);
              true
