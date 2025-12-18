@@ -164,6 +164,21 @@ impl ExpandAllNode {
             cost: 0.0,
         }
     }
+
+    /// 获取边类型
+    pub fn edge_types(&self) -> &[String] {
+        &self.edge_types
+    }
+
+    /// 获取方向
+    pub fn direction(&self) -> &str {
+        &self.direction
+    }
+
+    /// 获取步数限制
+    pub fn step_limit(&self) -> Option<u32> {
+        self.step_limit
+    }
 }
 
 impl PlanNodeIdentifiable for ExpandAllNode {
@@ -266,6 +281,21 @@ impl TraverseNode {
             col_names: Vec::new(),
             cost: 0.0,
         }
+    }
+
+    /// 获取边类型
+    pub fn edge_types(&self) -> &[String] {
+        &self.edge_types
+    }
+
+    /// 获取方向
+    pub fn direction(&self) -> &str {
+        &self.direction
+    }
+
+    /// 获取步数限制
+    pub fn step_limit(&self) -> Option<u32> {
+        self.step_limit
     }
 
     /// 获取过滤条件

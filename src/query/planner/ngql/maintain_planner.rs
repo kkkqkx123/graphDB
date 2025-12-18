@@ -2,9 +2,6 @@
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
 use crate::query::context::ast::{AstContext, MaintainContext};
-use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::PlanNodeMutable;
-use crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies;
 use crate::query::planner::plan::core::{ArgumentNode, ProjectNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};

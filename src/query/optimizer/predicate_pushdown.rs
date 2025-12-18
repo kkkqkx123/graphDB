@@ -63,7 +63,7 @@ impl OptRule for FilterPushDownRule {
                                     let new_scan_node = scan_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
-                                    let new_filter = if let Some(existing_filter) =
+                                    let _new_filter = if let Some(existing_filter) =
                                         new_scan_node.vertex_filter()
                                     {
                                         combine_conditions(&pushable_condition, existing_filter)
@@ -83,14 +83,14 @@ impl OptRule for FilterPushDownRule {
                                     if let Some(remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let new_filter_node = filter_plan_node.clone();
+                                        let _new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_scan_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(new_filter_node);
+                                            std::sync::Arc::new(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_scan_opt_node.id];
 
@@ -119,7 +119,7 @@ impl OptRule for FilterPushDownRule {
                                     let new_index_scan_node = index_scan_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
-                                    let new_filter = if let Some(existing_filter) =
+                                    let _new_filter = if let Some(existing_filter) =
                                         &new_index_scan_node.filter
                                     {
                                         combine_conditions(&pushable_condition, existing_filter)
@@ -139,14 +139,14 @@ impl OptRule for FilterPushDownRule {
                                     if let Some(remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let new_filter_node = filter_plan_node.clone();
+                                        let _new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_index_scan_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(new_filter_node);
+                                            std::sync::Arc::new(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_index_scan_opt_node.id];
 
@@ -176,7 +176,7 @@ impl OptRule for FilterPushDownRule {
                                     let new_traverse_node = traverse_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
-                                    let new_filter =
+                                    let _new_filter =
                                         if let Some(existing_filter) = new_traverse_node.filter() {
                                             combine_conditions(&format!("{:?}", pushable_condition), &format!("{:?}", existing_filter))
                                         } else {
@@ -195,14 +195,14 @@ impl OptRule for FilterPushDownRule {
                                     if let Some(remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let new_filter_node = filter_plan_node.clone();
+                                        let _new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(new_filter_node);
+                                            std::sync::Arc::new(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_traverse_opt_node.id];
 
@@ -311,10 +311,10 @@ impl OptRule for PushFilterDownTraverseRule {
                             if let Some(traverse_node) =
                                 child.plan_node().as_any().downcast_ref::<TraverseNode>()
                             {
-                                let mut new_traverse_node = traverse_node.clone();
+                                let new_traverse_node = traverse_node.clone();
 
                                 // 合并现有过滤条件和新的过滤条件
-                                let new_filter =
+                                let _new_filter =
                                     if let Some(existing_filter) = new_traverse_node.filter() {
                                         combine_conditions(&format!("{:?}", pushable_condition), &format!("{:?}", existing_filter))
                                     } else {
@@ -332,14 +332,14 @@ impl OptRule for PushFilterDownTraverseRule {
                                 // 如果有剩余的过滤条件，创建新的过滤节点
                                 if let Some(remaining_condition) = split_result.remaining_condition
                                 {
-                                    let new_filter_node = filter_plan_node.clone();
+                                    let _new_filter_node = filter_plan_node.clone();
                                     // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                     // 这里简化处理，直接返回原节点
                                     // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
 
                                     let mut new_filter_opt_node = node.clone();
                                     new_filter_opt_node.plan_node =
-                                        std::sync::Arc::new(new_filter_node);
+                                        std::sync::Arc::new(_new_filter_node);
                                     new_filter_opt_node.dependencies =
                                         vec![new_traverse_opt_node.id];
 
@@ -438,14 +438,14 @@ impl OptRule for PushFilterDownExpandRule {
                                 // 扩展节点本身没有filter字段，我们需要创建一个新的过滤节点
                                 // 在实际实现中，可能需要修改扩展节点以支持过滤条件
                                 // 这里我们创建一个新的过滤节点，将扩展节点作为其子节点
-                                let new_filter_node = filter_plan_node.clone();
+                                let _new_filter_node = filter_plan_node.clone();
                                 // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                 // 这里简化处理，直接返回原节点
                                 // new_filter_node.deps = vec![child.plan_node().clone()];
 
                                 let mut new_filter_opt_node = node.clone();
                                 new_filter_opt_node.plan_node =
-                                    std::sync::Arc::new(new_filter_node);
+                                    std::sync::Arc::new(_new_filter_node);
                                 new_filter_opt_node.dependencies = vec![child.node.id];
 
                                 // 如果有剩余的过滤条件，创建另一个过滤节点
@@ -744,7 +744,7 @@ impl OptRule for PredicatePushDownRule {
                                     let new_scan_node = scan_node.clone();
 
                                     // 合并现有过滤条件和新的谓词
-                                    let new_filter = if let Some(existing_filter) =
+                                    let _new_filter = if let Some(existing_filter) =
                                         new_scan_node.vertex_filter()
                                     {
                                         combine_conditions(&pushable_condition, existing_filter)
@@ -761,17 +761,17 @@ impl OptRule for PredicatePushDownRule {
                                         std::sync::Arc::new(new_scan_node);
 
                                     // 如果有剩余的过滤条件，创建新的过滤节点
-                                    if let Some(remaining_condition) =
+                                    if let Some(_remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let new_filter_node = filter_plan_node.clone();
+                                        let _new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_scan_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(new_filter_node);
+                                            std::sync::Arc::new(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_scan_opt_node.id];
 
@@ -810,7 +810,7 @@ impl OptRule for PredicatePushDownRule {
                                     let new_scan_edges_node = scan_edges_node.clone();
 
                                     // 合并现有过滤条件和新的谓词
-                                    let new_filter = if let Some(existing_filter) =
+                                    let _new_filter = if let Some(existing_filter) =
                                         new_scan_edges_node.filter()
                                     {
                                         combine_conditions(&format!("{:?}", pushable_condition), &format!("{:?}", existing_filter))
@@ -827,17 +827,17 @@ impl OptRule for PredicatePushDownRule {
                                         std::sync::Arc::new(new_scan_edges_node);
 
                                     // 如果有剩余的过滤条件，创建新的过滤节点
-                                    if let Some(remaining_condition) =
+                                    if let Some(_remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let new_filter_node = filter_plan_node.clone();
+                                        let _new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_scan_edges_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(new_filter_node);
+                                            std::sync::Arc::new(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_scan_edges_opt_node.id];
 
@@ -876,7 +876,7 @@ impl OptRule for PredicatePushDownRule {
                                     let new_index_scan_node = index_scan_node.clone();
 
                                     // 合并现有过滤条件和新的谓词
-                                    let new_filter = if let Some(existing_filter) =
+                                    let _new_filter = if let Some(existing_filter) =
                                         &new_index_scan_node.filter
                                     {
                                         combine_conditions(&pushable_condition, existing_filter)
@@ -893,17 +893,17 @@ impl OptRule for PredicatePushDownRule {
                                         std::sync::Arc::new(new_index_scan_node);
 
                                     // 如果有剩余的过滤条件，创建新的过滤节点
-                                    if let Some(remaining_condition) =
+                                    if let Some(_remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let new_filter_node = filter_plan_node.clone();
+                                        let _new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_index_scan_opt_node.plan_node.clone()];
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(new_filter_node);
+                                            std::sync::Arc::new(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_index_scan_opt_node.id];
 

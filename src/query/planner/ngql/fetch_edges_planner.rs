@@ -2,15 +2,9 @@
 //! 处理FETCH EDGES查询的规划
 
 use crate::query::context::ast::{AstContext, FetchEdgesContext};
-use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::common::EdgeProp;
-use crate::query::planner::plan::core::plan_node_traits::{
-    PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
-};
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::plan::core::nodes::{ArgumentNode, DedupNode, FilterNode, GetEdgesNode, ProjectNode};
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::graph::expression::Expression;
 use std::sync::Arc;
 
 /// FETCH EDGES查询规划器

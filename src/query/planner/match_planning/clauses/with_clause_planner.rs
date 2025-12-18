@@ -4,7 +4,6 @@
 use crate::query::planner::match_planning::core::{
     ClauseType, CypherClausePlanner,
 };
-use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;

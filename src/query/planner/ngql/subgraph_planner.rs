@@ -2,12 +2,10 @@
 //! 处理Nebula SUBGRAPH查询的规划
 
 use crate::query::context::ast::{AstContext, SubgraphContext};
-use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
-use crate::query::planner::plan::core::plan_node_traits::{
-    PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
+use crate::query::planner::plan::core::nodes::{
+    ArgumentNode as Argument, ExpandAllNode as ExpandAll, ExpandNode as Expand,
+    FilterNode as Filter, ProjectNode as Project,
 };
-use crate::query::planner::plan::core::nodes::{ArgumentNode as Argument, ExpandNode as Expand, ExpandAllNode as ExpandAll, FilterNode as Filter, ProjectNode as Project};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
@@ -63,7 +61,10 @@ impl Planner for SubgraphPlanner {
         // 4. 创建过滤节点（如果有过滤条件）
         let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
             if let Some(ref condition) = subgraph_ctx.filter {
-                match Filter::new(expand_all_node.clone(), crate::graph::expression::Expression::Variable(condition.clone())) {
+                match Filter::new(
+                    expand_all_node.clone(),
+                    crate::graph::expression::Expression::Variable(condition.clone()),
+                ) {
                     Ok(node) => Arc::new(node),
                     Err(_) => expand_all_node.clone(),
                 }
@@ -73,7 +74,10 @@ impl Planner for SubgraphPlanner {
 
         // 5. 如果有标签过滤，添加额外过滤
         let tag_filter_node = if let Some(ref tag_condition) = subgraph_ctx.tag_filter {
-            match Filter::new(filter_node.clone(), crate::graph::expression::Expression::Variable(tag_condition.clone())) {
+            match Filter::new(
+                filter_node.clone(),
+                crate::graph::expression::Expression::Variable(tag_condition.clone()),
+            ) {
                 Ok(node) => Arc::new(node),
                 Err(_) => filter_node.clone(),
             }
@@ -83,7 +87,10 @@ impl Planner for SubgraphPlanner {
 
         // 6. 如果有边过滤，添加额外过滤
         let edge_filter_node = if let Some(ref edge_condition) = subgraph_ctx.edge_filter {
-            match Filter::new(tag_filter_node.clone(), crate::graph::expression::Expression::Variable(edge_condition.clone())) {
+            match Filter::new(
+                tag_filter_node.clone(),
+                crate::graph::expression::Expression::Variable(edge_condition.clone()),
+            ) {
                 Ok(node) => Arc::new(node),
                 Err(_) => tag_filter_node.clone(),
             }

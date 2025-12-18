@@ -21,7 +21,6 @@ use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, Trave
 use crate::core::Value;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::parser::expressions::convert_ast_to_graph_expression;
-use crate::query::planner::plan::PlanNodeKind;
 use crate::query::validator::YieldColumn;
 use std::sync::Arc;
 

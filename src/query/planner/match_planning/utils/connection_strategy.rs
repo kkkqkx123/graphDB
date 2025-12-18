@@ -2,16 +2,12 @@
 //! 提供统一的连接机制，支持不同类型的连接策略
 
 use crate::query::context::ast::base::AstContext;
-use crate::query::parser::ast::expr::Expr;
-use crate::query::planner::plan::utils::join_params::{JoinAlgorithm, JoinParams};
-use crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable;
-use crate::query::planner::plan::{PlanNodeKind, SubPlan};
+use crate::query::planner::plan::utils::join_params::JoinParams;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::plan::core::nodes::join_node::InnerJoinNode;
 use crate::query::planner::planner::PlannerError;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 /// 连接类型枚举
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]

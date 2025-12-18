@@ -8,7 +8,6 @@ use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{create_basic_pattern, is_tautology, BaseOptRule, EliminationRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::core::nodes::{FilterNode, ProjectNode};
-use crate::query::planner::plan::core::plan_node_traits::{PlanNodeIdentifiable, PlanNodeMutable};
 use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
 /// 消除冗余过滤操作的规则

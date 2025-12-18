@@ -52,7 +52,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                                     let mut new_index_scan_node = index_scan_node.clone();
 
                                     // 合并现有过滤条件和新的过滤条件
-                                    let new_filter = if let Some(existing_filter) =
+                                    let _new_filter = if let Some(existing_filter) =
                                         &new_index_scan_node.filter
                                     {
                                         combine_conditions(
@@ -78,10 +78,10 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                                         Arc::new(new_index_scan_node);
 
                                     // 如果有剩余的过滤条件，创建新的过滤节点
-                                    if let Some(remaining_condition) =
+                                    if let Some(_remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let mut new_filter_node = filter_node.clone();
+                                        let new_filter_node = filter_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
 
@@ -158,7 +158,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                                     let mut new_index_scan_node = index_scan_node.clone();
 
                                     // 合并现有过滤条件和新的过滤条件
-                                    let new_filter = if let Some(existing_filter) =
+                                    let _new_filter = if let Some(existing_filter) =
                                         &new_index_scan_node.filter
                                     {
                                         combine_conditions(
@@ -184,10 +184,10 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                                         Arc::new(new_index_scan_node);
 
                                     // 如果有剩余的过滤条件，创建新的过滤节点
-                                    if let Some(remaining_condition) =
+                                    if let Some(_remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let mut new_filter_node = filter_node.clone();
+                                        let new_filter_node = filter_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
 

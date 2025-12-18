@@ -2,10 +2,9 @@
 //! 处理路径模式的规划
 //! 负责规划路径模式的匹配
 
-use crate::query::context::validate::types::Variable;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::plan::{SubPlan, PlanNodeKind};
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext};
 use std::collections::HashSet;

@@ -257,7 +257,9 @@ impl PlanNode for GetEdgesNode {
 #[derive(Debug, Clone)]
 pub struct GetNeighborsNode {
     id: i64,
+    #[allow(dead_code)]
     space_id: i32,
+    #[allow(dead_code)]
     src_vids: String,
     #[allow(dead_code)]
     edge_types: Vec<String>,
