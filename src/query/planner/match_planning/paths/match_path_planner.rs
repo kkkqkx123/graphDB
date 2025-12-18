@@ -5,12 +5,10 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::plan::core::PlanNodeMutable;
-use crate::query::planner::plan::{PlanNodeKind, SubPlan};
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext};
 use std::collections::HashSet;
-use std::sync::Arc;
 
 /// 路径匹配规划器
 /// 负责规划路径模式的匹配
@@ -83,7 +81,7 @@ impl MatchPathPlanner {
             // 检查节点是否在已见别名中
             if all_aliases_seen.contains(&node_info.alias) && !node_info.anonymous {
                 // 创建参数节点
-                let variable = Variable {
+                let _variable = Variable {
                     name: node_info.alias.clone(),
                     columns: vec![crate::query::context::validate::types::Column {
                         name: node_info.alias.clone(),
@@ -104,7 +102,7 @@ impl MatchPathPlanner {
             if !edge_info.types.is_empty() {
                 // 创建边索引扫描节点
                 let var_name = format!("edge_scan_{}", edge_info.types.join("_"));
-                let variable = Variable {
+                let _variable = Variable {
                     name: var_name.clone(),
                     columns: vec![
                         crate::query::context::validate::types::Column {
@@ -118,7 +116,7 @@ impl MatchPathPlanner {
                     ],
                 };
                 let edge_scan_node = PlanNodeFactory::create_placeholder_node()?;
-                let variable = Variable {
+                let _variable = Variable {
                     name: var_name,
                     columns: vec![
                         crate::query::context::validate::types::Column {

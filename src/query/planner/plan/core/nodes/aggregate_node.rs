@@ -91,7 +91,7 @@ impl PlanNodeDependencies for AggregateNode {
         self.deps.push(dep);
     }
 
-    fn remove_dependency(&mut self, id: i64) -> bool {
+    fn remove_dependency(&mut self, _id: i64) -> bool {
         // 聚合节点只支持单个输入，这个方法在当前设计中不太适用
         false
     }

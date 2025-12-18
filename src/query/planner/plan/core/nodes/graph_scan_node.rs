@@ -18,10 +18,14 @@ use std::sync::Arc;
 pub struct GetVerticesNode {
     id: i64,
     space_id: i32,
+    #[allow(dead_code)]
     src_ref: Expression,
     src_vids: String,
+    #[allow(dead_code)]
     tag_props: Vec<TagProp>,
+    #[allow(dead_code)]
     expr: Option<String>,
+    #[allow(dead_code)]
     dedup: bool,
     limit: Option<i64>,
     output_var: Option<Variable>,
@@ -126,13 +130,17 @@ impl PlanNode for GetVerticesNode {
 pub struct GetEdgesNode {
     id: i64,
     space_id: i32,
+    #[allow(dead_code)]
     edge_ref: Expression,
     src: String,
     edge_type: String,
     rank: String,
     dst: String,
+    #[allow(dead_code)]
     edge_props: Vec<EdgeProp>,
+    #[allow(dead_code)]
     expr: Option<String>,
+    #[allow(dead_code)]
     dedup: bool,
     limit: Option<i64>,
     output_var: Option<Variable>,
@@ -251,10 +259,15 @@ pub struct GetNeighborsNode {
     id: i64,
     space_id: i32,
     src_vids: String,
+    #[allow(dead_code)]
     edge_types: Vec<String>,
+    #[allow(dead_code)]
     tag_props: Vec<TagProp>,
+    #[allow(dead_code)]
     edge_props: Vec<EdgeProp>,
+    #[allow(dead_code)]
     expr: Option<String>,
+    #[allow(dead_code)]
     dedup: bool,
     limit: Option<i64>,
     output_var: Option<Variable>,
@@ -455,6 +468,7 @@ pub struct ScanEdgesNode {
     edge_type: String,
     limit: Option<i64>,
     filter: Option<String>,
+    #[allow(dead_code)]
     props: Vec<EdgeProp>,
     output_var: Option<Variable>,
     col_names: Vec<String>,

@@ -1,21 +1,22 @@
 //! WHERE 子句规划器
 //! 实现新的 CypherClausePlanner 接口
-//! 
+//!
 //! WHERE 子句是 Cypher 查询的过滤子句，负责根据指定的条件过滤输入数据流。
 
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, ClauseType, PlanningContext, VariableRequirement, VariableProvider,
+    CypherClausePlanner, VariableRequirement, VariableProvider,
 };
+use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::paths::match_path_planner::MatchPathPlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::{PlanNodeKind, SubPlan};
-use crate::query::planner::plan::core::nodes::{PlanNodeFactory, StartNode};
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::parser::ast::expr::Expr;
-use std::sync::Arc;
 use std::collections::HashSet;
 
 /// WHERE 子句规划器
@@ -34,6 +35,7 @@ use std::collections::HashSet;
 /// 在上面的例子中，WHERE 子句会过滤出年龄大于25且姓名以'John'开头的人员。
 #[derive(Debug)]
 pub struct WhereClausePlanner {
+    #[allow(dead_code)]
     need_stable_filter: bool, // 是否需要稳定的过滤器（用于ORDER BY场景）
 }
 
@@ -127,11 +129,9 @@ impl WhereClausePlanner {
 
         // 处理过滤条件
         if let Some(filter) = &where_clause_ctx.filter {
-            let mut where_plan = SubPlan::new(None, None);
-
             // 创建起始节点作为输入
             let start_node = PlanNodeFactory::create_start_node()?;
-            
+
             // 创建过滤器节点 - 将 Expression 转换为 Expr
             let expr = convert_expression_to_expr(filter);
             let filter_node = PlanNodeFactory::create_filter(
@@ -139,7 +139,7 @@ impl WhereClausePlanner {
                 expr,
             )?;
 
-            where_plan = SubPlan::from_single_node(filter_node);
+            let where_plan = SubPlan::from_single_node(filter_node);
 
             if plan.root.is_none() {
                 return Ok(where_plan);

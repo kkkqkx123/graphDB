@@ -1,5 +1,4 @@
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
 /// 顶点查找规划器
 /// 根据顶点ID进行查找
 /// 负责规划基于顶点ID的查找操作，包括固定ID和可变ID
@@ -9,7 +8,6 @@ use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
-use std::sync::Arc;
 
 /// 顶点查找类型
 #[derive(Debug, Clone)]

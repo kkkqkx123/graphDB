@@ -1,16 +1,16 @@
+use std::sync::Arc;
+
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
 /// 索引查找规划器
 /// 根据标签索引和属性索引进行查找
 /// 负责规划基于索引的查找操作，包括标签索引、属性索引和可变属性索引
 
 use crate::graph::expression::Expression;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
-use crate::query::planner::plan::core::{PlanNode, PlanNodeMutable};
+use crate::query::planner::plan::core::PlanNode;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
-use std::sync::Arc;
 
 /// 索引查找元数据
 /// 存储IndexScan节点执行所需的索引相关信息
@@ -105,7 +105,7 @@ impl IndexSeek {
 
         // 设置IndexScan节点的输出变量
         let var_name = format!("index_scan_{}", label_name);
-        let variable = crate::query::context::validate::types::Variable {
+        let _variable = crate::query::context::validate::types::Variable {
             name: var_name,
             columns: vec![crate::query::context::validate::types::Column {
                 name: "vid".to_string(),
@@ -143,7 +143,7 @@ impl IndexSeek {
 
             // 设置Filter节点的输出变量
             let filter_var_name = format!("filtered_{}", label_name);
-            let filter_variable = crate::query::context::validate::types::Variable {
+            let _filter_variable = crate::query::context::validate::types::Variable {
                 name: filter_var_name,
                 columns: vec![crate::query::context::validate::types::Column {
                     name: "vid".to_string(),

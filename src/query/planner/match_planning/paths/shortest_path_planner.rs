@@ -1,5 +1,4 @@
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
 /// 最短路径规划器
 /// 处理最短路径查询的规划
 /// 负责规划最短路径算法的执行
@@ -8,21 +7,22 @@ use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext};
 use std::collections::HashSet;
-use std::sync::Arc;
 
 /// 最短路径规划器
 /// 负责规划最短路径算法的执行
 #[derive(Debug)]
 pub struct ShortestPathPlanner {
-    match_clause_ctx: MatchClauseContext,
-    path: Path,
+    #[allow(dead_code)]
+    _match_clause_ctx: MatchClauseContext,
+    #[allow(dead_code)]
+    _path: Path,
 }
 
 impl ShortestPathPlanner {
     pub fn new(match_clause_ctx: MatchClauseContext, path: Path) -> Self {
         Self {
-            match_clause_ctx,
-            path,
+            _match_clause_ctx: match_clause_ctx,
+            _path: path,
         }
     }
 

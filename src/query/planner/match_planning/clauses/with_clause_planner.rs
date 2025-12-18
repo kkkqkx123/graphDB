@@ -2,10 +2,11 @@
 //! 实现新的 CypherClausePlanner 接口
 
 use crate::query::planner::match_planning::core::{
-    CypherClausePlanner, ClauseType, PlanningContext
+    ClauseType, CypherClausePlanner,
 };
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 

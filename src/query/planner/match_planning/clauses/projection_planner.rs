@@ -1,5 +1,4 @@
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
 /// 投影规划器
 /// 提供RETURN和WITH子句的公共逻辑
 /// 处理结果投影、排序、分页等公共功能
@@ -16,7 +15,6 @@ use crate::query::validator::structs::{
     clause_structs::{OrderByClauseContext, PaginationContext, WhereClauseContext, YieldClauseContext},
     CypherClauseContext,
 };
-use std::sync::Arc;
 
 /// 投影规划器
 /// 提供RETURN和WITH子句的公共逻辑

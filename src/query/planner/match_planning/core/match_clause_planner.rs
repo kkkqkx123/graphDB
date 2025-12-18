@@ -2,7 +2,7 @@
 /// 实现新的 CypherClausePlanner 接口
 use crate::graph::expression::Expression;
 use crate::query::planner::match_planning::core::{
-    ClauseType, CypherClausePlanner, PlanningContext,
+    CypherClausePlanner, PlanningContext,
 };
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::match_planning::utils::finder::Finder;

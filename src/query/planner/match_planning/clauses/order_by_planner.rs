@@ -3,11 +3,12 @@
 //! 负责规划ORDER BY子句中的排序操作
 
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
+use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    ClauseType, CypherClausePlanner, PlanningContext, VariableProvider, VariableRequirement,
+    CypherClausePlanner, VariableProvider, VariableRequirement,
 };
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::plan::core::PlanNodeMutable;
+use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::SubPlan;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
@@ -66,7 +67,7 @@ impl OrderByClausePlanner {
         // 将排序因子信息存储在节点的列名中，以便执行阶段使用
         // 在实际执行时，排序逻辑会根据这些信息进行排序
         // indexed_order_factors包含(列索引, 排序类型)的元组
-        let col_names: Vec<String> = order_by_ctx.indexed_order_factors
+        let _col_names: Vec<String> = order_by_ctx.indexed_order_factors
             .iter()
             .map(|(idx, order_type)| {
                 // 使用特殊格式存储排序信息，供执行器使用

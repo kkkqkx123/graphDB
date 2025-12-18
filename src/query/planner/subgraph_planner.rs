@@ -1,11 +1,9 @@
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
 /// Subgraph planner implementation for handling SUBGRAPH queries in NebulaGraph
 
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct SubgraphPlanner {

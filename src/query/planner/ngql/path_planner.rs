@@ -53,10 +53,10 @@ impl Planner for PathPlanner {
 
         // 1. 创建参数节点，获取起始和结束顶点
         let start_arg_node = Arc::new(ArgumentNode::new(1, &path_ctx.from.user_defined_var_name));
-        let end_arg_node = Arc::new(ArgumentNode::new(2, &path_ctx.to.user_defined_var_name));
+        let _end_arg_node = Arc::new(ArgumentNode::new(2, &path_ctx.to.user_defined_var_name));
 
         // 2. 创建GetVertices节点来获取顶点
-        let get_vertices_node = Arc::new(GetVerticesNode::new(1, &path_ctx.from.user_defined_var_name));
+        let _get_vertices_node = Arc::new(GetVerticesNode::new(1, &path_ctx.from.user_defined_var_name));
 
         // 3. 创建扩展节点进行路径搜索
         let expand_direction = if path_ctx.over.direction == "both" {
@@ -80,7 +80,7 @@ impl Planner for PathPlanner {
                 .collect();
         }
         
-        let expand_node = Arc::new(ExpandNode::new(1, edge_types.clone(), expand_direction));
+        let _expand_node = Arc::new(ExpandNode::new(1, edge_types.clone(), expand_direction));
 
         // 5. 创建ExpandAll节点进行多步扩展
         let expand_all_direction = if path_ctx.over.direction == "both" {

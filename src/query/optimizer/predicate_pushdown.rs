@@ -60,7 +60,7 @@ impl OptRule for FilterPushDownRule {
                                     .as_any()
                                     .downcast_ref::<ScanVertices>()
                                 {
-                                    let mut new_scan_node = scan_node.clone();
+                                    let new_scan_node = scan_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
                                     let new_filter = if let Some(existing_filter) =
@@ -83,7 +83,7 @@ impl OptRule for FilterPushDownRule {
                                     if let Some(remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let mut new_filter_node = filter_plan_node.clone();
+                                        let new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_scan_opt_node.plan_node.clone()];
@@ -116,7 +116,7 @@ impl OptRule for FilterPushDownRule {
                                 if let Some(index_scan_node) =
                                     child_node.plan_node().as_any().downcast_ref::<IndexScan>()
                                 {
-                                    let mut new_index_scan_node = index_scan_node.clone();
+                                    let new_index_scan_node = index_scan_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
                                     let new_filter = if let Some(existing_filter) =
@@ -139,7 +139,7 @@ impl OptRule for FilterPushDownRule {
                                     if let Some(remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let mut new_filter_node = filter_plan_node.clone();
+                                        let new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_index_scan_opt_node.plan_node.clone()];
@@ -173,7 +173,7 @@ impl OptRule for FilterPushDownRule {
                                 if let Some(traverse_node) =
                                     child_node.plan_node().as_any().downcast_ref::<TraverseNode>()
                                 {
-                                    let mut new_traverse_node = traverse_node.clone();
+                                    let new_traverse_node = traverse_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
                                     let new_filter =
@@ -195,7 +195,7 @@ impl OptRule for FilterPushDownRule {
                                     if let Some(remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let mut new_filter_node = filter_plan_node.clone();
+                                        let new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
@@ -332,7 +332,7 @@ impl OptRule for PushFilterDownTraverseRule {
                                 // 如果有剩余的过滤条件，创建新的过滤节点
                                 if let Some(remaining_condition) = split_result.remaining_condition
                                 {
-                                    let mut new_filter_node = filter_plan_node.clone();
+                                    let new_filter_node = filter_plan_node.clone();
                                     // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                     // 这里简化处理，直接返回原节点
                                     // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
@@ -438,7 +438,7 @@ impl OptRule for PushFilterDownExpandRule {
                                 // 扩展节点本身没有filter字段，我们需要创建一个新的过滤节点
                                 // 在实际实现中，可能需要修改扩展节点以支持过滤条件
                                 // 这里我们创建一个新的过滤节点，将扩展节点作为其子节点
-                                let mut new_filter_node = filter_plan_node.clone();
+                                let new_filter_node = filter_plan_node.clone();
                                 // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                 // 这里简化处理，直接返回原节点
                                 // new_filter_node.deps = vec![child.plan_node().clone()];
@@ -451,7 +451,7 @@ impl OptRule for PushFilterDownExpandRule {
                                 // 如果有剩余的过滤条件，创建另一个过滤节点
                                 if let Some(remaining_condition) = split_result.remaining_condition
                                 {
-                                    let mut top_filter_node = filter_plan_node.clone();
+                                    let top_filter_node = filter_plan_node.clone();
                                     // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                     // 这里简化处理，直接返回原节点
                                     // top_filter_node.deps = vec![new_filter_opt_node.plan_node.clone()];
@@ -741,7 +741,7 @@ impl OptRule for PredicatePushDownRule {
                                 if let Some(scan_node) =
                                     child.plan_node().as_any().downcast_ref::<ScanVertices>()
                                 {
-                                    let mut new_scan_node = scan_node.clone();
+                                    let new_scan_node = scan_node.clone();
 
                                     // 合并现有过滤条件和新的谓词
                                     let new_filter = if let Some(existing_filter) =
@@ -764,7 +764,7 @@ impl OptRule for PredicatePushDownRule {
                                     if let Some(remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let mut new_filter_node = filter_plan_node.clone();
+                                        let new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_scan_opt_node.plan_node.clone()];
@@ -807,7 +807,7 @@ impl OptRule for PredicatePushDownRule {
                                 if let Some(scan_edges_node) =
                                     child.plan_node().as_any().downcast_ref::<ScanEdges>()
                                 {
-                                    let mut new_scan_edges_node = scan_edges_node.clone();
+                                    let new_scan_edges_node = scan_edges_node.clone();
 
                                     // 合并现有过滤条件和新的谓词
                                     let new_filter = if let Some(existing_filter) =
@@ -830,7 +830,7 @@ impl OptRule for PredicatePushDownRule {
                                     if let Some(remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let mut new_filter_node = filter_plan_node.clone();
+                                        let new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_scan_edges_opt_node.plan_node.clone()];
@@ -873,7 +873,7 @@ impl OptRule for PredicatePushDownRule {
                                 if let Some(index_scan_node) =
                                     child.plan_node().as_any().downcast_ref::<IndexScan>()
                                 {
-                                    let mut new_index_scan_node = index_scan_node.clone();
+                                    let new_index_scan_node = index_scan_node.clone();
 
                                     // 合并现有过滤条件和新的谓词
                                     let new_filter = if let Some(existing_filter) =
@@ -896,7 +896,7 @@ impl OptRule for PredicatePushDownRule {
                                     if let Some(remaining_condition) =
                                         split_result.remaining_condition
                                     {
-                                        let mut new_filter_node = filter_plan_node.clone();
+                                        let new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
                                         // new_filter_node.deps = vec![new_index_scan_opt_node.plan_node.clone()];

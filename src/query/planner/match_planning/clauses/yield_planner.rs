@@ -1,5 +1,4 @@
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
 /// YIELD子句规划器
 /// 处理YIELD子句的规划
 /// 负责规划YIELD子句中的结果产出
@@ -7,16 +6,17 @@ use crate::query::planner::plan::PlanNodeKind;
 /// YIELD子句是Cypher查询中的核心投影操作，负责选择和计算要输出的列。
 /// 它可以包含聚合函数、投影列和去重操作。
 
+use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, ClauseType, PlanningContext, VariableRequirement, VariableProvider,
+    CypherClausePlanner, VariableRequirement, VariableProvider,
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
-use std::sync::Arc;
 
 /// YIELD子句规划器
 /// 
@@ -73,12 +73,12 @@ impl YieldClausePlanner {
         // 处理投影（列选择）
         if yield_clause_ctx.need_gen_project {
             // 创建投影节点
-            let input_root = plan.root.as_ref().ok_or_else(|| {
+            let _input_root = plan.root.as_ref().ok_or_else(|| {
                 PlannerError::PlanGenerationFailed(
                     "YIELD clause requires input plan for projection".to_string()
                 )
             })?;
-            
+
             let project_node = PlanNodeFactory::create_placeholder_node()?;
 
             // TODO: 设置投影列
@@ -101,12 +101,12 @@ impl YieldClausePlanner {
         // 处理去重
         if yield_clause_ctx.distinct {
             // 创建去重节点
-            let input_root = plan.root.as_ref().ok_or_else(|| {
+            let _input_root = plan.root.as_ref().ok_or_else(|| {
                 PlannerError::PlanGenerationFailed(
                     "YIELD clause requires input plan for deduplication".to_string()
                 )
             })?;
-            
+
             let dedup_node = PlanNodeFactory::create_placeholder_node()?;
 
             // TODO: 设置去重键

@@ -17,6 +17,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct ExpandNode {
     id: i64,
+    #[allow(dead_code)]
     space_id: i32,
     edge_types: Vec<String>,
     direction: String,
@@ -134,11 +135,14 @@ impl PlanNode for ExpandNode {
 #[derive(Debug, Clone)]
 pub struct ExpandAllNode {
     id: i64,
+    #[allow(dead_code)]
     space_id: i32,
     edge_types: Vec<String>,
     direction: String,
     step_limit: Option<u32>,
+    #[allow(dead_code)]
     edge_props: Vec<EdgeProp>,
+    #[allow(dead_code)]
     vertex_props: Vec<TagProp>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
@@ -238,6 +242,7 @@ impl PlanNode for ExpandAllNode {
 #[derive(Debug, Clone)]
 pub struct TraverseNode {
     id: i64,
+    #[allow(dead_code)]
     space_id: i32,
     edge_types: Vec<String>,
     direction: String,

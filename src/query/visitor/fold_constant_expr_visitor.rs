@@ -26,6 +26,7 @@ impl FoldConstantExprVisitor {
         expr.clone()
     }
 
+    #[allow(dead_code)]
     fn evaluate_arithmetic(
         &self,
         op: &BinaryOp,
@@ -98,6 +99,7 @@ impl FoldConstantExprVisitor {
         }
     }
 
+    #[allow(dead_code)]
     fn evaluate_unary(&self, op: &str, operand: &Value) -> Result<Value, String> {
         match op {
             "Plus" => Ok(operand.clone()), // Identity operation
@@ -107,6 +109,7 @@ impl FoldConstantExprVisitor {
         }
     }
 
+    #[allow(dead_code)]
     fn evaluate_function(&self, name: &str, args: &[Expr]) -> Result<Value, String> {
         match name.to_lowercase().as_str() {
             "abs" => {

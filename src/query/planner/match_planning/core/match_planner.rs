@@ -1,4 +1,3 @@
-use crate::query::planner::plan::PlanNodeKind;
 /// MATCH查询主规划器
 /// 负责将MATCH查询转换为执行计划
 
@@ -6,6 +5,7 @@ use crate::query::context::ast::AstContext;
 use super::cypher_clause_planner::CypherClausePlanner;
 use super::match_clause_planner::MatchClausePlanner;
 use crate::query::planner::match_planning::clauses::order_by_planner::OrderByClausePlanner;
+use crate::query::planner::PlanNodeKind;
 use crate::query::planner::match_planning::clauses::pagination_planner::PaginationPlanner;
 use crate::query::planner::match_planning::clauses::return_clause_planner::ReturnClausePlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
@@ -14,19 +14,18 @@ use crate::query::planner::match_planning::clauses::with_clause_planner::WithCla
 use crate::query::planner::match_planning::clauses::where_clause_planner::WhereClausePlanner;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::PlanNode;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::validator::structs::{
     alias_structs::QueryPart, clause_structs::MatchClauseContext, CypherClauseContext,
     CypherClauseKind,
 };
 use std::collections::HashSet;
-use std::sync::Arc;
 
 /// MATCH查询规划器
 /// 处理Cypher MATCH语句的转换为执行计划
 #[derive(Debug)]
 pub struct MatchPlanner {
+    #[allow(dead_code)]
     tail_connected: bool,
 }
 
@@ -222,7 +221,7 @@ impl MatchPlanner {
         if let Some(boundary) = &query_part.boundary {
             if let Some(root) = &query_plan.root {
                 // 设置输入列名
-                let _col_names = root.col_names().clone();
+                let _col_names = root.col_names();
                 match boundary {
                     crate::query::validator::structs::alias_structs::BoundaryClauseContext::With(_with_ctx) => {
                         // 这里需要设置with子句的输入列名

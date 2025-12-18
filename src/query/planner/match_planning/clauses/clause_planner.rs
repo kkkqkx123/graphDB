@@ -133,8 +133,8 @@ impl CypherClausePlanner for BaseClausePlanner {
     fn transform(
         &self,
         clause_ctx: &CypherClauseContext,
-        input_plan: Option<&SubPlan>,
-        context: &mut crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext,
+        _input_plan: Option<&SubPlan>,
+        _context: &mut crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
         // 验证上下文
         self.validate_context(clause_ctx)?;

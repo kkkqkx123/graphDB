@@ -8,6 +8,7 @@ use crate::query::planner::plan::core::{PlanNode, PlanNodeKind};
 use crate::query::planner::plan::core::nodes::traits::PlanNodeProperties;
 use crate::query::types::QueryError;
 use crate::storage::StorageEngine;
+use crate::query::parser::expressions::parse_expression_from_string;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
@@ -299,7 +300,6 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Filter
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         use crate::graph::expression::Expression;
         use crate::query::executor::data_processing::filter::FilterExecutor;
-        use crate::query::parser::expressions::parse_expression_from_string;
         use crate::query::planner::plan::core::nodes::FilterNode;
 
         let id = plan_node.id() as usize;
@@ -332,7 +332,6 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Projec
         use crate::graph::expression::Expression;
         use crate::query::executor::result_processing::projection::ProjectExecutor;
         use crate::query::executor::result_processing::projection::ProjectionColumn;
-        use crate::query::parser::expressions::parse_expression_from_string;
         use crate::query::planner::plan::core::nodes::ProjectNode;
 
         let id = plan_node.id() as usize;
@@ -407,7 +406,6 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for SortCr
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         use crate::graph::expression::Expression;
         use crate::query::executor::data_processing::sort::{SortExecutor, SortKey, SortOrder};
-        use crate::query::parser::expressions::parse_expression_from_string;
         use crate::query::planner::plan::core::nodes::SortNode;
 
         let id = plan_node.id() as usize;

@@ -55,7 +55,7 @@ impl Planner for SubgraphPlanner {
         let arg_node = Arc::new(Argument::new(1, &subgraph_ctx.from.user_defined_var_name));
 
         // 2. 创建扩展节点进行子图扩展
-        let expand_node = Arc::new(Expand::new(2, subgraph_ctx.edge_types.clone(), "out"));
+        let _expand_node = Arc::new(Expand::new(2, subgraph_ctx.edge_types.clone(), "out"));
 
         // 3. 创建ExpandAll节点进行多步扩展
         let expand_all_node = Arc::new(ExpandAll::new(3, subgraph_ctx.edge_types.clone(), "out"));

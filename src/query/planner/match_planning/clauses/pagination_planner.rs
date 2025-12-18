@@ -3,12 +3,13 @@ use crate::query::planner::plan::SubPlan;
 /// 处理LIMIT和OFFSET子句的规划
 /// 负责规划LIMIT和OFFSET子句
 
+use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, ClauseType, PlanningContext, VariableRequirement, VariableProvider,
+    CypherClausePlanner, VariableRequirement, VariableProvider,
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
-use crate::query::planner::plan::core::PlanNodeMutable;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 

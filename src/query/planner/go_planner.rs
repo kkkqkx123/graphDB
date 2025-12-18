@@ -3,7 +3,6 @@ use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct GoPlanner {

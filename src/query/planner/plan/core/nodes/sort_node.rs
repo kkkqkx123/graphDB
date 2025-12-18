@@ -91,7 +91,7 @@ impl PlanNodeDependencies for SortNode {
          self.deps.push(dep);
      }
  
-     fn remove_dependency(&mut self, id: i64) -> bool {
+     fn remove_dependency(&mut self, _id: i64) -> bool {
          false
      }
  }
@@ -218,7 +218,7 @@ impl PlanNodeDependencies for LimitNode {
          self.deps.push(dep);
      }
  
-     fn remove_dependency(&mut self, id: i64) -> bool {
+     fn remove_dependency(&mut self, _id: i64) -> bool {
          false
      }
  }
@@ -344,7 +344,7 @@ impl PlanNodeDependencies for TopNNode {
          self.deps.push(dep);
      }
 
-     fn remove_dependency(&mut self, id: i64) -> bool {
+     fn remove_dependency(&mut self, _id: i64) -> bool {
          false
      }
  }

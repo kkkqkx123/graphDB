@@ -593,59 +593,6 @@ fn extract_index_limits_from_expression(
     }
 }
 
-/// 从字符串中提取索引限制（回退方法）
-fn extract_index_limits_from_string(condition: &str, index_scan: &mut IndexScanPlanNode) {
-    // 匹配形如 "column > value" 的条件
-    if let Some((column, value)) = extract_range_condition(condition, ">") {
-        let limit = crate::query::planner::plan::algorithms::IndexLimit {
-            column,
-            begin_value: Some(value),
-            end_value: None,
-        };
-        index_scan.scan_limits.push(limit);
-    }
-
-    // 匹配形如 "column >= value" 的条件
-    if let Some((column, value)) = extract_range_condition(condition, ">=") {
-        let limit = crate::query::planner::plan::algorithms::IndexLimit {
-            column,
-            begin_value: Some(value),
-            end_value: None,
-        };
-        index_scan.scan_limits.push(limit);
-    }
-
-    // 匹配形如 "column < value" 的条件
-    if let Some((column, value)) = extract_range_condition(condition, "<") {
-        let limit = crate::query::planner::plan::algorithms::IndexLimit {
-            column,
-            begin_value: None,
-            end_value: Some(value),
-        };
-        index_scan.scan_limits.push(limit);
-    }
-
-    // 匹配形如 "column <= value" 的条件
-    if let Some((column, value)) = extract_range_condition(condition, "<=") {
-        let limit = crate::query::planner::plan::algorithms::IndexLimit {
-            column,
-            begin_value: None,
-            end_value: Some(value),
-        };
-        index_scan.scan_limits.push(limit);
-    }
-
-    // 匹配形如 "column = value" 的条件
-    if let Some((column, value)) = extract_range_condition(condition, "=") {
-        let limit = crate::query::planner::plan::algorithms::IndexLimit {
-            column,
-            begin_value: Some(value.clone()),
-            end_value: Some(value),
-        };
-        index_scan.scan_limits.push(limit);
-    }
-}
-
 /// 检查是否是关系操作符
 fn is_relational_operator(op: &crate::graph::expression::BinaryOperator) -> bool {
     use crate::graph::expression::BinaryOperator;
@@ -739,6 +686,7 @@ fn create_index_limit(
 }
 
 /// 提取范围条件
+#[allow(dead_code)]
 fn extract_range_condition(condition: &str, op: &str) -> Option<(String, String)> {
     // 简单的字符串匹配，提取形如 "column op value" 的条件
     let trimmed_condition = condition.trim();

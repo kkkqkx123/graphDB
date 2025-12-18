@@ -57,13 +57,13 @@ impl Planner for GoPlanner {
         let arg_node = Arc::new(ArgumentNode::new(1, &go_ctx.from.user_defined_var_name));
 
         // 2. 创建扩展节点
-        let mut edge_types = go_ctx.over.edge_types.clone();
+        let mut _edge_types = go_ctx.over.edge_types.clone();
         // 如果是双向扩展，设置边类型
         if go_ctx.over.direction == "both" {
-            edge_types = go_ctx.over.edge_types.clone();
+            _edge_types = go_ctx.over.edge_types.clone();
         } else if go_ctx.over.direction == "in" {
             // 对于入边，边类型取负值
-            edge_types = go_ctx
+            _edge_types = go_ctx
                 .over
                 .edge_types
                 .iter()
@@ -71,10 +71,10 @@ impl Planner for GoPlanner {
                 .collect();
         } else {
             // 默认是出边
-            edge_types = go_ctx.over.edge_types.clone();
+            _edge_types = go_ctx.over.edge_types.clone();
         }
-        
-        let expand_node = Arc::new(ExpandNode::new(1, edge_types.clone(), "out"));
+
+        let _expand_node = Arc::new(ExpandNode::new(1, _edge_types.clone(), "out"));
 
         // 3. 创建ExpandAll节点进行多步扩展
         let direction = if go_ctx.over.direction == "both" {
@@ -84,7 +84,8 @@ impl Planner for GoPlanner {
         } else {
             "out"
         };
-        
+
+        let edge_types = go_ctx.over.edge_types.clone(); // 正确初始化edge_types变量
         let expand_all_node = Arc::new(ExpandAllNode::new(1, edge_types, direction));
 
         // 4. 如果有JOIN操作，创建JOIN节点

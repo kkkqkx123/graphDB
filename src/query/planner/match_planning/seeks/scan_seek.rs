@@ -1,5 +1,4 @@
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
 /// 扫描查找规划器
 /// 进行全表扫描操作的规划
 /// 负责规划全表扫描操作
@@ -7,12 +6,12 @@ use crate::query::planner::plan::PlanNodeKind;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
-use std::sync::Arc;
 
 /// 扫描查找规划器
 /// 负责规划全表扫描操作
 #[derive(Debug)]
 pub struct ScanSeek {
+    #[allow(dead_code)]
     node_info: NodeInfo,
 }
 

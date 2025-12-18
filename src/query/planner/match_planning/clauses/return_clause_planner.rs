@@ -1,23 +1,24 @@
 //! RETURN 子句规划器
 //! 实现新的 CypherClausePlanner 接口
-//! 
+//!
 //! RETURN 子句是 Cypher 查询的输出子句，负责将查询结果返回给客户端。
 //! 它可以包含投影列、排序、分页和去重等操作。
 
 use super::order_by_planner::OrderByClausePlanner;
 use super::pagination_planner::PaginationPlanner;
 use super::yield_planner::YieldClausePlanner;
+use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, ClauseType, PlanningContext, VariableProvider, VariableRequirement,
+    CypherClausePlanner, VariableProvider, VariableRequirement,
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::{PlanNodeKind, SubPlan};
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
-use std::sync::Arc;
 
 /// RETURN 子句规划器
 /// 
@@ -109,8 +110,6 @@ impl ReturnClausePlanner {
 
         // 步骤4: 处理去重 (DISTINCT)
         if return_clause_ctx.distinct {
-            let current_root = plan.root.as_ref().unwrap().clone();
-            
             // 创建去重节点 - 使用新的节点类型
             // 注意：这里我们暂时使用占位符节点，因为 DedupNode 还没有实现
             // 在完整的实现中，应该创建一个专门的 DedupNode
