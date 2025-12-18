@@ -5,11 +5,10 @@ use crate::query::planner::plan::SubPlan;
 
 use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, VariableRequirement, VariableProvider,
+    CypherClausePlanner, DataFlowNode, PlanningContext,
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 
@@ -99,8 +98,8 @@ impl CypherClausePlanner for PaginationPlanner {
         input_plan: Option<&SubPlan>,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
-        // 验证输入计划
-        self.validate_input(input_plan)?;
+        // 验证数据流
+        self.validate_flow(input_plan)?;
 
         let pagination_ctx = match clause_ctx {
             CypherClauseContext::Pagination(ctx) => ctx,
@@ -122,35 +121,14 @@ impl CypherClausePlanner for PaginationPlanner {
         self.build_limit(pagination_ctx, input_plan, context)
     }
 
-    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), PlannerError> {
-        if input_plan.is_none() {
-            return Err(PlannerError::PlanGenerationFailed(
-                "Pagination clause requires input from previous clauses".to_string()
-            ));
-        }
-        Ok(())
-    }
-
     fn clause_type(&self) -> ClauseType {
-        ClauseType::Modifier
+        ClauseType::Limit
     }
+}
 
-    fn can_start_flow(&self) -> bool {
-        false  // 分页不能开始数据流
-    }
-
-    fn requires_input(&self) -> bool {
-        true   // 分页需要输入
-    }
-
-    fn input_requirements(&self) -> Vec<VariableRequirement> {
-        // 分页需要输入中的所有变量，以便进行分页
-        vec![]
-    }
-
-    fn output_provides(&self) -> Vec<VariableProvider> {
-        // 分页输出与输入相同的变量，只是数量不同
-        vec![]
+impl DataFlowNode for PaginationPlanner {
+    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+        self.clause_type().flow_direction()
     }
 }
 
@@ -162,44 +140,47 @@ mod tests {
     #[test]
     fn test_pagination_planner_creation() {
         let planner = PaginationPlanner::new();
-        assert_eq!(planner.clause_type(), ClauseType::Modifier);
-        assert!(!planner.can_start_flow());
+        assert_eq!(planner.clause_type(), ClauseType::Limit);
+        assert_eq!(planner.flow_direction(), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
         assert!(planner.requires_input());
     }
 
     #[test]
-    fn test_pagination_planner_validate_input() {
+    fn test_pagination_planner_validate_flow() {
         let planner = PaginationPlanner::new();
-        
+
         // 没有输入应该失败
-        assert!(planner.validate_input(None).is_err());
-        
+        assert!(planner.validate_flow(None).is_err());
+
         // 有输入应该成功
         let empty_plan = SubPlan::new(None, None);
-        assert!(planner.validate_input(Some(&empty_plan)).is_ok());
+        assert!(planner.validate_flow(Some(&empty_plan)).is_ok());
     }
 
     #[test]
     fn test_pagination_planner_transform() {
         let planner = PaginationPlanner::new();
-        let query_ctx = crate::query::context::ast::AstContext::new("test", "test");
-        let mut context = PlanningContext::new(query_ctx);
-        
+        let query_info = crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
+            query_id: "test".to_string(),
+            statement_type: "PAGINATION".to_string(),
+        };
+        let mut context = PlanningContext::new(query_info);
+
         // 创建分页上下文
         let pagination_ctx = PaginationContext {
             skip: 10,
             limit: 5,
         };
-        
+
         let clause_ctx = CypherClauseContext::Pagination(pagination_ctx);
-        
+
         // 没有输入应该失败
-        let _result = planner.transform(&clause_ctx, None, &mut context);
-        assert!(_result.is_err());
-        
+        let result = planner.transform(&clause_ctx, None, &mut context);
+        assert!(result.is_err());
+
         // 有输入应该成功
         let input_plan = SubPlan::new(None, None);
-        let _result = planner.transform(&clause_ctx, Some(&input_plan), &mut context);
+        let result = planner.transform(&clause_ctx, Some(&input_plan), &mut context);
         // 这里可能会失败，因为需要有效的输入节点
         // 但至少验证了输入检查逻辑
     }

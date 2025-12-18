@@ -2,10 +2,9 @@
 //! 实现新的 CypherClausePlanner 接口
 
 use crate::query::planner::match_planning::core::{
-    ClauseType, CypherClausePlanner,
+    ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext,
 };
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 
@@ -27,14 +26,14 @@ impl CypherClausePlanner for WithClausePlanner {
         input_plan: Option<&SubPlan>,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
-        // 验证输入
-        self.validate_input(input_plan)?;
-        
+        // 验证数据流
+        self.validate_flow(input_plan)?;
+
         // 确保有输入计划
         let input_plan = input_plan.ok_or_else(|| {
-            PlannerError::missing_input("WITH clause requires input".to_string())
+            PlannerError::PlanGenerationFailed("WITH clause requires input".to_string())
         })?;
-        
+
         // 验证上下文类型
         if !matches!(clause_ctx.kind(), CypherClauseKind::With) {
             return Err(PlannerError::InvalidAstContext(
@@ -61,7 +60,7 @@ impl CypherClausePlanner for WithClausePlanner {
         // 步骤1: 处理YIELD子句（WITH的投影部分）
         // 暂时跳过YIELD子句处理，因为接口不兼容
         let plan = input_plan.clone();
-        
+
         // TODO: 实现YIELD子句处理逻辑
         // let mut yield_planner = YieldClausePlanner::new();
         // let yield_clause_ctx = CypherClauseContext::Yield(with_clause_ctx.yield_clause.clone());
@@ -75,7 +74,7 @@ impl CypherClausePlanner for WithClausePlanner {
         //     let where_clause_ctx = CypherClauseContext::Where(where_clause.clone());
         //     let where_plan = where_planner.transform(&where_clause_ctx, Some(&plan), context)?;
         //     plan = UnifiedConnector::add_input(
-        //         context.query_context(),
+        //         &context.query_info,
         //         &where_plan,
         //         &plan,
         //         true,
@@ -86,43 +85,28 @@ impl CypherClausePlanner for WithClausePlanner {
         // WITH 子句会重新定义可用的变量
         for column in &with_clause_ctx.yield_clause.yield_columns {
             if !column.alias.is_empty() {
-                context.add_variable(column.alias.clone());
+                // Add variable to context with proper VariableInfo structure
+                let variable_info = crate::query::planner::match_planning::core::cypher_clause_planner::VariableInfo {
+                    name: column.alias.clone(),
+                    var_type: "Any".to_string(), // Actual type would be determined in a full implementation
+                    source_clause: ClauseType::With,
+                    is_output: true,
+                };
+                context.add_variable(variable_info);
             }
         }
 
         Ok(plan)
     }
-    
-    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), crate::query::planner::planner::PlannerError> {
-        if input_plan.is_none() {
-            return Err(PlannerError::missing_input(
-                "WITH clause requires input from previous clauses".to_string()
-            ));
-        }
-        Ok(())
-    }
-    
+
     fn clause_type(&self) -> ClauseType {
-        ClauseType::Transform
+        ClauseType::With
     }
-    
-    fn can_start_flow(&self) -> bool {
-        false  // WITH 不能开始数据流
-    }
-    
-    fn requires_input(&self) -> bool {
-        true   // WITH 需要输入
-    }
-    
-    fn input_requirements(&self) -> Vec<crate::query::planner::match_planning::core::VariableRequirement> {
-        // WITH 子句需要输入数据，但不强制要求特定变量
-        vec![]
-    }
-    
-    fn output_provides(&self) -> Vec<crate::query::planner::match_planning::core::VariableProvider> {
-        // WITH 子句的输出取决于具体的投影列
-        // 这里返回空列表，实际实现中应该根据 yield_clause 来确定
-        vec![]
+}
+
+impl DataFlowNode for WithClausePlanner {
+    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+        self.clause_type().flow_direction()
     }
 }
 
@@ -134,22 +118,22 @@ mod tests {
     #[test]
     fn test_with_clause_planner_interface() {
         let planner = WithClausePlanner::new();
-        assert_eq!(planner.clause_type(), ClauseType::Transform);
-        assert!(!planner.can_start_flow());
+        assert_eq!(planner.clause_type(), ClauseType::With);
+        assert_eq!(planner.flow_direction(), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
         assert!(planner.requires_input());
     }
-    
+
     #[test]
-    fn test_with_clause_planner_validate_input() {
+    fn test_with_clause_planner_validate_flow() {
         let planner = WithClausePlanner::new();
-        
+
         // 测试没有输入的情况
-        let result = planner.validate_input(None);
+        let result = planner.validate_flow(None);
         assert!(result.is_err());
-        
+
         // 测试有输入的情况
         let dummy_plan = SubPlan::new(None, None);
-        let result = planner.validate_input(Some(&dummy_plan));
+        let result = planner.validate_flow(Some(&dummy_plan));
         assert!(result.is_ok());
     }
 }

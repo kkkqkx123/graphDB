@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
+use crate::query::planner::match_planning::core::cypher_clause_planner::{
+    CypherClausePlanner, DataFlowNode, PlanningContext,
+};
 /// UNWIND 子句规划器
 ///
 /// 负责将 Cypher 查询中的 UNWIND 子句转换为执行计划。
@@ -44,13 +47,9 @@ use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanne
 /// - 空列表将产生零行结果
 /// - NULL 值将产生零行结果
 use crate::query::planner::match_planning::core::ClauseType;
-use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, VariableProvider, VariableRequirement,
-};
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 
@@ -95,10 +94,10 @@ impl CypherClausePlanner for UnwindClausePlanner {
         &self,
         clause_ctx: &CypherClauseContext,
         input_plan: Option<&SubPlan>,
-        _context: &mut PlanningContext,
+        context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
-        // 验证输入
-        self.validate_input(input_plan)?;
+        // 验证数据流
+        self.validate_flow(input_plan)?;
 
         // 验证输入上下文类型
         if !matches!(clause_ctx.kind(), CypherClauseKind::Unwind) {
@@ -134,35 +133,16 @@ impl CypherClausePlanner for UnwindClausePlanner {
         Ok(unwind_plan)
     }
 
-    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), PlannerError> {
-        if input_plan.is_none() {
-            return Err(PlannerError::PlanGenerationFailed(
-                "UNWIND clause requires input from previous clauses".to_string(),
-            ));
-        }
-        Ok(())
-    }
-
     fn clause_type(&self) -> ClauseType {
-        ClauseType::Transform
+        ClauseType::Unwind
     }
+}
 
-    fn can_start_flow(&self) -> bool {
-        false // UNWIND 不能开始数据流
-    }
-
-    fn requires_input(&self) -> bool {
-        true // UNWIND 需要输入
-    }
-
-    fn input_requirements(&self) -> Vec<VariableRequirement> {
-        // UNWIND 需要输入中的集合变量
-        vec![]
-    }
-
-    fn output_provides(&self) -> Vec<VariableProvider> {
-        // UNWIND 输出展开后的变量
-        vec![]
+impl DataFlowNode for UnwindClausePlanner {
+    fn flow_direction(
+        &self,
+    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+        self.clause_type().flow_direction()
     }
 }
 
@@ -298,6 +278,7 @@ fn serialize_expression(expr: &crate::graph::expression::Expression) -> String {
 pub fn connect_unwind_to_input(
     input_plan: SubPlan,
     unwind_plan: SubPlan,
+    context: &PlanningContext,
 ) -> Result<SubPlan, PlannerError> {
     // 验证输入计划的有效性
     if input_plan.root.is_none() {
@@ -309,12 +290,8 @@ pub fn connect_unwind_to_input(
     // 使用新的统一连接器连接两个计划
     // 将 UNWIND 计划连接到输入计划的输出
     // 数据流：input_plan -> unwind_plan
-    let connected_plan = UnifiedConnector::add_input(
-        &crate::query::context::ast::base::AstContext::new("UNWIND", "test"),
-        &unwind_plan,
-        &input_plan,
-        true,
-    )?;
+    let connected_plan =
+        UnifiedConnector::add_input(&context.query_info, &unwind_plan, &input_plan, true)?;
 
     Ok(connected_plan)
 }

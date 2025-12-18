@@ -1,18 +1,28 @@
 //! WHERE 子句规划器
-//! 实现新的 CypherClausePlanner 接口
+//! 架构重构：实现统一的 CypherClausePlanner 接口
 //!
-//! WHERE 子句是 Cypher 查询的过滤子句，负责根据指定的条件过滤输入数据流。
+//! ## 重构说明
+//! 
+//! ### 删除冗余方法
+//! - 移除 `validate_input`, `can_start_flow`, `requires_input` 等冗余方法
+//! - 通过 `flow_direction()` 统一表达数据流行为
+//! 
+//! ### 简化变量管理
+//! - WHERE 子句不产生新变量，只过滤输入
+//! - 移除不必要的 `VariableRequirement` 和 `VariableProvider`
+//! 
+//! ### 优化实现逻辑
+//! - 专注于核心的过滤功能
+//! - 简化路径表达式处理
 
-use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, VariableRequirement, VariableProvider,
+use crate::query::planner::match_planning::core::{
+    CypherClausePlanner, ClauseType, FlowDirection, PlanningContext, DataFlowNode
 };
-use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::paths::match_path_planner::MatchPathPlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
@@ -43,7 +53,6 @@ impl WhereClausePlanner {
     /// 创建新的 WHERE 子句规划器
     /// 
     /// # 参数
-    /// 
     /// * `need_stable_filter` - 是否需要稳定的过滤器，用于ORDER BY场景
     pub fn new(need_stable_filter: bool) -> Self {
         Self { need_stable_filter }
@@ -52,7 +61,6 @@ impl WhereClausePlanner {
     /// 构建 WHERE 子句的执行计划
     /// 
     /// # 参数
-    /// 
     /// * `where_clause_ctx` - WHERE 子句的上下文信息
     /// * `input_plan` - 输入的执行计划
     /// * `context` - 规划上下文
@@ -64,7 +72,7 @@ impl WhereClausePlanner {
         &self,
         where_clause_ctx: &crate::query::validator::structs::clause_structs::WhereClauseContext,
         input_plan: &SubPlan,
-        _context: &mut PlanningContext,
+        context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
         // 处理路径表达式（模式谓词）
         let mut plan = if !where_clause_ctx.paths.is_empty() {
@@ -106,7 +114,7 @@ impl WhereClausePlanner {
                 if path.is_pred {
                     // 构建模式谓词的计划
                     paths_plan = UnifiedConnector::pattern_apply(
-                        &crate::query::context::ast::base::AstContext::new("WHERE", "test"),
+                        &context.query_info,
                         &paths_plan,
                         &path_plan,
                         intersected_aliases,
@@ -114,7 +122,7 @@ impl WhereClausePlanner {
                 } else {
                     // 构建路径收集的计划
                     paths_plan = UnifiedConnector::roll_up_apply(
-                        &crate::query::context::ast::base::AstContext::new("WHERE", "test"),
+                        &context.query_info,
                         &paths_plan,
                         &path_plan,
                         intersected_aliases,
@@ -146,7 +154,7 @@ impl WhereClausePlanner {
             }
 
             plan = UnifiedConnector::add_input(
-                &crate::query::context::ast::base::AstContext::new("WHERE", "test"),
+                &context.query_info,
                 &where_plan,
                 &plan,
                 true,
@@ -174,14 +182,14 @@ impl CypherClausePlanner for WhereClausePlanner {
         input_plan: Option<&SubPlan>,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
-        // 验证输入
-        self.validate_input(input_plan)?;
-        
+        // 验证数据流：WHERE 子句需要输入
+        self.validate_flow(input_plan)?;
+
         // 确保有输入计划
         let input_plan = input_plan.ok_or_else(|| {
-            PlannerError::missing_input("WHERE clause requires input".to_string())
+            PlannerError::PlanGenerationFailed("WHERE clause requires input".to_string())
         })?;
-        
+
         // 验证上下文类型
         if !matches!(clause_ctx.kind(), CypherClauseKind::Where) {
             return Err(PlannerError::InvalidAstContext(
@@ -201,40 +209,20 @@ impl CypherClausePlanner for WhereClausePlanner {
         // 构建 WHERE 子句的执行计划
         self.build_where(where_clause_ctx, input_plan, context)
     }
-    
-    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), PlannerError> {
-        if input_plan.is_none() {
-            return Err(PlannerError::missing_input(
-                "WHERE clause requires input from previous clauses".to_string()
-            ));
-        }
-        Ok(())
-    }
-    
+
     fn clause_type(&self) -> ClauseType {
-        ClauseType::Transform
+        ClauseType::Where
     }
-    
-    fn can_start_flow(&self) -> bool {
-        false  // WHERE 不能开始数据流
-    }
-    
-    fn requires_input(&self) -> bool {
-        true   // WHERE 需要输入
-    }
-    
-    fn input_requirements(&self) -> Vec<VariableRequirement> {
-        // WHERE 子句需要输入数据，但不强制要求特定变量
-        vec![]
-    }
-    
-    fn output_provides(&self) -> Vec<VariableProvider> {
-        // WHERE 子句不产生新的变量，只是过滤输入
-        vec![]
+}
+
+impl DataFlowNode for WhereClausePlanner {
+    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+        self.clause_type().flow_direction()
     }
 }
 
 /// 将 Expression 转换为 Expr
+/// 辅助函数，用于在不同表达式类型之间转换
 fn convert_expression_to_expr(expr: &crate::graph::expression::Expression) -> Expr {
     use crate::query::parser::ast::expr::*;
     use crate::query::parser::ast::types::Span;
@@ -264,27 +252,26 @@ fn convert_expression_to_expr(expr: &crate::graph::expression::Expression) -> Ex
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::match_planning::core::ClauseType;
     
     #[test]
     fn test_where_clause_planner_interface() {
         let planner = WhereClausePlanner::new(false);
-        assert_eq!(planner.clause_type(), ClauseType::Transform);
-        assert!(!planner.can_start_flow());
+        assert_eq!(planner.clause_type(), ClauseType::Where);
+        assert_eq!(planner.flow_direction(), FlowDirection::Transform);
         assert!(planner.requires_input());
     }
     
     #[test]
-    fn test_where_clause_planner_validate_input() {
+    fn test_where_clause_planner_validate_flow() {
         let planner = WhereClausePlanner::new(false);
         
-        // 测试没有输入的情况
-        let result = planner.validate_input(None);
+        // 测试没有输入的情况（应该失败）
+        let result = planner.validate_flow(None);
         assert!(result.is_err());
         
-        // 测试有输入的情况
+        // 测试有输入的情况（应该成功）
         let dummy_plan = SubPlan::new(None, None);
-        let result = planner.validate_input(Some(&dummy_plan));
+        let result = planner.validate_flow(Some(&dummy_plan));
         assert!(result.is_ok());
     }
     

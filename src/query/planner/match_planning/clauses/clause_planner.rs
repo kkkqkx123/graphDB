@@ -1,7 +1,7 @@
 //! 子句规划器基类
 //! 定义所有子句规划器的通用接口和trait
 
-use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
+use crate::query::planner::match_planning::core::cypher_clause_planner::{CypherClausePlanner, DataFlowNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
@@ -152,14 +152,17 @@ impl CypherClausePlanner for BaseClausePlanner {
     ) -> crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType {
         // 根据支持的子句类型返回对应的ClauseType
         match self.supported_kind {
-            CypherClauseKind::Match => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Source,
-            CypherClauseKind::Where => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Transform,
-            CypherClauseKind::Return => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Output,
-            CypherClauseKind::With => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Transform,
-            CypherClauseKind::OrderBy => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Modifier,
-            CypherClauseKind::Pagination => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Modifier,
-            CypherClauseKind::Unwind => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Transform,
-            CypherClauseKind::Yield => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Output,
+            CypherClauseKind::Match => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Match,
+            CypherClauseKind::Where => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Where,
+            CypherClauseKind::Return => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Return,
+            CypherClauseKind::With => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::With,
+            CypherClauseKind::OrderBy => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::OrderBy,
+            CypherClauseKind::Pagination => {
+                // Pagination maps to either Limit or Skip depending on context
+                crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Limit
+            },
+            CypherClauseKind::Unwind => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Unwind,
+            CypherClauseKind::Yield => crate::query::planner::match_planning::core::cypher_clause_planner::ClauseType::Yield,
         }
     }
 }
@@ -293,8 +296,11 @@ mod tests {
     #[test]
     fn test_base_clause_planner_transform() {
         let planner = BaseClausePlanner::new("TestPlanner", CypherClauseKind::Match);
-        let query_ctx = crate::query::context::ast::AstContext::new("test", "test");
-        let mut context = crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext::new(query_ctx);
+        let query_info = crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
+            query_id: "test".to_string(),
+            statement_type: "TEST".to_string(),
+        };
+        let mut context = crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext::new(query_info);
 
         let clause_ctx = CypherClauseContext::Match(MatchClauseContext {
             paths: vec![],
@@ -342,5 +348,11 @@ mod tests {
     fn test_clause_planner_factory_create_planner() {
         let result = ClausePlannerFactory::create_planner(CypherClauseKind::Match);
         assert!(result.is_err()); // 因为还没有实现具体的规划器创建
+    }
+}
+
+impl DataFlowNode for BaseClausePlanner {
+    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+        self.clause_type().flow_direction()
     }
 }

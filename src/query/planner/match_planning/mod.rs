@@ -17,7 +17,7 @@ pub use core::match_clause_planner::MatchClausePlanner;
 // 重新导出新的核心接口
 pub use core::cypher_clause_planner::{
     ClauseType, PlanningContext,
-    FlowDirection, VariableRequirement, VariableProvider, VariableType, DataFlowValidator
+    FlowDirection, VariableInfo, QueryInfo, DataFlowNode, DataFlowManager
 };
 
 // 重新导出路径模块的主要类型

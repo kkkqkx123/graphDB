@@ -40,8 +40,11 @@ impl ProjectionPlanner {
         need_stable_filter: bool,
     ) -> Result<SubPlan, PlannerError> {
         // 创建规划上下文
-        let query_ctx = crate::query::context::ast::AstContext::new("test", "test");
-        let mut context = crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext::new(query_ctx);
+        let query_info = crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
+            query_id: "test".to_string(),
+            statement_type: "PROJECTION".to_string(),
+        };
+        let mut context = crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext::new(query_info);
         
         // 首先处理YIELD子句（投影部分）
         let yield_planner = YieldClausePlanner::new();

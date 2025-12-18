@@ -8,12 +8,11 @@ use crate::query::planner::plan::SubPlan;
 
 use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, VariableRequirement, VariableProvider,
+    CypherClausePlanner, DataFlowNode, PlanningContext,
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
@@ -90,7 +89,7 @@ impl YieldClausePlanner {
             } else {
                 // 使用新的统一连接器将投影节点连接到现有计划的尾部
                 plan = UnifiedConnector::add_input(
-                    &crate::query::context::ast::base::AstContext::new("YIELD", "test"),
+                    &context.query_info,
                     &SubPlan::new(Some(project_node.clone_plan_node()), Some(project_node)),
                     &plan,
                     true,
@@ -117,7 +116,7 @@ impl YieldClausePlanner {
             } else {
                 // 使用新的统一连接器将去重节点连接到现有计划的尾部
                 plan = UnifiedConnector::add_input(
-                    &crate::query::context::ast::base::AstContext::new("YIELD", "test"),
+                    &context.query_info,
                     &SubPlan::new(Some(dedup_node.clone_plan_node()), Some(dedup_node)),
                     &plan,
                     true,
@@ -146,8 +145,8 @@ impl CypherClausePlanner for YieldClausePlanner {
         input_plan: Option<&SubPlan>,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
-        // 验证输入
-        self.validate_input(input_plan)?;
+        // 验证数据流
+        self.validate_flow(input_plan)?;
 
         // 验证上下文类型
         if !matches!(clause_ctx.kind(), CypherClauseKind::Yield) {
@@ -176,35 +175,14 @@ impl CypherClausePlanner for YieldClausePlanner {
         self.build_yield(yield_clause_ctx, input_plan, context)
     }
 
-    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), PlannerError> {
-        if input_plan.is_none() {
-            return Err(PlannerError::PlanGenerationFailed(
-                "YIELD clause requires input from previous clauses".to_string()
-            ));
-        }
-        Ok(())
-    }
-
     fn clause_type(&self) -> ClauseType {
-        ClauseType::Transform
+        ClauseType::Yield
     }
+}
 
-    fn can_start_flow(&self) -> bool {
-        false  // YIELD 不能开始数据流
-    }
-
-    fn requires_input(&self) -> bool {
-        true   // YIELD 需要输入
-    }
-
-    fn input_requirements(&self) -> Vec<VariableRequirement> {
-        // YIELD 需要输入中的变量进行投影和聚合
-        vec![]
-    }
-
-    fn output_provides(&self) -> Vec<VariableProvider> {
-        // YIELD 输出投影后的变量
-        vec![]
+impl DataFlowNode for YieldClausePlanner {
+    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+        self.clause_type().flow_direction()
     }
 }
 
@@ -216,20 +194,20 @@ mod tests {
     #[test]
     fn test_yield_clause_planner_creation() {
         let planner = YieldClausePlanner::new();
-        assert_eq!(planner.clause_type(), ClauseType::Transform);
-        assert!(!planner.can_start_flow());
+        assert_eq!(planner.clause_type(), ClauseType::Yield);
+        assert_eq!(planner.flow_direction(), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
         assert!(planner.requires_input());
     }
 
     #[test]
-    fn test_yield_clause_planner_validate_input() {
+    fn test_yield_clause_planner_validate_flow() {
         let planner = YieldClausePlanner::new();
-        
+
         // 没有输入应该失败
-        assert!(planner.validate_input(None).is_err());
-        
+        assert!(planner.validate_flow(None).is_err());
+
         // 有输入应该成功
         let empty_plan = SubPlan::new(None, None);
-        assert!(planner.validate_input(Some(&empty_plan)).is_ok());
+        assert!(planner.validate_flow(Some(&empty_plan)).is_ok());
     }
 }

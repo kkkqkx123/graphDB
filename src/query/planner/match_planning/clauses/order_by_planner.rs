@@ -5,10 +5,9 @@
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, VariableProvider, VariableRequirement,
+    CypherClausePlanner, DataFlowNode, PlanningContext,
 };
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::SubPlan;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
@@ -106,8 +105,8 @@ impl CypherClausePlanner for OrderByClausePlanner {
         input_plan: Option<&SubPlan>,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
-        // 验证输入计划
-        self.validate_input(input_plan)?;
+        // 验证数据流
+        self.validate_flow(input_plan)?;
 
         let order_by_ctx = match clause_ctx {
             CypherClauseContext::OrderBy(ctx) => ctx,
@@ -127,35 +126,14 @@ impl CypherClausePlanner for OrderByClausePlanner {
         self.build_sort(order_by_ctx, input_plan, context)
     }
 
-    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), PlannerError> {
-        if input_plan.is_none() {
-            return Err(PlannerError::PlanGenerationFailed(
-                "ORDER BY clause requires input from previous clauses".to_string(),
-            ));
-        }
-        Ok(())
-    }
-
     fn clause_type(&self) -> ClauseType {
-        ClauseType::Modifier
+        ClauseType::OrderBy
     }
+}
 
-    fn can_start_flow(&self) -> bool {
-        false // ORDER BY 不能开始数据流
-    }
-
-    fn requires_input(&self) -> bool {
-        true // ORDER BY 需要输入
-    }
-
-    fn input_requirements(&self) -> Vec<VariableRequirement> {
-        // ORDER BY 需要输入中的所有变量，以便进行排序
-        vec![]
-    }
-
-    fn output_provides(&self) -> Vec<VariableProvider> {
-        // ORDER BY 输出与输入相同的变量，只是顺序不同
-        vec![]
+impl DataFlowNode for OrderByClausePlanner {
+    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+        self.clause_type().flow_direction()
     }
 }
 
@@ -168,28 +146,31 @@ mod tests {
     #[test]
     fn test_order_by_planner_creation() {
         let planner = OrderByClausePlanner::new();
-        assert_eq!(planner.clause_type(), ClauseType::Modifier);
-        assert!(!planner.can_start_flow());
+        assert_eq!(planner.clause_type(), ClauseType::OrderBy);
+        assert_eq!(planner.flow_direction(), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
         assert!(planner.requires_input());
     }
 
     #[test]
-    fn test_order_by_planner_validate_input() {
+    fn test_order_by_planner_validate_flow() {
         let planner = OrderByClausePlanner::new();
 
         // 没有输入应该失败
-        assert!(planner.validate_input(None).is_err());
+        assert!(planner.validate_flow(None).is_err());
 
         // 有输入应该成功
         let empty_plan = SubPlan::new(None, None);
-        assert!(planner.validate_input(Some(&empty_plan)).is_ok());
+        assert!(planner.validate_flow(Some(&empty_plan)).is_ok());
     }
 
     #[test]
     fn test_order_by_planner_transform() {
         let planner = OrderByClausePlanner::new();
-        let query_ctx = crate::query::context::ast::AstContext::new("test", "test");
-        let mut context = PlanningContext::new(query_ctx);
+        let query_info = crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
+            query_id: "test".to_string(),
+            statement_type: "ORDER BY".to_string(),
+        };
+        let mut context = PlanningContext::new(query_info);
 
         // 创建ORDER BY上下文
         let order_by_ctx = OrderByClauseContext {
@@ -202,12 +183,12 @@ mod tests {
         let clause_ctx = CypherClauseContext::OrderBy(order_by_ctx);
 
         // 没有输入应该失败
-        let _result = planner.transform(&clause_ctx, None, &mut context);
-        assert!(_result.is_err());
+        let result = planner.transform(&clause_ctx, None, &mut context);
+        assert!(result.is_err());
 
         // 有输入应该成功
         let input_plan = SubPlan::new(None, None);
-        let _result = planner.transform(&clause_ctx, Some(&input_plan), &mut context);
+        let result = planner.transform(&clause_ctx, Some(&input_plan), &mut context);
         // 这里可能会失败，因为需要有效的输入节点
         // 但至少验证了输入检查逻辑
     }

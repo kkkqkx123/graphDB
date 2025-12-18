@@ -1,21 +1,29 @@
 //! RETURN 子句规划器
-//! 实现新的 CypherClausePlanner 接口
+//! 架构重构：实现统一的 CypherClausePlanner 接口
 //!
-//! RETURN 子句是 Cypher 查询的输出子句，负责将查询结果返回给客户端。
-//! 它可以包含投影列、排序、分页和去重等操作。
+//! ## 重构说明
+//! 
+//! ### 删除冗余方法
+//! - 移除 `validate_input`, `can_start_flow`, `requires_input` 等冗余方法
+//! - 通过 `flow_direction()` 统一表达数据流行为
+//! 
+//! ### 简化变量管理
+//! - RETURN 子句标记输出变量，但不产生新变量
+//! - 移除不必要的 `VariableRequirement` 和 `VariableProvider`
+//! 
+//! ### 优化实现逻辑
+//! - 专注于核心的投影和输出功能
+//! - 简化排序、分页和去重处理
 
 use super::order_by_planner::OrderByClausePlanner;
 use super::pagination_planner::PaginationPlanner;
 use super::yield_planner::YieldClausePlanner;
 use crate::query::planner::match_planning::core::ClauseType;
-use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, VariableProvider, VariableRequirement,
-};
+use crate::query::planner::match_planning::core::cypher_clause_planner::{CypherClausePlanner, DataFlowNode, PlanningContext};
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::match_planning::core::PlanningContext;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
@@ -81,7 +89,7 @@ impl ReturnClausePlanner {
 
             // 使用新的统一连接器连接排序计划
             plan = UnifiedConnector::add_input(
-                context.query_context(),
+                &context.query_info,
                 &order_plan,
                 &plan,
                 true,
@@ -100,7 +108,7 @@ impl ReturnClausePlanner {
                 let pagination_plan = pagination_planner.transform(&pagination_clause_ctx, Some(&plan), context)?;
 
                 plan = UnifiedConnector::add_input(
-                    context.query_context(),
+                    &context.query_info,
                     &pagination_plan,
                     &plan,
                     true,
@@ -120,12 +128,15 @@ impl ReturnClausePlanner {
             // TODO: 实现完整的去重逻辑，创建专门的 DedupNode
 
             plan = UnifiedConnector::add_input(
-                context.query_context(),
+                &context.query_info,
                 &SubPlan::from_single_node(dedup_node),
                 &plan,
                 true,
             )?;
         }
+
+        // 标记上下文中的变量为输出变量
+        context.mark_output_variables();
 
         Ok(plan)
     }
@@ -148,12 +159,12 @@ impl CypherClausePlanner for ReturnClausePlanner {
         input_plan: Option<&SubPlan>,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
-        // 验证输入
-        self.validate_input(input_plan)?;
+        // 验证数据流：RETURN 子句需要输入
+        self.validate_flow(input_plan)?;
 
         // 确保有输入计划
         let input_plan = input_plan.ok_or_else(|| {
-            PlannerError::missing_input("RETURN clause requires input".to_string())
+            PlannerError::PlanGenerationFailed("RETURN clause requires input".to_string())
         })?;
 
         // 验证上下文类型
@@ -177,36 +188,14 @@ impl CypherClausePlanner for ReturnClausePlanner {
         self.build_return(return_clause_ctx, input_plan, context)
     }
 
-    fn validate_input(&self, input_plan: Option<&SubPlan>) -> Result<(), PlannerError> {
-        if input_plan.is_none() {
-            return Err(PlannerError::missing_input(
-                "RETURN clause requires input from previous clauses".to_string(),
-            ));
-        }
-        Ok(())
-    }
-
     fn clause_type(&self) -> ClauseType {
-        ClauseType::Output
+        ClauseType::Return
     }
+}
 
-    fn can_start_flow(&self) -> bool {
-        false // RETURN 不能开始数据流
-    }
-
-    fn requires_input(&self) -> bool {
-        true // RETURN 需要输入
-    }
-
-    fn input_requirements(&self) -> Vec<VariableRequirement> {
-        // RETURN 子句需要输入数据，但不强制要求特定变量
-        vec![]
-    }
-
-    fn output_provides(&self) -> Vec<VariableProvider> {
-        // RETURN 子句的输出取决于具体的投影列
-        // 这里返回空列表，实际实现中应该根据 yield_clause 来确定
-        vec![]
+impl DataFlowNode for ReturnClausePlanner {
+    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+        self.clause_type().flow_direction()
     }
 }
 
@@ -263,28 +252,27 @@ fn validate_pagination_params(skip: i64, limit: i64) -> Result<(), PlannerError>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::ast::AstContext;
     use crate::query::planner::match_planning::core::ClauseType;
 
     #[test]
     fn test_return_clause_planner_interface() {
         let planner = ReturnClausePlanner::new();
-        assert_eq!(planner.clause_type(), ClauseType::Output);
-        assert!(!planner.can_start_flow());
+        assert_eq!(planner.clause_type(), ClauseType::Return);
+        assert_eq!(planner.flow_direction(), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Output);
         assert!(planner.requires_input());
     }
 
     #[test]
-    fn test_return_clause_planner_validate_input() {
+    fn test_return_clause_planner_validate_flow() {
         let planner = ReturnClausePlanner::new();
 
-        // 测试没有输入的情况
-        let result = planner.validate_input(None);
+        // 测试没有输入的情况（应该失败）
+        let result = planner.validate_flow(None);
         assert!(result.is_err());
 
-        // 测试有输入的情况
+        // 测试有输入的情况（应该成功）
         let dummy_plan = SubPlan::new(None, None);
-        let result = planner.validate_input(Some(&dummy_plan));
+        let result = planner.validate_flow(Some(&dummy_plan));
         assert!(result.is_ok());
     }
 
