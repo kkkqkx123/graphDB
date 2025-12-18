@@ -11,7 +11,6 @@ use crate::query::planner::plan::core::PlanNodeMutable;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::SubPlan;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
-use std::sync::Arc;
 
 /// ORDER BY子句规划器
 ///
@@ -57,29 +56,28 @@ impl OrderByClausePlanner {
         _context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
         // 获取输入计划的根节点
-        let input_root = input_plan.root.as_ref().ok_or_else(|| {
+        let _input_root = input_plan.root.as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("ORDER BY clause requires input plan".to_string())
         })?;
 
         // 创建排序节点，使用输入根节点作为输入
-        let mut sort_node = PlanNodeFactory::create_placeholder_node()?;
+        let sort_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 将排序因子信息存储在节点的列名中，以便执行阶段使用
         // 在实际执行时，排序逻辑会根据这些信息进行排序
         // indexed_order_factors包含(列索引, 排序类型)的元组
-        let mut col_names = Vec::new();
-        for (idx, order_type) in &order_by_ctx.indexed_order_factors {
-            // 使用特殊格式存储排序信息，供执行器使用
-            // 格式: sort_factor_<index>_<direction>
-            let direction = match order_type {
-                crate::query::validator::structs::clause_structs::OrderType::Asc => "ASC",
-                crate::query::validator::structs::clause_structs::OrderType::Desc => "DESC",
-            };
-            col_names.push(format!("sort_factor_{}_{}", idx, direction));
-        }
-
-        // 设置列名
-        sort_node.set_col_names(col_names);
+        let col_names: Vec<String> = order_by_ctx.indexed_order_factors
+            .iter()
+            .map(|(idx, order_type)| {
+                // 使用特殊格式存储排序信息，供执行器使用
+                // 格式: sort_factor_<index>_<direction>
+                let direction = match order_type {
+                    crate::query::validator::structs::clause_structs::OrderType::Asc => "ASC",
+                    crate::query::validator::structs::clause_structs::OrderType::Desc => "DESC",
+                };
+                format!("sort_factor_{}_{}", idx, direction)
+            })
+            .collect();
 
         // 创建新的子计划
         let mut subplan = input_plan.clone();
@@ -203,12 +201,12 @@ mod tests {
         let clause_ctx = CypherClauseContext::OrderBy(order_by_ctx);
 
         // 没有输入应该失败
-        let result = planner.transform(&clause_ctx, None, &mut context);
-        assert!(result.is_err());
+        let _result = planner.transform(&clause_ctx, None, &mut context);
+        assert!(_result.is_err());
 
         // 有输入应该成功
         let input_plan = SubPlan::new(None, None);
-        let result = planner.transform(&clause_ctx, Some(&input_plan), &mut context);
+        let _result = planner.transform(&clause_ctx, Some(&input_plan), &mut context);
         // 这里可能会失败，因为需要有效的输入节点
         // 但至少验证了输入检查逻辑
     }

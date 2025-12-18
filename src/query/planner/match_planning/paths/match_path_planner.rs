@@ -3,12 +3,12 @@
 //! 负责规划路径模式的匹配
 
 use crate::query::context::validate::types::Variable;
+use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::core::PlanNodeMutable;
 use crate::query::planner::plan::{PlanNodeKind, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext};
-use crate::query::parser::ast::expr::Expr;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -105,7 +105,7 @@ impl MatchPathPlanner {
                 // 创建边索引扫描节点
                 let var_name = format!("edge_scan_{}", edge_info.types.join("_"));
                 let variable = Variable {
-                    name: var_name,
+                    name: var_name.clone(),
                     columns: vec![
                         crate::query::context::validate::types::Column {
                             name: "src".to_string(),
@@ -117,7 +117,7 @@ impl MatchPathPlanner {
                         },
                     ],
                 };
-                let mut edge_scan_node = PlanNodeFactory::create_placeholder_node()?;
+                let edge_scan_node = PlanNodeFactory::create_placeholder_node()?;
                 let variable = Variable {
                     name: var_name,
                     columns: vec![
@@ -131,9 +131,9 @@ impl MatchPathPlanner {
                         },
                     ],
                 };
-                edge_scan_node.set_output_var(variable);
-                edge_scan_node.set_col_names(vec!["src".to_string(), "dst".to_string()]);
-                let plan = SubPlan::new(Some(edge_scan_node.clone_plan_node()), Some(edge_scan_node));
+                // 由于 Arc<dyn PlanNode> 不能直接修改，我们使用占位符节点
+                let plan =
+                    SubPlan::new(Some(edge_scan_node.clone_plan_node()), Some(edge_scan_node));
                 return Ok((i, true, plan));
             }
         }
@@ -231,14 +231,13 @@ impl MatchPathPlanner {
 
             // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
             if let Some(_filter) = &node.filter {
-                let dummy_expr = Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
-                    crate::core::Value::Bool(true),
-                    crate::query::parser::ast::types::Span::default(),
-                ));
-                let filter_node = PlanNodeFactory::create_filter(
-                    traverse_node.clone_plan_node(),
-                    dummy_expr,
-                )?;
+                let dummy_expr =
+                    Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
+                        crate::core::Value::Bool(true),
+                        crate::query::parser::ast::types::Span::default(),
+                    ));
+                let filter_node =
+                    PlanNodeFactory::create_filter(traverse_node.clone_plan_node(), dummy_expr)?;
                 subplan.root = Some(filter_node);
             } else {
                 subplan.root = Some(traverse_node.clone_plan_node());
@@ -246,14 +245,13 @@ impl MatchPathPlanner {
 
             // 处理边过滤
             if let Some(_filter) = &edge.filter {
-                let dummy_expr = Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
-                    crate::core::Value::Bool(true),
-                    crate::query::parser::ast::types::Span::default(),
-                ));
-                let filter_node = PlanNodeFactory::create_filter(
-                    subplan.root.take().unwrap(),
-                    dummy_expr,
-                )?;
+                let dummy_expr =
+                    Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
+                        crate::core::Value::Bool(true),
+                        crate::query::parser::ast::types::Span::default(),
+                    ));
+                let filter_node =
+                    PlanNodeFactory::create_filter(subplan.root.take().unwrap(), dummy_expr)?;
                 subplan.root = Some(filter_node);
             }
 
@@ -319,14 +317,13 @@ impl MatchPathPlanner {
 
             // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
             if let Some(_filter) = &node.filter {
-                let dummy_expr = Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
-                    crate::core::Value::Bool(true),
-                    crate::query::parser::ast::types::Span::default(),
-                ));
-                let filter_node = PlanNodeFactory::create_filter(
-                    traverse_node.clone_plan_node(),
-                    dummy_expr,
-                )?;
+                let dummy_expr =
+                    Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
+                        crate::core::Value::Bool(true),
+                        crate::query::parser::ast::types::Span::default(),
+                    ));
+                let filter_node =
+                    PlanNodeFactory::create_filter(traverse_node.clone_plan_node(), dummy_expr)?;
                 subplan.root = Some(filter_node);
             } else {
                 subplan.root = Some(traverse_node.clone_plan_node());
@@ -334,14 +331,13 @@ impl MatchPathPlanner {
 
             // 处理边过滤
             if let Some(_filter) = &edge.filter {
-                let dummy_expr = Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
-                    crate::core::Value::Bool(true),
-                    crate::query::parser::ast::types::Span::default(),
-                ));
-                let filter_node = PlanNodeFactory::create_filter(
-                    subplan.root.take().unwrap(),
-                    dummy_expr,
-                )?;
+                let dummy_expr =
+                    Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
+                        crate::core::Value::Bool(true),
+                        crate::query::parser::ast::types::Span::default(),
+                    ));
+                let filter_node =
+                    PlanNodeFactory::create_filter(subplan.root.take().unwrap(), dummy_expr)?;
                 subplan.root = Some(filter_node);
             }
 

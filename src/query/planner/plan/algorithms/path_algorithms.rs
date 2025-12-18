@@ -122,8 +122,21 @@ impl PlanNodeDependencies for MultiShortestPath {
         &self.deps
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+        &mut self.deps
+    }
+
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(index) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(index);
+            true
+        } else {
+            false
+        }
     }
 }
 

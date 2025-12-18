@@ -1,5 +1,4 @@
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::PlanNodeKind;
 /// 分页规划器
 /// 处理LIMIT和OFFSET子句的规划
 /// 负责规划LIMIT和OFFSET子句
@@ -12,7 +11,6 @@ use crate::query::planner::plan::core::PlanNodeMutable;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
-use std::sync::Arc;
 
 /// 分页规划器
 /// 
@@ -59,23 +57,20 @@ impl PaginationPlanner {
         _context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
         // 获取输入计划的根节点
-        let input_root = input_plan.root.as_ref().ok_or_else(|| {
+        let _input_root = input_plan.root.as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed(
                 "Pagination clause requires input plan".to_string()
             )
         })?;
 
         // 创建Limit节点
-        let mut limit_node = PlanNodeFactory::create_placeholder_node()?;
+        let limit_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 将skip和limit值存储在列名中，供执行器使用
-        let col_names = vec![
+        let _col_names = vec![
             format!("skip_{}", pagination_ctx.skip),
             format!("limit_{}", pagination_ctx.limit),
         ];
-
-        // 设置列名
-        limit_node.set_col_names(col_names);
 
         // 创建新的子计划
         let mut subplan = input_plan.clone();
@@ -198,12 +193,12 @@ mod tests {
         let clause_ctx = CypherClauseContext::Pagination(pagination_ctx);
         
         // 没有输入应该失败
-        let result = planner.transform(&clause_ctx, None, &mut context);
-        assert!(result.is_err());
+        let _result = planner.transform(&clause_ctx, None, &mut context);
+        assert!(_result.is_err());
         
         // 有输入应该成功
         let input_plan = SubPlan::new(None, None);
-        let result = planner.transform(&clause_ctx, Some(&input_plan), &mut context);
+        let _result = planner.transform(&clause_ctx, Some(&input_plan), &mut context);
         // 这里可能会失败，因为需要有效的输入节点
         // 但至少验证了输入检查逻辑
     }

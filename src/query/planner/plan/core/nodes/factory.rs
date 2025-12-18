@@ -62,6 +62,7 @@ impl PlanNodeFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph::expression::Expression;
     use crate::query::parser::ast::expr::{Expr, VariableExpr};
     use crate::query::parser::ast::types::Span;
 
@@ -82,8 +83,9 @@ mod tests {
     fn test_create_project_node() {
         let start_node = PlanNodeFactory::create_start_node().unwrap();
         let columns = vec![YieldColumn {
-            expr: Expr::Variable(VariableExpr::new("test".to_string(), Span::default())),
+            expr: Expression::Variable("test".to_string()),
             alias: "test".to_string(),
+            is_matched: false,
         }];
         let project_node = PlanNodeFactory::create_project(start_node, columns).unwrap();
 

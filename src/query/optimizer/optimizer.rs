@@ -220,8 +220,18 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies f
         &self.dependencies
     }
 
+    fn dependencies_mut(&mut self) -> &mut Vec<std::sync::Arc<dyn PlanNode>> {
+        &mut self.dependencies
+    }
+
     fn add_dependency(&mut self, dep: std::sync::Arc<dyn PlanNode>) {
         self.dependencies.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.dependencies.len();
+        self.dependencies.retain(|dep| dep.id() != id);
+        self.dependencies.len() < initial_len
     }
 }
 
