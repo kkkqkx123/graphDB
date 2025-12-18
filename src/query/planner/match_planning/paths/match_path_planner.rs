@@ -18,6 +18,10 @@ use std::collections::HashSet;
 pub struct MatchPathPlanner {
     match_clause_ctx: MatchClauseContext,
     path: Path,
+    /// 路径中已见过的节点别名
+    node_aliases_seen_in_pattern: HashSet<String>,
+    /// 初始表达式，用于路径扩展的起始点
+    initial_expr: Option<Expr>,
 }
 
 impl MatchPathPlanner {
@@ -25,6 +29,8 @@ impl MatchPathPlanner {
         Self {
             match_clause_ctx,
             path,
+            node_aliases_seen_in_pattern: HashSet::new(),
+            initial_expr: None,
         }
     }
 
@@ -34,8 +40,10 @@ impl MatchPathPlanner {
         where_clause: Option<&WhereClauseContext>,
         node_aliases_seen: &mut HashSet<String>,
     ) -> Result<SubPlan, PlannerError> {
-        // 实现路径匹配的具体逻辑
-        // 基于nebula-graph的实现，需要找到起始点并扩展路径
+        // 合并所有可用别名到已见别名集合
+        for (alias, _) in &self.match_clause_ctx.aliases_available {
+            node_aliases_seen.insert(alias.clone());
+        }
 
         // 找到起始节点和起始索引
         let (start_index, start_from_edge, mut subplan) =
@@ -56,118 +64,118 @@ impl MatchPathPlanner {
         Ok(subplan)
     }
 
-    /// 查找起始点
+    /// 查找起始点 - 对照 nebula-graph 实现
     fn find_starts(
-        &self,
-        _where_clause: Option<&WhereClauseContext>,
+        &mut self,
+        bind_where_clause: Option<&WhereClauseContext>,
         node_aliases_seen: &HashSet<String>,
     ) -> Result<(usize, bool, SubPlan), PlannerError> {
-        // 将所有可用别名添加到已见别名集合
-        let mut all_aliases_seen = node_aliases_seen.clone();
-        for (alias, _) in &self.match_clause_ctx.aliases_available {
-            all_aliases_seen.insert(alias.clone());
-        }
+        let mut found_start = false;
+        let mut start_index = 0;
+        let mut start_from_edge = false;
+        let mut match_clause_plan = SubPlan::new(None, None);
 
-        // 查找起始节点
+        // 获取空间ID和查询上下文
+        let space_id = 1i32; // 默认空间ID
+
+        // 查找起始节点 - 对照 nebula-graph 的 findStarts 实现
         for (i, node_info) in self.path.node_infos.iter().enumerate() {
-            // 检查节点是否可以使用标签索引查找
-            if !node_info.labels.is_empty() {
-                let label_index_seeker =
-                    crate::query::planner::match_planning::IndexSeek::new_label(node_info.clone());
-                if label_index_seeker.match_node() {
-                    let plan = label_index_seeker.build_plan()?;
-                    return Ok((i, false, plan));
+            // 检查是否是已存在的别名（ArgumentFinder）
+            if node_aliases_seen.contains(&node_info.alias) && !node_info.anonymous {
+                let argument_node = PlanNodeFactory::create_argument(0, &node_info.alias)?;
+                match_clause_plan =
+                    SubPlan::new(Some(argument_node.clone_plan_node()), Some(argument_node));
+
+                // 初始化起始表达式
+                self.initial_expr = Some(Expr::Variable(
+                    crate::query::parser::ast::expr::VariableExpr::new(
+                        node_info.alias.clone(),
+                        crate::query::parser::ast::types::Span::default(),
+                    ),
+                ));
+
+                start_index = i;
+                found_start = true;
+                break;
+            }
+
+            // 检查标签索引（LabelIndexSeek）
+            if !node_info.labels.is_empty() && !node_info.tids.is_empty() {
+                if let Some(plan) = self.create_label_index_scan(node_info, space_id)? {
+                    match_clause_plan = plan;
+                    start_index = i;
+                    found_start = true;
+                    break;
                 }
             }
 
-            // 检查节点是否在已见别名中
-            if all_aliases_seen.contains(&node_info.alias) && !node_info.anonymous {
-                // 创建参数节点
-                let _variable = Variable {
-                    name: node_info.alias.clone(),
-                    columns: vec![Column {
-                        name: node_info.alias.clone(),
-                        type_: ValueTypeDef::Vertex,
-                    }],
-                };
-                // 创建一个包含变量信息的占位符节点
-                let placeholder = PlanNodeFactory::create_placeholder_node()?;
-                // 由于 Arc<dyn PlanNode> 不能直接修改，我们使用占位符节点
-                let plan = SubPlan::new(Some(placeholder.clone_plan_node()), None);
-                return Ok((i, false, plan));
+            // 检查属性索引（PropIndexSeek）
+            if let Some(props) = &node_info.props {
+                if let Some(plan) = self.create_prop_index_scan(node_info, props, space_id)? {
+                    match_clause_plan = plan;
+                    start_index = i;
+                    found_start = true;
+                    break;
+                }
+            }
+
+            // 如果不是最后一个节点，检查边索引
+            if i != self.path.node_infos.len() - 1 && i < self.path.edge_infos.len() {
+                let edge_info = &self.path.edge_infos[i];
+
+                // 检查边标签索引
+                if !edge_info.types.is_empty() && !edge_info.edge_types.is_empty() {
+                    if let Some(plan) = self.create_edge_index_scan(edge_info, space_id)? {
+                        match_clause_plan = plan;
+                        start_index = i;
+                        start_from_edge = true;
+                        found_start = true;
+                        break;
+                    }
+                }
             }
         }
 
-        // 如果没有找到合适的起始节点，尝试从边开始
-        for (i, edge_info) in self.path.edge_infos.iter().enumerate() {
-            // 检查边是否可以使用索引查找
-            if !edge_info.types.is_empty() {
-                // 创建边索引扫描节点
-                let var_name = format!("edge_scan_{}", edge_info.types.join("_"));
-                let _variable = Variable {
-                    name: var_name.clone(),
-                    columns: vec![
-                        Column {
-                            name: "src".to_string(),
-                            type_: ValueTypeDef::Vertex,
-                        },
-                        Column {
-                            name: "dst".to_string(),
-                            type_: ValueTypeDef::Vertex,
-                        },
-                    ],
-                };
-                let edge_scan_node = PlanNodeFactory::create_placeholder_node()?;
-                let _variable = Variable {
-                    name: var_name,
-                    columns: vec![
-                        Column {
-                            name: "src".to_string(),
-                            type_: ValueTypeDef::Vertex,
-                        },
-                        Column {
-                            name: "dst".to_string(),
-                            type_: ValueTypeDef::Vertex,
-                        },
-                    ],
-                };
-                // 由于 Arc<dyn PlanNode> 不能直接修改，我们使用占位符节点
-                let plan =
-                    SubPlan::new(Some(edge_scan_node.clone_plan_node()), Some(edge_scan_node));
-                return Ok((i, true, plan));
+        if !found_start {
+            return Err(PlannerError::PlanGenerationFailed(
+                "Can't solve the start vids from the sentence.".to_string(),
+            ));
+        }
+
+        // 添加起始节点
+        if let Some(tail) = &match_clause_plan.tail {
+            if tail.kind() == PlanNodeKind::Start {
+                // 已经添加了起始节点
             }
         }
 
-        // 如果都没有找到，返回错误
-        Err(PlannerError::PlanGenerationFailed(
-            "Can't solve the start vids from the sentence.".to_string(),
-        ))
+        Ok((start_index, start_from_edge, match_clause_plan))
     }
 
     /// 从节点扩展路径
     fn expand_from_node(
-        &self,
+        &mut self,
         start_index: usize,
         subplan: &mut SubPlan,
     ) -> Result<(), PlannerError> {
-        let node_infos = &self.path.node_infos;
-        let _edge_infos = &self.path.edge_infos;
+        let node_count = self.path.node_infos.len();
+        let start_node = self.path.node_infos[start_index].clone();
 
         // 记录路径中已见过的节点别名
-        let mut node_aliases_seen_in_pattern = HashSet::new();
-        node_aliases_seen_in_pattern.insert(node_infos[start_index].alias.clone());
+        self.node_aliases_seen_in_pattern.clear();
+        self.add_node_alias(&start_node);
 
         // 根据起始位置决定扩展方向
         if start_index == 0 {
             // 从左向右扩展: (start)-[]-...-()
-            self.right_expand_from_node(start_index, subplan, &mut node_aliases_seen_in_pattern)?;
-        } else if start_index == node_infos.len() - 1 {
+            self.right_expand_from_node(start_index, subplan)?;
+        } else if start_index == node_count - 1 {
             // 从右向左扩展: ()-[]-...-(start)
-            self.left_expand_from_node(start_index, subplan, &mut node_aliases_seen_in_pattern)?;
+            self.left_expand_from_node(start_index, subplan)?;
         } else {
             // 从中间向两边扩展: ()-[]-...-(start)-...-[]-()
-            self.right_expand_from_node(start_index, subplan, &mut node_aliases_seen_in_pattern)?;
-            self.left_expand_from_node(start_index, subplan, &mut node_aliases_seen_in_pattern)?;
+            self.right_expand_from_node(start_index, subplan)?;
+            self.left_expand_from_node(start_index, subplan)?;
         }
 
         Ok(())
@@ -175,7 +183,7 @@ impl MatchPathPlanner {
 
     /// 从边扩展路径
     fn expand_from_edge(
-        &self,
+        &mut self,
         start_index: usize,
         subplan: &mut SubPlan,
     ) -> Result<(), PlannerError> {
@@ -183,121 +191,111 @@ impl MatchPathPlanner {
         self.expand_from_node(start_index, subplan)
     }
 
-    /// 从节点向右扩展路径
+    /// 从节点向右扩展路径 - 对照 nebula-graph 实现
     fn right_expand_from_node(
-        &self,
+        &mut self,
         start_index: usize,
         subplan: &mut SubPlan,
-        node_aliases_seen_in_pattern: &mut HashSet<String>,
     ) -> Result<(), PlannerError> {
-        let node_infos = &self.path.node_infos;
-        let edge_infos = &self.path.edge_infos;
+        let space_id = 1i32; // 默认空间ID
+        let edge_count = self.path.edge_infos.len();
+        let node_count = self.path.node_infos.len();
 
         // 从起始节点向右扩展
-        for i in start_index..edge_infos.len() {
-            let node = &node_infos[i];
-            let dst = &node_infos[i + 1];
-            let edge = &edge_infos[i];
+        for i in start_index..edge_count {
+            let node = self.path.node_infos[i].clone();
+            let dst = self.path.node_infos[i + 1].clone();
+            let edge = self.path.edge_infos[i].clone();
 
-            // 创建新的遍历节点
-            let traverse_node = PlanNodeFactory::create_placeholder_node()?;
+            // 检查是否是扩展进入（expand into）
+            let expand_into = self.is_expand_into(&dst.alias);
 
-            // 由于无法直接修改 Arc<dyn PlanNode>，我们先创建节点然后通过工厂创建带过滤条件的节点
-            let node_to_use = if let Some(_filter) = &node.filter {
-                let dummy_expr =
-                    Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
-                        crate::core::Value::Bool(true),
-                        crate::query::parser::ast::types::Span::default(),
-                    ));
-                PlanNodeFactory::create_filter(traverse_node.clone_plan_node(), dummy_expr)?
-            } else {
-                traverse_node.clone_plan_node()
-            };
+            // 创建遍历节点
+            let traverse_node = PlanNodeFactory::create_traverse(
+                space_id,
+                edge.types.clone(),
+                &self.direction_to_string(edge.direction),
+            )?;
+
+            // 配置遍历节点
+            self.configure_traverse_node(traverse_node.clone(), &node, &edge, i != start_index)?;
 
             // 更新subplan根节点
-            subplan.root = Some(node_to_use);
-
-            // 处理边过滤
-            if let Some(_filter) = &edge.filter {
-                let dummy_expr =
-                    Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
-                        crate::core::Value::Bool(true),
-                        crate::query::parser::ast::types::Span::default(),
-                    ));
-                let current_root = subplan.root.take().unwrap();
-                let filter_node = PlanNodeFactory::create_filter(current_root, dummy_expr)?;
-                subplan.root = Some(filter_node);
-            }
+            subplan.root = Some(traverse_node);
 
             // 记录已见过的节点别名
-            node_aliases_seen_in_pattern.insert(dst.alias.clone());
+            self.add_node_alias(&dst);
+
+            // 处理扩展进入的情况
+            if expand_into {
+                // 创建过滤条件来检查起始和结束顶点是否相同
+                // 这里需要实现具体的过滤逻辑
+            }
         }
 
         // 处理最后一个节点
-        let last_node = &node_infos[node_infos.len() - 1];
-        if !node_aliases_seen_in_pattern.contains(&last_node.alias) {
-            let append_node = PlanNodeFactory::create_placeholder_node()?;
-            subplan.root = Some(append_node.clone_plan_node());
+        let last_node = self.path.node_infos[node_count - 1].clone();
+        if !self.is_expand_into(&last_node.alias) {
+            let append_node = PlanNodeFactory::create_append_vertices(
+                space_id,
+                vec![], // vids will be set from previous node
+                vec![], // tag_ids
+            )?;
+            subplan.root = Some(append_node);
         }
 
         Ok(())
     }
 
-    /// 从节点向左扩展路径
+    /// 从节点向左扩展路径 - 对照 nebula-graph 实现
     fn left_expand_from_node(
-        &self,
+        &mut self,
         start_index: usize,
         subplan: &mut SubPlan,
-        node_aliases_seen_in_pattern: &mut HashSet<String>,
     ) -> Result<(), PlannerError> {
-        let node_infos = &self.path.node_infos;
-        let edge_infos = &self.path.edge_infos;
+        let space_id = 1i32; // 默认空间ID
 
         // 从起始节点向左扩展
         for i in (1..=start_index).rev() {
-            let node = &node_infos[i];
-            let dst = &node_infos[i - 1];
-            let edge = &edge_infos[i - 1];
+            let node = self.path.node_infos[i].clone();
+            let dst = self.path.node_infos[i - 1].clone();
+            let edge = self.path.edge_infos[i - 1].clone();
 
-            // 创建新的遍历节点
-            let traverse_node = PlanNodeFactory::create_placeholder_node()?;
+            // 检查是否是扩展进入（expand into）
+            let expand_into = self.is_expand_into(&dst.alias);
 
-            // 由于无法直接修改 Arc<dyn PlanNode>，我们先创建节点然后通过工厂创建带过滤条件的节点
-            let node_to_use = if let Some(_filter) = &node.filter {
-                let dummy_expr =
-                    Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
-                        crate::core::Value::Bool(true),
-                        crate::query::parser::ast::types::Span::default(),
-                    ));
-                PlanNodeFactory::create_filter(traverse_node.clone_plan_node(), dummy_expr)?
-            } else {
-                traverse_node.clone_plan_node()
-            };
+            // 创建遍历节点（反向）
+            let traverse_node = PlanNodeFactory::create_traverse(
+                space_id,
+                edge.types.clone(),
+                &self.reverse_direction(&self.direction_to_string(edge.direction)),
+            )?;
+
+            // 配置遍历节点
+            self.configure_traverse_node(traverse_node.clone(), &node, &edge, true)?;
 
             // 更新subplan根节点
-            subplan.root = Some(node_to_use);
-
-            // 处理边过滤
-            if let Some(_filter) = &edge.filter {
-                let dummy_expr =
-                    Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
-                        crate::core::Value::Bool(true),
-                        crate::query::parser::ast::types::Span::default(),
-                    ));
-                let current_root = subplan.root.take().unwrap();
-                let filter_node = PlanNodeFactory::create_filter(current_root, dummy_expr)?;
-                subplan.root = Some(filter_node);
-            }
+            subplan.root = Some(traverse_node);
 
             // 记录已见过的节点别名
-            node_aliases_seen_in_pattern.insert(dst.alias.clone());
+            self.add_node_alias(&dst);
+
+            // 处理扩展进入的情况
+            if expand_into {
+                // 创建过滤条件来检查起始和结束顶点是否相同
+                // 这里需要实现具体的过滤逻辑
+            }
         }
 
         // 处理第一个节点
-        let first_node = &node_infos[0];
-        if !node_aliases_seen_in_pattern.contains(&first_node.alias) {
-            let append_node = PlanNodeFactory::create_placeholder_node()?;
-            subplan.root = Some(append_node.clone_plan_node());
+        let first_node = self.path.node_infos[0].clone();
+        if !self.is_expand_into(&first_node.alias) {
+            let append_node = PlanNodeFactory::create_append_vertices(
+                space_id,
+                vec![], // vids will be set from previous node
+                vec![], // tag_ids
+            )?;
+            subplan.root = Some(append_node);
         }
 
         Ok(())
@@ -334,6 +332,193 @@ impl MatchPathPlanner {
         // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
         subplan.root = Some(project_node.clone_plan_node());
         Ok(())
+    }
+
+    /// 添加节点别名到已见别名集合
+    fn add_node_alias(&mut self, node: &crate::query::validator::structs::path_structs::NodeInfo) {
+        if !node.anonymous {
+            self.node_aliases_seen_in_pattern.insert(node.alias.clone());
+        }
+    }
+
+    /// 检查是否是扩展进入（expand into）
+    fn is_expand_into(&self, alias: &str) -> bool {
+        self.node_aliases_seen_in_pattern.contains(alias)
+    }
+
+    /// 将方向枚举转换为字符串
+    fn direction_to_string(
+        &self,
+        direction: crate::query::validator::structs::path_structs::Direction,
+    ) -> String {
+        match direction {
+            crate::query::validator::structs::path_structs::Direction::Forward => "OUT".to_string(),
+            crate::query::validator::structs::path_structs::Direction::Backward => "IN".to_string(),
+            crate::query::validator::structs::path_structs::Direction::Bidirectional => {
+                "BOTH".to_string()
+            }
+        }
+    }
+
+    /// 反向方向
+    fn reverse_direction(&self, direction: &str) -> String {
+        match direction {
+            "OUT" => "IN".to_string(),
+            "IN" => "OUT".to_string(),
+            "BOTH" => "BOTH".to_string(),
+            _ => direction.to_string(),
+        }
+    }
+
+    /// 创建标签索引扫描
+    fn create_label_index_scan(
+        &self,
+        node_info: &crate::query::validator::structs::path_structs::NodeInfo,
+        space_id: i32,
+    ) -> Result<Option<SubPlan>, PlannerError> {
+        if node_info.labels.is_empty() || node_info.tids.is_empty() {
+            return Ok(None);
+        }
+
+        // 创建索引扫描节点
+        let index_scan_node = PlanNodeFactory::create_placeholder_node()?;
+
+        // 设置变量和列名
+        let variable = Variable {
+            name: format!("index_scan_{}", node_info.labels.join("_")),
+            columns: vec![Column {
+                name: "vid".to_string(),
+                type_: ValueTypeDef::Vertex,
+            }],
+        };
+
+        let plan = SubPlan::new(
+            Some(index_scan_node.clone_plan_node()),
+            Some(index_scan_node),
+        );
+        Ok(Some(plan))
+    }
+
+    /// 创建属性索引扫描
+    fn create_prop_index_scan(
+        &self,
+        node_info: &crate::query::validator::structs::path_structs::NodeInfo,
+        props: &crate::graph::expression::Expression,
+        space_id: i32,
+    ) -> Result<Option<SubPlan>, PlannerError> {
+        // 创建属性索引扫描节点
+        let index_scan_node = PlanNodeFactory::create_placeholder_node()?;
+
+        // 设置变量和列名
+        let variable = Variable {
+            name: format!("prop_index_scan_{}", node_info.alias),
+            columns: vec![Column {
+                name: "vid".to_string(),
+                type_: ValueTypeDef::Vertex,
+            }],
+        };
+
+        let plan = SubPlan::new(
+            Some(index_scan_node.clone_plan_node()),
+            Some(index_scan_node),
+        );
+        Ok(Some(plan))
+    }
+
+    /// 创建边索引扫描
+    fn create_edge_index_scan(
+        &self,
+        edge_info: &crate::query::validator::structs::path_structs::EdgeInfo,
+        space_id: i32,
+    ) -> Result<Option<SubPlan>, PlannerError> {
+        if edge_info.types.is_empty() || edge_info.edge_types.is_empty() {
+            return Ok(None);
+        }
+
+        // 创建边索引扫描节点
+        let edge_scan_node = PlanNodeFactory::create_placeholder_node()?;
+
+        // 设置变量和列名
+        let variable = Variable {
+            name: format!("edge_scan_{}", edge_info.types.join("_")),
+            columns: vec![
+                Column {
+                    name: "src".to_string(),
+                    type_: ValueTypeDef::Vertex,
+                },
+                Column {
+                    name: "dst".to_string(),
+                    type_: ValueTypeDef::Vertex,
+                },
+            ],
+        };
+
+        let plan = SubPlan::new(Some(edge_scan_node.clone_plan_node()), Some(edge_scan_node));
+        Ok(Some(plan))
+    }
+
+    /// 配置遍历节点
+    fn configure_traverse_node(
+        &self,
+        traverse_node: std::sync::Arc<dyn crate::query::planner::plan::core::PlanNode>,
+        node: &crate::query::validator::structs::path_structs::NodeInfo,
+        edge: &crate::query::validator::structs::path_structs::EdgeInfo,
+        track_prev_path: bool,
+    ) -> Result<(), PlannerError> {
+        // 设置顶点属性
+        let vertex_props = self.get_all_vertex_props()?;
+
+        // 设置边属性
+        let edge_props = self.get_edge_props(edge, false)?;
+        let reverse_edge_props = self.get_edge_props(edge, true)?;
+
+        // 设置过滤条件
+        if let Some(_filter) = &node.filter {
+            // 将过滤条件转换为表达式并设置到遍历节点
+            // 这里需要实现表达式转换逻辑
+        }
+
+        if let Some(_filter) = &edge.filter {
+            // 将边过滤条件转换为表达式并设置到遍历节点
+            // 这里需要实现表达式转换逻辑
+        }
+
+        // 设置步数范围
+        if let Some(_range) = &edge.range {
+            // 设置步数范围到遍历节点
+        }
+
+        // 设置是否跟踪前一路径
+        // 这需要根据具体的遍历节点实现来设置
+
+        Ok(())
+    }
+
+    /// 获取所有顶点属性
+    fn get_all_vertex_props(
+        &self,
+    ) -> Result<Vec<crate::query::planner::plan::core::common::TagProp>, PlannerError> {
+        // 实现获取所有顶点属性的逻辑
+        // 这里应该查询模式信息并返回所有标签的属性
+        Ok(vec![])
+    }
+
+    /// 获取边属性
+    fn get_edge_props(
+        &self,
+        edge: &crate::query::validator::structs::path_structs::EdgeInfo,
+        reverse: bool,
+    ) -> Result<Vec<crate::query::planner::plan::core::common::EdgeProp>, PlannerError> {
+        // 实现获取边属性的逻辑
+        // 这里应该查询模式信息并返回边类型的属性
+        let mut props = Vec::new();
+        for edge_type in &edge.types {
+            props.push(crate::query::planner::plan::core::common::EdgeProp::new(
+                edge_type,
+                vec![],
+            ));
+        }
+        Ok(props)
     }
 }
 

@@ -1,13 +1,12 @@
-use crate::query::planner::plan::SubPlan;
 /// 顶点查找规划器
 /// 根据顶点ID进行查找
 /// 负责规划基于顶点ID的查找操作，包括固定ID和可变ID
-
 use crate::graph::expression::Expression;
+use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
-use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 
 /// 顶点查找类型
 #[derive(Debug, Clone)]
@@ -86,10 +85,7 @@ impl VertexSeek {
 
     /// 检查是否是有效的变量表达式
     fn is_valid_variable_expression(&self, expr: &Expression) -> bool {
-        matches!(
-            expr,
-            Expression::Label(_) | Expression::Variable(_)
-        )
+        matches!(expr, Expression::Label(_) | Expression::Variable(_))
     }
 
     /// 获取查找类型
@@ -132,8 +128,6 @@ impl SeekStrategy for VertexSeek {
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -210,10 +204,8 @@ mod tests {
         let fixed_seeker = VertexSeek::new_fixed(node_info.clone(), vec!["1".to_string()]);
         assert_eq!(fixed_seeker.name(), "VertexIdSeek");
 
-        let variable_seeker = VertexSeek::new_variable(
-            node_info,
-            Expression::Variable("x".to_string()),
-        );
+        let variable_seeker =
+            VertexSeek::new_variable(node_info, Expression::Variable("x".to_string()));
         assert_eq!(variable_seeker.name(), "VariableVertexIdSeek");
     }
 
@@ -223,16 +215,22 @@ mod tests {
         let single_id_seeker = VertexSeek::new_fixed(node_info.clone(), vec!["1".to_string()]);
         assert!((single_id_seeker.estimate_cost() - 0.1).abs() < f64::EPSILON);
 
-        let multi_id_seeker = VertexSeek::new_fixed(node_info.clone(), vec!["1".to_string(), "2".to_string(), "3".to_string()]);
+        let multi_id_seeker = VertexSeek::new_fixed(
+            node_info.clone(),
+            vec!["1".to_string(), "2".to_string(), "3".to_string()],
+        );
         // 使用近似比较处理浮点数精度问题
         let expected_cost = 0.3;
         let actual_cost = multi_id_seeker.estimate_cost();
-        assert!((actual_cost - expected_cost).abs() < 1e-10, "Expected {}, but got {}", expected_cost, actual_cost);
-
-        let variable_seeker = VertexSeek::new_variable(
-            node_info,
-            Expression::Variable("x".to_string()),
+        assert!(
+            (actual_cost - expected_cost).abs() < 1e-10,
+            "Expected {}, but got {}",
+            expected_cost,
+            actual_cost
         );
+
+        let variable_seeker =
+            VertexSeek::new_variable(node_info, Expression::Variable("x".to_string()));
         assert!((variable_seeker.estimate_cost() - 5.0).abs() < f64::EPSILON);
     }
 
@@ -247,10 +245,7 @@ mod tests {
     #[test]
     fn test_build_plan_variable() {
         let node_info = create_test_node_info();
-        let seeker = VertexSeek::new_variable(
-            node_info,
-            Expression::Variable("x".to_string()),
-        );
+        let seeker = VertexSeek::new_variable(node_info, Expression::Variable("x".to_string()));
         let result = seeker.build_plan();
         assert!(result.is_ok());
     }
@@ -268,9 +263,9 @@ mod tests {
         let node_info = create_test_node_info();
         let seeker = VertexSeek::new_variable(
             node_info,
-            Expression::Literal(
-                crate::graph::expression::expression::LiteralValue::String("test".to_string()),
-            ),
+            Expression::Literal(crate::graph::expression::expression::LiteralValue::String(
+                "test".to_string(),
+            )),
         );
         let result = seeker.build_plan();
         assert!(result.is_err());
