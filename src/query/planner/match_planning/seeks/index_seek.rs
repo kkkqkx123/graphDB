@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use crate::query::planner::plan::SubPlan;
 /// 索引查找规划器
 /// 根据标签索引和属性索引进行查找
 /// 负责规划基于索引的查找操作，包括标签索引、属性索引和可变属性索引
-
 use crate::graph::expression::Expression;
+use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
-use crate::query::planner::plan::core::PlanNode;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::core::PlanNode;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
 
@@ -96,69 +96,55 @@ impl IndexSeek {
         // 验证基本条件
         self.validate_conditions()?;
 
-        // 创建索引扫描节点
-        let index_scan_node = PlanNodeFactory::create_placeholder_node()?;
-
-        // 根据查找类型设置不同的参数
+        let space_id = 1; // TODO: 应该从上下文获取space_id
         let (label_id, label_name) = self.get_primary_label_info()?;
-        let index_id = label_id;
 
-        // 设置IndexScan节点的输出变量
-        let var_name = format!("index_scan_{}", label_name);
-        let _variable = crate::query::context::validate::types::Variable {
-            name: var_name,
-            columns: vec![crate::query::context::validate::types::Column {
-                name: "vid".to_string(),
-                type_: "Vertex".to_string(),
-            }],
+        // 创建实际的索引扫描节点
+        let index_scan_node = match &self.seek_type {
+            IndexSeekType::Label => {
+                // 标签索引查找
+                PlanNodeFactory::create_index_scan(
+                    space_id, label_id, label_id, // 使用标签ID作为索引ID
+                    "RANGE",
+                )?
+            }
+            IndexSeekType::Property(prop_exprs) => {
+                // 属性索引查找
+                let filter_expr = self.create_property_filter_expression(prop_exprs)?;
+                PlanNodeFactory::create_index_scan(
+                    space_id, label_id, label_id, // 使用标签ID作为索引ID
+                    "RANGE",
+                )?
+            }
+            IndexSeekType::VariableProperty(prop_exprs) => {
+                // 可变属性索引查找
+                let filter_expr = self.create_variable_property_filter_expression(prop_exprs)?;
+                PlanNodeFactory::create_index_scan(
+                    space_id, label_id, label_id, // 使用标签ID作为索引ID
+                    "VARIABLE",
+                )?
+            }
         };
 
-        // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
-        let mut metadata =
-            IndexScanMetadata::new(vec![label_id], vec![label_name.clone()], vec![index_id]);
-
         // 处理节点属性过滤
-        let mut root: Arc<dyn PlanNode> = index_scan_node.clone_plan_node();
-        if let Some(props) = &self.node_info.props {
-            metadata.set_property_filter(props.clone());
-        }
+        let root = if let Some(props) = &self.node_info.props {
+            // 将 Expression 转换为 Expr
+            let expr = self.convert_expression_to_expr(props.clone())?;
+            PlanNodeFactory::create_filter(index_scan_node.clone_plan_node(), expr)?
+        } else {
+            index_scan_node.clone_plan_node()
+        };
 
-        // 处理属性表达式
-        match &self.seek_type {
-            IndexSeekType::Property(prop_exprs) | IndexSeekType::VariableProperty(prop_exprs) => {
-                if !prop_exprs.is_empty() {
-                    // TODO: 设置属性索引表达式
-                    // 这里需要根据prop_exprs设置要扫描的属性索引表达式
-                }
-            }
-            IndexSeekType::Label => {
-                // 标签索引查找不需要额外的属性表达式
-            }
-        }
+        // 处理额外的过滤条件
+        let final_root = if let Some(filter) = &self.node_info.filter {
+            // 将 Expression 转换为 Expr
+            let expr = self.convert_expression_to_expr(filter.clone())?;
+            PlanNodeFactory::create_filter(root, expr)?
+        } else {
+            root
+        };
 
-        // 处理节点过滤条件 - 创建独立的Filter节点而不是修改IndexScan
-        if let Some(_filter) = &self.node_info.filter {
-            // 创建Filter节点来处理过滤条件
-            let filter_node = PlanNodeFactory::create_placeholder_node()?;
-
-            // 设置Filter节点的输出变量
-            let filter_var_name = format!("filtered_{}", label_name);
-            let _filter_variable = crate::query::context::validate::types::Variable {
-                name: filter_var_name,
-                columns: vec![crate::query::context::validate::types::Column {
-                    name: "vid".to_string(),
-                    type_: "Vertex".to_string(),
-                }],
-            };
-
-            // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
-            root = filter_node.clone_plan_node();
-        }
-
-        // 对于索引查找，tail应该是IndexScan节点
-        // root可能是Filter节点（如果有过滤条件）或IndexScan节点
-        let tail = index_scan_node.clone_plan_node();
-        Ok(SubPlan::new(Some(root), Some(tail)))
+        Ok(SubPlan::new(Some(final_root), Some(index_scan_node)))
     }
 
     /// 验证查找条件
@@ -260,6 +246,151 @@ impl IndexSeek {
     /// 获取节点信息
     pub fn node_info(&self) -> &NodeInfo {
         &self.node_info
+    }
+
+    /// 创建属性过滤表达式
+    fn create_property_filter_expression(
+        &self,
+        prop_exprs: &[Expression],
+    ) -> Result<Expression, PlannerError> {
+        if prop_exprs.is_empty() {
+            return Err(PlannerError::InvalidAstContext(
+                "属性表达式列表不能为空".to_string(),
+            ));
+        }
+
+        // 将多个属性表达式组合为AND条件
+        let mut filter_expr = prop_exprs[0].clone();
+        for expr in &prop_exprs[1..] {
+            filter_expr = Expression::Binary {
+                left: Box::new(filter_expr),
+                op: crate::graph::expression::BinaryOperator::And,
+                right: Box::new(expr.clone()),
+            };
+        }
+
+        Ok(filter_expr)
+    }
+
+    /// 创建可变属性索引过滤表达式
+    fn create_variable_property_filter_expression(
+        &self,
+        prop_exprs: &[Expression],
+    ) -> Result<Expression, PlannerError> {
+        // 验证至少有一个有效的变量表达式
+        let valid_exprs: Vec<_> = prop_exprs
+            .iter()
+            .filter(|expr| matches!(expr, Expression::Variable(_) | Expression::Label(_)))
+            .collect();
+
+        if valid_exprs.is_empty() {
+            return Err(PlannerError::InvalidAstContext(
+                "没有有效的变量表达式".to_string(),
+            ));
+        }
+
+        // 创建参数化查询表达式
+        // 对于可变属性索引，我们需要创建一个参数表达式
+        let param_expr = Expression::Variable("__index_param".to_string());
+
+        // 如果有多个表达式，创建AND条件
+        let mut filter_expr = param_expr;
+        for expr in &valid_exprs[1..] {
+            filter_expr = Expression::Binary {
+                left: Box::new(filter_expr),
+                op: crate::graph::expression::BinaryOperator::And,
+                right: Box::new((*expr).clone()),
+            };
+        }
+
+        Ok(filter_expr)
+    }
+
+    /// 验证属性表达式是否有效
+    fn validate_property_expressions(&self, prop_exprs: &[Expression]) -> Result<(), PlannerError> {
+        if prop_exprs.is_empty() {
+            return Err(PlannerError::InvalidAstContext(
+                "属性表达式列表不能为空".to_string(),
+            ));
+        }
+
+        // 检查每个表达式是否有效
+        for expr in prop_exprs {
+            match expr {
+                Expression::Binary { left, op, right } => {
+                    // 验证二元表达式
+                    if !self.is_valid_binary_operator(op) {
+                        return Err(PlannerError::InvalidAstContext(format!(
+                            "不支持的二元操作符: {:?}",
+                            op
+                        )));
+                    }
+                }
+                Expression::Function { name, args } => {
+                    // 验证函数调用
+                    if args.is_empty() {
+                        return Err(PlannerError::InvalidAstContext(format!(
+                            "函数 {} 的参数不能为空",
+                            name
+                        )));
+                    }
+                }
+                Expression::Variable(_) | Expression::Label(_) => {
+                    // 变量和标签表达式是有效的
+                }
+                _ => {
+                    return Err(PlannerError::InvalidAstContext(format!(
+                        "不支持的表达式类型: {:?}",
+                        expr.expression_type()
+                    )));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// 检查是否是有效的二元操作符
+    fn is_valid_binary_operator(&self, op: &crate::graph::expression::BinaryOperator) -> bool {
+        matches!(
+            op,
+            crate::graph::expression::BinaryOperator::Equal
+                | crate::graph::expression::BinaryOperator::NotEqual
+                | crate::graph::expression::BinaryOperator::LessThan
+                | crate::graph::expression::BinaryOperator::LessThanOrEqual
+                | crate::graph::expression::BinaryOperator::GreaterThan
+                | crate::graph::expression::BinaryOperator::GreaterThanOrEqual
+                | crate::graph::expression::BinaryOperator::In
+        )
+    }
+
+    /// 将 Expression 转换为 Expr
+    fn convert_expression_to_expr(&self, expr: Expression) -> Result<Expr, PlannerError> {
+        // 这里需要实现从 Expression 到 Expr 的转换
+        // 由于这是一个复杂的转换，我们暂时使用一个简单的实现
+        // 在实际项目中，需要实现完整的转换逻辑
+
+        // 对于简单的情况，我们可以创建一个变量表达式
+        match expr {
+            Expression::Variable(name) => Ok(Expr::Variable(
+                crate::query::parser::ast::expr::VariableExpr::new(
+                    name,
+                    crate::query::parser::ast::Span::default(),
+                ),
+            )),
+            Expression::Label(name) => Ok(Expr::Variable(
+                crate::query::parser::ast::expr::VariableExpr::new(
+                    name,
+                    crate::query::parser::ast::Span::default(),
+                ),
+            )),
+            _ => {
+                // 对于复杂的表达式，暂时返回错误
+                Err(PlannerError::InvalidAstContext(
+                    "复杂的表达式转换尚未实现".to_string(),
+                ))
+            }
+        }
     }
 }
 
@@ -396,8 +527,10 @@ mod tests {
         assert_eq!(label_seeker.name(), "LabelIndexSeek");
 
         let node_info2 = create_test_node_info(vec![], vec![]);
-        let prop_seeker =
-            IndexSeek::new_property(node_info2.clone(), vec![Expression::Variable("x".to_string())]);
+        let prop_seeker = IndexSeek::new_property(
+            node_info2.clone(),
+            vec![Expression::Variable("x".to_string())],
+        );
         assert_eq!(prop_seeker.name(), "PropIndexSeek");
 
         let var_prop_seeker = IndexSeek::new_variable_property(
@@ -414,8 +547,10 @@ mod tests {
         assert_eq!(label_seeker.estimate_cost(), 50.0);
 
         let node_info2 = create_test_node_info(vec![], vec![]);
-        let single_prop_seeker =
-            IndexSeek::new_property(node_info2.clone(), vec![Expression::Variable("x".to_string())]);
+        let single_prop_seeker = IndexSeek::new_property(
+            node_info2.clone(),
+            vec![Expression::Variable("x".to_string())],
+        );
         assert_eq!(single_prop_seeker.estimate_cost(), 10.0);
 
         let multi_prop_seeker = IndexSeek::new_property(
@@ -489,5 +624,144 @@ mod tests {
         assert_eq!(metadata.label_ids, vec![1]);
         assert_eq!(metadata.label_names, vec!["Person".to_string()]);
         assert_eq!(metadata.index_ids, vec![1]);
+    }
+
+    #[test]
+    fn test_create_property_filter_expression() {
+        let node_info = create_test_node_info(vec![], vec![]);
+        let seeker = IndexSeek::new_property(node_info, vec![]);
+
+        // 空表达式列表应该返回错误
+        let result = seeker.create_property_filter_expression(&[]);
+        assert!(result.is_err());
+
+        // 单个表达式
+        let node_info = create_test_node_info(vec![], vec![]);
+        let seeker =
+            IndexSeek::new_property(node_info, vec![Expression::Variable("x".to_string())]);
+        let result =
+            seeker.create_property_filter_expression(&[Expression::Variable("x".to_string())]);
+        assert!(result.is_ok());
+
+        // 多个表达式
+        let node_info = create_test_node_info(vec![], vec![]);
+        let seeker = IndexSeek::new_property(
+            node_info,
+            vec![
+                Expression::Variable("x".to_string()),
+                Expression::Variable("y".to_string()),
+            ],
+        );
+        let result = seeker.create_property_filter_expression(&[
+            Expression::Variable("x".to_string()),
+            Expression::Variable("y".to_string()),
+        ]);
+        assert!(result.is_ok());
+
+        // 验证结果是AND表达式
+        let expr = result.unwrap();
+        match expr {
+            Expression::Binary { op, .. } => {
+                assert_eq!(op, crate::graph::expression::BinaryOperator::And);
+            }
+            _ => panic!("Expected Binary expression with AND operator"),
+        }
+    }
+
+    #[test]
+    fn test_create_variable_property_filter_expression() {
+        let node_info = create_test_node_info(vec![], vec![]);
+        let seeker = IndexSeek::new_variable_property(node_info, vec![]);
+
+        // 空表达式列表应该返回错误
+        let result = seeker.create_variable_property_filter_expression(&[]);
+        assert!(result.is_err());
+
+        // 无效表达式列表
+        let invalid_exprs = vec![Expression::Literal(
+            crate::graph::expression::expression::LiteralValue::String("test".to_string()),
+        )];
+        let result = seeker.create_variable_property_filter_expression(&invalid_exprs);
+        assert!(result.is_err());
+
+        // 有效的变量表达式
+        let valid_exprs = vec![Expression::Variable("x".to_string())];
+        let result = seeker.create_variable_property_filter_expression(&valid_exprs);
+        assert!(result.is_ok());
+
+        // 验证结果是参数表达式
+        let expr = result.unwrap();
+        match expr {
+            Expression::Variable(name) => {
+                assert_eq!(name, "__index_param");
+            }
+            _ => panic!("Expected Variable expression"),
+        }
+    }
+
+    #[test]
+    fn test_validate_property_expressions() {
+        let node_info = create_test_node_info(vec![], vec![]);
+        let seeker = IndexSeek::new_property(node_info, vec![]);
+
+        // 空表达式列表
+        let result = seeker.validate_property_expressions(&[]);
+        assert!(result.is_err());
+
+        // 有效的表达式
+        let valid_exprs = vec![Expression::Binary {
+            left: Box::new(Expression::Variable("x".to_string())),
+            op: crate::graph::expression::BinaryOperator::Equal,
+            right: Box::new(Expression::Literal(
+                crate::graph::expression::expression::LiteralValue::String("test".to_string()),
+            )),
+        }];
+        let result = seeker.validate_property_expressions(&valid_exprs);
+        assert!(result.is_ok());
+
+        // 无效的二元操作符
+        let invalid_exprs = vec![Expression::Binary {
+            left: Box::new(Expression::Variable("x".to_string())),
+            op: crate::graph::expression::BinaryOperator::Add,
+            right: Box::new(Expression::Literal(
+                crate::graph::expression::expression::LiteralValue::Int(1),
+            )),
+        }];
+        let result = seeker.validate_property_expressions(&invalid_exprs);
+        assert!(result.is_err());
+
+        // 不支持的表达式类型
+        let unsupported_exprs = vec![Expression::List(vec![])];
+        let result = seeker.validate_property_expressions(&unsupported_exprs);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_build_plan_with_actual_nodes() {
+        // 测试标签索引查找
+        let node_info = create_test_node_info(vec!["Person"], vec![1]);
+        let seeker = IndexSeek::new_label(node_info);
+        let result = seeker.build_plan();
+        assert!(result.is_ok());
+
+        // 测试属性索引查找
+        let node_info = create_test_node_info(vec!["Person"], vec![1]);
+        let prop_exprs = vec![Expression::Binary {
+            left: Box::new(Expression::Variable("x".to_string())),
+            op: crate::graph::expression::BinaryOperator::Equal,
+            right: Box::new(Expression::Literal(
+                crate::graph::expression::expression::LiteralValue::String("test".to_string()),
+            )),
+        }];
+        let seeker = IndexSeek::new_property(node_info, prop_exprs);
+        let result = seeker.build_plan();
+        assert!(result.is_ok());
+
+        // 测试可变属性索引查找
+        let node_info = create_test_node_info(vec!["Person"], vec![1]);
+        let var_prop_exprs = vec![Expression::Variable("param".to_string())];
+        let seeker = IndexSeek::new_variable_property(node_info, var_prop_exprs);
+        let result = seeker.build_plan();
+        assert!(result.is_ok());
     }
 }

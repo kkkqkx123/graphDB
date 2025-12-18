@@ -44,30 +44,59 @@ impl VertexSeek {
 
     /// 构建顶点查找计划
     pub fn build_plan(&self) -> Result<SubPlan, PlannerError> {
-        // 创建获取顶点节点
-        let get_vertices_node = PlanNodeFactory::create_placeholder_node()?;
-
-        // 根据查找类型设置不同的参数
-        match &self.seek_type {
+        // 根据查找类型创建不同的节点
+        let get_vertices_node = match &self.seek_type {
             VertexSeekType::Fixed(vids) => {
-                // TODO: 设置固定顶点ID列表
-                // 这里需要根据vids设置要查找的顶点ID
+                // 验证顶点ID列表
                 if vids.is_empty() {
                     return Err(PlannerError::InvalidAstContext(
                         "顶点ID列表不能为空".to_string(),
                     ));
                 }
+                
+                // 创建获取顶点节点，传入顶点ID列表
+                // 注意：这里使用默认的space_id，实际应该从上下文中获取
+                let space_id = 1; // 默认space_id
+                let vids_str = vids.join(",");
+                PlanNodeFactory::create_get_vertices(space_id, &vids_str)?
             }
             VertexSeekType::Variable(vid_expr) => {
-                // TODO: 设置可变顶点ID表达式
-                // 这里需要根据vid_expr设置要查找的顶点ID表达式
+                // 验证变量表达式
                 if !self.is_valid_variable_expression(vid_expr) {
                     return Err(PlannerError::InvalidAstContext(
                         "无效的顶点ID表达式".to_string(),
                     ));
                 }
+                
+                // 对于变量表达式，需要根据表达式类型创建不同的节点
+                match vid_expr {
+                    Expression::Variable(var_name) => {
+                        // 直接变量引用，创建参数节点
+                        PlanNodeFactory::create_argument(0, var_name)?
+                    }
+                    Expression::Label(label_name) => {
+                        // 标签表达式，创建参数节点
+                        PlanNodeFactory::create_argument(0, label_name)?
+                    }
+                    Expression::Function { name, args } if name == "id" => {
+                        // id() 函数调用，从参数中提取标签名
+                        if let Some(Expression::Label(label_name)) = args.first() {
+                            // 创建参数节点，用于接收外部传入的顶点ID
+                            PlanNodeFactory::create_argument(0, label_name)?
+                        } else {
+                            return Err(PlannerError::InvalidAstContext(
+                                "id()函数参数必须是标签表达式".to_string(),
+                            ));
+                        }
+                    }
+                    _ => {
+                        return Err(PlannerError::InvalidAstContext(
+                            "不支持的顶点ID表达式类型".to_string(),
+                        ));
+                    }
+                }
             }
-        }
+        };
 
         Ok(SubPlan::new(
             Some(get_vertices_node.clone_plan_node()),
@@ -85,7 +114,106 @@ impl VertexSeek {
 
     /// 检查是否是有效的变量表达式
     fn is_valid_variable_expression(&self, expr: &Expression) -> bool {
-        matches!(expr, Expression::Label(_) | Expression::Variable(_))
+        match expr {
+            Expression::Variable(name) => !name.is_empty(),
+            Expression::Label(name) => !name.is_empty(),
+            Expression::Function { name, args } if name == "id" => {
+                // 验证 id() 函数调用
+                args.len() == 1 && matches!(args[0], Expression::Label(_))
+            }
+            _ => false,
+        }
+    }
+
+    /// 从表达式中提取变量名
+    fn extract_variable_name(&self, expr: &Expression) -> Result<String, PlannerError> {
+        match expr {
+            Expression::Variable(name) => {
+                if name.is_empty() {
+                    return Err(PlannerError::InvalidAstContext(
+                        "变量名不能为空".to_string(),
+                    ));
+                }
+                Ok(name.clone())
+            }
+            Expression::Label(name) => {
+                if name.is_empty() {
+                    return Err(PlannerError::InvalidAstContext(
+                        "标签名不能为空".to_string(),
+                    ));
+                }
+                Ok(name.clone())
+            }
+            Expression::Function { name, args } if name == "id" => {
+                // 从 id(label) 中提取标签名
+                if let Some(Expression::Label(label_name)) = args.first() {
+                    if label_name.is_empty() {
+                        return Err(PlannerError::InvalidAstContext(
+                            "id()函数中的标签名不能为空".to_string(),
+                        ));
+                    }
+                    Ok(label_name.clone())
+                } else {
+                    Err(PlannerError::InvalidAstContext(
+                        "id()函数参数必须是标签表达式".to_string(),
+                    ))
+                }
+            }
+            _ => Err(PlannerError::InvalidAstContext(
+                format!("不支持的表达式类型: {:?}", expr.expression_type()),
+            )),
+        }
+    }
+
+    /// 检查表达式是否为顶点ID谓词
+    /// 类似于nebula-graph中的isVidPredicate方法
+    fn is_vid_predicate(&self, node_alias: &str, expr: &Expression) -> Option<String> {
+        match expr {
+            Expression::Binary { left, op, right } => {
+                match op {
+                    crate::graph::expression::BinaryOperator::Equal | crate::graph::expression::BinaryOperator::In => {
+                        // 检查是否是 id(node) = variable 或 variable = id(node) 形式
+                        self.check_id_function_comparison(node_alias, left, right)
+                            .or_else(|| self.check_id_function_comparison(node_alias, right, left))
+                    }
+                    crate::graph::expression::BinaryOperator::And => {
+                        // 递归检查逻辑AND的两侧
+                        self.is_vid_predicate(node_alias, left)
+                            .or_else(|| self.is_vid_predicate(node_alias, right))
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// 检查是否是id函数比较表达式
+    fn check_id_function_comparison(
+        &self,
+        node_alias: &str,
+        id_expr: &Expression,
+        var_expr: &Expression,
+    ) -> Option<String> {
+        match id_expr {
+            Expression::Function { name, args } if name == "id" => {
+                if let Some(Expression::Label(label_name)) = args.first() {
+                    if label_name == node_alias {
+                        // 提取变量名
+                        match var_expr {
+                            Expression::Variable(var_name) => Some(var_name.clone()),
+                            Expression::Label(var_name) => Some(var_name.clone()),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 
     /// 获取查找类型
@@ -180,7 +308,7 @@ mod tests {
         let seeker = VertexSeek::new_fixed(node_info.clone(), vec!["1".to_string()]);
         assert!(seeker.match_node());
 
-        let empty_seeker = VertexSeek::new_fixed(node_info, vec![]);
+        let empty_seeker = VertexSeek::new_fixed(node_info.clone(), vec![]);
         assert!(!empty_seeker.match_node());
     }
 
@@ -194,8 +322,16 @@ mod tests {
         let invalid_expr = Expression::Literal(
             crate::graph::expression::expression::LiteralValue::String("test".to_string()),
         );
-        let invalid_seeker = VertexSeek::new_variable(node_info, invalid_expr);
+        let invalid_seeker = VertexSeek::new_variable(node_info.clone(), invalid_expr);
         assert!(!invalid_seeker.match_node());
+
+        // 测试 id() 函数表达式
+        let id_expr = Expression::Function {
+            name: "id".to_string(),
+            args: vec![Expression::Label("n".to_string())],
+        };
+        let id_seeker = VertexSeek::new_variable(node_info.clone(), id_expr);
+        assert!(id_seeker.match_node());
     }
 
     #[test]
@@ -269,5 +405,163 @@ mod tests {
         );
         let result = seeker.build_plan();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_extract_variable_name() {
+        let node_info = create_test_node_info();
+        let seeker = VertexSeek::new_fixed(node_info.clone(), vec!["1".to_string()]);
+        
+        // 测试变量表达式
+        let var_expr = Expression::Variable("x".to_string());
+        assert_eq!(seeker.extract_variable_name(&var_expr).unwrap(), "x");
+        
+        // 测试标签表达式
+        let label_expr = Expression::Label("n".to_string());
+        assert_eq!(seeker.extract_variable_name(&label_expr).unwrap(), "n");
+        
+        // 测试 id() 函数表达式
+        let id_expr = Expression::Function {
+            name: "id".to_string(),
+            args: vec![Expression::Label("node".to_string())],
+        };
+        assert_eq!(seeker.extract_variable_name(&id_expr).unwrap(), "node");
+        
+        // 测试无效表达式
+        let invalid_expr = Expression::Literal(
+            crate::graph::expression::expression::LiteralValue::String("test".to_string()),
+        );
+        assert!(seeker.extract_variable_name(&invalid_expr).is_err());
+    }
+
+    #[test]
+    fn test_is_valid_variable_expression_enhanced() {
+        let node_info = create_test_node_info();
+        let seeker = VertexSeek::new_fixed(node_info, vec!["1".to_string()]);
+        
+        // 测试变量表达式
+        let var_expr = Expression::Variable("x".to_string());
+        assert!(seeker.is_valid_variable_expression(&var_expr));
+        
+        // 测试标签表达式
+        let label_expr = Expression::Label("n".to_string());
+        assert!(seeker.is_valid_variable_expression(&label_expr));
+        
+        // 测试有效的 id() 函数表达式
+        let valid_id_expr = Expression::Function {
+            name: "id".to_string(),
+            args: vec![Expression::Label("node".to_string())],
+        };
+        assert!(seeker.is_valid_variable_expression(&valid_id_expr));
+        
+        // 测试无效的 id() 函数表达式（参数不是标签）
+        let invalid_id_expr = Expression::Function {
+            name: "id".to_string(),
+            args: vec![Expression::Variable("node".to_string())],
+        };
+        assert!(!seeker.is_valid_variable_expression(&invalid_id_expr));
+        
+        // 测试其他函数表达式
+        let other_func_expr = Expression::Function {
+            name: "other".to_string(),
+            args: vec![Expression::Label("node".to_string())],
+        };
+        assert!(!seeker.is_valid_variable_expression(&other_func_expr));
+    }
+
+    #[test]
+    fn test_is_vid_predicate() {
+        let node_info = create_test_node_info();
+        let seeker = VertexSeek::new_fixed(node_info, vec!["1".to_string()]);
+        
+        // 测试 id(n) = variable 形式
+        let id_eq_var = Expression::Binary {
+            left: Box::new(Expression::Function {
+                name: "id".to_string(),
+                args: vec![Expression::Label("n".to_string())],
+            }),
+            op: crate::graph::expression::BinaryOperator::Equal,
+            right: Box::new(Expression::Variable("vid".to_string())),
+        };
+        assert_eq!(seeker.is_vid_predicate("n", &id_eq_var), Some("vid".to_string()));
+        
+        // 测试 variable = id(n) 形式
+        let var_eq_id = Expression::Binary {
+            left: Box::new(Expression::Variable("vid".to_string())),
+            op: crate::graph::expression::BinaryOperator::Equal,
+            right: Box::new(Expression::Function {
+                name: "id".to_string(),
+                args: vec![Expression::Label("n".to_string())],
+            }),
+        };
+        assert_eq!(seeker.is_vid_predicate("n", &var_eq_id), Some("vid".to_string()));
+        
+        // 测试 id(n) IN variable 形式
+        let id_in_var = Expression::Binary {
+            left: Box::new(Expression::Function {
+                name: "id".to_string(),
+                args: vec![Expression::Label("n".to_string())],
+            }),
+            op: crate::graph::expression::BinaryOperator::In,
+            right: Box::new(Expression::Variable("vids".to_string())),
+        };
+        assert_eq!(seeker.is_vid_predicate("n", &id_in_var), Some("vids".to_string()));
+        
+        // 测试不匹配的情况
+        let wrong_node = Expression::Binary {
+            left: Box::new(Expression::Function {
+                name: "id".to_string(),
+                args: vec![Expression::Label("m".to_string())],
+            }),
+            op: crate::graph::expression::BinaryOperator::Equal,
+            right: Box::new(Expression::Variable("vid".to_string())),
+        };
+        assert_eq!(seeker.is_vid_predicate("n", &wrong_node), None);
+        
+        // 测试逻辑AND表达式
+        let and_expr = Expression::Binary {
+            left: Box::new(Expression::Binary {
+                left: Box::new(Expression::Function {
+                    name: "id".to_string(),
+                    args: vec![Expression::Label("n".to_string())],
+                }),
+                op: crate::graph::expression::BinaryOperator::Equal,
+                right: Box::new(Expression::Variable("vid".to_string())),
+            }),
+            op: crate::graph::expression::BinaryOperator::And,
+            right: Box::new(Expression::Variable("other".to_string())),
+        };
+        assert_eq!(seeker.is_vid_predicate("n", &and_expr), Some("vid".to_string()));
+    }
+
+    #[test]
+    fn test_check_id_function_comparison() {
+        let node_info = create_test_node_info();
+        let seeker = VertexSeek::new_fixed(node_info, vec!["1".to_string()]);
+        
+        // 测试正确的id函数比较
+        let id_func = Expression::Function {
+            name: "id".to_string(),
+            args: vec![Expression::Label("n".to_string())],
+        };
+        let var_expr = Expression::Variable("vid".to_string());
+        
+        assert_eq!(
+            seeker.check_id_function_comparison("n", &id_func, &var_expr),
+            Some("vid".to_string())
+        );
+        
+        // 测试错误的节点别名
+        assert_eq!(
+            seeker.check_id_function_comparison("m", &id_func, &var_expr),
+            None
+        );
+        
+        // 测试标签表达式作为变量
+        let label_expr = Expression::Label("vid_label".to_string());
+        assert_eq!(
+            seeker.check_id_function_comparison("n", &id_func, &label_expr),
+            Some("vid_label".to_string())
+        );
     }
 }

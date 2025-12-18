@@ -21,7 +21,6 @@ use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, Trave
 use crate::core::Value;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::parser::expressions::convert_ast_to_graph_expression;
-use crate::query::planner::PlanNodeKind;
 use crate::query::validator::YieldColumn;
 use std::sync::Arc;
 
@@ -287,6 +286,22 @@ impl PlanNodeFactory {
     ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
         Ok(Arc::new(DataCollectNode::new(input, collect_kind)?))
     }
+
+    /// 创建索引扫描节点
+    pub fn create_index_scan(
+        space_id: i32,
+        tag_id: i32,
+        index_id: i32,
+        scan_type: &str,
+    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        Ok(Arc::new(crate::query::planner::plan::algorithms::IndexScan::new(
+            crate::generate_id() as i64,
+            space_id,
+            tag_id,
+            index_id,
+            scan_type,
+        )))
+    }
 }
 
 #[cfg(test)]
@@ -295,6 +310,7 @@ mod tests {
     use crate::graph::expression::Expression;
     use crate::query::parser::ast::expr::{Expr, VariableExpr};
     use crate::query::parser::ast::types::Span;
+    use crate::query::planner::PlanNodeKind;
 
     #[test]
     fn test_create_filter_node() {
