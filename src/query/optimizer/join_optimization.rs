@@ -105,7 +105,7 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::Limit;
+    use crate::query::planner::plan::core::nodes::LimitNode;
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())
@@ -117,7 +117,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个连接节点（使用Limit作为占位符，因为我们没有特定的连接结构）
-        let join_node = std::sync::Arc::new(Limit::new(1, 10, 0))
+        let join_node = std::sync::Arc::new(LimitNode::new(
+            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            10,
+            0,
+        ).unwrap())
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, join_node);
 

@@ -604,9 +604,12 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个去重节点
-        let dedup_node = Arc::new(DedupNode::new(Arc::new(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
-        )).unwrap());
+        let dedup_node = Arc::new(
+            DedupNode::new(Arc::new(
+                crate::query::planner::plan::core::nodes::StartNode::new(),
+            ))
+            .unwrap(),
+        );
         let mut opt_node = OptGroupNode::new(1, dedup_node);
 
         // 添加一个IndexScan子节点作为依赖（IndexScan产生唯一结果）
@@ -758,15 +761,15 @@ mod tests {
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::BinaryOperation(
-                    Box::new(crate::graph::expression::Expression::Variable(
+                expr: crate::graph::expression::Expression::Binary {
+                    left: Box::new(crate::graph::expression::Expression::Variable(
                         "age".to_string(),
                     )),
-                    crate::graph::expression::BinaryOperator::Add,
-                    Box::new(crate::graph::expression::Expression::Literal(
-                        "1".to_string(),
+                    op: crate::graph::expression::BinaryOperator::Add,
+                    right: Box::new(crate::graph::expression::Expression::Literal(
+                        crate::graph::expression::LiteralValue::String("1".to_string()),
                     )),
-                ),
+                },
                 alias: "age_plus_1".to_string(),
                 is_matched: false,
             },

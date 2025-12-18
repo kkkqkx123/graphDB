@@ -932,8 +932,9 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::{
-        GetEdges, GetNeighbors, GetVertices, IndexScan, Limit, Project, ScanEdges, ScanVertices,
+    use crate::query::planner::plan::algorithms::IndexScan;
+    use crate::query::planner::plan::core::nodes::{
+        GetEdgesNode, GetNeighborsNode, GetVerticesNode, LimitNode, ProjectNode, ScanEdgesNode, ScanVerticesNode,
     };
     use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
@@ -947,7 +948,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(LimitNode::new(
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            10,
+            0,
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -961,7 +966,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(LimitNode::new(
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            10,
+            0,
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -975,7 +984,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(LimitNode::new(
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            10,
+            0,
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -989,7 +1002,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(LimitNode::new(
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            10,
+            0,
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1003,7 +1020,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(LimitNode::new(
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            10,
+            0,
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1017,7 +1038,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(LimitNode::new(
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            10,
+            0,
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1031,7 +1056,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(LimitNode::new(
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            10,
+            0,
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1045,7 +1074,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(Limit::new(1, 10, 0));
+        let limit_node = Arc::new(LimitNode::new(
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            10,
+            0,
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

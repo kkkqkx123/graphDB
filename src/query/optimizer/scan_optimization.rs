@@ -100,7 +100,7 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::ScanVertices;
+    use crate::query::planner::plan::core::nodes::ScanVerticesNode;
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())
@@ -112,7 +112,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个扫描节点（作为索引扫描的占位符）
-        let scan_node = std::sync::Arc::new(ScanVertices::new(1, 0))
+        let scan_node = std::sync::Arc::new(ScanVerticesNode::new(1))
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, scan_node);
 
@@ -127,7 +127,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个扫描顶点节点
-        let scan_node = std::sync::Arc::new(ScanVertices::new(1, 0))
+        let scan_node = std::sync::Arc::new(ScanVerticesNode::new(1))
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, scan_node);
 

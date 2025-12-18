@@ -624,16 +624,16 @@ fn extract_column_and_value(
     };
 
     let value = match right {
-        Expression::Literal(crate::graph::expression::expression::LiteralValue::String(s)) => {
+        Expression::Literal(crate::graph::expression::LiteralValue::String(s)) => {
             Some(s.clone())
         }
-        Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(i)) => {
+        Expression::Literal(crate::graph::expression::LiteralValue::Int(i)) => {
             Some(i.to_string())
         }
-        Expression::Literal(crate::graph::expression::expression::LiteralValue::Float(f)) => {
+        Expression::Literal(crate::graph::expression::LiteralValue::Float(f)) => {
             Some(f.to_string())
         }
-        Expression::Literal(crate::graph::expression::expression::LiteralValue::Bool(b)) => {
+        Expression::Literal(crate::graph::expression::LiteralValue::Bool(b)) => {
             Some(b.to_string())
         }
         _ => None,
@@ -1042,7 +1042,7 @@ mod tests {
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
-    use crate::query::planner::plan::{Limit, PlanNodeKind};
+    use crate::query::planner::plan::PlanNodeKind;
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())
@@ -1058,9 +1058,10 @@ mod tests {
         let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
 
         // 创建一个过滤节点作为依赖
-        let filter_node = Arc::new(crate::query::planner::plan::operations::Filter::new(
-            2, "age > 18",
-        ));
+        let filter_node = Arc::new(crate::query::planner::plan::core::nodes::FilterNode::new(
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            crate::graph::expression::Expression::Variable("age > 18".to_string()),
+        ).unwrap());
         let filter_opt_node = OptGroupNode::new(2, filter_node);
 
         // 设置依赖关系：索引扫描依赖于过滤节点
@@ -1084,10 +1085,10 @@ mod tests {
         let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
 
         // 创建一个过滤节点作为依赖
-        let filter_node = Arc::new(crate::query::planner::plan::operations::Filter::new(
-            2,
-            "name = 'test'",
-        ));
+        let filter_node = Arc::new(crate::query::planner::plan::core::nodes::FilterNode::new(
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            crate::graph::expression::Expression::Variable("name = 'test'".to_string()),
+        ).unwrap());
         let filter_opt_node = OptGroupNode::new(2, filter_node);
 
         // 设置依赖关系：索引扫描依赖于过滤节点
@@ -1190,10 +1191,11 @@ mod tests {
         let condition = "age > 18 AND name = 'John'";
 
         // 首先测试表达式解析器是否正常工作
-        let parse_result = parse_filter_condition(condition);
+        let expr = crate::graph::expression::Expression::Variable(condition.to_string());
+        let parse_result = parse_filter_condition(&expr);
         println!("Parse result: {:?}", parse_result);
 
-        let result = can_push_down_to_index_scan(condition);
+        let result = can_push_down_to_index_scan(&expr);
         println!("Pushable condition: {:?}", result.pushable_condition);
         println!("Remaining condition: {:?}", result.remaining_condition);
 
@@ -1223,7 +1225,7 @@ mod tests {
         let mut index_scan = IndexScan::new(1, 1, 2, 3, "RANGE");
 
         // 更新索引扫描限制
-        update_index_scan_limits(&mut index_scan, "age > 18");
+        update_index_scan_limits(&mut index_scan, &crate::graph::expression::Expression::Variable("age > 18".to_string()));
 
         // 验证限制已添加
         assert!(!index_scan.scan_limits.is_empty());

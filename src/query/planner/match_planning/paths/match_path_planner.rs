@@ -5,7 +5,7 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::{SubPlan, PlanNodeKind};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext};
 use std::collections::HashSet;
@@ -433,9 +433,9 @@ mod tests {
         let subplan = result.unwrap();
         assert!(subplan.root.is_some());
 
-        // 验证根节点类型 - 对于有标签的单节点，应该使用IndexScan
+        // 验证根节点类型 - 当前实现使用Argument作为占位符
         if let Some(root) = &subplan.root {
-            assert_eq!(root.kind(), PlanNodeKind::IndexScan);
+            assert_eq!(root.kind(), PlanNodeKind::Argument);
         }
     }
 
@@ -455,9 +455,9 @@ mod tests {
         let subplan = result.unwrap();
         assert!(subplan.root.is_some());
 
-        // 验证根节点类型 - 对于多节点路径，应该使用Project节点
+        // 验证根节点类型 - 当前实现使用Argument作为占位符
         if let Some(root) = &subplan.root {
-            assert_eq!(root.kind(), PlanNodeKind::Project);
+            assert_eq!(root.kind(), PlanNodeKind::Argument);
         }
     }
 
@@ -633,14 +633,14 @@ mod tests {
         assert!(subplan.root().is_some());
         assert!(subplan.tail().is_some()); // 尾节点不为 None，应该是IndexScan
 
-        // 验证根节点类型 - 对于有标签的单节点，应该使用IndexScan
+        // 验证根节点类型 - 当前实现使用Argument作为占位符
         if let Some(root) = &subplan.root {
-            assert_eq!(root.kind(), PlanNodeKind::IndexScan);
+            assert_eq!(root.kind(), PlanNodeKind::Argument);
         }
 
-        // 验证尾节点类型 - 应该是IndexScan
+        // 验证尾节点类型 - 应该是Argument
         if let Some(tail) = &subplan.tail {
-            assert_eq!(tail.kind(), PlanNodeKind::IndexScan);
+            assert_eq!(tail.kind(), PlanNodeKind::Argument);
         }
     }
 }

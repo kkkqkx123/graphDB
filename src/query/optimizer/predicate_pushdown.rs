@@ -1161,7 +1161,7 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::{Expand, Filter, ScanVertices, Traverse};
+    use crate::query::planner::plan::core::nodes::{ExpandNode, FilterNode, ScanVerticesNode, TraverseNode};
     use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
     fn create_test_context() -> OptContext {
@@ -1174,7 +1174,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(FilterNode::new(
+            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            crate::graph::expression::Expression::Variable("col1 > 100".to_string()),
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1188,7 +1191,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(FilterNode::new(
+            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            crate::graph::expression::Expression::Variable("col1 > 100".to_string()),
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1202,7 +1208,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(FilterNode::new(
+            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            crate::graph::expression::Expression::Variable("col1 > 100".to_string()),
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1216,7 +1225,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(FilterNode::new(
+            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            crate::graph::expression::Expression::Variable("col1 > 100".to_string()),
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1230,7 +1242,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(FilterNode::new(
+            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            crate::graph::expression::Expression::Variable("col1 > 100".to_string()),
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1244,7 +1259,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(FilterNode::new(
+            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            crate::graph::expression::Expression::Variable("col1 > 100".to_string()),
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1258,7 +1276,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(Filter::new(1, "col1 > 100"));
+        let filter_node = std::sync::Arc::new(FilterNode::new(
+            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            crate::graph::expression::Expression::Variable("col1 > 100".to_string()),
+        ).unwrap());
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1269,7 +1290,7 @@ mod tests {
     #[test]
     fn test_can_push_down_to_scan() {
         // 测试辅助函数
-        let result = can_push_down_to_scan("age > 18");
+        let result = can_push_down_to_scan(&crate::graph::expression::Expression::Variable("age > 18".to_string()));
         // 应该返回带有可下推条件的结果
         assert!(result.pushable_condition.is_some());
     }
@@ -1277,7 +1298,7 @@ mod tests {
     #[test]
     fn test_can_push_down_to_traverse() {
         // 测试辅助函数
-        let result = can_push_down_to_traverse("age > 18");
+        let result = can_push_down_to_traverse(&crate::graph::expression::Expression::Variable("age > 18".to_string()));
         // 应该返回带有可下推条件的结果
         assert!(result.pushable_condition.is_some());
     }
