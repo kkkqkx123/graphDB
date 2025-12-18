@@ -785,7 +785,7 @@ impl PushDownRule for PushLimitDownProjectRule {
             if let Some(project_plan_node) = child
                 .plan_node
                 .as_any()
-                .downcast_ref::<crate::query::planner::plan::operations::Project>(
+                .downcast_ref::<crate::query::planner::plan::core::nodes::project_node::ProjectNode>(
             ) {
                 // 对于Project操作，我们不能直接在Project节点上设置limit
                 // 而是创建一个新的计划结构，将LIMIT应用到Project的输入上

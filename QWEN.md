@@ -70,13 +70,25 @@ installed targets: x86_64-pc-windows-msvc
    cargo build --release       # Release build (optimized for performance)
    ```
 
-3. **Run commands**:
+3. **Type check and compile check**
+```bash
+cargo check --message-format=short 2>&1 | findstr /C:"error[E" # Default Type check(use `cargo check --message-format=short` when you need to find warnings.)
+cargo check 2>&1 | findstr /C:"error[E" # Detailed Type check(Only use it when you need that. when use this, always add filter logic, like `cargo check 2>&1 | Select-String "error\[E" | Select-Object -First 10`)
+```   
+
+4. **Run commands**:
    ```bash
    # Start database service
    cargo run --release -- serve --config config.toml
 
    # Execute query directly
    cargo run --release -- query --query "MATCH (n) RETURN n LIMIT 10"
+   ```
+
+5. **Temporary verify**:
+   create a rs file, then:
+   ```bash
+   rustc <script name>.rs && ./<script name>.exe
    ```
 
 ## Development Conventions
@@ -106,10 +118,11 @@ It is not recommended to run all tests in one time.
    - Unit tests when original file is too large: Add individual test.rs, and add it to `mod.rs`
    - Integration tests: Located in the `tests/` directory
    - Benchmarks: Located in the `benches/` directory
-   - Tests relevent to storage: use `pub mod test_config;`, don't use individual path
+   - Tests relevent to storage: storage in `data/tests` directory, don't place in any other directory
    
 ## Additional Notes
 
 - The project utilises Rust version 2021, employing the ownership system to ensure memory safety
 - Does not include distributed functionality, focusing instead on single-machine performance and simplicity
-- The architecture aims to minimise external dependencies, leveraging the security and performance of the Rust ecosystem、
+- The architecture aims to minimise external dependencies, leveraging the security and performance of the Rust ecosystem
+- Due to the excessive length of cargo command output, always execute commands in the format: `<cargo command> 2>&1 | Select-Object -Last 60`(or more line. When use `cargo check`, use `-First` instead to capture errors first)

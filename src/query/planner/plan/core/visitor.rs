@@ -1,7 +1,7 @@
 use super::plan_node_traits::PlanNode as BasePlanNode;
 use super::nodes::{
-    FilterNode, ProjectNode, InnerJoinNode, StartNode, PlaceholderNode,
-    AggregateNode, SortNode, LimitNode,
+    FilterNode, ProjectNode, InnerJoinNode, LeftJoinNode, StartNode, PlaceholderNode,
+    AggregateNode, SortNode, LimitNode, TopNNode,
     GetVerticesNode, GetEdgesNode, GetNeighborsNode, ScanVerticesNode, ScanEdgesNode,
     ExpandNode, ExpandAllNode, TraverseNode, AppendVerticesNode,
     ArgumentNode, SelectNode, LoopNode, PassThroughNode,

@@ -45,12 +45,15 @@ impl OptRule for TopNRule {
                             // 创建新的OptGroupNode
                             let mut new_node = child_node.clone(); // 从Sort节点克隆
 
+                            // 获取Sort节点的输入作为TopN的输入
+                            let sort_input = child_node.plan_node.clone();
+                            
                             // 创建TopN节点并设置输出变量
                             let mut topn_node = crate::query::planner::plan::core::nodes::TopNNode::new(
-                                node.plan_node.id(),               // 使用Limit节点的ID
-                                sort_plan_node.sort_items.clone(), // 使用Sort的排序项
+                                sort_input,                           // 使用Sort的输入
+                                sort_plan_node.sort_items().to_vec(), // 使用Sort的排序项
                                 limit_plan_node.count(), // 使用Limit的计数值作为TopN的限制
-                            );
+                            ).unwrap();
 
                             // 保持输出变量不变
                             if let Some(output_var) = node.plan_node.output_var() {
@@ -61,8 +64,7 @@ impl OptRule for TopNRule {
 
                             // 保持原始Sort节点的依赖（即TopN的输入）
                             if !child_node.dependencies.is_empty() {
-                                let grandchild_id = child_node.dependencies[0];
-                                new_node.dependencies = vec![grandchild_id];
+                                new_node.dependencies = child_node.dependencies.clone();
                             } else {
                                 new_node.dependencies = vec![];
                             }

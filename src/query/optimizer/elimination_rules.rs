@@ -250,12 +250,12 @@ impl RemoveNoopProjectRule {
         project_node: &ProjectNode,
         child_node: &OptGroupNode,
     ) -> Result<bool, OptimizerError> {
-        // 获取投影表达式
-        let yield_expr = &project_node.yield_expr;
+        // 获取投影列
+        let columns = project_node.columns();
 
-        // 如果投影表达式是 "*"，则表示投影所有列，这是无操作投影
-        if yield_expr == "*" {
-            return Ok(true);
+        // 如果投影列为空，则无法判断，返回false
+        if columns.is_empty() {
+            return Ok(false);
         }
 
         // 获取子节点的输出列名
@@ -266,13 +266,13 @@ impl RemoveNoopProjectRule {
             return Ok(false);
         }
 
-        // 检查投影表达式是否包含别名或表达式
-        if self.has_aliases_or_expressions(yield_expr)? {
+        // 检查投影列是否包含别名或表达式
+        if self.has_aliases_or_expressions_in_columns(columns)? {
             return Ok(false);
         }
 
-        // 解析投影表达式，提取列名
-        let projected_columns = self.extract_columns_from_yield_expr(yield_expr)?;
+        // 从投影列中提取列名
+        let projected_columns: Vec<String> = columns.iter().map(|col| col.alias.clone()).collect();
 
         // 如果投影的列与子节点的输出列完全相同，则是无操作投影
         if projected_columns.len() == child_col_names.len() {
@@ -287,61 +287,30 @@ impl RemoveNoopProjectRule {
         Ok(false)
     }
 
-    /// 检查投影表达式是否包含别名或复杂表达式
-    fn has_aliases_or_expressions(&self, yield_expr: &str) -> Result<bool, OptimizerError> {
-        // 检查是否包含 AS 关键字（别名）
-        if yield_expr.to_lowercase().contains(" as ") {
-            return Ok(true);
-        }
-
-        // 按逗号分割表达式
-        for part in yield_expr.split(',') {
-            let part = part.trim();
-
-            // 如果包含运算符，则是表达式
-            if part.contains('+') || part.contains('-') || part.contains('*') || part.contains('/')
-            {
-                return Ok(true);
+    /// 检查投影列是否包含别名或复杂表达式
+    fn has_aliases_or_expressions_in_columns(&self, columns: &[crate::query::validator::YieldColumn]) -> Result<bool, OptimizerError> {
+        for column in columns {
+            // 检查是否是表达式（不是简单的变量引用）
+            match &column.expr {
+                crate::graph::expression::Expression::Variable(_) => {
+                    // 简单变量，继续检查
+                }
+                _ => {
+                    // 其他类型的表达式，认为是复杂表达式
+                    return Ok(true);
+                }
             }
-
-            // 如果包含函数调用，则是表达式
-            if part.contains('(') && part.contains(')') {
-                return Ok(true);
+            
+            // 检查别名是否与原始表达式不同
+            if let crate::graph::expression::Expression::Variable(var_name) = &column.expr {
+                if var_name != &column.alias {
+                    // 别名与变量名不同，认为是别名
+                    return Ok(true);
+                }
             }
         }
 
         Ok(false)
-    }
-
-    /// 从投影表达式中提取列名
-    fn extract_columns_from_yield_expr(
-        &self,
-        yield_expr: &str,
-    ) -> Result<Vec<String>, OptimizerError> {
-        // 简单实现：按逗号分割表达式，并去除空格
-        // 在实际实现中，可能需要更复杂的解析来处理表达式和别名
-        let mut columns = Vec::new();
-
-        // 处理特殊情况：如果表达式为空或为 "*"
-        if yield_expr.is_empty() || yield_expr == "*" {
-            return Ok(columns);
-        }
-
-        // 按逗号分割表达式
-        for part in yield_expr.split(',') {
-            let part = part.trim();
-
-            // 如果包含 AS 关键字，提取别名前的部分
-            if let Some(as_pos) = part.to_lowercase().find(" as ") {
-                let expr_part = part[..as_pos].trim();
-                columns.push(expr_part.to_string());
-            } else {
-                // 否则直接使用整个部分
-                columns.push(part.to_string());
-            }
-        }
-
-        Ok(columns)
     }
 }
 
@@ -611,7 +580,7 @@ mod tests {
 
         // 添加一个子节点作为依赖
         let child_node = Arc::new(crate::query::planner::plan::core::nodes::ScanVerticesNode::new(
-            2, 1,
+            1,
         ));
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
@@ -650,7 +619,7 @@ mod tests {
 
         // 创建一个子节点，设置输出列
         let mut child_node = Arc::new(crate::query::planner::plan::core::nodes::ScanVerticesNode::new(
-            2, 1,
+            1,
         ));
         // 注意：需要使用 PlanNode trait 中的 set_col_names 方法
         std::sync::Arc::get_mut(&mut child_node)
@@ -664,9 +633,16 @@ mod tests {
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
         // 测试1: 创建一个投影所有列的投影节点（应该被消除）
+        let columns_all = vec![
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("*".to_string()),
+                alias: "*".to_string(),
+                is_matched: false,
+            }
+        ];
         let project_node_all = Arc::new(ProjectNode::new(
             Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            "*".to_string()
+            columns_all
         ).unwrap());
         let mut opt_node_all = OptGroupNode::new(1, project_node_all);
         opt_node_all.dependencies.push(2);
@@ -675,9 +651,26 @@ mod tests {
         assert!(result_all.is_some(), "投影所有列的节点应该被消除");
 
         // 测试2: 创建一个投影相同列的投影节点（应该被消除）
+        let columns_same = vec![
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                alias: "id".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                alias: "name".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("age".to_string()),
+                alias: "age".to_string(),
+                is_matched: false,
+            },
+        ];
         let project_node_same = Arc::new(ProjectNode::new(
             Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            "id, name, age".to_string()
+            columns_same
         ).unwrap());
         let mut opt_node_same = OptGroupNode::new(3, project_node_same);
         opt_node_same.dependencies.push(2);
@@ -686,9 +679,21 @@ mod tests {
         assert!(result_same.is_some(), "投影相同列的节点应该被消除");
 
         // 测试3: 创建一个投影不同列的投影节点（不应该被消除）
+        let columns_diff = vec![
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                alias: "id".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                alias: "name".to_string(),
+                is_matched: false,
+            },
+        ];
         let project_node_diff = Arc::new(ProjectNode::new(
             Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            "id, name".to_string()
+            columns_diff
         ).unwrap());
         let mut opt_node_diff = OptGroupNode::new(4, project_node_diff);
         opt_node_diff.dependencies.push(2);
@@ -697,10 +702,27 @@ mod tests {
         assert!(result_diff.is_none(), "投影不同列的节点不应该被消除");
 
         // 测试4: 创建一个投影带别名的节点（不应该被消除）
+        let columns_alias = vec![
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                alias: "vertex_id".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                alias: "vertex_name".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("age".to_string()),
+                alias: "age".to_string(),
+                is_matched: false,
+            },
+        ];
         let project_node_alias =
             Arc::new(ProjectNode::new(
                 Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                "id as vertex_id, name as vertex_name, age".to_string()
+                columns_alias
             ).unwrap());
         let mut opt_node_alias = OptGroupNode::new(5, project_node_alias);
         opt_node_alias.dependencies.push(2);
@@ -709,9 +731,30 @@ mod tests {
         assert!(result_alias.is_none(), "投影带别名的节点不应该被消除");
 
         // 测试5: 创建一个投影包含表达式的节点（不应该被消除）
+        let columns_expr = vec![
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                alias: "id".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                alias: "name".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::BinaryOperation(
+                    Box::new(crate::graph::expression::Expression::Variable("age".to_string())),
+                    crate::graph::expression::BinaryOperator::Add,
+                    Box::new(crate::graph::expression::Expression::Literal("1".to_string()))
+                ),
+                alias: "age_plus_1".to_string(),
+                is_matched: false,
+            },
+        ];
         let project_node_expr = Arc::new(ProjectNode::new(
             Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            "id, name, age + 1".to_string()
+            columns_expr
         ).unwrap());
         let mut opt_node_expr = OptGroupNode::new(6, project_node_expr);
         opt_node_expr.dependencies.push(2);
@@ -727,16 +770,15 @@ mod tests {
 
         // 创建一个添加顶点节点
         let append_vertices_node = Arc::new(AppendVerticesNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
             1,
             vec![],
             vec![]
-        ).unwrap());
+        ));
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
 
         // 添加一个子节点作为依赖
-        let child_node = Arc::new(crate::query::planner::plan::operations::ScanVertices::new(
-            2, 1,
+        let child_node = Arc::new(crate::query::planner::plan::core::nodes::ScanVerticesNode::new(
+            1,
         ));
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
@@ -753,17 +795,19 @@ mod tests {
 
         // 创建一个添加顶点节点
         let append_vertices_node = Arc::new(AppendVerticesNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
             1,
             vec![],
             vec![]
-        ).unwrap());
+        ));
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
 
         // 添加一个HashInnerJoin子节点作为依赖
-        let child_node = Arc::new(crate::query::planner::plan::operations::HashInnerJoin::new(
-            2,
-        ));
+        let child_node = Arc::new(crate::query::planner::plan::core::nodes::InnerJoinNode::new(
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+            vec![],
+            vec![],
+        ).unwrap());
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
@@ -792,16 +836,21 @@ fn create_plan_node_with_output_var(
 
     // 尝试将plan_node向下转换为具体类型，并创建带有新输出变量的新实例
     // 这里我们只处理一些常见的节点类型作为示例，实际中需要处理所有类型
-    if let Some(filter_node) = plan_node.as_any().downcast_ref::<Filter>() {
-        let mut new_node = FilterNode::new(filter_node.id(), &filter_node.condition);
+    if let Some(filter_node) = plan_node.as_any().downcast_ref::<FilterNode>() {
+        let input = filter_node.dependencies().get(0).unwrap().clone();
+        let condition = filter_node.condition().clone();
+        let mut new_node = FilterNode::new(input, condition).unwrap();
         new_node.set_output_var(output_var);
         Arc::new(new_node)
-    } else if let Some(project_node) = plan_node.as_any().downcast_ref::<Project>() {
-        let mut new_node = ProjectNode::new(project_node.id(), &project_node.yield_expr);
+    } else if let Some(project_node) = plan_node.as_any().downcast_ref::<ProjectNode>() {
+        let input = project_node.dependencies().get(0).unwrap().clone();
+        let columns = project_node.columns().to_vec();
+        let mut new_node = ProjectNode::new(input, columns).unwrap();
         new_node.set_output_var(output_var);
         Arc::new(new_node)
-    } else if let Some(dedup_node) = plan_node.as_any().downcast_ref::<Dedup>() {
-        let mut new_node = DedupNode::new(dedup_node.id());
+    } else if let Some(dedup_node) = plan_node.as_any().downcast_ref::<DedupNode>() {
+        let input = dedup_node.dependencies().get(0).unwrap().clone();
+        let mut new_node = DedupNode::new(input).unwrap();
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(sort_node) = plan_node.as_any().downcast_ref::<SortNode>() {
@@ -845,28 +894,25 @@ fn create_plan_node_with_output_var(
         Arc::new(new_node)
     } else if let Some(scan_edges_node) = plan_node.as_any().downcast_ref::<ScanEdgesNode>() {
         let mut new_node = ScanEdgesNode::new(
-            scan_edges_node.id(),
-            scan_edges_node.space_id,
-            &scan_edges_node.edge_type,
+            scan_edges_node.space_id(),
+            scan_edges_node.edge_type(),
         );
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(get_vertices_node) = plan_node.as_any().downcast_ref::<GetVerticesNode>() {
         let mut new_node = GetVerticesNode::new(
-            get_vertices_node.id(),
-            get_vertices_node.space_id,
-            &get_vertices_node.src_vids,
+            get_vertices_node.space_id(),
+            get_vertices_node.src_vids(),
         );
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(get_edges_node) = plan_node.as_any().downcast_ref::<GetEdgesNode>() {
         let mut new_node = GetEdgesNode::new(
-            get_edges_node.id(),
-            get_edges_node.space_id,
-            &get_edges_node.src,
-            &get_edges_node.edge_type,
-            &get_edges_node.rank,
-            &get_edges_node.dst,
+            get_edges_node.space_id(),
+            get_edges_node.src(),
+            get_edges_node.edge_type(),
+            get_edges_node.rank(),
+            get_edges_node.dst(),
         );
         new_node.set_output_var(output_var);
         Arc::new(new_node)
@@ -875,18 +921,38 @@ fn create_plan_node_with_output_var(
             .as_any()
             .downcast_ref::<crate::query::planner::plan::core::nodes::InnerJoinNode>()
     {
-        let mut new_node =
-            crate::query::planner::plan::core::nodes::InnerJoinNode::new(hash_inner_join_node.id());
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
+        let deps = hash_inner_join_node.dependencies();
+        if deps.len() >= 2 {
+            let left = deps[0].clone();
+            let right = deps[1].clone();
+            let hash_keys = hash_inner_join_node.hash_keys().to_vec();
+            let probe_keys = hash_inner_join_node.probe_keys().to_vec();
+            let mut new_node = crate::query::planner::plan::core::nodes::InnerJoinNode::new(
+                left, right, hash_keys, probe_keys
+            ).unwrap();
+            new_node.set_output_var(output_var);
+            Arc::new(new_node)
+        } else {
+            plan_node.clone_plan_node()
+        }
     } else if let Some(hash_left_join_node) = plan_node
         .as_any()
-        .downcast_ref::<crate::query::planner::plan::core::nodes::LeftJoinNode>(
-    ) {
-        let mut new_node =
-            crate::query::planner::plan::core::nodes::LeftJoinNode::new(hash_left_join_node.id());
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
+        .downcast_ref::<crate::query::planner::plan::core::nodes::LeftJoinNode>()
+    {
+        let deps = hash_left_join_node.dependencies();
+        if deps.len() >= 2 {
+            let left = deps[0].clone();
+            let right = deps[1].clone();
+            let hash_keys = hash_left_join_node.hash_keys().to_vec();
+            let probe_keys = hash_left_join_node.probe_keys().to_vec();
+            let mut new_node = crate::query::planner::plan::core::nodes::LeftJoinNode::new(
+                left, right, hash_keys, probe_keys
+            ).unwrap();
+            new_node.set_output_var(output_var);
+            Arc::new(new_node)
+        } else {
+            plan_node.clone_plan_node()
+        }
     } else {
         // 如果无法识别具体类型，则返回原节点的克隆（不改变输出变量）
         plan_node.clone_plan_node()

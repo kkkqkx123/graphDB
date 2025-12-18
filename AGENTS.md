@@ -72,8 +72,8 @@ installed targets: x86_64-pc-windows-msvc
 
 3. **Type check and compile check**
 ```bash
-cargo check --message-format=short # Default Type check
-cargo check # Detailed Type check(Only use it when you need that. when use this, always add filter logic, like `cargo check 2>&1 | Select-String "error\[E" | Select-Object -First 10`)
+cargo check --message-format=short 2>&1 | findstr /C:"error[E" # Default Type check(use `cargo check --message-format=short` when you need to find warnings.)
+cargo check 2>&1 | findstr /C:"error[E" # Detailed Type check(Only use it when you need that. when use this, always add filter logic, like `cargo check 2>&1 | Select-String "error\[E" | Select-Object -First 10`)
 ```   
 
 4. **Run commands**:

@@ -52,106 +52,50 @@ impl Planner for SubgraphPlanner {
         println!("Processing SUBGRAPH query planning: {:?}", subgraph_ctx);
 
         // 1. 创建参数节点，获取起始顶点
-        let mut arg_node = Argument::new(1, &subgraph_ctx.from.user_defined_var_name);
-        arg_node.set_col_names(vec!["start_vid".to_string()]);
-        arg_node.set_output_var(Variable {
-            name: "start_vids".to_string(),
-            columns: vec![],
-        });
-        let arg_node = Arc::new(arg_node);
+        let arg_node = Arc::new(Argument::new(1, &subgraph_ctx.from.user_defined_var_name));
 
         // 2. 创建扩展节点进行子图扩展
-        let mut expand_node = Expand::new(2, 1, subgraph_ctx.edge_types.clone(), "out");
-        expand_node.add_dependency(arg_node.clone_plan_node());
-        expand_node.set_output_var(Variable {
-            name: "expanded_subgraph".to_string(),
-            columns: vec![],
-        });
-
-        // 设置边类型
-        expand_node.edge_types = subgraph_ctx.edge_types.clone();
-
-        // 如果需要双向扩展
-        if subgraph_ctx.bi_direct_edge_types.len() > 0 {
-            expand_node
-                .edge_types
-                .extend(subgraph_ctx.bi_direct_edge_types.clone());
-        }
-        let expand_node = Arc::new(expand_node);
+        let expand_node = Arc::new(Expand::new(2, subgraph_ctx.edge_types.clone(), "out"));
 
         // 3. 创建ExpandAll节点进行多步扩展
-        let mut expand_all_node = ExpandAll::new(3, 1, subgraph_ctx.edge_types.clone(), "out");
-        expand_all_node.add_dependency(expand_node.clone_plan_node());
-        expand_all_node.set_output_var(Variable {
-            name: "expanded_all_subgraph".to_string(),
-            columns: vec![],
-        });
-
-        // 设置边属性和顶点属性
-        expand_all_node.edge_props = subgraph_ctx
-            .expr_props
-            .edge_props
-            .iter()
-            .map(|(edge_type, props)| EdgeProp::new(edge_type, props.clone()))
-            .collect();
-
-        expand_all_node.vertex_props = subgraph_ctx
-            .expr_props
-            .src_tag_props
-            .iter()
-            .map(|(tag, props)| TagProp::new(tag, props.clone()))
-            .collect();
-        let expand_all_node = Arc::new(expand_all_node);
+        let expand_all_node = Arc::new(ExpandAll::new(3, subgraph_ctx.edge_types.clone(), "out"));
 
         // 4. 创建过滤节点（如果有过滤条件）
         let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
             if let Some(ref condition) = subgraph_ctx.filter {
-                let mut filter = Filter::new(4, condition);
-                filter.add_dependency(expand_all_node.clone_plan_node());
-                filter.set_output_var(Variable {
-                    name: "filtered_subgraph".to_string(),
-                    columns: vec![],
-                });
-                Arc::new(filter)
+                match Filter::new(expand_all_node.clone(), crate::graph::expression::Expression::Variable(condition.clone())) {
+                    Ok(node) => Arc::new(node),
+                    Err(_) => expand_all_node.clone(),
+                }
             } else {
-                expand_all_node
+                expand_all_node.clone()
             };
 
         // 5. 如果有标签过滤，添加额外过滤
         let tag_filter_node = if let Some(ref tag_condition) = subgraph_ctx.tag_filter {
-            let mut filter = Filter::new(5, tag_condition);
-            filter.add_dependency(filter_node.clone_plan_node());
-            filter.set_output_var(Variable {
-                name: "tag_filtered_subgraph".to_string(),
-                columns: vec![],
-            });
-            Arc::new(filter)
+            match Filter::new(filter_node.clone(), crate::graph::expression::Expression::Variable(tag_condition.clone())) {
+                Ok(node) => Arc::new(node),
+                Err(_) => filter_node.clone(),
+            }
         } else {
             filter_node
         };
 
         // 6. 如果有边过滤，添加额外过滤
         let edge_filter_node = if let Some(ref edge_condition) = subgraph_ctx.edge_filter {
-            let mut filter = Filter::new(6, edge_condition);
-            filter.add_dependency(tag_filter_node.clone_plan_node());
-            filter.set_output_var(Variable {
-                name: "edge_filtered_subgraph".to_string(),
-                columns: vec![],
-            });
-            Arc::new(filter)
+            match Filter::new(tag_filter_node.clone(), crate::graph::expression::Expression::Variable(edge_condition.clone())) {
+                Ok(node) => Arc::new(node),
+                Err(_) => tag_filter_node.clone(),
+            }
         } else {
             tag_filter_node
         };
 
         // 7. 创建投影节点
-        let mut project_node = Project::new(7, &"DEFAULT".to_string());
-        project_node.add_dependency(edge_filter_node.clone_plan_node());
-        project_node.set_output_var(Variable {
-            name: "projected_subgraph".to_string(),
-            columns: vec![],
-        });
-        project_node.set_col_names(subgraph_ctx.col_names.clone());
-        let project_node = Arc::new(project_node);
+        let project_node = match Project::new(edge_filter_node.clone(), vec![]) {
+            Ok(node) => Arc::new(node),
+            Err(_) => edge_filter_node.clone(),
+        };
 
         // 8. 如果需要返回属性，设置属性获取
         if subgraph_ctx.get_vertex_prop {
@@ -163,10 +107,7 @@ impl Planner for SubgraphPlanner {
         }
 
         // 创建SubPlan
-        let sub_plan = SubPlan {
-            root: Some(project_node.clone_plan_node()),
-            tail: Some(arg_node.clone_plan_node()),
-        };
+        let sub_plan = SubPlan::new(Some(project_node.clone_plan_node()), Some(arg_node));
 
         Ok(sub_plan)
     }

@@ -262,6 +262,11 @@ impl TraverseNode {
             cost: 0.0,
         }
     }
+
+    /// 获取过滤条件
+    pub fn filter(&self) -> Option<&String> {
+        self.filter.as_ref()
+    }
 }
 
 impl PlanNodeIdentifiable for TraverseNode {
@@ -376,6 +381,11 @@ impl AppendVerticesNode {
     /// 获取标签ID列表
     pub fn tag_ids(&self) -> &[i32] {
         &self.tag_ids
+    }
+
+    /// 获取过滤条件
+    pub fn filter(&self) -> Option<&String> {
+        self.filter.as_ref()
     }
 }
 

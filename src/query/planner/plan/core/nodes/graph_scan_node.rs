@@ -498,6 +498,11 @@ impl ScanEdgesNode {
     pub fn limit(&self) -> Option<i64> {
         self.limit
     }
+
+    /// 获取过滤条件
+    pub fn filter(&self) -> Option<&String> {
+        self.filter.as_ref()
+    }
 }
 
 impl PlanNodeIdentifiable for ScanEdgesNode {
