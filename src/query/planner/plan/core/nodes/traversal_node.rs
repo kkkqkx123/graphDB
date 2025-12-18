@@ -362,6 +362,21 @@ impl AppendVerticesNode {
             cost: 0.0,
         }
     }
+
+    /// 获取空间ID
+    pub fn space_id(&self) -> i32 {
+        self.space_id
+    }
+
+    /// 获取顶点ID列表
+    pub fn vids(&self) -> &[Value] {
+        &self.vids
+    }
+
+    /// 获取标签ID列表
+    pub fn tag_ids(&self) -> &[i32] {
+        &self.tag_ids
+    }
 }
 
 impl PlanNodeIdentifiable for AppendVerticesNode {

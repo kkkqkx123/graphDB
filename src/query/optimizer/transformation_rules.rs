@@ -35,18 +35,18 @@ impl OptRule for TopNRule {
                     if let Some(limit_plan_node) =
                         node.plan_node
                             .as_any()
-                            .downcast_ref::<crate::query::planner::plan::operations::Limit>()
+                            .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>()
                     {
                         if let Some(sort_plan_node) = child_node
                             .plan_node
                             .as_any()
-                            .downcast_ref::<crate::query::planner::plan::operations::Sort>(
+                            .downcast_ref::<crate::query::planner::plan::core::nodes::SortNode>(
                         ) {
                             // 创建新的OptGroupNode
                             let mut new_node = child_node.clone(); // 从Sort节点克隆
 
                             // 创建TopN节点并设置输出变量
-                            let mut topn_node = crate::query::planner::plan::operations::TopN::new(
+                            let mut topn_node = crate::query::planner::plan::core::nodes::TopNNode::new(
                                 node.plan_node.id(),               // 使用Limit节点的ID
                                 sort_plan_node.sort_items.clone(), // 使用Sort的排序项
                                 limit_plan_node.count(), // 使用Limit的计数值作为TopN的限制

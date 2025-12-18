@@ -54,6 +54,16 @@ impl GetVerticesNode {
         self.expr.is_some()
     }
 
+    /// 获取空间ID
+    pub fn space_id(&self) -> i32 {
+        self.space_id
+    }
+
+    /// 获取源顶点ID
+    pub fn src_vids(&self) -> &str {
+        &self.src_vids
+    }
+
     /// 设置标签属性
     pub fn set_tag_props(&mut self, tag_props: Vec<TagProp>) {
         self.tag_props = tag_props;
@@ -156,6 +166,31 @@ impl GetEdgesNode {
 
     pub fn has_effective_filter(&self) -> bool {
         self.expr.is_some()
+    }
+
+    /// 获取空间ID
+    pub fn space_id(&self) -> i32 {
+        self.space_id
+    }
+
+    /// 获取源顶点
+    pub fn src(&self) -> &str {
+        &self.src
+    }
+
+    /// 获取边类型
+    pub fn edge_type(&self) -> &str {
+        &self.edge_type
+    }
+
+    /// 获取排名
+    pub fn rank(&self) -> &str {
+        &self.rank
+    }
+
+    /// 获取目标顶点
+    pub fn dst(&self) -> &str {
+        &self.dst
     }
 }
 
@@ -340,6 +375,11 @@ impl ScanVerticesNode {
         self.tag_filter.is_some() || self.vertex_filter.is_some()
     }
 
+    /// 获取空间ID
+    pub fn space_id(&self) -> i32 {
+        self.space_id
+    }
+
     /// 获取标签过滤器
     pub fn tag_filter(&self) -> &Option<String> {
         &self.tag_filter
@@ -442,6 +482,11 @@ impl ScanEdgesNode {
 
     pub fn has_effective_filter(&self) -> bool {
         self.filter.is_some()
+    }
+
+    /// 获取空间ID
+    pub fn space_id(&self) -> i32 {
+        self.space_id
     }
 
     /// 获取边类型

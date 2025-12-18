@@ -71,6 +71,10 @@ pub trait PlanNodeVisitor: std::fmt::Debug {
         Ok(())
     }
 
+    fn visit_topn(&mut self, _node: &TopNNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
     fn visit_data_collect(&mut self, _node: &DataCollectNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
@@ -114,7 +118,27 @@ pub trait PlanNodeVisitor: std::fmt::Debug {
         Ok(())
     }
 
+    fn visit_placeholder(&mut self, _node: &PlaceholderNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_select(&mut self, _node: &SelectNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_loop(&mut self, _node: &LoopNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_pass_through(&mut self, _node: &PassThroughNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
     fn visit_hash_left_join(&mut self, _node: &InnerJoinNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_left_join(&mut self, _node: &LeftJoinNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
@@ -310,6 +334,10 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
 
+    fn visit_topn(&mut self, _node: &TopNNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
     fn visit_data_collect(&mut self, _node: &DataCollectNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
@@ -353,7 +381,27 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
 
+    fn visit_placeholder(&mut self, _node: &PlaceholderNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_select(&mut self, _node: &SelectNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_loop(&mut self, _node: &LoopNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_pass_through(&mut self, _node: &PassThroughNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
     fn visit_hash_left_join(&mut self, _node: &InnerJoinNode) -> Result<(), PlanNodeVisitError> {
+        Ok(())
+    }
+
+    fn visit_left_join(&mut self, _node: &LeftJoinNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 

@@ -7,7 +7,7 @@ use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
 use crate::query::planner::plan::core::plan_node_traits::{
     PlanNodeClonable, PlanNodeDependencies, PlanNodeMutable,
 };
-use crate::query::planner::plan::operations::{Argument, Expand, ExpandAll, Filter, Project};
+use crate::query::planner::plan::core::nodes::{ArgumentNode as Argument, ExpandNode as Expand, ExpandAllNode as ExpandAll, FilterNode as Filter, ProjectNode as Project};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;

@@ -10,6 +10,7 @@ use crate::query::planner::plan::core::plan_node_traits::{
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::plan::core::nodes::{ArgumentNode, DedupNode, FilterNode, GetEdgesNode, ProjectNode};
 use crate::query::planner::planner::{Planner, PlannerError};
+use crate::graph::expression::Expression;
 use std::sync::Arc;
 
 /// FETCH EDGES查询规划器
@@ -52,7 +53,7 @@ impl Planner for FetchEdgesPlanner {
         println!("Processing FETCH EDGES query planning: {:?}", fetch_ctx);
 
         // 1. 创建参数节点，获取边的条件
-        let mut arg_node = Arc::new(Argument::new(1, &fetch_ctx.input_var_name));
+        let mut arg_node: Arc<ArgumentNode> = Arc::new(ArgumentNode::new(1, &fetch_ctx.input_var_name));
         std::sync::Arc::get_mut(&mut arg_node)
             .unwrap()
             .set_col_names(vec!["edge_condition".to_string()]);
@@ -64,9 +65,8 @@ impl Planner for FetchEdgesPlanner {
             });
 
         // 2. 创建获取边的节点
-        let mut get_edges_node = Arc::new(GetEdges::new(
-            2,
-            1,
+        let mut get_edges_node: Arc<GetEdgesNode> = Arc::new(GetEdgesNode::new(
+            1, // space_id
             &fetch_ctx.src.clone().unwrap_or_default(),
             &fetch_ctx.edge_type.clone().unwrap_or_default(),
             &fetch_ctx.rank.clone().unwrap_or_default(),
@@ -93,7 +93,7 @@ impl Planner for FetchEdgesPlanner {
         }
 
         // 3. 创建过滤空边的节点
-        let mut filter_node = Arc::new(Filter::new(
+        let mut filter_node: Arc<FilterNode> = Arc::new(FilterNode::new(
             3,
             &format!("{} IS NOT EMPTY", fetch_ctx.edge_name),
         ));
@@ -108,7 +108,7 @@ impl Planner for FetchEdgesPlanner {
             });
 
         // 4. 创建投影节点
-        let mut project_node = Arc::new(Project::new(
+        let mut project_node: Arc<ProjectNode> = Arc::new(ProjectNode::new(
             4,
             &fetch_ctx.yield_expr.clone().unwrap_or("*".to_string()),
         ));
@@ -139,7 +139,7 @@ impl Planner for FetchEdgesPlanner {
         // 5. 如果需要去重，创建去重节点
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if fetch_ctx.distinct
         {
-            let mut dedup_node = Arc::new(Dedup::new(5));
+            let mut dedup_node: Arc<DedupNode> = Arc::new(DedupNode::new(5));
             std::sync::Arc::get_mut(&mut dedup_node)
                 .unwrap()
                 .add_dependency(project_node.clone_plan_node());

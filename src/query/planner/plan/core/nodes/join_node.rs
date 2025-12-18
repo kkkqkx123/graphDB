@@ -308,7 +308,7 @@ impl PlanNodeClonable for LeftJoinNode {
 impl PlanNodeVisitable for LeftJoinNode {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.pre_visit()?;
-        visitor.visit_hash_left_join(self)?;
+        visitor.visit_left_join(self)?;
         visitor.post_visit()?;
         Ok(())
     }

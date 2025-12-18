@@ -19,7 +19,7 @@ pub use start_node::StartNode;
 pub use placeholder_node::PlaceholderNode;
 pub use factory::PlanNodeFactory;
 pub use aggregate_node::AggregateNode;
-pub use sort_node::{SortNode, LimitNode};
+pub use sort_node::{SortNode, LimitNode, TopNNode};
 pub use graph_scan_node::{
     GetVerticesNode, GetEdgesNode, GetNeighborsNode,
     ScanVerticesNode, ScanEdgesNode

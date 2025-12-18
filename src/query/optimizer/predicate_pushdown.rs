@@ -8,11 +8,11 @@ use super::rule_traits::{
 };
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::algorithms::IndexScan;
-use crate::query::planner::plan::operations::Expand;
-use crate::query::planner::plan::operations::Filter as FilterPlanNode;
-use crate::query::planner::plan::operations::ScanEdges;
-use crate::query::planner::plan::operations::ScanVertices;
-use crate::query::planner::plan::operations::Traverse;
+use crate::query::planner::plan::core::nodes::ExpandNode as Expand;
+use crate::query::planner::plan::core::nodes::FilterNode as FilterPlanNode;
+use crate::query::planner::plan::core::nodes::ScanEdgesNode as ScanEdges;
+use crate::query::planner::plan::core::nodes::ScanVerticesNode as ScanVertices;
+use crate::query::planner::plan::core::nodes::TraverseNode as Traverse;
 use crate::query::planner::plan::PlanNodeKind;
 
 /// 通用过滤条件下推规则
