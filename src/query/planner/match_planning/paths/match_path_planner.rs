@@ -339,11 +339,6 @@ impl MatchPathPlanner {
     }
 }
 
-/// 创建空节点
-fn create_empty_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
-    // 创建一个空的计划节点作为占位符
-    Ok(PlanNodeFactory::create_start_node()?)
-}
 
 #[cfg(test)]
 mod tests {
@@ -529,18 +524,6 @@ mod tests {
         assert!(subplan.root.is_some());
     }
 
-    #[test]
-    fn test_create_empty_node() {
-        let result = create_empty_node();
-
-        // 创建空节点应该成功
-        assert!(result.is_ok());
-
-        let node = result.unwrap();
-        assert_eq!(node.kind(), PlanNodeKind::Start);
-        assert_eq!(node.id(), -1);
-        assert_eq!(node.dependencies().len(), 0);
-    }
 
     #[test]
     fn test_path_with_labels() {

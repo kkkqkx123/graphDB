@@ -9,7 +9,6 @@ use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
-use crate::query::planner::match_planning::utils::node_factory::create_start_node;
 use std::sync::Arc;
 
 /// 顶点查找类型

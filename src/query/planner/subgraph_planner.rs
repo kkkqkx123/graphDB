@@ -50,6 +50,3 @@ impl Planner for SubgraphPlanner {
 }
 
 // Helper function to create an empty start node
-fn create_empty_node() -> Result<Arc<dyn super::plan::PlanNode>, PlannerError> {
-    Ok(PlanNodeFactory::create_placeholder_node()?)
-}

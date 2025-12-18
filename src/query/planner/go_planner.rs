@@ -2,7 +2,6 @@
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::plan::PlanNodeKind;
 use crate::query::planner::plan::SubPlan;
 use std::sync::Arc;
 
@@ -51,7 +50,3 @@ impl Planner for GoPlanner {
     }
 }
 
-// Helper function to create an empty start node
-fn create_empty_node() -> Result<Arc<dyn super::plan::PlanNode>, PlannerError> {
-    Ok(PlanNodeFactory::create_placeholder_node()?)
-}

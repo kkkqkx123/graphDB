@@ -43,31 +43,8 @@ pub use clauses::yield_planner::YieldClausePlanner;
 
 // 重新导出辅助工具模块的主要类型
 pub use utils::finder::{Finder, FinderResult};
-pub use utils::node_factory::{create_start_node, create_nested_start_node, create_empty_node};
 pub use utils::connection_strategy::{
     ConnectionType, ConnectionStrategy, UnifiedConnector,
     InnerJoinStrategy, LeftJoinStrategy, CartesianStrategy, SequentialStrategy,
     PatternApplyStrategy, RollUpApplyStrategy,
 };
-
-// 为了向后兼容，保留一些旧的导出（已废弃）
-#[deprecated(note = "使用 Finder 替代")]
-pub use utils::finder::Finder as ArgumentFinder;
-
-#[deprecated(note = "使用 Finder 替代")]
-pub use utils::finder::Finder as StartVidFinder;
-
-#[deprecated(note = "使用 VertexSeek 替代")]
-pub use seeks::vertex_seek::VertexSeek as VertexIdSeek;
-
-#[deprecated(note = "使用 VertexSeek 替代")]
-pub use seeks::vertex_seek::VertexSeek as VariableVertexIdSeek;
-
-#[deprecated(note = "使用 IndexSeek 替代")]
-pub use seeks::index_seek::IndexSeek as LabelIndexSeek;
-
-#[deprecated(note = "使用 IndexSeek 替代")]
-pub use seeks::index_seek::IndexSeek as PropIndexSeek;
-
-#[deprecated(note = "使用 IndexSeek 替代")]
-pub use seeks::index_seek::IndexSeek as VariablePropIndexSeek;

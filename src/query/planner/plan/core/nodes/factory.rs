@@ -9,6 +9,7 @@ use super::project_node::ProjectNode;
 use super::start_node::StartNode;
 use super::traits::PlanNode;
 use crate::query::parser::ast::expr::Expr;
+use crate::query::parser::expressions::convert_ast_to_graph_expression;
 use crate::query::validator::YieldColumn;
 use std::sync::Arc;
 
@@ -23,7 +24,10 @@ impl PlanNodeFactory {
         input: Arc<dyn PlanNode>,
         condition: Expr,
     ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(FilterNode::new(input, condition)?))
+        // 将 Expr 转换为 Expression
+        let expr = convert_ast_to_graph_expression(&condition)
+            .map_err(|e| crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string()))?;
+        Ok(Arc::new(FilterNode::new(input, expr)?))
     }
 
     /// 创建投影节点
@@ -41,8 +45,26 @@ impl PlanNodeFactory {
         hash_keys: Vec<Expr>,
         probe_keys: Vec<Expr>,
     ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+        // 将 Expr 转换为 Expression
+        let hash_keys_expr: Result<Vec<_>, _> = hash_keys
+            .iter()
+            .map(|e| convert_ast_to_graph_expression(e))
+            .collect();
+        let hash_keys_expr =
+            hash_keys_expr.map_err(|e| crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string()))?;
+
+        let probe_keys_expr: Result<Vec<_>, _> = probe_keys
+            .iter()
+            .map(|e| convert_ast_to_graph_expression(e))
+            .collect();
+        let probe_keys_expr =
+            probe_keys_expr.map_err(|e| crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string()))?;
+
         Ok(Arc::new(InnerJoinNode::new(
-            left, right, hash_keys, probe_keys,
+            left,
+            right,
+            hash_keys_expr,
+            probe_keys_expr,
         )?))
     }
 

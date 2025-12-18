@@ -9,9 +9,8 @@ use super::traits::{
 };
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
-use crate::query::parser::ast::expr::Expr;
+use crate::graph::expression::Expression;
 use std::sync::Arc;
-use std::cell::RefCell;
 
 
 /// 过滤节点
@@ -22,7 +21,7 @@ pub struct FilterNode {
     id: i64,
     input: Arc<dyn PlanNode>,
     deps: Vec<Arc<dyn PlanNode>>, // 添加这个字段以满足PlanNodeDependencies trait
-    condition: Expr,
+    condition: Expression,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -32,7 +31,7 @@ impl FilterNode {
     /// 创建新的过滤节点
     pub fn new(
         input: Arc<dyn PlanNode>,
-        condition: Expr,
+        condition: Expression,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
@@ -50,7 +49,7 @@ impl FilterNode {
     }
 
     /// 获取过滤条件
-    pub fn condition(&self) -> &Expr {
+    pub fn condition(&self) -> &Expression {
         &self.condition
     }
 }
@@ -150,8 +149,7 @@ impl PlanNode for FilterNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::ast::expr::{Expr, VariableExpr};
-    use crate::query::parser::ast::types::Span;
+    use crate::graph::expression::Expression;
     
     #[test]
     fn test_filter_node_creation() {
@@ -159,7 +157,7 @@ mod tests {
         let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         let start_node = Arc::new(start_node);
         
-        let condition = Expr::Variable(VariableExpr::new("test".to_string(), Span::default()));
+        let condition = Expression::Variable("test".to_string());
         let filter_node = FilterNode::new(start_node, condition).unwrap();
         
         assert_eq!(filter_node.kind(), PlanNodeKind::Filter);
@@ -170,18 +168,20 @@ mod tests {
     fn test_filter_node_dependencies() {
         let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         let start_node = Arc::new(start_node);
+        let start_node_id = start_node.id();
         
-        let condition = Expr::Variable(VariableExpr::new("test".to_string(), Span::default()));
+        let condition = Expression::Variable("test".to_string());
         let mut filter_node = FilterNode::new(start_node, condition).unwrap();
         
         // 测试依赖管理
         assert_eq!(filter_node.dependency_count(), 1);
-        assert!(filter_node.has_dependency(start_node.id()));
+        assert!(filter_node.has_dependency(start_node_id));
         
         // 测试替换依赖
         let new_start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         let new_start_node = Arc::new(new_start_node);
-        filter_node.replace_dependencies(vec![new_start_node.clone()]);
+        filter_node.dependencies_mut().clear();
+        filter_node.dependencies_mut().push(new_start_node.clone());
         
         assert_eq!(filter_node.dependency_count(), 1);
         assert!(filter_node.has_dependency(new_start_node.id()));

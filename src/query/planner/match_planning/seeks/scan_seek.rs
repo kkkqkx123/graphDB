@@ -48,9 +48,3 @@ impl ScanSeek {
     }
 }
 
-/// 创建起始节点
-fn create_start_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
-    use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-
-    Ok(PlanNodeFactory::create_placeholder_node()?)
-}

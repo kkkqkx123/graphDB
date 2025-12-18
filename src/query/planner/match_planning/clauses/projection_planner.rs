@@ -10,7 +10,6 @@ use crate::query::planner::match_planning::utils::connection_strategy::UnifiedCo
 use super::where_clause_planner::WhereClausePlanner;
 use super::yield_planner::YieldClausePlanner;
 use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
-use crate::query::planner::match_planning::utils::node_factory::create_empty_node;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{

@@ -9,7 +9,7 @@ use super::traits::{
 };
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
-use crate::query::parser::ast::expr::Expr;
+use crate::graph::expression::Expression;
 use std::sync::Arc;
 
 
@@ -21,8 +21,8 @@ pub struct InnerJoinNode {
     id: i64,
     left: Arc<dyn PlanNode>,
     right: Arc<dyn PlanNode>,
-    hash_keys: Vec<Expr>,
-    probe_keys: Vec<Expr>,
+    hash_keys: Vec<Expression>,
+    probe_keys: Vec<Expression>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -35,8 +35,8 @@ impl InnerJoinNode {
     pub fn new(
         left: Arc<dyn PlanNode>,
         right: Arc<dyn PlanNode>,
-        hash_keys: Vec<Expr>,
-        probe_keys: Vec<Expr>,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
@@ -57,12 +57,12 @@ impl InnerJoinNode {
     }
     
     /// 获取哈希键
-    pub fn hash_keys(&self) -> &[Expr] {
+    pub fn hash_keys(&self) -> &[Expression] {
         &self.hash_keys
     }
     
     /// 获取探测键
-    pub fn probe_keys(&self) -> &[Expr] {
+    pub fn probe_keys(&self) -> &[Expression] {
         &self.probe_keys
     }
 }
@@ -171,18 +171,17 @@ impl PlanNode for InnerJoinNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::ast::expr::{Expr, VariableExpr};
-    use crate::query::parser::ast::types::Span;
+    use crate::graph::expression::Expression;
     
     #[test]
     fn test_inner_join_node_creation() {
-        let left_node = super::start_node::StartNode::new();
-        let right_node = super::start_node::StartNode::new();
+        let left_node = crate::query::planner::plan::core::StartNode::new();
+        let right_node = crate::query::planner::plan::core::StartNode::new();
         let left_node = Arc::new(left_node);
         let right_node = Arc::new(right_node);
         
-        let hash_keys = vec![Expr::Variable(VariableExpr::new("key".to_string(), Span::default()))];
-        let probe_keys = vec![Expr::Variable(VariableExpr::new("key".to_string(), Span::default()))];
+        let hash_keys = vec![Expression::Variable("key".to_string())];
+        let probe_keys = vec![Expression::Variable("key".to_string())];
         
         let join_node = InnerJoinNode::new(
             left_node,
@@ -199,13 +198,13 @@ mod tests {
     
     #[test]
     fn test_inner_join_node_dependencies() {
-        let left_node = super::start_node::StartNode::new();
-        let right_node = super::start_node::StartNode::new();
+        let left_node = crate::query::planner::plan::core::StartNode::new();
+        let right_node = crate::query::planner::plan::core::StartNode::new();
         let left_node = Arc::new(left_node);
         let right_node = Arc::new(right_node);
         
-        let hash_keys = vec![Expr::Variable(VariableExpr::new("key".to_string(), Span::default()))];
-        let probe_keys = vec![Expr::Variable(VariableExpr::new("key".to_string(), Span::default()))];
+        let hash_keys = vec![Expression::Variable("key".to_string())];
+        let probe_keys = vec![Expression::Variable("key".to_string())];
         
         let mut join_node = InnerJoinNode::new(
             left_node.clone(),
@@ -220,12 +219,14 @@ mod tests {
         assert!(join_node.has_dependency(right_node.id()));
         
         // 测试替换依赖
-        let new_left_node = super::start_node::StartNode::new();
-        let new_right_node = super::start_node::StartNode::new();
+        let new_left_node = crate::query::planner::plan::core::StartNode::new();
+        let new_right_node = crate::query::planner::plan::core::StartNode::new();
         let new_left_node = Arc::new(new_left_node);
         let new_right_node = Arc::new(new_right_node);
         
-        join_node.replace_dependencies(vec![new_left_node.clone(), new_right_node.clone()]);
+        join_node.dependencies_mut().clear();
+        join_node.dependencies_mut().push(new_left_node.clone());
+        join_node.dependencies_mut().push(new_right_node.clone());
         
         assert_eq!(join_node.dependency_count(), 2);
         assert!(join_node.has_dependency(new_left_node.id()));

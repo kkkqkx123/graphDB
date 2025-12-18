@@ -46,10 +46,3 @@ impl ShortestPathPlanner {
     }
 }
 
-/// 创建空节点
-fn create_empty_node() -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
-    use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-
-    // 创建一个空的计划节点作为占位符
-    Ok(PlanNodeFactory::create_placeholder_node()?)
-}

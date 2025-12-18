@@ -1,19 +1,20 @@
 //! 投影节点实现
-//! 
+//!
 //! ProjectNode 用于根据指定的列表达式投影输入数据流
 
 use super::super::plan_node_kind::PlanNodeKind;
-use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
-    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
-};
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+use super::traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+    PlanNodeProperties, PlanNodeVisitable,
+};
+use crate::graph::expression::Expression;
 use crate::query::context::validate::types::Variable;
 use crate::query::validator::YieldColumn;
 use std::sync::Arc;
 
 /// 投影节点
-/// 
+///
 /// 根据指定的列表达式投影输入数据流
 #[derive(Debug, Clone)]
 pub struct ProjectNode {
@@ -32,9 +33,7 @@ impl ProjectNode {
         input: Arc<dyn PlanNode>,
         columns: Vec<YieldColumn>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
-        let col_names: Vec<String> = columns.iter()
-            .map(|col| col.alias.clone())
-            .collect();
+        let col_names: Vec<String> = columns.iter().map(|col| col.alias.clone()).collect();
 
         let mut dependencies_vec = Vec::new();
         dependencies_vec.push(input.clone());
@@ -49,7 +48,7 @@ impl ProjectNode {
             dependencies_vec,
         })
     }
-    
+
     /// 获取投影列
     pub fn columns(&self) -> &[YieldColumn] {
         &self.columns
@@ -57,14 +56,24 @@ impl ProjectNode {
 }
 
 impl PlanNodeIdentifiable for ProjectNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::Project }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::Project
+    }
 }
 
 impl PlanNodeProperties for ProjectNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for ProjectNode {
@@ -102,7 +111,9 @@ impl PlanNodeDependencies for ProjectNode {
 }
 
 impl PlanNodeMutable for ProjectNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
@@ -117,7 +128,11 @@ impl PlanNodeClonable for ProjectNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies_vec: self.dependencies_vec.iter().map(|dep| dep.clone_plan_node()).collect(),
+            dependencies_vec: self
+                .dependencies_vec
+                .iter()
+                .map(|dep| dep.clone_plan_node())
+                .collect(),
         })
     }
 
@@ -129,7 +144,11 @@ impl PlanNodeClonable for ProjectNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies_vec: self.dependencies_vec.iter().map(|dep| dep.clone_plan_node()).collect(),
+            dependencies_vec: self
+                .dependencies_vec
+                .iter()
+                .map(|dep| dep.clone_plan_node())
+                .collect(),
         })
     }
 }
@@ -144,53 +163,56 @@ impl PlanNodeVisitable for ProjectNode {
 }
 
 impl PlanNode for ProjectNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::ast::expr::{Expr, VariableExpr};
-    use crate::query::parser::ast::types::Span;
-    
+    use crate::graph::expression::Expression;
+
     #[test]
     fn test_project_node_creation() {
         // 创建一个起始节点作为输入
         let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         let start_node = Arc::new(start_node);
-        
+
         let columns = vec![YieldColumn {
-            expr: Expr::Variable(VariableExpr::new("test".to_string(), Span::default())),
+            expr: Expression::Variable("test".to_string()),
             alias: "test".to_string(),
+            is_matched: false,
         }];
-        
+
         let project_node = ProjectNode::new(start_node, columns).unwrap();
-        
+
         assert_eq!(project_node.kind(), PlanNodeKind::Project);
         assert_eq!(project_node.dependencies().len(), 1);
         assert_eq!(project_node.col_names().len(), 1);
         assert_eq!(project_node.col_names()[0], "test");
     }
-    
+
     #[test]
     fn test_project_node_columns() {
         let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         let start_node = Arc::new(start_node);
-        
+
         let columns = vec![
             YieldColumn {
-                expr: Expr::Variable(VariableExpr::new("name".to_string(), Span::default())),
+                expr: Expression::Variable("name".to_string()),
                 alias: "name".to_string(),
+                is_matched: false,
             },
             YieldColumn {
-                expr: Expr::Variable(VariableExpr::new("age".to_string(), Span::default())),
+                expr: Expression::Variable("age".to_string()),
                 alias: "age".to_string(),
+                is_matched: false,
             },
         ];
-        
+
         let project_node = ProjectNode::new(start_node, columns).unwrap();
-        
+
         assert_eq!(project_node.columns().len(), 2);
         assert_eq!(project_node.columns()[0].alias, "name");
         assert_eq!(project_node.columns()[1].alias, "age");
