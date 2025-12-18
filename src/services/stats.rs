@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use crate::utils::{safe_lock, expect_min, expect_max};
+use crate::core::error::DBError;
 
 /// Statistics counter for a specific metric
 #[derive(Debug, Clone)]
@@ -23,18 +25,21 @@ impl Counter {
         }
     }
 
-    pub fn inc(&self) {
-        let mut val = self.value.lock().unwrap();
+    pub fn inc(&self) -> Result<(), DBError> {
+        let mut val = safe_lock(&self.value)?;
         *val += 1;
+        Ok(())
     }
 
-    pub fn inc_by(&self, amount: u64) {
-        let mut val = self.value.lock().unwrap();
+    pub fn inc_by(&self, amount: u64) -> Result<(), DBError> {
+        let mut val = safe_lock(&self.value)?;
         *val += amount;
+        Ok(())
     }
 
-    pub fn get(&self) -> u64 {
-        *self.value.lock().unwrap()
+    pub fn get(&self) -> Result<u64, DBError> {
+        let val = safe_lock(&self.value)?;
+        Ok(*val)
     }
 }
 
@@ -58,13 +63,15 @@ impl Gauge {
         }
     }
 
-    pub fn set(&self, value: f64) {
-        let mut val = self.value.lock().unwrap();
+    pub fn set(&self, value: f64) -> Result<(), DBError> {
+        let mut val = safe_lock(&self.value)?;
         *val = value;
+        Ok(())
     }
 
-    pub fn get(&self) -> f64 {
-        *self.value.lock().unwrap()
+    pub fn get(&self) -> Result<f64, DBError> {
+        let val = safe_lock(&self.value)?;
+        Ok(*val)
     }
 }
 
@@ -94,26 +101,27 @@ impl Histogram {
         }
     }
 
-    pub fn observe(&self, value: f64) {
-        let mut vals = self.value.lock().unwrap();
+    pub fn observe(&self, value: f64) -> Result<(), DBError> {
+        let mut vals = safe_lock(&self.value)?;
         vals.push(value);
-        let mut sum = self.sum.lock().unwrap();
+        let mut sum = safe_lock(&self.sum)?;
         *sum += value;
 
         // Update bucket counts
-        let mut counts = self.counts.lock().unwrap();
+        let mut counts = safe_lock(&self.counts)?;
         for (i, &bucket) in self.buckets.iter().enumerate() {
             if value <= bucket {
                 counts[i] += 1;
             }
         }
+        Ok(())
     }
 
-    pub fn get_summary(&self) -> (f64, f64, Vec<(f64, u64)>) {
+    pub fn get_summary(&self) -> Result<(f64, f64, Vec<(f64, u64)>), DBError> {
         // (avg, sum, bucket_counts)
-        let vals = self.value.lock().unwrap();
-        let sum = *self.sum.lock().unwrap();
-        let counts = self.counts.lock().unwrap();
+        let vals = safe_lock(&self.value)?;
+        let sum = *safe_lock(&self.sum)?;
+        let counts = safe_lock(&self.counts)?;
 
         let avg = if vals.len() > 0 {
             sum / vals.len() as f64
@@ -128,7 +136,7 @@ impl Histogram {
             .map(|(bucket, &count)| (*bucket, count))
             .collect();
 
-        (avg, sum, bucket_counts)
+        Ok((avg, sum, bucket_counts))
     }
 }
 
@@ -152,9 +160,10 @@ impl Timer {
         }
     }
 
-    pub fn record(&self, duration: Duration) {
-        let mut vals = self.value.lock().unwrap();
+    pub fn record(&self, duration: Duration) -> Result<(), DBError> {
+        let mut vals = safe_lock(&self.value)?;
         vals.push(duration);
+        Ok(())
     }
 
     pub fn record_fn<F, R>(&self, f: F) -> R
@@ -168,25 +177,25 @@ impl Timer {
         result
     }
 
-    pub fn get_stats(&self) -> (Duration, Duration, Duration, usize) {
+    pub fn get_stats(&self) -> Result<(Duration, Duration, Duration, usize), DBError> {
         // (avg, min, max, count)
-        let vals = self.value.lock().unwrap();
+        let vals = safe_lock(&self.value)?;
         if vals.is_empty() {
-            return (
+            return Ok((
                 Duration::from_nanos(0),
                 Duration::from_nanos(0),
                 Duration::from_nanos(0),
                 0,
-            );
+            ));
         }
 
         let sum = vals.iter().sum::<Duration>();
         let avg = Duration::from_nanos(sum.as_nanos() as u64 / vals.len() as u64);
 
-        let min = *vals.iter().min().unwrap();
-        let max = *vals.iter().max().unwrap();
+        let min = *expect_min(vals.iter(), "Timer values should not be empty when calculating min")?;
+        let max = *expect_max(vals.iter(), "Timer values should not be empty when calculating max")?;
 
-        (avg, min, max, vals.len())
+        Ok((avg, min, max, vals.len()))
     }
 }
 
@@ -212,18 +221,18 @@ impl StatsRegistry {
         }
     }
 
-    pub fn register_counter(&self, name: &str, description: &str) -> Counter {
+    pub fn register_counter(&self, name: &str, description: &str) -> Result<Counter, DBError> {
         let counter = Counter::new(name, description);
-        let mut counters = self.counters.lock().unwrap();
+        let mut counters = safe_lock(&self.counters)?;
         counters.insert(name.to_string(), counter.clone());
-        counter
+        Ok(counter)
     }
 
-    pub fn register_gauge(&self, name: &str, description: &str) -> Gauge {
+    pub fn register_gauge(&self, name: &str, description: &str) -> Result<Gauge, DBError> {
         let gauge = Gauge::new(name, description);
-        let mut gauges = self.gauges.lock().unwrap();
+        let mut gauges = safe_lock(&self.gauges)?;
         gauges.insert(name.to_string(), gauge.clone());
-        gauge
+        Ok(gauge)
     }
 
     pub fn register_histogram(
@@ -231,73 +240,81 @@ impl StatsRegistry {
         name: &str,
         description: &str,
         buckets: Vec<f64>,
-    ) -> Histogram {
+    ) -> Result<Histogram, DBError> {
         let histogram = Histogram::new(name, description, buckets);
-        let mut histograms = self.histograms.lock().unwrap();
+        let mut histograms = safe_lock(&self.histograms)?;
         histograms.insert(name.to_string(), histogram.clone());
-        histogram
+        Ok(histogram)
     }
 
-    pub fn register_timer(&self, name: &str, description: &str) -> Timer {
+    pub fn register_timer(&self, name: &str, description: &str) -> Result<Timer, DBError> {
         let timer = Timer::new(name, description);
-        let mut timers = self.timers.lock().unwrap();
+        let mut timers = safe_lock(&self.timers)?;
         timers.insert(name.to_string(), timer.clone());
-        timer
+        Ok(timer)
     }
 
-    pub fn get_counter(&self, name: &str) -> Option<Counter> {
-        let counters = self.counters.lock().unwrap();
-        counters.get(name).cloned()
+    pub fn get_counter(&self, name: &str) -> Result<Option<Counter>, DBError> {
+        let counters = safe_lock(&self.counters)?;
+        Ok(counters.get(name).cloned())
     }
 
-    pub fn get_gauge(&self, name: &str) -> Option<Gauge> {
-        let gauges = self.gauges.lock().unwrap();
-        gauges.get(name).cloned()
+    pub fn get_gauge(&self, name: &str) -> Result<Option<Gauge>, DBError> {
+        let gauges = safe_lock(&self.gauges)?;
+        Ok(gauges.get(name).cloned())
     }
 
-    pub fn get_histogram(&self, name: &str) -> Option<Histogram> {
-        let histograms = self.histograms.lock().unwrap();
-        histograms.get(name).cloned()
+    pub fn get_histogram(&self, name: &str) -> Result<Option<Histogram>, DBError> {
+        let histograms = safe_lock(&self.histograms)?;
+        Ok(histograms.get(name).cloned())
     }
 
-    pub fn get_timer(&self, name: &str) -> Option<Timer> {
-        let timers = self.timers.lock().unwrap();
-        timers.get(name).cloned()
+    pub fn get_timer(&self, name: &str) -> Result<Option<Timer>, DBError> {
+        let timers = safe_lock(&self.timers)?;
+        Ok(timers.get(name).cloned())
     }
 
-    pub fn snapshot(&self) -> StatsSnapshot {
-        let counters = self.counters.lock().unwrap();
-        let gauges = self.gauges.lock().unwrap();
-        let histograms = self.histograms.lock().unwrap();
-        let timers = self.timers.lock().unwrap();
+    pub fn snapshot(&self) -> Result<StatsSnapshot, DBError> {
+        let counters = safe_lock(&self.counters)?;
+        let gauges = safe_lock(&self.gauges)?;
+        let histograms = safe_lock(&self.histograms)?;
+        let timers = safe_lock(&self.timers)?;
 
         let counter_values: HashMap<String, u64> = counters
             .iter()
-            .map(|(name, counter)| (name.clone(), counter.get()))
+            .filter_map(|(name, counter)| {
+                counter.get().ok().map(|value| (name.clone(), value))
+            })
             .collect();
 
         let gauge_values: HashMap<String, f64> = gauges
             .iter()
-            .map(|(name, gauge)| (name.clone(), gauge.get()))
+            .filter_map(|(name, gauge)| {
+                gauge.get().ok().map(|value| (name.clone(), value))
+            })
             .collect();
 
         let histogram_values: HashMap<String, (f64, f64, Vec<(f64, u64)>)> = histograms
             .iter()
-            .map(|(name, histogram)| (name.clone(), histogram.get_summary()))
+            .filter_map(|(name, histogram)| {
+                histogram.get_summary().ok().map(|summary| (name.clone(), summary))
+            })
             .collect();
 
         let timer_values: HashMap<String, (Duration, Duration, Duration, usize)> = timers
             .iter()
-            .map(|(name, timer)| (name.clone(), timer.get_stats()))
+            .filter_map(|(name, timer)| {
+                timer.get_stats().ok().map(|stats| (name.clone(), stats))
+            })
             .collect();
 
-        StatsSnapshot {
+        Ok(StatsSnapshot {
             counters: counter_values,
             gauges: gauge_values,
             histograms: histogram_values,
             timers: timer_values,
             snapshot_time: SystemTime::now(),
-        }
+        })
     }
 }
 
@@ -318,7 +335,7 @@ impl StatsSnapshot {
             "Snapshot time: {:?}",
             self.snapshot_time
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or(Duration::from_secs(0))
                 .as_secs()
         );
 
@@ -368,17 +385,17 @@ pub fn global_registry() -> &'static StatsRegistry {
 }
 
 /// A helper to time an async function
-pub async fn time_async<F, Fut, T>(name: &str, f: F) -> T
+pub async fn time_async<F, Fut, T>(name: &str, f: F) -> Result<T, DBError>
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = T>,
 {
-    let timer = GLOBAL_REGISTRY.register_timer(name, "Timer for async function");
+    let timer = GLOBAL_REGISTRY.register_timer(name, "Timer for async function")?;
     let start = std::time::Instant::now();
     let result = f().await;
     let duration = start.elapsed();
-    timer.record(duration);
-    result
+    timer.record(duration)?;
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -389,27 +406,27 @@ mod tests {
     #[test]
     fn test_counter() {
         let counter = Counter::new("test_counter", "A test counter");
-        counter.inc();
-        counter.inc_by(5);
-        assert_eq!(counter.get(), 6);
+        counter.inc().unwrap();
+        counter.inc_by(5).unwrap();
+        assert_eq!(counter.get().unwrap(), 6);
     }
 
     #[test]
     fn test_gauge() {
         let gauge = Gauge::new("test_gauge", "A test gauge");
-        gauge.set(3.14);
-        assert_eq!(gauge.get(), 3.14);
+        gauge.set(3.14).unwrap();
+        assert_eq!(gauge.get().unwrap(), 3.14);
     }
 
     #[test]
     fn test_histogram() {
         let histogram = Histogram::new("test_histogram", "A test histogram", vec![1.0, 2.0, 5.0]);
 
-        histogram.observe(0.5);
-        histogram.observe(1.5);
-        histogram.observe(4.0);
+        histogram.observe(0.5).unwrap();
+        histogram.observe(1.5).unwrap();
+        histogram.observe(4.0).unwrap();
 
-        let (avg, sum, bucket_counts) = histogram.get_summary();
+        let (avg, sum, bucket_counts) = histogram.get_summary().unwrap();
         assert_eq!(sum, 6.0); // 0.5 + 1.5 + 4.0
         assert!((avg - 2.0).abs() < f64::EPSILON); // 6.0 / 3
 
@@ -422,10 +439,10 @@ mod tests {
     #[test]
     fn test_timer() {
         let timer = Timer::new("test_timer", "A test timer");
-        timer.record(Duration::from_millis(100));
-        timer.record(Duration::from_millis(200));
+        timer.record(Duration::from_millis(100)).unwrap();
+        timer.record(Duration::from_millis(200)).unwrap();
 
-        let (_avg, min, max, count) = timer.get_stats();
+        let (_avg, min, max, count) = timer.get_stats().unwrap();
         assert_eq!(count, 2);
         assert_eq!(min, Duration::from_millis(100));
         assert_eq!(max, Duration::from_millis(200));
@@ -435,22 +452,22 @@ mod tests {
     async fn test_stats_registry() {
         let registry = StatsRegistry::new();
 
-        let counter = registry.register_counter("req_count", "Request count");
-        let gauge = registry.register_gauge("mem_usage", "Memory usage");
+        let counter = registry.register_counter("req_count", "Request count").unwrap();
+        let gauge = registry.register_gauge("mem_usage", "Memory usage").unwrap();
         let histogram =
-            registry.register_histogram("query_time", "Query execution time", vec![1.0, 5.0, 10.0]);
-        let timer = registry.register_timer("proc_time", "Processing time");
+            registry.register_histogram("query_time", "Query execution time", vec![1.0, 5.0, 10.0]).unwrap();
+        let timer = registry.register_timer("proc_time", "Processing time").unwrap();
 
-        counter.inc_by(5);
-        gauge.set(25.6);
-        histogram.observe(3.5);
-        timer.record(Duration::from_millis(150));
+        counter.inc_by(5).unwrap();
+        gauge.set(25.6).unwrap();
+        histogram.observe(3.5).unwrap();
+        timer.record(Duration::from_millis(150)).unwrap();
 
         // Test getting the registered stats
-        assert_eq!(registry.get_counter("req_count").unwrap().get(), 5);
-        assert!((registry.get_gauge("mem_usage").unwrap().get() - 25.6).abs() < f64::EPSILON);
+        assert_eq!(registry.get_counter("req_count").unwrap().unwrap().get().unwrap(), 5);
+        assert!((registry.get_gauge("mem_usage").unwrap().unwrap().get().unwrap() - 25.6).abs() < f64::EPSILON);
 
-        let snapshot = registry.snapshot();
+        let snapshot = registry.snapshot().unwrap();
         assert_eq!(snapshot.counters.get("req_count"), Some(&5));
         assert_eq!(snapshot.gauges.get("mem_usage"), Some(&25.6));
 
@@ -465,13 +482,13 @@ mod tests {
 
         // Clean up in case of previous tests
         {
-            let mut counters = registry.counters.lock().unwrap();
+            let mut counters = safe_lock(&registry.counters).unwrap();
             counters.clear();
         }
 
-        let counter = registry.register_counter("global_test", "Global test counter");
-        counter.inc_by(10);
+        let counter = registry.register_counter("global_test", "Global test counter").unwrap();
+        counter.inc_by(10).unwrap();
 
-        assert_eq!(registry.get_counter("global_test").unwrap().get(), 10);
+        assert_eq!(registry.get_counter("global_test").unwrap().unwrap().get().unwrap(), 10);
     }
 }

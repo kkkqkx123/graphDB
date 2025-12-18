@@ -96,6 +96,9 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                 crate::core::error::DBError::Plan(plan_err) => {
                     QueryError::ExecutionError(plan_err.to_string())
                 }
+                crate::core::error::DBError::Lock(lock_err) => {
+                    QueryError::ExecutionError(lock_err.to_string())
+                }
                 crate::core::error::DBError::Validation(msg) => QueryError::InvalidQuery(msg),
                 crate::core::error::DBError::Io(io_err) => {
                     QueryError::ExecutionError(io_err.to_string())

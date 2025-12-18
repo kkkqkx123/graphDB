@@ -8,6 +8,7 @@ use crate::query::planner::plan::core::plan_node_traits::{PlanNodeDependencies, 
 use crate::query::planner::plan::core::nodes::{ArgumentNode, DedupNode, GetVerticesNode, ProjectNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
+use crate::utils::expect_arc_mut;
 use std::sync::Arc;
 
 /// FETCH VERTICES查询规划器
@@ -51,37 +52,33 @@ impl Planner for FetchVerticesPlanner {
 
         // 1. 创建参数节点，获取顶点ID
         let mut arg_node = Arc::new(ArgumentNode::new(1, &fetch_ctx.from.user_defined_var_name));
-        Arc::get_mut(&mut arg_node)
-            .unwrap()
-            .set_col_names(vec!["vid".to_string()]);
-        Arc::get_mut(&mut arg_node)
-            .unwrap()
-            .set_output_var(Variable {
+        {
+            let arg_node_mut = expect_arc_mut(&mut arg_node, "Failed to get mutable reference to arg_node")?;
+            arg_node_mut.set_col_names(vec!["vid".to_string()]);
+            arg_node_mut.set_output_var(Variable {
                 name: "vertex_ids".to_string(),
                 columns: vec![],
             });
+        }
 
         // 2. 创建获取顶点的节点
         let mut get_vertices_node = Arc::new(GetVerticesNode::new(1, &fetch_ctx.from.user_defined_var_name));
-        Arc::get_mut(&mut get_vertices_node)
-            .unwrap()
-            .add_dependency(arg_node.clone());
-        Arc::get_mut(&mut get_vertices_node)
-            .unwrap()
-            .set_output_var(Variable {
+        {
+            let get_vertices_node_mut = expect_arc_mut(&mut get_vertices_node, "Failed to get mutable reference to get_vertices_node")?;
+            get_vertices_node_mut.add_dependency(arg_node.clone());
+            get_vertices_node_mut.set_output_var(Variable {
                 name: "fetched_vertices".to_string(),
                 columns: vec![],
             });
 
-        // 设置顶点属性
-        if let Some(node) = Arc::get_mut(&mut get_vertices_node) {
+            // 设置顶点属性
             let tag_props = fetch_ctx
                 .expr_props
                 .tag_props
                 .iter()
                 .map(|(tag, props)| TagProp::new(tag, props.clone()))
                 .collect();
-            node.set_tag_props(tag_props);
+            get_vertices_node_mut.set_tag_props(tag_props);
         }
 
         // 3. 创建投影节点
@@ -89,41 +86,39 @@ impl Planner for FetchVerticesPlanner {
             get_vertices_node.clone(),
             vec![], // 这里需要提供YieldColumn列表
         )?);
-        Arc::get_mut(&mut project_node)
-            .unwrap()
-            .add_dependency(get_vertices_node.clone());
-        let result_columns: Vec<Column> = fetch_ctx
-            .from
-            .vids
-            .iter()
-            .map(|vid| Column {
-                name: vid.clone(),
-                type_: "STRING".to_string(),
-            })
-            .collect();
-        Arc::get_mut(&mut project_node)
-            .unwrap()
-            .set_output_var(Variable {
+        {
+            let project_node_mut = expect_arc_mut(&mut project_node, "Failed to get mutable reference to project_node")?;
+            project_node_mut.add_dependency(get_vertices_node.clone());
+            
+            let result_columns: Vec<Column> = fetch_ctx
+                .from
+                .vids
+                .iter()
+                .map(|vid| Column {
+                    name: vid.clone(),
+                    type_: "STRING".to_string(),
+                })
+                .collect();
+            
+            project_node_mut.set_output_var(Variable {
                 name: "project_result".to_string(),
                 columns: result_columns,
             });
-        Arc::get_mut(&mut project_node)
-            .unwrap()
-            .set_col_names(fetch_ctx.from.vids.clone());
+            project_node_mut.set_col_names(fetch_ctx.from.vids.clone());
+        }
 
         // 4. 如果需要去重，创建去重节点
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if fetch_ctx.distinct
         {
             let mut dedup_node = Arc::new(DedupNode::new(project_node.clone())?);
-            Arc::get_mut(&mut dedup_node)
-                .unwrap()
-                .add_dependency(project_node.clone());
-            Arc::get_mut(&mut dedup_node)
-                .unwrap()
-                .set_output_var(Variable {
+            {
+                let dedup_node_mut = expect_arc_mut(&mut dedup_node, "Failed to get mutable reference to dedup_node")?;
+                dedup_node_mut.add_dependency(project_node.clone());
+                dedup_node_mut.set_output_var(Variable {
                     name: "dedup_result".to_string(),
                     columns: vec![],
                 });
+            }
             dedup_node
         } else {
             project_node

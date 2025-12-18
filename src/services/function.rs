@@ -3,6 +3,8 @@
 //! This module provides built-in functions similar to NebulaGraph's FunctionManager system
 
 use crate::core::Value;
+use crate::utils::safe_lock;
+use crate::core::error::DBError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -459,39 +461,38 @@ impl FunctionManager {
     }
 
     /// Register a new function
-    pub fn register_function(&mut self, name: &str, attributes: FunctionAttributes) {
-        self.functions
-            .lock()
-            .unwrap()
-            .insert(name.to_string(), attributes);
+    pub fn register_function(&mut self, name: &str, attributes: FunctionAttributes) -> Result<(), DBError> {
+        let mut functions = safe_lock(&self.functions)?;
+        functions.insert(name.to_string(), attributes);
+        Ok(())
     }
 
     /// Get a function by name and arity
-    pub fn get(&self, func: &str, arity: usize) -> Option<FunctionAttributes> {
-        let functions = self.functions.lock().unwrap();
+    pub fn get(&self, func: &str, arity: usize) -> Result<Option<FunctionAttributes>, DBError> {
+        let functions = safe_lock(&self.functions)?;
         if let Some(attr) = functions.get(func) {
             if arity >= attr.min_arity && arity <= attr.max_arity {
-                Some(attr.clone())
+                Ok(Some(attr.clone()))
             } else {
-                None
+                Ok(None)
             }
         } else {
-            None
+            Ok(None)
         }
     }
 
     /// Find if a function exists with the given name and arity
-    pub fn find(&self, func: &str, arity: usize) -> bool {
-        if let Some(attr) = self.get(func, arity) {
-            arity >= attr.min_arity && arity <= attr.max_arity
+    pub fn find(&self, func: &str, arity: usize) -> Result<bool, DBError> {
+        if let Some(attr) = self.get(func, arity)? {
+            Ok(arity >= attr.min_arity && arity <= attr.max_arity)
         } else {
-            false
+            Ok(false)
         }
     }
 
     /// Get the return type of a function
-    pub fn get_return_type(&self, func_name: &str, arg_types: &[ValueType]) -> Option<ValueType> {
-        let functions = self.functions.lock().unwrap();
+    pub fn get_return_type(&self, func_name: &str, arg_types: &[ValueType]) -> Result<Option<ValueType>, DBError> {
+        let functions = safe_lock(&self.functions)?;
         if let Some(attr) = functions.get(func_name) {
             for sig in &attr.type_signature {
                 if sig.args_type.len() == arg_types.len() {
@@ -503,12 +504,12 @@ impl FunctionManager {
                         }
                     }
                     if matches {
-                        return Some(sig.return_type.clone());
+                        return Ok(Some(sig.return_type.clone()));
                     }
                 }
             }
         }
-        None
+        Ok(None)
     }
 
     /// Check if two types match (with some flexibility for generic types)
@@ -533,26 +534,26 @@ impl FunctionManager {
 }
 
 /// Execute a function with given arguments
-pub fn execute_function(func_name: &str, args: &[Value]) -> Option<Value> {
+pub fn execute_function(func_name: &str, args: &[Value]) -> Result<Option<Value>, DBError> {
     let manager = FunctionManager::instance();
-    let manager_guard = manager.lock().unwrap();
+    let manager_guard = safe_lock(&manager)?;
 
-    if let Some(attr) = manager_guard.get(func_name, args.len()) {
-        Some((attr.body)(args))
+    if let Some(attr) = manager_guard.get(func_name, args.len())? {
+        Ok(Some((attr.body)(args)))
     } else {
-        None
+        Ok(None)
     }
 }
 
 /// Check if a function is pure (given the same inputs, always returns the same output)
-pub fn is_function_pure(func_name: &str, arity: usize) -> bool {
+pub fn is_function_pure(func_name: &str, arity: usize) -> Result<bool, DBError> {
     let manager = FunctionManager::instance();
-    let manager_guard = manager.lock().unwrap();
+    let manager_guard = safe_lock(&manager)?;
 
-    if let Some(attr) = manager_guard.get(func_name, arity) {
-        attr.is_pure
+    if let Some(attr) = manager_guard.get(func_name, arity)? {
+        Ok(attr.is_pure)
     } else {
-        false
+        Ok(false)
     }
 }
 
@@ -562,31 +563,31 @@ mod tests {
 
     #[test]
     fn test_string_functions() {
-        let result = execute_function("upper", &[Value::String("hello".to_string())]);
+        let result = execute_function("upper", &[Value::String("hello".to_string())]).unwrap();
         assert_eq!(result, Some(Value::String("HELLO".to_string())));
 
-        let result = execute_function("strlen", &[Value::String("test".to_string())]);
+        let result = execute_function("strlen", &[Value::String("test".to_string())]).unwrap();
         assert_eq!(result, Some(Value::Int(4)));
     }
 
     #[test]
     fn test_math_functions() {
-        let result = execute_function("abs", &[Value::Int(-5)]);
+        let result = execute_function("abs", &[Value::Int(-5)]).unwrap();
         assert_eq!(result, Some(Value::Int(5)));
 
-        let result = execute_function("ceil", &[Value::Float(3.2)]);
+        let result = execute_function("ceil", &[Value::Float(3.2)]).unwrap();
         assert_eq!(result, Some(Value::Float(4.0)));
     }
 
     #[test]
     fn test_type_conversion() {
-        let result = execute_function("to_int", &[Value::String("123".to_string())]);
+        let result = execute_function("to_int", &[Value::String("123".to_string())]).unwrap();
         assert_eq!(result, Some(Value::Int(123)));
     }
 
     #[test]
     fn test_range_function() {
-        let result = execute_function("range", &[Value::Int(1), Value::Int(5)]);
+        let result = execute_function("range", &[Value::Int(1), Value::Int(5)]).unwrap();
         let expected = Value::List(vec![
             Value::Int(1),
             Value::Int(2),
@@ -599,7 +600,7 @@ mod tests {
 
     #[test]
     fn test_function_purity() {
-        assert!(is_function_pure("upper", 1)); // Pure function
-        assert!(!is_function_pure("now", 0)); // Non-pure function
+        assert!(is_function_pure("upper", 1).unwrap()); // Pure function
+        assert!(!is_function_pure("now", 0).unwrap()); // Non-pure function
     }
 }

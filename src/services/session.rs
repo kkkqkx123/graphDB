@@ -1,4 +1,6 @@
 use crate::core::Value;
+use crate::utils::{safe_lock, safe_read, safe_write};
+use crate::core::error::DBError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -93,33 +95,35 @@ impl Session {
     }
 
     /// Get a session variable
-    pub fn get_variable(&self, key: &str) -> Option<Value> {
-        let vars = self.variables.read().unwrap();
-        vars.get(key).cloned()
+    pub fn get_variable(&self, key: &str) -> Result<Option<Value>, DBError> {
+        let vars = safe_read(&self.variables)?;
+        Ok(vars.get(key).cloned())
     }
 
     /// Set a session variable
-    pub fn set_variable(&self, key: String, value: Value) {
-        let mut vars = self.variables.write().unwrap();
+    pub fn set_variable(&self, key: String, value: Value) -> Result<(), DBError> {
+        let mut vars = safe_write(&self.variables)?;
         vars.insert(key, value);
+        Ok(())
     }
 
     /// Remove a session variable
-    pub fn remove_variable(&self, key: &str) -> Option<Value> {
-        let mut vars = self.variables.write().unwrap();
-        vars.remove(key)
+    pub fn remove_variable(&self, key: &str) -> Result<Option<Value>, DBError> {
+        let mut vars = safe_write(&self.variables)?;
+        Ok(vars.remove(key))
     }
 
     /// Get a session setting
-    pub fn get_setting(&self, key: &str) -> Option<Value> {
-        let settings = self.settings.read().unwrap();
-        settings.get(key).cloned()
+    pub fn get_setting(&self, key: &str) -> Result<Option<Value>, DBError> {
+        let settings = safe_read(&self.settings)?;
+        Ok(settings.get(key).cloned())
     }
 
     /// Set a session setting
-    pub fn set_setting(&self, key: String, value: Value) {
-        let mut settings = self.settings.write().unwrap();
+    pub fn set_setting(&self, key: String, value: Value) -> Result<(), DBError> {
+        let mut settings = safe_write(&self.settings)?;
         settings.insert(key, value);
+        Ok(())
     }
 
     /// Get session info
@@ -161,92 +165,96 @@ impl SessionManager {
         user_id: Option<String>,
         client_info: String,
         connection_info: String,
-    ) -> SessionId {
+    ) -> Result<SessionId, DBError> {
         let session = Session::new(user_id, client_info, connection_info);
         let session_id = session.id.clone();
 
         let session = Arc::new(Mutex::new(session));
         {
-            let mut sessions = self.sessions.write().unwrap();
+            let mut sessions = safe_write(&self.sessions)?;
             sessions.insert(session_id.clone(), session);
         }
 
-        session_id
+        Ok(session_id)
     }
 
     /// Get a session by ID
-    pub fn get_session(&self, session_id: &SessionId) -> Option<Arc<Mutex<Session>>> {
-        let sessions = self.sessions.read().unwrap();
-        sessions.get(session_id).cloned()
+    pub fn get_session(&self, session_id: &SessionId) -> Result<Option<Arc<Mutex<Session>>>, DBError> {
+        let sessions = safe_read(&self.sessions)?;
+        Ok(sessions.get(session_id).cloned())
     }
 
     /// Check if a session exists and is valid
-    pub fn is_valid_session(&self, session_id: &SessionId) -> bool {
-        if let Some(session) = self.get_session(session_id) {
-            let session = session.lock().unwrap();
-            session.is_valid(self.default_session_timeout)
+    pub fn is_valid_session(&self, session_id: &SessionId) -> Result<bool, DBError> {
+        if let Some(session) = self.get_session(session_id)? {
+            let session = safe_lock(&session)?;
+            Ok(session.is_valid(self.default_session_timeout))
         } else {
-            false
+            Ok(false)
         }
     }
 
     /// Update the last accessed time for a session
-    pub fn touch_session(&self, session_id: &SessionId) -> bool {
-        if let Some(session) = self.get_session(session_id) {
-            let mut session = session.lock().unwrap();
+    pub fn touch_session(&self, session_id: &SessionId) -> Result<bool, DBError> {
+        if let Some(session) = self.get_session(session_id)? {
+            let mut session = safe_lock(&session)?;
             session.touch();
-            true
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     }
 
     /// Remove an expired session
-    pub fn remove_session(&self, session_id: &SessionId) -> bool {
-        let mut sessions = self.sessions.write().unwrap();
-        sessions.remove(session_id).is_some()
+    pub fn remove_session(&self, session_id: &SessionId) -> Result<bool, DBError> {
+        let mut sessions = safe_write(&self.sessions)?;
+        Ok(sessions.remove(session_id).is_some())
     }
 
     /// Get session info by ID
-    pub fn get_session_info(&self, session_id: &SessionId) -> Option<SessionInfo> {
-        if let Some(session) = self.get_session(session_id) {
-            let session = session.lock().unwrap();
-            Some(session.info())
+    pub fn get_session_info(&self, session_id: &SessionId) -> Result<Option<SessionInfo>, DBError> {
+        if let Some(session) = self.get_session(session_id)? {
+            let session = safe_lock(&session)?;
+            Ok(Some(session.info()))
         } else {
-            None
+            Ok(None)
         }
     }
 
     /// List all active sessions
-    pub fn list_active_sessions(&self) -> Vec<SessionInfo> {
-        let sessions = self.sessions.read().unwrap();
-        sessions
-            .values()
-            .filter_map(|session| {
-                let session = session.lock().unwrap();
+    pub fn list_active_sessions(&self) -> Result<Vec<SessionInfo>, DBError> {
+        let sessions = safe_read(&self.sessions)?;
+        let mut active_sessions = Vec::new();
+        
+        for session in sessions.values() {
+            if let Ok(session) = safe_lock(session) {
                 if matches!(session.status, SessionStatus::Active)
                     && session.is_valid(self.default_session_timeout)
                 {
-                    Some(session.info())
-                } else {
-                    None
+                    active_sessions.push(session.info());
                 }
-            })
-            .collect()
+            }
+        }
+        
+        Ok(active_sessions)
     }
 
     /// Clean up expired sessions
-    pub fn cleanup_expired_sessions(&self) {
-        let mut sessions = self.sessions.write().unwrap();
+    pub fn cleanup_expired_sessions(&self) -> Result<(), DBError> {
+        let mut sessions = safe_write(&self.sessions)?;
         sessions.retain(|_, session| {
-            let session = session.lock().unwrap();
-            session.is_valid(self.default_session_timeout)
+            if let Ok(session) = safe_lock(session) {
+                session.is_valid(self.default_session_timeout)
+            } else {
+                false // If lock is poisoned, remove the session
+            }
         });
+        Ok(())
     }
 
     /// Get the number of active sessions
-    pub fn active_session_count(&self) -> usize {
-        self.list_active_sessions().len()
+    pub fn active_session_count(&self) -> Result<usize, DBError> {
+        Ok(self.list_active_sessions()?.len())
     }
 }
 
@@ -341,18 +349,18 @@ mod tests {
         let session = Session::new(None, "".to_string(), "".to_string());
 
         // Set a variable
-        session.set_variable("test_key".to_string(), Value::Int(42));
+        session.set_variable("test_key".to_string(), Value::Int(42)).unwrap();
 
         // Get the variable
-        let value = session.get_variable("test_key");
+        let value = session.get_variable("test_key").unwrap();
         assert_eq!(value, Some(Value::Int(42)));
 
         // Remove the variable
-        let removed_value = session.remove_variable("test_key");
+        let removed_value = session.remove_variable("test_key").unwrap();
         assert_eq!(removed_value, Some(Value::Int(42)));
 
         // Check that it's gone
-        let value = session.get_variable("test_key");
+        let value = session.get_variable("test_key").unwrap();
         assert_eq!(value, None);
     }
 
@@ -365,26 +373,26 @@ mod tests {
             Some("user123".to_string()),
             "client_info".to_string(),
             "connection_info".to_string(),
-        );
+        ).unwrap();
 
         // Verify the session exists
-        assert!(session_manager.is_valid_session(&session_id));
+        assert!(session_manager.is_valid_session(&session_id).unwrap());
 
         // Get session info
-        let info = session_manager.get_session_info(&session_id);
+        let info = session_manager.get_session_info(&session_id).unwrap();
         assert!(info.is_some());
         assert_eq!(info.as_ref().unwrap().user_id, Some("user123".to_string()));
 
         // Touch the session to update last_accessed time
-        assert!(session_manager.touch_session(&session_id));
+        assert!(session_manager.touch_session(&session_id).unwrap());
 
         // List active sessions
-        let active_sessions = session_manager.list_active_sessions();
+        let active_sessions = session_manager.list_active_sessions().unwrap();
         assert_eq!(active_sessions.len(), 1);
 
         // Clean up
-        session_manager.remove_session(&session_id);
-        assert!(!session_manager.is_valid_session(&session_id));
+        session_manager.remove_session(&session_id).unwrap();
+        assert!(!session_manager.is_valid_session(&session_id).unwrap());
     }
 
     #[test]

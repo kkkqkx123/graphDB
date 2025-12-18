@@ -20,6 +20,9 @@ pub enum DBError {
     #[error("计划节点访问错误: {0}")]
     Plan(#[from] PlanNodeVisitError),
 
+    #[error("锁操作错误: {0}")]
+    Lock(#[from] LockError),
+
     #[error("验证错误: {0}")]
     Validation(String),
 
@@ -87,6 +90,22 @@ pub enum PlanNodeVisitError {
     TraversalError(String),
     #[error("验证错误: {0}")]
     ValidationError(String),
+}
+
+// 锁操作错误类型
+#[derive(Error, Debug, Clone)]
+pub enum LockError {
+    #[error("Mutex锁被污染: {reason}")]
+    MutexPoisoned { reason: String },
+    
+    #[error("RwLock读锁被污染: {reason}")]
+    RwLockReadPoisoned { reason: String },
+    
+    #[error("RwLock写锁被污染: {reason}")]
+    RwLockWritePoisoned { reason: String },
+    
+    #[error("锁操作超时: {reason}")]
+    LockTimeout { reason: String },
 }
 
 // 为现有错误类型实现转换

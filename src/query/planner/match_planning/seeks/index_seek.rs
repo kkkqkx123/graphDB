@@ -303,7 +303,6 @@ impl IndexSeek {
         Ok(filter_expr)
     }
 
-
     /// 将 Expression 转换为 Expr
     fn convert_expression_to_expr(&self, expr: Expression) -> Result<Expr, PlannerError> {
         // 这里需要实现从 Expression 到 Expr 的转换

@@ -1,5 +1,7 @@
 use crate::core::{Edge, Path, Value, Vertex};
 use crate::storage::StorageEngine;
+use crate::utils::safe_lock;
+use crate::core::error::DBError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -144,70 +146,78 @@ impl<S: StorageEngine> GraphContext<S> {
         }
     }
 
-    pub fn increment_vertices_created(&self) {
-        let mut metrics = self.metrics.lock().unwrap();
+    pub fn increment_vertices_created(&self) -> Result<(), DBError> {
+        let mut metrics = safe_lock(&self.metrics)?;
         metrics.increment_vertices_created();
+        Ok(())
     }
 
-    pub fn increment_edges_created(&self) {
-        let mut metrics = self.metrics.lock().unwrap();
+    pub fn increment_edges_created(&self) -> Result<(), DBError> {
+        let mut metrics = safe_lock(&self.metrics)?;
         metrics.increment_edges_created();
+        Ok(())
     }
 
-    pub fn increment_vertices_read(&self) {
-        let mut metrics = self.metrics.lock().unwrap();
+    pub fn increment_vertices_read(&self) -> Result<(), DBError> {
+        let mut metrics = safe_lock(&self.metrics)?;
         metrics.increment_vertices_read();
+        Ok(())
     }
 
-    pub fn increment_edges_read(&self) {
-        let mut metrics = self.metrics.lock().unwrap();
+    pub fn increment_edges_read(&self) -> Result<(), DBError> {
+        let mut metrics = safe_lock(&self.metrics)?;
         metrics.increment_edges_read();
+        Ok(())
     }
 
-    pub fn increment_queries_executed(&self) {
-        let mut metrics = self.metrics.lock().unwrap();
+    pub fn increment_queries_executed(&self) -> Result<(), DBError> {
+        let mut metrics = safe_lock(&self.metrics)?;
         metrics.increment_queries_executed();
+        Ok(())
     }
 
-    pub fn increment_errors_occurred(&self) {
-        let mut metrics = self.metrics.lock().unwrap();
+    pub fn increment_errors_occurred(&self) -> Result<(), DBError> {
+        let mut metrics = safe_lock(&self.metrics)?;
         metrics.increment_errors_occurred();
+        Ok(())
     }
 
-    pub fn add_execution_time(&self, time_ms: u64) {
-        let mut metrics = self.metrics.lock().unwrap();
+    pub fn add_execution_time(&self, time_ms: u64) -> Result<(), DBError> {
+        let mut metrics = safe_lock(&self.metrics)?;
         metrics.add_execution_time(time_ms);
+        Ok(())
     }
 
     /// Get a session variable
-    pub fn get_session_var(&self, key: &str) -> Option<Value> {
-        let vars = self.session_vars.lock().unwrap();
-        vars.get(key).cloned()
+    pub fn get_session_var(&self, key: &str) -> Result<Option<Value>, DBError> {
+        let vars = safe_lock(&self.session_vars)?;
+        Ok(vars.get(key).cloned())
     }
 
     /// Set a session variable
-    pub fn set_session_var(&self, key: String, value: Value) {
-        let mut vars = self.session_vars.lock().unwrap();
+    pub fn set_session_var(&self, key: String, value: Value) -> Result<(), DBError> {
+        let mut vars = safe_lock(&self.session_vars)?;
         vars.insert(key, value);
+        Ok(())
     }
 
     /// Remove a session variable
-    pub fn remove_session_var(&self, key: &str) -> Option<Value> {
-        let mut vars = self.session_vars.lock().unwrap();
-        vars.remove(key)
+    pub fn remove_session_var(&self, key: &str) -> Result<Option<Value>, DBError> {
+        let mut vars = safe_lock(&self.session_vars)?;
+        Ok(vars.remove(key))
     }
 
     /// Wait for the context to be ready or timeout
-    pub async fn wait_ready(&self, timeout: Duration) -> Result<(), String> {
+    pub async fn wait_ready(&self, timeout: Duration) -> Result<(), DBError> {
         let start = std::time::Instant::now();
 
         while start.elapsed() < timeout {
             // Check if our storage engine is ready
             {
-                let storage = self.storage.lock().unwrap();
+                let _storage = safe_lock(&self.storage)?;
                 // Since NativeStorage doesn't have an is_operational method, we'll just try a basic operation
                 // to verify that the storage is accessible
-                std::mem::drop(storage); // Just drop the lock without doing anything
+                // Just drop the lock without doing anything
             }
 
             time::sleep(Duration::from_millis(10)).await;
@@ -238,18 +248,18 @@ mod tests {
         let storage = NativeStorage::new(config.storage_path.clone()).unwrap();
         let ctx = GraphContext::new(config, storage);
 
-        ctx.increment_vertices_created();
-        ctx.increment_edges_created();
+        ctx.increment_vertices_created().unwrap();
+        ctx.increment_edges_created().unwrap();
 
         {
-            let metrics = ctx.metrics.lock().unwrap();
+            let metrics = safe_lock(&ctx.metrics).unwrap();
             assert_eq!(metrics.vertices_created, 1);
             assert_eq!(metrics.edges_created, 1);
         }
 
         // Test session variables
-        ctx.set_session_var("test_key".to_string(), Value::Int(42));
-        let value = ctx.get_session_var("test_key");
+        ctx.set_session_var("test_key".to_string(), Value::Int(42)).unwrap();
+        let value = ctx.get_session_var("test_key").unwrap();
         assert_eq!(value, Some(Value::Int(42)));
     }
 }
