@@ -7,6 +7,7 @@ use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
 use crate::storage::StorageEngine;
+use crate::utils::safe_lock;
 
 // Implementation for a basic GetVertices executor
 #[derive(Debug)]
@@ -46,7 +47,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
             Some(ids) => {
                 // 获取特定顶点ID的顶点
                 let mut result_vertices = Vec::new();
-                let storage = self.base.storage.lock().unwrap();
+                let storage = safe_lock(&self.base.storage)
+                    .expect("GetVerticesExecutor storage lock should not be poisoned");
 
                 for id in ids {
                     if let Some(vertex) = storage.get_node(id)? {
@@ -73,7 +75,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
             }
             None => {
                 // ScanVertices操作：扫描所有顶点
-                let storage = self.base.storage.lock().unwrap();
+                let storage = safe_lock(&self.base.storage)
+                    .expect("GetVerticesExecutor storage lock should not be poisoned");
                 
                 // 获取所有顶点
                 let mut all_vertices = storage.scan_all_vertices()?;

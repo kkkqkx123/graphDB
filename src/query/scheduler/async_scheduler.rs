@@ -7,6 +7,7 @@ use super::types::QueryScheduler;
 use crate::query::executor::{ExecutionContext, ExecutionResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
+use crate::utils::safe_lock;
 
 // Execution state tracking
 #[derive(Debug)]
@@ -77,7 +78,8 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         })?;
 
         {
-            let mut state = self.execution_state.lock().unwrap();
+            let mut state = safe_lock(&self.execution_state)
+                .expect("AsyncScheduler execution_state lock should not be poisoned");
             state.executing_executors.insert(executor_id);
         }
 
@@ -110,7 +112,8 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         });
 
         {
-            let mut state = self.execution_state.lock().unwrap();
+            let mut state = safe_lock(&self.execution_state)
+                .expect("AsyncScheduler execution_state lock should not be poisoned");
             state.executing_executors.remove(&executor_id);
 
             match &result {
@@ -132,7 +135,8 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
 
     // Get executable executors (those with all dependencies satisfied)
     fn get_executable_executors(&self, plan: &ExecutionPlan<S>) -> Vec<usize> {
-        let state = self.execution_state.lock().unwrap();
+        let state = safe_lock(&self.execution_state)
+            .expect("AsyncScheduler execution_state lock should not be poisoned");
         plan.get_executable_executors(&state.execution_results)
             .into_iter()
             .filter(|id| !state.is_executor_executing(*id))
@@ -142,34 +146,41 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     // 通知执行器完成
     fn notify_completion(&self) {
         let (ref lock, ref cvar) = *self.completion_notifier;
-        let mut completed = lock.lock().unwrap();
+        let mut completed = safe_lock(lock)
+            .expect("AsyncScheduler completion_notifier lock should not be poisoned");
         *completed = true;
         cvar.notify_all();
     }
 
     // 检查是否所有执行器都已完成
     fn all_executors_completed(&self) -> bool {
-        let state = self.execution_state.lock().unwrap();
+        let state = safe_lock(&self.execution_state)
+            .expect("AsyncScheduler execution_state lock should not be poisoned");
         state.executing_executors.is_empty()
     }
 
     // Check if there are any failures
     fn has_failure(&self) -> bool {
-        self.execution_state.lock().unwrap().has_failure()
+        let state = safe_lock(&self.execution_state)
+            .expect("AsyncScheduler execution_state lock should not be poisoned");
+        state.has_failure()
     }
 
     // Wait for all executors to finish
     async fn wait_for_completion(&self) -> Result<(), QueryError> {
         // 使用条件变量进行同步等待
         let (ref lock, ref cvar) = *self.completion_notifier;
-        let mut completed = lock.lock().unwrap();
+        let mut completed = safe_lock(lock)
+            .expect("AsyncScheduler completion_notifier lock should not be poisoned");
 
         while !*completed && !self.all_executors_completed() {
-            completed = cvar.wait(completed).unwrap();
+            completed = cvar.wait(completed)
+                .expect("AsyncScheduler completion_notifier wait should not be poisoned");
         }
 
         // 检查是否有执行失败
-        let state = self.execution_state.lock().unwrap();
+        let state = safe_lock(&self.execution_state)
+            .expect("AsyncScheduler execution_state lock should not be poisoned");
         if let Some(ref error) = state.failed_status {
             return Err(error.clone());
         }
@@ -195,7 +206,8 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                 let task = tokio::spawn(async move {
                     // 标记执行器正在执行
                     {
-                        let mut state_lock = state.lock().unwrap();
+                        let mut state_lock = safe_lock(&state)
+                            .expect("AsyncScheduler execution_state lock should not be poisoned");
                         state_lock.executing_executors.insert(executor_id);
                     }
 
@@ -235,7 +247,8 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
 
         // 更新状态并收集下一个批次的执行器
         {
-            let mut state = self.execution_state.lock().unwrap();
+            let mut state = safe_lock(&self.execution_state)
+                .expect("AsyncScheduler execution_state lock should not be poisoned");
             for (executor_id, result) in results {
                 state.executing_executors.remove(&executor_id);
 
@@ -283,13 +296,15 @@ impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBase
         // 重置完成通知器
         {
             let (ref lock, _) = *self.completion_notifier;
-            let mut completed = lock.lock().unwrap();
+            let mut completed = safe_lock(lock)
+                .expect("AsyncScheduler completion_notifier lock should not be poisoned");
             *completed = false;
         }
 
         // 重置执行状态
         {
-            let mut state = self.execution_state.lock().unwrap();
+            let mut state = safe_lock(&self.execution_state)
+                .expect("AsyncScheduler execution_state lock should not be poisoned");
             state.executing_executors.clear();
             state.execution_results.clear();
             state.failed_status = None;
@@ -313,7 +328,8 @@ impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBase
         self.wait_for_completion().await?;
 
         // Check for overall failure
-        let state = self.execution_state.lock().unwrap();
+        let state = safe_lock(&self.execution_state)
+            .expect("AsyncScheduler execution_state lock should not be poisoned");
         if let Some(error) = &state.failed_status {
             return Err(error.clone());
         }
@@ -332,14 +348,17 @@ impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBase
         // 同步版本的等待完成
         // 使用条件变量等待所有执行器完成
         let (ref lock, ref cvar) = *self.completion_notifier;
-        let mut completed = lock.lock().unwrap();
+        let mut completed = safe_lock(lock)
+            .expect("AsyncScheduler completion_notifier lock should not be poisoned");
 
         while !*completed && !self.all_executors_completed() {
-            completed = cvar.wait(completed).unwrap();
+            completed = cvar.wait(completed)
+                .expect("AsyncScheduler completion_notifier wait should not be poisoned");
         }
 
         // 检查是否有执行失败
-        let state = self.execution_state.lock().unwrap();
+        let state = safe_lock(&self.execution_state)
+            .expect("AsyncScheduler execution_state lock should not be poisoned");
         if let Some(ref error) = state.failed_status {
             return Err(error.clone());
         }

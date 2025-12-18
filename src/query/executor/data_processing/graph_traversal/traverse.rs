@@ -10,6 +10,7 @@ use crate::query::executor::traits::{
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
+use crate::utils::safe_lock;
 
 /// TraverseExecutor - 完整图遍历执行器
 ///
@@ -92,7 +93,8 @@ impl<S: StorageEngine> TraverseExecutor<S> {
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge)>, QueryError> {
-        let storage = self.base.storage.lock().unwrap();
+        let storage = safe_lock(&self.base.storage)
+            .expect("TraverseExecutor storage lock should not be poisoned");
 
         // 获取节点的所有边
         let edges = storage
@@ -177,7 +179,8 @@ impl<S: StorageEngine> TraverseExecutor<S> {
 
             for (neighbor_id, edge) in neighbors_with_edges {
                 // 获取邻居节点的完整信息
-                let storage = self.base.storage.lock().unwrap();
+                let storage = safe_lock(&self.base.storage)
+                    .expect("TraverseExecutor storage lock should not be poisoned");
                 let neighbor_vertex = storage
                     .get_node(&neighbor_id)
                     .map_err(|e| QueryError::StorageError(e))?;
@@ -306,7 +309,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for TraverseExecutor<S> {
                 let mut nodes = Vec::new();
                 let mut visited = HashSet::new();
                 for edge in edges {
-                    let storage = self.base.storage.lock().unwrap();
+                    let storage = safe_lock(&self.base.storage)
+                        .expect("TraverseExecutor storage lock should not be poisoned");
                     if let Ok(Some(src_vertex)) = storage.get_node(&edge.src) {
                         if visited.insert(src_vertex.vid.clone()) {
                             nodes.push(src_vertex);
@@ -323,7 +327,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for TraverseExecutor<S> {
             ExecutionResult::Values(values) => {
                 // 从值中提取节点
                 let mut vertices = Vec::new();
-                let storage = self.base.storage.lock().unwrap();
+                let storage = safe_lock(&self.base.storage)
+                    .expect("TraverseExecutor storage lock should not be poisoned");
                 for value in values {
                     match value {
                         Value::Vertex(vertex) => vertices.push(*vertex),

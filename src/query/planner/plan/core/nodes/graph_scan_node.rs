@@ -11,6 +11,7 @@ use super::traits::{
 };
 use crate::graph::expression::Expression;
 use crate::query::context::validate::types::Variable;
+use crate::utils::safe_lock;
 use std::sync::{Arc, Mutex};
 
 /// 获取顶点节点
@@ -122,21 +123,27 @@ impl PlanNodeDependencies for GetVerticesNode {
         // 注意: 此实现为解决借用检查错误的临时方案
         // 在实际实现中，应使用更安全的生命周期管理方式
         unsafe {
-            let deps = &*self.dependencies.lock().unwrap() as *const Vec<Arc<dyn PlanNode>>;
+            let deps = &*safe_lock(&self.dependencies)
+                .expect("GetVerticesNode dependencies lock should not be poisoned")
+                as *const Vec<Arc<dyn PlanNode>>;
             &*deps
         }
     }
 
     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        self.dependencies.get_mut().unwrap()
+        self.dependencies.get_mut()
+            .expect("GetVerticesNode should have unique reference for dependencies_mut")
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-        self.dependencies.lock().unwrap().push(dep);
+        let mut deps = safe_lock(&self.dependencies)
+            .expect("GetVerticesNode dependencies lock should not be poisoned");
+        deps.push(dep);
     }
 
     fn remove_dependency(&mut self, id: i64) -> bool {
-        let mut deps = self.dependencies.lock().unwrap();
+        let mut deps = safe_lock(&self.dependencies)
+            .expect("GetVerticesNode dependencies lock should not be poisoned");
         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
             deps.remove(pos);
             true
@@ -310,21 +317,27 @@ impl PlanNodeDependencies for GetEdgesNode {
         // 注意: 此实现为解决借用检查错误的临时方案
         // 在实际实现中，应使用更安全的生命周期管理方式
         unsafe {
-            let deps = &*self.dependencies.lock().unwrap() as *const Vec<Arc<dyn PlanNode>>;
+            let deps = &*safe_lock(&self.dependencies)
+                .expect("GetEdgesNode dependencies lock should not be poisoned")
+                as *const Vec<Arc<dyn PlanNode>>;
             &*deps
         }
     }
 
     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        self.dependencies.get_mut().unwrap()
+        self.dependencies.get_mut()
+            .expect("GetEdgesNode should have unique reference for dependencies_mut")
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-        self.dependencies.lock().unwrap().push(dep);
+        let mut deps = safe_lock(&self.dependencies)
+            .expect("GetEdgesNode dependencies lock should not be poisoned");
+        deps.push(dep);
     }
 
     fn remove_dependency(&mut self, id: i64) -> bool {
-        let mut deps = self.dependencies.lock().unwrap();
+        let mut deps = safe_lock(&self.dependencies)
+            .expect("GetEdgesNode dependencies lock should not be poisoned");
         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
             deps.remove(pos);
             true
@@ -470,21 +483,27 @@ impl PlanNodeDependencies for GetNeighborsNode {
         // 注意: 此实现为解决借用检查错误的临时方案
         // 在实际实现中，应使用更安全的生命周期管理方式
         unsafe {
-            let deps = &*self.dependencies.lock().unwrap() as *const Vec<Arc<dyn PlanNode>>;
+            let deps = &*safe_lock(&self.dependencies)
+                .expect("GetNeighborsNode dependencies lock should not be poisoned")
+                as *const Vec<Arc<dyn PlanNode>>;
             &*deps
         }
     }
 
     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        self.dependencies.get_mut().unwrap()
+        self.dependencies.get_mut()
+            .expect("GetNeighborsNode should have unique reference for dependencies_mut")
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-        self.dependencies.lock().unwrap().push(dep);
+        let mut deps = safe_lock(&self.dependencies)
+            .expect("GetNeighborsNode dependencies lock should not be poisoned");
+        deps.push(dep);
     }
 
     fn remove_dependency(&mut self, id: i64) -> bool {
-        let mut deps = self.dependencies.lock().unwrap();
+        let mut deps = safe_lock(&self.dependencies)
+            .expect("GetNeighborsNode dependencies lock should not be poisoned");
         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
             deps.remove(pos);
             true
@@ -631,21 +650,27 @@ impl PlanNodeDependencies for ScanVerticesNode {
         // 注意: 此实现为解决借用检查错误的临时方案
         // 在实际实现中，应使用更安全的生命周期管理方式
         unsafe {
-            let deps = &*self.dependencies.lock().unwrap() as *const Vec<Arc<dyn PlanNode>>;
+            let deps = &*safe_lock(&self.dependencies)
+                .expect("ScanVerticesNode dependencies lock should not be poisoned")
+                as *const Vec<Arc<dyn PlanNode>>;
             &*deps
         }
     }
 
     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        self.dependencies.get_mut().unwrap()
+        self.dependencies.get_mut()
+            .expect("ScanVerticesNode should have unique reference for dependencies_mut")
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-        self.dependencies.lock().unwrap().push(dep);
+        let mut deps = safe_lock(&self.dependencies)
+            .expect("ScanVerticesNode dependencies lock should not be poisoned");
+        deps.push(dep);
     }
 
     fn remove_dependency(&mut self, id: i64) -> bool {
-        let mut deps = self.dependencies.lock().unwrap();
+        let mut deps = safe_lock(&self.dependencies)
+            .expect("ScanVerticesNode dependencies lock should not be poisoned");
         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
             deps.remove(pos);
             true
@@ -796,21 +821,27 @@ impl PlanNodeDependencies for ScanEdgesNode {
         // 注意: 此实现为解决借用检查错误的临时方案
         // 在实际实现中，应使用更安全的生命周期管理方式
         unsafe {
-            let deps = &*self.dependencies.lock().unwrap() as *const Vec<Arc<dyn PlanNode>>;
+            let deps = &*safe_lock(&self.dependencies)
+                .expect("ScanEdgesNode dependencies lock should not be poisoned")
+                as *const Vec<Arc<dyn PlanNode>>;
             &*deps
         }
     }
 
     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        self.dependencies.get_mut().unwrap()
+        self.dependencies.get_mut()
+            .expect("ScanEdgesNode should have unique reference for dependencies_mut")
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-        self.dependencies.lock().unwrap().push(dep);
+        let mut deps = safe_lock(&self.dependencies)
+            .expect("ScanEdgesNode dependencies lock should not be poisoned");
+        deps.push(dep);
     }
 
     fn remove_dependency(&mut self, id: i64) -> bool {
-        let mut deps = self.dependencies.lock().unwrap();
+        let mut deps = safe_lock(&self.dependencies)
+            .expect("ScanEdgesNode dependencies lock should not be poisoned");
         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
             deps.remove(pos);
             true

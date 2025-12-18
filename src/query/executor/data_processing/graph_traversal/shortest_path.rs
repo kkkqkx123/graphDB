@@ -10,6 +10,7 @@ use crate::query::executor::traits::{
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
+use crate::utils::safe_lock;
 
 /// 最短路径算法枚举
 #[derive(Debug, Clone)]
@@ -91,7 +92,8 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
-        let storage = self.base.storage.lock().unwrap();
+        let storage = safe_lock(&self.base.storage)
+            .expect("ShortestPathExecutor storage lock should not be poisoned");
 
         // 获取节点的所有边
         let edges = storage
@@ -152,7 +154,8 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
 
         // 初始化队列
         for start_id in &self.start_vertex_ids {
-            let storage = self.base.storage.lock().unwrap();
+            let storage = safe_lock(&self.base.storage)
+                .expect("ShortestPathExecutor storage lock should not be poisoned");
             if let Ok(Some(start_vertex)) = storage.get_node(start_id) {
                 let initial_path = Path {
                     src: Box::new(start_vertex),
@@ -180,7 +183,8 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
                 }
 
                 // 创建新路径
-                let storage = self.base.storage.lock().unwrap();
+                let storage = safe_lock(&self.base.storage)
+                    .expect("ShortestPathExecutor storage lock should not be poisoned");
                 if let Ok(Some(neighbor_vertex)) = storage.get_node(&neighbor_id) {
                     let mut new_path = current_path.clone();
                     new_path.steps.push(Step {
@@ -261,7 +265,8 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
 
         // 回溯路径
         while let Some((prev_id, edge)) = self.previous_map.get(&current_id) {
-            let storage = self.base.storage.lock().unwrap();
+            let storage = safe_lock(&self.base.storage)
+                .expect("ShortestPathExecutor storage lock should not be poisoned");
             if let Ok(Some(current_vertex)) = storage.get_node(&current_id) {
                 path_steps.push(Step {
                     dst: Box::new(current_vertex),
@@ -277,7 +282,8 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         }
 
         // 获取起始节点
-        let storage = self.base.storage.lock().unwrap();
+        let storage = safe_lock(&self.base.storage)
+            .expect("ShortestPathExecutor storage lock should not be poisoned");
         if let Ok(Some(start_vertex)) = storage.get_node(&current_id) {
             // 反转路径步骤
             path_steps.reverse();

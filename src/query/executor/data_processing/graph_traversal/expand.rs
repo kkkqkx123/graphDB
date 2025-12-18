@@ -10,6 +10,7 @@ use crate::query::executor::traits::{
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
+use crate::utils::safe_lock;
 
 /// ExpandExecutor - 单步路径扩展执行器
 ///
@@ -63,7 +64,8 @@ impl<S: StorageEngine> ExpandExecutor<S> {
 
     /// 获取节点的邻居节点
     async fn get_neighbors(&self, node_id: &Value) -> Result<Vec<Value>, QueryError> {
-        let storage = self.base.storage.lock().unwrap();
+        let storage = safe_lock(&self.base.storage)
+            .expect("ExpandExecutor storage lock should not be poisoned");
 
         // 获取节点的所有边
         let edges = storage
@@ -148,7 +150,8 @@ impl<S: StorageEngine> ExpandExecutor<S> {
     fn build_expansion_result(&self, expanded_nodes: Vec<Value>) -> ExecutionResult {
         // 将节点ID转换为顶点对象
         let mut vertices = Vec::new();
-        let storage = self.base.storage.lock().unwrap();
+        let storage = safe_lock(&self.base.storage)
+            .expect("ExpandExecutor storage lock should not be poisoned");
 
         for node_id in expanded_nodes {
             if let Ok(Some(vertex)) = storage.get_node(&node_id) {

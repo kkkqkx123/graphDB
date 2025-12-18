@@ -310,6 +310,13 @@ pub enum PlannerError {
     InvalidOperation(String),
 }
 
+// 为 DBError 实现 From 转换，以便在规划器中使用 ? 操作符
+impl From<crate::core::error::DBError> for PlannerError {
+    fn from(err: crate::core::error::DBError) -> Self {
+        PlannerError::PlanGenerationFailed(err.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

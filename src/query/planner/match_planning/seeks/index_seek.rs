@@ -331,6 +331,52 @@ impl IndexSeek {
             }
         }
     }
+
+    /// 验证属性表达式
+    pub fn validate_property_expressions(&self, expressions: &[Expression]) -> Result<(), PlannerError> {
+        if expressions.is_empty() {
+            return Err(PlannerError::InvalidAstContext(
+                "属性表达式列表不能为空".to_string(),
+            ));
+        }
+
+        // 验证每个表达式
+        for expr in expressions {
+            match expr {
+                Expression::Binary { op, .. } => {
+                    // 只允许比较操作符
+                    match op {
+                        crate::graph::expression::BinaryOperator::Equal
+                        | crate::graph::expression::BinaryOperator::NotEqual
+                        | crate::graph::expression::BinaryOperator::LessThan
+                        | crate::graph::expression::BinaryOperator::LessThanOrEqual
+                        | crate::graph::expression::BinaryOperator::GreaterThan
+                        | crate::graph::expression::BinaryOperator::GreaterThanOrEqual => {
+                            // 这些是有效的比较操作符
+                        }
+                        _ => {
+                            return Err(PlannerError::InvalidAstContext(
+                                format!("不支持的操作符 {:?} 用于属性索引查找", op),
+                            ));
+                        }
+                    }
+                }
+                Expression::Variable(_) | Expression::Label(_) => {
+                    // 变量和标签表达式是有效的
+                }
+                Expression::Literal(_) => {
+                    // 字面量是有效的
+                }
+                _ => {
+                    return Err(PlannerError::InvalidAstContext(
+                        format!("不支持的表达式类型 {:?} 用于属性索引查找", expr),
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl SeekStrategy for IndexSeek {
@@ -559,7 +605,7 @@ mod tests {
         let result = seeker.get_index_metadata();
         assert!(result.is_ok());
 
-        let metadata = result.unwrap();
+        let metadata = result.expect("Failed to get index metadata");
         assert_eq!(metadata.label_ids, vec![1]);
         assert_eq!(metadata.label_names, vec!["Person".to_string()]);
         assert_eq!(metadata.index_ids, vec![1]);
@@ -598,7 +644,7 @@ mod tests {
         assert!(result.is_ok());
 
         // 验证结果是AND表达式
-        let expr = result.unwrap();
+        let expr = result.expect("Failed to create property filter expression");
         match expr {
             Expression::Binary { op, .. } => {
                 assert_eq!(op, crate::graph::expression::BinaryOperator::And);
@@ -629,7 +675,7 @@ mod tests {
         assert!(result.is_ok());
 
         // 验证结果是参数表达式
-        let expr = result.unwrap();
+        let expr = result.expect("Failed to create variable property filter expression");
         match expr {
             Expression::Variable(name) => {
                 assert_eq!(name, "__index_param");

@@ -245,21 +245,27 @@ mod tests {
     #[tokio::test]
     async fn test_graph_context() {
         let config = crate::config::Config::default();
-        let storage = NativeStorage::new(config.storage_path.clone()).unwrap();
+        let storage = NativeStorage::new(config.storage_path.clone())
+            .expect("Failed to create NativeStorage for test");
         let ctx = GraphContext::new(config, storage);
 
-        ctx.increment_vertices_created().unwrap();
-        ctx.increment_edges_created().unwrap();
+        ctx.increment_vertices_created()
+            .expect("Failed to increment vertices created");
+        ctx.increment_edges_created()
+            .expect("Failed to increment edges created");
 
         {
-            let metrics = safe_lock(&ctx.metrics).unwrap();
+            let metrics = safe_lock(&ctx.metrics)
+                .expect("Failed to lock metrics for test");
             assert_eq!(metrics.vertices_created, 1);
             assert_eq!(metrics.edges_created, 1);
         }
 
         // Test session variables
-        ctx.set_session_var("test_key".to_string(), Value::Int(42)).unwrap();
-        let value = ctx.get_session_var("test_key").unwrap();
+        ctx.set_session_var("test_key".to_string(), Value::Int(42))
+            .expect("Failed to set session variable");
+        let value = ctx.get_session_var("test_key")
+            .expect("Failed to get session variable");
         assert_eq!(value, Some(Value::Int(42)));
     }
 }

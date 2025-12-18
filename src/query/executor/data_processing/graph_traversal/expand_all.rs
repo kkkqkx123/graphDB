@@ -10,6 +10,7 @@ use crate::query::executor::traits::{
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
+use crate::utils::safe_lock;
 
 /// ExpandAllExecutor - 全路径扩展执行器
 ///
@@ -66,7 +67,8 @@ impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge)>, QueryError> {
-        let storage = self.base.storage.lock().unwrap();
+        let storage = safe_lock(&self.base.storage)
+            .expect("ExpandAllExecutor storage lock should not be poisoned");
 
         // 获取节点的所有边
         let edges = storage
@@ -165,7 +167,8 @@ impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
 
                 // 获取邻居节点的完整信息
                 let neighbor_vertex = {
-                    let storage = self.base.storage.lock().unwrap();
+                    let storage = safe_lock(&self.base.storage)
+                        .expect("ExpandAllExecutor storage lock should not be poisoned");
                     storage
                         .get_node(&neighbor_id)
                         .map_err(|e| QueryError::StorageError(e))?
@@ -251,7 +254,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandAllExecutor<S> {
             ExecutionResult::Edges(edges) => {
                 // 从边中提取节点
                 let mut nodes = Vec::new();
-                let storage = self.base.storage.lock().unwrap();
+                let storage = safe_lock(&self.base.storage)
+                    .expect("ExpandAllExecutor storage lock should not be poisoned");
                 let mut visited = HashSet::new();
                 for edge in edges {
                     if let Ok(Some(src_vertex)) = storage.get_node(&edge.src) {
@@ -270,7 +274,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandAllExecutor<S> {
             ExecutionResult::Values(values) => {
                 // 从值中提取节点
                 let mut vertices = Vec::new();
-                let storage = self.base.storage.lock().unwrap();
+                let storage = safe_lock(&self.base.storage)
+                    .expect("ExpandAllExecutor storage lock should not be poisoned");
                 for value in values {
                     match value {
                         Value::Vertex(vertex) => vertices.push(*vertex),

@@ -7,6 +7,7 @@ use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
 use crate::storage::StorageEngine;
+use crate::utils::safe_lock;
 
 // Executor for inserting new vertices/edges
 pub struct InsertExecutor<S: StorageEngine> {
@@ -53,7 +54,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for InsertExecutor<S> {
 
         // Insert vertices if provided
         if let Some(vertices) = &self.vertex_data {
-            let mut storage = self.base.storage.lock().unwrap();
+            let mut storage = safe_lock(&self.base.storage)
+                .expect("InsertExecutor storage lock should not be poisoned");
             for vertex in vertices {
                 storage.insert_node(vertex.clone())?; // Assuming we have an insert_node method
                 _total_inserted += 1;
@@ -62,7 +64,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for InsertExecutor<S> {
 
         // Insert edges if provided
         if let Some(edges) = &self.edge_data {
-            let mut storage = self.base.storage.lock().unwrap();
+            let mut storage = safe_lock(&self.base.storage)
+                .expect("InsertExecutor storage lock should not be poisoned");
             for edge in edges {
                 storage.insert_edge(edge.clone())?; // Assuming we have an insert_edge method
                 _total_inserted += 1;
@@ -157,7 +160,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
 
         // Update vertices if provided
         if let Some(updates) = &self.vertex_updates {
-            let _storage = self.base.storage.lock().unwrap();
+            let _storage = safe_lock(&self.base.storage)
+                .expect("UpdateExecutor storage lock should not be poisoned");
             for _update in updates {
                 // In a real implementation, we would:
                 // 1. Check if the vertex exists
@@ -170,7 +174,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
 
         // Update edges if provided
         if let Some(updates) = &self.edge_updates {
-            let _storage = self.base.storage.lock().unwrap();
+            let _storage = safe_lock(&self.base.storage)
+                .expect("UpdateExecutor storage lock should not be poisoned");
             for _update in updates {
                 // In a real implementation, we would:
                 // 1. Check if the edge exists
@@ -259,7 +264,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for DeleteExecutor<S> {
 
         // Delete vertices if provided
         if let Some(ids) = &self.vertex_ids {
-            let _storage = self.base.storage.lock().unwrap();
+            let _storage = safe_lock(&self.base.storage)
+                .expect("DeleteExecutor storage lock should not be poisoned");
             for _id in ids {
                 // In a real implementation, we would:
                 // 1. Check if the vertex exists
@@ -272,7 +278,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for DeleteExecutor<S> {
 
         // Delete edges if provided
         if let Some(ids) = &self.edge_ids {
-            let _storage = self.base.storage.lock().unwrap();
+            let _storage = safe_lock(&self.base.storage)
+                .expect("DeleteExecutor storage lock should not be poisoned");
             for _id in ids {
                 // In a real implementation, we would:
                 // 1. Check if the edge exists

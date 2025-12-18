@@ -39,9 +39,16 @@ impl ShortestPathPlanner {
         let (start_plan, end_plan) = self.find_start_end_nodes(where_clause, node_aliases_seen)?;
         
         // 3. 创建连接节点
+        let start_root = start_plan.root.as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("Start plan should have a root node".to_string())
+        })?;
+        let end_root = end_plan.root.as_ref().ok_or_else(|| {
+            PlannerError::PlanGenerationFailed("End plan should have a root node".to_string())
+        })?;
+        
         let join_node = PlanNodeFactory::create_inner_join(
-            start_plan.root.unwrap(),
-            end_plan.root.unwrap(),
+            start_root.clone(),
+            end_root.clone(),
             vec![], // hash keys
             vec![], // probe keys
         )?;
@@ -196,8 +203,11 @@ impl ShortestPathPlanner {
 
         // 创建项目节点
         if !_yield_columns.is_empty() {
+            let root = _subplan.root.take().ok_or_else(|| {
+                PlannerError::PlanGenerationFailed("Subplan should have a root node".to_string())
+            })?;
             let project_node = PlanNodeFactory::create_project(
-                _subplan.root.take().unwrap(),
+                root,
                 _yield_columns,
             )?;
             _subplan.root = Some(project_node);

@@ -6,6 +6,7 @@ use crate::query::planner::plan::utils::join_params::JoinParams;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
+use crate::core::error::DBError;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -71,8 +72,12 @@ impl ConnectionStrategy for InnerJoinStrategy {
             });
         }
 
-        let left_root = left.root.as_ref().unwrap();
-        let right_root = right.root.as_ref().unwrap();
+        let left_root = left.root.as_ref().ok_or_else(|| {
+            PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
+        })?;
+        let right_root = right.root.as_ref().ok_or_else(|| {
+            PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
+        })?;
 
         // 使用新的节点工厂创建内连接节点
         let hash_keys = params.join_keys.clone();
@@ -112,8 +117,12 @@ impl ConnectionStrategy for LeftJoinStrategy {
             return Ok(left.clone());
         }
 
-        let left_root = left.root.as_ref().unwrap();
-        let right_root = right.root.as_ref().unwrap();
+        let left_root = left.root.as_ref().ok_or_else(|| {
+            PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
+        })?;
+        let right_root = right.root.as_ref().ok_or_else(|| {
+            PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
+        })?;
 
         // 使用新的节点工厂创建左连接节点
         // 注意：这里我们暂时使用内连接节点，因为 LeftJoinNode 还没有实现
@@ -156,8 +165,12 @@ impl ConnectionStrategy for CartesianStrategy {
             });
         }
 
-        let left_root = left.root.as_ref().unwrap();
-        let right_root = right.root.as_ref().unwrap();
+        let left_root = left.root.as_ref().ok_or_else(|| {
+            PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
+        })?;
+        let right_root = right.root.as_ref().ok_or_else(|| {
+            PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
+        })?;
 
         // 使用新的节点工厂创建笛卡尔积节点
         // 注意：这里我们暂时使用内连接节点，因为 CartesianNode 还没有实现
@@ -251,8 +264,12 @@ impl ConnectionStrategy for PatternApplyStrategy {
             });
         }
 
-        let left_root = left.root.as_ref().unwrap();
-        let right_root = right.root.as_ref().unwrap();
+        let left_root = left.root.as_ref().ok_or_else(|| {
+            PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
+        })?;
+        let right_root = right.root.as_ref().ok_or_else(|| {
+            PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
+        })?;
 
         // 使用新的节点工厂创建模式应用节点
         // 注意：这里我们暂时使用内连接节点，因为 PatternApplyNode 还没有实现
@@ -292,8 +309,12 @@ impl ConnectionStrategy for RollUpApplyStrategy {
             });
         }
 
-        let left_root = left.root.as_ref().unwrap();
-        let right_root = right.root.as_ref().unwrap();
+        let left_root = left.root.as_ref().ok_or_else(|| {
+            PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
+        })?;
+        let right_root = right.root.as_ref().ok_or_else(|| {
+            PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
+        })?;
 
         // 使用新的节点工厂创建卷起应用节点
         // 注意：这里我们暂时使用内连接节点，因为 RollUpApplyNode 还没有实现

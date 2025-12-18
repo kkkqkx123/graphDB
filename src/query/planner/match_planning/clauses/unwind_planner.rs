@@ -190,7 +190,11 @@ fn is_valid_identifier(identifier: &str) -> bool {
     }
 
     // 标识符必须以字母或下划线开头
-    let first_char = identifier.chars().next().unwrap();
+    let first_char = match identifier.chars().next() {
+        Some(c) => c,
+        None => return false, // 空字符串不是有效标识符
+    };
+    
     if !first_char.is_alphabetic() && first_char != '_' {
         return false;
     }
