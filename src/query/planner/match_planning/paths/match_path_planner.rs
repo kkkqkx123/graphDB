@@ -2,11 +2,14 @@
 //! 处理路径模式的规划
 //! 负责规划路径模式的匹配
 
+use crate::core::ValueTypeDef;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
+use crate::query::planner::PlanNodeKind;
 use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext};
+use crate::query::validator::{Column, Variable};
 use std::collections::HashSet;
 
 /// 路径匹配规划器
@@ -82,9 +85,9 @@ impl MatchPathPlanner {
                 // 创建参数节点
                 let _variable = Variable {
                     name: node_info.alias.clone(),
-                    columns: vec![crate::query::context::validate::types::Column {
+                    columns: vec![Column {
                         name: node_info.alias.clone(),
-                        type_: "Vertex".to_string(),
+                        type_: ValueTypeDef::Vertex,
                     }],
                 };
                 // 创建一个包含变量信息的占位符节点
@@ -104,13 +107,13 @@ impl MatchPathPlanner {
                 let _variable = Variable {
                     name: var_name.clone(),
                     columns: vec![
-                        crate::query::context::validate::types::Column {
+                        Column {
                             name: "src".to_string(),
-                            type_: "Vertex".to_string(),
+                            type_: ValueTypeDef::Vertex,
                         },
-                        crate::query::context::validate::types::Column {
+                        Column {
                             name: "dst".to_string(),
-                            type_: "Vertex".to_string(),
+                            type_: ValueTypeDef::Vertex,
                         },
                     ],
                 };
@@ -118,13 +121,13 @@ impl MatchPathPlanner {
                 let _variable = Variable {
                     name: var_name,
                     columns: vec![
-                        crate::query::context::validate::types::Column {
+                        Column {
                             name: "src".to_string(),
-                            type_: "Vertex".to_string(),
+                            type_: ValueTypeDef::Vertex,
                         },
-                        crate::query::context::validate::types::Column {
+                        Column {
                             name: "dst".to_string(),
-                            type_: "Vertex".to_string(),
+                            type_: ValueTypeDef::Vertex,
                         },
                     ],
                 };
@@ -222,8 +225,7 @@ impl MatchPathPlanner {
                         crate::query::parser::ast::types::Span::default(),
                     ));
                 let current_root = subplan.root.take().unwrap();
-                let filter_node =
-                    PlanNodeFactory::create_filter(current_root, dummy_expr)?;
+                let filter_node = PlanNodeFactory::create_filter(current_root, dummy_expr)?;
                 subplan.root = Some(filter_node);
             }
 
@@ -283,8 +285,7 @@ impl MatchPathPlanner {
                         crate::query::parser::ast::types::Span::default(),
                     ));
                 let current_root = subplan.root.take().unwrap();
-                let filter_node =
-                    PlanNodeFactory::create_filter(current_root, dummy_expr)?;
+                let filter_node = PlanNodeFactory::create_filter(current_root, dummy_expr)?;
                 subplan.root = Some(filter_node);
             }
 
@@ -335,7 +336,6 @@ impl MatchPathPlanner {
         Ok(())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -520,7 +520,6 @@ mod tests {
         let subplan = result.unwrap();
         assert!(subplan.root.is_some());
     }
-
 
     #[test]
     fn test_path_with_labels() {
