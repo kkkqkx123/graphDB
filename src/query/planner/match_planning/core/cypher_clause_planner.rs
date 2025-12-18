@@ -61,6 +61,7 @@ impl ClauseType {
             ClauseType::Limit => FlowDirection::Transform,
             ClauseType::Skip => FlowDirection::Transform,
             ClauseType::Yield => FlowDirection::Output,
+            ClauseType::Unwind => FlowDirection::Transform,
         }
     }
 }
@@ -200,7 +201,7 @@ impl DataFlowManager {
         }
         
         // 第一个子句必须是数据源
-        if !matches!(clauses[0].flow_direction(), FlowDirection::Source) {
+        if !matches!(DataFlowNode::flow_direction(clauses[0]), FlowDirection::Source) {
             return Err(PlannerError::PlanGenerationFailed(
                 "First clause must be a data source".to_string()
             ));
@@ -213,7 +214,7 @@ impl DataFlowManager {
         
         // 最后一个子句应该是输出
         let last_clause = clauses.last().unwrap();
-        if !matches!(last_clause.flow_direction(), FlowDirection::Output) {
+        if !matches!(DataFlowNode::flow_direction(*last_clause), FlowDirection::Output) {
             return Err(PlannerError::PlanGenerationFailed(
                 "Last clause should be an output clause".to_string()
             ));

@@ -54,7 +54,7 @@ impl YieldClausePlanner {
         &self,
         yield_clause_ctx: &crate::query::validator::structs::clause_structs::YieldClauseContext,
         input_plan: &SubPlan,
-        _context: &mut PlanningContext,
+        context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
         let mut plan = input_plan.clone();
 
@@ -88,8 +88,12 @@ impl YieldClausePlanner {
                 plan.tail = Some(project_node);
             } else {
                 // 使用新的统一连接器将投影节点连接到现有计划的尾部
+                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                    &context.query_info.statement_type,
+                    &context.query_info.query_id,
+                );
                 plan = UnifiedConnector::add_input(
-                    &context.query_info,
+                    &temp_ast_context,
                     &SubPlan::new(Some(project_node.clone_plan_node()), Some(project_node)),
                     &plan,
                     true,
@@ -115,8 +119,12 @@ impl YieldClausePlanner {
                 plan.tail = Some(dedup_node);
             } else {
                 // 使用新的统一连接器将去重节点连接到现有计划的尾部
+                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                    &context.query_info.statement_type,
+                    &context.query_info.query_id,
+                );
                 plan = UnifiedConnector::add_input(
-                    &context.query_info,
+                    &temp_ast_context,
                     &SubPlan::new(Some(dedup_node.clone_plan_node()), Some(dedup_node)),
                     &plan,
                     true,
@@ -195,7 +203,7 @@ mod tests {
     fn test_yield_clause_planner_creation() {
         let planner = YieldClausePlanner::new();
         assert_eq!(planner.clause_type(), ClauseType::Yield);
-        assert_eq!(planner.flow_direction(), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
+        assert_eq!(<YieldClausePlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
         assert!(planner.requires_input());
     }
 

@@ -17,7 +17,7 @@
 
 use crate::graph::expression::Expression;
 use crate::query::planner::match_planning::core::{
-    CypherClausePlanner, PlanningContext, ClauseType, FlowDirection, VariableInfo, QueryInfo
+    CypherClausePlanner, PlanningContext, ClauseType, VariableInfo, DataFlowNode
 };
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::match_planning::utils::finder::Finder;
@@ -33,6 +33,7 @@ use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 /// 它可以包含多个路径，每个路径由节点和边组成。
 #[derive(Debug)]
 pub struct MatchClausePlanner {
+    #[allow(dead_code)]
     paths: Vec<crate::query::validator::structs::Path>,
 }
 
@@ -125,8 +126,12 @@ impl CypherClausePlanner for MatchClausePlanner {
                 plan = path_plan;
             } else {
                 // 使用新的统一连接器连接多个路径
+                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                    &context.query_info.statement_type,
+                    &context.query_info.query_id,
+                );
                 plan = UnifiedConnector::cartesian_product(
-                    &crate::query::context::ast::base::AstContext::new("MATCH", "test"),
+                    &temp_ast_context,
                     &plan,
                     &path_plan,
                 )?;
@@ -180,7 +185,7 @@ mod tests {
     fn test_match_clause_planner_interface() {
         let planner = MatchClausePlanner::new(vec![]);
         assert_eq!(planner.clause_type(), ClauseType::Match);
-        assert_eq!(planner.flow_direction(), FlowDirection::Source);
+        assert_eq!(<MatchClausePlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Source);
         assert!(!planner.requires_input());
     }
 
@@ -227,7 +232,7 @@ mod tests {
 
         let planner = MatchClausePlanner::new(vec![path.clone()]);
         
-        let query_info = QueryInfo {
+        let query_info = crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
             query_id: "test".to_string(),
             statement_type: "MATCH".to_string(),
         };

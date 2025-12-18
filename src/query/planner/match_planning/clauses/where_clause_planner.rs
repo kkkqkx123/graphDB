@@ -16,7 +16,7 @@
 //! - 简化路径表达式处理
 
 use crate::query::planner::match_planning::core::{
-    CypherClausePlanner, ClauseType, FlowDirection, PlanningContext, DataFlowNode
+    CypherClausePlanner, ClauseType, PlanningContext, DataFlowNode
 };
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::paths::match_path_planner::MatchPathPlanner;
@@ -71,7 +71,7 @@ impl WhereClausePlanner {
     fn build_where(
         &self,
         where_clause_ctx: &crate::query::validator::structs::clause_structs::WhereClauseContext,
-        input_plan: &SubPlan,
+        _input_plan: &SubPlan,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
         // 处理路径表达式（模式谓词）
@@ -113,16 +113,24 @@ impl WhereClausePlanner {
 
                 if path.is_pred {
                     // 构建模式谓词的计划
+                    let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                        &context.query_info.statement_type,
+                        &context.query_info.query_id,
+                    );
                     paths_plan = UnifiedConnector::pattern_apply(
-                        &context.query_info,
+                        &temp_ast_context,
                         &paths_plan,
                         &path_plan,
                         intersected_aliases,
                     )?;
                 } else {
                     // 构建路径收集的计划
+                    let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                        &context.query_info.statement_type,
+                        &context.query_info.query_id,
+                    );
                     paths_plan = UnifiedConnector::roll_up_apply(
-                        &context.query_info,
+                        &temp_ast_context,
                         &paths_plan,
                         &path_plan,
                         intersected_aliases,
@@ -153,8 +161,12 @@ impl WhereClausePlanner {
                 return Ok(where_plan);
             }
 
+            let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                &context.query_info.statement_type,
+                &context.query_info.query_id,
+            );
             plan = UnifiedConnector::add_input(
-                &context.query_info,
+                &temp_ast_context,
                 &where_plan,
                 &plan,
                 true,
@@ -257,7 +269,7 @@ mod tests {
     fn test_where_clause_planner_interface() {
         let planner = WhereClausePlanner::new(false);
         assert_eq!(planner.clause_type(), ClauseType::Where);
-        assert_eq!(planner.flow_direction(), FlowDirection::Transform);
+        assert_eq!(<WhereClausePlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
         assert!(planner.requires_input());
     }
     

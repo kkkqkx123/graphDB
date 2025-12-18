@@ -141,7 +141,7 @@ mod tests {
     fn test_pagination_planner_creation() {
         let planner = PaginationPlanner::new();
         assert_eq!(planner.clause_type(), ClauseType::Limit);
-        assert_eq!(planner.flow_direction(), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
+        assert_eq!(<PaginationPlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
         assert!(planner.requires_input());
     }
 
@@ -180,7 +180,7 @@ mod tests {
 
         // 有输入应该成功
         let input_plan = SubPlan::new(None, None);
-        let result = planner.transform(&clause_ctx, Some(&input_plan), &mut context);
+        let _result = planner.transform(&clause_ctx, Some(&input_plan), &mut context);
         // 这里可能会失败，因为需要有效的输入节点
         // 但至少验证了输入检查逻辑
     }

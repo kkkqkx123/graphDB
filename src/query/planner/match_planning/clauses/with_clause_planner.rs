@@ -119,7 +119,7 @@ mod tests {
     fn test_with_clause_planner_interface() {
         let planner = WithClausePlanner::new();
         assert_eq!(planner.clause_type(), ClauseType::With);
-        assert_eq!(planner.flow_direction(), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
+        assert_eq!(<WithClausePlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
         assert!(planner.requires_input());
     }
 

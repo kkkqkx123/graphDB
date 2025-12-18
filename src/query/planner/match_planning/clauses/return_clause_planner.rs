@@ -88,8 +88,12 @@ impl ReturnClausePlanner {
             let order_plan = order_by_planner.transform(&order_by_clause_ctx, Some(&plan), context)?;
 
             // 使用新的统一连接器连接排序计划
+            let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                &context.query_info.statement_type,
+                &context.query_info.query_id,
+            );
             plan = UnifiedConnector::add_input(
-                &context.query_info,
+                &temp_ast_context,
                 &order_plan,
                 &plan,
                 true,
@@ -107,8 +111,12 @@ impl ReturnClausePlanner {
                 let pagination_clause_ctx = CypherClauseContext::Pagination(pagination.clone());
                 let pagination_plan = pagination_planner.transform(&pagination_clause_ctx, Some(&plan), context)?;
 
+                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                    &context.query_info.statement_type,
+                    &context.query_info.query_id,
+                );
                 plan = UnifiedConnector::add_input(
-                    &context.query_info,
+                    &temp_ast_context,
                     &pagination_plan,
                     &plan,
                     true,
@@ -127,8 +135,12 @@ impl ReturnClausePlanner {
             // 暂时简化去重节点创建
             // TODO: 实现完整的去重逻辑，创建专门的 DedupNode
 
+            let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                &context.query_info.statement_type,
+                &context.query_info.query_id,
+            );
             plan = UnifiedConnector::add_input(
-                &context.query_info,
+                &temp_ast_context,
                 &SubPlan::from_single_node(dedup_node),
                 &plan,
                 true,
@@ -258,7 +270,7 @@ mod tests {
     fn test_return_clause_planner_interface() {
         let planner = ReturnClausePlanner::new();
         assert_eq!(planner.clause_type(), ClauseType::Return);
-        assert_eq!(planner.flow_direction(), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Output);
+        assert_eq!(<ReturnClausePlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Output);
         assert!(planner.requires_input());
     }
 

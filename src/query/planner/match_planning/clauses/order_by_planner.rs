@@ -3,10 +3,10 @@
 //! 负责规划ORDER BY子句中的排序操作
 
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
-use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
     CypherClausePlanner, DataFlowNode, PlanningContext,
 };
+use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::SubPlan;
@@ -66,7 +66,8 @@ impl OrderByClausePlanner {
         // 将排序因子信息存储在节点的列名中，以便执行阶段使用
         // 在实际执行时，排序逻辑会根据这些信息进行排序
         // indexed_order_factors包含(列索引, 排序类型)的元组
-        let _col_names: Vec<String> = order_by_ctx.indexed_order_factors
+        let _col_names: Vec<String> = order_by_ctx
+            .indexed_order_factors
             .iter()
             .map(|(idx, order_type)| {
                 // 使用特殊格式存储排序信息，供执行器使用
@@ -132,7 +133,9 @@ impl CypherClausePlanner for OrderByClausePlanner {
 }
 
 impl DataFlowNode for OrderByClausePlanner {
-    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+    fn flow_direction(
+        &self,
+    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
         self.clause_type().flow_direction()
     }
 }
@@ -147,7 +150,7 @@ mod tests {
     fn test_order_by_planner_creation() {
         let planner = OrderByClausePlanner::new();
         assert_eq!(planner.clause_type(), ClauseType::OrderBy);
-        assert_eq!(planner.flow_direction(), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
+        assert_eq!(<OrderByClausePlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
         assert!(planner.requires_input());
     }
 
@@ -166,10 +169,11 @@ mod tests {
     #[test]
     fn test_order_by_planner_transform() {
         let planner = OrderByClausePlanner::new();
-        let query_info = crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
-            query_id: "test".to_string(),
-            statement_type: "ORDER BY".to_string(),
-        };
+        let query_info =
+            crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
+                query_id: "test".to_string(),
+                statement_type: "ORDER BY".to_string(),
+            };
         let mut context = PlanningContext::new(query_info);
 
         // 创建ORDER BY上下文

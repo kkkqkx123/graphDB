@@ -290,8 +290,12 @@ pub fn connect_unwind_to_input(
     // 使用新的统一连接器连接两个计划
     // 将 UNWIND 计划连接到输入计划的输出
     // 数据流：input_plan -> unwind_plan
+    let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+        &context.query_info.statement_type,
+        &context.query_info.query_id,
+    );
     let connected_plan =
-        UnifiedConnector::add_input(&context.query_info, &unwind_plan, &input_plan, true)?;
+        UnifiedConnector::add_input(&temp_ast_context, &unwind_plan, &input_plan, true)?;
 
     Ok(connected_plan)
 }
