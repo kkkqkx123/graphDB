@@ -131,7 +131,7 @@ impl Planner for MatchPlanner {
 
         for (i, planner) in clause_planners.iter().enumerate() {
             // 传播上下文到当前子句
-            let clause_context =
+            let _clause_context =
                 context_propagator.propagate_to_clause(&context, planner.clause_type());
 
             let input_plan = current_plan.as_ref();

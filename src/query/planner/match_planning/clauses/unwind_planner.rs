@@ -94,7 +94,7 @@ impl CypherClausePlanner for UnwindClausePlanner {
         &self,
         clause_ctx: &CypherClauseContext,
         input_plan: Option<&SubPlan>,
-        context: &mut PlanningContext,
+        _context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
         // 验证数据流
         self.validate_flow(input_plan)?;

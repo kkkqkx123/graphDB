@@ -146,7 +146,7 @@ impl ConnectionStrategy for CartesianStrategy {
         _qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        params: &JoinParams,
+        _params: &JoinParams,
     ) -> Result<SubPlan, PlannerError> {
         if left.root.is_none() || right.root.is_none() {
             return Ok(if left.root.is_some() {
@@ -241,7 +241,7 @@ impl ConnectionStrategy for PatternApplyStrategy {
         _qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        params: &JoinParams,
+        _params: &JoinParams,
     ) -> Result<SubPlan, PlannerError> {
         if left.root.is_none() || right.root.is_none() {
             return Ok(if left.root.is_some() {
@@ -282,7 +282,7 @@ impl ConnectionStrategy for RollUpApplyStrategy {
         _qctx: &AstContext,
         left: &SubPlan,
         right: &SubPlan,
-        params: &JoinParams,
+        _params: &JoinParams,
     ) -> Result<SubPlan, PlannerError> {
         if left.root.is_none() || right.root.is_none() {
             return Ok(if left.root.is_some() {

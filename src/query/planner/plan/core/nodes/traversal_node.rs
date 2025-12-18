@@ -12,9 +12,10 @@ use super::traits::{
 use crate::core::Value;
 use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
+use std::cell::RefCell;
 
 /// 扩展节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ExpandNode {
     id: i64,
     #[allow(dead_code)]
@@ -25,6 +26,24 @@ pub struct ExpandNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies: RefCell<Vec<Arc<dyn PlanNode>>>,
+}
+
+// 为 ExpandNode 实现 Clone
+impl Clone for ExpandNode {
+    fn clone(&self) -> Self {
+        ExpandNode {
+            id: self.id,
+            space_id: self.space_id,
+            edge_types: self.edge_types.clone(),
+            direction: self.direction.clone(),
+            step_limit: self.step_limit,
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            dependencies: RefCell::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+        }
+    }
 }
 
 impl ExpandNode {
@@ -38,6 +57,7 @@ impl ExpandNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            dependencies: RefCell::new(Vec::new()),
         }
     }
 }
@@ -82,16 +102,23 @@ impl PlanNodeProperties for ExpandNode {
 
 impl PlanNodeDependencies for ExpandNode {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &[]
+        let deps = self.dependencies.borrow();
+        &*deps
     }
     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        // 返回一个空的可变向量引用
-        static mut EMPTY: Vec<Arc<dyn PlanNode>> = Vec::new();
-        unsafe { &mut EMPTY }
+        self.dependencies.get_mut()
     }
-    fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {}
-    fn remove_dependency(&mut self, _id: i64) -> bool {
-        false
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.dependencies.get_mut().push(dep);
+    }
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let mut deps = self.dependencies.get_mut();
+        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+            deps.remove(pos);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -132,7 +159,7 @@ impl PlanNode for ExpandNode {
 }
 
 /// 扩展全部节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ExpandAllNode {
     id: i64,
     #[allow(dead_code)]
@@ -147,6 +174,26 @@ pub struct ExpandAllNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies: RefCell<Vec<Arc<dyn PlanNode>>>,
+}
+
+// 为 ExpandAllNode 实现 Clone
+impl Clone for ExpandAllNode {
+    fn clone(&self) -> Self {
+        ExpandAllNode {
+            id: self.id,
+            space_id: self.space_id,
+            edge_types: self.edge_types.clone(),
+            direction: self.direction.clone(),
+            step_limit: self.step_limit,
+            edge_props: self.edge_props.clone(),
+            vertex_props: self.vertex_props.clone(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            dependencies: RefCell::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+        }
+    }
 }
 
 impl ExpandAllNode {
@@ -162,6 +209,7 @@ impl ExpandAllNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            dependencies: RefCell::new(Vec::new()),
         }
     }
 
@@ -204,16 +252,23 @@ impl PlanNodeProperties for ExpandAllNode {
 
 impl PlanNodeDependencies for ExpandAllNode {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &[]
+        let deps = self.dependencies.borrow();
+        &*deps
     }
     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        // 返回一个空的可变向量引用
-        static mut EMPTY: Vec<Arc<dyn PlanNode>> = Vec::new();
-        unsafe { &mut EMPTY }
+        self.dependencies.get_mut()
     }
-    fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {}
-    fn remove_dependency(&mut self, _id: i64) -> bool {
-        false
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.dependencies.get_mut().push(dep);
+    }
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let mut deps = self.dependencies.get_mut();
+        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+            deps.remove(pos);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -254,7 +309,7 @@ impl PlanNode for ExpandAllNode {
 }
 
 /// 遍历节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TraverseNode {
     id: i64,
     #[allow(dead_code)]
@@ -266,6 +321,25 @@ pub struct TraverseNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies: RefCell<Vec<Arc<dyn PlanNode>>>,
+}
+
+// 为 TraverseNode 实现 Clone
+impl Clone for TraverseNode {
+    fn clone(&self) -> Self {
+        TraverseNode {
+            id: self.id,
+            space_id: self.space_id,
+            edge_types: self.edge_types.clone(),
+            direction: self.direction.clone(),
+            step_limit: self.step_limit,
+            filter: self.filter.clone(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            dependencies: RefCell::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+        }
+    }
 }
 
 impl TraverseNode {
@@ -280,6 +354,7 @@ impl TraverseNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            dependencies: RefCell::new(Vec::new()),
         }
     }
 
@@ -327,16 +402,23 @@ impl PlanNodeProperties for TraverseNode {
 
 impl PlanNodeDependencies for TraverseNode {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &[]
+        let deps = self.dependencies.borrow();
+        &*deps
     }
     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        // 返回一个空的可变向量引用
-        static mut EMPTY: Vec<Arc<dyn PlanNode>> = Vec::new();
-        unsafe { &mut EMPTY }
+        self.dependencies.get_mut()
     }
-    fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {}
-    fn remove_dependency(&mut self, _id: i64) -> bool {
-        false
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.dependencies.get_mut().push(dep);
+    }
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let mut deps = self.dependencies.get_mut();
+        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+            deps.remove(pos);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -377,7 +459,7 @@ impl PlanNode for TraverseNode {
 }
 
 /// 追加顶点节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct AppendVerticesNode {
     id: i64,
     space_id: i32,
@@ -387,6 +469,24 @@ pub struct AppendVerticesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies: RefCell<Vec<Arc<dyn PlanNode>>>,
+}
+
+// 为 AppendVerticesNode 实现 Clone
+impl Clone for AppendVerticesNode {
+    fn clone(&self) -> Self {
+        AppendVerticesNode {
+            id: self.id,
+            space_id: self.space_id,
+            vids: self.vids.clone(),
+            tag_ids: self.tag_ids.clone(),
+            filter: self.filter.clone(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            dependencies: RefCell::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+        }
+    }
 }
 
 impl AppendVerticesNode {
@@ -400,6 +500,7 @@ impl AppendVerticesNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            dependencies: RefCell::new(Vec::new()),
         }
     }
 
@@ -447,16 +548,23 @@ impl PlanNodeProperties for AppendVerticesNode {
 
 impl PlanNodeDependencies for AppendVerticesNode {
     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &[]
+        let deps = self.dependencies.borrow();
+        &*deps
     }
     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        // 返回一个空的可变向量引用
-        static mut EMPTY: Vec<Arc<dyn PlanNode>> = Vec::new();
-        unsafe { &mut EMPTY }
+        self.dependencies.get_mut()
     }
-    fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {}
-    fn remove_dependency(&mut self, _id: i64) -> bool {
-        false
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.dependencies.get_mut().push(dep);
+    }
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let mut deps = self.dependencies.get_mut();
+        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+            deps.remove(pos);
+            true
+        } else {
+            false
+        }
     }
 }
 

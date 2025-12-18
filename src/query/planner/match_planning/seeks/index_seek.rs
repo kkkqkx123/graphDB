@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 /// 索引查找规划器
 /// 根据标签索引和属性索引进行查找
 /// 负责规划基于索引的查找操作，包括标签索引、属性索引和可变属性索引
@@ -7,7 +5,6 @@ use crate::graph::expression::Expression;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::plan::core::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
@@ -97,7 +94,7 @@ impl IndexSeek {
         self.validate_conditions()?;
 
         let space_id = 1; // TODO: 应该从上下文获取space_id
-        let (label_id, label_name) = self.get_primary_label_info()?;
+        let (label_id, _label_name) = self.get_primary_label_info()?;
 
         // 创建实际的索引扫描节点
         let index_scan_node = match &self.seek_type {
@@ -110,7 +107,7 @@ impl IndexSeek {
             }
             IndexSeekType::Property(prop_exprs) => {
                 // 属性索引查找
-                let filter_expr = self.create_property_filter_expression(prop_exprs)?;
+                let _filter_expr = self.create_property_filter_expression(prop_exprs)?;
                 PlanNodeFactory::create_index_scan(
                     space_id, label_id, label_id, // 使用标签ID作为索引ID
                     "RANGE",
@@ -118,7 +115,7 @@ impl IndexSeek {
             }
             IndexSeekType::VariableProperty(prop_exprs) => {
                 // 可变属性索引查找
-                let filter_expr = self.create_variable_property_filter_expression(prop_exprs)?;
+                let _filter_expr = self.create_variable_property_filter_expression(prop_exprs)?;
                 PlanNodeFactory::create_index_scan(
                     space_id, label_id, label_id, // 使用标签ID作为索引ID
                     "VARIABLE",
@@ -317,7 +314,7 @@ impl IndexSeek {
         // 检查每个表达式是否有效
         for expr in prop_exprs {
             match expr {
-                Expression::Binary { left, op, right } => {
+                Expression::Binary { left: _, op, right: _ } => {
                     // 验证二元表达式
                     if !self.is_valid_binary_operator(op) {
                         return Err(PlannerError::InvalidAstContext(format!(

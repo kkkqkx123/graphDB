@@ -12,9 +12,10 @@ use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
 use crate::graph::expression::Expression;
 use std::sync::Arc;
+use std::cell::RefCell;
 
 /// 获取顶点节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct GetVerticesNode {
     id: i64,
     space_id: i32,
@@ -31,6 +32,27 @@ pub struct GetVerticesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies: RefCell<Vec<Arc<dyn PlanNode>>>,
+}
+
+// 为 GetVerticesNode 实现 Clone
+impl Clone for GetVerticesNode {
+    fn clone(&self) -> Self {
+        GetVerticesNode {
+            id: self.id,
+            space_id: self.space_id,
+            src_ref: self.src_ref.clone(),
+            src_vids: self.src_vids.clone(),
+            tag_props: self.tag_props.clone(),
+            expr: self.expr.clone(),
+            dedup: self.dedup,
+            limit: self.limit,
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            dependencies: RefCell::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+        }
+    }
 }
 
 impl GetVerticesNode {
@@ -47,6 +69,7 @@ impl GetVerticesNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            dependencies: RefCell::new(Vec::new()),
         }
     }
 
@@ -86,13 +109,28 @@ impl PlanNodeProperties for GetVerticesNode {
 }
 
 impl PlanNodeDependencies for GetVerticesNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] { &[] }
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         static mut EMPTY: Vec<Arc<dyn PlanNode>> = Vec::new();
-         unsafe { &mut EMPTY }
+     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+         let deps = self.dependencies.borrow();
+         &*deps
      }
-     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {}
-     fn remove_dependency(&mut self, _id: i64) -> bool { false }
+
+     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+         self.dependencies.get_mut()
+     }
+
+     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+         self.dependencies.get_mut().push(dep);
+     }
+
+     fn remove_dependency(&mut self, id: i64) -> bool {
+         let mut deps = self.dependencies.get_mut();
+         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+             deps.remove(pos);
+             true
+         } else {
+             false
+         }
+     }
  }
 
 impl PlanNodeMutable for GetVerticesNode {
@@ -126,7 +164,7 @@ impl PlanNode for GetVerticesNode {
 }
 
 /// 获取边节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct GetEdgesNode {
     id: i64,
     space_id: i32,
@@ -146,6 +184,30 @@ pub struct GetEdgesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies: RefCell<Vec<Arc<dyn PlanNode>>>,
+}
+
+// 为 GetEdgesNode 实现 Clone
+impl Clone for GetEdgesNode {
+    fn clone(&self) -> Self {
+        GetEdgesNode {
+            id: self.id,
+            space_id: self.space_id,
+            edge_ref: self.edge_ref.clone(),
+            src: self.src.clone(),
+            edge_type: self.edge_type.clone(),
+            rank: self.rank.clone(),
+            dst: self.dst.clone(),
+            edge_props: self.edge_props.clone(),
+            expr: self.expr.clone(),
+            dedup: self.dedup,
+            limit: self.limit,
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            dependencies: RefCell::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+        }
+    }
 }
 
 impl GetEdgesNode {
@@ -165,6 +227,7 @@ impl GetEdgesNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            dependencies: RefCell::new(Vec::new()),
         }
     }
 
@@ -214,13 +277,28 @@ impl PlanNodeProperties for GetEdgesNode {
 }
 
 impl PlanNodeDependencies for GetEdgesNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] { &[] }
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         static mut EMPTY: Vec<Arc<dyn PlanNode>> = Vec::new();
-         unsafe { &mut EMPTY }
+     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+         let deps = self.dependencies.borrow();
+         &*deps
      }
-     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {}
-     fn remove_dependency(&mut self, _id: i64) -> bool { false }
+
+     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+         self.dependencies.get_mut()
+     }
+
+     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+         self.dependencies.get_mut().push(dep);
+     }
+
+     fn remove_dependency(&mut self, id: i64) -> bool {
+         let mut deps = self.dependencies.get_mut();
+         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+             deps.remove(pos);
+             true
+         } else {
+             false
+         }
+     }
  }
 
 impl PlanNodeMutable for GetEdgesNode {
@@ -254,7 +332,7 @@ impl PlanNode for GetEdgesNode {
 }
 
 /// 获取邻居节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct GetNeighborsNode {
     id: i64,
     #[allow(dead_code)]
@@ -275,6 +353,28 @@ pub struct GetNeighborsNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies: RefCell<Vec<Arc<dyn PlanNode>>>,
+}
+
+// 为 GetNeighborsNode 实现 Clone
+impl Clone for GetNeighborsNode {
+    fn clone(&self) -> Self {
+        GetNeighborsNode {
+            id: self.id,
+            space_id: self.space_id,
+            src_vids: self.src_vids.clone(),
+            edge_types: self.edge_types.clone(),
+            tag_props: self.tag_props.clone(),
+            edge_props: self.edge_props.clone(),
+            expr: self.expr.clone(),
+            dedup: self.dedup,
+            limit: self.limit,
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            dependencies: RefCell::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+        }
+    }
 }
 
 impl GetNeighborsNode {
@@ -292,6 +392,7 @@ impl GetNeighborsNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            dependencies: RefCell::new(Vec::new()),
         }
     }
 
@@ -316,13 +417,28 @@ impl PlanNodeProperties for GetNeighborsNode {
 }
 
 impl PlanNodeDependencies for GetNeighborsNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] { &[] }
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         static mut EMPTY: Vec<Arc<dyn PlanNode>> = Vec::new();
-         unsafe { &mut EMPTY }
+     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+         let deps = self.dependencies.borrow();
+         &*deps
      }
-     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {}
-     fn remove_dependency(&mut self, _id: i64) -> bool { false }
+
+     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+         self.dependencies.get_mut()
+     }
+
+     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+         self.dependencies.get_mut().push(dep);
+     }
+
+     fn remove_dependency(&mut self, id: i64) -> bool {
+         let mut deps = self.dependencies.get_mut();
+         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+             deps.remove(pos);
+             true
+         } else {
+             false
+         }
+     }
  }
 
 impl PlanNodeMutable for GetNeighborsNode {
@@ -356,7 +472,7 @@ impl PlanNode for GetNeighborsNode {
 }
 
 /// 扫描顶点节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ScanVerticesNode {
     id: i64,
     space_id: i32,
@@ -366,6 +482,24 @@ pub struct ScanVerticesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies: RefCell<Vec<Arc<dyn PlanNode>>>,
+}
+
+// 为 ScanVerticesNode 实现 Clone
+impl Clone for ScanVerticesNode {
+    fn clone(&self) -> Self {
+        ScanVerticesNode {
+            id: self.id,
+            space_id: self.space_id,
+            tag_filter: self.tag_filter.clone(),
+            vertex_filter: self.vertex_filter.clone(),
+            limit: self.limit,
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            dependencies: RefCell::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+        }
+    }
 }
 
 impl ScanVerticesNode {
@@ -379,6 +513,7 @@ impl ScanVerticesNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            dependencies: RefCell::new(Vec::new()),
         }
     }
 
@@ -423,13 +558,28 @@ impl PlanNodeProperties for ScanVerticesNode {
 }
 
 impl PlanNodeDependencies for ScanVerticesNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] { &[] }
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         static mut EMPTY: Vec<Arc<dyn PlanNode>> = Vec::new();
-         unsafe { &mut EMPTY }
+     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+         let deps = self.dependencies.borrow();
+         &*deps
      }
-     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {}
-     fn remove_dependency(&mut self, _id: i64) -> bool { false }
+
+     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+         self.dependencies.get_mut()
+     }
+
+     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+         self.dependencies.get_mut().push(dep);
+     }
+
+     fn remove_dependency(&mut self, id: i64) -> bool {
+         let mut deps = self.dependencies.get_mut();
+         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+             deps.remove(pos);
+             true
+         } else {
+             false
+         }
+     }
  }
 
 impl PlanNodeMutable for ScanVerticesNode {
@@ -463,7 +613,7 @@ impl PlanNode for ScanVerticesNode {
 }
 
 /// 扫描边节点
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ScanEdgesNode {
     id: i64,
     space_id: i32,
@@ -475,6 +625,25 @@ pub struct ScanEdgesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies: RefCell<Vec<Arc<dyn PlanNode>>>,
+}
+
+// 为 ScanEdgesNode 实现 Clone
+impl Clone for ScanEdgesNode {
+    fn clone(&self) -> Self {
+        ScanEdgesNode {
+            id: self.id,
+            space_id: self.space_id,
+            edge_type: self.edge_type.clone(),
+            limit: self.limit,
+            filter: self.filter.clone(),
+            props: self.props.clone(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            dependencies: RefCell::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+        }
+    }
 }
 
 impl ScanEdgesNode {
@@ -489,6 +658,7 @@ impl ScanEdgesNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            dependencies: RefCell::new(Vec::new()),
         }
     }
 
@@ -533,13 +703,28 @@ impl PlanNodeProperties for ScanEdgesNode {
 }
 
 impl PlanNodeDependencies for ScanEdgesNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] { &[] }
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         static mut EMPTY: Vec<Arc<dyn PlanNode>> = Vec::new();
-         unsafe { &mut EMPTY }
+     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
+         let deps = self.dependencies.borrow();
+         &*deps
      }
-     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {}
-     fn remove_dependency(&mut self, _id: i64) -> bool { false }
+
+     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
+         self.dependencies.get_mut()
+     }
+
+     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+         self.dependencies.get_mut().push(dep);
+     }
+
+     fn remove_dependency(&mut self, id: i64) -> bool {
+         let mut deps = self.dependencies.get_mut();
+         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+             deps.remove(pos);
+             true
+         } else {
+             false
+         }
+     }
  }
 
 impl PlanNodeMutable for ScanEdgesNode {

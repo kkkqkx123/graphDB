@@ -67,7 +67,7 @@ impl MatchPathPlanner {
     /// 查找起始点 - 对照 nebula-graph 实现
     fn find_starts(
         &mut self,
-        bind_where_clause: Option<&WhereClauseContext>,
+        _bind_where_clause: Option<&WhereClauseContext>,
         node_aliases_seen: &HashSet<String>,
     ) -> Result<(usize, bool, SubPlan), PlannerError> {
         let mut found_start = false;
@@ -324,7 +324,7 @@ impl MatchPathPlanner {
                 col_names.push(edge_info.alias.clone());
             }
         }
-        let variable = Variable {
+        let _variable = Variable {
             name: "project".to_string(),
             columns: vec![],
         };
@@ -374,7 +374,7 @@ impl MatchPathPlanner {
     fn create_label_index_scan(
         &self,
         node_info: &crate::query::validator::structs::path_structs::NodeInfo,
-        space_id: i32,
+        _space_id: i32,
     ) -> Result<Option<SubPlan>, PlannerError> {
         if node_info.labels.is_empty() || node_info.tids.is_empty() {
             return Ok(None);
@@ -384,7 +384,7 @@ impl MatchPathPlanner {
         let index_scan_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 设置变量和列名
-        let variable = Variable {
+        let _variable = Variable {
             name: format!("index_scan_{}", node_info.labels.join("_")),
             columns: vec![Column {
                 name: "vid".to_string(),
@@ -403,14 +403,14 @@ impl MatchPathPlanner {
     fn create_prop_index_scan(
         &self,
         node_info: &crate::query::validator::structs::path_structs::NodeInfo,
-        props: &crate::graph::expression::Expression,
-        space_id: i32,
+        _props: &crate::graph::expression::Expression,
+        _space_id: i32,
     ) -> Result<Option<SubPlan>, PlannerError> {
         // 创建属性索引扫描节点
         let index_scan_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 设置变量和列名
-        let variable = Variable {
+        let _variable = Variable {
             name: format!("prop_index_scan_{}", node_info.alias),
             columns: vec![Column {
                 name: "vid".to_string(),
@@ -429,7 +429,7 @@ impl MatchPathPlanner {
     fn create_edge_index_scan(
         &self,
         edge_info: &crate::query::validator::structs::path_structs::EdgeInfo,
-        space_id: i32,
+        _space_id: i32,
     ) -> Result<Option<SubPlan>, PlannerError> {
         if edge_info.types.is_empty() || edge_info.edge_types.is_empty() {
             return Ok(None);
@@ -439,7 +439,7 @@ impl MatchPathPlanner {
         let edge_scan_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 设置变量和列名
-        let variable = Variable {
+        let _variable = Variable {
             name: format!("edge_scan_{}", edge_info.types.join("_")),
             columns: vec![
                 Column {
@@ -460,17 +460,17 @@ impl MatchPathPlanner {
     /// 配置遍历节点
     fn configure_traverse_node(
         &self,
-        traverse_node: std::sync::Arc<dyn crate::query::planner::plan::core::PlanNode>,
+        _traverse_node: std::sync::Arc<dyn crate::query::planner::plan::core::PlanNode>,
         node: &crate::query::validator::structs::path_structs::NodeInfo,
         edge: &crate::query::validator::structs::path_structs::EdgeInfo,
-        track_prev_path: bool,
+        _track_prev_path: bool,
     ) -> Result<(), PlannerError> {
         // 设置顶点属性
-        let vertex_props = self.get_all_vertex_props()?;
+        let _vertex_props = self.get_all_vertex_props()?;
 
         // 设置边属性
-        let edge_props = self.get_edge_props(edge, false)?;
-        let reverse_edge_props = self.get_edge_props(edge, true)?;
+        let _edge_props = self.get_edge_props(edge, false)?;
+        let _reverse_edge_props = self.get_edge_props(edge, true)?;
 
         // 设置过滤条件
         if let Some(_filter) = &node.filter {
@@ -507,7 +507,7 @@ impl MatchPathPlanner {
     fn get_edge_props(
         &self,
         edge: &crate::query::validator::structs::path_structs::EdgeInfo,
-        reverse: bool,
+        _reverse: bool,
     ) -> Result<Vec<crate::query::planner::plan::core::common::EdgeProp>, PlannerError> {
         // 实现获取边属性的逻辑
         // 这里应该查询模式信息并返回边类型的属性

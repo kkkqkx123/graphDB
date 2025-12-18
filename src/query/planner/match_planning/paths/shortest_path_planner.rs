@@ -144,7 +144,7 @@ impl ShortestPathPlanner {
     /// 创建最短路径节点 - 对照 nebula-graph 实现
     fn create_shortest_path_node(
         &self,
-        mut shortest_path_node: std::sync::Arc<dyn crate::query::planner::plan::core::PlanNode>,
+        shortest_path_node: std::sync::Arc<dyn crate::query::planner::plan::core::PlanNode>,
     ) -> Result<std::sync::Arc<dyn crate::query::planner::plan::core::PlanNode>, PlannerError> {
         let _edge_info = &self.path.edge_infos[0];
         

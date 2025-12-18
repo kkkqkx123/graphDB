@@ -80,7 +80,7 @@ impl OptRule for FilterPushDownRule {
                                         std::sync::Arc::new(new_scan_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
-                                    if let Some(remaining_condition) =
+                                    if let Some(_remaining_condition) =
                                         split_result.remaining_condition
                                     {
                                         let _new_filter_node = filter_plan_node.clone();
@@ -136,7 +136,7 @@ impl OptRule for FilterPushDownRule {
                                         std::sync::Arc::new(new_index_scan_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
-                                    if let Some(remaining_condition) =
+                                    if let Some(_remaining_condition) =
                                         split_result.remaining_condition
                                     {
                                         let _new_filter_node = filter_plan_node.clone();
@@ -192,7 +192,7 @@ impl OptRule for FilterPushDownRule {
                                         std::sync::Arc::new(new_traverse_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
-                                    if let Some(remaining_condition) =
+                                    if let Some(_remaining_condition) =
                                         split_result.remaining_condition
                                     {
                                         let _new_filter_node = filter_plan_node.clone();
@@ -330,7 +330,7 @@ impl OptRule for PushFilterDownTraverseRule {
                                     std::sync::Arc::new(new_traverse_node);
 
                                 // 如果有剩余的过滤条件，创建新的过滤节点
-                                if let Some(remaining_condition) = split_result.remaining_condition
+                                if let Some(_remaining_condition) = split_result.remaining_condition
                                 {
                                     let _new_filter_node = filter_plan_node.clone();
                                     // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
@@ -428,7 +428,7 @@ impl OptRule for PushFilterDownExpandRule {
                         // 分析过滤条件，确定哪些部分可以下推到扩展操作
                         let split_result = can_push_down_to_traverse(filter_condition);
 
-                        if let Some(pushable_condition) = split_result.pushable_condition {
+                        if let Some(_pushable_condition) = split_result.pushable_condition {
                             // 创建带有下推过滤条件的新扩展节点
                             if let Some(expand_node) =
                                 child.plan_node().as_any().downcast_ref::<Expand>()
@@ -449,7 +449,7 @@ impl OptRule for PushFilterDownExpandRule {
                                 new_filter_opt_node.dependencies = vec![child.node.id];
 
                                 // 如果有剩余的过滤条件，创建另一个过滤节点
-                                if let Some(remaining_condition) = split_result.remaining_condition
+                                if let Some(_remaining_condition) = split_result.remaining_condition
                                 {
                                     let top_filter_node = filter_plan_node.clone();
                                     // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
