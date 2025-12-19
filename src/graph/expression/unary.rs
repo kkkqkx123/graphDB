@@ -11,6 +11,10 @@ pub enum UnaryOperator {
     Minus,
     Negate,
     Not,
+    IsNull,
+    IsNotNull,
+    IsEmpty,
+    IsNotEmpty,
     Increment,
     Decrement,
 }
@@ -29,6 +33,26 @@ pub fn evaluate_unary_op(
         UnaryOperator::Minus => neg_value(operand_val),
         UnaryOperator::Negate => neg_value(operand_val),
         UnaryOperator::Not => Ok(Value::Bool(!value_to_bool(&operand_val))),
+        UnaryOperator::IsNull => Ok(Value::Bool(matches!(operand_val, Value::Null(_)))),
+        UnaryOperator::IsNotNull => Ok(Value::Bool(!matches!(operand_val, Value::Null(_)))),
+        UnaryOperator::IsEmpty => {
+            let is_empty = match &operand_val {
+                Value::String(s) => s.is_empty(),
+                Value::List(items) => items.is_empty(),
+                Value::Map(items) => items.is_empty(),
+                _ => false,
+            };
+            Ok(Value::Bool(is_empty))
+        },
+        UnaryOperator::IsNotEmpty => {
+            let is_not_empty = match &operand_val {
+                Value::String(s) => !s.is_empty(),
+                Value::List(items) => !items.is_empty(),
+                Value::Map(items) => !items.is_empty(),
+                _ => true,
+            };
+            Ok(Value::Bool(is_not_empty))
+        },
         UnaryOperator::Increment => Err(ExpressionError::InvalidOperation(
             "Increment operation not supported".to_string(),
         )),

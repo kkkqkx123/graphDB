@@ -1,12 +1,17 @@
 pub mod aggregate;
 pub mod aggregate_functions;
+pub mod arithmetic;
 pub mod binary;
+pub mod comparison;
 pub mod container;
+pub mod cypher_compat;
 pub mod error;
 pub mod evaluator;
 pub mod expression;
 pub mod function;
+pub mod operator_conversion;
 pub mod property;
+pub mod type_conversion;
 pub mod unary;
 pub mod visitor;
 

@@ -1,9 +1,13 @@
 use super::error::ExpressionError;
+use super::operator_conversion;
+use super::type_conversion;
 use crate::core::Value;
 use crate::graph::expression::{Expression, LiteralValue};
 use crate::query::context::EvalContext;
+use crate::query::parser::cypher::ast::expressions::Expression as CypherExpression;
 
 /// Expression evaluator
+#[derive(Debug)]
 pub struct ExpressionEvaluator;
 
 impl ExpressionEvaluator {
@@ -38,6 +42,10 @@ impl ExpressionEvaluator {
                     LiteralValue::Null => Ok(Value::Null(crate::core::NullType::Null)),
                 }
             }
+            Expression::TypeCast { expr, target_type } => {
+                let value = self.evaluate(expr, context)?;
+                type_conversion::cast_value_to_datatype(value, target_type)
+            }
             Expression::Property { object, property } => {
                 // 先计算 object，然后获取其属性
                 let obj_value = self.evaluate(object, context)?;
@@ -52,12 +60,12 @@ impl ExpressionEvaluator {
             }
             Expression::Binary { left, op, right } => {
                 // 将 expression::BinaryOperator 转换为 binary::BinaryOperator
-                let binary_op = Self::convert_binary_operator(op);
+                let binary_op = operator_conversion::convert_binary_operator(op);
                 super::binary::evaluate_binary_op(left, &binary_op, right, context)
             }
             Expression::Unary { op, operand } => {
                 // 将 expression::UnaryOperator 转换为 unary::UnaryOperator
-                let unary_op = Self::convert_unary_operator(op);
+                let unary_op = operator_conversion::convert_unary_operator(op);
                 super::unary::evaluate_unary_op(&unary_op, operand, context)
             }
             Expression::Function { name, args } => {
@@ -90,12 +98,9 @@ impl ExpressionEvaluator {
                 super::container::evaluate_container(expr, context)
             }
 
-            Expression::TypeCasting {
-                expr,
-                target_type: _,
-            } => {
-                // 类型转换暂时返回原值，实际实现需要根据目标类型进行转换
-                self.evaluate(expr, context)
+            Expression::TypeCasting { expr, target_type } => {
+                let value = self.evaluate(expr, context)?;
+                type_conversion::cast_value(value, target_type)
             }
 
             Expression::Case {
@@ -337,14 +342,6 @@ impl ExpressionEvaluator {
                 Ok(Value::String(path_alias.clone()))
             }
 
-            Expression::TypeCast {
-                expr,
-                target_type: _,
-            } => {
-                // 类型转换暂时返回原值，实际实现需要根据目标类型进行转换
-                self.evaluate(expr, context)
-            }
-
             Expression::Range {
                 collection,
                 start,
@@ -446,53 +443,12 @@ impl ExpressionEvaluator {
         }
     }
 
-    /// 将 expression::BinaryOperator 转换为 binary::BinaryOperator
-    fn convert_binary_operator(
-        op: &crate::graph::expression::expression::BinaryOperator,
-    ) -> super::binary::BinaryOperator {
-        use super::binary::BinaryOperator as BinOp;
-        use crate::graph::expression::expression::BinaryOperator as ExprBinOp;
-
-        match op {
-            ExprBinOp::Add => BinOp::Add,
-            ExprBinOp::Subtract => BinOp::Sub,
-            ExprBinOp::Multiply => BinOp::Mul,
-            ExprBinOp::Divide => BinOp::Div,
-            ExprBinOp::Modulo => BinOp::Mod,
-            ExprBinOp::Equal => BinOp::Eq,
-            ExprBinOp::NotEqual => BinOp::Ne,
-            ExprBinOp::LessThan => BinOp::Lt,
-            ExprBinOp::LessThanOrEqual => BinOp::Le,
-            ExprBinOp::GreaterThan => BinOp::Gt,
-            ExprBinOp::GreaterThanOrEqual => BinOp::Ge,
-            ExprBinOp::And => BinOp::And,
-            ExprBinOp::Or => BinOp::Or,
-            ExprBinOp::StringConcat => BinOp::Attribute,
-            ExprBinOp::Like => BinOp::StartsWith,
-            ExprBinOp::In => BinOp::In,
-            ExprBinOp::Union => BinOp::Add,
-            ExprBinOp::Intersect => BinOp::And,
-            ExprBinOp::Except => BinOp::Sub,
-        }
-    }
-
-    /// 将 expression::UnaryOperator 转换为 unary::UnaryOperator
-    fn convert_unary_operator(
-        op: &crate::graph::expression::expression::UnaryOperator,
-    ) -> super::unary::UnaryOperator {
-        use super::unary::UnaryOperator as UnaryOp;
-        use crate::graph::expression::expression::UnaryOperator as ExprUnaryOp;
-
-        match op {
-            ExprUnaryOp::Plus => UnaryOp::Plus,
-            ExprUnaryOp::Minus => UnaryOp::Minus,
-            ExprUnaryOp::Not => UnaryOp::Not,
-            ExprUnaryOp::IsNull => UnaryOp::Negate,
-            ExprUnaryOp::IsNotNull => UnaryOp::Negate,
-            ExprUnaryOp::IsEmpty => UnaryOp::Negate,
-            ExprUnaryOp::IsNotEmpty => UnaryOp::Negate,
-            ExprUnaryOp::Increment => UnaryOp::Increment,
-            ExprUnaryOp::Decrement => UnaryOp::Decrement,
-        }
+    /// 直接评估Cypher表达式
+    pub fn evaluate_cypher(
+        &self,
+        cypher_expr: &CypherExpression,
+        context: &EvalContext,
+    ) -> Result<Value, ExpressionError> {
+        super::cypher_compat::evaluate_cypher(cypher_expr, context)
     }
 }

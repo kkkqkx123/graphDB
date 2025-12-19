@@ -298,8 +298,8 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Filter
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        use crate::graph::expression::Expression;
-        use crate::query::executor::data_processing::filter::FilterExecutor;
+        use crate::graph::expression::{Expression, AggregateFunction};
+        use crate::query::executor::result_processing::filter::FilterExecutor;
         use crate::query::planner::plan::core::nodes::FilterNode;
 
         let id = plan_node.id() as usize;
@@ -372,7 +372,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for LimitC
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        use crate::query::executor::data_processing::pagination::LimitExecutor;
+        use crate::query::executor::result_processing::limit::LimitExecutor;
         use crate::query::planner::plan::core::nodes::LimitNode;
 
         let id = plan_node.id() as usize;
@@ -405,7 +405,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for SortCr
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         use crate::graph::expression::Expression;
-        use crate::query::executor::data_processing::sort::{SortExecutor, SortKey, SortOrder};
+        use crate::query::executor::result_processing::sort::{SortExecutor, SortKey, SortOrder};
         use crate::query::planner::plan::core::nodes::SortNode;
 
         let id = plan_node.id() as usize;
@@ -467,22 +467,27 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Aggreg
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        use crate::query::executor::data_processing::aggregation::AggregateExecutor;
+        use crate::query::executor::result_processing::aggregation::AggregateExecutor;
         use crate::query::planner::plan::core::nodes::AggregateNode;
 
         let id = plan_node.id() as usize;
 
         // 尝试从具体的Aggregate计划节点中提取参数
-        let (_group_keys, _agg_funcs): (Vec<String>, Vec<String>) =
-            if let Some(agg_node) = plan_node.as_any().downcast_ref::<AggregateNode>() {
-                // 解析分组键和聚合函数
-                (agg_node.group_keys().to_vec(), agg_node.agg_exprs().to_vec())
-            } else {
-                // 如果不是具体的Aggregate节点，使用默认值
-                (vec![], vec![])
-            };
+        let (group_keys, agg_exprs) = if let Some(agg_node) = plan_node.as_any().downcast_ref::<AggregateNode>() {
+            // 解析分组键和聚合函数
+            let group_keys = agg_node.group_keys().iter()
+                .map(|k| crate::graph::expression::Expression::variable(k.clone()))
+                .collect::<Vec<_>>();
+            let agg_funcs = agg_node.agg_exprs().iter()
+                .map(|_| crate::query::executor::result_processing::aggregation::AggregateFunction::Count)
+                .collect::<Vec<_>>();
+            (group_keys, agg_funcs)
+        } else {
+            // 如果不是具体的Aggregate节点，使用默认值
+            (vec![], vec![])
+        };
 
-        let executor = AggregateExecutor::new(id, storage);
+        let executor = AggregateExecutor::new(id, storage, agg_exprs, group_keys);
         Ok(Box::new(executor))
     }
 }

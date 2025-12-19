@@ -4,6 +4,7 @@
 //! 包括变量管理、结果缓存、执行状态等
 
 use crate::core::Value;
+use crate::core::vertex_edge_path::{Vertex, Edge};
 use crate::query::context::ast::CypherAstContext;
 use crate::query::executor::ExecutionContext;
 use std::collections::HashMap;
@@ -31,6 +32,12 @@ pub struct CypherExecutionContext {
     execution_state: ExecutionState,
     /// 当前作用域
     current_scope: Vec<String>,
+    /// 当前顶点（用于表达式求值）
+    current_vertex: Option<Vertex>,
+    /// 当前边（用于表达式求值）
+    current_edge: Option<Edge>,
+    /// 路径信息（用于表达式求值）
+    paths: HashMap<String, crate::core::vertex_edge_path::Path>,
 }
 
 /// Cypher变量信息
@@ -97,6 +104,9 @@ impl CypherExecutionContext {
             parameters: HashMap::new(),
             execution_state: ExecutionState::Initial,
             current_scope: Vec::new(),
+            current_vertex: None,
+            current_edge: None,
+            paths: HashMap::new(),
         }
     }
 
@@ -110,6 +120,9 @@ impl CypherExecutionContext {
             parameters: HashMap::new(),
             execution_state: ExecutionState::Initial,
             current_scope: Vec::new(),
+            current_vertex: None,
+            current_edge: None,
+            paths: HashMap::new(),
         }
     }
 
@@ -192,6 +205,9 @@ impl CypherExecutionContext {
         self.parameters.clear();
         self.current_scope.clear();
         self.execution_state = ExecutionState::Initial;
+        self.current_vertex = None;
+        self.current_edge = None;
+        self.paths.clear();
     }
 
     /// 获取基础执行上下文的引用
@@ -227,6 +243,41 @@ impl CypherExecutionContext {
     /// 获取所有参数
     pub fn parameters(&self) -> &HashMap<String, Value> {
         &self.parameters
+    }
+
+    /// 设置当前顶点
+    pub fn set_current_vertex(&mut self, vertex: Vertex) {
+        self.current_vertex = Some(vertex);
+    }
+
+    /// 获取当前顶点
+    pub fn current_vertex(&self) -> Option<&Vertex> {
+        self.current_vertex.as_ref()
+    }
+
+    /// 设置当前边
+    pub fn set_current_edge(&mut self, edge: Edge) {
+        self.current_edge = Some(edge);
+    }
+
+    /// 获取当前边
+    pub fn current_edge(&self) -> Option<&Edge> {
+        self.current_edge.as_ref()
+    }
+
+    /// 添加路径
+    pub fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path) {
+        self.paths.insert(name, path);
+    }
+
+    /// 获取路径
+    pub fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
+        self.paths.get(name)
+    }
+
+    /// 获取所有路径
+    pub fn paths(&self) -> &HashMap<String, crate::core::vertex_edge_path::Path> {
+        &self.paths
     }
 }
 

@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{Edge, Value, Vertex};
-use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::base::InputExecutor;
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
@@ -631,7 +631,7 @@ mod tests {
             storage,
         };
 
-        <Self as InputExecutor<S>>::set_input(&mut executor, Box::new(input_executor));
+        <DedupExecutor<MockStorage> as InputExecutor<MockStorage>>::set_input(&mut executor, Box::new(input_executor));
 
         // 执行去重
         let result = executor.process(ExecutionResult::Values(Vec::new())).await.unwrap();

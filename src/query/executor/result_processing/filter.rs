@@ -422,7 +422,7 @@ mod tests {
         let mut executor = FilterExecutor::new(1, storage, condition);
         
         // 设置输入数据
-        <Self as ResultProcessor<MockStorage>>::set_input(&mut executor, ExecutionResult::DataSet(dataset));
+        <FilterExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(&mut executor, ExecutionResult::DataSet(dataset));
         
         // 执行过滤
         let result = executor.process(ExecutionResult::DataSet(DataSet::new())).await.unwrap();

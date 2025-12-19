@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::Value;
 use crate::graph::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::EvalContext;
-use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::base::InputExecutor;
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
@@ -56,14 +56,15 @@ impl AggregateState {
         self.count += 1;
 
         // 更新 sum
-        match &mut self.sum {
+        let new_sum = match &self.sum {
             Some(sum) => {
-                *sum = self.add_values(sum, value)?;
+                Some(Self::add_values_static(sum, value)?)
             }
             None => {
-                self.sum = Some(value.clone());
+                Some(value.clone())
             }
-        }
+        };
+        self.sum = new_sum;
 
         // 更新 max
         match &mut self.max {
@@ -91,14 +92,14 @@ impl AggregateState {
 
         // 更新 avg
         if let Some(sum) = &self.sum {
-            self.avg = Some(self.divide_value(sum, self.count)?);
+            self.avg = Some(Self::divide_value_static(sum, self.count)?);
         }
 
         Ok(())
     }
 
     /// 添加两个值
-    fn add_values(&self, a: &Value, b: &Value) -> DBResult<Value> {
+    fn add_values_static(a: &Value, b: &Value) -> DBResult<Value> {
         match (a, b) {
             (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a + b)),
             (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
@@ -113,7 +114,7 @@ impl AggregateState {
     }
 
     /// 除法运算
-    fn divide_value(&self, value: &Value, divisor: usize) -> DBResult<Value> {
+    fn divide_value_static(value: &Value, divisor: usize) -> DBResult<Value> {
         if divisor == 0 {
             return Err(crate::core::error::DBError::Query(
                 crate::core::error::QueryError::ExecutionError(
@@ -216,7 +217,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
 
     /// 对数据集执行聚合
     async fn aggregate_dataset(&mut self, dataset: crate::core::value::DataSet) -> DBResult<crate::core::value::DataSet> {
-        let evaluator = ExpressionEvaluator;
+        let evaluator = ExpressionEvaluator::new();
         let mut group_state = GroupAggregateState::new();
 
         // 处理每一行数据
@@ -273,7 +274,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
         let mut result_dataset = crate::core::value::DataSet::new();
         
         // 设置列名
-        for group_expr in &self.group_keys {
+        for _group_expr in &self.group_keys {
             result_dataset.col_names.push(format!("group_{}", result_dataset.col_names.len()));
         }
         
@@ -436,7 +437,7 @@ impl<S: StorageEngine> GroupByExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> InputExecutor<S> for GroupByExecutor<S> {
+impl<S: StorageEngine + 'static> InputExecutor<S> for GroupByExecutor<S> {
     fn set_input(&mut self, input: Box<dyn Executor<S>>) {
         InputExecutor::set_input(&mut self.aggregate_executor, input);
     }
@@ -543,7 +544,7 @@ impl<S: StorageEngine> HavingExecutor<S> {
 
     /// 应用 HAVING 条件过滤
     fn apply_having_condition(&self, dataset: &mut crate::core::value::DataSet) -> DBResult<()> {
-        let evaluator = ExpressionEvaluator;
+        let evaluator = ExpressionEvaluator::new();
         let mut filtered_rows = Vec::new();
 
         for row in &dataset.rows {

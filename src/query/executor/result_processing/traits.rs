@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
-use crate::query::executor::traits::{ExecutionResult, Executor};
+use crate::query::executor::traits::ExecutionResult;
 use crate::storage::StorageEngine;
 
 /// 结果处理器上下文
@@ -181,7 +181,7 @@ impl<S: StorageEngine> BaseResultProcessor<S> {
         
         for row in &dataset.rows {
             usage += std::mem::size_of::<Vec<crate::core::Value>>();
-            for value in row {
+            for _value in row {
                 usage += std::mem::size_of::<crate::core::Value>();
                 // 这里可以添加更精确的值大小估算
             }
@@ -306,7 +306,7 @@ impl ResultProcessorFactory {
         n: usize,
         sort_columns: Vec<String>,
         ascending: bool,
-        offset: usize,
+        _offset: usize,
     ) -> crate::query::executor::result_processing::topn::TopNExecutor<S> {
         crate::query::executor::result_processing::topn::TopNExecutor::new(id, storage, n, sort_columns, ascending)
     }
@@ -350,7 +350,8 @@ mod tests {
             crate::core::Value::String("test".to_string()),
         ]);
         
-        let usage = BaseResultProcessor::<MockStorageEngine>::estimate_dataset_memory_usage(&dataset);
+        // 测试内存使用估算
+        let usage = BaseResultProcessor::<crate::query::executor::data_processing::join::cross_join::MockStorage>::estimate_dataset_memory_usage(&dataset);
         assert!(usage > 0);
     }
 }

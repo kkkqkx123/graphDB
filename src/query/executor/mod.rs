@@ -30,8 +30,10 @@ pub use result_processing::{
     ProjectExecutor, SortExecutor, LimitExecutor, AggregateExecutor, GroupByExecutor, HavingExecutor,
     DedupExecutor, FilterExecutor, SampleExecutor, TopNExecutor,
     SortKey, SortOrder, AggregateFunction, AggregateState, GroupAggregateState, DedupStrategy, SampleMethod,
-    ResultProcessor, ResultProcessorContext, ResultProcessorFactory,
+    ResultProcessor, ResultProcessorContext,
 };
+
+pub use result_processing::traits::ResultProcessorFactory;
 
 // Re-export Cypher executor types
 pub use cypher::{
