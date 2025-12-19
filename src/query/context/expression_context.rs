@@ -10,8 +10,8 @@ use std::collections::HashMap;
 
 /// 表达式求值上下文
 pub struct ExpressionContext<'a> {
-    /// 查询上下文
-    pub query_context: &'a QueryContext,
+    /// 查询上下文（可选）
+    pub query_context: Option<&'a QueryContext>,
     /// 执行上下文（可选）
     pub execution_context: Option<&'a ExecutionContext>,
     /// 当前行（可选）
@@ -24,9 +24,20 @@ pub struct ExpressionContext<'a> {
 
 impl<'a> ExpressionContext<'a> {
     /// 创建新的表达式上下文
-    pub fn new(query_context: &'a QueryContext) -> Self {
+    pub fn new() -> Self {
         Self {
-            query_context,
+            query_context: None,
+            execution_context: None,
+            current_row: None,
+            current_iterator: None,
+            local_variables: HashMap::new(),
+        }
+    }
+
+    /// 创建带有查询上下文的表达式上下文
+    pub fn with_query_context(query_context: &'a QueryContext) -> Self {
+        Self {
+            query_context: Some(query_context),
             execution_context: None,
             current_row: None,
             current_iterator: None,
@@ -52,13 +63,27 @@ impl<'a> ExpressionContext<'a> {
         self
     }
 
+    /// 设置顶点（用于with_vertex方法）
+    pub fn with_vertex(mut self, vertex: &'a crate::core::vertex_edge_path::Vertex) -> Self {
+        // 将顶点添加到局部变量中
+        self.local_variables.insert("vertex".to_string(), crate::core::Value::Vertex(Box::new(vertex.clone())));
+        self
+    }
+
+    /// 设置边（用于with_edge方法）
+    pub fn with_edge(mut self, edge: &'a crate::core::vertex_edge_path::Edge) -> Self {
+        // 将边添加到局部变量中
+        self.local_variables.insert("edge".to_string(), crate::core::Value::Edge(Box::new(edge.clone())));
+        self
+    }
+
     /// 获取变量值
     ///
     /// 查找顺序：
     /// 1. 局部变量
     /// 2. 执行上下文变量
-    /// 3. 查询上下文变量
-    /// 4. 查询参数
+    /// 3. 查询上下文变量（如果存在）
+    /// 4. 查询参数（如果存在）
     pub fn get_variable(&self, name: &str) -> Option<&Value> {
         // 1. 检查局部变量
         if let Some(value) = self.local_variables.get(name) {
@@ -72,14 +97,16 @@ impl<'a> ExpressionContext<'a> {
             }
         }
 
-        // 3. 检查查询上下文变量
-        if let Some(value) = self.query_context.get_variable(name) {
-            return Some(value);
-        }
+        // 3. 检查查询上下文变量（如果存在）
+        if let Some(query_ctx) = self.query_context {
+            if let Some(value) = query_ctx.get_variable(name) {
+                return Some(value);
+            }
 
-        // 4. 检查查询参数
-        if let Some(value) = self.query_context.get_parameter(name) {
-            return Some(value);
+            // 4. 检查查询参数（如果存在）
+            if let Some(value) = query_ctx.get_parameter(name) {
+                return Some(value);
+            }
         }
 
         None
@@ -320,7 +347,7 @@ mod tests {
     #[test]
     fn test_expression_context_creation() {
         let query_ctx = create_test_query_context();
-        let expr_ctx = ExpressionContext::new(&query_ctx);
+        let expr_ctx = ExpressionContext::with_query_context(&query_ctx);
 
         assert!(!expr_ctx.has_current_row());
         assert!(!expr_ctx.has_current_iterator());
@@ -330,7 +357,7 @@ mod tests {
     #[test]
     fn test_variable_resolution() {
         let query_ctx = create_test_query_context();
-        let mut expr_ctx = ExpressionContext::new(&query_ctx);
+        let mut expr_ctx = ExpressionContext::with_query_context(&query_ctx);
 
         // 设置局部变量
         expr_ctx.set_local_variable("local_var".to_string(), Value::Int(200));
@@ -345,7 +372,7 @@ mod tests {
     #[test]
     fn test_local_variable_management() {
         let query_ctx = create_test_query_context();
-        let mut expr_ctx = ExpressionContext::new(&query_ctx);
+        let mut expr_ctx = ExpressionContext::with_query_context(&query_ctx);
 
         // 设置局部变量
         expr_ctx.set_local_variable("var1".to_string(), Value::Int(1));
@@ -374,7 +401,7 @@ mod tests {
     #[test]
     fn test_with_methods() {
         let query_ctx = create_test_query_context();
-        let expr_ctx = ExpressionContext::new(&query_ctx);
+        let expr_ctx = ExpressionContext::with_query_context(&query_ctx);
 
         // 测试with_execution_context
         let schema_manager = Arc::new(MockSchemaManager::new());
@@ -402,7 +429,7 @@ mod tests {
     #[test]
     fn test_variable_property_access() {
         let query_ctx = create_test_query_context();
-        let mut expr_ctx = ExpressionContext::new(&query_ctx);
+        let mut expr_ctx = ExpressionContext::with_query_context(&query_ctx);
 
         // 创建一个包含属性的顶点
         let mut properties = HashMap::new();
@@ -415,8 +442,9 @@ mod tests {
         };
 
         let vertex = Value::Vertex(crate::core::vertex_edge_path::Vertex {
-            id: Value::String("v1".to_string()),
+            vid: Value::String("v1".to_string()),
             tags: vec![tag],
+            properties: HashMap::new(),
         });
 
         // 设置顶点变量
@@ -437,7 +465,7 @@ mod tests {
     #[test]
     fn test_map_property_access() {
         let query_ctx = create_test_query_context();
-        let mut expr_ctx = ExpressionContext::new(&query_ctx);
+        let mut expr_ctx = ExpressionContext::with_query_context(&query_ctx);
 
         // 创建一个Map
         let mut map = HashMap::new();

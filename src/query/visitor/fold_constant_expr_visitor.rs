@@ -218,6 +218,7 @@ impl FoldConstantExprVisitor {
             crate::core::ValueTypeDef::DataSet => value.cast_to_dataset(),
             crate::core::ValueTypeDef::Null => Ok(Value::Null(crate::core::NullType::Null)),
             crate::core::ValueTypeDef::Empty => Ok(Value::Empty),
+            crate::core::ValueTypeDef::Unknown => Ok(Value::Empty),
         }
     }
 }
