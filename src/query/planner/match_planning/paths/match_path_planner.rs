@@ -525,7 +525,7 @@ impl MatchPathPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::structs::{MatchClauseContext, NodeInfo, Path, PathType};
+    use crate::query::validator::{MatchClauseContext, NodeInfo, Path, PathType};
     use std::collections::HashMap;
 
     /// 创建测试用的节点信息

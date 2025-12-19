@@ -374,6 +374,26 @@ pub enum CypherClauseContext {
 #[derive(Debug, Clone)]
 pub struct MatchClauseContext {
     pub paths: Vec<Path>,
+    pub aliases_available: std::collections::HashMap<String, AliasType>,
+    pub aliases_generated: std::collections::HashMap<String, AliasType>,
+    pub where_clause: Option<WhereClauseContext>,
+    pub is_optional: bool,
+    pub skip: Option<usize>,
+    pub limit: Option<usize>,
+}
+
+impl Default for MatchClauseContext {
+    fn default() -> Self {
+        Self {
+            paths: Vec::new(),
+            aliases_available: std::collections::HashMap::new(),
+            aliases_generated: std::collections::HashMap::new(),
+            where_clause: None,
+            is_optional: false,
+            skip: None,
+            limit: None,
+        }
+    }
 }
 
 /// WHERE子句上下文
@@ -446,6 +466,32 @@ pub struct Path {
     pub gen_path: bool,
     pub path_type: PathType,
     pub node_infos: Vec<NodeInfo>,
+    pub edge_infos: Vec<EdgeInfo>,
+    pub path_build: Option<crate::graph::expression::Expression>,
+    pub is_pred: bool,
+    pub is_anti_pred: bool,
+    pub compare_variables: Vec<String>,
+    pub collect_variable: String,
+    pub roll_up_apply: bool,
+}
+
+impl Default for Path {
+    fn default() -> Self {
+        Self {
+            alias: String::new(),
+            anonymous: false,
+            gen_path: false,
+            path_type: PathType::Default,
+            node_infos: Vec::new(),
+            edge_infos: Vec::new(),
+            path_build: None,
+            is_pred: false,
+            is_anti_pred: false,
+            compare_variables: Vec::new(),
+            collect_variable: String::new(),
+            roll_up_apply: false,
+        }
+    }
 }
 
 /// 路径类型枚举

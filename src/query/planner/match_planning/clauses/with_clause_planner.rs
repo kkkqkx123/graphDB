@@ -6,7 +6,7 @@ use crate::query::planner::match_planning::core::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
+use crate::query::validator::{CypherClauseContext, CypherClauseKind};
 
 /// 新的 WITH子句规划器
 /// 实现新的 CypherClausePlanner 接口

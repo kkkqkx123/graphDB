@@ -99,7 +99,7 @@ impl Default for MatchPlanner {
 mod tests {
     use super::*;
     use crate::query::context::ast_context::AstContext;
-    use crate::query::validator::structs::{
+    use crate::query::validator::{
         AliasType, CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
     };
     use std::collections::HashMap;

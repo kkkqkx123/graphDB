@@ -289,7 +289,7 @@ impl Default for Finder {
 mod tests {
     use super::*;
     use crate::graph::expression::Expression;
-    use crate::query::validator::structs::{
+    use crate::query::validator::{
         AliasType, CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
         ReturnClauseContext, UnwindClauseContext, WhereClauseContext, WithClauseContext,
         YieldClauseContext,

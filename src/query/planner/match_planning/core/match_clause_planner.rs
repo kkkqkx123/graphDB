@@ -24,7 +24,7 @@ use crate::query::planner::match_planning::utils::finder::Finder;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
+use crate::query::validator::{CypherClauseContext, CypherClauseKind};
 
 /// MATCH子句规划器
 /// 负责规划 MATCH 子句的执行，是数据流的起始点
@@ -179,7 +179,7 @@ impl CypherClausePlanner for MatchClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::structs::{NodeInfo, Path, PathType};
+    use crate::query::validator::{NodeInfo, Path, PathType};
 
     #[test]
     fn test_match_clause_planner_interface() {

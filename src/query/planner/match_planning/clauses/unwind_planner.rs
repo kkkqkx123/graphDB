@@ -51,7 +51,7 @@ use crate::query::planner::match_planning::utils::connection_strategy::UnifiedCo
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
+use crate::query::validator::{CypherClauseContext, CypherClauseKind};
 
 /// UNWIND子句规划器
 /// 负责规划UNWIND操作来展开集合

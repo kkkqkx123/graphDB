@@ -11,10 +11,7 @@ use super::yield_planner::YieldClausePlanner;
 use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{
-    clause_structs::{OrderByClauseContext, PaginationContext, WhereClauseContext, YieldClauseContext},
-    CypherClauseContext,
-};
+use crate::query::validator::{CypherClauseContext, OrderByClauseContext, PaginationContext, WhereClauseContext, YieldClauseContext};
 
 /// 投影规划器
 /// 提供RETURN和WITH子句的公共逻辑
@@ -240,9 +237,7 @@ impl Default for ProjectionPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::structs::{
-        clause_structs::{OrderByClauseContext, PaginationContext, WhereClauseContext, YieldClauseContext},
-    };
+    use crate::query::validator::{OrderByClauseContext, PaginationContext, WhereClauseContext, YieldClauseContext};
 
     fn create_test_yield_clause() -> YieldClauseContext {
         YieldClauseContext {
