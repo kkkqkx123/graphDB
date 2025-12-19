@@ -24,7 +24,7 @@ use crate::query::planner::match_planning::utils::finder::Finder;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::{CypherClauseContext, CypherClauseKind};
+use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 
 /// MATCH子句规划器
 /// 负责规划 MATCH 子句的执行，是数据流的起始点
@@ -34,7 +34,7 @@ use crate::query::validator::{CypherClauseContext, CypherClauseKind};
 #[derive(Debug)]
 pub struct MatchClausePlanner {
     #[allow(dead_code)]
-    paths: Vec<crate::query::validator::Path>,
+    paths: Vec<crate::query::validator::structs::Path>,
 }
 
 impl MatchClausePlanner {
@@ -42,7 +42,7 @@ impl MatchClausePlanner {
     /// 
     /// # 参数
     /// * `paths` - 要匹配的路径列表
-    pub fn new(paths: Vec<crate::query::validator::Path>) -> Self {
+    pub fn new(paths: Vec<crate::query::validator::structs::Path>) -> Self {
         Self { paths }
     }
 }
@@ -126,9 +126,9 @@ impl CypherClausePlanner for MatchClausePlanner {
                 plan = path_plan;
             } else {
                 // 使用新的统一连接器连接多个路径
-                let temp_ast_context = crate::query::context::AstContext::new(
-                    context.query_info.statement_type.clone(),
-                    context.query_info.query_id.clone(),
+                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                    &context.query_info.statement_type,
+                    &context.query_info.query_id,
                 );
                 plan = UnifiedConnector::cartesian_product(
                     &temp_ast_context,
@@ -179,7 +179,7 @@ impl CypherClausePlanner for MatchClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::{NodeInfo, Path, PathType};
+    use crate::query::validator::structs::{NodeInfo, Path, PathType};
 
     #[test]
     fn test_match_clause_planner_interface() {
@@ -239,7 +239,7 @@ mod tests {
         let mut context = PlanningContext::new(query_info);
         
         // 创建一个简单的 MATCH 上下文
-        let match_clause_ctx = crate::query::validator::MatchClauseContext {
+        let match_clause_ctx = crate::query::validator::structs::MatchClauseContext {
             paths: vec![path],
             aliases_available: std::collections::HashMap::new(),
             aliases_generated: std::collections::HashMap::new(),

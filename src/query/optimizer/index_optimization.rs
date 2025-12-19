@@ -1045,19 +1045,7 @@ mod tests {
     use crate::query::planner::plan::PlanNodeKind;
 
     fn create_test_context() -> OptContext {
-        use crate::query::context::managers::r#impl::{
-            MemoryIndexManager, MemoryMetaClient, MemorySchemaManager, MemoryStorageClient,
-        };
-        
-        let query_context = QueryContext::new(
-            "test_session".to_string(),
-            "test_user".to_string(),
-            Arc::new(MemorySchemaManager::new()),
-            Arc::new(MemoryIndexManager::new()),
-            Arc::new(MemoryMetaClient::new()),
-            Arc::new(MemoryStorageClient::new()),
-        );
-        OptContext::new(query_context)
+        OptContext::new(QueryContext::default())
     }
 
     #[test]

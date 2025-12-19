@@ -14,7 +14,7 @@
 //! ### 简化规划流程
 //! - 移除复杂的验证步骤
 /// - 专注于核心的规划逻辑
-use crate::query::context::ast_context::AstContext;
+use crate::query::context::ast::AstContext;
 use crate::query::planner::match_planning::clauses::{
     ReturnClausePlanner, WhereClausePlanner, WithClausePlanner,
 };
@@ -24,7 +24,7 @@ use crate::query::planner::match_planning::core::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::validator::CypherClauseContext;
+use crate::query::validator::structs::CypherClauseContext;
 
 /// MATCH 规划器
 ///
@@ -42,7 +42,7 @@ impl MatchPlanner {
 
     pub fn make() -> Box<dyn Planner> {
         // 创建一个默认的查询上下文
-        let query_context = AstContext::new("MATCH".to_string(), "MATCH (n)".to_string());
+        let query_context = AstContext::new("MATCH", "MATCH (n)");
         Box::new(Self::new(query_context))
     }
 
@@ -55,7 +55,7 @@ impl MatchPlanner {
     fn parse_clauses(&self) -> Result<Vec<CypherClauseContext>, PlannerError> {
         // 这里应该解析查询文本并构建子句上下文
         // 暂时返回一个简单的 MATCH 子句
-        let match_clause = crate::query::validator::MatchClauseContext {
+        let match_clause = crate::query::validator::structs::MatchClauseContext {
             paths: vec![],
             aliases_available: std::collections::HashMap::new(),
             aliases_generated: std::collections::HashMap::new(),
@@ -94,19 +94,19 @@ impl Planner for MatchPlanner {
 
         for clause_ctx in &clauses {
             match clause_ctx.kind() {
-                crate::query::validator::CypherClauseKind::Match => {
+                crate::query::validator::structs::CypherClauseKind::Match => {
                     if let CypherClauseContext::Match(match_ctx) = clause_ctx {
                         clause_planners
                             .push(Box::new(MatchClausePlanner::new(match_ctx.paths.clone())));
                     }
                 }
-                crate::query::validator::CypherClauseKind::Where => {
+                crate::query::validator::structs::CypherClauseKind::Where => {
                     clause_planners.push(Box::new(WhereClausePlanner::new(false)));
                 }
-                crate::query::validator::CypherClauseKind::With => {
+                crate::query::validator::structs::CypherClauseKind::With => {
                     clause_planners.push(Box::new(WithClausePlanner::new()));
                 }
-                crate::query::validator::CypherClauseKind::Return => {
+                crate::query::validator::structs::CypherClauseKind::Return => {
                     clause_planners.push(Box::new(ReturnClausePlanner::new()));
                 }
                 _ => {
@@ -152,7 +152,7 @@ impl Planner for MatchPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::ast_context::AstContext;
+    use crate::query::context::ast::AstContext;
 
     #[test]
     fn test_match_planner_creation() {

@@ -2,13 +2,14 @@
 //! 处理路径模式的规划
 //! 负责规划路径模式的匹配
 
-use crate::query::context::validate::types::Variable;
+use crate::core::ValueTypeDef;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::PlanNodeKind;
-use crate::query::validator::{MatchClauseContext, Path, WhereClauseContext};
+use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext};
+use crate::query::validator::{Column, Variable};
 use std::collections::HashSet;
 
 /// 路径匹配规划器
@@ -99,7 +100,7 @@ impl MatchPathPlanner {
             }
 
             // 检查标签索引（LabelIndexSeek）
-            if !node_info.labels.is_empty() {
+            if !node_info.labels.is_empty() && !node_info.tids.is_empty() {
                 if let Some(plan) = self.create_label_index_scan(node_info, space_id)? {
                     match_clause_plan = plan;
                     start_index = i;
@@ -123,7 +124,7 @@ impl MatchPathPlanner {
                 let edge_info = &self.path.edge_infos[i];
 
                 // 检查边标签索引
-                if !edge_info.types.is_empty() {
+                if !edge_info.types.is_empty() && !edge_info.edge_types.is_empty() {
                     if let Some(plan) = self.create_edge_index_scan(edge_info, space_id)? {
                         match_clause_plan = plan;
                         start_index = i;
@@ -210,9 +211,11 @@ impl MatchPathPlanner {
             let expand_into = self.is_expand_into(&dst.alias);
 
             // 创建遍历节点
-            let direction_str = self.direction_to_string(edge.direction.clone());
-            let traverse_node =
-                PlanNodeFactory::create_traverse(space_id, edge.types.clone(), &direction_str)?;
+            let traverse_node = PlanNodeFactory::create_traverse(
+                space_id,
+                edge.types.clone(),
+                &self.direction_to_string(edge.direction),
+            )?;
 
             // 配置遍历节点
             self.configure_traverse_node(traverse_node.clone(), &node, &edge, i != start_index)?;
@@ -262,10 +265,11 @@ impl MatchPathPlanner {
             let expand_into = self.is_expand_into(&dst.alias);
 
             // 创建遍历节点（反向）
-            let direction_str = self.direction_to_string(edge.direction.clone());
-            let reverse_dir = self.reverse_direction(&direction_str);
-            let traverse_node =
-                PlanNodeFactory::create_traverse(space_id, edge.types.clone(), &reverse_dir)?;
+            let traverse_node = PlanNodeFactory::create_traverse(
+                space_id,
+                edge.types.clone(),
+                &self.reverse_direction(&self.direction_to_string(edge.direction)),
+            )?;
 
             // 配置遍历节点
             self.configure_traverse_node(traverse_node.clone(), &node, &edge, true)?;
@@ -321,8 +325,8 @@ impl MatchPathPlanner {
             }
         }
         let _variable = Variable {
-            name: "path".to_string(), // 为路径变量指定一个名称
-            columns: vec![],          // 可以根据需要添加列定义
+            name: "project".to_string(),
+            columns: vec![],
         };
 
         // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
@@ -331,7 +335,7 @@ impl MatchPathPlanner {
     }
 
     /// 添加节点别名到已见别名集合
-    fn add_node_alias(&mut self, node: &crate::query::validator::NodeInfo) {
+    fn add_node_alias(&mut self, node: &crate::query::validator::structs::path_structs::NodeInfo) {
         if !node.anonymous {
             self.node_aliases_seen_in_pattern.insert(node.alias.clone());
         }
@@ -343,11 +347,16 @@ impl MatchPathPlanner {
     }
 
     /// 将方向枚举转换为字符串
-    fn direction_to_string(&self, direction: crate::query::validator::Direction) -> String {
+    fn direction_to_string(
+        &self,
+        direction: crate::query::validator::structs::path_structs::Direction,
+    ) -> String {
         match direction {
-            crate::query::validator::Direction::Forward => "OUT".to_string(),
-            crate::query::validator::Direction::Backward => "IN".to_string(),
-            crate::query::validator::Direction::Bidirectional => "BOTH".to_string(),
+            crate::query::validator::structs::path_structs::Direction::Forward => "OUT".to_string(),
+            crate::query::validator::structs::path_structs::Direction::Backward => "IN".to_string(),
+            crate::query::validator::structs::path_structs::Direction::Bidirectional => {
+                "BOTH".to_string()
+            }
         }
     }
 
@@ -364,10 +373,10 @@ impl MatchPathPlanner {
     /// 创建标签索引扫描
     fn create_label_index_scan(
         &self,
-        node_info: &crate::query::validator::NodeInfo,
+        node_info: &crate::query::validator::structs::path_structs::NodeInfo,
         _space_id: i32,
     ) -> Result<Option<SubPlan>, PlannerError> {
-        if node_info.labels.is_empty() {
+        if node_info.labels.is_empty() || node_info.tids.is_empty() {
             return Ok(None);
         }
 
@@ -375,13 +384,12 @@ impl MatchPathPlanner {
         let index_scan_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 设置变量和列名
-        let _variable = crate::query::context::ast_context::VariableInfo {
-            var_type: crate::query::context::ast_context::VariableType::Vertex,
-            labels: node_info.labels.clone(),
-            properties: std::collections::HashMap::new(),
-            is_optional: false,
-            scope_start: None,
-            scope_end: None,
+        let _variable = Variable {
+            name: format!("index_scan_{}", node_info.labels.join("_")),
+            columns: vec![Column {
+                name: "vid".to_string(),
+                type_: ValueTypeDef::Vertex,
+            }],
         };
 
         let plan = SubPlan::new(
@@ -394,7 +402,7 @@ impl MatchPathPlanner {
     /// 创建属性索引扫描
     fn create_prop_index_scan(
         &self,
-        node_info: &crate::query::validator::NodeInfo,
+        node_info: &crate::query::validator::structs::path_structs::NodeInfo,
         _props: &crate::graph::expression::Expression,
         _space_id: i32,
     ) -> Result<Option<SubPlan>, PlannerError> {
@@ -402,13 +410,12 @@ impl MatchPathPlanner {
         let index_scan_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 设置变量和列名
-        let _variable = crate::query::context::ast_context::VariableInfo {
-            var_type: crate::query::context::ast_context::VariableType::Vertex,
-            labels: vec![],
-            properties: std::collections::HashMap::new(),
-            is_optional: false,
-            scope_start: None,
-            scope_end: None,
+        let _variable = Variable {
+            name: format!("prop_index_scan_{}", node_info.alias),
+            columns: vec![Column {
+                name: "vid".to_string(),
+                type_: ValueTypeDef::Vertex,
+            }],
         };
 
         let plan = SubPlan::new(
@@ -421,10 +428,10 @@ impl MatchPathPlanner {
     /// 创建边索引扫描
     fn create_edge_index_scan(
         &self,
-        edge_info: &crate::query::validator::EdgeInfo,
+        edge_info: &crate::query::validator::structs::path_structs::EdgeInfo,
         _space_id: i32,
     ) -> Result<Option<SubPlan>, PlannerError> {
-        if edge_info.types.is_empty() {
+        if edge_info.types.is_empty() || edge_info.edge_types.is_empty() {
             return Ok(None);
         }
 
@@ -432,13 +439,18 @@ impl MatchPathPlanner {
         let edge_scan_node = PlanNodeFactory::create_placeholder_node()?;
 
         // 设置变量和列名
-        let _variable = crate::query::context::ast_context::VariableInfo {
-            var_type: crate::query::context::ast_context::VariableType::Edge,
-            labels: edge_info.types.clone(),
-            properties: std::collections::HashMap::new(),
-            is_optional: false,
-            scope_start: None,
-            scope_end: None,
+        let _variable = Variable {
+            name: format!("edge_scan_{}", edge_info.types.join("_")),
+            columns: vec![
+                Column {
+                    name: "src".to_string(),
+                    type_: ValueTypeDef::Vertex,
+                },
+                Column {
+                    name: "dst".to_string(),
+                    type_: ValueTypeDef::Vertex,
+                },
+            ],
         };
 
         let plan = SubPlan::new(Some(edge_scan_node.clone_plan_node()), Some(edge_scan_node));
@@ -449,8 +461,8 @@ impl MatchPathPlanner {
     fn configure_traverse_node(
         &self,
         _traverse_node: std::sync::Arc<dyn crate::query::planner::plan::core::PlanNode>,
-        node: &crate::query::validator::NodeInfo,
-        edge: &crate::query::validator::EdgeInfo,
+        node: &crate::query::validator::structs::path_structs::NodeInfo,
+        edge: &crate::query::validator::structs::path_structs::EdgeInfo,
         _track_prev_path: bool,
     ) -> Result<(), PlannerError> {
         // 设置顶点属性
@@ -494,7 +506,7 @@ impl MatchPathPlanner {
     /// 获取边属性
     fn get_edge_props(
         &self,
-        edge: &crate::query::validator::EdgeInfo,
+        edge: &crate::query::validator::structs::path_structs::EdgeInfo,
         _reverse: bool,
     ) -> Result<Vec<crate::query::planner::plan::core::common::EdgeProp>, PlannerError> {
         // 实现获取边属性的逻辑
@@ -513,16 +525,19 @@ impl MatchPathPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::{MatchClauseContext, NodeInfo, Path, PathType};
+    use crate::query::validator::structs::{MatchClauseContext, NodeInfo, Path, PathType};
     use std::collections::HashMap;
 
     /// 创建测试用的节点信息
     fn create_test_node_info(alias: &str, anonymous: bool) -> NodeInfo {
         NodeInfo {
             alias: alias.to_string(),
-            anonymous,
             labels: vec!["Person".to_string()],
-            properties: None,
+            props: None,
+            anonymous,
+            filter: None,
+            tids: vec![1],
+            label_props: vec![None],
         }
     }
 
@@ -635,7 +650,7 @@ mod tests {
         let match_clause_ctx = create_test_match_clause_context();
         let path = create_test_path("p", false, vec!["n"]);
 
-        let where_clause = crate::query::validator::WhereClauseContext {
+        let where_clause = crate::query::validator::structs::WhereClauseContext {
             filter: Some(crate::graph::expression::Expression::Variable(
                 "x".to_string(),
             )),
@@ -759,12 +774,17 @@ mod tests {
         let mut path = create_test_path("p", false, vec!["n", "m"]);
 
         // 添加边信息
-        use crate::query::validator::{Direction, EdgeInfo};
+        use crate::query::validator::structs::path_structs::{Direction, EdgeInfo};
         path.edge_infos.push(EdgeInfo {
             alias: "e".to_string(),
+            inner_alias: "e_inner".to_string(),
             types: vec!["KNOWS".to_string()],
+            props: None,
+            anonymous: false,
+            filter: None,
             direction: Direction::Forward,
-            properties: None,
+            range: None,
+            edge_types: vec![1],
         });
 
         let mut planner = MatchPathPlanner::new(match_clause_ctx, path);

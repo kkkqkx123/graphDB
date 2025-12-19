@@ -641,7 +641,11 @@ mod tests {
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
         // 测试1: 创建一个投影所有列的投影节点（应该被消除）
-        let columns_all = vec![crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Variable("*".to_string()), "*".to_string())];
+        let columns_all = vec![crate::query::validator::YieldColumn {
+            expr: crate::graph::expression::Expression::Variable("*".to_string()),
+            alias: "*".to_string(),
+            is_matched: false,
+        }];
         let project_node_all = Arc::new(
             ProjectNode::new(
                 Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
@@ -657,9 +661,21 @@ mod tests {
 
         // 测试2: 创建一个投影相同列的投影节点（应该被消除）
         let columns_same = vec![
-            crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Variable("id".to_string()), "id".to_string()),
-            crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Variable("name".to_string()), "name".to_string()),
-            crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Variable("age".to_string()), "age".to_string()),
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                alias: "id".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                alias: "name".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("age".to_string()),
+                alias: "age".to_string(),
+                is_matched: false,
+            },
         ];
         let project_node_same = Arc::new(
             ProjectNode::new(
@@ -676,8 +692,16 @@ mod tests {
 
         // 测试3: 创建一个投影不同列的投影节点（不应该被消除）
         let columns_diff = vec![
-            crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Variable("id".to_string()), "id".to_string()),
-            crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Variable("name".to_string()), "name".to_string()),
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                alias: "id".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                alias: "name".to_string(),
+                is_matched: false,
+            },
         ];
         let project_node_diff = Arc::new(
             ProjectNode::new(
@@ -694,9 +718,21 @@ mod tests {
 
         // 测试4: 创建一个投影带别名的节点（不应该被消除）
         let columns_alias = vec![
-            crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Variable("id".to_string()), "vertex_id".to_string()),
-            crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Variable("name".to_string()), "vertex_name".to_string()),
-            crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Variable("age".to_string()), "age".to_string()),
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                alias: "vertex_id".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                alias: "vertex_name".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("age".to_string()),
+                alias: "age".to_string(),
+                is_matched: false,
+            },
         ];
         let project_node_alias = Arc::new(
             ProjectNode::new(
@@ -713,9 +749,18 @@ mod tests {
 
         // 测试5: 创建一个投影包含表达式的节点（不应该被消除）
         let columns_expr = vec![
-            crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Variable("id".to_string()), "id".to_string()),
-            crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Variable("name".to_string()), "name".to_string()),
-            crate::query::validator::YieldColumn::with_alias(crate::graph::expression::Expression::Binary {
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                alias: "id".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                alias: "name".to_string(),
+                is_matched: false,
+            },
+            crate::query::validator::YieldColumn {
+                expr: crate::graph::expression::Expression::Binary {
                     left: Box::new(crate::graph::expression::Expression::Variable(
                         "age".to_string(),
                     )),
@@ -723,7 +768,10 @@ mod tests {
                     right: Box::new(crate::graph::expression::Expression::Literal(
                         crate::graph::expression::LiteralValue::String("1".to_string()),
                     )),
-                }, "age_plus_1".to_string()),
+                },
+                alias: "age_plus_1".to_string(),
+                is_matched: false,
+            },
         ];
         let project_node_expr = Arc::new(
             ProjectNode::new(

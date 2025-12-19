@@ -7,7 +7,6 @@
 use super::{Iterator, IteratorEnum, IteratorKind, Row};
 use crate::core::{DataSet, Value};
 use std::collections::HashMap;
-use std::result::Result;
 use std::sync::Arc;
 
 /// 属性查询迭代器

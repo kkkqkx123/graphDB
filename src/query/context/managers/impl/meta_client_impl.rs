@@ -2,7 +2,6 @@
 
 use super::super::{ClusterInfo, MetaClient, SpaceInfo};
 use std::collections::HashMap;
-use std::result::Result;
 use std::sync::{Arc, RwLock};
 
 /// 内存中的元数据客户端实现

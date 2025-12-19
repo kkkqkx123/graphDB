@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
 use crate::graph::expression::{Expression, ExpressionEvaluator};
-use crate::query::context::ExpressionContext;
+use crate::query::context::EvalContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -38,7 +38,7 @@ pub struct LoopExecutor<S: StorageEngine> {
     // 循环结果收集
     results: Vec<ExecutionResult>,
     // 循环变量上下文
-    loop_context: ExpressionContext<'static>,
+    loop_context: EvalContext<'static>,
 }
 
 impl<S: StorageEngine> LoopExecutor<S> {
@@ -58,7 +58,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
             loop_state: LoopState::NotStarted,
             evaluator: ExpressionEvaluator,
             results: Vec::new(),
-            loop_context: ExpressionContext::new(),
+            loop_context: EvalContext::new(),
         }
     }
 }
@@ -291,7 +291,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
         self.loop_state = LoopState::NotStarted;
         self.current_iteration = 0;
         self.results.clear();
-        self.loop_context = ExpressionContext::new();
+        self.loop_context = EvalContext::new();
 
         // 打开循环体执行器
         self.body_executor.open()?;
@@ -304,7 +304,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
 
         // 清理资源
         self.results.clear();
-        self.loop_context = ExpressionContext::new();
+        self.loop_context = EvalContext::new();
 
         Ok(())
     }

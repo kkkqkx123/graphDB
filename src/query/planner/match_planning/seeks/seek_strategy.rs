@@ -3,7 +3,7 @@
 
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::NodeInfo;
+use crate::query::validator::structs::path_structs::NodeInfo;
 
 /// 查找策略trait
 /// 

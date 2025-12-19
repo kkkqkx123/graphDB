@@ -6,7 +6,7 @@ use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::NodeInfo;
+use crate::query::validator::structs::path_structs::NodeInfo;
 
 /// 扫描查找规划器
 /// 负责规划全表扫描操作，作为其他查找策略失败时的备选方案

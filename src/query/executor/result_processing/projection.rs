@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
 use crate::graph::expression::{Expression, ExpressionEvaluator};
-use crate::query::context::ExpressionContext;
+use crate::query::context::EvalContext;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -52,7 +52,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
         let evaluator = ExpressionEvaluator;
 
         // 为当前行创建评估上下文
-        let mut context = ExpressionContext::new();
+        let mut context = EvalContext::new();
 
         // 将当前行的值设置为上下文变量
         for (i, col_name) in col_names.iter().enumerate() {
@@ -112,7 +112,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
         // 对每个顶点进行投影
         for vertex in vertices {
-            let mut context = ExpressionContext::with_vertex(&vertex);
+            let mut context = EvalContext::with_vertex(&vertex);
 
             // 设置顶点ID作为变量
             context.set_variable("id".to_string(), *vertex.vid.clone());
@@ -151,7 +151,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
         // 对每个边进行投影
         for edge in edges {
-            let mut context = ExpressionContext::with_edge(&edge);
+            let mut context = EvalContext::with_edge(&edge);
 
             // 设置边属性作为变量
             context.set_variable("src".to_string(), *edge.src.clone());
@@ -237,7 +237,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                 let evaluator = ExpressionEvaluator;
 
                 for path in paths {
-                    let mut context = ExpressionContext::new();
+                    let mut context = EvalContext::new();
                     // 设置路径相关信息作为变量
                     context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
                     context

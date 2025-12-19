@@ -3,7 +3,7 @@ use crate::query::planner::plan::SubPlan;
 /// Subgraph planner implementation for handling SUBGRAPH queries in NebulaGraph
 
 use super::planner::{Planner, PlannerError};
-use crate::query::context::ast_context::AstContext;
+use crate::query::context::ast::AstContext;
 
 #[derive(Debug)]
 pub struct SubgraphPlanner {

@@ -4,6 +4,10 @@
 pub mod object_pool;
 pub use object_pool::ObjectPool;
 
+// LRU缓存模块
+pub mod lru_cache;
+pub use lru_cache::LruCache;
+
 // ID工具模块
 
 // 日志模块
@@ -43,6 +47,7 @@ pub use anon_var_generator::AnonVarGenerator;
 // 错误处理辅助函数模块
 pub mod error_handling;
 pub use error_handling::{
-    expect_arc_mut, expect_first, expect_last, expect_max, expect_min, expect_option,
-    expect_result, expect_vec_first, expect_vec_last, safe_lock, safe_read, safe_write,
+    safe_lock, safe_read, safe_write, expect_option, expect_result,
+    expect_first, expect_min, expect_max, expect_last, expect_vec_last,
+    expect_vec_first, expect_arc_mut
 };

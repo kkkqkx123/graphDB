@@ -1,13 +1,10 @@
-use crate::query::context::managers::r#impl::{MemorySchemaManager, MemoryIndexManager, MemoryMetaClient, MemoryStorageClient};
-use crate::query::context::validate::ValidateContext;
-use crate::query::context::QueryContext;
+use crate::query::context::{QueryContext, RequestContext};
 use crate::query::executor_factory::ExecutorFactory;
 use crate::query::optimizer::Optimizer;
-use crate::query::parser::cypher::CypherStatement;
 use crate::query::parser::parser::Parser;
 use crate::query::planner::Planner;
 use crate::query::types::{QueryError, QueryResult};
-use crate::query::validator::{Validator, ValidatorFactory};
+use crate::query::validator::Validator;
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
 
@@ -21,7 +18,7 @@ use std::sync::{Arc, Mutex};
 pub struct QueryPipelineManager<S: StorageEngine + 'static> {
     storage: Arc<Mutex<S>>,
     parser: Parser,
-    validator_factory: ValidatorFactory,
+    validator: Validator,
     planner: Box<dyn Planner>,
     optimizer: Optimizer,
     executor_factory: ExecutorFactory<S>,
@@ -35,7 +32,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         Self {
             storage,
             parser: Parser::new(""),
-            validator_factory: ValidatorFactory::new(),
+            validator: Validator::new(crate::query::validator::ValidateContext::new()),
             planner: Box::new(crate::query::planner::SequentialPlanner::new()),
             optimizer: Optimizer::default(),
             executor_factory,
@@ -72,14 +69,18 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
 
     /// 创建查询上下文
     fn create_query_context(&self, query_text: &str) -> Result<QueryContext, QueryError> {
-        Ok(QueryContext::new(
+        let session_info = crate::query::context::request_context::SessionInfo::new(
             "default_session".to_string(),
             "default_user".to_string(),
-            std::sync::Arc::new(MemorySchemaManager::default()),
-            std::sync::Arc::new(MemoryIndexManager::default()),
-            std::sync::Arc::new(MemoryMetaClient::default()),
-            std::sync::Arc::new(MemoryStorageClient::default()),
-        ))
+            "localhost".to_string(),
+            0,
+        );
+        let request_params =
+            crate::query::context::request_context::RequestParams::new(query_text.to_string());
+        let request_context = RequestContext::new(session_info, request_params);
+        Ok(QueryContext::with_request_context(std::sync::Arc::new(
+            request_context,
+        )))
     }
 
     /// 解析查询文本为AST
@@ -87,28 +88,22 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         &mut self,
         _query_context: &mut QueryContext,
         query_text: &str,
-    ) -> Result<CypherStatement, QueryError> {
-        let mut parser = crate::query::parser::cypher::CypherParser::new(query_text.to_string());
-        let statement = parser.parse_statement()
-            .map_err(|e| QueryError::InvalidQuery(format!("解析失败: {}", e)))?;
+    ) -> Result<crate::query::context::ast::QueryAstContext, QueryError> {
+        let _parser = Parser::new(query_text);
+        // 临时实现：返回一个空的AST上下文
+        // 在实际实现中，这里应该调用parser.parse()并处理结果
+        let ast = crate::query::context::ast::QueryAstContext::new(query_text);
 
-        Ok(statement)
+        Ok(ast)
     }
 
     /// 验证查询的语义正确性
     fn validate_query(
         &mut self,
-        query_context: &mut QueryContext,
-        statement: &CypherStatement,
+        _query_context: &mut QueryContext,
+        _ast: &crate::query::context::ast::QueryAstContext,
     ) -> Result<(), QueryError> {
-        // 从 CypherStatement 创建具体的验证器
-        let validator = self.validator_factory.create_validator(
-            statement,
-            std::sync::Arc::new(query_context.clone()),
-        ).map_err(|e| QueryError::InvalidQuery(format!("验证器创建失败: {}", e)))?;
-
-        // 验证查询
-        validator
+        self.validator
             .validate()
             .map_err(|e| QueryError::InvalidQuery(format!("验证失败: {}", e)))
     }
@@ -116,12 +111,13 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
     /// 生成执行计划
     fn generate_execution_plan(
         &mut self,
-        _query_context: &mut QueryContext,
-        statement: &CypherStatement,
+        query_context: &mut QueryContext,
+        _ast: &crate::query::context::ast::QueryAstContext,
     ) -> Result<crate::query::planner::plan::ExecutionPlan, QueryError> {
         // 临时实现：创建一个空的执行计划
-        // 在实际实现中，这里应该调用planner.transform(statement)
-        let plan = crate::query::planner::plan::ExecutionPlan::new(None);
+        // 在实际实现中，这里应该调用planner.transform(ast)
+        let mut plan = crate::query::planner::plan::ExecutionPlan::new(None);
+        plan.set_id(query_context.gen_id());
 
         Ok(plan)
     }

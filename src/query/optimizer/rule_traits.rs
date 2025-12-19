@@ -661,19 +661,8 @@ mod tests {
         use crate::query::context::QueryContext;
 
         // 创建测试上下文
-        use crate::query::context::managers::r#impl::{
-            MemoryIndexManager, MemoryMetaClient, MemorySchemaManager, MemoryStorageClient,
-        };
-        
-        let query_context = QueryContext::new(
-            "test_session".to_string(),
-            "test_user".to_string(),
-            Arc::new(MemorySchemaManager::new()),
-            Arc::new(MemoryIndexManager::new()),
-            Arc::new(MemoryMetaClient::new()),
-            Arc::new(MemoryStorageClient::new()),
-        );
-        let mut opt_ctx = OptContext::new(query_context);
+        let query_ctx = QueryContext::default();
+        let mut opt_ctx = OptContext::new(query_ctx);
 
         // 创建测试节点 - 使用 OptGroupNode::default() 创建默认节点
         let mut node1 = OptGroupNode::default();

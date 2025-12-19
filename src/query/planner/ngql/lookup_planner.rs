@@ -1,7 +1,7 @@
 //! LOOKUP语句规划器
 //! 处理Nebula LOOKUP查询的规划
 
-use crate::query::context::ast_context::AstContext;
+use crate::query::context::ast::{AstContext, LookupContext};
 use crate::query::planner::plan::core::{DedupNode, FilterNode, GetEdgesNode, GetVerticesNode, ProjectNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -40,44 +40,65 @@ impl LookupPlanner {
 
 impl Planner for LookupPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // 实现LOOKUP查询的规划逻辑
-        println!("Processing LOOKUP query planning: {:?}", ast_ctx);
+        // 从ast_ctx创建LookupContext
+        let lookup_ctx = LookupContext::new(ast_ctx.clone());
 
-        // 1. 创建索引扫描节点 - 基于AST上下文信息
+        // 实现LOOKUP查询的规划逻辑
+        println!("Processing LOOKUP query planning: {:?}", lookup_ctx);
+
+        // 1. 创建索引扫描节点
         let mut index_scan_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
-            // 这里需要根据AST上下文来判断是查找边还是顶点
-            // 暂时默认为查找顶点
-            {
+            if lookup_ctx.is_edge {
+                // 如果是边的查找，创建GetEdges节点
+                let get_edges_node = Arc::new(GetEdgesNode::new(1, "", "", "", ""));
+                get_edges_node
+            } else {
+                // 如果是顶点的查找，创建GetVertices节点
                 let get_vertices_node = Arc::new(GetVerticesNode::new(1, ""));
                 get_vertices_node
             };
 
         // 2. 创建过滤节点（基于索引搜索条件）
-        // 暂时没有条件，后续从AST上下文解析条件
-        use crate::graph::expression::Expression;
-        let expr = Expression::Variable("*".to_string());
+        if let Some(ref condition) = lookup_ctx.filter {
+            // 这里需要将condition转换为Expression类型
+            // 暂时使用空表达式作为占位符
+            use crate::graph::expression::Expression;
+            let expr = Expression::Variable(condition.clone());
+            
+            let filter_node = Arc::new(FilterNode::new(index_scan_node.clone(), expr)
+                .expect("FilterNode creation should succeed with valid input"));
+            index_scan_node = filter_node;
 
-        let filter_node = Arc::new(FilterNode::new(index_scan_node.clone(), expr)
-            .expect("FilterNode creation should succeed with valid input"));
-        index_scan_node = filter_node;
+            // 如果是全文索引
+            if lookup_ctx.is_fulltext_index {
+                // 添加全文搜索相关逻辑
+                if lookup_ctx.has_score {
+                    // 包含评分结果
+                }
+            }
+        }
 
         // 3. 创建投影节点
         use crate::query::validator::YieldColumn;
-        let yield_columns = vec![YieldColumn::with_alias(
-            crate::graph::expression::Expression::Variable("*".to_string()),
-            "result".to_string()
-        )];
-
+        let yield_columns = vec![YieldColumn {
+            expr: crate::graph::expression::Expression::Variable(
+                lookup_ctx.yield_expr.clone().unwrap_or("*".to_string())
+            ),
+            alias: "result".to_string(),
+            is_matched: false,
+        }];
+        
         let project_node = Arc::new(ProjectNode::new(index_scan_node.clone(), yield_columns)
             .expect("ProjectNode creation should succeed with valid input"));
 
         // 4. 如果需要去重，创建去重节点
-        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
-            {
-                let dedup_node = Arc::new(DedupNode::new(project_node)
-                    .expect("DedupNode creation should succeed with valid input"));
-                dedup_node
-            };
+        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if lookup_ctx.dedup {
+            let dedup_node = Arc::new(DedupNode::new(project_node)
+                .expect("DedupNode creation should succeed with valid input"));
+            dedup_node
+        } else {
+            project_node
+        };
 
         // 创建SubPlan
         let sub_plan = SubPlan {

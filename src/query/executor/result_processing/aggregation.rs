@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
 use crate::graph::expression::{Expression, ExpressionEvaluator};
-use crate::query::context::ExpressionContext;
+use crate::query::context::EvalContext;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -222,7 +222,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
         // 处理每一行数据
         for row in &dataset.rows {
             // 构建表达式上下文
-            let mut context = ExpressionContext::new();
+            let mut context = EvalContext::new();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
                     context.set_variable(col_name.clone(), row[i].clone());
@@ -548,7 +548,7 @@ impl<S: StorageEngine> HavingExecutor<S> {
 
         for row in &dataset.rows {
             // 构建表达式上下文
-            let mut context = ExpressionContext::new();
+            let mut context = EvalContext::new();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
                     context.set_variable(col_name.clone(), row[i].clone());

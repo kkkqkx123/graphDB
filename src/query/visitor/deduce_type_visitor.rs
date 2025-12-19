@@ -4,7 +4,7 @@
 use crate::core::ValueTypeDef;
 use crate::graph::expression::Expression;
 use crate::graph::expression::{BinaryOperator, UnaryOperator};
-use crate::query::context::validate::ValidateContext;
+use crate::query::validator::ValidateContext;
 use crate::storage::StorageEngine;
 use thiserror::Error;
 
@@ -107,10 +107,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         match expr {
             Expression::Literal(value) => self.visit_literal(value),
             Expression::Variable(name) => self.visit_variable(name),
-            Expression::Property {
-                object,
-                property: _,
-            } => {
+            Expression::Property { object, property: _ } => {
                 self.visit(object)?;
                 // 属性访问返回Empty类型（实际类型应该查询Schema）
                 self.type_ = ValueTypeDef::Empty;

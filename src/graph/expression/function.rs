@@ -1,13 +1,13 @@
 use super::error::ExpressionError;
 use crate::core::Value;
 use crate::graph::expression::Expression;
-use crate::query::context::ExpressionContext;
+use crate::query::context::EvalContext;
 
 /// 评估函数表达式
 pub fn evaluate_function(
     func_name: &str,
     args: &[Expression],
-    context: &ExpressionContext,
+    context: &EvalContext,
 ) -> Result<Value, ExpressionError> {
     match func_name.to_lowercase().as_str() {
         "has_property" => {
@@ -30,12 +30,12 @@ pub fn evaluate_function(
             };
 
             // Check if property exists in vertex
-            let exists = if let Some(vertex) = context.vertex() {
+            let exists = if let Some(vertex) = context.vertex {
                 vertex
                     .tags
                     .iter()
                     .any(|tag| tag.properties.contains_key(&prop_name))
-            } else if let Some(edge) = context.edge() {
+            } else if let Some(edge) = context.edge {
                 edge.props.contains_key(&prop_name)
             } else {
                 false
@@ -70,7 +70,7 @@ pub fn evaluate_aggregate(
     func: &str,
     arg: &Expression,
     distinct: bool,
-    context: &ExpressionContext,
+    context: &EvalContext,
 ) -> Result<Value, ExpressionError> {
     // 这里需要一个更复杂的聚合函数实现
     // 聚合函数通常在执行时需要累积数据

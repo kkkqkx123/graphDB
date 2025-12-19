@@ -1,7 +1,7 @@
 /// MATCH查询主规划器
 /// 负责将MATCH查询转换为执行计划
 
-use crate::query::context::ast_context::AstContext;
+use crate::query::context::ast::AstContext;
 use super::cypher_clause_planner::CypherClausePlanner;
 use super::match_clause_planner::MatchClausePlanner;
 use crate::query::planner::match_planning::clauses::order_by_planner::OrderByClausePlanner;
@@ -15,7 +15,10 @@ use crate::query::planner::match_planning::clauses::where_clause_planner::WhereC
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::validator::{CypherClauseContext, CypherClauseKind, MatchClauseContext, QueryPart};
+use crate::query::validator::structs::{
+    alias_structs::QueryPart, clause_structs::MatchClauseContext, CypherClauseContext,
+    CypherClauseKind,
+};
 use std::collections::HashSet;
 
 /// MATCH查询规划器
@@ -98,8 +101,8 @@ impl Default for MatchPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::ast_context::AstContext;
-    use crate::query::validator::{
+    use crate::query::context::ast::AstContext;
+    use crate::query::validator::structs::{
         AliasType, CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
     };
     use std::collections::HashMap;

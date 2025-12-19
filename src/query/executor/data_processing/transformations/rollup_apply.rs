@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, List, Value};
 use crate::graph::expression::{Expression, ExpressionEvaluator};
-use crate::query::context::ExpressionContext;
+use crate::query::context::expression_eval_context::EvalContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -119,7 +119,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut HashMap<List, List>,
-        expr_context: &mut ExpressionContext,
+        expr_context: &mut EvalContext,
     ) -> DBResult<()> {
         for value in iter {
             // 设置当前值到表达式上下文
@@ -162,7 +162,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut HashMap<Value, List>,
-        expr_context: &mut ExpressionContext,
+        expr_context: &mut EvalContext,
     ) -> DBResult<()> {
         for value in iter {
             // 设置当前值到表达式上下文
@@ -200,7 +200,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut List,
-        expr_context: &mut ExpressionContext,
+        expr_context: &mut EvalContext,
     ) -> DBResult<()> {
         hash_table.values.reserve(iter.len());
 
@@ -227,7 +227,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         &self,
         probe_iter: &[Value],
         hash_table: &List,
-        expr_context: &mut ExpressionContext,
+        expr_context: &mut EvalContext,
     ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
@@ -261,7 +261,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         probe_key: &Expression,
         probe_iter: &[Value],
         hash_table: &HashMap<Value, List>,
-        expr_context: &mut ExpressionContext,
+        expr_context: &mut EvalContext,
     ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
@@ -309,7 +309,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         probe_keys: &[Expression],
         probe_iter: &[Value],
         hash_table: &HashMap<List, List>,
-        expr_context: &mut ExpressionContext,
+        expr_context: &mut EvalContext,
     ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
@@ -404,7 +404,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         };
 
         // 创建表达式上下文
-        let mut expr_context = ExpressionContext::new();
+        let mut expr_context = EvalContext::new();
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {

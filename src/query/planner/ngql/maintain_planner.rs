@@ -1,7 +1,7 @@
 //! 维护操作规划器
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
-use crate::query::context::ast_context::AstContext;
+use crate::query::context::ast::{AstContext, MaintainContext};
 use crate::query::planner::plan::core::{ArgumentNode, ProjectNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -43,11 +43,16 @@ impl MaintainPlanner {
 
 impl Planner for MaintainPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+        // 从ast_ctx创建MaintainContext
+        let maintain_ctx = MaintainContext {
+            base: ast_ctx.clone(),
+        };
+
         // 实现维护操作的规划逻辑
-        println!("Processing MAINTENANCE query planning: {:?}", ast_ctx);
+        println!("Processing MAINTENANCE query planning: {:?}", maintain_ctx);
 
         // 根据操作类型创建相应的计划节点
-        let stmt_type = ast_ctx.statement_type().to_uppercase();
+        let stmt_type = maintain_ctx.base.statement_type().to_uppercase();
 
         // 1. 创建参数节点来接收操作参数
         let arg_node = Arc::new(ArgumentNode::new(1, "maintain_args"));
@@ -55,8 +60,12 @@ impl Planner for MaintainPlanner {
         // 2. 根据不同类型创建相应的计划节点
         use crate::query::validator::YieldColumn;
         use crate::graph::expression::Expression;
-        let yield_columns = vec![YieldColumn::with_alias(Expression::Variable(format!("MAINTAIN_{}", stmt_type)), "maintain_result".to_string())];
-
+        let yield_columns = vec![YieldColumn {
+            expr: Expression::Variable(format!("MAINTAIN_{}", stmt_type)),
+            alias: "maintain_result".to_string(),
+            is_matched: false,
+        }];
+        
         let project_node = Arc::new(ProjectNode::new(arg_node.clone(), yield_columns)
             .expect("ProjectNode creation should succeed with valid input"));
 

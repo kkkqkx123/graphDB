@@ -30,7 +30,7 @@ pub use result_processing::{
     ProjectExecutor, SortExecutor, LimitExecutor, AggregateExecutor, GroupByExecutor, HavingExecutor,
     DedupExecutor, FilterExecutor, SampleExecutor, TopNExecutor,
     SortKey, SortOrder, AggregateFunction, AggregateState, GroupAggregateState, DedupStrategy, SampleMethod,
-    ResultProcessor, ResultProcessorContext,
+    ResultProcessor, ResultProcessorContext, ResultProcessorFactory,
 };
 
 // Re-export Cypher executor types

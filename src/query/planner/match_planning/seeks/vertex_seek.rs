@@ -6,7 +6,7 @@ use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::NodeInfo;
+use crate::query::validator::structs::path_structs::NodeInfo;
 
 /// 顶点查找类型
 #[derive(Debug, Clone)]

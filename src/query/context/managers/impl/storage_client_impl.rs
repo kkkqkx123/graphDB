@@ -2,7 +2,6 @@
 
 use super::super::{StorageOperation, StorageResponse, StorageClient};
 use crate::core::Value;
-use std::result::Result;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 

@@ -54,17 +54,16 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                     if let Some(vertex) = storage.get_node(id)? {
                         // 应用标签过滤表达式（如果存在）
                         let include_vertex = if let Some(ref tag_filter_expr) = self.tag_filter {
-                            self.tag_processor
-                                .process_tag_filter(tag_filter_expr, &vertex)
+                            self.tag_processor.process_tag_filter(tag_filter_expr, &vertex)
                         } else {
                             true // 没有标签过滤器，包含所有顶点
                         };
-
+                        
                         if include_vertex {
                             result_vertices.push(vertex.clone());
                         }
                     }
-
+                    
                     // Apply limit if specified
                     if let Some(limit) = self.limit {
                         if result_vertices.len() >= limit {
@@ -78,34 +77,28 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                 // ScanVertices操作：扫描所有顶点
                 let storage = safe_lock(&self.base.storage)
                     .expect("GetVerticesExecutor storage lock should not be poisoned");
-
+                
                 // 获取所有顶点
                 let mut all_vertices = storage.scan_all_vertices()?;
-
+                
                 // 应用标签过滤表达式
                 if let Some(ref tag_filter_expr) = self.tag_filter {
-                    all_vertices = all_vertices
-                        .into_iter()
+                    all_vertices = all_vertices.into_iter()
                         .filter(|vertex| {
-                            self.tag_processor
-                                .process_tag_filter(tag_filter_expr, vertex)
+                            self.tag_processor.process_tag_filter(tag_filter_expr, vertex)
                         })
                         .collect();
                 }
-
+                
                 // 应用顶点过滤表达式
                 if let Some(ref filter_expr) = self.vertex_filter {
                     let evaluator = crate::graph::expression::ExpressionEvaluator::new();
-                    all_vertices = all_vertices
-                        .into_iter()
+                    all_vertices = all_vertices.into_iter()
                         .filter(|vertex| {
                             // 创建评估上下文
-                            let mut context = crate::query::context::ExpressionContext::new();
-                            context.set_variable(
-                                "vertex".to_string(),
-                                crate::core::Value::Vertex(Box::new(vertex.clone())),
-                            );
-
+                            let mut context = crate::query::context::EvalContext::new();
+                            context.set_variable("vertex".to_string(), crate::core::Value::Vertex(Box::new(vertex.clone())));
+                            
                             // 评估过滤表达式
                             match evaluator.evaluate(filter_expr, &context) {
                                 Ok(value) => {
@@ -130,7 +123,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                                         crate::core::Value::Duration(_) => true, // 持续时间对象视为true
                                         crate::core::Value::DataSet(ds) => !ds.rows.is_empty(), // 数据集非空视为true
                                     }
-                                }
+                                },
                                 Err(e) => {
                                     eprintln!("顶点过滤表达式评估失败: {}", e);
                                     false // 过滤失败时默认排除该顶点
@@ -139,7 +132,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                         })
                         .collect();
                 }
-
+                
                 // 应用limit限制
                 if let Some(limit) = self.limit {
                     all_vertices.into_iter().take(limit).collect()

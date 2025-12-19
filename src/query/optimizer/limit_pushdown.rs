@@ -933,23 +933,13 @@ mod tests {
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
-    use crate::query::planner::plan::core::nodes::LimitNode;
-    use crate::query::planner::plan::PlanNodeKind;
+    use crate::query::planner::plan::core::nodes::{
+        GetEdgesNode, GetNeighborsNode, GetVerticesNode, LimitNode, ProjectNode, ScanEdgesNode, ScanVerticesNode,
+    };
+    use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
     fn create_test_context() -> OptContext {
-        use crate::query::context::managers::r#impl::{
-            MemoryIndexManager, MemoryMetaClient, MemorySchemaManager, MemoryStorageClient,
-        };
-        
-        let query_context = QueryContext::new(
-            "test_session".to_string(),
-            "test_user".to_string(),
-            Arc::new(MemorySchemaManager::new()),
-            Arc::new(MemoryIndexManager::new()),
-            Arc::new(MemoryMetaClient::new()),
-            Arc::new(MemoryStorageClient::new()),
-        );
-        OptContext::new(query_context)
+        OptContext::new(QueryContext::default())
     }
 
     #[test]

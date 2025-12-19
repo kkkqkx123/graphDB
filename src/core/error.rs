@@ -24,7 +24,7 @@ pub enum DBError {
     Lock(#[from] LockError),
 
     #[error("验证错误: {0}")]
-    Validation(#[from] ValidationError),
+    Validation(String),
 
     #[error("IO错误: {0}")]
     Io(#[from] std::io::Error),
@@ -106,34 +106,6 @@ pub enum LockError {
     
     #[error("锁操作超时: {reason}")]
     LockTimeout { reason: String },
-}
-
-// 验证器错误类型
-#[derive(Error, Debug, Clone)]
-pub enum ValidationError {
-    #[error("语法错误: {0}")]
-    SyntaxError(String),
-    
-    #[error("语义错误: {0}")]
-    SemanticError(String),
-    
-    #[error("类型错误: {0}")]
-    TypeError(String),
-    
-    #[error("模式错误: {0}")]
-    PatternError(String),
-    
-    #[error("权限错误: {0}")]
-    PermissionError(String),
-    
-    #[error("上下文错误: {0}")]
-    ContextError(String),
-    
-    #[error("规划错误: {0}")]
-    PlanError(String),
-    
-    #[error("不支持的语句: {0}")]
-    UnsupportedStatement(String),
 }
 
 // 为现有错误类型实现转换

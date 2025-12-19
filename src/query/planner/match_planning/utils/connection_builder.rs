@@ -1,7 +1,7 @@
 //! 连接构建器
 //! 提供现代化的流式API用于构建连接操作
 
-use crate::query::context::ast_context::AstContext;
+use crate::query::context::ast::base::AstContext;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::plan::utils::join_params::{JoinAlgorithm, JoinParams};
 use crate::query::planner::plan::SubPlan;
@@ -218,7 +218,7 @@ pub fn roll_up_apply() -> ConnectionBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::ast_context::AstContext;
+    use crate::query::context::ast::base::AstContext;
     use crate::query::parser::ast::expr::{Expr, VariableExpr};
     use crate::query::parser::ast::types::Span;
     use std::collections::HashSet;

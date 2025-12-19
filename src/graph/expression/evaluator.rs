@@ -1,7 +1,7 @@
 use super::error::ExpressionError;
 use crate::core::Value;
 use crate::graph::expression::{Expression, LiteralValue};
-use crate::query::context::ExpressionContext;
+use crate::query::context::EvalContext;
 
 /// Expression evaluator
 pub struct ExpressionEvaluator;
@@ -16,7 +16,7 @@ impl ExpressionEvaluator {
     pub fn evaluate(
         &self,
         expr: &Expression,
-        context: &ExpressionContext,
+        context: &EvalContext,
     ) -> Result<Value, ExpressionError> {
         self.eval_expression(expr, context)
     }
@@ -25,7 +25,7 @@ impl ExpressionEvaluator {
     pub fn eval_expression(
         &self,
         expr: &Expression,
-        context: &ExpressionContext,
+        context: &EvalContext,
     ) -> Result<Value, ExpressionError> {
         match expr {
             Expression::Literal(literal_value) => {
@@ -153,7 +153,7 @@ impl ExpressionEvaluator {
                         for item in items {
                             // 创建一个临时上下文，将当前元素作为变量
                             let mut temp_context = context.clone();
-                            temp_context.set_local_variable("__item".to_string(), item);
+                            temp_context.vars.insert("__item".to_string(), item);
 
                             let cond_result = self.evaluate(&condition_clone, &temp_context)?;
                             if super::unary::value_to_bool(&cond_result) {
@@ -182,7 +182,7 @@ impl ExpressionEvaluator {
                         let mut accumulator = initial_value;
                         for item in items {
                             let mut temp_context = context.clone();
-                            temp_context.set_local_variable(var.clone(), item);
+                            temp_context.vars.insert(var.clone(), item);
 
                             // 这里需要使用当前累加器值，但在简化实现中，我们只计算一次
                             accumulator = self.evaluate(expr, &temp_context)?;
@@ -217,7 +217,7 @@ impl ExpressionEvaluator {
 
             Expression::Variable(var_name) => {
                 // 从上下文变量中获取值
-                if let Some(value) = context.get_local_variable(var_name) {
+                if let Some(value) = context.vars.get(var_name) {
                     Ok(value.clone())
                 } else {
                     Err(ExpressionError::PropertyNotFound(format!(

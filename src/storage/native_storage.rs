@@ -2,7 +2,6 @@ use super::{StorageEngine, StorageError, TransactionId};
 use crate::core::{Direction, Edge, Value, Vertex};
 use serde_json;
 use sled::{Db, Tree};
-use std::result::Result;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Native storage implementation using sled database

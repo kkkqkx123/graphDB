@@ -1,7 +1,5 @@
 //! 元数据客户端接口 - 定义元数据访问的基本操作
 
-use std::result::Result;
-
 /// 集群信息
 #[derive(Debug, Clone)]
 pub struct ClusterInfo {

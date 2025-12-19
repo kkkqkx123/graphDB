@@ -2,7 +2,6 @@
 
 use super::super::{Schema, SchemaManager};
 use std::collections::HashMap;
-use std::result::Result;
 use std::sync::{Arc, RwLock};
 
 /// 内存中的Schema管理器实现

@@ -178,7 +178,11 @@ mod tests {
         let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         let start_node = Arc::new(start_node);
 
-        let columns = vec![YieldColumn::with_alias(Expression::Variable("test".to_string()), "test".to_string())];
+        let columns = vec![YieldColumn {
+            expr: Expression::Variable("test".to_string()),
+            alias: "test".to_string(),
+            is_matched: false,
+        }];
 
         let project_node = ProjectNode::new(start_node, columns).unwrap();
 
@@ -194,8 +198,16 @@ mod tests {
         let start_node = Arc::new(start_node);
 
         let columns = vec![
-            YieldColumn::with_alias(Expression::Variable("name".to_string()), "name".to_string()),
-            YieldColumn::with_alias(Expression::Variable("age".to_string()), "age".to_string()),
+            YieldColumn {
+                expr: Expression::Variable("name".to_string()),
+                alias: "name".to_string(),
+                is_matched: false,
+            },
+            YieldColumn {
+                expr: Expression::Variable("age".to_string()),
+                alias: "age".to_string(),
+                is_matched: false,
+            },
         ];
 
         let project_node = ProjectNode::new(start_node, columns).unwrap();

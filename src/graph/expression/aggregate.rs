@@ -1,7 +1,7 @@
 use super::error::ExpressionError;
 use crate::core::Value;
 use crate::graph::expression::Expression;
-use crate::query::context::ExpressionContext;
+use crate::query::context::EvalContext;
 use serde::{Deserialize, Serialize};
 
 // 聚合数据结构，用于累积聚合函数的中间结果
@@ -69,7 +69,7 @@ pub fn evaluate_aggregate_expr(
     func: &str,
     arg: &Expression,
     distinct: bool,
-    context: &ExpressionContext,
+    context: &EvalContext,
 ) -> Result<Value, ExpressionError> {
     let evaluator = super::evaluator::ExpressionEvaluator;
     let arg_val = evaluator.evaluate(arg, context)?;

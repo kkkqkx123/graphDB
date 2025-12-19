@@ -1,6 +1,5 @@
 use super::StorageError;
 use crate::core::{Direction, Edge, Value, Vertex};
-use std::result::Result;
 
 /// Transaction identifier
 pub type TransactionId = u64;

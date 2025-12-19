@@ -1,7 +1,6 @@
 //! 存储客户端接口 - 定义存储层访问的基本操作
 
 use crate::core::Value;
-use std::result::Result;
 
 /// 存储操作类型
 #[derive(Debug, Clone)]

@@ -4,7 +4,7 @@
 //! 包括变量管理、结果缓存、执行状态等
 
 use crate::core::Value;
-use crate::query::context::ast_context::AstContext;
+use crate::query::context::ast::CypherAstContext;
 use crate::query::executor::ExecutionContext;
 use std::collections::HashMap;
 
@@ -19,8 +19,8 @@ use std::collections::HashMap;
 pub struct CypherExecutionContext {
     /// 基础执行上下文
     base_context: ExecutionContext,
-    /// AST上下文
-    ast_context: AstContext,
+    /// Cypher AST上下文
+    ast_context: CypherAstContext,
     /// 变量映射表
     variables: HashMap<String, CypherVariable>,
     /// 模式匹配结果
@@ -91,7 +91,7 @@ impl CypherExecutionContext {
     pub fn new() -> Self {
         Self {
             base_context: ExecutionContext::new(),
-            ast_context: AstContext::new("CYPHER".to_string(), "".to_string()),
+            ast_context: CypherAstContext::new(""),
             variables: HashMap::new(),
             pattern_results: HashMap::new(),
             parameters: HashMap::new(),
@@ -104,7 +104,7 @@ impl CypherExecutionContext {
     pub fn from_query(query_text: &str) -> Self {
         Self {
             base_context: ExecutionContext::new(),
-            ast_context: AstContext::new("CYPHER".to_string(), query_text.to_string()),
+            ast_context: CypherAstContext::new(query_text),
             variables: HashMap::new(),
             pattern_results: HashMap::new(),
             parameters: HashMap::new(),
@@ -205,12 +205,12 @@ impl CypherExecutionContext {
     }
 
     /// 获取AST上下文的引用
-    pub fn ast_context(&self) -> &AstContext {
+    pub fn ast_context(&self) -> &CypherAstContext {
         &self.ast_context
     }
 
     /// 获取AST上下文的可变引用
-    pub fn ast_context_mut(&mut self) -> &mut AstContext {
+    pub fn ast_context_mut(&mut self) -> &mut CypherAstContext {
         &mut self.ast_context
     }
 
@@ -302,7 +302,10 @@ mod tests {
     fn test_cypher_execution_context_from_query() {
         let query = "MATCH (n:Person) RETURN n.name";
         let context = CypherExecutionContext::from_query(query);
-        assert_eq!(context.ast_context().query_type, "CYPHER");
+        assert_eq!(
+            context.ast_context().base_context().statement_type(),
+            "CYPHER"
+        );
     }
 
     #[test]

@@ -27,7 +27,6 @@ pub enum ValueTypeDef {
     IntRange,
     FloatRange,
     StringRange,
-    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]

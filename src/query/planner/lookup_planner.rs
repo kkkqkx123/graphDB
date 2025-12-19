@@ -1,6 +1,6 @@
 /// Lookup planner implementation for handling LOOKUP queries in NebulaGraph
 use super::planner::{Planner, PlannerError};
-use crate::query::context::ast_context::AstContext;
+use crate::query::context::ast::AstContext;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 
@@ -21,7 +21,7 @@ impl LookupPlanner {
     pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
         // Check if the AST context represents a lookup statement
         // In a real implementation, this would check specific properties of the AST
-        ast_ctx.statement_type() == "LOOKUP"
+        matches!(ast_ctx.statement_type(), "LOOKUP")
     }
 }
 

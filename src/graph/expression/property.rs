@@ -1,17 +1,17 @@
 use super::error::ExpressionError;
 use crate::core::Value;
 use crate::graph::expression::Expression;
-use crate::query::context::ExpressionContext;
+use crate::query::context::EvalContext;
 
 /// 评估属性表达式
 pub fn evaluate_property_expression(
     expr: &Expression,
-    context: &ExpressionContext,
+    context: &EvalContext,
 ) -> Result<Value, ExpressionError> {
     match expr {
         Expression::TagProperty { tag, prop } => {
             // 在顶点的标签中查找属性
-            if let Some(vertex) = context.vertex() {
+            if let Some(vertex) = context.vertex {
                 for vertex_tag in &vertex.tags {
                     if &vertex_tag.name == tag {
                         if let Some(value) = vertex_tag.properties.get(prop) {
@@ -28,7 +28,7 @@ pub fn evaluate_property_expression(
 
         Expression::EdgeProperty { edge, prop } => {
             // 在边中查找属性
-            if let Some(edge_obj) = context.edge() {
+            if let Some(edge_obj) = context.edge {
                 // 检查边类型是否匹配
                 if edge_obj.edge_type == *edge {
                     if let Some(value) = edge_obj.props.get(prop) {
@@ -44,7 +44,7 @@ pub fn evaluate_property_expression(
 
         Expression::InputProperty(prop) => {
             // 从输入中查找属性
-            if let Some(vertex) = context.vertex() {
+            if let Some(vertex) = context.vertex {
                 for tag in &vertex.tags {
                     if let Some(value) = tag.properties.get(prop) {
                         return Ok(value.clone());
@@ -52,13 +52,13 @@ pub fn evaluate_property_expression(
                 }
             }
 
-            if let Some(edge) = context.edge() {
+            if let Some(edge) = context.edge {
                 if let Some(value) = edge.props.get(prop) {
                     return Ok(value.clone());
                 }
             }
 
-            if let Some(value) = context.get_local_variable(prop) {
+            if let Some(value) = context.vars.get(prop) {
                 return Ok(value.clone());
             }
 
@@ -67,7 +67,7 @@ pub fn evaluate_property_expression(
 
         Expression::VariableProperty { var, prop } => {
             // 从变量中查找属性
-            if let Some(value) = context.get_local_variable(var) {
+            if let Some(value) = context.vars.get(var) {
                 match value {
                     Value::Map(map) => match map.get(prop) {
                         Some(prop_value) => Ok(prop_value.clone()),
@@ -91,7 +91,7 @@ pub fn evaluate_property_expression(
 
         Expression::SourceProperty { tag, prop } => {
             // 查找源顶点的属性
-            if let Some(edge) = context.edge() {
+            if let Some(edge) = context.edge {
                 // 在源顶点中查找标签和属性
                 if let Value::Vertex(src_vertex) = &*edge.src {
                     for vertex_tag in &src_vertex.tags {
@@ -111,7 +111,7 @@ pub fn evaluate_property_expression(
 
         Expression::DestinationProperty { tag, prop } => {
             // 查找目标顶点的属性
-            if let Some(edge) = context.edge() {
+            if let Some(edge) = context.edge {
                 // 在目标顶点中查找标签和属性
                 if let Value::Vertex(dst_vertex) = &*edge.dst {
                     for vertex_tag in &dst_vertex.tags {

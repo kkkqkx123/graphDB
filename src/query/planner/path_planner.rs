@@ -1,7 +1,7 @@
 /// Path planner implementation for handling PATH queries in NebulaGraph
 
 use super::planner::{Planner, PlannerError};
-use crate::query::context::ast_context::AstContext;
+use crate::query::context::ast::AstContext;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 
