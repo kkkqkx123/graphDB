@@ -9,9 +9,9 @@ use std::sync::{Arc, Mutex};
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
-    DBResult, ExecutionResult, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
-use crate::query::QueryError;
+use crate::query::executor::result_processing::traits::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::storage::StorageEngine;
 
 /// 去重策略
@@ -31,24 +31,16 @@ pub enum DedupStrategy {
 ///
 /// 实现数据去重功能，支持多种去重策略
 pub struct DedupExecutor<S: StorageEngine + Send + 'static> {
-    base: BaseExecutor<S>,
-    input_executor: Option<Box<dyn crate::query::executor::traits::Executor<S>>>,
+    /// 基础处理器
+    base: BaseResultProcessor<S>,
+    /// 输入执行器
+    input_executor: Option<Box<dyn Executor<S>>>,
+    /// 去重策略
     strategy: DedupStrategy,
-    memory_limit: usize, // 内存限制（字节）
+    /// 内存限制（字节）
+    memory_limit: usize,
+    /// 当前内存使用量
     current_memory_usage: usize,
-}
-
-// Manual Debug implementation for DedupExecutor to avoid requiring Debug trait for Executor trait object
-impl<S: StorageEngine + Send + 'static> std::fmt::Debug for DedupExecutor<S> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DedupExecutor")
-            .field("base", &"BaseExecutor")
-            .field("input_executor", &"Option<Box<dyn Executor<S>>>")
-            .field("strategy", &self.strategy)
-            .field("memory_limit", &self.memory_limit)
-            .field("current_memory_usage", &self.current_memory_usage)
-            .finish()
-    }
 }
 
 impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
@@ -58,8 +50,15 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
         strategy: DedupStrategy,
         memory_limit: Option<usize>,
     ) -> Self {
+        let base = BaseResultProcessor::new(
+            id,
+            "DedupExecutor".to_string(),
+            "Removes duplicate records from query results".to_string(),
+            storage,
+        );
+        
         Self {
-            base: BaseExecutor::new(id, "DedupExecutor".to_string(), storage),
+            base,
             input_executor: None,
             strategy,
             memory_limit: memory_limit.unwrap_or(100 * 1024 * 1024), // 默认100MB
@@ -71,7 +70,7 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
     async fn execute_dedup(
         &mut self,
         input: ExecutionResult,
-    ) -> Result<ExecutionResult, QueryError> {
+    ) -> Result<ExecutionResult, crate::query::QueryError> {
         match input {
             ExecutionResult::Values(values) => {
                 let deduped_values = self.dedup_values(values).await?;
@@ -85,12 +84,16 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
                 let deduped_edges = self.dedup_edges(edges).await?;
                 Ok(ExecutionResult::Edges(deduped_edges))
             }
+            ExecutionResult::DataSet(mut dataset) => {
+                self.dedup_dataset(&mut dataset).await?;
+                Ok(ExecutionResult::DataSet(dataset))
+            }
             _ => Ok(input),
         }
     }
 
     /// 值去重
-    async fn dedup_values(&mut self, values: Vec<Value>) -> Result<Vec<Value>, QueryError> {
+    async fn dedup_values(&mut self, values: Vec<Value>) -> Result<Vec<Value>, crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
                 self.hash_based_dedup(values, |value| format!("{:?}", value))
@@ -112,7 +115,7 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
     }
 
     /// 顶点去重
-    async fn dedup_vertices(&mut self, vertices: Vec<Vertex>) -> Result<Vec<Vertex>, QueryError> {
+    async fn dedup_vertices(&mut self, vertices: Vec<Vertex>) -> Result<Vec<Vertex>, crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
                 self.hash_based_dedup(vertices, |vertex| format!("{:?}", vertex))
@@ -139,7 +142,7 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
     }
 
     /// 边去重
-    async fn dedup_edges(&mut self, edges: Vec<Edge>) -> Result<Vec<Edge>, QueryError> {
+    async fn dedup_edges(&mut self, edges: Vec<Edge>) -> Result<Vec<Edge>, crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
                 self.hash_based_dedup(edges, |edge| format!("{:?}", edge))
@@ -168,12 +171,84 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
         }
     }
 
+    /// 数据集去重
+    async fn dedup_dataset(&mut self, dataset: &mut crate::core::value::DataSet) -> Result<(), crate::query::QueryError> {
+        match self.strategy.clone() {
+            DedupStrategy::Full => {
+                let mut seen = HashSet::new();
+                let mut unique_rows = Vec::new();
+                
+                for row in &dataset.rows {
+                    let key = format!("{:?}", row);
+                    if seen.insert(key) {
+                        unique_rows.push(row.clone());
+                    }
+                }
+                
+                dataset.rows = unique_rows;
+                Ok(())
+            }
+            DedupStrategy::ByKeys(keys) => {
+                let mut seen = HashSet::new();
+                let mut unique_rows = Vec::new();
+                
+                for row in &dataset.rows {
+                    let mut key_parts = Vec::new();
+                    for key in &keys {
+                        if let Some(col_index) = dataset.col_names.iter().position(|name| name == key) {
+                            if col_index < row.len() {
+                                key_parts.push(format!("{:?}", row[col_index]));
+                            }
+                        }
+                    }
+                    let key = key_parts.join("|");
+                    
+                    if seen.insert(key) {
+                        unique_rows.push(row.clone());
+                    }
+                }
+                
+                dataset.rows = unique_rows;
+                Ok(())
+            }
+            _ => {
+                // 对于数据集，默认使用完全去重
+                self.dedup_dataset_with_strategy(dataset, DedupStrategy::Full).await
+            }
+        }
+    }
+
+    /// 使用指定策略对数据集去重
+    async fn dedup_dataset_with_strategy(
+        &mut self,
+        dataset: &mut crate::core::value::DataSet,
+        strategy: DedupStrategy,
+    ) -> Result<(), crate::query::QueryError> {
+        match strategy {
+            DedupStrategy::Full => {
+                let mut seen = HashSet::new();
+                let mut unique_rows = Vec::new();
+                
+                for row in &dataset.rows {
+                    let key = format!("{:?}", row);
+                    if seen.insert(key) {
+                        unique_rows.push(row.clone());
+                    }
+                }
+                
+                dataset.rows = unique_rows;
+                Ok(())
+            }
+            _ => Ok(()), // 其他策略在 dedup_dataset 中已处理
+        }
+    }
+
     /// 基于哈希的去重
     async fn hash_based_dedup<T, F>(
         &mut self,
         items: Vec<T>,
         key_extractor: F,
-    ) -> Result<Vec<T>, QueryError>
+    ) -> Result<Vec<T>, crate::query::QueryError>
     where
         T: Clone + Send + 'static,
         F: Fn(&T) -> String + Send + Sync,
@@ -192,7 +267,7 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
 
                 // 检查内存限制
                 if self.current_memory_usage + memory_usage > self.memory_limit {
-                    return Err(QueryError::ExecutionError("内存限制超出".to_string()));
+                    return Err(crate::query::QueryError::ExecutionError("内存限制超出".to_string()));
                 }
 
                 seen.insert(key);
@@ -278,40 +353,64 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for DedupExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn crate::query::executor::traits::Executor<S>>) {
-        self.input_executor = Some(input);
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for DedupExecutor<S> {
+    async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
+        <Self as ResultProcessor<S>>::set_input(self, input.clone());
+        
+        // 重置内存使用量
+        self.reset_memory_usage();
+        
+        // 执行去重操作
+        self.execute_dedup(input).await.map_err(|e| {
+            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
+                e.to_string(),
+            ))
+        })
     }
 
-    fn get_input(&self) -> Option<&Box<dyn crate::query::executor::traits::Executor<S>>> {
-        self.input_executor.as_ref()
+    fn set_input(&mut self, input: ExecutionResult) {
+        self.base.input = Some(input);
+    }
+
+    fn get_input(&self) -> Option<&ExecutionResult> {
+        self.base.input.as_ref()
+    }
+
+    fn context(&self) -> &ResultProcessorContext {
+        &self.base.context
+    }
+
+    fn set_context(&mut self, context: ResultProcessorContext) {
+        self.base.context = context;
+    }
+
+    fn memory_usage(&self) -> usize {
+        self.current_memory_usage
+    }
+
+    fn reset(&mut self) {
+        self.reset_memory_usage();
+        self.base.input = None;
     }
 }
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for DedupExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 重置内存使用量
-        self.reset_memory_usage();
-
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
         } else {
-            // 如果没有输入执行器，返回空结果
-            ExecutionResult::Values(Vec::new())
+            // 如果没有输入执行器，使用设置的输入数据
+            self.base.input.clone().unwrap_or(ExecutionResult::Values(Vec::new()))
         };
 
-        // 执行去重操作
-        self.execute_dedup(input_result).await.map_err(|e| {
-            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
-                e.to_string(),
-            ))
-        })
+        self.process(input_result).await
     }
 }
 
-impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for DedupExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorLifecycle for DedupExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         // 初始化去重所需的任何资源
         self.reset_memory_usage();
@@ -333,30 +432,38 @@ impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for DedupExecutor<S> {
     }
 
     fn is_open(&self) -> bool {
-        self.base.is_open()
+        self.base.id > 0 // 简单的状态检查
     }
 }
 
-impl<S: StorageEngine + Send + 'static> ExecutorMetadata for DedupExecutor<S> {
+impl<S: StorageEngine + Send> ExecutorMetadata for DedupExecutor<S> {
     fn id(&self) -> usize {
-        self.base.id()
+        self.base.id
     }
 
     fn name(&self) -> &str {
-        self.base.name()
+        &self.base.name
     }
 
     fn description(&self) -> &str {
-        self.base.description()
+        &self.base.description
     }
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
-    for DedupExecutor<S>
-{
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DedupExecutor<S> {
     fn storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage
+    }
+}
+
+impl<S: StorageEngine + Send + 'static> InputExecutor<S> for DedupExecutor<S> {
+    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
+        self.input_executor = Some(input);
+    }
+
+    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
+        self.input_executor.as_ref()
     }
 }
 
@@ -365,7 +472,6 @@ mod tests {
     use super::*;
     use crate::core::value::NullType;
     use std::collections::HashMap;
-    use std::sync::{Arc, Mutex};
 
     // 模拟存储引擎
     struct MockStorage;
@@ -525,10 +631,10 @@ mod tests {
             storage,
         };
 
-        executor.set_input(Box::new(input_executor));
+        <Self as InputExecutor<S>>::set_input(&mut executor, Box::new(input_executor));
 
         // 执行去重
-        let result = executor.execute().await.unwrap();
+        let result = executor.process(ExecutionResult::Values(Vec::new())).await.unwrap();
 
         // 验证结果
         match result {
@@ -575,61 +681,8 @@ mod tests {
             ])),
         ];
 
-        let input_result = ExecutionResult::Values(test_data);
-
-        // 创建模拟输入执行器
-        struct MockInputExecutor {
-            result: ExecutionResult,
-            storage: Arc<Mutex<MockStorage>>,
-        }
-
-        #[async_trait]
-        impl ExecutorCore for MockInputExecutor {
-            async fn execute(&mut self) -> DBResult<ExecutionResult> {
-                Ok(self.result.clone())
-            }
-        }
-
-        impl ExecutorLifecycle for MockInputExecutor {
-            fn open(&mut self) -> DBResult<()> {
-                Ok(())
-            }
-            fn close(&mut self) -> DBResult<()> {
-                Ok(())
-            }
-            fn is_open(&self) -> bool {
-                true
-            }
-        }
-
-        impl ExecutorMetadata for MockInputExecutor {
-            fn id(&self) -> usize {
-                0
-            }
-            fn name(&self) -> &str {
-                "MockInputExecutor"
-            }
-            fn description(&self) -> &str {
-                "Mock input executor for testing"
-            }
-        }
-
-        #[async_trait]
-        impl crate::query::executor::traits::Executor<MockStorage> for MockInputExecutor {
-            fn storage(&self) -> &Arc<Mutex<MockStorage>> {
-                &self.storage
-            }
-        }
-
-        let input_executor = MockInputExecutor {
-            result: input_result,
-            storage,
-        };
-
-        executor.set_input(Box::new(input_executor));
-
-        // 执行去重
-        let result = executor.execute().await.unwrap();
+        // 直接设置输入数据并处理
+        let result = executor.process(ExecutionResult::Values(test_data)).await.unwrap();
 
         // 验证结果
         match result {

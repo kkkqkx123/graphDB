@@ -25,6 +25,14 @@ pub use base::{
 // Re-export factory types
 pub use factory::{BaseExecutorFactory, ExecutorCreator};
 
+// Re-export result processing executors
+pub use result_processing::{
+    ProjectExecutor, SortExecutor, LimitExecutor, AggregateExecutor, GroupByExecutor, HavingExecutor,
+    DedupExecutor, FilterExecutor, SampleExecutor, TopNExecutor,
+    SortKey, SortOrder, AggregateFunction, AggregateState, GroupAggregateState, DedupStrategy, SampleMethod,
+    ResultProcessor, ResultProcessorContext, ResultProcessorFactory,
+};
+
 // Re-export Cypher executor types
 pub use cypher::{
     CypherExecutor, CypherExecutionContext, CypherExecutorFactory, CypherExecutorTrait,

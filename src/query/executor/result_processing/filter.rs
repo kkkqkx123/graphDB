@@ -1,0 +1,444 @@
+//! 过滤执行器
+//!
+//! 实现对查询结果的条件过滤功能，支持 HAVING 子句
+
+use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
+
+use crate::core::error::{DBError, DBResult};
+use crate::core::value::DataSet;
+use crate::graph::expression::{Expression, ExpressionEvaluator};
+use crate::query::context::EvalContext;
+use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::traits::{
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+};
+use crate::query::executor::result_processing::traits::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
+use crate::storage::StorageEngine;
+
+/// FilterExecutor - 过滤执行器
+///
+/// 实现对查询结果的条件过滤功能
+pub struct FilterExecutor<S: StorageEngine + Send + 'static> {
+    /// 基础处理器
+    base: BaseResultProcessor<S>,
+    /// 过滤条件表达式
+    condition: Expression,
+    /// 输入执行器
+    input_executor: Option<Box<dyn Executor<S>>>,
+}
+
+impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
+    pub fn new(
+        id: usize,
+        storage: Arc<Mutex<S>>,
+        condition: Expression,
+    ) -> Self {
+        let base = BaseResultProcessor::new(
+            id,
+            "FilterExecutor".to_string(),
+            "Filters query results based on specified conditions".to_string(),
+            storage,
+        );
+        
+        Self {
+            base,
+            condition,
+            input_executor: None,
+        }
+    }
+
+    /// 处理输入数据并应用过滤条件
+    async fn process_input(&mut self) -> DBResult<ExecutionResult> {
+        if let Some(ref mut input_exec) = self.input_executor {
+            let input_result = input_exec.execute().await?;
+
+            match input_result {
+                ExecutionResult::DataSet(mut dataset) => {
+                    self.apply_filter(&mut dataset)?;
+                    Ok(ExecutionResult::DataSet(dataset))
+                }
+                ExecutionResult::Values(mut values) => {
+                    let filtered_values = self.filter_values(values)?;
+                    Ok(ExecutionResult::Values(filtered_values))
+                }
+                ExecutionResult::Vertices(mut vertices) => {
+                    let filtered_vertices = self.filter_vertices(vertices)?;
+                    Ok(ExecutionResult::Vertices(filtered_vertices))
+                }
+                ExecutionResult::Edges(mut edges) => {
+                    let filtered_edges = self.filter_edges(edges)?;
+                    Ok(ExecutionResult::Edges(filtered_edges))
+                }
+                _ => Ok(input_result),
+            }
+        } else {
+            Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(
+                    "Filter executor requires input executor".to_string(),
+                ),
+            ))
+        }
+    }
+
+    /// 对数据集应用过滤条件
+    fn apply_filter(&self, dataset: &mut DataSet) -> DBResult<()> {
+        let evaluator = ExpressionEvaluator;
+        let mut filtered_rows = Vec::new();
+
+        for row in &dataset.rows {
+            // 构建表达式上下文
+            let mut context = EvalContext::new();
+            for (i, col_name) in dataset.col_names.iter().enumerate() {
+                if i < row.len() {
+                    context.set_variable(col_name.clone(), row[i].clone());
+                }
+            }
+
+            // 评估过滤条件
+            let condition_result = evaluator.evaluate(&self.condition, &context)
+                .map_err(|e| DBError::Expression(
+                    crate::core::error::ExpressionError::FunctionError(format!(
+                        "Failed to evaluate filter condition: {}", e
+                    )),
+                ))?;
+
+            // 如果条件为真，保留该行
+            if let crate::core::Value::Bool(true) = condition_result {
+                filtered_rows.push(row.clone());
+            }
+        }
+
+        dataset.rows = filtered_rows;
+        Ok(())
+    }
+
+    /// 过滤值列表
+    fn filter_values(&self, values: Vec<crate::core::Value>) -> DBResult<Vec<crate::core::Value>> {
+        let evaluator = ExpressionEvaluator;
+        let mut filtered_values = Vec::new();
+
+        for value in values {
+            // 构建表达式上下文
+            let mut context = EvalContext::new();
+            context.set_variable("value".to_string(), value.clone());
+
+            // 评估过滤条件
+            let condition_result = evaluator.evaluate(&self.condition, &context)
+                .map_err(|e| DBError::Expression(
+                    crate::core::error::ExpressionError::FunctionError(format!(
+                        "Failed to evaluate filter condition: {}", e
+                    )),
+                ))?;
+
+            // 如果条件为真，保留该值
+            if let crate::core::Value::Bool(true) = condition_result {
+                filtered_values.push(value);
+            }
+        }
+
+        Ok(filtered_values)
+    }
+
+    /// 过滤顶点列表
+    fn filter_vertices(&self, vertices: Vec<crate::core::Vertex>) -> DBResult<Vec<crate::core::Vertex>> {
+        let evaluator = ExpressionEvaluator;
+        let mut filtered_vertices = Vec::new();
+
+        for vertex in vertices {
+            // 构建表达式上下文
+            let mut context = EvalContext::with_vertex(&vertex);
+
+            // 评估过滤条件
+            let condition_result = evaluator.evaluate(&self.condition, &context)
+                .map_err(|e| DBError::Expression(
+                    crate::core::error::ExpressionError::FunctionError(format!(
+                        "Failed to evaluate filter condition: {}", e
+                    )),
+                ))?;
+
+            // 如果条件为真，保留该顶点
+            if let crate::core::Value::Bool(true) = condition_result {
+                filtered_vertices.push(vertex);
+            }
+        }
+
+        Ok(filtered_vertices)
+    }
+
+    /// 过滤边列表
+    fn filter_edges(&self, edges: Vec<crate::core::Edge>) -> DBResult<Vec<crate::core::Edge>> {
+        let evaluator = ExpressionEvaluator;
+        let mut filtered_edges = Vec::new();
+
+        for edge in edges {
+            // 构建表达式上下文
+            let mut context = EvalContext::with_edge(&edge);
+
+            // 评估过滤条件
+            let condition_result = evaluator.evaluate(&self.condition, &context)
+                .map_err(|e| DBError::Expression(
+                    crate::core::error::ExpressionError::FunctionError(format!(
+                        "Failed to evaluate filter condition: {}", e
+                    )),
+                ))?;
+
+            // 如果条件为真，保留该边
+            if let crate::core::Value::Bool(true) = condition_result {
+                filtered_edges.push(edge);
+            }
+        }
+
+        Ok(filtered_edges)
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for FilterExecutor<S> {
+    async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
+        <Self as ResultProcessor<S>>::set_input(self, input.clone());
+        self.process_input().await
+    }
+
+    fn set_input(&mut self, input: ExecutionResult) {
+        self.base.input = Some(input);
+    }
+
+    fn get_input(&self) -> Option<&ExecutionResult> {
+        self.base.input.as_ref()
+    }
+
+    fn context(&self) -> &ResultProcessorContext {
+        &self.base.context
+    }
+
+    fn set_context(&mut self, context: ResultProcessorContext) {
+        self.base.context = context;
+    }
+
+    fn memory_usage(&self) -> usize {
+        self.base.memory_usage
+    }
+
+    fn reset(&mut self) {
+        self.base.memory_usage = 0;
+        self.base.input = None;
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> ExecutorCore for FilterExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        // 首先执行输入执行器（如果存在）
+        let input_result = if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.execute().await?
+        } else {
+            // 如果没有输入执行器，使用设置的输入数据
+            self.base.input.clone().unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+        };
+
+        self.process(input_result).await
+    }
+}
+
+impl<S: StorageEngine + Send> ExecutorLifecycle for FilterExecutor<S> {
+    fn open(&mut self) -> DBResult<()> {
+        if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.open()?;
+        }
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.close()?;
+        }
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        self.base.id > 0 // 简单的状态检查
+    }
+}
+
+impl<S: StorageEngine + Send> ExecutorMetadata for FilterExecutor<S> {
+    fn id(&self) -> usize {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for FilterExecutor<S> {
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        &self.base.storage
+    }
+}
+
+impl<S: StorageEngine + Send + 'static> InputExecutor<S> for FilterExecutor<S> {
+    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
+        self.input_executor = Some(input);
+    }
+
+    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
+        self.input_executor.as_ref()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::value::NullType;
+
+    // 模拟存储引擎
+    struct MockStorage;
+
+    impl StorageEngine for MockStorage {
+        fn insert_node(
+            &mut self,
+            _vertex: crate::core::vertex_edge_path::Vertex,
+        ) -> Result<crate::core::Value, crate::storage::StorageError> {
+            Ok(crate::core::Value::Null(NullType::NaN))
+        }
+
+        fn get_node(
+            &self,
+            _id: &crate::core::Value,
+        ) -> Result<Option<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
+            Ok(None)
+        }
+
+        fn update_node(
+            &mut self,
+            _vertex: crate::core::vertex_edge_path::Vertex,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn delete_node(
+            &mut self,
+            _id: &crate::core::Value,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn insert_edge(
+            &mut self,
+            _edge: crate::core::vertex_edge_path::Edge,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn get_edge(
+            &self,
+            _src: &crate::core::Value,
+            _dst: &crate::core::Value,
+            _edge_type: &str,
+        ) -> Result<Option<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError>
+        {
+            Ok(None)
+        }
+
+        fn get_node_edges(
+            &self,
+            _node_id: &crate::core::Value,
+            _direction: crate::core::vertex_edge_path::Direction,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Edge>, crate::storage::StorageError>
+        {
+            Ok(Vec::new())
+        }
+
+        fn delete_edge(
+            &mut self,
+            _src: &crate::core::Value,
+            _dst: &crate::core::Value,
+            _edge_type: &str,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn begin_transaction(&mut self) -> Result<u64, crate::storage::StorageError> {
+            Ok(1)
+        }
+
+        fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn rollback_transaction(
+            &mut self,
+            _tx_id: u64,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn scan_all_vertices(&self) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_filter_executor_basic() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+        
+        // 创建测试数据
+        let mut dataset = DataSet::new();
+        dataset.col_names = vec!["name".to_string(), "age".to_string()];
+        dataset.rows.push(vec![
+            crate::core::Value::String("Alice".to_string()),
+            crate::core::Value::Int(30),
+        ]);
+        dataset.rows.push(vec![
+            crate::core::Value::String("Bob".to_string()),
+            crate::core::Value::Int(25),
+        ]);
+        dataset.rows.push(vec![
+            crate::core::Value::String("Charlie".to_string()),
+            crate::core::Value::Int(35),
+        ]);
+
+        // 创建过滤执行器 (age > 25)
+        let condition = Expression::Binary {
+            left: Box::new(Expression::Property {
+                object: Box::new(Expression::Variable("row".to_string())),
+                property: "age".to_string(),
+            }),
+            op: crate::graph::expression::BinaryOperator::GreaterThan,
+            right: Box::new(Expression::Literal(crate::graph::expression::LiteralValue::Int(25))),
+        };
+        
+        let mut executor = FilterExecutor::new(1, storage, condition);
+        
+        // 设置输入数据
+        <Self as ResultProcessor<MockStorage>>::set_input(&mut executor, ExecutionResult::DataSet(dataset));
+        
+        // 执行过滤
+        let result = executor.process(ExecutionResult::DataSet(DataSet::new())).await.unwrap();
+        
+        // 验证结果
+        match result {
+            ExecutionResult::DataSet(filtered_dataset) => {
+                assert_eq!(filtered_dataset.rows.len(), 2); // Alice 和 Charlie
+                // 验证年龄都大于25
+                for row in &filtered_dataset.rows {
+                    if let crate::core::Value::Int(age) = &row[1] {
+                        assert!(age > &25);
+                    }
+                }
+            }
+            _ => panic!("Expected DataSet result"),
+        }
+    }
+}
