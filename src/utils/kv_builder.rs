@@ -101,9 +101,7 @@ mod tests {
         ];
 
         let result = from_keys_and_values(&keys, &values);
-        assert!(result.is_ok());
-
-        let map = result.unwrap();
+        let map = result.expect("from_keys_and_values should succeed");
         assert_eq!(map.get("name"), Some(&Value::String("Bob".to_string())));
         assert_eq!(map.get("age"), Some(&Value::Int(25)));
         assert_eq!(map.get("active"), Some(&Value::Bool(false)));

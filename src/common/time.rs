@@ -29,7 +29,7 @@ impl Timestamp {
 
     /// Converts the timestamp to a DateTime<Utc>
     pub fn to_datetime(&self) -> DateTime<Utc> {
-        let dt = DateTime::from_timestamp(self.secs, self.nsecs).unwrap();
+        let dt = DateTime::from_timestamp(self.secs, self.nsecs).expect("Invalid timestamp");
         dt
     }
 
@@ -242,7 +242,7 @@ pub mod time_utils {
 
         end_time
             .duration_since(start_time)
-            .unwrap_or(Duration::new(0, 0))
+            .unwrap_or_else(|_| Duration::new(0, 0))
     }
 }
 
@@ -265,7 +265,7 @@ mod tests {
         let date = Date::today();
         assert!(date.year > 0);
 
-        let specific_date = Date::new(2023, 12, 25).unwrap();
+        let specific_date = Date::new(2023, 12, 25).expect("Failed to create date");
         assert_eq!(specific_date.year, 2023);
         assert_eq!(specific_date.month, 12);
         assert_eq!(specific_date.day, 25);
@@ -276,7 +276,7 @@ mod tests {
         let time = Time::now();
         assert!(time.hour <= 23);
 
-        let specific_time = Time::new(14, 30, 45, 123456).unwrap();
+        let specific_time = Time::new(14, 30, 45, 123456).expect("Failed to create time");
         assert_eq!(specific_time.hour, 14);
         assert_eq!(specific_time.minute, 30);
         assert_eq!(specific_time.second, 45);
@@ -302,7 +302,7 @@ mod tests {
         // Test timestamp formatting and parsing
         let ts = Timestamp::new(1672531200, 0); // 2023-01-01T00:00:00Z
         let iso_str = time_utils::format_timestamp_iso(&ts);
-        let parsed_ts = time_utils::parse_timestamp_iso(&iso_str).unwrap();
+        let parsed_ts = time_utils::parse_timestamp_iso(&iso_str).expect("Failed to parse timestamp");
         assert_eq!(ts.secs, parsed_ts.secs);
     }
 }

@@ -193,31 +193,31 @@ mod tests {
         V: Clone,
     {
         fn get(&self, key: &K) -> Option<V> {
-            self.data.lock().unwrap().get(key).cloned()
+            self.data.lock().expect("Data lock was poisoned").get(key).cloned()
         }
 
         fn put(&self, key: K, value: V) {
-            self.data.lock().unwrap().insert(key, value);
+            self.data.lock().expect("Data lock was poisoned").insert(key, value);
         }
 
         fn contains(&self, key: &K) -> bool {
-            self.data.lock().unwrap().contains_key(key)
+            self.data.lock().expect("Data lock was poisoned").contains_key(key)
         }
 
         fn remove(&self, key: &K) -> Option<V> {
-            self.data.lock().unwrap().remove(key)
+            self.data.lock().expect("Data lock was poisoned").remove(key)
         }
 
         fn clear(&self) {
-            self.data.lock().unwrap().clear();
+            self.data.lock().expect("Data lock was poisoned").clear();
         }
 
         fn len(&self) -> usize {
-            self.data.lock().unwrap().len()
+            self.data.lock().expect("Data lock was poisoned").len()
         }
 
         fn is_empty(&self) -> bool {
-            self.data.lock().unwrap().is_empty()
+            self.data.lock().expect("Data lock was poisoned").is_empty()
         }
     }
 

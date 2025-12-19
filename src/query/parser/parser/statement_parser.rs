@@ -4,11 +4,9 @@
 
 use crate::core::Value;
 use crate::query::parser::ast::expr::*;
-use crate::query::parser::ast::pattern::{
-    NodePattern, PathElement, PathPattern, Pattern,
-};
-use crate::query::parser::ast::stmt::*;
+use crate::query::parser::ast::pattern::{NodePattern, PathElement, PathPattern, Pattern};
 use crate::query::parser::ast::stmt::PropertyDef;
+use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::*;
 use crate::query::parser::lexer::TokenKind as LexerToken;
 

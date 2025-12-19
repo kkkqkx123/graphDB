@@ -118,20 +118,20 @@ impl MemoryPool {
         // Look for a suitable chunk (first fit)
         if let Some(&start_idx) = available_chunks.get(&size).and_then(|v| v.first()) {
             // Found an available chunk of exact size
-            available_chunks.get_mut(&size).unwrap().remove(0);
+            available_chunks.get_mut(&size).expect("Chunk should exist").remove(0);
             if available_chunks[&size].is_empty() {
                 available_chunks.remove(&size);
             }
 
             // Mark this chunk as used
             {
-                let mut chunk_map = self.chunk_size_map.lock().unwrap();
+                let mut chunk_map = self.chunk_size_map.lock().expect("Chunk size map lock was poisoned");
                 chunk_map.insert(start_idx, size);
             }
 
             self.used_size.fetch_add(size, Ordering::SeqCst);
 
-            let pool = self.pool.lock().unwrap();
+            let pool = self.pool.lock().expect("Pool lock was poisoned");
             Some(pool.as_ptr() as *mut u8).map(|p| unsafe { p.add(start_idx) })
         } else {
             // Try to find a larger chunk that can be split
@@ -147,7 +147,7 @@ impl MemoryPool {
                 // Remove the chunk from available list
                 available_chunks
                     .get_mut(&original_chunk_size)
-                    .unwrap()
+                    .expect("Original chunk should exist")
                     .retain(|&x| x != start_idx);
                 if available_chunks[&original_chunk_size].is_empty() {
                     available_chunks.remove(&original_chunk_size);
@@ -165,13 +165,13 @@ impl MemoryPool {
 
                 // Mark the allocated portion as used
                 {
-                    let mut chunk_map = self.chunk_size_map.lock().unwrap();
+                    let mut chunk_map = self.chunk_size_map.lock().expect("Chunk size map lock was poisoned");
                     chunk_map.insert(start_idx, size);
                 }
 
                 self.used_size.fetch_add(size, Ordering::SeqCst);
 
-                let pool = self.pool.lock().unwrap();
+                let pool = self.pool.lock().expect("Pool lock was poisoned");
                 Some(pool.as_ptr() as *mut u8).map(|p| unsafe { p.add(start_idx) })
             } else {
                 // No suitable chunk found, allocation failed
@@ -186,11 +186,11 @@ impl MemoryPool {
         }
 
         // Calculate the index in our pool
-        let pool_ptr = self.pool.lock().unwrap().as_ptr() as *mut u8;
+        let pool_ptr = self.pool.lock().expect("Pool lock was poisoned").as_ptr() as *mut u8;
         let start_idx = unsafe { ptr.offset_from(pool_ptr) as usize };
 
         // Verify this is a valid pointer from our pool
-        let mut chunk_size_map = self.chunk_size_map.lock().unwrap();
+        let mut chunk_size_map = self.chunk_size_map.lock().expect("Chunk size map lock was poisoned");
         if chunk_size_map.get(&start_idx) != Some(&size) {
             // This pointer doesn't belong to our pool or size doesn't match
             return;
@@ -201,7 +201,7 @@ impl MemoryPool {
         drop(chunk_size_map);
 
         // Add to available chunks
-        let mut available_chunks = self.available_chunks.lock().unwrap();
+        let mut available_chunks = self.available_chunks.lock().expect("Available chunks lock was poisoned");
         available_chunks
             .entry(size)
             .or_insert_with(Vec::new)
@@ -308,7 +308,7 @@ impl<T: Clone + 'static> ObjectPool<T> {
     }
 
     pub fn get(&self) -> T {
-        let mut pool = self.pool.lock().unwrap();
+        let mut pool = self.pool.lock().expect("Object pool lock was poisoned");
         if let Some(obj) = pool.pop() {
             obj
         } else {
@@ -317,7 +317,7 @@ impl<T: Clone + 'static> ObjectPool<T> {
     }
 
     pub fn return_obj(&self, obj: T) {
-        let mut pool = self.pool.lock().unwrap();
+        let mut pool = self.pool.lock().expect("Object pool lock was poisoned");
         if pool.len() < self.max_size {
             pool.push(obj);
         }
@@ -325,11 +325,11 @@ impl<T: Clone + 'static> ObjectPool<T> {
     }
 
     pub fn len(&self) -> usize {
-        self.pool.lock().unwrap().len()
+        self.pool.lock().expect("Object pool lock was poisoned").len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.pool.lock().unwrap().is_empty()
+        self.pool.lock().expect("Object pool lock was poisoned").is_empty()
     }
 }
 
@@ -346,17 +346,17 @@ impl MemoryLeakDetector {
     }
 
     pub fn record_allocation(&self, ptr: usize, layout: Layout, location: String) {
-        let mut allocations = self.allocations.lock().unwrap();
+        let mut allocations = self.allocations.lock().expect("Allocations lock was poisoned");
         allocations.insert(ptr, (layout, location));
     }
 
     pub fn record_deallocation(&self, ptr: usize) {
-        let mut allocations = self.allocations.lock().unwrap();
+        let mut allocations = self.allocations.lock().expect("Allocations lock was poisoned");
         allocations.remove(&ptr);
     }
 
     pub fn report_leaks(&self) -> Vec<(usize, Layout, String)> {
-        let allocations = self.allocations.lock().unwrap();
+        let allocations = self.allocations.lock().expect("Allocations lock was poisoned");
         allocations
             .iter()
             .map(|(&ptr, (layout, location))| (ptr, *layout, location.clone()))
@@ -364,7 +364,7 @@ impl MemoryLeakDetector {
     }
 
     pub fn has_leaks(&self) -> bool {
-        let allocations = self.allocations.lock().unwrap();
+        let allocations = self.allocations.lock().expect("Allocations lock was poisoned");
         !allocations.is_empty()
     }
 }
@@ -512,7 +512,7 @@ mod tests {
 
         assert!(!detector.has_leaks());
 
-        let layout = Layout::from_size_align(100, 8).unwrap();
+        let layout = Layout::from_size_align(100, 8).expect("Failed to create layout");
         detector.record_allocation(0x1000, layout, "test_location".to_string());
 
         assert!(detector.has_leaks());

@@ -385,6 +385,6 @@ mod tests {
         .await;
 
         assert!(timeout_result.is_ok());
-        assert_eq!(timeout_result.unwrap(), "done");
+        assert_eq!(timeout_result.expect("Timeout result should be ok"), "done");
     }
 }

@@ -33,7 +33,7 @@ impl CacheManager {
         K: 'static + Send + Sync,
         V: 'static + Send + Sync,
     {
-        let mut caches = self.caches.write().unwrap();
+        let mut caches = self.caches.write().expect("Caches write lock was poisoned");
         caches.insert(name.to_string(), cache);
     }
     
@@ -96,26 +96,26 @@ impl CacheManager {
     
     /// 清空所有缓存
     pub fn clear_all(&self) {
-        let caches = self.caches.read().unwrap();
+        let caches = self.caches.read().expect("Caches read lock was poisoned");
         // 简化实现，实际需要类型擦除的清理方法
         let _ = caches;
     }
     
     /// 获取缓存列表
     pub fn cache_names(&self) -> Vec<String> {
-        let caches = self.caches.read().unwrap();
+        let caches = self.caches.read().expect("Caches read lock was poisoned");
         caches.keys().cloned().collect()
     }
     
     /// 检查缓存是否存在
     pub fn has_cache(&self, name: &str) -> bool {
-        let caches = self.caches.read().unwrap();
+        let caches = self.caches.read().expect("Caches read lock was poisoned");
         caches.contains_key(name)
     }
     
     /// 移除缓存
     pub fn remove_cache(&self, name: &str) -> bool {
-        let mut caches = self.caches.write().unwrap();
+        let mut caches = self.caches.write().expect("Caches write lock was poisoned");
         caches.remove(name).is_some()
     }
 }

@@ -13,7 +13,13 @@ pub async fn start_service(config_path: String) -> Result<()> {
     println!("Initializing GraphDB service...");
 
     // Load configuration
-    let config = Config::load(&config_path).unwrap_or_else(|_| Config::default());
+    let config = match Config::load(&config_path) {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("Failed to load config from '{}': {}, using default config", config_path, e);
+            Config::default()
+        }
+    };
     println!("Configuration loaded: {:?}", config);
 
     // Initialize storage
@@ -45,10 +51,16 @@ pub async fn execute_query(query_str: &str) -> Result<()> {
     let graph_service = GraphService::new(config, storage);
 
     // Create a temporary session for this execution
-    let session = graph_service
+    let session = match graph_service
         .get_session_manager()
         .create_session("anonymous".to_string(), "127.0.0.1".to_string())
-        .unwrap();
+    {
+        Ok(session) => session,
+        Err(e) => {
+            eprintln!("Failed to create session: {}", e);
+            return Err(anyhow::anyhow!(e));
+        }
+    };
 
     let session_id = session.id();
 

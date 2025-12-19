@@ -27,7 +27,7 @@ where
     
     fn move_to_back(&mut self, key: &K) {
         if let Some(pos) = self.access_order.iter().position(|k| k == key) {
-            let key = self.access_order.remove(pos).unwrap();
+            let key = self.access_order.remove(pos);
             self.access_order.push_back(key);
         }
     }
@@ -102,7 +102,7 @@ where
     V: Clone,
 {
     fn get(&self, key: &K) -> Option<V> {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock().expect("LRU cache inner mutex was poisoned");
         if let Some(value) = cache.cache.get(key) {
             cache.move_to_back(key);
             Some(value.clone())
@@ -110,9 +110,9 @@ where
             None
         }
     }
-    
+
     fn put(&self, key: K, value: V) {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock().expect("LRU cache inner mutex was poisoned");
         if cache.cache.contains_key(&key) {
             cache.move_to_back(&key);
         } else {
@@ -121,34 +121,34 @@ where
         cache.cache.insert(key.clone(), value);
         cache.access_order.push_back(key);
     }
-    
+
     fn contains(&self, key: &K) -> bool {
-        let cache = self.inner.lock().unwrap();
+        let cache = self.inner.lock().expect("LRU cache inner mutex was poisoned");
         cache.cache.contains_key(key)
     }
-    
+
     fn remove(&self, key: &K) -> Option<V> {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock().expect("LRU cache inner mutex was poisoned");
         let result = cache.cache.remove(key);
         if result.is_some() {
             cache.access_order.retain(|k| k != key);
         }
         result
     }
-    
+
     fn clear(&self) {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock().expect("LRU cache inner mutex was poisoned");
         cache.cache.clear();
         cache.access_order.clear();
     }
-    
+
     fn len(&self) -> usize {
-        let cache = self.inner.lock().unwrap();
+        let cache = self.inner.lock().expect("LRU cache inner mutex was poisoned");
         cache.cache.len()
     }
-    
+
     fn is_empty(&self) -> bool {
-        let cache = self.inner.lock().unwrap();
+        let cache = self.inner.lock().expect("LRU cache inner mutex was poisoned");
         cache.cache.is_empty()
     }
 }

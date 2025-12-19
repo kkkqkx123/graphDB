@@ -25,8 +25,9 @@ where
             // Move the key to the back of the access order (most recent)
             let pos = self.access_order.iter().position(|k| k == key);
             if let Some(pos) = pos {
-                let k = self.access_order.remove(pos).unwrap();
-                self.access_order.push_back(k);
+                if let Some(k) = self.access_order.remove(pos) {
+                    self.access_order.push_back(k);
+                }
             }
             self.cache.get(key)
         } else {

@@ -58,8 +58,8 @@ impl GraphSessionManager {
 
         // Add to sessions and active sessions
         {
-            let mut sessions = self.sessions.lock().unwrap();
-            let mut active_sessions = self.active_sessions.lock().unwrap();
+            let mut sessions = self.sessions.lock().expect("Sessions lock was poisoned");
+            let mut active_sessions = self.active_sessions.lock().expect("Active sessions lock was poisoned");
 
             sessions.insert(session_id, Arc::clone(&client_session));
             active_sessions.insert(session_id, Instant::now());
@@ -70,7 +70,7 @@ impl GraphSessionManager {
 
     /// Finds an existing session
     pub fn find_session(&self, session_id: i64) -> Option<Arc<ClientSession>> {
-        let sessions = self.sessions.lock().unwrap();
+        let sessions = self.sessions.lock().expect("Sessions lock was poisoned");
         sessions.get(&session_id).cloned()
     }
 
@@ -82,8 +82,8 @@ impl GraphSessionManager {
     /// Removes a session from local cache
     pub fn remove_session(&self, session_id: i64) {
         {
-            let mut sessions = self.sessions.lock().unwrap();
-            let mut active_sessions = self.active_sessions.lock().unwrap();
+            let mut sessions = self.sessions.lock().expect("Sessions lock was poisoned");
+            let mut active_sessions = self.active_sessions.lock().expect("Active sessions lock was poisoned");
 
             sessions.remove(&session_id);
             active_sessions.remove(&session_id);
@@ -92,7 +92,7 @@ impl GraphSessionManager {
 
     /// Gets all sessions from the local cache
     pub fn get_sessions_from_local_cache(&self) -> Vec<Session> {
-        let sessions = self.sessions.lock().unwrap();
+        let sessions = self.sessions.lock().expect("Sessions lock was poisoned");
         sessions
             .values()
             .map(|session| session.get_session())
@@ -101,7 +101,7 @@ impl GraphSessionManager {
 
     /// Whether exceeds the max allowed connections
     pub fn is_out_of_connections(&self) -> bool {
-        let active_sessions = self.active_sessions.lock().unwrap();
+        let active_sessions = self.active_sessions.lock().expect("Active sessions lock was poisoned");
         active_sessions.len() >= MAX_ALLOWED_CONNECTIONS
     }
 
@@ -111,7 +111,7 @@ impl GraphSessionManager {
         // For now, we'll use seconds since epoch as a simple ID
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("System time is before Unix epoch")
             .as_secs() as i64
     }
 
@@ -127,7 +127,7 @@ impl GraphSessionManager {
 
     /// Reclaims expired sessions
     fn reclaim_expired_sessions(&self) {
-        let active_sessions = self.active_sessions.lock().unwrap();
+        let active_sessions = self.active_sessions.lock().expect("Active sessions lock was poisoned");
         let expired_sessions: Vec<i64> = active_sessions
             .iter()
             .filter(|(_, last_activity)| last_activity.elapsed() > SESSION_IDLE_TIMEOUT)
@@ -160,12 +160,12 @@ mod tests {
 
         let session = session_manager
             .create_session("testuser".to_string(), "127.0.0.1".to_string())
-            .unwrap();
+            .expect("Failed to create session");
 
         assert_eq!(session.user(), "testuser");
         assert!(!session_manager.is_out_of_connections());
 
-        let found_session = session_manager.find_session(session.id()).unwrap();
+        let found_session = session_manager.find_session(session.id()).expect("Failed to find session");
         assert_eq!(found_session.user(), "testuser");
 
         // Test find non-existent session
@@ -178,7 +178,7 @@ mod tests {
 
         let session = session_manager
             .create_session("testuser".to_string(), "127.0.0.1".to_string())
-            .unwrap();
+            .expect("Failed to create session");
 
         assert!(session_manager.find_session(session.id()).is_some());
 
@@ -201,12 +201,12 @@ mod tests {
 
         let session = session_manager
             .create_session("testuser".to_string(), "127.0.0.1".to_string())
-            .unwrap();
+            .expect("Failed to create session");
 
         // Test finding from cache
         let cached_session = session_manager
             .find_session_from_cache(session.id())
-            .unwrap();
+            .expect("Failed to find cached session");
         assert_eq!(cached_session.user(), "testuser");
 
         // Test getting all sessions from cache

@@ -527,8 +527,8 @@ impl ValueVisitor for HashCalculatorVisitor {
         let mut items: Vec<_> = value.iter().collect();
         // Sort by hash of each item to ensure consistent ordering
         items.sort_by(|a, b| {
-            let hash_a = HashCalculatorVisitor::calculate_hash(a).unwrap_or(0);
-            let hash_b = HashCalculatorVisitor::calculate_hash(b).unwrap_or(0);
+            let hash_a = HashCalculatorVisitor::calculate_hash(a).unwrap_or_else(|_| 0);
+            let hash_b = HashCalculatorVisitor::calculate_hash(b).unwrap_or_else(|_| 0);
             hash_a.cmp(&hash_b)
         });
         for item in items {
@@ -735,12 +735,17 @@ impl ValueVisitor for TypeConversionVisitor {
                     .collect();
                 Ok(Value::String(format!("[{}]", items.join(", "))))
             }
-            _ => Ok(Value::List(
-                value
-                    .iter()
-                    .map(|v| Self::convert(v, self.target_type.clone().unwrap()))
-                    .collect::<Result<Vec<_>, _>>()?,
-            )),
+            _ => {
+                let target_type = self.target_type.as_ref().ok_or_else(||
+                    TransformationError::Transformation("Target type not specified for list conversion".to_string())
+                )?;
+                Ok(Value::List(
+                    value
+                        .iter()
+                        .map(|v| Self::convert(v, target_type.clone()))
+                        .collect::<Result<Vec<_>, _>>()?,
+                ))
+            }
         }
     }
 
@@ -759,15 +764,20 @@ impl ValueVisitor for TypeConversionVisitor {
                     .collect();
                 Ok(Value::String(format!("{{{}}}", pairs.join(", "))))
             }
-            _ => Ok(Value::Map(
-                value
-                    .iter()
-                    .map(|(k, v)| {
-                        let converted = Self::convert(v, self.target_type.clone().unwrap())?;
-                        Ok::<(String, Value), TransformationError>((k.clone(), converted))
-                    })
-                    .collect::<Result<HashMap<_, _>, _>>()?,
-            )),
+            _ => {
+                let target_type = self.target_type.as_ref().ok_or_else(||
+                    TransformationError::Transformation("Target type not specified for map conversion".to_string())
+                )?;
+                Ok(Value::Map(
+                    value
+                        .iter()
+                        .map(|(k, v)| {
+                            let converted = Self::convert(v, target_type.clone())?;
+                            Ok::<(String, Value), TransformationError>((k.clone(), converted))
+                        })
+                        .collect::<Result<HashMap<_, _>, _>>()?,
+                ))
+            }
         }
     }
 
@@ -783,12 +793,17 @@ impl ValueVisitor for TypeConversionVisitor {
                     .collect();
                 Ok(Value::String(format!("[{}]", items.join(", "))))
             }
-            _ => Ok(Value::Set(
-                value
-                    .iter()
-                    .map(|v| Self::convert(v, self.target_type.clone().unwrap()))
-                    .collect::<Result<std::collections::HashSet<_>, TransformationError>>()?,
-            )),
+            _ => {
+                let target_type = self.target_type.as_ref().ok_or_else(||
+                    TransformationError::Transformation("Target type not specified for set conversion".to_string())
+                )?;
+                Ok(Value::Set(
+                    value
+                        .iter()
+                        .map(|v| Self::convert(v, target_type.clone()))
+                        .collect::<Result<std::collections::HashSet<_>, TransformationError>>()?,
+                ))
+            }
         }
     }
 
@@ -855,7 +870,7 @@ mod tests {
     #[test]
     fn test_size_calculator_visitor() {
         let value = Value::String("test".to_string());
-        let size = SizeCalculatorVisitor::calculate_size(&value).unwrap();
+        let size = SizeCalculatorVisitor::calculate_size(&value).expect("Failed to calculate size");
         assert!(size > std::mem::size_of::<String>());
     }
 
@@ -863,18 +878,20 @@ mod tests {
     fn test_hash_calculator_visitor() {
         let value1 = Value::Int(42);
         let value2 = Value::Int(42);
-        let hash1 = HashCalculatorVisitor::calculate_hash(&value1).unwrap();
-        let hash2 = HashCalculatorVisitor::calculate_hash(&value2).unwrap();
+        let hash1 = HashCalculatorVisitor::calculate_hash(&value1).expect("Failed to calculate hash");
+        let hash2 = HashCalculatorVisitor::calculate_hash(&value2).expect("Failed to calculate hash");
         assert_eq!(hash1, hash2);
     }
 
     #[test]
     fn test_type_conversion_visitor() {
         let string_value = Value::String("123".to_string());
-        let int_value = TypeConversionVisitor::convert(&string_value, ValueTypeDef::Int).unwrap();
+        let int_value = TypeConversionVisitor::convert(&string_value, ValueTypeDef::Int)
+            .expect("Failed to convert string to int");
         assert_eq!(int_value, Value::Int(123));
 
-        let bool_value = TypeConversionVisitor::convert(&string_value, ValueTypeDef::Bool).unwrap();
+        let bool_value = TypeConversionVisitor::convert(&string_value, ValueTypeDef::Bool)
+            .expect("Failed to convert string to bool");
         assert_eq!(bool_value, Value::Bool(true));
     }
 }

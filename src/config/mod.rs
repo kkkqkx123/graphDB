@@ -60,13 +60,17 @@ mod tests {
 
     #[test]
     fn test_config_load_save() {
-        let mut temp_file = NamedTempFile::new().unwrap();
+        let mut temp_file = NamedTempFile::new().expect("Failed to create temporary file");
 
         let config = Config::default();
-        let toml_content = toml::to_string_pretty(&config).unwrap();
-        temp_file.write_all(toml_content.as_bytes()).unwrap();
+        let toml_content =
+            toml::to_string_pretty(&config).expect("Failed to serialize config to TOML");
+        temp_file
+            .write_all(toml_content.as_bytes())
+            .expect("Failed to write TOML content to temporary file");
 
-        let loaded_config = Config::load(temp_file.path()).unwrap();
+        let loaded_config =
+            Config::load(temp_file.path()).expect("Failed to load config from temporary file");
         assert_eq!(config.host, loaded_config.host);
         assert_eq!(config.port, loaded_config.port);
     }

@@ -181,8 +181,8 @@ mod tests {
         assert_eq!(complex_value, cloned);
 
         // 测试大小计算
-        let size = calculate_size(&complex_value).unwrap();
-        assert!(size > calculate_size(&Value::Int(42)).unwrap());
+        let size = calculate_size(&complex_value).expect("Failed to calculate size");
+        assert!(size > calculate_size(&Value::Int(42)).expect("Failed to calculate size of Int value"));
     }
 
     #[test]

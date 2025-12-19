@@ -415,13 +415,15 @@ mod tests {
 
         // Test UTF-8 encoding/decoding
         let encoded = CharsetUtils::encode_with_encoding(original, Encoding::Utf8);
-        let decoded = CharsetUtils::decode_with_encoding(&encoded, Encoding::Utf8).unwrap();
+        let decoded = CharsetUtils::decode_with_encoding(&encoded, Encoding::Utf8)
+            .expect("Failed to decode UTF-8");
         assert_eq!(original, decoded);
 
         // Test with Latin-1 (will lose non-Latin1 chars)
         let encoded_latin1 = CharsetUtils::encode_with_encoding(original, Encoding::Latin1);
         let decoded_latin1 =
-            CharsetUtils::decode_with_encoding(&encoded_latin1, Encoding::Latin1).unwrap();
+            CharsetUtils::decode_with_encoding(&encoded_latin1, Encoding::Latin1)
+            .expect("Failed to decode Latin-1");
         assert_ne!(original, decoded_latin1); // The non-Latin1 chars will be replaced
     }
 
@@ -434,10 +436,12 @@ mod tests {
 
         // Convert to Latin-1
         let latin1_bytes =
-            CharsetUtils::convert_encoding(&utf8_bytes, Encoding::Utf8, Encoding::Latin1).unwrap();
+            CharsetUtils::convert_encoding(&utf8_bytes, Encoding::Utf8, Encoding::Latin1)
+            .expect("Failed to convert encoding");
 
         // Decode back to string
-        let result = CharsetUtils::decode_with_encoding(&latin1_bytes, Encoding::Latin1).unwrap();
+        let result = CharsetUtils::decode_with_encoding(&latin1_bytes, Encoding::Latin1)
+            .expect("Failed to decode converted bytes");
 
         assert_eq!(original, result);
     }

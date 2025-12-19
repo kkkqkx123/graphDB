@@ -489,14 +489,14 @@ mod tests {
     #[test]
     fn test_file_system_utils_exists() {
         // Create a temporary directory
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("Failed to create temp directory");
         let file_path = dir.path().join("test_file.txt");
 
         // File shouldn't exist yet
         assert!(!FileSystemUtils::exists(&file_path));
 
         // Create the file
-        FileSystemUtils::write(&file_path, "test content").unwrap();
+        FileSystemUtils::write(&file_path, "test content").expect("Failed to write file");
 
         // Now it should exist
         assert!(FileSystemUtils::exists(&file_path));
@@ -504,28 +504,28 @@ mod tests {
 
     #[test]
     fn test_file_system_utils_read_write() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("Failed to create temp directory");
         let file_path = dir.path().join("test_read_write.txt");
 
         // Write some content
         let content = "Hello, file system!";
-        FileSystemUtils::write(&file_path, content).unwrap();
+        FileSystemUtils::write(&file_path, content).expect("Failed to write file");
 
         // Read it back
-        let read_content = FileSystemUtils::read_to_string(&file_path).unwrap();
+        let read_content = FileSystemUtils::read_to_string(&file_path).expect("Failed to read file");
         assert_eq!(content, read_content);
     }
 
     #[test]
     fn test_file_attributes() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("Failed to create temp directory");
         let file_path = dir.path().join("test_attrs.txt");
 
         // Create a file
-        FileSystemUtils::write(&file_path, "test").unwrap();
+        FileSystemUtils::write(&file_path, "test").expect("Failed to write file");
 
         // Get its attributes
-        let attrs = FileSystemUtils::get_attributes(&file_path).unwrap();
+        let attrs = FileSystemUtils::get_attributes(&file_path).expect("Failed to get file attributes");
 
         assert!(attrs.is_file);
         assert!(!attrs.is_directory);
@@ -534,36 +534,36 @@ mod tests {
 
     #[test]
     fn test_file_handle() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("Failed to create temp directory");
         let file_path = dir.path().join("test_handle.txt");
 
         // Create a file handle
-        let handle = FileHandle::create(&file_path).unwrap();
+        let handle = FileHandle::create(&file_path).expect("Failed to create file handle");
 
         // Write to the file
         let content = b"Hello from file handle!";
-        handle.write(content).unwrap();
-        handle.sync_all().unwrap();
+        handle.write(content).expect("Failed to write to file handle");
+        handle.sync_all().expect("Failed to sync file handle");
 
         // Read it back with standard fs
-        let read_content = FileSystemUtils::read(&file_path).unwrap();
+        let read_content = FileSystemUtils::read(&file_path).expect("Failed to read file");
         assert_eq!(content.to_vec(), read_content);
     }
 
     #[test]
     fn test_file_cache() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("Failed to create temp directory");
         let file_path = dir.path().join("test_cache.txt");
 
         // Create and write to a file
         let content = b"Cache test content";
-        FileSystemUtils::write(&file_path, content).unwrap();
+        FileSystemUtils::write(&file_path, content).expect("Failed to write file");
 
         // Create a cache
         let cache = FileCache::new(1024); // 1KB cache
 
         // Load the file into cache
-        let cached_content = cache.get_or_load(&file_path).unwrap();
+        let cached_content = cache.get_or_load(&file_path).expect("Failed to load file into cache");
         assert_eq!(content.to_vec(), cached_content);
 
         assert_eq!(cache.size(), content.len());
@@ -571,24 +571,24 @@ mod tests {
 
     #[test]
     fn test_directory_operations() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("Failed to create temp directory");
         let sub_dir = dir.path().join("subdir");
 
         // Create a subdirectory
-        FileSystemUtils::create_dir_all(&sub_dir).unwrap();
+        FileSystemUtils::create_dir_all(&sub_dir).expect("Failed to create subdirectory");
         assert!(FileSystemUtils::is_directory(&sub_dir));
 
         // Create a file in the subdirectory
         let file_path = sub_dir.join("nested_file.txt");
-        FileSystemUtils::write(&file_path, "nested content").unwrap();
+        FileSystemUtils::write(&file_path, "nested content").expect("Failed to write file");
 
         // List directory contents
-        let entries = FileSystemUtils::read_dir(&sub_dir).unwrap();
+        let entries = FileSystemUtils::read_dir(&sub_dir).expect("Failed to read directory");
         assert_eq!(entries.len(), 1);
         assert!(entries[0].ends_with("nested_file.txt"));
 
         // Walk directory recursively
-        let all_paths = FileSystemUtils::walk_dir(&dir.path()).unwrap();
+        let all_paths = FileSystemUtils::walk_dir(&dir.path()).expect("Failed to walk directory");
         assert_eq!(all_paths.len(), 1);
         assert!(all_paths[0].ends_with("nested_file.txt"));
     }

@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn test_safe_lock_success() {
         let mutex = Mutex::new(42);
-        let guard = safe_lock(&mutex).unwrap();
+        let guard = safe_lock(&mutex).expect("safe_lock should succeed");
         assert_eq!(*guard, 42);
     }
 
@@ -106,9 +106,9 @@ mod tests {
         
         // 故意污染锁
         {
-            let _guard = mutex.lock().unwrap();
+            let _guard = mutex.lock().expect("mutex.lock should succeed");
             std::panic::catch_unwind(|| {
-                let _guard = mutex.lock().unwrap();
+                let _guard = mutex.lock().expect("mutex.lock should succeed");
                 panic!("Intentional panic to poison the lock");
             }).unwrap_err();
         }
@@ -123,7 +123,7 @@ mod tests {
     fn test_expect_option_some() {
         let option = Some(42);
         let result = expect_option(option, "Should have value");
-        assert_eq!(result.unwrap(), 42);
+        assert_eq!(result.expect("expect_option should succeed"), 42);
     }
 
     #[test]
@@ -138,7 +138,7 @@ mod tests {
     fn test_expect_vec_last() {
         let vec = vec![1, 2, 3];
         let result = expect_vec_last(&vec, "Vector should not be empty");
-        assert_eq!(result.unwrap(), &3);
+        assert_eq!(result.expect("expect_vec_last should succeed"), &3);
     }
 
     #[test]
@@ -153,7 +153,7 @@ mod tests {
     fn test_expect_first() {
         let vec = vec![1, 2, 3];
         let result = expect_first(vec.iter(), "Iterator should not be empty");
-        assert_eq!(result.unwrap(), &1);
+        assert_eq!(result.expect("expect_first should succeed"), &1);
     }
 
     #[test]
@@ -168,13 +168,13 @@ mod tests {
     fn test_expect_min() {
         let vec = vec![3, 1, 2];
         let result = expect_min(vec.iter(), "Iterator should not be empty");
-        assert_eq!(result.unwrap(), &1);
+        assert_eq!(result.expect("expect_min should succeed"), &1);
     }
 
     #[test]
     fn test_expect_max() {
         let vec = vec![1, 3, 2];
         let result = expect_max(vec.iter(), "Iterator should not be empty");
-        assert_eq!(result.unwrap(), &3);
+        assert_eq!(result.expect("expect_max should succeed"), &3);
     }
 }
