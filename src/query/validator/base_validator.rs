@@ -1,6 +1,8 @@
 //! 基础验证器实现
 //! 对应 NebulaGraph Validator.h/.cpp 的功能
 
+use crate::graph::expression::Expression;
+
 use crate::core::error::{DBError, DBResult, ValidationError};
 use crate::query::context::ast_context::ColumnDefinition;
 use crate::query::context::{AstContext, QueryContext};
@@ -149,6 +151,61 @@ impl Validator for BaseValidator {
     }
 }
 
+/// YieldColumn结构体
+/// 表示查询结果中的输出列
+#[derive(Debug, Clone)]
+pub struct YieldColumn {
+    /// 表达式
+    pub expr: Expression,
+    /// 别名（可选）
+    pub alias: Option<String>,
+    /// 是否匹配
+    pub is_matched: bool,
+}
+
+impl YieldColumn {
+    /// 创建新的YieldColumn
+    pub fn new(expr: Expression) -> Self {
+        Self {
+            expr,
+            alias: None,
+            is_matched: false,
+        }
+    }
+
+    /// 创建带有别名的YieldColumn
+    pub fn with_alias(expr: Expression, alias: String) -> Self {
+        Self {
+            expr,
+            alias: Some(alias),
+            is_matched: false,
+        }
+    }
+
+    /// 获取表达式
+    pub fn expr(&self) -> &Expression {
+        &self.expr
+    }
+
+    /// 获取别名
+    pub fn alias(&self) -> Option<&str> {
+        self.alias.as_deref()
+    }
+
+    /// 设置别名
+    pub fn set_alias(&mut self, alias: String) {
+        self.alias = Some(alias);
+    }
+
+    /// 获取列名（如果有别名则使用别名，否则使用表达式字符串表示）
+    pub fn column_name(&self) -> String {
+        match &self.alias {
+            Some(alias) => alias.clone(),
+            None => format!("{:?}", self.expr),
+        }
+    }
+}
+
 /// 表达式属性
 #[derive(Debug, Clone)]
 pub struct ExpressionProperties {
@@ -281,4 +338,178 @@ mod tests {
         validator.set_output_columns(vec![col1, col2]);
         assert!(validator.validate_no_duplicate_columns().is_err());
     }
+}
+
+// ============================================================================
+// Cypher子句上下文结构体定义
+// ============================================================================
+
+/// Cypher子句类型枚举
+#[derive(Debug, Clone, PartialEq)]
+pub enum CypherClauseKind {
+    Match,
+    Where,
+    Return,
+    With,
+    OrderBy,
+    Pagination,
+    Unwind,
+    Yield,
+}
+
+/// Cypher子句上下文枚举
+#[derive(Debug, Clone)]
+pub enum CypherClauseContext {
+    Match(MatchClauseContext),
+    Where(WhereClauseContext),
+    Return(ReturnClauseContext),
+    With(WithClauseContext),
+    OrderBy(OrderByClauseContext),
+    Pagination(PaginationContext),
+    Unwind(UnwindClauseContext),
+    Yield(YieldClauseContext),
+}
+
+/// MATCH子句上下文
+#[derive(Debug, Clone)]
+pub struct MatchClauseContext {
+    pub paths: Vec<Path>,
+}
+
+/// WHERE子句上下文
+#[derive(Debug, Clone)]
+pub struct WhereClauseContext {
+    pub filter: Option<crate::graph::expression::Expression>,
+}
+
+/// RETURN子句上下文
+#[derive(Debug, Clone)]
+pub struct ReturnClauseContext {
+    pub yield_clause: YieldClauseContext,
+}
+
+/// WITH子句上下文
+#[derive(Debug, Clone)]
+pub struct WithClauseContext {
+    pub yield_clause: YieldClauseContext,
+}
+
+/// ORDER BY子句上下文
+#[derive(Debug, Clone)]
+pub struct OrderByClauseContext {
+    pub columns: Vec<OrderByColumn>,
+}
+
+/// ORDER BY列定义
+#[derive(Debug, Clone)]
+pub struct OrderByColumn {
+    pub expr: crate::graph::expression::Expression,
+    pub order_type: OrderType,
+}
+
+/// 排序类型
+#[derive(Debug, Clone)]
+pub enum OrderType {
+    Asc,
+    Desc,
+}
+
+/// 分页上下文
+#[derive(Debug, Clone)]
+pub struct PaginationContext {
+    pub skip: Option<usize>,
+    pub limit: Option<usize>,
+}
+
+/// UNWIND子句上下文
+#[derive(Debug, Clone)]
+pub struct UnwindClauseContext {
+    pub expr: crate::graph::expression::Expression,
+    pub alias: String,
+}
+
+/// YIELD子句上下文
+#[derive(Debug, Clone)]
+pub struct YieldClauseContext {
+    pub columns: Vec<YieldColumn>,
+}
+
+// ============================================================================
+// 路径相关结构体定义
+// ============================================================================
+
+/// 路径结构体
+#[derive(Debug, Clone)]
+pub struct Path {
+    pub alias: String,
+    pub anonymous: bool,
+    pub gen_path: bool,
+    pub path_type: PathType,
+    pub node_infos: Vec<NodeInfo>,
+}
+
+/// 路径类型枚举
+#[derive(Debug, Clone)]
+pub enum PathType {
+    Default,
+    Shortest,
+    AllShortest,
+    SingleSourceShortest,
+}
+
+/// 节点信息
+#[derive(Debug, Clone)]
+pub struct NodeInfo {
+    pub alias: String,
+    pub anonymous: bool,
+    pub labels: Vec<String>,
+    pub properties: Option<std::collections::HashMap<String, crate::graph::expression::Expression>>,
+}
+
+impl Default for NodeInfo {
+    fn default() -> Self {
+        Self {
+            alias: String::new(),
+            anonymous: false,
+            labels: Vec::new(),
+            properties: None,
+        }
+    }
+}
+
+/// 边信息
+#[derive(Debug, Clone)]
+pub struct EdgeInfo {
+    pub alias: String,
+    pub types: Vec<String>,
+    pub direction: Direction,
+    pub properties: Option<std::collections::HashMap<String, crate::graph::expression::Expression>>,
+}
+
+/// 方向枚举
+#[derive(Debug, Clone)]
+pub enum Direction {
+    Forward,
+    Backward,
+    Bidirectional,
+}
+
+// ============================================================================
+// 别名类型定义
+// ============================================================================
+
+/// 别名类型枚举
+#[derive(Debug, Clone)]
+pub enum AliasType {
+    Node,
+    Edge,
+    Path,
+    Property,
+}
+
+/// 查询部分定义
+#[derive(Debug, Clone)]
+pub struct QueryPart {
+    pub alias: String,
+    pub alias_type: AliasType,
 }

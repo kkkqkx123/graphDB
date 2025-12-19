@@ -34,7 +34,7 @@ use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 #[derive(Debug)]
 pub struct MatchClausePlanner {
     #[allow(dead_code)]
-    paths: Vec<crate::query::validator::structs::Path>,
+    paths: Vec<crate::query::validator::Path>,
 }
 
 impl MatchClausePlanner {
@@ -42,7 +42,7 @@ impl MatchClausePlanner {
     /// 
     /// # 参数
     /// * `paths` - 要匹配的路径列表
-    pub fn new(paths: Vec<crate::query::validator::structs::Path>) -> Self {
+    pub fn new(paths: Vec<crate::query::validator::Path>) -> Self {
         Self { paths }
     }
 }
@@ -239,7 +239,7 @@ mod tests {
         let mut context = PlanningContext::new(query_info);
         
         // 创建一个简单的 MATCH 上下文
-        let match_clause_ctx = crate::query::validator::structs::MatchClauseContext {
+        let match_clause_ctx = crate::query::validator::MatchClauseContext {
             paths: vec![path],
             aliases_available: std::collections::HashMap::new(),
             aliases_generated: std::collections::HashMap::new(),

@@ -5,7 +5,7 @@
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext, PathType};
+use crate::query::validator::{MatchClauseContext, Path, WhereClauseContext, PathType};
 use crate::query::validator::{Column, Variable};
 use crate::core::ValueTypeDef;
 use std::collections::HashSet;
@@ -112,7 +112,7 @@ impl ShortestPathPlanner {
     /// 查找节点计划 - 对照 nebula-graph 实现
     fn find_node_plan(
         &self,
-        node_info: &crate::query::validator::structs::path_structs::NodeInfo,
+        node_info: &crate::query::validator::path_structs::NodeInfo,
         _where_clause: Option<&WhereClauseContext>,
         node_aliases_seen: &HashSet<String>,
     ) -> Result<SubPlan, PlannerError> {
@@ -219,7 +219,7 @@ impl ShortestPathPlanner {
     /// 创建标签索引扫描
     fn create_label_index_scan(
         &self,
-        node_info: &crate::query::validator::structs::path_structs::NodeInfo,
+        node_info: &crate::query::validator::path_structs::NodeInfo,
     ) -> Result<Option<SubPlan>, PlannerError> {
         if node_info.labels.is_empty() || node_info.tids.is_empty() {
             return Ok(None);
@@ -244,7 +244,7 @@ impl ShortestPathPlanner {
     /// 创建属性索引扫描
     fn create_prop_index_scan(
         &self,
-        node_info: &crate::query::validator::structs::path_structs::NodeInfo,
+        node_info: &crate::query::validator::path_structs::NodeInfo,
         _props: &crate::graph::expression::Expression,
     ) -> Result<Option<SubPlan>, PlannerError> {
         // 创建属性索引扫描节点

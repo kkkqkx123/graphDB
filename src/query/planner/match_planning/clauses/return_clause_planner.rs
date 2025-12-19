@@ -25,8 +25,8 @@ use crate::query::planner::match_planning::utils::connection_strategy::UnifiedCo
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::common_structs::CypherClauseContext;
-use crate::query::validator::structs::CypherClauseKind;
+use crate::query::validator::common_structs::CypherClauseContext;
+use crate::query::validator::CypherClauseKind;
 
 /// RETURN 子句规划器
 /// 
@@ -65,7 +65,7 @@ impl ReturnClausePlanner {
     /// 返回包含 RETURN 子句执行计划的 SubPlan
     fn build_return(
         &self,
-        return_clause_ctx: &crate::query::validator::structs::clause_structs::ReturnClauseContext,
+        return_clause_ctx: &crate::query::validator::clause_structs::ReturnClauseContext,
         input_plan: &SubPlan,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
@@ -215,7 +215,7 @@ impl DataFlowNode for ReturnClausePlanner {
 /// 用于设置去重键
 #[allow(dead_code)]
 fn get_yield_columns(
-    yield_clause: &crate::query::validator::structs::clause_structs::YieldClauseContext,
+    yield_clause: &crate::query::validator::clause_structs::YieldClauseContext,
 ) -> Option<Vec<String>> {
     // 优先使用投影输出列名
     if !yield_clause.proj_output_column_names.is_empty() {

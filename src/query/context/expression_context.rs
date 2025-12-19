@@ -4,7 +4,7 @@
 //! 对应原C++中的QueryExpressionContext.h/cpp
 
 use crate::core::Value;
-use crate::query::context::{QueryContext, ExecutionContext};
+use crate::query::context::{ExecutionContext, QueryContext};
 use crate::storage::iterator::IteratorEnum;
 use std::collections::HashMap;
 
@@ -19,6 +19,10 @@ pub struct ExpressionContext<'a> {
     pub current_row: Option<&'a crate::storage::iterator::Row>,
     /// 当前迭代器（可选）
     pub current_iterator: Option<&'a IteratorEnum>,
+    /// 顶点（可选）
+    pub vertex: Option<&'a crate::core::vertex_edge_path::Vertex>,
+    /// 边（可选）
+    pub edge: Option<&'a crate::core::vertex_edge_path::Edge>,
     /// 局部变量
     local_variables: HashMap<String, Value>,
 }
@@ -31,6 +35,8 @@ impl<'a> ExpressionContext<'a> {
             execution_context: None,
             current_row: None,
             current_iterator: None,
+            vertex: None,
+            edge: None,
             local_variables: HashMap::new(),
         }
     }
@@ -42,6 +48,8 @@ impl<'a> ExpressionContext<'a> {
             execution_context: None,
             current_row: None,
             current_iterator: None,
+            vertex: None,
+            edge: None,
             local_variables: HashMap::new(),
         }
     }
@@ -67,14 +75,20 @@ impl<'a> ExpressionContext<'a> {
     /// 设置顶点（用于with_vertex方法）
     pub fn with_vertex(mut self, vertex: &'a crate::core::vertex_edge_path::Vertex) -> Self {
         // 将顶点添加到局部变量中
-        self.local_variables.insert("vertex".to_string(), crate::core::Value::Vertex(Box::new(vertex.clone())));
+        self.local_variables.insert(
+            "vertex".to_string(),
+            crate::core::Value::Vertex(Box::new(vertex.clone())),
+        );
         self
     }
 
     /// 设置边（用于with_edge方法）
     pub fn with_edge(mut self, edge: &'a crate::core::vertex_edge_path::Edge) -> Self {
         // 将边添加到局部变量中
-        self.local_variables.insert("edge".to_string(), crate::core::Value::Edge(Box::new(edge.clone())));
+        self.local_variables.insert(
+            "edge".to_string(),
+            crate::core::Value::Edge(Box::new(edge.clone())),
+        );
         self
     }
 
@@ -160,7 +174,11 @@ impl<'a> ExpressionContext<'a> {
 
         // 如果没有迭代器，尝试从当前行获取
         if let Some(row) = self.current_row {
-            let idx = if index < 0 { row.len() as i32 + index } else { index } as usize;
+            let idx = if index < 0 {
+                row.len() as i32 + index
+            } else {
+                index
+            } as usize;
             if idx < row.len() {
                 return Some(&row[idx]);
             }
@@ -313,6 +331,16 @@ impl<'a> ExpressionContext<'a> {
     pub fn local_variable_names(&self) -> Vec<String> {
         self.local_variables.keys().cloned().collect()
     }
+
+    /// 获取顶点
+    pub fn vertex(&self) -> Option<&crate::core::vertex_edge_path::Vertex> {
+        self.vertex
+    }
+
+    /// 获取边
+    pub fn edge(&self) -> Option<&crate::core::vertex_edge_path::Edge> {
+        self.edge
+    }
 }
 
 #[cfg(test)]
@@ -366,7 +394,10 @@ mod tests {
         // 测试变量解析顺序
         assert_eq!(expr_ctx.get_variable("local_var"), Some(&Value::Int(200)));
         assert_eq!(expr_ctx.get_variable("query_var"), Some(&Value::Int(100)));
-        assert_eq!(expr_ctx.get_variable("param"), Some(&Value::String("test".to_string())));
+        assert_eq!(
+            expr_ctx.get_variable("param"),
+            Some(&Value::String("test".to_string()))
+        );
         assert_eq!(expr_ctx.get_variable("nonexistent"), None);
     }
 
@@ -381,7 +412,10 @@ mod tests {
 
         // 获取局部变量
         assert_eq!(expr_ctx.get_local_variable("var1"), Some(&Value::Int(1)));
-        assert_eq!(expr_ctx.get_local_variable("var2"), Some(&Value::String("test".to_string())));
+        assert_eq!(
+            expr_ctx.get_local_variable("var2"),
+            Some(&Value::String("test".to_string()))
+        );
 
         // 获取变量名列表
         let names = expr_ctx.local_variable_names();
@@ -460,7 +494,10 @@ mod tests {
             expr_ctx.get_variable_property("person", "age"),
             Some(&Value::Int(30))
         );
-        assert_eq!(expr_ctx.get_variable_property("person", "nonexistent"), None);
+        assert_eq!(
+            expr_ctx.get_variable_property("person", "nonexistent"),
+            None
+        );
     }
 
     #[test]
@@ -485,6 +522,9 @@ mod tests {
             expr_ctx.get_variable_property("map_var", "key2"),
             Some(&Value::String("value2".to_string()))
         );
-        assert_eq!(expr_ctx.get_variable_property("map_var", "nonexistent"), None);
+        assert_eq!(
+            expr_ctx.get_variable_property("map_var", "nonexistent"),
+            None
+        );
     }
 }

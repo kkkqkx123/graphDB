@@ -1,7 +1,7 @@
 //! 维护操作规划器
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
-use crate::query::context::ast::{AstContext, MaintainContext};
+use crate::query::context::ast_context::{AstContext, MaintainContext};
 use crate::query::planner::plan::core::{ArgumentNode, ProjectNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -60,11 +60,7 @@ impl Planner for MaintainPlanner {
         // 2. 根据不同类型创建相应的计划节点
         use crate::query::validator::YieldColumn;
         use crate::graph::expression::Expression;
-        let yield_columns = vec![YieldColumn {
-            expr: Expression::Variable(format!("MAINTAIN_{}", stmt_type)),
-            alias: "maintain_result".to_string(),
-            is_matched: false,
-        }];
+        let yield_columns = vec![YieldColumn::with_alias(Expression::Variable(format!("MAINTAIN_{}", stmt_type)), "maintain_result".to_string())];
         
         let project_node = Arc::new(ProjectNode::new(arg_node.clone(), yield_columns)
             .expect("ProjectNode creation should succeed with valid input"));

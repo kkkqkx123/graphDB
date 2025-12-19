@@ -16,7 +16,15 @@ mod validator_registry;
 mod validator_trait;
 
 pub use validator_trait::{Validator, ValidatorExt, ValidatorCreator};
-pub use base_validator::BaseValidator;
+pub use base_validator::{
+    BaseValidator, YieldColumn, ExpressionProperties,
+    CypherClauseKind, CypherClauseContext,
+    MatchClauseContext, WhereClauseContext, ReturnClauseContext, WithClauseContext,
+    OrderByClauseContext, OrderByColumn, OrderType, PaginationContext,
+    UnwindClauseContext, YieldClauseContext,
+    Path, PathType, NodeInfo, EdgeInfo, Direction,
+    AliasType, QueryPart
+};
 pub use match_validator::MatchValidator;
 pub use create_validator::CreateValidator;
 pub use validator_factory::{ValidatorFactory, CypherValidatorFactory};

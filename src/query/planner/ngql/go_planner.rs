@@ -1,7 +1,7 @@
 //! GO语句规划器
 //! 处理Nebula GO查询的规划
 
-use crate::query::context::ast::{AstContext, GoContext};
+use crate::query::context::ast_context::{AstContext, GoContext};
 use crate::query::planner::plan::core::{
     ArgumentNode, DedupNode, ExpandNode, ExpandAllNode, FilterNode, InnerJoinNode, ProjectNode,
 };
@@ -120,11 +120,7 @@ impl Planner for GoPlanner {
         // 6. 创建投影节点
         use crate::query::validator::YieldColumn;
         use crate::graph::expression::Expression;
-        let yield_columns = vec![YieldColumn {
-            expr: Expression::Variable(go_ctx.yield_expr.clone().unwrap_or("DEFAULT".to_string())),
-            alias: "project_result".to_string(),
-            is_matched: false,
-        }];
+        let yield_columns = vec![YieldColumn::with_alias(Expression::Variable(go_ctx.yield_expr.clone().unwrap_or("DEFAULT".to_string())), "project_result".to_string())];
         
         let last_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
             if let Some(ref filter_ref) = filter_node {

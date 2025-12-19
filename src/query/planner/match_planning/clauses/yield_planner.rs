@@ -14,8 +14,8 @@ use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanne
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::common_structs::CypherClauseContext;
-use crate::query::validator::structs::CypherClauseKind;
+use crate::query::validator::common_structs::CypherClauseContext;
+use crate::query::validator::CypherClauseKind;
 
 /// YIELD子句规划器
 /// 
@@ -52,7 +52,7 @@ impl YieldClausePlanner {
     /// 返回包含YIELD子句执行计划的SubPlan
     fn build_yield(
         &self,
-        yield_clause_ctx: &crate::query::validator::structs::clause_structs::YieldClauseContext,
+        yield_clause_ctx: &crate::query::validator::clause_structs::YieldClauseContext,
         input_plan: &SubPlan,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {

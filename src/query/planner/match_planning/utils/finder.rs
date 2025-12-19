@@ -2,9 +2,7 @@
 //! 提供参数查找和起始顶点ID查找功能
 //! 合并了原来的ArgumentFinder和StartVidFinder功能
 
-use crate::query::validator::structs::{
-    path_structs::NodeInfo, CypherClauseContext, MatchClauseContext,
-};
+use crate::query::validator::{CypherClauseContext, MatchClauseContext, NodeInfo};
 use std::collections::HashSet;
 
 /// 查找器
@@ -76,7 +74,7 @@ impl Finder {
     /// 查找WHERE子句中的参数
     fn find_where_arguments(
         &self,
-        where_ctx: &crate::query::validator::structs::clause_structs::WhereClauseContext,
+        where_ctx: &crate::query::validator::clause_structs::WhereClauseContext,
         arguments: &mut HashSet<String>,
     ) {
         // 查找过滤条件中引用的别名
@@ -97,7 +95,7 @@ impl Finder {
     /// 查找WITH子句中的参数
     fn find_with_arguments(
         &self,
-        with_ctx: &crate::query::validator::structs::clause_structs::WithClauseContext,
+        with_ctx: &crate::query::validator::clause_structs::WithClauseContext,
         arguments: &mut HashSet<String>,
     ) {
         // 查找YIELD表达式中引用的别名
@@ -114,7 +112,7 @@ impl Finder {
     /// 查找RETURN子句中的参数
     fn find_return_arguments(
         &self,
-        return_ctx: &crate::query::validator::structs::clause_structs::ReturnClauseContext,
+        return_ctx: &crate::query::validator::clause_structs::ReturnClauseContext,
         arguments: &mut HashSet<String>,
     ) {
         // 查找YIELD表达式中引用的别名
@@ -126,7 +124,7 @@ impl Finder {
     /// 查找UNWIND子句中的参数
     fn find_unwind_arguments(
         &self,
-        unwind_ctx: &crate::query::validator::structs::clause_structs::UnwindClauseContext,
+        unwind_ctx: &crate::query::validator::clause_structs::UnwindClauseContext,
         arguments: &mut HashSet<String>,
     ) {
         // 查找UNWIND表达式中引用的别名

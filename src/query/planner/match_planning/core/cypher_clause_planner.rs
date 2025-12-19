@@ -21,7 +21,7 @@
 
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::common_structs::CypherClauseContext;
+use crate::query::validator::common_structs::CypherClauseContext;
 use std::collections::HashMap;
 
 /// 数据流方向

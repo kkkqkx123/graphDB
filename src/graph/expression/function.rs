@@ -30,12 +30,12 @@ pub fn evaluate_function(
             };
 
             // Check if property exists in vertex
-            let exists = if let Some(vertex) = context.vertex {
+            let exists = if let Some(vertex) = context.vertex() {
                 vertex
                     .tags
                     .iter()
                     .any(|tag| tag.properties.contains_key(&prop_name))
-            } else if let Some(edge) = context.edge {
+            } else if let Some(edge) = context.edge() {
                 edge.props.contains_key(&prop_name)
             } else {
                 false

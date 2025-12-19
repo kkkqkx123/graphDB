@@ -7,7 +7,7 @@ use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::path_structs::NodeInfo;
+use crate::query::validator::path_structs::NodeInfo;
 
 /// 索引查找元数据
 /// 存储IndexScan节点执行所需的索引相关信息

@@ -10,7 +10,7 @@ use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::SubPlan;
-use crate::query::validator::structs::common_structs::CypherClauseContext;
+use crate::query::validator::common_structs::CypherClauseContext;
 
 /// ORDER BY子句规划器
 ///
@@ -51,7 +51,7 @@ impl OrderByClausePlanner {
     /// 返回包含排序节点的执行计划
     fn build_sort(
         &self,
-        order_by_ctx: &crate::query::validator::structs::OrderByClauseContext,
+        order_by_ctx: &crate::query::validator::OrderByClauseContext,
         input_plan: &SubPlan,
         _context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
@@ -73,8 +73,8 @@ impl OrderByClausePlanner {
                 // 使用特殊格式存储排序信息，供执行器使用
                 // 格式: sort_factor_<index>_<direction>
                 let direction = match order_type {
-                    crate::query::validator::structs::clause_structs::OrderType::Asc => "ASC",
-                    crate::query::validator::structs::clause_structs::OrderType::Desc => "DESC",
+                    crate::query::validator::clause_structs::OrderType::Asc => "ASC",
+                    crate::query::validator::clause_structs::OrderType::Desc => "DESC",
                 };
                 format!("sort_factor_{}_{}", idx, direction)
             })
@@ -94,8 +94,8 @@ impl ClausePlanner for OrderByClausePlanner {
         "OrderByClausePlanner"
     }
 
-    fn supported_clause_kind(&self) -> crate::query::validator::structs::CypherClauseKind {
-        crate::query::validator::structs::CypherClauseKind::OrderBy
+    fn supported_clause_kind(&self) -> crate::query::validator::CypherClauseKind {
+        crate::query::validator::CypherClauseKind::OrderBy
     }
 }
 
@@ -143,7 +143,7 @@ impl DataFlowNode for OrderByClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::structs::clause_structs::OrderByClauseContext;
+    use crate::query::validator::clause_structs::OrderByClauseContext;
     use std::collections::HashMap;
 
     #[test]
@@ -180,7 +180,7 @@ mod tests {
         let order_by_ctx = OrderByClauseContext {
             indexed_order_factors: vec![(
                 0,
-                crate::query::validator::structs::clause_structs::OrderType::Asc,
+                crate::query::validator::clause_structs::OrderType::Asc,
             )],
         };
 

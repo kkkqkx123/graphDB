@@ -69,8 +69,8 @@ impl ClausePlanner for UnwindClausePlanner {
         "UnwindClausePlanner"
     }
 
-    fn supported_clause_kind(&self) -> crate::query::validator::structs::CypherClauseKind {
-        crate::query::validator::structs::CypherClauseKind::Unwind
+    fn supported_clause_kind(&self) -> crate::query::validator::CypherClauseKind {
+        crate::query::validator::CypherClauseKind::Unwind
     }
 }
 
@@ -154,7 +154,7 @@ impl DataFlowNode for UnwindClausePlanner {
 /// # 返回
 /// * `Result<(), PlannerError>` - 验证结果
 fn validate_unwind_clause(
-    ctx: &crate::query::validator::structs::UnwindClauseContext,
+    ctx: &crate::query::validator::UnwindClauseContext,
 ) -> Result<(), PlannerError> {
     // 验证别名不能为空
     if ctx.alias.trim().is_empty() {
@@ -218,7 +218,7 @@ fn is_valid_identifier(identifier: &str) -> bool {
 /// # 返回
 /// * `Result<Arc<dyn PlanNode>, PlannerError>` - UNWIND 节点或错误
 fn create_unwind_node(
-    _ctx: &crate::query::validator::structs::UnwindClauseContext,
+    _ctx: &crate::query::validator::UnwindClauseContext,
     input_plan: &SubPlan,
 ) -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     // 获取输入计划的根节点

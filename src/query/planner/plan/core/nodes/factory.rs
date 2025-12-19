@@ -325,11 +325,7 @@ mod tests {
     #[test]
     fn test_create_project_node() {
         let start_node = PlanNodeFactory::create_start_node().unwrap();
-        let columns = vec![YieldColumn {
-            expr: Expression::Variable("test".to_string()),
-            alias: "test".to_string(),
-            is_matched: false,
-        }];
+        let columns = vec![YieldColumn::with_alias(Expression::Variable("test".to_string()), "test".to_string())];
         let project_node = PlanNodeFactory::create_project(start_node, columns).unwrap();
 
         assert_eq!(project_node.kind(), PlanNodeKind::Project);
