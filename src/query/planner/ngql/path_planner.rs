@@ -1,7 +1,7 @@
 //! PATH查询规划器
 //! 处理Nebula PATH查询的规划
 
-use crate::query::context::ast_context::{AstContext, PathContext};
+use crate::query::context::ast_context::AstContext;
 use crate::query::planner::plan::core::{
     ArgumentNode, DedupNode, ExpandAllNode, ExpandNode, FilterNode, GetVerticesNode, ProjectNode,
 };
@@ -42,70 +42,35 @@ impl PathPlanner {
 
 impl Planner for PathPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // 从ast_ctx创建PathContext
-        let path_ctx = PathContext::new(ast_ctx.clone());
-
         // 实现PATH查询的规划逻辑
-        println!("Processing PATH query planning: {:?}", path_ctx);
+        println!("Processing PATH query planning: {:?}", ast_ctx);
 
         // 1. 创建参数节点，获取起始和结束顶点
-        let start_arg_node = Arc::new(ArgumentNode::new(1, &path_ctx.from.user_defined_var_name));
-        let _end_arg_node = Arc::new(ArgumentNode::new(2, &path_ctx.to.user_defined_var_name));
+        let start_arg_node = Arc::new(ArgumentNode::new(1, "start_vertices"));
 
         // 2. 创建GetVertices节点来获取顶点
         let _get_vertices_node = Arc::new(GetVerticesNode::new(
             1,
-            &path_ctx.from.user_defined_var_name,
+            "start_vertices",
         ));
 
-        // 3. 创建扩展节点进行路径搜索
-        let expand_direction = if path_ctx.over.direction == "both" {
-            "both"
-        } else if path_ctx.over.direction == "in" {
-            "in"
-        } else {
-            "out"
-        };
+        // 3. 创建扩展节点进行路径搜索 - 简化实现，使用默认方向和边类型
+        let expand_direction = "out"; // 默认方向
 
-        let mut edge_types = path_ctx.over.edge_types.clone();
-        // 如果是双向边，设置方向
-        if path_ctx.over.direction == "both" {
-            edge_types.extend(path_ctx.over.edge_types.iter().map(|et| format!("-{}", et)));
-        } else if path_ctx.over.direction == "in" {
-            edge_types = path_ctx
-                .over
-                .edge_types
-                .iter()
-                .map(|et| format!("-{}", et))
-                .collect();
-        }
-
+        let edge_types = vec!["DEFAULT_EDGE".to_string()];
         let _expand_node = Arc::new(ExpandNode::new(1, edge_types.clone(), expand_direction));
 
         // 5. 创建ExpandAll节点进行多步扩展
-        let expand_all_direction = if path_ctx.over.direction == "both" {
-            "both"
-        } else if path_ctx.over.direction == "in" {
-            "in"
-        } else {
-            "out"
-        };
+        let expand_all_node = Arc::new(ExpandAllNode::new(1, edge_types, expand_direction));
 
-        let expand_all_node = Arc::new(ExpandAllNode::new(1, edge_types, expand_all_direction));
-
-        // 6. 创建过滤节点（如果有过滤条件）
+        // 6. 创建过滤节点（如果有过滤条件）- 简化处理
+        use crate::graph::expression::Expression;
+        let expr = Expression::Variable("*".to_string());
         let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
-            if let Some(ref condition) = path_ctx.filter {
-                use crate::graph::expression::Expression;
-                let expr = Expression::Variable(condition.clone());
-                let filter = Arc::new(
-                    FilterNode::new(expand_all_node.clone(), expr)
-                        .expect("FilterNode creation should succeed with valid input"),
-                );
-                filter
-            } else {
-                expand_all_node
-            };
+            Arc::new(
+                FilterNode::new(expand_all_node.clone(), expr)
+                    .expect("FilterNode creation should succeed with valid input"),
+            );
 
         // 7. 创建投影节点
         use crate::graph::expression::Expression;
@@ -122,15 +87,13 @@ impl Planner for PathPlanner {
 
         // 8. 如果是查找最短路径，可能需要额外的处理
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
-            if path_ctx.is_shortest {
+            {
                 // 需要额外的节点来处理最短路径算法
                 let dedup_node = Arc::new(
                     DedupNode::new(project_node)
                         .expect("DedupNode creation should succeed with valid input"),
                 );
                 dedup_node
-            } else {
-                project_node
             };
 
         // 创建SubPlan

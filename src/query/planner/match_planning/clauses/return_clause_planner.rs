@@ -25,7 +25,7 @@ use crate::query::planner::match_planning::utils::connection_strategy::UnifiedCo
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::common_structs::CypherClauseContext;
+use crate::query::validator::CypherClauseContext;
 use crate::query::validator::CypherClauseKind;
 
 /// RETURN 子句规划器
@@ -65,7 +65,7 @@ impl ReturnClausePlanner {
     /// 返回包含 RETURN 子句执行计划的 SubPlan
     fn build_return(
         &self,
-        return_clause_ctx: &crate::query::validator::clause_structs::ReturnClauseContext,
+        return_clause_ctx: &crate::query::validator::ReturnClauseContext,
         input_plan: &SubPlan,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
@@ -88,7 +88,7 @@ impl ReturnClausePlanner {
             let order_plan = order_by_planner.transform(&order_by_clause_ctx, Some(&plan), context)?;
 
             // 使用新的统一连接器连接排序计划
-            let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+            let temp_ast_context = crate::query::context::ast::AstContext::new(
                 &context.query_info.statement_type,
                 &context.query_info.query_id,
             );
@@ -111,7 +111,7 @@ impl ReturnClausePlanner {
                 let pagination_clause_ctx = CypherClauseContext::Pagination(pagination.clone());
                 let pagination_plan = pagination_planner.transform(&pagination_clause_ctx, Some(&plan), context)?;
 
-                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                let temp_ast_context = crate::query::context::ast::AstContext::new(
                     &context.query_info.statement_type,
                     &context.query_info.query_id,
                 );
@@ -135,7 +135,7 @@ impl ReturnClausePlanner {
             // 暂时简化去重节点创建
             // TODO: 实现完整的去重逻辑，创建专门的 DedupNode
 
-            let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+            let temp_ast_context = crate::query::context::ast::AstContext::new(
                 &context.query_info.statement_type,
                 &context.query_info.query_id,
             );
@@ -215,7 +215,7 @@ impl DataFlowNode for ReturnClausePlanner {
 /// 用于设置去重键
 #[allow(dead_code)]
 fn get_yield_columns(
-    yield_clause: &crate::query::validator::clause_structs::YieldClauseContext,
+    yield_clause: &crate::query::validator::YieldClauseContext,
 ) -> Option<Vec<String>> {
     // 优先使用投影输出列名
     if !yield_clause.proj_output_column_names.is_empty() {

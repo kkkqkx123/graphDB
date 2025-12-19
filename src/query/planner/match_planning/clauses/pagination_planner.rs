@@ -10,7 +10,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::common_structs::CypherClauseContext;
+use crate::query::validator::CypherClauseContext;
 
 /// 分页规划器
 /// 
@@ -52,7 +52,7 @@ impl PaginationPlanner {
     /// 返回包含LIMIT节点的执行计划
     fn build_limit(
         &self,
-        pagination_ctx: &crate::query::validator::clause_structs::PaginationContext,
+        pagination_ctx: &crate::query::validator::PaginationContext,
         input_plan: &SubPlan,
         _context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
@@ -135,7 +135,7 @@ impl DataFlowNode for PaginationPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::clause_structs::PaginationContext;
+    use crate::query::validator::PaginationContext;
 
     #[test]
     fn test_pagination_planner_creation() {

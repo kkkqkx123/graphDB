@@ -4,7 +4,7 @@
 use crate::query::planner::match_planning::core::cypher_clause_planner::{CypherClausePlanner, DataFlowNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::common_structs::CypherClauseContext;
+use crate::query::validator::CypherClauseContext;
 use crate::query::validator::CypherClauseKind;
 
 /// 子句规划器trait
@@ -249,7 +249,7 @@ impl ClausePlannerFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::clause_structs::MatchClauseContext;
+    use crate::query::validator::MatchClauseContext;
     use crate::query::validator::CypherClauseKind;
     use std::collections::HashMap;
 
@@ -281,7 +281,7 @@ mod tests {
     fn test_base_clause_planner_validate_context_failure() {
         let planner = BaseClausePlanner::new("TestPlanner", CypherClauseKind::Match);
         let clause_ctx = CypherClauseContext::Where(
-            crate::query::validator::clause_structs::WhereClauseContext {
+            crate::query::validator::WhereClauseContext {
                 filter: None,
                 aliases_available: HashMap::new(),
                 aliases_generated: HashMap::new(),

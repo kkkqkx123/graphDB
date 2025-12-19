@@ -6,7 +6,7 @@ use crate::core::ValueTypeDef;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::{Column, Variable};
+use crate::query::context::{ColumnDefinition as Column, VariableInfo as Variable};
 use crate::query::validator::{MatchClauseContext, Path, PathType, WhereClauseContext};
 use std::collections::HashSet;
 

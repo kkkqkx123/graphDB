@@ -24,7 +24,7 @@ use crate::query::planner::match_planning::utils::connection_strategy::UnifiedCo
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::common_structs::CypherClauseContext;
+use crate::query::validator::CypherClauseContext;
 use crate::query::validator::CypherClauseKind;
 use crate::query::parser::ast::expr::Expr;
 use std::collections::HashSet;
@@ -70,7 +70,7 @@ impl WhereClausePlanner {
     /// 返回包含 WHERE 子句执行计划的 SubPlan
     fn build_where(
         &self,
-        where_clause_ctx: &crate::query::validator::clause_structs::WhereClauseContext,
+        where_clause_ctx: &crate::query::validator::WhereClauseContext,
         _input_plan: &SubPlan,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
@@ -82,7 +82,7 @@ impl WhereClausePlanner {
             for path in &where_clause_ctx.paths {
                 let mut path_planner = MatchPathPlanner::new(
                     // 这里需要创建一个临时的MatchClauseContext
-                    crate::query::validator::clause_structs::MatchClauseContext {
+                    crate::query::validator::MatchClauseContext {
                         paths: vec![path.clone()],
                         aliases_available: where_clause_ctx.aliases_available.clone(),
                         aliases_generated: where_clause_ctx.aliases_generated.clone(),
@@ -113,7 +113,7 @@ impl WhereClausePlanner {
 
                 if path.is_pred {
                     // 构建模式谓词的计划
-                    let temp_ast_context = crate::query::context::ast_context::base::AstContext::new(
+                    let temp_ast_context = crate::query::context::ast_context::AstContext::new(
                         &context.query_info.statement_type,
                         &context.query_info.query_id,
                     );
@@ -125,7 +125,7 @@ impl WhereClausePlanner {
                     )?;
                 } else {
                     // 构建路径收集的计划
-                    let temp_ast_context = crate::query::context::ast_context::base::AstContext::new(
+                    let temp_ast_context = crate::query::context::ast_context::AstContext::new(
                         &context.query_info.statement_type,
                         &context.query_info.query_id,
                     );
@@ -161,7 +161,7 @@ impl WhereClausePlanner {
                 return Ok(where_plan);
             }
 
-            let temp_ast_context = crate::query::context::ast_context::base::AstContext::new(
+            let temp_ast_context = crate::query::context::ast_context::AstContext::new(
                 &context.query_info.statement_type,
                 &context.query_info.query_id,
             );

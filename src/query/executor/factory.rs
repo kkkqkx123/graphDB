@@ -299,7 +299,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Filter
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         use crate::graph::expression::Expression;
-        use crate::query::executor::data_processing::filter::FilterExecutor;
+        use crate::query::executor::result_processing::filter::FilterExecutor;
         use crate::query::planner::plan::core::nodes::FilterNode;
 
         let id = plan_node.id() as usize;
@@ -372,7 +372,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for LimitC
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        use crate::query::executor::data_processing::pagination::LimitExecutor;
+        use crate::query::executor::result_processing::limit::LimitExecutor;
         use crate::query::planner::plan::core::nodes::LimitNode;
 
         let id = plan_node.id() as usize;
@@ -405,7 +405,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for SortCr
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         use crate::graph::expression::Expression;
-        use crate::query::executor::data_processing::sort::{SortExecutor, SortKey, SortOrder};
+        use crate::query::executor::result_processing::sort::{SortExecutor, SortKey, SortOrder};
         use crate::query::planner::plan::core::nodes::SortNode;
 
         let id = plan_node.id() as usize;
@@ -467,7 +467,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Aggreg
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        use crate::query::executor::data_processing::aggregation::AggregateExecutor;
+        use crate::query::executor::result_processing::aggregation::AggregateExecutor;
         use crate::query::planner::plan::core::nodes::AggregateNode;
 
         let id = plan_node.id() as usize;

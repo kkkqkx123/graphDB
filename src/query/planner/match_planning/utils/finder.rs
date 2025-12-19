@@ -74,7 +74,7 @@ impl Finder {
     /// 查找WHERE子句中的参数
     fn find_where_arguments(
         &self,
-        where_ctx: &crate::query::validator::clause_structs::WhereClauseContext,
+        where_ctx: &crate::query::validator::WhereClauseContext,
         arguments: &mut HashSet<String>,
     ) {
         // 查找过滤条件中引用的别名
@@ -95,7 +95,7 @@ impl Finder {
     /// 查找WITH子句中的参数
     fn find_with_arguments(
         &self,
-        with_ctx: &crate::query::validator::clause_structs::WithClauseContext,
+        with_ctx: &crate::query::validator::WithClauseContext,
         arguments: &mut HashSet<String>,
     ) {
         // 查找YIELD表达式中引用的别名
@@ -112,7 +112,7 @@ impl Finder {
     /// 查找RETURN子句中的参数
     fn find_return_arguments(
         &self,
-        return_ctx: &crate::query::validator::clause_structs::ReturnClauseContext,
+        return_ctx: &crate::query::validator::ReturnClauseContext,
         arguments: &mut HashSet<String>,
     ) {
         // 查找YIELD表达式中引用的别名
@@ -124,7 +124,7 @@ impl Finder {
     /// 查找UNWIND子句中的参数
     fn find_unwind_arguments(
         &self,
-        unwind_ctx: &crate::query::validator::clause_structs::UnwindClauseContext,
+        unwind_ctx: &crate::query::validator::UnwindClauseContext,
         arguments: &mut HashSet<String>,
     ) {
         // 查找UNWIND表达式中引用的别名

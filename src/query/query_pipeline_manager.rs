@@ -1,10 +1,11 @@
-use crate::query::context::{QueryContext, RequestContext};
+use crate::query::context::QueryContext;
 use crate::query::executor_factory::ExecutorFactory;
 use crate::query::optimizer::Optimizer;
 use crate::query::parser::parser::Parser;
 use crate::query::planner::Planner;
 use crate::query::types::{QueryError, QueryResult};
 use crate::query::validator::Validator;
+use crate::query::context::validate::ValidateContext;
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
 
@@ -32,7 +33,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         Self {
             storage,
             parser: Parser::new(""),
-            validator: Validator::new(crate::query::validator::ValidateContext::new()),
+            validator: Validator::new(std::sync::Arc::new(ValidateContext::new())),
             planner: Box::new(crate::query::planner::SequentialPlanner::new()),
             optimizer: Optimizer::default(),
             executor_factory,
@@ -69,18 +70,14 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
 
     /// 创建查询上下文
     fn create_query_context(&self, query_text: &str) -> Result<QueryContext, QueryError> {
-        let session_info = crate::query::context::request_context::SessionInfo::new(
+        Ok(QueryContext::new(
             "default_session".to_string(),
             "default_user".to_string(),
-            "localhost".to_string(),
-            0,
-        );
-        let request_params =
-            crate::query::context::request_context::RequestParams::new(query_text.to_string());
-        let request_context = RequestContext::new(session_info, request_params);
-        Ok(QueryContext::with_request_context(std::sync::Arc::new(
-            request_context,
-        )))
+            std::sync::Arc::new(crate::query::context::managers::SchemaManager::default()),
+            std::sync::Arc::new(crate::query::context::managers::FunctionManager::default()),
+            std::sync::Arc::new(crate::query::context::managers::StorageClient::default()),
+            std::sync::Arc::new(crate::query::context::managers::StorageClient::default()), // 使用StorageClient的模拟实现
+        ))
     }
 
     /// 解析查询文本为AST
@@ -88,11 +85,11 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         &mut self,
         _query_context: &mut QueryContext,
         query_text: &str,
-    ) -> Result<crate::query::context::ast::QueryAstContext, QueryError> {
+    ) -> Result<crate::query::context::ast_context::AstContext, QueryError> {
         let _parser = Parser::new(query_text);
         // 临时实现：返回一个空的AST上下文
         // 在实际实现中，这里应该调用parser.parse()并处理结果
-        let ast = crate::query::context::ast::QueryAstContext::new(query_text);
+        let ast = crate::query::context::ast_context::AstContext::new(query_text.to_string(), query_text.to_string());
 
         Ok(ast)
     }
@@ -101,7 +98,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
     fn validate_query(
         &mut self,
         _query_context: &mut QueryContext,
-        _ast: &crate::query::context::ast::QueryAstContext,
+        _ast: &crate::query::context::ast_context::AstContext,
     ) -> Result<(), QueryError> {
         self.validator
             .validate()
@@ -111,13 +108,12 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
     /// 生成执行计划
     fn generate_execution_plan(
         &mut self,
-        query_context: &mut QueryContext,
-        _ast: &crate::query::context::ast::QueryAstContext,
+        _query_context: &mut QueryContext,
+        _ast: &crate::query::context::ast_context::AstContext,
     ) -> Result<crate::query::planner::plan::ExecutionPlan, QueryError> {
         // 临时实现：创建一个空的执行计划
         // 在实际实现中，这里应该调用planner.transform(ast)
-        let mut plan = crate::query::planner::plan::ExecutionPlan::new(None);
-        plan.set_id(query_context.gen_id());
+        let plan = crate::query::planner::plan::ExecutionPlan::new(None);
 
         Ok(plan)
     }

@@ -4,7 +4,7 @@
 use crate::core::ValueTypeDef;
 use crate::graph::expression::Expression;
 use crate::graph::expression::{BinaryOperator, UnaryOperator};
-use crate::query::validator::ValidateContext;
+use crate::query::context::validate::ValidateContext;
 use crate::storage::StorageEngine;
 use thiserror::Error;
 

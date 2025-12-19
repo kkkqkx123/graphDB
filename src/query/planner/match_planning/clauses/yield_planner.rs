@@ -14,7 +14,7 @@ use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanne
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::common_structs::CypherClauseContext;
+use crate::query::validator::CypherClauseContext;
 use crate::query::validator::CypherClauseKind;
 
 /// YIELD子句规划器
@@ -52,7 +52,7 @@ impl YieldClausePlanner {
     /// 返回包含YIELD子句执行计划的SubPlan
     fn build_yield(
         &self,
-        yield_clause_ctx: &crate::query::validator::clause_structs::YieldClauseContext,
+        yield_clause_ctx: &crate::query::validator::YieldClauseContext,
         input_plan: &SubPlan,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
@@ -88,7 +88,7 @@ impl YieldClausePlanner {
                 plan.tail = Some(project_node);
             } else {
                 // 使用新的统一连接器将投影节点连接到现有计划的尾部
-                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                let temp_ast_context = crate::query::context::ast::AstContext::new(
                     &context.query_info.statement_type,
                     &context.query_info.query_id,
                 );
@@ -119,7 +119,7 @@ impl YieldClausePlanner {
                 plan.tail = Some(dedup_node);
             } else {
                 // 使用新的统一连接器将去重节点连接到现有计划的尾部
-                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                let temp_ast_context = crate::query::context::ast::AstContext::new(
                     &context.query_info.statement_type,
                     &context.query_info.query_id,
                 );

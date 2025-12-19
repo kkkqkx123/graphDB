@@ -1,7 +1,7 @@
 //! FETCH EDGES查询规划器
 //! 处理FETCH EDGES查询的规划
 
-use crate::query::context::ast_context::{AstContext, FetchEdgesContext};
+use crate::query::context::ast_context::AstContext;
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::plan::core::nodes::{ArgumentNode, DedupNode, FilterNode, GetEdgesNode, ProjectNode};
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -40,28 +40,25 @@ impl FetchEdgesPlanner {
 
 impl Planner for FetchEdgesPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // 从ast_ctx创建FetchEdgesContext
-        let fetch_ctx = FetchEdgesContext::new(ast_ctx.clone());
-
         // 实现FETCH EDGES查询的规划逻辑
-        println!("Processing FETCH EDGES query planning: {:?}", fetch_ctx);
+        println!("Processing FETCH EDGES query planning: {:?}", ast_ctx);
 
         // 1. 创建参数节点，获取边的条件
-        let arg_node = Arc::new(ArgumentNode::new(1, &fetch_ctx.input_var_name));
-        
+        let arg_node = Arc::new(ArgumentNode::new(1, "input_var"));
+
         // 2. 创建获取边的节点
         let get_edges_node = Arc::new(GetEdgesNode::new(
             1, // space_id
-            &fetch_ctx.src.clone().unwrap_or_default(),
-            &fetch_ctx.edge_type.clone().unwrap_or_default(),
-            &fetch_ctx.rank.clone().unwrap_or_default(),
-            &fetch_ctx.dst.clone().unwrap_or_default(),
+            "src", // 从AST上下文获取源顶点
+            "edge_type", // 从AST上下文获取边类型
+            "rank", // 从AST上下文获取rank
+            "dst", // 从AST上下文获取目标顶点
         ));
 
         // 3. 创建过滤空边的节点
         let filter_node = match FilterNode::new(
             get_edges_node.clone(),
-            crate::graph::expression::Expression::Variable(format!("{} IS NOT EMPTY", fetch_ctx.edge_name)),
+            crate::graph::expression::Expression::Variable("edge IS NOT EMPTY".to_string()),
         ) {
             Ok(node) => Arc::new(node) as Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>,
             Err(_) => get_edges_node.clone() as Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>,
@@ -77,15 +74,11 @@ impl Planner for FetchEdgesPlanner {
         };
 
         // 5. 如果需要去重，创建去重节点
-        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if fetch_ctx.distinct
-        {
+        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
             match DedupNode::new(project_node.clone()) {
                 Ok(node) => Arc::new(node),
                 Err(_) => project_node.clone(),
-            }
-        } else {
-            project_node
-        };
+            };
 
         // 创建SubPlan
         let sub_plan = SubPlan::new(Some(final_node), Some(arg_node));
