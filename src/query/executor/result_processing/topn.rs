@@ -3,19 +3,21 @@
 //! 实现高效的 TopN 查询，使用堆数据结构优化性能
 
 use async_trait::async_trait;
-use std::collections::BinaryHeap;
 use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
 use crate::graph::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::EvalContext;
-use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::base::InputExecutor;
+use crate::query::executor::result_processing::traits::{
+    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
+};
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
-use crate::query::executor::result_processing::traits::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::storage::StorageEngine;
 
 /// TopNExecutor - TOP N 结果执行器
@@ -51,23 +53,26 @@ impl<S: StorageEngine> TopNExecutor<S> {
             "Returns the top N results using optimized heap algorithm".to_string(),
             storage,
         );
-        
+
         // 转换旧的排序列格式为新的排序键格式
-        let sort_keys = sort_columns.into_iter().map(|col| {
-            let order = if ascending {
-                crate::query::executor::result_processing::sort::SortOrder::Asc
-            } else {
-                crate::query::executor::result_processing::sort::SortOrder::Desc
-            };
-            crate::query::executor::result_processing::sort::SortKey::new(
-                Expression::Property {
-                    object: Box::new(Expression::Variable("row".to_string())),
-                    property: col,
-                },
-                order,
-            )
-        }).collect();
-        
+        let sort_keys = sort_columns
+            .into_iter()
+            .map(|col| {
+                let order = if ascending {
+                    crate::query::executor::result_processing::sort::SortOrder::Asc
+                } else {
+                    crate::query::executor::result_processing::sort::SortOrder::Desc
+                };
+                crate::query::executor::result_processing::sort::SortKey::new(
+                    Expression::Property {
+                        object: Box::new(Expression::Variable("row".to_string())),
+                        property: col,
+                    },
+                    order,
+                )
+            })
+            .collect();
+
         Self {
             base,
             n,
@@ -148,10 +153,10 @@ impl<S: StorageEngine> TopNExecutor<S> {
     fn heap_optimized_topn_dataset(&self, dataset: &mut DataSet) -> DBResult<()> {
         let evaluator = ExpressionEvaluator;
         let heap_size = self.n + self.offset;
-        
+
         // 创建最小堆（用于升序）或最大堆（用于降序）
         let mut heap = BinaryHeap::with_capacity(heap_size);
-        
+
         // 处理前 heap_size 个元素
         for (i, row) in dataset.rows.iter().enumerate().take(heap_size) {
             let sort_value = self.calculate_sort_value(row, &dataset.col_names, &evaluator)?;
@@ -161,7 +166,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
                 row: row.clone(),
             });
         }
-        
+
         // 处理剩余元素
         for (i, row) in dataset.rows.iter().enumerate().skip(heap_size) {
             let sort_value = self.calculate_sort_value(row, &dataset.col_names, &evaluator)?;
@@ -170,7 +175,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
                 original_index: i,
                 row: row.clone(),
             };
-            
+
             // 根据排序方向决定是否替换堆顶元素
             let should_replace = if self.is_ascending() {
                 // 升序：维护最大堆，如果新元素小于堆顶，则替换
@@ -179,13 +184,13 @@ impl<S: StorageEngine> TopNExecutor<S> {
                 // 降序：维护最小堆，如果新元素大于堆顶，则替换
                 new_item > *heap.peek().unwrap()
             };
-            
+
             if should_replace {
                 heap.pop();
                 heap.push(new_item);
             }
         }
-        
+
         // 提取并排序结果
         let mut items: Vec<TopNItem> = heap.into_iter().collect();
         items.sort_by(|a, b| {
@@ -195,10 +200,14 @@ impl<S: StorageEngine> TopNExecutor<S> {
                 b.sort_value.cmp(&a.sort_value)
             }
         });
-        
+
         // 更新数据集
-        dataset.rows = items.into_iter().skip(self.offset).map(|item| item.row).collect();
-        
+        dataset.rows = items
+            .into_iter()
+            .skip(self.offset)
+            .map(|item| item.row)
+            .collect();
+
         Ok(())
     }
 
@@ -218,10 +227,14 @@ impl<S: StorageEngine> TopNExecutor<S> {
 
         let mut sort_values = Vec::new();
         for sort_key in &self.sort_keys {
-            let value = evaluator.evaluate(&sort_key.expression, &context)
-                .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    format!("Failed to evaluate sort expression: {}", e)
-                )))?;
+            let value = evaluator
+                .evaluate(&sort_key.expression, &context)
+                .map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                        "Failed to evaluate sort expression: {}",
+                        e
+                    )))
+                })?;
             sort_values.push(value);
         }
 
@@ -231,38 +244,56 @@ impl<S: StorageEngine> TopNExecutor<S> {
     /// 对数据集进行排序
     fn sort_dataset(&self, dataset: &mut DataSet) -> DBResult<()> {
         let evaluator = ExpressionEvaluator;
-        
+
         dataset.rows.sort_by(|a, b| {
-            let sort_a = self.calculate_sort_value(a, &dataset.col_names, &evaluator).unwrap();
-            let sort_b = self.calculate_sort_value(b, &dataset.col_names, &evaluator).unwrap();
-            
+            let sort_a = self
+                .calculate_sort_value(a, &dataset.col_names, &evaluator)
+                .unwrap();
+            let sort_b = self
+                .calculate_sort_value(b, &dataset.col_names, &evaluator)
+                .unwrap();
+
             // 逐个比较排序键
             for ((idx, sort_val_a), sort_val_b) in sort_a.iter().enumerate().zip(sort_b.iter()) {
-                let comparison = self.compare_values(sort_val_a, sort_val_b, &self.sort_keys[idx].order);
+                let comparison =
+                    self.compare_values(sort_val_a, sort_val_b, &self.sort_keys[idx].order);
                 if !comparison.is_eq() {
                     return comparison;
                 }
             }
             Ordering::Equal
         });
-        
+
         Ok(())
     }
 
     /// 比较两个值
-    fn compare_values(&self, a: &Value, b: &Value, order: &crate::query::executor::result_processing::sort::SortOrder) -> Ordering {
+    fn compare_values(
+        &self,
+        a: &Value,
+        b: &Value,
+        order: &crate::query::executor::result_processing::sort::SortOrder,
+    ) -> Ordering {
         let comparison = a.partial_cmp(b).unwrap_or(Ordering::Equal);
-        
+
         match order {
             crate::query::executor::result_processing::sort::SortOrder::Asc => comparison,
-            crate::query::executor::result_processing::sort::SortOrder::Desc => comparison.reverse(),
+            crate::query::executor::result_processing::sort::SortOrder::Desc => {
+                comparison.reverse()
+            }
         }
     }
 
     /// 判断是否为升序
     fn is_ascending(&self) -> bool {
-        self.sort_keys.first()
-            .map(|key| matches!(key.order, crate::query::executor::result_processing::sort::SortOrder::Asc))
+        self.sort_keys
+            .first()
+            .map(|key| {
+                matches!(
+                    key.order,
+                    crate::query::executor::result_processing::sort::SortOrder::Asc
+                )
+            })
             .unwrap_or(true)
     }
 
@@ -284,7 +315,10 @@ impl<S: StorageEngine> TopNExecutor<S> {
     }
 
     /// 对顶点列表执行 TopN
-    fn execute_topn_vertices(&self, vertices: Vec<crate::core::Vertex>) -> DBResult<Vec<crate::core::Vertex>> {
+    fn execute_topn_vertices(
+        &self,
+        vertices: Vec<crate::core::Vertex>,
+    ) -> DBResult<Vec<crate::core::Vertex>> {
         // 简化实现：按顶点ID排序
         let mut vertices = vertices;
         if self.is_ascending() {
@@ -292,15 +326,18 @@ impl<S: StorageEngine> TopNExecutor<S> {
         } else {
             vertices.sort_by(|a, b| b.vid.cmp(&a.vid));
         }
-        
+
         let start = self.offset.min(vertices.len());
         let end = (self.n + self.offset).min(vertices.len());
-        
+
         Ok(vertices[start..end].to_vec())
     }
 
     /// 对边列表执行 TopN
-    fn execute_topn_edges(&self, edges: Vec<crate::core::Edge>) -> DBResult<Vec<crate::core::Edge>> {
+    fn execute_topn_edges(
+        &self,
+        edges: Vec<crate::core::Edge>,
+    ) -> DBResult<Vec<crate::core::Edge>> {
         // 简化实现：按源顶点ID排序
         let mut edges = edges;
         if self.is_ascending() {
@@ -308,10 +345,10 @@ impl<S: StorageEngine> TopNExecutor<S> {
         } else {
             edges.sort_by(|a, b| b.src.cmp(&a.src));
         }
-        
+
         let start = self.offset.min(edges.len());
         let end = (self.n + self.offset).min(edges.len());
-        
+
         Ok(edges[start..end].to_vec())
     }
 
@@ -324,10 +361,10 @@ impl<S: StorageEngine> TopNExecutor<S> {
         } else {
             values.sort_by(|a, b| b.partial_cmp(a).unwrap_or(Ordering::Equal));
         }
-        
+
         let start = self.offset.min(values.len());
         let end = (self.n + self.offset).min(values.len());
-        
+
         Ok(values[start..end].to_vec())
     }
 }
@@ -412,7 +449,10 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for TopNExecutor<S> {
             input_exec.execute().await?
         } else {
             // 如果没有输入执行器，使用设置的输入数据
-            self.base.input.clone().unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+            self.base
+                .input
+                .clone()
+                .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
         };
 
         self.process(input_result).await
@@ -548,11 +588,18 @@ mod tests {
             Ok(())
         }
 
-        fn scan_all_vertices(&self) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_all_vertices(
+            &self,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_vertices_by_tag(
+            &self,
+            _tag: &str,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
     }
@@ -560,7 +607,7 @@ mod tests {
     #[tokio::test]
     async fn test_topn_executor_basic() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建测试数据
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["name".to_string(), "score".to_string()];
@@ -572,28 +619,25 @@ mod tests {
         }
 
         // 创建 TopN 执行器 (取前3名，按分数降序)
-        let mut executor = TopNExecutor::new(
-            1, 
-            storage, 
-            3, 
-            vec!["score".to_string()], 
-            false
-        );
-        
+        let mut executor = TopNExecutor::new(1, storage, 3, vec!["score".to_string()], false);
+
         // 设置输入数据
         ResultProcessor::set_input(&mut executor, ExecutionResult::DataSet(dataset));
-        
+
         // 执行 TopN
-        let result = executor.process(ExecutionResult::DataSet(DataSet::new())).await.unwrap();
-        
+        let result = executor
+            .process(ExecutionResult::DataSet(DataSet::new()))
+            .await
+            .unwrap();
+
         // 验证结果
         match result {
             ExecutionResult::DataSet(topn_dataset) => {
                 assert_eq!(topn_dataset.rows.len(), 3);
                 // 验证按分数降序排列
                 assert_eq!(topn_dataset.rows[0][1], Value::Int(100)); // User10
-                assert_eq!(topn_dataset.rows[1][1], Value::Int(90));  // User9
-                assert_eq!(topn_dataset.rows[2][1], Value::Int(80));  // User8
+                assert_eq!(topn_dataset.rows[1][1], Value::Int(90)); // User9
+                assert_eq!(topn_dataset.rows[2][1], Value::Int(80)); // User8
             }
             _ => panic!("Expected DataSet result"),
         }
@@ -602,25 +646,23 @@ mod tests {
     #[tokio::test]
     async fn test_topn_executor_with_offset() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建测试数据
         let values: Vec<Value> = (1..=10).map(|i| Value::Int(i)).collect();
 
         // 创建 TopN 执行器 (取3-5名，按数值升序)
-        let mut executor = TopNExecutor::new(
-            1, 
-            storage, 
-            3, 
-            vec!["value".to_string()], 
-            true
-        ).with_offset(2);
-        
+        let mut executor =
+            TopNExecutor::new(1, storage, 3, vec!["value".to_string()], true).with_offset(2);
+
         // 设置输入数据
         ResultProcessor::set_input(&mut executor, ExecutionResult::Values(values));
-        
+
         // 执行 TopN
-        let result = executor.process(ExecutionResult::DataSet(DataSet::new())).await.unwrap();
-        
+        let result = executor
+            .process(ExecutionResult::DataSet(DataSet::new()))
+            .await
+            .unwrap();
+
         // 验证结果
         match result {
             ExecutionResult::Values(topn_values) => {

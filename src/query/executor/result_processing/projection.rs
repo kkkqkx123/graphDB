@@ -116,6 +116,11 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
             // 设置顶点ID作为变量
             context.set_variable("id".to_string(), *vertex.vid.clone());
+            
+            // 将顶点属性也设置为变量，以便InputProperty可以访问
+            for (prop_name, prop_value) in &vertex.properties {
+                context.set_variable(prop_name.clone(), prop_value.clone());
+            }
 
             let mut projected_row = Vec::new();
             for column in &self.columns {
@@ -326,42 +331,378 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
 mod tests {
     use super::*;
     use crate::core::value::{DataSet, Value};
-    use crate::graph::expression::Expression;
+    use crate::graph::expression::{Expression, BinaryOperator};
     use crate::storage::StorageEngine;
+    use crate::query::executor::traits::{Executor, ExecutorCore, ExecutionResult};
 
-    // #[tokio::test]
-    // async fn test_simple_projection() {
-    //     let storage = Arc::new(Mutex::new(MockStorageEngine::new()));
-    //
-    //     // 创建简单的投影：选择第一列
-    //     let columns = vec![ProjectionColumn::new(
-    //         "col1".to_string(),
-    //         Expression::Property("col1".to_string()),
-    //     )];
-    //
-    //     let executor = ProjectExecutor::new(1, storage, columns);
+    // 模拟存储引擎
+    pub struct MockStorageEngine;
 
-    //     // 测试简单投影功能
-    //     // 这里需要模拟输入数据
-    // }
+    impl StorageEngine for MockStorageEngine {
+        fn insert_node(
+            &mut self,
+            _vertex: crate::core::Vertex,
+        ) -> Result<Value, crate::storage::StorageError> {
+            Ok(Value::Null(crate::core::value::NullType::Null))
+        }
 
-    // #[tokio::test]
-    // async fn test_expression_projection() {
-    //     let storage = Arc::new(Mutex::new(MockStorageEngine::new()));
-    //
-    //     // 创建表达式投影：计算两列之和
-    //     let columns = vec![ProjectionColumn::new(
-    //         "sum".to_string(),
-    //         Expression::Binary {
-    //             left: Box::new(Expression::Property("col1".to_string())),
-    //             op: crate::graph::expression::BinaryOperator::Add,
-    //             right: Box::new(Expression::Property("col2".to_string())),
-    //         },
-    //     )];
-    //
-    //     let executor = ProjectExecutor::new(1, storage, columns);
+        fn get_node(
+            &self,
+            _id: &Value,
+        ) -> Result<Option<crate::core::Vertex>, crate::storage::StorageError> {
+            Ok(None)
+        }
 
-    //     // 测试表达式投影功能
-    //     // 这里需要模拟输入数据
-    // }
+        fn update_node(
+            &mut self,
+            _vertex: crate::core::Vertex,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn delete_node(
+            &mut self,
+            _id: &Value,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn insert_edge(
+            &mut self,
+            _edge: crate::core::Edge,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn get_edge(
+            &self,
+            _src: &Value,
+            _dst: &Value,
+            _edge_type: &str,
+        ) -> Result<Option<crate::core::Edge>, crate::storage::StorageError> {
+            Ok(None)
+        }
+
+        fn get_node_edges(
+            &self,
+            _node_id: &Value,
+            _direction: crate::core::Direction,
+        ) -> Result<Vec<crate::core::Edge>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn delete_edge(
+            &mut self,
+            _src: &Value,
+            _dst: &Value,
+            _edge_type: &str,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn begin_transaction(&mut self) -> Result<u64, crate::storage::StorageError> {
+            Ok(1)
+        }
+
+        fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn rollback_transaction(
+            &mut self,
+            _tx_id: u64,
+        ) -> Result<(), crate::storage::StorageError> {
+            Ok(())
+        }
+
+        fn scan_all_vertices(
+            &self,
+        ) -> Result<Vec<crate::core::Vertex>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn scan_vertices_by_tag(
+            &self,
+            _tag: &str,
+        ) -> Result<Vec<crate::core::Vertex>, crate::storage::StorageError> {
+            Ok(Vec::new())
+        }
+    }
+
+    // 模拟输入执行器
+    struct MockInputExecutor {
+        result: ExecutionResult,
+    }
+
+    impl MockInputExecutor {
+        fn new(result: ExecutionResult) -> Self {
+            Self { result }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl ExecutorCore for MockInputExecutor {
+        async fn execute(&mut self) -> DBResult<ExecutionResult> {
+            Ok(self.result.clone())
+        }
+    }
+
+    impl crate::query::executor::traits::ExecutorLifecycle for MockInputExecutor {
+        fn open(&mut self) -> DBResult<()> {
+            Ok(())
+        }
+
+        fn close(&mut self) -> DBResult<()> {
+            Ok(())
+        }
+
+        fn is_open(&self) -> bool {
+            true
+        }
+    }
+
+    impl crate::query::executor::traits::ExecutorMetadata for MockInputExecutor {
+        fn id(&self) -> usize {
+            0
+        }
+
+        fn name(&self) -> &str {
+            "MockInputExecutor"
+        }
+
+        fn description(&self) -> &str {
+            "Mock executor for testing"
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Executor<MockStorageEngine> for MockInputExecutor {
+        fn storage(&self) -> &Arc<Mutex<MockStorageEngine>> {
+            unimplemented!("Mock executor doesn't use storage")
+        }
+    }
+
+    #[tokio::test]
+    async fn test_simple_projection() {
+        let storage = Arc::new(Mutex::new(MockStorageEngine));
+
+        // 创建简单的投影：选择第一列
+        let columns = vec![ProjectionColumn::new(
+            "projected_col1".to_string(),
+            Expression::Variable("col1".to_string()),
+        )];
+
+        let mut executor = ProjectExecutor::new(1, storage, columns);
+
+        // 创建测试数据集
+        let mut input_dataset = DataSet::new();
+        input_dataset.col_names = vec!["col1".to_string(), "col2".to_string()];
+        input_dataset.rows = vec![
+            vec![Value::Int(1), Value::String("Alice".to_string())],
+            vec![Value::Int(2), Value::String("Bob".to_string())],
+            vec![Value::Int(3), Value::String("Charlie".to_string())],
+        ];
+
+        // 创建模拟输入执行器
+        let input_executor = MockInputExecutor::new(ExecutionResult::DataSet(input_dataset));
+        executor.set_input(Box::new(input_executor));
+
+        // 执行投影
+        let result = executor.execute().await.unwrap();
+
+        // 验证结果
+        match result {
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.col_names, vec!["projected_col1"]);
+                assert_eq!(dataset.rows.len(), 3);
+                assert_eq!(dataset.rows[0], vec![Value::Int(1)]);
+                assert_eq!(dataset.rows[1], vec![Value::Int(2)]);
+                assert_eq!(dataset.rows[2], vec![Value::Int(3)]);
+            }
+            _ => panic!("期望DataSet结果"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_expression_projection() {
+        let storage = Arc::new(Mutex::new(MockStorageEngine));
+
+        // 创建表达式投影：计算两列之和
+        let columns = vec![ProjectionColumn::new(
+            "sum".to_string(),
+            Expression::Binary {
+                left: Box::new(Expression::Variable("col1".to_string())),
+                op: BinaryOperator::Add,
+                right: Box::new(Expression::Variable("col2".to_string())),
+            },
+        )];
+
+        let mut executor = ProjectExecutor::new(1, storage, columns);
+
+        // 创建测试数据集
+        let mut input_dataset = DataSet::new();
+        input_dataset.col_names = vec!["col1".to_string(), "col2".to_string()];
+        input_dataset.rows = vec![
+            vec![Value::Int(1), Value::Int(10)],
+            vec![Value::Int(2), Value::Int(20)],
+            vec![Value::Int(3), Value::Int(30)],
+        ];
+
+        // 创建模拟输入执行器
+        let input_executor = MockInputExecutor::new(ExecutionResult::DataSet(input_dataset));
+        executor.set_input(Box::new(input_executor));
+
+        // 执行投影
+        let result = executor.execute().await.unwrap();
+
+        // 验证结果
+        match result {
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.col_names, vec!["sum"]);
+                assert_eq!(dataset.rows.len(), 3);
+                assert_eq!(dataset.rows[0], vec![Value::Int(11)]);
+                assert_eq!(dataset.rows[1], vec![Value::Int(22)]);
+                assert_eq!(dataset.rows[2], vec![Value::Int(33)]);
+            }
+            _ => panic!("期望DataSet结果"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_vertex_projection() {
+        let storage = Arc::new(Mutex::new(MockStorageEngine));
+
+        // 创建顶点投影
+        let columns = vec![
+            ProjectionColumn::new(
+                "vertex_id".to_string(),
+                Expression::Variable("id".to_string()),
+            ),
+            ProjectionColumn::new(
+                "name".to_string(),
+                Expression::InputProperty("name".to_string()),
+            ),
+        ];
+
+        let mut executor = ProjectExecutor::new(1, storage, columns);
+
+        // 创建测试顶点
+        let vertex1 = crate::core::Vertex {
+            vid: Box::new(Value::Int(1)),
+            tags: vec![crate::core::vertex_edge_path::Tag {
+                name: "person".to_string(),
+                properties: std::collections::HashMap::new(),
+            }],
+            properties: std::collections::HashMap::from([
+                ("name".to_string(), Value::String("Alice".to_string())),
+                ("age".to_string(), Value::Int(25)),
+            ]),
+        };
+
+        let vertex2 = crate::core::Vertex {
+            vid: Box::new(Value::Int(2)),
+            tags: vec![crate::core::vertex_edge_path::Tag {
+                name: "person".to_string(),
+                properties: std::collections::HashMap::new(),
+            }],
+            properties: std::collections::HashMap::from([
+                ("name".to_string(), Value::String("Bob".to_string())),
+                ("age".to_string(), Value::Int(30)),
+            ]),
+        };
+
+        // 创建模拟输入执行器
+        let input_executor = MockInputExecutor::new(ExecutionResult::Vertices(vec![vertex1, vertex2]));
+        executor.set_input(Box::new(input_executor));
+
+        // 执行投影
+        let result = executor.execute().await.unwrap();
+
+        // 验证结果
+        match result {
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.col_names, vec!["vertex_id", "name"]);
+                assert_eq!(dataset.rows.len(), 2);
+                assert_eq!(dataset.rows[0], vec![Value::Int(1), Value::String("Alice".to_string())]);
+                assert_eq!(dataset.rows[1], vec![Value::Int(2), Value::String("Bob".to_string())]);
+            }
+            _ => panic!("期望DataSet结果"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_edge_projection() {
+        let storage = Arc::new(Mutex::new(MockStorageEngine));
+
+        // 创建边投影
+        let columns = vec![
+            ProjectionColumn::new(
+                "src_id".to_string(),
+                Expression::Variable("src".to_string()),
+            ),
+            ProjectionColumn::new(
+                "dst_id".to_string(),
+                Expression::Variable("dst".to_string()),
+            ),
+            ProjectionColumn::new(
+                "edge_type".to_string(),
+                Expression::Variable("edge_type".to_string()),
+            ),
+        ];
+
+        let mut executor = ProjectExecutor::new(1, storage, columns);
+
+        // 创建测试边
+        let edge1 = crate::core::Edge {
+            src: Box::new(Value::Int(1)),
+            dst: Box::new(Value::Int(2)),
+            edge_type: "knows".to_string(),
+            ranking: 0,
+            props: std::collections::HashMap::from([
+                ("since".to_string(), Value::Int(2020)),
+            ]),
+        };
+
+        let edge2 = crate::core::Edge {
+            src: Box::new(Value::Int(2)),
+            dst: Box::new(Value::Int(3)),
+            edge_type: "works_with".to_string(),
+            ranking: 0,
+            props: std::collections::HashMap::from([
+                ("project".to_string(), Value::String("GraphDB".to_string())),
+            ]),
+        };
+
+        // 创建模拟输入执行器
+        let input_executor = MockInputExecutor::new(ExecutionResult::Edges(vec![edge1, edge2]));
+        executor.set_input(Box::new(input_executor));
+
+        // 执行投影
+        let result = executor.execute().await.unwrap();
+
+        // 验证结果
+        match result {
+            ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.col_names, vec!["src_id", "dst_id", "edge_type"]);
+                assert_eq!(dataset.rows.len(), 2);
+                assert_eq!(
+                    dataset.rows[0],
+                    vec![
+                        Value::Int(1),
+                        Value::Int(2),
+                        Value::String("knows".to_string())
+                    ]
+                );
+                assert_eq!(
+                    dataset.rows[1],
+                    vec![
+                        Value::Int(2),
+                        Value::Int(3),
+                        Value::String("works_with".to_string())
+                    ]
+                );
+            }
+            _ => panic!("期望DataSet结果"),
+        }
+    }
 }

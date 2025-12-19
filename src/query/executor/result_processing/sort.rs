@@ -9,11 +9,13 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
 use crate::graph::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::EvalContext;
-use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::base::InputExecutor;
+use crate::query::executor::result_processing::traits::{
+    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
+};
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
-use crate::query::executor::result_processing::traits::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::storage::StorageEngine;
 
 /// 排序顺序枚举
@@ -63,7 +65,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
             "Sorts query results based on specified keys and order".to_string(),
             storage,
         );
-        
+
         Self {
             base,
             sort_keys,
@@ -224,7 +226,10 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for SortExecutor<S> {
             input_exec.execute().await?
         } else {
             // 如果没有输入执行器，使用设置的输入数据
-            self.base.input.clone().unwrap_or(ExecutionResult::DataSet(DataSet::new()))
+            self.base
+                .input
+                .clone()
+                .unwrap_or(ExecutionResult::DataSet(DataSet::new()))
         };
 
         self.process(input_result).await
@@ -286,7 +291,6 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for SortExecutor<S> {
 mod tests {
     use super::*;
     use crate::core::value::NullType;
-    use std::collections::HashMap;
 
     // 模拟存储引擎
     struct MockStorage;
@@ -371,11 +375,18 @@ mod tests {
             Ok(())
         }
 
-        fn scan_all_vertices(&self) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_all_vertices(
+            &self,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_vertices_by_tag(
+            &self,
+            _tag: &str,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
     }
@@ -383,42 +394,40 @@ mod tests {
     #[tokio::test]
     async fn test_sort_executor_basic() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建测试数据
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["name".to_string(), "age".to_string()];
-        dataset.rows.push(vec![
-            Value::String("Alice".to_string()),
-            Value::Int(30),
-        ]);
-        dataset.rows.push(vec![
-            Value::String("Bob".to_string()),
-            Value::Int(25),
-        ]);
-        dataset.rows.push(vec![
-            Value::String("Charlie".to_string()),
-            Value::Int(35),
-        ]);
+        dataset
+            .rows
+            .push(vec![Value::String("Alice".to_string()), Value::Int(30)]);
+        dataset
+            .rows
+            .push(vec![Value::String("Bob".to_string()), Value::Int(25)]);
+        dataset
+            .rows
+            .push(vec![Value::String("Charlie".to_string()), Value::Int(35)]);
 
         // 创建排序执行器
-        let sort_keys = vec![
-            SortKey::new(
-                Expression::Property {
-                    object: Box::new(Expression::Variable("row".to_string())),
-                    property: "age".to_string(),
-                },
-                SortOrder::Asc,
-            ),
-        ];
-        
+        let sort_keys = vec![SortKey::new(
+            Expression::Property {
+                object: Box::new(Expression::Variable("row".to_string())),
+                property: "age".to_string(),
+            },
+            SortOrder::Asc,
+        )];
+
         let mut executor = SortExecutor::new(1, storage, sort_keys, None);
-        
+
         // 设置输入数据
         ResultProcessor::set_input(&mut executor, ExecutionResult::DataSet(dataset));
-        
+
         // 执行排序
-        let result = executor.process(ExecutionResult::DataSet(DataSet::new())).await.unwrap();
-        
+        let result = executor
+            .process(ExecutionResult::DataSet(DataSet::new()))
+            .await
+            .unwrap();
+
         // 验证结果
         match result {
             ExecutionResult::DataSet(sorted_dataset) => {

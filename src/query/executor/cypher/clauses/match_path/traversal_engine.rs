@@ -276,7 +276,6 @@ impl<S: StorageEngine> TraversalEngine<S> {
 mod tests {
     use super::*;
     use crate::core::vertex_edge_path::Tag;
-    use crate::query::executor::cypher::context::CypherExecutionContext;
     use crate::query::parser::cypher::ast::patterns::Direction as PatternDirection;
 
     #[test]

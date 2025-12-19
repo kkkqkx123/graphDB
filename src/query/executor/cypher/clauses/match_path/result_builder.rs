@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_build_values_result() {
-        let mut builder = ResultBuilder::new();
+        let builder = ResultBuilder::new();
         let values = vec![
             Value::String("test1".to_string()),
             Value::String("test2".to_string()),

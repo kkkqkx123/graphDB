@@ -1,15 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::config::test_config::test_config;
     use crate::core::{Edge, Value, Vertex};
     use crate::query::executor::base::EdgeDirection;
-    use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
-    use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
     use crate::query::executor::data_processing::graph_traversal::factory::GraphTraversalExecutorFactory;
-    use crate::query::executor::data_processing::graph_traversal::shortest_path::{
-        ShortestPathAlgorithm, ShortestPathExecutor,
-    };
+    use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathAlgorithm;
     use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
     use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
     use crate::query::executor::traits::ExecutorMetadata;
@@ -20,13 +15,13 @@ mod tests {
         let config = test_config();
         let db_path = config.test_db_path(&format!("test_graph_{}", test_name));
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(db_path)
-                .expect("Failed to create test storage")
+            NativeStorage::new(db_path).expect("Failed to create test storage"),
         ));
 
         // 创建测试图：A -> B -> C, A -> D
         {
-            let mut storage_lock = storage.lock()
+            let mut storage_lock = storage
+                .lock()
                 .expect("Test storage lock should not be poisoned");
 
             // 创建顶点
@@ -35,13 +30,17 @@ mod tests {
             let vertex_c = Vertex::new(Value::String("C".to_string()), vec![]);
             let vertex_d = Vertex::new(Value::String("D".to_string()), vec![]);
 
-            let id_a = storage_lock.insert_node(vertex_a)
+            let id_a = storage_lock
+                .insert_node(vertex_a)
                 .expect("Failed to insert test vertex A");
-            let id_b = storage_lock.insert_node(vertex_b)
+            let id_b = storage_lock
+                .insert_node(vertex_b)
                 .expect("Failed to insert test vertex B");
-            let id_c = storage_lock.insert_node(vertex_c)
+            let id_c = storage_lock
+                .insert_node(vertex_c)
                 .expect("Failed to insert test vertex C");
-            let id_d = storage_lock.insert_node(vertex_d)
+            let id_d = storage_lock
+                .insert_node(vertex_d)
                 .expect("Failed to insert test vertex D");
 
             // 创建边
@@ -67,11 +66,14 @@ mod tests {
                 std::collections::HashMap::new(),
             );
 
-            storage_lock.insert_edge(edge_ab)
+            storage_lock
+                .insert_edge(edge_ab)
                 .expect("Failed to insert test edge AB");
-            storage_lock.insert_edge(edge_bc)
+            storage_lock
+                .insert_edge(edge_bc)
                 .expect("Failed to insert test edge BC");
-            storage_lock.insert_edge(edge_ad)
+            storage_lock
+                .insert_edge(edge_ad)
                 .expect("Failed to insert test edge AD");
         }
 

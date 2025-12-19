@@ -4,7 +4,7 @@ use crate::core::Value;
 use crate::graph::expression::{Expression, LiteralValue};
 use crate::query::context::EvalContext;
 use crate::query::parser::cypher::ast::expressions::{
-    BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
+    BinaryExpression, BinaryOperator, CaseExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
     MapExpression, PatternExpression, PropertyExpression, UnaryExpression, UnaryOperator,
 };

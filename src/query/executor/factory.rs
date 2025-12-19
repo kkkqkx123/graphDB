@@ -4,11 +4,11 @@
 //! 基于nebula-graph的工厂模式设计
 
 use crate::query::executor::traits::Executor;
-use crate::query::planner::plan::core::{PlanNode, PlanNodeKind};
+use crate::query::parser::expressions::parse_expression_from_string;
 use crate::query::planner::plan::core::nodes::traits::PlanNodeProperties;
+use crate::query::planner::plan::core::{PlanNode, PlanNodeKind};
 use crate::query::types::QueryError;
 use crate::storage::StorageEngine;
-use crate::query::parser::expressions::parse_expression_from_string;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
@@ -274,7 +274,8 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for ScanEd
         let id = plan_node.id() as usize;
 
         // 尝试从具体的ScanEdges计划节点中提取参数
-        let edge_type = if let Some(scan_node) = plan_node.as_any().downcast_ref::<ScanEdgesNode>() {
+        let edge_type = if let Some(scan_node) = plan_node.as_any().downcast_ref::<ScanEdgesNode>()
+        {
             // 解析边类型
             Some(scan_node.edge_type().to_string())
         } else {
@@ -298,7 +299,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Filter
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        use crate::graph::expression::{Expression, AggregateFunction};
+        use crate::graph::expression::Expression;
         use crate::query::executor::result_processing::filter::FilterExecutor;
         use crate::query::planner::plan::core::nodes::FilterNode;
 
@@ -339,13 +340,11 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Projec
         // 尝试从具体的Project计划节点中提取投影表达式
         let columns = if let Some(project_node) = plan_node.as_any().downcast_ref::<ProjectNode>() {
             // 使用节点中的列定义
-            project_node.columns()
+            project_node
+                .columns()
                 .iter()
                 .map(|yield_col| {
-                    ProjectionColumn::new(
-                        yield_col.alias.clone(),
-                        yield_col.expr.clone(),
-                    )
+                    ProjectionColumn::new(yield_col.alias.clone(), yield_col.expr.clone())
                 })
                 .collect()
         } else {
@@ -378,15 +377,16 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for LimitC
         let id = plan_node.id() as usize;
 
         // 尝试从具体的Limit计划节点中提取参数
-        let (limit, offset) = if let Some(limit_node) = plan_node.as_any().downcast_ref::<LimitNode>() {
-            (
-                limit_node.count().try_into().ok(),
-                limit_node.offset().try_into().unwrap_or(0),
-            )
-        } else {
-            // 如果不是具体的Limit节点，使用默认值
-            (None, 0)
-        };
+        let (limit, offset) =
+            if let Some(limit_node) = plan_node.as_any().downcast_ref::<LimitNode>() {
+                (
+                    limit_node.count().try_into().ok(),
+                    limit_node.offset().try_into().unwrap_or(0),
+                )
+            } else {
+                // 如果不是具体的Limit节点，使用默认值
+                (None, 0)
+            };
 
         let executor = LimitExecutor::new(id, storage, limit, offset);
         Ok(Box::new(executor))
@@ -411,45 +411,45 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for SortCr
         let id = plan_node.id() as usize;
 
         // 尝试从具体的Sort计划节点中提取参数
-        let (sort_keys, limit) = if let Some(sort_node) = plan_node.as_any().downcast_ref::<SortNode>()
-        {
-            // 解析排序字段
-            let keys: Vec<SortKey> = sort_node
-                .sort_items()
-                .iter()
-                .map(|item| {
-                    // 解析排序方向和表达式
-                    let (expr_str, order) = if let Some(asc_pos) = item.find(" ASC") {
-                        (item[..asc_pos].trim(), SortOrder::Asc)
-                    } else if let Some(desc_pos) = item.find(" DESC") {
-                        (item[..desc_pos].trim(), SortOrder::Desc)
-                    } else {
-                        // 默认为升序
-                        (item.as_str(), SortOrder::Asc)
-                    };
+        let (sort_keys, limit) =
+            if let Some(sort_node) = plan_node.as_any().downcast_ref::<SortNode>() {
+                // 解析排序字段
+                let keys: Vec<SortKey> = sort_node
+                    .sort_items()
+                    .iter()
+                    .map(|item| {
+                        // 解析排序方向和表达式
+                        let (expr_str, order) = if let Some(asc_pos) = item.find(" ASC") {
+                            (item[..asc_pos].trim(), SortOrder::Asc)
+                        } else if let Some(desc_pos) = item.find(" DESC") {
+                            (item[..desc_pos].trim(), SortOrder::Desc)
+                        } else {
+                            // 默认为升序
+                            (item.as_str(), SortOrder::Asc)
+                        };
 
-                    // 尝试解析表达式
-                    let expr = match parse_expression_from_string(expr_str) {
-                        Ok(parsed_expr) => parsed_expr,
-                        Err(e) => {
-                            eprintln!("解析排序表达式失败: {}, 使用变量表达式", e);
-                            Expression::variable(expr_str.to_string())
-                        }
-                    };
+                        // 尝试解析表达式
+                        let expr = match parse_expression_from_string(expr_str) {
+                            Ok(parsed_expr) => parsed_expr,
+                            Err(e) => {
+                                eprintln!("解析排序表达式失败: {}, 使用变量表达式", e);
+                                Expression::variable(expr_str.to_string())
+                            }
+                        };
 
-                    SortKey::new(expr, order)
-                })
-                .collect();
+                        SortKey::new(expr, order)
+                    })
+                    .collect();
 
-            (keys, sort_node.limit().and_then(|l| l.try_into().ok()))
-        } else {
-            // 如果不是具体的Sort节点，使用默认值
-            let default_keys = vec![SortKey::new(
-                Expression::variable("default".to_string()),
-                SortOrder::Asc,
-            )];
-            (default_keys, None)
-        };
+                (keys, sort_node.limit().and_then(|l| l.try_into().ok()))
+            } else {
+                // 如果不是具体的Sort节点，使用默认值
+                let default_keys = vec![SortKey::new(
+                    Expression::variable("default".to_string()),
+                    SortOrder::Asc,
+                )];
+                (default_keys, None)
+            };
 
         let executor = SortExecutor::new(id, storage, sort_keys, limit);
         Ok(Box::new(executor))
@@ -473,13 +473,21 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Aggreg
         let id = plan_node.id() as usize;
 
         // 尝试从具体的Aggregate计划节点中提取参数
-        let (group_keys, agg_exprs) = if let Some(agg_node) = plan_node.as_any().downcast_ref::<AggregateNode>() {
+        let (group_keys, agg_exprs) = if let Some(agg_node) =
+            plan_node.as_any().downcast_ref::<AggregateNode>()
+        {
             // 解析分组键和聚合函数
-            let group_keys = agg_node.group_keys().iter()
+            let group_keys = agg_node
+                .group_keys()
+                .iter()
                 .map(|k| crate::graph::expression::Expression::variable(k.clone()))
                 .collect::<Vec<_>>();
-            let agg_funcs = agg_node.agg_exprs().iter()
-                .map(|_| crate::query::executor::result_processing::aggregation::AggregateFunction::Count)
+            let agg_funcs = agg_node
+                .agg_exprs()
+                .iter()
+                .map(|_| {
+                    crate::query::executor::result_processing::aggregation::AggregateFunction::Count
+                })
                 .collect::<Vec<_>>();
             (group_keys, agg_funcs)
         } else {
@@ -506,7 +514,9 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for JoinCr
         use crate::query::executor::data_processing::join::cross_join::CrossJoinExecutor;
         use crate::query::executor::data_processing::join::inner_join::InnerJoinExecutor;
         use crate::query::executor::data_processing::join::left_join::LeftJoinExecutor;
-        use crate::query::planner::plan::core::nodes::{InnerJoinNode, LeftJoinNode, CrossJoinNode};
+        use crate::query::planner::plan::core::nodes::{
+            CrossJoinNode, InnerJoinNode, LeftJoinNode,
+        };
 
         let id = plan_node.id() as usize;
 
@@ -518,8 +528,16 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for JoinCr
                     // 使用节点自身的字段
                     let left_var = "left_input".to_string();
                     let right_var = "right_input".to_string();
-                    let left_keys = join_node.hash_keys().iter().map(|expr| format!("{:?}", expr)).collect::<Vec<String>>();
-                    let right_keys = join_node.probe_keys().iter().map(|expr| format!("{:?}", expr)).collect::<Vec<String>>();
+                    let left_keys = join_node
+                        .hash_keys()
+                        .iter()
+                        .map(|expr| format!("{:?}", expr))
+                        .collect::<Vec<String>>();
+                    let right_keys = join_node
+                        .probe_keys()
+                        .iter()
+                        .map(|expr| format!("{:?}", expr))
+                        .collect::<Vec<String>>();
                     let output_cols = join_node.col_names().to_vec();
 
                     let executor = InnerJoinExecutor::new(
@@ -544,8 +562,16 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for JoinCr
                     // 使用节点自身的字段
                     let left_var = "left_input".to_string();
                     let right_var = "right_input".to_string();
-                    let left_keys = join_node.hash_keys().iter().map(|expr| format!("{:?}", expr)).collect::<Vec<String>>();
-                    let right_keys = join_node.probe_keys().iter().map(|expr| format!("{:?}", expr)).collect::<Vec<String>>();
+                    let left_keys = join_node
+                        .hash_keys()
+                        .iter()
+                        .map(|expr| format!("{:?}", expr))
+                        .collect::<Vec<String>>();
+                    let right_keys = join_node
+                        .probe_keys()
+                        .iter()
+                        .map(|expr| format!("{:?}", expr))
+                        .collect::<Vec<String>>();
                     let output_cols = join_node.col_names().to_vec();
 
                     let executor = LeftJoinExecutor::new(

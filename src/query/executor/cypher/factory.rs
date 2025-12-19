@@ -148,11 +148,8 @@ impl<S: StorageEngine + Send + 'static> CypherExecutorFactory<S> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::query::parser::cypher::ast::clauses::{MatchClause, ReturnClause};
     use crate::query::parser::cypher::ast::statements::CypherStatement;
 
-    // 测试代码已注释，等待 MemoryStorageEngine 实现
     // #[tokio::test]
     // async fn test_factory_creation() {
     //     let storage = Arc::new(Mutex::new(MemoryStorageEngine::new()));

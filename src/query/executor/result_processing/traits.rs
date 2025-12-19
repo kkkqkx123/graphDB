@@ -343,6 +343,8 @@ mod tests {
     
     #[test]
     fn test_estimate_dataset_memory_usage() {
+        use crate::query::executor::data_processing::join::cross_join::tests::MockStorage;
+        
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["col1".to_string(), "col2".to_string()];
         dataset.rows.push(vec![
@@ -351,7 +353,7 @@ mod tests {
         ]);
         
         // 测试内存使用估算
-        let usage = BaseResultProcessor::<crate::query::executor::data_processing::join::cross_join::MockStorage>::estimate_dataset_memory_usage(&dataset);
+        let usage = BaseResultProcessor::<MockStorage>::estimate_dataset_memory_usage(&dataset);
         assert!(usage > 0);
     }
 }

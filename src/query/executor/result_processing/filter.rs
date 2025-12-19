@@ -9,11 +9,13 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
 use crate::graph::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::EvalContext;
-use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::base::InputExecutor;
+use crate::query::executor::result_processing::traits::{
+    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
+};
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
-use crate::query::executor::result_processing::traits::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::storage::StorageEngine;
 
 /// FilterExecutor - 过滤执行器
@@ -29,18 +31,14 @@ pub struct FilterExecutor<S: StorageEngine + Send + 'static> {
 }
 
 impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        condition: Expression,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>, condition: Expression) -> Self {
         let base = BaseResultProcessor::new(
             id,
             "FilterExecutor".to_string(),
             "Filters query results based on specified conditions".to_string(),
             storage,
         );
-        
+
         Self {
             base,
             condition,
@@ -58,15 +56,15 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
                     self.apply_filter(&mut dataset)?;
                     Ok(ExecutionResult::DataSet(dataset))
                 }
-                ExecutionResult::Values(mut values) => {
+                ExecutionResult::Values(values) => {
                     let filtered_values = self.filter_values(values)?;
                     Ok(ExecutionResult::Values(filtered_values))
                 }
-                ExecutionResult::Vertices(mut vertices) => {
+                ExecutionResult::Vertices(vertices) => {
                     let filtered_vertices = self.filter_vertices(vertices)?;
                     Ok(ExecutionResult::Vertices(filtered_vertices))
                 }
-                ExecutionResult::Edges(mut edges) => {
+                ExecutionResult::Edges(edges) => {
                     let filtered_edges = self.filter_edges(edges)?;
                     Ok(ExecutionResult::Edges(filtered_edges))
                 }
@@ -96,12 +94,12 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
             }
 
             // 评估过滤条件
-            let condition_result = evaluator.evaluate(&self.condition, &context)
-                .map_err(|e| DBError::Expression(
-                    crate::core::error::ExpressionError::FunctionError(format!(
-                        "Failed to evaluate filter condition: {}", e
-                    )),
-                ))?;
+            let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
+                DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
+                    "Failed to evaluate filter condition: {}",
+                    e
+                )))
+            })?;
 
             // 如果条件为真，保留该行
             if let crate::core::Value::Bool(true) = condition_result {
@@ -124,12 +122,12 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
             context.set_variable("value".to_string(), value.clone());
 
             // 评估过滤条件
-            let condition_result = evaluator.evaluate(&self.condition, &context)
-                .map_err(|e| DBError::Expression(
-                    crate::core::error::ExpressionError::FunctionError(format!(
-                        "Failed to evaluate filter condition: {}", e
-                    )),
-                ))?;
+            let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
+                DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
+                    "Failed to evaluate filter condition: {}",
+                    e
+                )))
+            })?;
 
             // 如果条件为真，保留该值
             if let crate::core::Value::Bool(true) = condition_result {
@@ -141,21 +139,24 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
     }
 
     /// 过滤顶点列表
-    fn filter_vertices(&self, vertices: Vec<crate::core::Vertex>) -> DBResult<Vec<crate::core::Vertex>> {
+    fn filter_vertices(
+        &self,
+        vertices: Vec<crate::core::Vertex>,
+    ) -> DBResult<Vec<crate::core::Vertex>> {
         let evaluator = ExpressionEvaluator;
         let mut filtered_vertices = Vec::new();
 
         for vertex in vertices {
             // 构建表达式上下文
-            let mut context = EvalContext::with_vertex(&vertex);
+            let context = EvalContext::with_vertex(&vertex);
 
             // 评估过滤条件
-            let condition_result = evaluator.evaluate(&self.condition, &context)
-                .map_err(|e| DBError::Expression(
-                    crate::core::error::ExpressionError::FunctionError(format!(
-                        "Failed to evaluate filter condition: {}", e
-                    )),
-                ))?;
+            let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
+                DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
+                    "Failed to evaluate filter condition: {}",
+                    e
+                )))
+            })?;
 
             // 如果条件为真，保留该顶点
             if let crate::core::Value::Bool(true) = condition_result {
@@ -173,15 +174,15 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for edge in edges {
             // 构建表达式上下文
-            let mut context = EvalContext::with_edge(&edge);
+            let context = EvalContext::with_edge(&edge);
 
             // 评估过滤条件
-            let condition_result = evaluator.evaluate(&self.condition, &context)
-                .map_err(|e| DBError::Expression(
-                    crate::core::error::ExpressionError::FunctionError(format!(
-                        "Failed to evaluate filter condition: {}", e
-                    )),
-                ))?;
+            let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
+                DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
+                    "Failed to evaluate filter condition: {}",
+                    e
+                )))
+            })?;
 
             // 如果条件为真，保留该边
             if let crate::core::Value::Bool(true) = condition_result {
@@ -234,7 +235,10 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for FilterExecutor<S> {
             input_exec.execute().await?
         } else {
             // 如果没有输入执行器，使用设置的输入数据
-            self.base.input.clone().unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+            self.base
+                .input
+                .clone()
+                .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
         };
 
         self.process(input_result).await
@@ -380,11 +384,18 @@ mod tests {
             Ok(())
         }
 
-        fn scan_all_vertices(&self) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_all_vertices(
+            &self,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_vertices_by_tag(
+            &self,
+            _tag: &str,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
     }
@@ -392,7 +403,7 @@ mod tests {
     #[tokio::test]
     async fn test_filter_executor_basic() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建测试数据
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["name".to_string(), "age".to_string()];
@@ -416,22 +427,30 @@ mod tests {
                 property: "age".to_string(),
             }),
             op: crate::graph::expression::BinaryOperator::GreaterThan,
-            right: Box::new(Expression::Literal(crate::graph::expression::LiteralValue::Int(25))),
+            right: Box::new(Expression::Literal(
+                crate::graph::expression::LiteralValue::Int(25),
+            )),
         };
-        
+
         let mut executor = FilterExecutor::new(1, storage, condition);
-        
+
         // 设置输入数据
-        <FilterExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(&mut executor, ExecutionResult::DataSet(dataset));
-        
+        <FilterExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(
+            &mut executor,
+            ExecutionResult::DataSet(dataset),
+        );
+
         // 执行过滤
-        let result = executor.process(ExecutionResult::DataSet(DataSet::new())).await.unwrap();
-        
+        let result = executor
+            .process(ExecutionResult::DataSet(DataSet::new()))
+            .await
+            .unwrap();
+
         // 验证结果
         match result {
             ExecutionResult::DataSet(filtered_dataset) => {
                 assert_eq!(filtered_dataset.rows.len(), 2); // Alice 和 Charlie
-                // 验证年龄都大于25
+                                                            // 验证年龄都大于25
                 for row in &filtered_dataset.rows {
                     if let crate::core::Value::Int(age) = &row[1] {
                         assert!(age > &25);

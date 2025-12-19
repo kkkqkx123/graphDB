@@ -1,25 +1,9 @@
 /// MATCH查询主规划器
 /// 负责将MATCH查询转换为执行计划
-
 use crate::query::context::ast::AstContext;
-use super::cypher_clause_planner::CypherClausePlanner;
-use super::match_clause_planner::MatchClausePlanner;
-use crate::query::planner::match_planning::clauses::order_by_planner::OrderByClausePlanner;
-use crate::query::planner::PlanNodeKind;
-use crate::query::planner::match_planning::clauses::pagination_planner::PaginationPlanner;
-use crate::query::planner::match_planning::clauses::return_clause_planner::ReturnClausePlanner;
-use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::match_planning::clauses::unwind_planner::UnwindClausePlanner;
-use crate::query::planner::match_planning::clauses::with_clause_planner::WithClausePlanner;
-use crate::query::planner::match_planning::clauses::where_clause_planner::WhereClausePlanner;
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::validator::structs::{
-    alias_structs::QueryPart, clause_structs::MatchClauseContext, CypherClauseContext,
-    CypherClauseKind,
-};
-use std::collections::HashSet;
 
 /// MATCH查询规划器
 /// 处理Cypher MATCH语句的转换为执行计划
@@ -55,7 +39,6 @@ impl MatchPlanner {
             priority: 100,
         }
     }
-
 }
 
 impl Planner for MatchPlanner {
@@ -78,8 +61,7 @@ impl Planner for MatchPlanner {
         let _start_node = PlanNodeFactory::create_start_node()?;
 
         // 创建一个GetNeighbors节点作为示例
-        let get_neighbors_node =
-            PlanNodeFactory::create_placeholder_node()?;
+        let get_neighbors_node = PlanNodeFactory::create_placeholder_node()?;
 
         query_plan.root = Some(get_neighbors_node.clone());
         query_plan.tail = Some(get_neighbors_node);
@@ -102,6 +84,7 @@ impl Default for MatchPlanner {
 mod tests {
     use super::*;
     use crate::query::context::ast::AstContext;
+    use crate::query::planner::PlanNodeKind;
     use crate::query::validator::structs::{
         AliasType, CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
     };
@@ -225,15 +208,6 @@ mod tests {
         assert!(true); // 如果能获取就通过
     }
 
-
-
-
-
-
-
-
-
-
     #[test]
     fn test_transform_match_statement() {
         let mut planner = MatchPlanner::new();
@@ -282,6 +256,4 @@ mod tests {
         // 测试 trait 方法
         assert!(planner.match_planner(&ast_ctx));
     }
-
-
 }
