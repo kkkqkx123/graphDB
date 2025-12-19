@@ -91,7 +91,7 @@ impl CypherExecutionContext {
     pub fn new() -> Self {
         Self {
             base_context: ExecutionContext::new(),
-            ast_context: AstContext::new(""),
+            ast_context: AstContext::new("CYPHER".to_string(), "".to_string()),
             variables: HashMap::new(),
             pattern_results: HashMap::new(),
             parameters: HashMap::new(),
@@ -104,7 +104,7 @@ impl CypherExecutionContext {
     pub fn from_query(query_text: &str) -> Self {
         Self {
             base_context: ExecutionContext::new(),
-            ast_context: AstContext::new(query_text),
+            ast_context: AstContext::new("CYPHER".to_string(), query_text.to_string()),
             variables: HashMap::new(),
             pattern_results: HashMap::new(),
             parameters: HashMap::new(),
@@ -302,7 +302,7 @@ mod tests {
     fn test_cypher_execution_context_from_query() {
         let query = "MATCH (n:Person) RETURN n.name";
         let context = CypherExecutionContext::from_query(query);
-        assert_eq!(context.ast_context().statement_type(), "CYPHER");
+        assert_eq!(context.ast_context().query_type, "CYPHER");
     }
 
     #[test]

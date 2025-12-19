@@ -21,7 +21,7 @@ impl LookupPlanner {
     pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
         // Check if the AST context represents a lookup statement
         // In a real implementation, this would check specific properties of the AST
-        matches!(ast_ctx.statement_type(), "LOOKUP")
+        ast_ctx.statement_type() == "LOOKUP"
     }
 }
 

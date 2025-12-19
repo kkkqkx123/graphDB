@@ -42,7 +42,7 @@ impl MatchPlanner {
 
     pub fn make() -> Box<dyn Planner> {
         // 创建一个默认的查询上下文
-        let query_context = AstContext::new("MATCH", "MATCH (n)");
+        let query_context = AstContext::new("MATCH".to_string(), "MATCH (n)".to_string());
         Box::new(Self::new(query_context))
     }
 

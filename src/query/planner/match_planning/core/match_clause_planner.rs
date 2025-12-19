@@ -126,9 +126,9 @@ impl CypherClausePlanner for MatchClausePlanner {
                 plan = path_plan;
             } else {
                 // 使用新的统一连接器连接多个路径
-                let temp_ast_context = crate::query::context::ast::AstContext::new(
-                    &context.query_info.statement_type,
-                    &context.query_info.query_id,
+                let temp_ast_context = crate::query::context::AstContext::new(
+                    context.query_info.statement_type.clone(),
+                    context.query_info.query_id.clone(),
                 );
                 plan = UnifiedConnector::cartesian_product(
                     &temp_ast_context,

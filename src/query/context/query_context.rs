@@ -193,6 +193,25 @@ impl QueryContext {
     }
 }
 
+impl Clone for QueryContext {
+    fn clone(&self) -> Self {
+        Self {
+            session_id: self.session_id.clone(),
+            user_id: self.user_id.clone(),
+            space_id: self.space_id,
+            schema_manager: self.schema_manager.clone(),
+            index_manager: self.index_manager.clone(),
+            meta_client: self.meta_client.clone(),
+            storage_client: self.storage_client.clone(),
+            variables: self.variables.clone(),
+            parameters: self.parameters.clone(),
+            functions: self.functions.clone(),
+            statistics: self.statistics.clone(),
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

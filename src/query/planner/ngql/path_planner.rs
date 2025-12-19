@@ -64,7 +64,6 @@ impl Planner for PathPlanner {
         let expand_all_node = Arc::new(ExpandAllNode::new(1, edge_types, expand_direction));
 
         // 6. 创建过滤节点（如果有过滤条件）- 简化处理
-        use crate::graph::expression::Expression;
         let expr = Expression::Variable("*".to_string());
         let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
             Arc::new(

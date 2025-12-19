@@ -128,7 +128,7 @@ pub trait Statement: Send + Sync + std::fmt::Debug {
 }
 
 /// AST上下文，包含AST相关信息
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AstContext {
     /// 查询类型
     pub query_type: String,
@@ -291,6 +291,15 @@ impl AstContext {
         self.clear_variables();
         self.clear_output_columns();
         self.clear_input_columns();
+    }
+
+    /// 获取语句类型
+    pub fn statement_type(&self) -> &str {
+        if let Some(ref stmt) = self.statement {
+            stmt.statement_type()
+        } else {
+            ""
+        }
     }
 }
 

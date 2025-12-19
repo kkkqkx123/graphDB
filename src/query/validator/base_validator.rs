@@ -345,7 +345,7 @@ mod tests {
 // ============================================================================
 
 /// Cypher子句类型枚举
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CypherClauseKind {
     Match,
     Where,
@@ -400,12 +400,18 @@ impl Default for MatchClauseContext {
 #[derive(Debug, Clone)]
 pub struct WhereClauseContext {
     pub filter: Option<crate::graph::expression::Expression>,
+    pub paths: Vec<Path>,
+    pub aliases_available: std::collections::HashMap<String, AliasType>,
+    pub aliases_generated: std::collections::HashMap<String, AliasType>,
 }
 
 /// RETURN子句上下文
 #[derive(Debug, Clone)]
 pub struct ReturnClauseContext {
     pub yield_clause: YieldClauseContext,
+    pub order_by: Option<OrderByClauseContext>,
+    pub pagination: Option<PaginationContext>,
+    pub distinct: bool,
 }
 
 /// WITH子句上下文
@@ -418,6 +424,7 @@ pub struct WithClauseContext {
 #[derive(Debug, Clone)]
 pub struct OrderByClauseContext {
     pub columns: Vec<OrderByColumn>,
+    pub indexed_order_factors: Vec<(usize, OrderType)>,
 }
 
 /// ORDER BY列定义
@@ -452,6 +459,18 @@ pub struct UnwindClauseContext {
 #[derive(Debug, Clone)]
 pub struct YieldClauseContext {
     pub columns: Vec<YieldColumn>,
+    pub yield_columns: Vec<YieldColumn>,
+    pub proj_output_column_names: Vec<String>,
+    pub has_agg: bool,
+    pub need_gen_project: bool,
+    pub distinct: bool,
+    pub group_keys: Vec<crate::graph::expression::Expression>,
+    pub group_items: Vec<crate::graph::expression::Expression>,
+    pub agg_output_column_names: Vec<String>,
+    pub proj_cols: Vec<crate::graph::expression::Expression>,
+    pub paths: Vec<Path>,
+    pub aliases_available: std::collections::HashMap<String, AliasType>,
+    pub aliases_generated: std::collections::HashMap<String, AliasType>,
 }
 
 // ============================================================================

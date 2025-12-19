@@ -283,9 +283,9 @@ mod tests {
         let clause_ctx = CypherClauseContext::Where(
             crate::query::validator::WhereClauseContext {
                 filter: None,
+                paths: vec![],
                 aliases_available: HashMap::new(),
                 aliases_generated: HashMap::new(),
-                paths: vec![],
             },
         );
 

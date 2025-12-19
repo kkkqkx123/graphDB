@@ -619,7 +619,7 @@ impl Optimizer {
         plan: ExecutionPlan,
     ) -> Result<ExecutionPlan, OptimizerError> {
         // Create an optimization context
-        let mut opt_ctx = OptContext::new(qctx.clone());
+        let mut opt_ctx = OptContext::new(qctx);
 
         // Convert the execution plan to an optimization graph
         let mut root_group = self.plan_to_group(&plan)?;

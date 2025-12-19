@@ -85,10 +85,8 @@ impl<'a> ExpressionContext<'a> {
     /// 设置边（用于with_edge方法）
     pub fn with_edge(mut self, edge: &'a crate::core::vertex_edge_path::Edge) -> Self {
         // 将边添加到局部变量中
-        self.local_variables.insert(
-            "edge".to_string(),
-            crate::core::Value::Edge(Box::new(edge.clone())),
-        );
+        self.local_variables
+            .insert("edge".to_string(), crate::core::Value::Edge(edge.clone()));
         self
     }
 
@@ -347,15 +345,16 @@ impl<'a> ExpressionContext<'a> {
 mod tests {
     use super::*;
     use crate::query::context::managers::r#impl::{
-        MockIndexManager, MockMetaClient, MockSchemaManager, MockStorageClient,
+        MemoryIndexManager, MemoryMetaClient, MemorySchemaManager, MemoryStorageClient,
     };
     use std::collections::HashMap;
+    use std::sync::Arc;
 
     fn create_test_query_context() -> QueryContext {
-        let schema_manager = Arc::new(MockSchemaManager::new());
-        let index_manager = Arc::new(MockIndexManager::new());
-        let meta_client = Arc::new(MockMetaClient::new());
-        let storage_client = Arc::new(MockStorageClient::new());
+        let schema_manager = Arc::new(MemorySchemaManager::new());
+        let index_manager = Arc::new(MemoryIndexManager::new());
+        let meta_client = Arc::new(MemoryMetaClient::new());
+        let storage_client = Arc::new(MemoryStorageClient::new());
 
         let mut ctx = QueryContext::new(
             "session123".to_string(),
@@ -439,10 +438,10 @@ mod tests {
         let expr_ctx = ExpressionContext::with_query_context(&query_ctx);
 
         // 测试with_execution_context
-        let schema_manager = Arc::new(MockSchemaManager::new());
-        let index_manager = Arc::new(MockIndexManager::new());
-        let meta_client = Arc::new(MockMetaClient::new());
-        let storage_client = Arc::new(MockStorageClient::new());
+        let schema_manager = Arc::new(MemorySchemaManager::new());
+        let index_manager = Arc::new(MemoryIndexManager::new());
+        let meta_client = Arc::new(MemoryMetaClient::new());
+        let storage_client = Arc::new(MemoryStorageClient::new());
 
         let query_ctx2 = Arc::new(QueryContext::new(
             "session123".to_string(),
