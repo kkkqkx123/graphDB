@@ -1,6 +1,7 @@
-//! 简化的表达式求值器
+//! 统一的表达式求值器
 //!
 //! 直接使用graph/expression模块，消除重复代码
+//! 提供完整的Cypher表达式评估功能
 
 use crate::core::error::DBError;
 use crate::core::Value;
@@ -8,9 +9,10 @@ use crate::graph::expression::ExpressionEvaluator as GraphExpressionEvaluator;
 use crate::query::executor::cypher::context::CypherExecutionContext;
 use crate::query::parser::cypher::ast::expressions::Expression;
 
-/// 简化的表达式求值器
+/// 统一的表达式求值器
 ///
-/// 直接使用graph/expression模块的ExpressionEvaluator，无需适配器
+/// 直接使用graph/expression模块的ExpressionEvaluator，提供完整的Cypher表达式评估功能
+/// 这个实现消除了表达式系统的重复，确保了统一性
 #[derive(Debug)]
 pub struct ExpressionEvaluator {
     inner: GraphExpressionEvaluator,
@@ -51,20 +53,14 @@ impl ExpressionEvaluator {
     ) -> Result<Vec<Value>, DBError> {
         let eval_context = self.convert_context(context);
 
-        let mut results = Vec::new();
-        for expr in exprs {
-            results.push(
-                self.inner
-                    .evaluate_cypher(expr, &eval_context)
-                    .map_err(|e| {
-                        DBError::Query(crate::core::error::QueryError::ExecutionError(
-                            e.to_string(),
-                        ))
-                    })?,
-            );
-        }
-
-        Ok(results)
+        // 使用统一的批量评估功能
+        self.inner
+            .evaluate_cypher_batch(exprs, &eval_context)
+            .map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                    e.to_string(),
+                ))
+            })
     }
 
     /// 转换上下文类型
@@ -106,104 +102,26 @@ impl ExpressionEvaluator {
 
     /// 检查表达式是否为常量
     pub fn is_constant(&self, expr: &Expression) -> bool {
-        // 简化实现：只有字面量是常量
-        matches!(expr, Expression::Literal(_))
+        // 使用统一的常量检查功能
+        self.inner.is_cypher_constant(expr)
     }
 
     /// 获取表达式中使用的所有变量
     pub fn get_variables(&self, expr: &Expression) -> Vec<String> {
-        let mut variables = Vec::new();
-        self.collect_variables(expr, &mut variables);
-        variables.sort();
-        variables.dedup();
-        variables
-    }
-
-    /// 递归收集变量
-    fn collect_variables(&self, expr: &Expression, variables: &mut Vec<String>) {
-        match expr {
-            Expression::Variable(name) => {
-                if !variables.contains(name) {
-                    variables.push(name.clone());
-                }
-            }
-            Expression::Property(prop_expr) => {
-                self.collect_variables(&prop_expr.expression, variables);
-            }
-            Expression::Binary(bin_expr) => {
-                self.collect_variables(&bin_expr.left, variables);
-                self.collect_variables(&bin_expr.right, variables);
-            }
-            Expression::Unary(unary_expr) => {
-                self.collect_variables(&unary_expr.expression, variables);
-            }
-            Expression::FunctionCall(func_call) => {
-                for arg in &func_call.arguments {
-                    self.collect_variables(arg, variables);
-                }
-            }
-            Expression::List(list_expr) => {
-                for element in &list_expr.elements {
-                    self.collect_variables(element, variables);
-                }
-            }
-            Expression::Map(map_expr) => {
-                for (_, value) in &map_expr.properties {
-                    self.collect_variables(value, variables);
-                }
-            }
-            Expression::Case(case_expr) => {
-                for alternative in &case_expr.alternatives {
-                    self.collect_variables(&alternative.when_expression, variables);
-                    self.collect_variables(&alternative.then_expression, variables);
-                }
-                if let Some(default_expr) = &case_expr.default_alternative {
-                    self.collect_variables(default_expr, variables);
-                }
-            }
-            Expression::PatternExpression(_) => {
-                // 模式表达式暂时不处理变量收集
-            }
-            Expression::Literal(_) => {
-                // 字面量不包含变量
-            }
-        }
+        // 使用统一的变量收集功能
+        self.inner.get_cypher_variables(expr)
     }
 
     /// 检查表达式是否包含聚合函数
     pub fn contains_aggregate(&self, expr: &Expression) -> bool {
-        match expr {
-            Expression::FunctionCall(func_call) => {
-                // 检查是否是聚合函数
-                matches!(
-                    func_call.function_name.to_lowercase().as_str(),
-                    "count" | "sum" | "avg" | "min" | "max" | "collect" | "distinct"
-                )
-            }
-            Expression::Binary(bin_expr) => {
-                self.contains_aggregate(&bin_expr.left) || self.contains_aggregate(&bin_expr.right)
-            }
-            Expression::Unary(unary_expr) => self.contains_aggregate(&unary_expr.expression),
-            Expression::Property(prop_expr) => self.contains_aggregate(&prop_expr.expression),
-            Expression::List(list_expr) => list_expr
-                .elements
-                .iter()
-                .any(|e| self.contains_aggregate(e)),
-            Expression::Map(map_expr) => map_expr
-                .properties
-                .values()
-                .any(|e| self.contains_aggregate(e)),
-            Expression::Case(case_expr) => {
-                case_expr.alternatives.iter().any(|alt| {
-                    self.contains_aggregate(&alt.when_expression)
-                        || self.contains_aggregate(&alt.then_expression)
-                }) || case_expr
-                    .default_alternative
-                    .as_ref()
-                    .map_or(false, |e| self.contains_aggregate(e))
-            }
-            _ => false,
-        }
+        // 使用统一的聚合函数检查功能
+        self.inner.contains_cypher_aggregate(expr)
+    }
+
+    /// 优化表达式
+    pub fn optimize_expression(&self, expr: &Expression) -> Expression {
+        // 使用统一的表达式优化功能
+        self.inner.optimize_cypher_expression(expr)
     }
 }
 

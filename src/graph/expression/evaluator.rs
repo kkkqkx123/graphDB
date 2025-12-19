@@ -449,6 +449,38 @@ impl ExpressionEvaluator {
         cypher_expr: &CypherExpression,
         context: &EvalContext,
     ) -> Result<Value, ExpressionError> {
-        super::cypher_compat::evaluate_cypher(cypher_expr, context)
+        super::cypher::CypherEvaluator::evaluate_cypher(cypher_expr, context)
+    }
+
+    /// 批量评估Cypher表达式
+    pub fn evaluate_cypher_batch(
+        &self,
+        cypher_exprs: &[CypherExpression],
+        context: &EvalContext,
+    ) -> Result<Vec<Value>, ExpressionError> {
+        super::cypher::CypherEvaluator::evaluate_cypher_batch(cypher_exprs, context)
+    }
+
+    /// 检查Cypher表达式是否为常量
+    pub fn is_cypher_constant(&self, cypher_expr: &CypherExpression) -> bool {
+        super::cypher::CypherEvaluator::is_cypher_constant(cypher_expr)
+    }
+
+    /// 获取Cypher表达式中使用的所有变量
+    pub fn get_cypher_variables(&self, cypher_expr: &CypherExpression) -> Vec<String> {
+        super::cypher::CypherEvaluator::get_cypher_variables(cypher_expr)
+    }
+
+    /// 检查Cypher表达式是否包含聚合函数
+    pub fn contains_cypher_aggregate(&self, cypher_expr: &CypherExpression) -> bool {
+        super::cypher::CypherEvaluator::contains_cypher_aggregate(cypher_expr)
+    }
+
+    /// 优化Cypher表达式
+    pub fn optimize_cypher_expression(
+        &self,
+        cypher_expr: &CypherExpression,
+    ) -> CypherExpression {
+        super::cypher::CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr)
     }
 }

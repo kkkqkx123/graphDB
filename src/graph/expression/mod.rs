@@ -4,7 +4,7 @@ pub mod arithmetic;
 pub mod binary;
 pub mod comparison;
 pub mod container;
-pub mod cypher_compat;
+pub mod cypher;
 pub mod error;
 pub mod evaluator;
 pub mod expression;
@@ -26,3 +26,6 @@ pub use expression::LiteralValue;
 pub use expression::UnaryOperator;
 
 pub use evaluator::ExpressionEvaluator;
+
+// Re-export cypher module types for convenience
+pub use cypher::{CypherProcessor, ExpressionConverter, CypherEvaluator, CypherExpressionOptimizer};

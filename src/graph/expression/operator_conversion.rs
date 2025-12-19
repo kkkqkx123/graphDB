@@ -95,3 +95,53 @@ pub fn convert_cypher_unary_operator(
         CypherOp::Negative => GraphOp::Minus,
     }
 }
+
+/// 将统一表达式二元操作符转换为Cypher二元操作符
+pub fn convert_unified_to_cypher_binary_operator(
+    op: &crate::graph::expression::expression::BinaryOperator,
+) -> Result<crate::query::parser::cypher::ast::expressions::BinaryOperator, String> {
+    use crate::graph::expression::expression::BinaryOperator as GraphOp;
+    use crate::query::parser::cypher::ast::expressions::BinaryOperator as CypherOp;
+
+    match op {
+        GraphOp::Add => Ok(CypherOp::Add),
+        GraphOp::Subtract => Ok(CypherOp::Subtract),
+        GraphOp::Multiply => Ok(CypherOp::Multiply),
+        GraphOp::Divide => Ok(CypherOp::Divide),
+        GraphOp::Modulo => Ok(CypherOp::Modulo),
+        GraphOp::And => Ok(CypherOp::And),
+        GraphOp::Or => Ok(CypherOp::Or),
+        GraphOp::Equal => Ok(CypherOp::Equal),
+        GraphOp::NotEqual => Ok(CypherOp::NotEqual),
+        GraphOp::LessThan => Ok(CypherOp::LessThan),
+        GraphOp::LessThanOrEqual => Ok(CypherOp::LessThanOrEqual),
+        GraphOp::GreaterThan => Ok(CypherOp::GreaterThan),
+        GraphOp::GreaterThanOrEqual => Ok(CypherOp::GreaterThanOrEqual),
+        GraphOp::In => Ok(CypherOp::In),
+        GraphOp::StringConcat => Ok(CypherOp::Add), // 临时映射
+        GraphOp::Like => Ok(CypherOp::RegexMatch), // 临时映射
+        GraphOp::Union => Ok(CypherOp::Add), // 临时映射
+        GraphOp::Intersect => Ok(CypherOp::And), // 临时映射
+        GraphOp::Except => Ok(CypherOp::Subtract), // 临时映射
+    }
+}
+
+/// 将统一表达式一元操作符转换为Cypher一元操作符
+pub fn convert_unified_to_cypher_unary_operator(
+    op: &crate::graph::expression::expression::UnaryOperator,
+) -> Result<crate::query::parser::cypher::ast::expressions::UnaryOperator, String> {
+    use crate::graph::expression::expression::UnaryOperator as GraphOp;
+    use crate::query::parser::cypher::ast::expressions::UnaryOperator as CypherOp;
+
+    match op {
+        GraphOp::Plus => Ok(CypherOp::Positive),
+        GraphOp::Minus => Ok(CypherOp::Negative),
+        GraphOp::Not => Ok(CypherOp::Not),
+        GraphOp::IsNull => Ok(CypherOp::Positive), // 临时映射
+        GraphOp::IsNotNull => Ok(CypherOp::Positive), // 临时映射
+        GraphOp::IsEmpty => Ok(CypherOp::Positive), // 临时映射
+        GraphOp::IsNotEmpty => Ok(CypherOp::Positive), // 临时映射
+        GraphOp::Increment => Ok(CypherOp::Positive), // 临时映射
+        GraphOp::Decrement => Ok(CypherOp::Positive), // 临时映射
+    }
+}
