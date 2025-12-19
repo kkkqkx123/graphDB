@@ -2,6 +2,7 @@
 
 use super::super::{Index, IndexManager};
 use std::collections::HashMap;
+use std::result::Result;
 use std::sync::{Arc, RwLock};
 
 /// 内存中的索引管理器实现

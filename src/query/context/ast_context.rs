@@ -4,6 +4,7 @@
 //! 对应原C++中的AstContext.h/cpp
 
 use std::collections::HashMap;
+use std::result::Result;
 
 /// 列定义
 #[derive(Debug, Clone)]

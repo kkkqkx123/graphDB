@@ -4,6 +4,7 @@
 //! 对应原C++中的QueryContext.h/cpp
 
 use crate::core::Value;
+use std::result::Result;
 use crate::query::context::managers::{
     IndexManager, MetaClient, SchemaManager, StorageClient, SpaceInfo,
 };

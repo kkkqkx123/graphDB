@@ -5,6 +5,7 @@
 
 use super::{Iterator, IteratorEnum, IteratorKind, Row};
 use crate::core::Value;
+use std::result::Result;
 use std::sync::Arc;
 
 /// 顺序迭代器

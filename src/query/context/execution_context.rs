@@ -3,7 +3,8 @@
 //! 执行上下文，管理执行期间的状态
 //! 对应原C++中的ExecutionContext.h/cpp
 
-use crate::core::{Result, Value};
+use crate::core::Value;
+use std::result::Result;
 use crate::query::context::QueryContext;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};

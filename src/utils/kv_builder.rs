@@ -1,5 +1,6 @@
 use crate::core::Value;
 use std::collections::HashMap;
+use std::result::Result;
 
 /// Builds a key-value map from a list of key-value pairs
 pub fn build_key_value_map(pairs: Vec<(&str, Value)>) -> HashMap<String, Value> {

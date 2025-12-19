@@ -1,11 +1,11 @@
 //! 验证器注册表
 //! 全局验证器管理
 
-use crate::core::error::{DBError, DBResult};
+use crate::core::error::DBResult;
 use crate::query::context::QueryContext;
 use crate::query::parser::cypher::ast::CypherStatement;
-use crate::query::validator::validator_trait::Validator;
 use crate::query::validator::validator_factory::ValidatorFactory;
+use crate::query::validator::validator_trait::Validator;
 use std::sync::Arc;
 
 /// 验证器注册表
@@ -16,10 +16,10 @@ pub struct ValidatorRegistry {
 impl ValidatorRegistry {
     pub fn new() -> Self {
         let factory = ValidatorFactory::new();
-        
+
         Self { factory }
     }
-    
+
     /// 创建验证器
     pub fn create_validator(
         &self,
@@ -40,10 +40,10 @@ pub fn get_validator_registry() -> &'static ValidatorRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::cypher::ast::clauses::{MatchClause, CreateClause};
     use crate::query::context::managers::r#impl::{
         MockIndexManager, MockMetaClient, MockSchemaManager, MockStorageClient,
     };
+    use crate::query::parser::cypher::ast::clauses::{CreateClause, MatchClause};
 
     #[test]
     fn test_validator_registry_creation() {
@@ -76,7 +76,7 @@ mod tests {
         ));
 
         let registry = ValidatorRegistry::new();
-        
+
         let statement = CypherStatement::Match(MatchClause {
             patterns: Vec::new(),
             where_clause: None,
@@ -104,7 +104,7 @@ mod tests {
         ));
 
         let registry = ValidatorRegistry::new();
-        
+
         let statement = CypherStatement::Create(CreateClause {
             patterns: Vec::new(),
         });
@@ -128,14 +128,16 @@ mod tests {
             meta_client,
             storage_client,
         ));
-        
+
         let statement = CypherStatement::Match(MatchClause {
             patterns: Vec::new(),
             where_clause: None,
             optional: false,
         });
 
-        let validator = get_validator_registry().create_validator(&statement, qctx).unwrap();
+        let validator = get_validator_registry()
+            .create_validator(&statement, qctx)
+            .unwrap();
         assert_eq!(validator.name(), "MatchValidator");
     }
 }

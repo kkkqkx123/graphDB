@@ -7,6 +7,7 @@ use super::schema::{self, SchemaInfo, SchemaProvider};
 use super::types::{ColsDef, SpaceInfo, Variable};
 use crate::core::symbol::SymbolTable;
 use crate::core::Value;
+use std::result::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 
