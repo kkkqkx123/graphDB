@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
 use crate::graph::expression::{Expression, ExpressionEvaluator};
-use crate::query::context::EvalContext;
+use crate::query::context::ExpressionContext;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -209,7 +209,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
         col_names: &[String],
         evaluator: &ExpressionEvaluator,
     ) -> DBResult<Vec<Value>> {
-        let mut context = EvalContext::new();
+        let mut context = ExpressionContext::new();
         for (i, col_name) in col_names.iter().enumerate() {
             if i < row.len() {
                 context.set_variable(col_name.clone(), row[i].clone());

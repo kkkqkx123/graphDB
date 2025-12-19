@@ -9,6 +9,7 @@ use crate::storage::iterator::IteratorEnum;
 use std::collections::HashMap;
 
 /// 表达式求值上下文
+#[derive(Clone)]
 pub struct ExpressionContext<'a> {
     /// 查询上下文（可选）
     pub query_context: Option<&'a QueryContext>,

@@ -1,12 +1,12 @@
 use super::error::ExpressionError;
 use crate::core::Value;
 use crate::graph::expression::Expression;
-use crate::query::context::EvalContext;
+use crate::query::context::ExpressionContext;
 
 /// 评估属性表达式
 pub fn evaluate_property_expression(
     expr: &Expression,
-    context: &EvalContext,
+    context: &ExpressionContext,
 ) -> Result<Value, ExpressionError> {
     match expr {
         Expression::TagProperty { tag, prop } => {

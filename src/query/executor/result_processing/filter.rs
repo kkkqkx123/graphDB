@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
 use crate::graph::expression::{Expression, ExpressionEvaluator};
-use crate::query::context::EvalContext;
+use crate::query::context::ExpressionContext;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -88,7 +88,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for row in &dataset.rows {
             // 构建表达式上下文
-            let mut context = EvalContext::new();
+            let mut context = ExpressionContext::new();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
                     context.set_variable(col_name.clone(), row[i].clone());
@@ -120,7 +120,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for value in values {
             // 构建表达式上下文
-            let mut context = EvalContext::new();
+            let mut context = ExpressionContext::new();
             context.set_variable("value".to_string(), value.clone());
 
             // 评估过滤条件
@@ -147,7 +147,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for vertex in vertices {
             // 构建表达式上下文
-            let mut context = EvalContext::with_vertex(&vertex);
+            let mut context = ExpressionContext::with_vertex(&vertex);
 
             // 评估过滤条件
             let condition_result = evaluator.evaluate(&self.condition, &context)
@@ -173,7 +173,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for edge in edges {
             // 构建表达式上下文
-            let mut context = EvalContext::with_edge(&edge);
+            let mut context = ExpressionContext::with_edge(&edge);
 
             // 评估过滤条件
             let condition_result = evaluator.evaluate(&self.condition, &context)
