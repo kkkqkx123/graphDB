@@ -387,17 +387,20 @@ impl<T> WorkStealingQueue<T> {
     }
 
     pub fn push(&self, task: T) {
-        let mut tasks = self.tasks.lock().unwrap();
+        let mut tasks = self.tasks.lock()
+            .expect("WorkStealingQueue tasks lock should not be poisoned");
         tasks.push(task);
     }
 
     pub fn try_steal(&self) -> Option<T> {
-        let mut tasks = self.tasks.lock().unwrap();
+        let mut tasks = self.tasks.lock()
+            .expect("WorkStealingQueue tasks lock should not be poisoned");
         tasks.pop()
     }
 
     pub fn len(&self) -> usize {
-        let tasks = self.tasks.lock().unwrap();
+        let tasks = self.tasks.lock()
+            .expect("WorkStealingQueue tasks lock should not be poisoned");
         tasks.len()
     }
 }
@@ -419,7 +422,7 @@ mod tests {
     fn test_parallel_hash_table_builder() {
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["id".to_string(), "name".to_string()];
-        
+
         // 创建足够多的数据以触发并行处理
         for i in 0..2000 {
             dataset.rows.push(vec![
@@ -436,10 +439,10 @@ mod tests {
 
         let result = ParallelHashTableBuilder::build_single_key_table_parallel(&dataset, 0, &config);
         assert!(result.is_ok());
-        
-        let hash_table = result.unwrap();
+
+        let hash_table = result.expect("Failed to build parallel hash table");
         assert_eq!(hash_table.len(), 100); // 100个不同的键
-        
+
         // 验证每个键有20个值
         for bucket in hash_table.values() {
             assert_eq!(bucket.len(), 20);

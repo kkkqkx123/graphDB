@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_agg_function_meta_get_count() {
-        let meta = AggFunctionMeta::get("COUNT").unwrap();
+        let meta = AggFunctionMeta::get("COUNT").expect("COUNT function should exist in test");
         assert_eq!(meta.name, "COUNT");
         assert!(!meta.require_numeric);
         assert!(meta.allow_wildcard);
@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn test_agg_function_meta_get_sum() {
-        let meta = AggFunctionMeta::get("SUM").unwrap();
+        let meta = AggFunctionMeta::get("SUM").expect("SUM function should exist in test");
         assert_eq!(meta.name, "SUM");
         assert!(meta.require_numeric);
         assert!(!meta.allow_wildcard);

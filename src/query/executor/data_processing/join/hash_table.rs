@@ -222,7 +222,7 @@ mod tests {
             vec![Value::Int(1), Value::String("Charlie".to_string())],
         ];
 
-        let hash_table = HashTableBuilder::build_single_key_table(&dataset, 0).unwrap();
+        let hash_table = HashTableBuilder::build_single_key_table(&dataset, 0).expect("Expected successful single key hash table build");
 
         assert_eq!(hash_table.len(), 2); // 两个不同的键: 1 和 2
         assert_eq!(hash_table[&Value::Int(1)].len(), 2); // 键1有两行
@@ -251,7 +251,7 @@ mod tests {
             ],
         ];
 
-        let hash_table = HashTableBuilder::build_multi_key_table(&dataset, &[0, 1]).unwrap();
+        let hash_table = HashTableBuilder::build_multi_key_table(&dataset, &[0, 1]).expect("Expected successful multi key hash table build");
 
         assert_eq!(hash_table.len(), 2); // 两个不同的键组合: (1,Alice) 和 (2,Bob)
 
@@ -275,7 +275,7 @@ mod tests {
             vec![Value::Int(3), Value::Int(35)],
         ];
 
-        let hash_table = HashTableBuilder::build_single_key_table(&build_dataset, 0).unwrap();
+        let hash_table = HashTableBuilder::build_single_key_table(&build_dataset, 0).expect("Expected successful single key hash table build for probe test");
         let results = HashTableProbe::probe_single_key(&hash_table, &probe_dataset, 0);
 
         assert_eq!(results.len(), 1); // 只有一个匹配

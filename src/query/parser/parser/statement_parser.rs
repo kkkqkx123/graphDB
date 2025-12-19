@@ -415,7 +415,8 @@ impl super::Parser {
                                         Pattern::Path(path) => {
                                             // Extract first element from path if it's a single element path
                                             if path.elements.len() == 1 {
-                                                path.elements.into_iter().next().unwrap()
+                                                path.elements.into_iter().next()
+                                                    .expect("Path should have at least one element when length is 1")
                                             } else {
                                                 // For complex paths, create a simple node pattern as fallback
                                                 PathElement::Node(NodePattern::new(

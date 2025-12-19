@@ -19,11 +19,15 @@ mod tests {
     async fn create_test_graph(test_name: &str) -> Arc<Mutex<NativeStorage>> {
         let config = test_config();
         let db_path = config.test_db_path(&format!("test_graph_{}", test_name));
-        let storage = Arc::new(Mutex::new(NativeStorage::new(db_path).unwrap()));
+        let storage = Arc::new(Mutex::new(
+            NativeStorage::new(db_path)
+                .expect("Failed to create test storage")
+        ));
 
         // 创建测试图：A -> B -> C, A -> D
         {
-            let mut storage_lock = storage.lock().unwrap();
+            let mut storage_lock = storage.lock()
+                .expect("Test storage lock should not be poisoned");
 
             // 创建顶点
             let vertex_a = Vertex::new(Value::String("A".to_string()), vec![]);
@@ -31,10 +35,14 @@ mod tests {
             let vertex_c = Vertex::new(Value::String("C".to_string()), vec![]);
             let vertex_d = Vertex::new(Value::String("D".to_string()), vec![]);
 
-            let id_a = storage_lock.insert_node(vertex_a).unwrap();
-            let id_b = storage_lock.insert_node(vertex_b).unwrap();
-            let id_c = storage_lock.insert_node(vertex_c).unwrap();
-            let id_d = storage_lock.insert_node(vertex_d).unwrap();
+            let id_a = storage_lock.insert_node(vertex_a)
+                .expect("Failed to insert test vertex A");
+            let id_b = storage_lock.insert_node(vertex_b)
+                .expect("Failed to insert test vertex B");
+            let id_c = storage_lock.insert_node(vertex_c)
+                .expect("Failed to insert test vertex C");
+            let id_d = storage_lock.insert_node(vertex_d)
+                .expect("Failed to insert test vertex D");
 
             // 创建边
             let edge_ab = Edge::new(
@@ -59,9 +67,12 @@ mod tests {
                 std::collections::HashMap::new(),
             );
 
-            storage_lock.insert_edge(edge_ab).unwrap();
-            storage_lock.insert_edge(edge_bc).unwrap();
-            storage_lock.insert_edge(edge_ad).unwrap();
+            storage_lock.insert_edge(edge_ab)
+                .expect("Failed to insert test edge AB");
+            storage_lock.insert_edge(edge_bc)
+                .expect("Failed to insert test edge BC");
+            storage_lock.insert_edge(edge_ad)
+                .expect("Failed to insert test edge AD");
         }
 
         storage

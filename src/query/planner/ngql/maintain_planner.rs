@@ -66,7 +66,8 @@ impl Planner for MaintainPlanner {
             is_matched: false,
         }];
         
-        let project_node = Arc::new(ProjectNode::new(arg_node.clone(), yield_columns).unwrap());
+        let project_node = Arc::new(ProjectNode::new(arg_node.clone(), yield_columns)
+            .expect("ProjectNode creation should succeed with valid input"));
 
         // 3. 不同类型的操作可能需要不同处理
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =

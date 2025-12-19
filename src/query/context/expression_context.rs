@@ -34,9 +34,16 @@ pub struct QueryExpressionContext {
 
 impl std::fmt::Debug for QueryExpressionContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let has_iterator = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned")
+            .is_some();
+        let expr_vars_count = self.expr_value_map.read()
+            .expect("ExpressionContext expression value map lock should not be poisoned")
+            .len();
+        
         f.debug_struct("QueryExpressionContext")
-            .field("has_iterator", &self.iter.lock().unwrap().is_some())
-            .field("expr_vars", &self.expr_value_map.read().unwrap().len())
+            .field("has_iterator", &has_iterator)
+            .field("expr_vars", &expr_vars_count)
             .finish()
     }
 }
@@ -62,7 +69,8 @@ impl QueryExpressionContext {
     /// # 返回
     /// 更新后的上下文（链式调用）
     pub fn with_iterator(self, iter: IteratorEnum) -> Self {
-        *self.iter.lock().unwrap() = Some(iter);
+        *self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned") = Some(iter);
         self
     }
 
@@ -109,18 +117,22 @@ impl QueryExpressionContext {
     pub fn set_inner_var(&self, var: &str, value: Value) {
         self.expr_value_map
             .write()
-            .unwrap()
+            .expect("ExpressionContext expression value map write lock should not be poisoned")
             .insert(var.to_string(), value);
     }
 
     /// 获取表达式内部变量
     pub fn get_inner_var(&self, var: &str) -> Option<Value> {
-        self.expr_value_map.read().unwrap().get(var).cloned()
+        self.expr_value_map.read()
+            .expect("ExpressionContext expression value map read lock should not be poisoned")
+            .get(var).cloned()
     }
 
     /// 清除所有表达式内部变量
     pub fn clear_inner_vars(&self) {
-        self.expr_value_map.write().unwrap().clear();
+        self.expr_value_map.write()
+            .expect("ExpressionContext expression value map write lock should not be poisoned")
+            .clear();
     }
 
     // ===== 列访问 =====
@@ -134,7 +146,8 @@ impl QueryExpressionContext {
     /// - Ok(Value): 列值
     /// - Err(String): 如果列不存在或没有迭代器
     pub fn get_column(&self, col: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => iter
                 .get_column(col)
@@ -149,7 +162,8 @@ impl QueryExpressionContext {
     /// # 参数
     /// - `index`: 列索引（支持负数）
     pub fn get_column_by_index(&self, index: i32) -> Result<Value, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => iter
                 .get_column_by_index(index)
@@ -164,7 +178,8 @@ impl QueryExpressionContext {
     /// # 参数
     /// - `col`: 列名
     pub fn get_column_index(&self, col: &str) -> Result<usize, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => iter
                 .get_column_index(col)
@@ -175,7 +190,8 @@ impl QueryExpressionContext {
 
     /// 获取所有列名
     pub fn get_col_names(&self) -> Result<Vec<String>, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => Ok(iter.get_col_names()),
             None => Err("没有设置迭代器".to_string()),
@@ -229,7 +245,8 @@ impl QueryExpressionContext {
                     .ok_or_else(|| format!("DataSet变量 {} 的列 {} 不存在", var, prop))?;
 
                 // 获取当前行的值（如果有迭代器）
-                let iter_guard = self.iter.lock().unwrap();
+                let iter_guard = self.iter.lock()
+                    .expect("ExpressionContext iterator lock should not be poisoned");
                 match iter_guard.as_ref() {
                     Some(iter) => {
                         if iter.valid() {
@@ -255,7 +272,8 @@ impl QueryExpressionContext {
     /// - `tag`: 标签名
     /// - `prop`: 属性名
     pub fn get_tag_prop(&self, tag: &str, prop: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => iter
                 .get_tag_prop(tag, prop)
@@ -270,7 +288,8 @@ impl QueryExpressionContext {
     /// - `edge`: 边名
     /// - `prop`: 属性名
     pub fn get_edge_prop(&self, edge: &str, prop: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => iter
                 .get_edge_prop(edge, prop)
@@ -287,7 +306,8 @@ impl QueryExpressionContext {
     /// - `tag`: 标签名
     /// - `prop`: 属性名
     pub fn get_src_prop(&self, tag: &str, prop: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => {
                 // 从当前顶点获取源属性
@@ -306,7 +326,8 @@ impl QueryExpressionContext {
     /// - `tag`: 标签名
     /// - `prop`: 属性名
     pub fn get_dst_prop(&self, tag: &str, prop: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => {
                 // 从当前边获取目标顶点属性
@@ -324,7 +345,8 @@ impl QueryExpressionContext {
     /// # 参数
     /// - `prop`: 属性名
     pub fn get_input_prop(&self, prop: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => {
                 // 从输入行获取属性
@@ -341,7 +363,8 @@ impl QueryExpressionContext {
     /// # 参数
     /// - `prop`: 属性名
     pub fn get_input_prop_index(&self, prop: &str) -> Result<usize, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => iter
                 .get_column_index(prop)
@@ -357,7 +380,8 @@ impl QueryExpressionContext {
     /// # 参数
     /// - `name`: 顶点名（可选）
     pub fn get_vertex(&self, name: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => iter
                 .get_vertex(name)
@@ -368,7 +392,8 @@ impl QueryExpressionContext {
 
     /// 获取边
     pub fn get_edge(&self) -> Result<Value, String> {
-        let iter_guard = self.iter.lock().unwrap();
+        let iter_guard = self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned");
         match iter_guard.as_ref() {
             Some(iter) => iter.get_edge().ok_or_else(|| "边不存在".to_string()),
             None => Err("没有设置迭代器".to_string()),
@@ -379,14 +404,16 @@ impl QueryExpressionContext {
 
     /// 检查是否有迭代器
     pub fn has_iterator(&self) -> bool {
-        self.iter.lock().unwrap().is_some()
+        self.iter.lock()
+            .expect("ExpressionContext iterator lock should not be poisoned")
+            .is_some()
     }
 
     /// 获取当前迭代器的有效性
     pub fn is_iter_valid(&self) -> bool {
         self.iter
             .lock()
-            .unwrap()
+            .expect("ExpressionContext iterator lock should not be poisoned")
             .as_ref()
             .map(|iter| iter.valid())
             .unwrap_or(false)
@@ -417,10 +444,12 @@ mod tests {
     #[test]
     fn test_var_access() {
         let qectx = Arc::new(QueryExecutionContext::new());
-        qectx.set_value("x", Value::Int(42)).unwrap();
+        qectx.set_value("x", Value::Int(42))
+            .expect("Failed to set test value");
 
         let qctx = QueryExpressionContext::new(qectx);
-        let val = qctx.get_var("x").unwrap();
+        let val = qctx.get_var("x")
+            .expect("Failed to get test value");
         assert_eq!(val, Value::Int(42));
     }
 
@@ -439,9 +468,10 @@ mod tests {
         let qctx = QueryExpressionContext::new(qectx);
 
         qctx.set_var("y", Value::String("hello".to_string()))
-            .unwrap();
+            .expect("Failed to set test variable");
         assert_eq!(
-            qctx.get_var("y").unwrap(),
+            qctx.get_var("y")
+                .expect("Failed to get test variable"),
             Value::String("hello".to_string())
         );
     }
@@ -458,13 +488,15 @@ mod tests {
     #[test]
     fn test_clone() {
         let qectx = Arc::new(QueryExecutionContext::new());
-        qectx.set_value("x", Value::Int(42)).unwrap();
+        qectx.set_value("x", Value::Int(42))
+            .expect("Failed to set test value");
 
         let qctx = QueryExpressionContext::new(qectx);
         qctx.set_inner_var("temp", Value::Int(100));
 
         let cloned = qctx.clone();
-        assert_eq!(cloned.get_var("x").unwrap(), Value::Int(42));
+        assert_eq!(cloned.get_var("x")
+            .expect("Failed to get test value"), Value::Int(42));
         assert_eq!(cloned.get_inner_var("temp"), Some(Value::Int(100)));
     }
 }

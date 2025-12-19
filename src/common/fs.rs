@@ -213,19 +213,22 @@ impl FileHandle {
 
     /// Read from the file
     pub fn read(&self, buf: &mut [u8]) -> FsResult<usize> {
-        let mut file = self.file.lock().unwrap();
+        let mut file = self.file.lock()
+            .expect("File handle lock should not be poisoned");
         file.read(buf).map_err(|e| FsError::IoError(e))
     }
 
     /// Write to the file
     pub fn write(&self, buf: &[u8]) -> FsResult<usize> {
-        let mut file = self.file.lock().unwrap();
+        let mut file = self.file.lock()
+            .expect("File handle lock should not be poisoned");
         file.write(buf).map_err(|e| FsError::IoError(e))
     }
 
     /// Seek to a position in the file
     pub fn seek(&self, pos: SeekFrom) -> FsResult<u64> {
-        let mut file = self.file.lock().unwrap();
+        let mut file = self.file.lock()
+            .expect("File handle lock should not be poisoned");
         file.seek(pos).map_err(|e| FsError::IoError(e))
     }
 
@@ -234,7 +237,7 @@ impl FileHandle {
         let metadata = self
             .file
             .lock()
-            .unwrap()
+            .expect("File handle lock should not be poisoned")
             .metadata()
             .map_err(|e| FsError::IoError(e))?;
 
@@ -252,7 +255,8 @@ impl FileHandle {
 
     /// Synchronize the file to disk
     pub fn sync_all(&self) -> FsResult<()> {
-        let file = self.file.lock().unwrap();
+        let file = self.file.lock()
+            .expect("File handle lock should not be poisoned");
         file.sync_all().map_err(|e| FsError::IoError(e))
     }
 
@@ -320,7 +324,8 @@ impl FileCache {
 
         // Check if it's in cache first
         {
-            let cache = self.cache.lock().unwrap();
+            let cache = self.cache.lock()
+                .expect("File cache lock should not be poisoned");
             if let Some(data) = cache.get(&path_buf) {
                 return Ok(data.clone());
             }
@@ -331,9 +336,11 @@ impl FileCache {
 
         // Add to cache if it fits
         {
-            let mut current_size = self.current_size.lock().unwrap();
+            let mut current_size = self.current_size.lock()
+                .expect("File cache size lock should not be poisoned");
             if *current_size + data.len() <= self.max_size {
-                let mut cache = self.cache.lock().unwrap();
+                let mut cache = self.cache.lock()
+                    .expect("File cache lock should not be poisoned");
                 cache.insert(path_buf, data.clone());
                 *current_size += data.len();
             }
@@ -346,9 +353,11 @@ impl FileCache {
     pub fn put<P: AsRef<Path>>(&self, path: P, data: Vec<u8>) {
         let path_buf = path.as_ref().to_path_buf();
 
-        let mut current_size = self.current_size.lock().unwrap();
+        let mut current_size = self.current_size.lock()
+            .expect("File cache size lock should not be poisoned");
         if *current_size + data.len() <= self.max_size {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self.cache.lock()
+                .expect("File cache lock should not be poisoned");
             cache.insert(path_buf, data.clone());
             *current_size += data.len();
         }
@@ -358,23 +367,28 @@ impl FileCache {
     pub fn remove<P: AsRef<Path>>(&self, path: P) {
         let path_buf = path.as_ref().to_path_buf();
 
-        let mut cache = self.cache.lock().unwrap();
+        let mut cache = self.cache.lock()
+            .expect("File cache lock should not be poisoned");
         if let Some(data) = cache.remove(&path_buf) {
-            let mut current_size = self.current_size.lock().unwrap();
+            let mut current_size = self.current_size.lock()
+                .expect("File cache size lock should not be poisoned");
             *current_size -= data.len();
         }
     }
 
     /// Get the current cache size
     pub fn size(&self) -> usize {
-        *self.current_size.lock().unwrap()
+        *self.current_size.lock()
+            .expect("File cache size lock should not be poisoned")
     }
 
     /// Clear the cache
     pub fn clear(&self) {
-        let mut cache = self.cache.lock().unwrap();
+        let mut cache = self.cache.lock()
+            .expect("File cache lock should not be poisoned");
         cache.clear();
-        *self.current_size.lock().unwrap() = 0;
+        *self.current_size.lock()
+            .expect("File cache size lock should not be poisoned") = 0;
     }
 }
 
@@ -416,7 +430,7 @@ impl FileSystemWatcher {
         // Store the path and its current modification time
         self.watched_paths
             .lock()
-            .unwrap()
+            .expect("File system watcher paths lock should not be poisoned")
             .insert(path_buf, modified_time);
         Ok(())
     }
@@ -424,12 +438,15 @@ impl FileSystemWatcher {
     /// Remove a path from watching
     pub fn unwatch<P: AsRef<Path>>(&self, path: P) {
         let path_buf = path.as_ref().to_path_buf();
-        self.watched_paths.lock().unwrap().remove(&path_buf);
+        self.watched_paths.lock()
+            .expect("File system watcher paths lock should not be poisoned")
+            .remove(&path_buf);
     }
 
     /// Check for changes (in a real implementation, this would run continuously)
     pub fn check_for_changes(&self) -> FsResult<Vec<(PathBuf, FileEvent)>> {
-        let watched_paths = self.watched_paths.lock().unwrap();
+        let watched_paths = self.watched_paths.lock()
+            .expect("File system watcher paths lock should not be poisoned");
         let mut changes = Vec::new();
 
         for (path, last_modified) in watched_paths.iter() {

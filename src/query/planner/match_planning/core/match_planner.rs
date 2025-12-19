@@ -245,7 +245,7 @@ mod tests {
         // 转换 MATCH 语句应该成功
         assert!(result.is_ok());
 
-        let subplan = result.unwrap();
+        let subplan = result.expect("Transform should succeed for valid MATCH statement");
         assert!(subplan.root.is_some());
         assert!(subplan.tail.is_some());
 

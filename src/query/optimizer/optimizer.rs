@@ -19,7 +19,7 @@ impl<T: Default> ObjectPool<T> {
     }
 
     pub fn acquire(&mut self) -> T {
-        self.objects.pop_front().unwrap_or_default()
+        self.objects.pop_front().unwrap_or_else(T::default)
     }
 
     pub fn release(&mut self, obj: T) {
@@ -781,7 +781,9 @@ impl Optimizer {
                             ctx.stats.rules_applied += 1;
 
                             // Mark the new node as explored to prevent immediate reprocessing
-                            group.nodes.last_mut().unwrap().set_explored(rule);
+                            if let Some(node) = group.nodes.last_mut() {
+                                node.set_explored(rule);
+                            }
                         }
                     }
                 }

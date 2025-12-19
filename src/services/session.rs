@@ -349,18 +349,18 @@ mod tests {
         let session = Session::new(None, "".to_string(), "".to_string());
 
         // Set a variable
-        session.set_variable("test_key".to_string(), Value::Int(42)).unwrap();
+        session.set_variable("test_key".to_string(), Value::Int(42)).expect("Failed to set session variable in test");
 
         // Get the variable
-        let value = session.get_variable("test_key").unwrap();
+        let value = session.get_variable("test_key").expect("Failed to get session variable in test");
         assert_eq!(value, Some(Value::Int(42)));
 
         // Remove the variable
-        let removed_value = session.remove_variable("test_key").unwrap();
+        let removed_value = session.remove_variable("test_key").expect("Failed to remove session variable in test");
         assert_eq!(removed_value, Some(Value::Int(42)));
 
         // Check that it's gone
-        let value = session.get_variable("test_key").unwrap();
+        let value = session.get_variable("test_key").expect("Failed to get session variable in test");
         assert_eq!(value, None);
     }
 
@@ -373,26 +373,26 @@ mod tests {
             Some("user123".to_string()),
             "client_info".to_string(),
             "connection_info".to_string(),
-        ).unwrap();
+        ).expect("Failed to create session in test");
 
         // Verify the session exists
-        assert!(session_manager.is_valid_session(&session_id).unwrap());
+        assert!(session_manager.is_valid_session(&session_id).expect("Failed to check session validity in test"));
 
         // Get session info
-        let info = session_manager.get_session_info(&session_id).unwrap();
+        let info = session_manager.get_session_info(&session_id).expect("Failed to get session info in test");
         assert!(info.is_some());
-        assert_eq!(info.as_ref().unwrap().user_id, Some("user123".to_string()));
+        assert_eq!(info.as_ref().expect("Session info should exist").user_id, Some("user123".to_string()));
 
         // Touch the session to update last_accessed time
-        assert!(session_manager.touch_session(&session_id).unwrap());
+        assert!(session_manager.touch_session(&session_id).expect("Failed to touch session in test"));
 
         // List active sessions
-        let active_sessions = session_manager.list_active_sessions().unwrap();
+        let active_sessions = session_manager.list_active_sessions().expect("Failed to list active sessions in test");
         assert_eq!(active_sessions.len(), 1);
 
         // Clean up
-        session_manager.remove_session(&session_id).unwrap();
-        assert!(!session_manager.is_valid_session(&session_id).unwrap());
+        session_manager.remove_session(&session_id).expect("Failed to remove session in test");
+        assert!(!session_manager.is_valid_session(&session_id).expect("Failed to check session validity in test"));
     }
 
     #[test]

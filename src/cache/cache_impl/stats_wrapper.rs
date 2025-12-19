@@ -20,7 +20,9 @@ impl<K, V> StatsCacheWrapper<K, V> {
     }
     
     pub fn get_cache_stats(&self) -> CacheStats {
-        self.stats.read().unwrap().clone()
+        self.stats.read()
+            .expect("StatsCacheWrapper stats lock should not be poisoned")
+            .clone()
     }
 }
 
@@ -31,23 +33,25 @@ where
 {
     fn get(&self, key: &K) -> Option<V> {
         let result = self.inner.get(key);
-        
-        let mut stats = self.stats.write().unwrap();
+
+        let mut stats = self.stats.write()
+            .expect("StatsCacheWrapper stats lock should not be poisoned");
         stats.total_operations += 1;
-        
+
         if result.is_some() {
             stats.total_hits += 1;
         } else {
             stats.total_misses += 1;
         }
-        
+
         result
     }
     
     fn put(&self, key: K, value: V) {
         self.inner.put(key, value);
-        
-        let mut stats = self.stats.write().unwrap();
+
+        let mut stats = self.stats.write()
+            .expect("StatsCacheWrapper stats lock should not be poisoned");
         stats.total_operations += 1;
     }
     
@@ -61,8 +65,9 @@ where
     
     fn clear(&self) {
         self.inner.clear();
-        
-        let mut stats = self.stats.write().unwrap();
+
+        let mut stats = self.stats.write()
+            .expect("StatsCacheWrapper stats lock should not be poisoned");
         stats.reset();
     }
     
@@ -81,24 +86,32 @@ where
     V: 'static + Send + Sync + Clone,
 {
     fn hits(&self) -> u64 {
-        self.stats.read().unwrap().total_hits
+        self.stats.read()
+            .expect("StatsCacheWrapper stats lock should not be poisoned")
+            .total_hits
     }
-    
+
     fn misses(&self) -> u64 {
-        self.stats.read().unwrap().total_misses
+        self.stats.read()
+            .expect("StatsCacheWrapper stats lock should not be poisoned")
+            .total_misses
     }
-    
+
     fn hit_rate(&self) -> f64 {
-        let stats = self.stats.read().unwrap();
+        let stats = self.stats.read()
+            .expect("StatsCacheWrapper stats lock should not be poisoned");
         stats.hit_rate()
     }
-    
+
     fn evictions(&self) -> u64 {
-        self.stats.read().unwrap().total_evictions
+        self.stats.read()
+            .expect("StatsCacheWrapper stats lock should not be poisoned")
+            .total_evictions
     }
-    
+
     fn reset_stats(&self) {
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write()
+            .expect("StatsCacheWrapper stats lock should not be poisoned");
         stats.reset();
     }
 }

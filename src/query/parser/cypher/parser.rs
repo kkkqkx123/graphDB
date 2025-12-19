@@ -317,8 +317,8 @@ mod tests {
         let mut parser = CypherParser::new("MATCH (n:Person) RETURN n".to_string());
         let result = parser.parse();
         assert!(result.is_ok());
-        
-        let statements = result.unwrap();
+
+        let statements = result.expect("Expected successful parse of simple query");
         assert_eq!(statements.len(), 1);
     }
 
@@ -328,8 +328,8 @@ mod tests {
         let mut parser = CypherParser::new(input);
         let result = parser.parse();
         assert!(result.is_ok());
-        
-        let statements = result.unwrap();
+
+        let statements = result.expect("Expected successful parse of multiple statements");
         assert_eq!(statements.len(), 2);
     }
 

@@ -215,7 +215,10 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
 
         while !priority_queue.is_empty() {
             // 找到距离最小的节点
-            priority_queue.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            priority_queue.sort_by(|a, b| {
+                a.0.partial_cmp(&b.0)
+                    .expect("Distance values should be comparable")
+            });
             let (current_distance, current_id) = priority_queue.remove(0);
 
             // 如果已经访问过，跳过

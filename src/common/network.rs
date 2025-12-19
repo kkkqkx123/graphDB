@@ -73,7 +73,9 @@ impl<T> NetworkServer<T> {
         println!("GraphDB server listening on {}", addr);
 
         loop {
-            match self.listener.as_ref().unwrap().accept().await {
+            match self.listener.as_ref()
+                .expect("Listener should be initialized before starting server")
+                .accept().await {
                 Ok((stream, addr)) => {
                     let connections = Arc::clone(&self.connections);
                     let config = self.config.clone();
@@ -239,7 +241,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_client_connection() {
-        let addr: SocketAddr = "127.0.0.1:8080".parse().unwrap();
+        let addr: SocketAddr = "127.0.0.1:8080".parse()
+            .expect("Valid socket address should parse correctly");
         let connection = ClientConnection {
             id: "test_client".to_string(),
             address: addr,

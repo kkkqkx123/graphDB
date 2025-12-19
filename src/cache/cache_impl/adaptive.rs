@@ -41,7 +41,8 @@ where
     V: Clone + Send + Sync,
 {
     fn get(&self, key: &K) -> Option<V> {
-        let strategy = self.strategy.read().unwrap();
+        let strategy = self.strategy.read()
+            .expect("AdaptiveCache strategy lock should not be poisoned");
         match *strategy {
             AdaptiveStrategy::LRU => self.lru_cache.get(key),
             AdaptiveStrategy::LFU => self.lfu_cache.get(key),
@@ -53,7 +54,8 @@ where
     }
     
     fn put(&self, key: K, value: V) {
-        let strategy = self.strategy.read().unwrap();
+        let strategy = self.strategy.read()
+            .expect("AdaptiveCache strategy lock should not be poisoned");
         match *strategy {
             AdaptiveStrategy::LRU => self.lru_cache.put(key, value),
             AdaptiveStrategy::LFU => self.lfu_cache.put(key, value),
@@ -66,7 +68,8 @@ where
     }
     
     fn contains(&self, key: &K) -> bool {
-        let strategy = self.strategy.read().unwrap();
+        let strategy = self.strategy.read()
+            .expect("AdaptiveCache strategy lock should not be poisoned");
         match *strategy {
             AdaptiveStrategy::LRU => self.lru_cache.contains(key),
             AdaptiveStrategy::LFU => self.lfu_cache.contains(key),
@@ -77,7 +80,8 @@ where
     }
     
     fn remove(&self, key: &K) -> Option<V> {
-        let strategy = self.strategy.read().unwrap();
+        let strategy = self.strategy.read()
+            .expect("AdaptiveCache strategy lock should not be poisoned");
         match *strategy {
             AdaptiveStrategy::LRU => self.lru_cache.remove(key),
             AdaptiveStrategy::LFU => self.lfu_cache.remove(key),
@@ -93,7 +97,8 @@ where
     }
     
     fn len(&self) -> usize {
-        let strategy = self.strategy.read().unwrap();
+        let strategy = self.strategy.read()
+            .expect("AdaptiveCache strategy lock should not be poisoned");
         match *strategy {
             AdaptiveStrategy::LRU => self.lru_cache.len(),
             AdaptiveStrategy::LFU => self.lfu_cache.len(),
@@ -105,7 +110,8 @@ where
     }
     
     fn is_empty(&self) -> bool {
-        let strategy = self.strategy.read().unwrap();
+        let strategy = self.strategy.read()
+            .expect("AdaptiveCache strategy lock should not be poisoned");
         match *strategy {
             AdaptiveStrategy::LRU => self.lru_cache.is_empty(),
             AdaptiveStrategy::LFU => self.lfu_cache.is_empty(),

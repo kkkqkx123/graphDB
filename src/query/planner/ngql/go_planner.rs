@@ -94,7 +94,7 @@ impl Planner for GoPlanner {
                 arg_node.clone(),
                 vec![join_key.clone()],
                 vec![join_key],
-            ).unwrap());
+            ).expect("InnerJoinNode creation should succeed with valid input"));
             Some(join)
         } else {
             None
@@ -110,7 +110,8 @@ impl Planner for GoPlanner {
                 } else {
                     expand_all_node.clone()
                 };
-            let filter = Arc::new(FilterNode::new(dependency_node, expr).unwrap());
+            let filter = Arc::new(FilterNode::new(dependency_node, expr)
+                .expect("FilterNode creation should succeed with valid input"));
             Some(filter)
         } else {
             None
@@ -134,11 +135,13 @@ impl Planner for GoPlanner {
                 expand_all_node.clone()
             };
 
-        let project_node = Arc::new(ProjectNode::new(last_node, yield_columns).unwrap());
+        let project_node = Arc::new(ProjectNode::new(last_node, yield_columns)
+            .expect("ProjectNode creation should succeed with valid input"));
 
         // 7. 如果需要去重，创建去重节点
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if go_ctx.distinct {
-            let dedup_node = Arc::new(DedupNode::new(project_node).unwrap());
+            let dedup_node = Arc::new(DedupNode::new(project_node)
+                .expect("DedupNode creation should succeed with valid input"));
             dedup_node
         } else {
             project_node

@@ -213,7 +213,10 @@ impl DataFlowManager {
         }
         
         // 最后一个子句应该是输出
-        let last_clause = clauses.last().unwrap();
+        let last_clause = clauses.last()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed(
+                "Clause list should not be empty".to_string()
+            ))?;
         if !matches!(DataFlowNode::flow_direction(*last_clause), FlowDirection::Output) {
             return Err(PlannerError::PlanGenerationFailed(
                 "Last clause should be an output clause".to_string()

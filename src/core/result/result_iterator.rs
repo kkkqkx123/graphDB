@@ -222,7 +222,8 @@ mod tests {
         ];
         let data = Arc::new(Value::DataSet(dataset));
 
-        let mut iter = SequentialResultIterator::new(data).unwrap();
+        let mut iter = SequentialResultIterator::new(data)
+            .expect("SequentialResultIterator should be created successfully with valid DataSet");
 
         assert!(iter.is_valid());
         assert_eq!(iter.size(), 2);

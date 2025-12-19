@@ -65,7 +65,8 @@ impl Planner for LookupPlanner {
             use crate::graph::expression::Expression;
             let expr = Expression::Variable(condition.clone());
             
-            let filter_node = Arc::new(FilterNode::new(index_scan_node.clone(), expr).unwrap());
+            let filter_node = Arc::new(FilterNode::new(index_scan_node.clone(), expr)
+                .expect("FilterNode creation should succeed with valid input"));
             index_scan_node = filter_node;
 
             // 如果是全文索引
@@ -87,11 +88,13 @@ impl Planner for LookupPlanner {
             is_matched: false,
         }];
         
-        let project_node = Arc::new(ProjectNode::new(index_scan_node.clone(), yield_columns).unwrap());
+        let project_node = Arc::new(ProjectNode::new(index_scan_node.clone(), yield_columns)
+            .expect("ProjectNode creation should succeed with valid input"));
 
         // 4. 如果需要去重，创建去重节点
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if lookup_ctx.dedup {
-            let dedup_node = Arc::new(DedupNode::new(project_node).unwrap());
+            let dedup_node = Arc::new(DedupNode::new(project_node)
+                .expect("DedupNode creation should succeed with valid input"));
             dedup_node
         } else {
             project_node

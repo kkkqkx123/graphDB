@@ -100,7 +100,11 @@ impl ProcessManager {
         }
 
         // Otherwise check if it's in our monitored set
-        self.monitored_processes.lock().unwrap().get(&pid).cloned()
+        self.monitored_processes
+            .lock()
+            .expect("Process monitor lock should not be poisoned")
+            .get(&pid)
+            .cloned()
     }
 
     /// Check if a process is running
@@ -111,7 +115,10 @@ impl ProcessManager {
             return true; // Current process is always running
         }
 
-        self.monitored_processes.lock().unwrap().contains_key(&pid)
+        self.monitored_processes
+            .lock()
+            .expect("Process monitor lock should not be poisoned")
+            .contains_key(&pid)
     }
 
     /// List all processes (simplified implementation)
@@ -127,13 +134,16 @@ impl ProcessManager {
     pub fn register_process(&self, info: ProcessInfo) {
         self.monitored_processes
             .lock()
-            .unwrap()
+            .expect("Process monitor lock should not be poisoned")
             .insert(info.pid, info);
     }
 
     /// Unregister a process from monitoring
     pub fn unregister_process(&self, pid: ProcessId) -> Option<ProcessInfo> {
-        self.monitored_processes.lock().unwrap().remove(&pid)
+        self.monitored_processes
+            .lock()
+            .expect("Process monitor lock should not be poisoned")
+            .remove(&pid)
     }
 
     /// Send a signal to a process
@@ -220,14 +230,19 @@ impl SignalHandler {
     {
         self.handlers
             .lock()
-            .unwrap()
+            .expect("Signal handler lock should not be poisoned")
             .insert(signal, Box::new(handler));
         Ok(())
     }
 
     pub fn start_handling(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         for sig in self.signals.forever() {
-            if let Some(handler) = self.handlers.lock().unwrap().get(&sig) {
+            if let Some(handler) = self
+                .handlers
+                .lock()
+                .expect("Signal handler lock should not be poisoned")
+                .get(&sig)
+            {
                 handler();
             }
         }
@@ -368,7 +383,7 @@ pub fn get_environment_var(key: &str) -> Option<String> {
 
 /// Set an environment variable for the current process
 pub fn set_environment_var(key: &str, value: &str) {
-    std::env::set_var(key, value);
+    unsafe { std::env::set_var(key, value) };
 }
 
 /// Initialize process management
@@ -389,7 +404,9 @@ mod tests {
     #[test]
     fn test_current_process_info() {
         let pm = ProcessManager::new();
-        let info = pm.current_process_info().unwrap();
+        let info = pm
+            .current_process_info()
+            .expect("Current process info should be available");
 
         assert_eq!(info.pid.as_u32(), process::id());
         assert!(!info.name.is_empty());

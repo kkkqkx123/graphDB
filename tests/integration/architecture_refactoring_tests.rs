@@ -42,7 +42,7 @@ fn test_vertex_encapsulation() {
     assert!(vertex.has_tag("Person"));
     assert!(!vertex.has_tag("NonExistent"));
 
-    let retrieved_tag = vertex.get_tag("Person").unwrap();
+    let retrieved_tag = vertex.get_tag("Person").expect("Person tag should exist in vertex");
     assert_eq!(retrieved_tag.name, "Person");
 
     // 测试属性访问
@@ -135,11 +135,11 @@ fn test_value_visitor_pattern() {
     // 测试 JSON 序列化访问者
     let json_result = JsonSerializationVisitor::serialize(&int_value);
     assert!(json_result.is_ok());
-    assert_eq!(json_result.unwrap(), "42");
+    assert_eq!(json_result.expect("JSON serialization of int should succeed"), "42");
 
     let json_result = JsonSerializationVisitor::serialize(&string_value);
     assert!(json_result.is_ok());
-    assert_eq!(json_result.unwrap(), "\"test\"");
+    assert_eq!(json_result.expect("JSON serialization of string should succeed"), "\"test\"");
 }
 
 #[test]
@@ -210,12 +210,12 @@ fn test_vertex_edge_with_visitor() {
     // 测试 JSON 序列化
     let vertex_json = JsonSerializationVisitor::serialize(&vertex_value);
     assert!(vertex_json.is_ok());
-    let vertex_json_str = vertex_json.unwrap();
+    let vertex_json_str = vertex_json.expect("Vertex JSON serialization should succeed");
     assert!(vertex_json_str.contains("vertex"));
 
     let edge_json = JsonSerializationVisitor::serialize(&edge_value);
     assert!(edge_json.is_ok());
-    let edge_json_str = edge_json.unwrap();
+    let edge_json_str = edge_json.expect("Edge JSON serialization should succeed");
     assert!(edge_json_str.contains("src"));
     assert!(edge_json_str.contains("dst"));
 }

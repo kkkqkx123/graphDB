@@ -712,7 +712,9 @@ impl ExpressionContext for StorageExpressionContext {
     fn get_var(&self, name: &str) -> Result<Value, String> {
         if let Some(values) = self.value_map.get(name) {
             if !values.is_empty() {
-                Ok(values.last().unwrap().clone())
+                Ok(values.last()
+                    .expect("Values vector should not be empty when checked")
+                    .clone())
             } else {
                 Ok(Value::Null(NullType::Null))
             }
@@ -761,7 +763,8 @@ impl ExpressionContext for StorageExpressionContext {
         // 获取变量的属性值
         if let Some(values) = self.value_map.get(var) {
             if !values.is_empty() {
-                let latest_value = values.last().unwrap();
+                let latest_value = values.last()
+                    .expect("Values vector should not be empty when checked");
                 return self.get_property_from_value(latest_value, prop);
             }
         }

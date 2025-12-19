@@ -285,7 +285,7 @@ mod tests {
         // 收集所有生成的名称
         let mut all_names = vec![];
         for handle in handles {
-            let names = handle.join().unwrap();
+            let names = handle.join().expect("Expected thread to complete successfully");
             all_names.extend(names);
         }
 

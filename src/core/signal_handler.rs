@@ -95,7 +95,14 @@ impl SignalHandler {
     fn handle_signal(&self, sig: i32) {
         // Update the signal info
         let signal_info = SignalInfo::new(sig);
-        *self.signal_info.lock().unwrap() = Some(signal_info.clone());
+        match self.signal_info.lock() {
+            Ok(mut info) => *info = Some(signal_info.clone()),
+            Err(poisoned) => {
+                // 尝试从污染的锁中恢复数据
+                log::warn!("Signal info lock is poisoned, attempting recovery");
+                *poisoned.into_inner() = Some(signal_info.clone());
+            }
+        }
 
         match sig {
             SIGTERM | SIGINT | SIGQUIT => {
@@ -147,7 +154,14 @@ impl SignalHandler {
 
     /// Get the last received signal info
     pub fn get_last_signal(&self) -> Option<SignalInfo> {
-        self.signal_info.lock().unwrap().clone()
+        match self.signal_info.lock() {
+            Ok(info) => info.clone(),
+            Err(poisoned) => {
+                // 尝试从污染的锁中恢复数据
+                log::warn!("Signal info lock is poisoned when getting last signal, attempting recovery");
+                poisoned.into_inner().clone()
+            }
+        }
     }
 }
 

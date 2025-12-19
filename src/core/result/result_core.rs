@@ -167,7 +167,9 @@ impl Result {
     /// 创建带消息的结果
     pub fn with_message(value: Value, state: ResultState, msg: String) -> Self {
         let mut result = Self::new(value, state);
-        Arc::get_mut(&mut result.core).unwrap().msg = msg;
+        if let Some(core) = Arc::get_mut(&mut result.core) {
+            core.msg = msg;
+        }
         result
     }
 

@@ -79,18 +79,23 @@ impl PlanNodeDependencies for ArgumentNode {
          // 注意: 此实现为解决借用检查错误的临时方案
          // 在实际实现中，应使用更安全的生命周期管理方式
          unsafe {
-             let deps = &*self.dependencies.lock().unwrap() as *const Vec<Arc<dyn PlanNode>>;
+             let deps = &*self.dependencies.lock()
+                 .expect("PlanNode dependencies lock should not be poisoned") as *const Vec<Arc<dyn PlanNode>>;
              &*deps
          }
      }
      fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         self.dependencies.get_mut().unwrap()
+         self.dependencies.get_mut()
+             .expect("PlanNode should have unique reference for mutable access")
      }
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.dependencies.lock().unwrap().push(dep);
+         self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned")
+             .push(dep);
      }
      fn remove_dependency(&mut self, id: i64) -> bool {
-         let mut deps = self.dependencies.lock().unwrap();
+         let mut deps = self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned");
          if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
              deps.remove(pos);
              true
@@ -226,22 +231,27 @@ impl PlanNodeDependencies for SelectNode {
          // 注意: 此实现为解决借用检查错误的临时方案
          // 在实际实现中，应使用更安全的生命周期管理方式
          unsafe {
-             let deps = &*self.dependencies.lock().unwrap() as *const Vec<Arc<dyn PlanNode>>;
+             let deps = &*self.dependencies.lock()
+                 .expect("PlanNode dependencies lock should not be poisoned") as *const Vec<Arc<dyn PlanNode>>;
              &*deps
          }
 
      }
 
      fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         self.dependencies.get_mut().unwrap()
+         self.dependencies.get_mut()
+             .expect("PlanNode should have unique reference for mutable access")
      }
 
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.dependencies.lock().unwrap().push(dep);
+         self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned")
+             .push(dep);
      }
 
      fn remove_dependency(&mut self, id: i64) -> bool {
-         let mut deps = self.dependencies.lock().unwrap();
+         let mut deps = self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned");
          if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
              deps.remove(pos);
              true
@@ -375,22 +385,27 @@ impl PlanNodeDependencies for LoopNode {
          // 注意: 此实现为解决借用检查错误的临时方案
          // 在实际实现中，应使用更安全的生命周期管理方式
          unsafe {
-             let deps = &*self.dependencies.lock().unwrap() as *const Vec<Arc<dyn PlanNode>>;
+             let deps = &*self.dependencies.lock()
+                 .expect("PlanNode dependencies lock should not be poisoned") as *const Vec<Arc<dyn PlanNode>>;
              &*deps
          }
 
      }
 
      fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         self.dependencies.get_mut().unwrap()
+         self.dependencies.get_mut()
+             .expect("PlanNode should have unique reference for mutable access")
      }
 
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.dependencies.lock().unwrap().push(dep);
+         self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned")
+             .push(dep);
      }
 
      fn remove_dependency(&mut self, id: i64) -> bool {
-         let mut deps = self.dependencies.lock().unwrap();
+         let mut deps = self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned");
          if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
              deps.remove(pos);
              true
@@ -505,18 +520,23 @@ impl PlanNodeDependencies for PassThroughNode {
          // 注意: 此实现为解决借用检查错误的临时方案
          // 在实际实现中，应使用更安全的生命周期管理方式
          unsafe {
-             let deps = &*self.dependencies.lock().unwrap() as *const Vec<Arc<dyn PlanNode>>;
+             let deps = &*self.dependencies.lock()
+                 .expect("PlanNode dependencies lock should not be poisoned") as *const Vec<Arc<dyn PlanNode>>;
              &*deps
          }
      }
      fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         self.dependencies.get_mut().unwrap()
+         self.dependencies.get_mut()
+             .expect("PlanNode should have unique reference for mutable access")
      }
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.dependencies.lock().unwrap().push(dep);
+         self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned")
+             .push(dep);
      }
      fn remove_dependency(&mut self, id: i64) -> bool {
-         let mut deps = self.dependencies.lock().unwrap();
+         let mut deps = self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned");
          if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
              deps.remove(pos);
              true

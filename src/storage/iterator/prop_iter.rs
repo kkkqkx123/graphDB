@@ -352,7 +352,7 @@ mod tests {
     #[test]
     fn test_prop_iter_valid() {
         let data = Arc::new(create_test_prop_data());
-        let iter = PropIter::new(data).unwrap();
+        let iter = PropIter::new(data).expect("PropIter should be created successfully in test");
 
         assert_eq!(iter.kind(), IteratorKind::Prop);
         assert!(iter.valid());
@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn test_prop_iter_navigation() {
         let data = Arc::new(create_test_prop_data());
-        let mut iter = PropIter::new(data).unwrap();
+        let mut iter = PropIter::new(data).expect("PropIter should be created successfully in test");
 
         assert_eq!(iter.curr_pos(), 0);
         assert!(iter.valid());
@@ -381,48 +381,48 @@ mod tests {
     #[test]
     fn test_prop_iter_get_tag_prop() {
         let data = Arc::new(create_test_prop_data());
-        let iter = PropIter::new(data).unwrap();
+        let iter = PropIter::new(data).expect("PropIter should be created successfully in test");
 
         // 获取标签属性
         let name = iter.get_tag_prop("player", "name");
         assert!(name.is_some());
-        assert_eq!(name.unwrap(), Value::String("Alice".to_string()));
+        assert_eq!(name.expect("Tag property should exist in test"), Value::String("Alice".to_string()));
 
         let age = iter.get_tag_prop("player", "age");
         assert!(age.is_some());
-        assert_eq!(age.unwrap(), Value::Int(25));
+        assert_eq!(age.expect("Tag property should exist in test"), Value::Int(25));
     }
 
     #[test]
     fn test_prop_iter_get_edge_prop() {
         let data = Arc::new(create_test_prop_data());
-        let iter = PropIter::new(data).unwrap();
+        let iter = PropIter::new(data).expect("PropIter should be created successfully in test");
 
         // 获取边属性
         let weight = iter.get_edge_prop("follow", "weight");
         assert!(weight.is_some());
-        assert_eq!(weight.unwrap(), Value::Float(0.8));
+        assert_eq!(weight.expect("Edge property should exist in test"), Value::Float(0.8));
     }
 
     #[test]
     fn test_prop_iter_get_column() {
         let data = Arc::new(create_test_prop_data());
-        let iter = PropIter::new(data).unwrap();
+        let iter = PropIter::new(data).expect("PropIter should be created successfully in test");
 
         // 按列名获取值
         let vid = iter.get_column("_vid");
         assert!(vid.is_some());
-        assert_eq!(vid.unwrap(), &Value::String("player1".to_string()));
+        assert_eq!(vid.expect("Column value should exist in test"), &Value::String("player1".to_string()));
 
         let name = iter.get_column("player.name");
         assert!(name.is_some());
-        assert_eq!(name.unwrap(), &Value::String("Alice".to_string()));
+        assert_eq!(name.expect("Column value should exist in test"), &Value::String("Alice".to_string()));
     }
 
     #[test]
     fn test_prop_iter_get_column_index() {
         let data = Arc::new(create_test_prop_data());
-        let iter = PropIter::new(data).unwrap();
+        let iter = PropIter::new(data).expect("PropIter should be created successfully in test");
 
         // 获取列索引
         assert_eq!(iter.get_column_index("_vid"), Some(0));
@@ -435,7 +435,7 @@ mod tests {
     #[test]
     fn test_prop_iter_reset() {
         let data = Arc::new(create_test_prop_data());
-        let mut iter = PropIter::new(data).unwrap();
+        let mut iter = PropIter::new(data).expect("PropIter should be created successfully in test");
 
         iter.next();
         assert_eq!(iter.curr_pos(), 1);
@@ -451,7 +451,7 @@ mod tests {
     #[test]
     fn test_prop_iter_copy() {
         let data = Arc::new(create_test_prop_data());
-        let mut iter = PropIter::new(data).unwrap();
+        let mut iter = PropIter::new(data).expect("PropIter should be created successfully in test");
 
         iter.next();
         let copy = iter.copy();

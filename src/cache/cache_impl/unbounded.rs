@@ -80,37 +80,44 @@ where
     V: Clone,
 {
     fn get(&self, key: &K) -> Option<V> {
-        let cache = self.inner.lock().unwrap();
+        let cache = self.inner.lock()
+            .expect("ConcurrentUnboundedCache lock should not be poisoned");
         cache.cache.get(key).cloned()
     }
-    
+
     fn put(&self, key: K, value: V) {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentUnboundedCache lock should not be poisoned");
         cache.cache.insert(key, value);
     }
-    
+
     fn contains(&self, key: &K) -> bool {
-        let cache = self.inner.lock().unwrap();
+        let cache = self.inner.lock()
+            .expect("ConcurrentUnboundedCache lock should not be poisoned");
         cache.cache.contains_key(key)
     }
-    
+
     fn remove(&self, key: &K) -> Option<V> {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentUnboundedCache lock should not be poisoned");
         cache.cache.remove(key)
     }
-    
+
     fn clear(&self) {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentUnboundedCache lock should not be poisoned");
         cache.cache.clear();
     }
-    
+
     fn len(&self) -> usize {
-        let cache = self.inner.lock().unwrap();
+        let cache = self.inner.lock()
+            .expect("ConcurrentUnboundedCache lock should not be poisoned");
         cache.cache.len()
     }
-    
+
     fn is_empty(&self) -> bool {
-        let cache = self.inner.lock().unwrap();
+        let cache = self.inner.lock()
+            .expect("ConcurrentUnboundedCache lock should not be poisoned");
         cache.cache.is_empty()
     }
 }

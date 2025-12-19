@@ -54,7 +54,10 @@ impl GraphService {
         };
 
         // Execute the query
-        let mut query_engine = self.query_engine.lock().expect("Query engine lock was poisoned");
+        let mut query_engine = self
+            .query_engine
+            .lock()
+            .expect("Query engine lock was poisoned");
         let response = query_engine.execute(request_context).await;
 
         match response.result {
@@ -86,7 +89,11 @@ mod tests {
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
-            storage_path: temp_dir.path().to_str().expect("Failed to convert temp path to string").to_string(),
+            storage_path: temp_dir
+                .path()
+                .to_str()
+                .expect("Failed to convert temp path to string")
+                .to_string(),
             cache_size: 1000,
             enable_cache: true,
             max_connections: 10,
@@ -94,7 +101,9 @@ mod tests {
             log_level: "info".to_string(),
         };
 
-        let storage = Arc::new(NativeStorage::new(&config.storage_path).expect("Failed to create native storage"));
+        let storage = Arc::new(
+            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+        );
         let graph_service = GraphService::new(config, storage);
 
         assert_eq!(graph_service.config.host, "127.0.0.1");
@@ -107,7 +116,11 @@ mod tests {
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
-            storage_path: temp_dir.path().to_str().expect("Failed to convert temp path to string").to_string(),
+            storage_path: temp_dir
+                .path()
+                .to_str()
+                .expect("Failed to convert temp path to string")
+                .to_string(),
             cache_size: 1000,
             enable_cache: true,
             max_connections: 10,
@@ -115,7 +128,9 @@ mod tests {
             log_level: "info".to_string(),
         };
 
-        let storage = Arc::new(NativeStorage::new(&config.storage_path).expect("Failed to create native storage"));
+        let storage = Arc::new(
+            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+        );
         let graph_service = GraphService::new(config, storage);
 
         // Test valid credentials
@@ -136,7 +151,11 @@ mod tests {
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
-            storage_path: temp_dir.path().to_str().expect("Failed to convert temp path to string").to_string(),
+            storage_path: temp_dir
+                .path()
+                .to_str()
+                .expect("Failed to convert temp path to string")
+                .to_string(),
             cache_size: 1000,
             enable_cache: true,
             max_connections: 10,
@@ -144,7 +163,9 @@ mod tests {
             log_level: "info".to_string(),
         };
 
-        let storage = Arc::new(NativeStorage::new(&config.storage_path).expect("Failed to create native storage"));
+        let storage = Arc::new(
+            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+        );
         let graph_service = GraphService::new(config, storage);
 
         // First authenticate to get a session
@@ -166,7 +187,11 @@ mod tests {
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
-            storage_path: temp_dir.path().to_str().expect("Failed to convert temp path to string").to_string(),
+            storage_path: temp_dir
+                .path()
+                .to_str()
+                .expect("Failed to convert temp path to string")
+                .to_string(),
             cache_size: 1000,
             enable_cache: true,
             max_connections: 10,
@@ -174,12 +199,17 @@ mod tests {
             log_level: "info".to_string(),
         };
 
-        let storage = Arc::new(NativeStorage::new(&config.storage_path).expect("Failed to create native storage"));
+        let storage = Arc::new(
+            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+        );
         let graph_service = GraphService::new(config, storage);
 
         // Try to execute a query with an invalid session
         let result = graph_service.execute(999999, "SHOW SPACES").await;
         assert!(result.is_err());
-        assert_eq!(result.expect_err("Expected error for invalid session"), "Invalid session ID");
+        assert_eq!(
+            result.expect_err("Expected error for invalid session"),
+            "Invalid session ID"
+        );
     }
 }

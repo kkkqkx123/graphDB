@@ -244,7 +244,7 @@ mod tests {
         let data = Arc::new(create_test_dataset());
         let iter = SequentialIter::new(data);
         assert!(iter.is_ok());
-        let iter = iter.unwrap();
+        let iter = iter.expect("SequentialIter should be created successfully in test");
         assert_eq!(iter.size(), 3);
         assert!(iter.valid());
     }
@@ -252,7 +252,7 @@ mod tests {
     #[test]
     fn test_sequential_iter_navigation() {
         let data = Arc::new(create_test_dataset());
-        let mut iter = SequentialIter::new(data).unwrap();
+        let mut iter = SequentialIter::new(data).expect("SequentialIter should be created successfully in test");
 
         // 检查初始状态
         assert_eq!(iter.curr_pos(), 0);
@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn test_sequential_iter_get_column() {
         let data = Arc::new(create_test_dataset());
-        let iter = SequentialIter::new(data).unwrap();
+        let iter = SequentialIter::new(data).expect("SequentialIter should be created successfully in test");
 
         // 获取第一行的列值
         assert_eq!(
@@ -290,7 +290,7 @@ mod tests {
     #[test]
     fn test_sequential_iter_erase() {
         let data = Arc::new(create_test_dataset());
-        let mut iter = SequentialIter::new(data).unwrap();
+        let mut iter = SequentialIter::new(data).expect("SequentialIter should be created successfully in test");
 
         assert_eq!(iter.size(), 3);
 
@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn test_sequential_iter_select() {
         let data = Arc::new(create_test_dataset());
-        let mut iter = SequentialIter::new(data).unwrap();
+        let mut iter = SequentialIter::new(data).expect("SequentialIter should be created successfully in test");
 
         assert_eq!(iter.size(), 3);
 
@@ -326,7 +326,7 @@ mod tests {
     #[test]
     fn test_sequential_iter_erase_range() {
         let data = Arc::new(create_test_dataset());
-        let mut iter = SequentialIter::new(data).unwrap();
+        let mut iter = SequentialIter::new(data).expect("SequentialIter should be created successfully in test");
 
         assert_eq!(iter.size(), 3);
 
@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn test_sequential_iter_reset() {
         let data = Arc::new(create_test_dataset());
-        let mut iter = SequentialIter::new(data).unwrap();
+        let mut iter = SequentialIter::new(data).expect("SequentialIter should be created successfully in test");
 
         iter.next();
         iter.next();
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn test_sequential_iter_copy() {
         let data = Arc::new(create_test_dataset());
-        let mut iter = SequentialIter::new(data).unwrap();
+        let mut iter = SequentialIter::new(data).expect("SequentialIter should be created successfully in test");
 
         iter.next();
         let copy = iter.copy();
@@ -377,7 +377,7 @@ mod tests {
     #[test]
     fn test_sequential_iter_sample() {
         let data = Arc::new(create_test_dataset());
-        let mut iter = SequentialIter::new(data).unwrap();
+        let mut iter = SequentialIter::new(data).expect("SequentialIter should be created successfully in test");
 
         assert_eq!(iter.size(), 3);
 
@@ -398,7 +398,7 @@ mod tests {
     #[test]
     fn test_sequential_iter_get_column_index() {
         let data = Arc::new(create_test_dataset());
-        let iter = SequentialIter::new(data).unwrap();
+        let iter = SequentialIter::new(data).expect("SequentialIter should be created successfully in test");
 
         assert_eq!(iter.get_column_index("name"), Some(0));
         assert_eq!(iter.get_column_index("age"), Some(1));
@@ -409,7 +409,7 @@ mod tests {
     #[test]
     fn test_sequential_iter_get_column_by_index() {
         let data = Arc::new(create_test_dataset());
-        let iter = SequentialIter::new(data).unwrap();
+        let iter = SequentialIter::new(data).expect("SequentialIter should be created successfully in test");
 
         // 正索引
         assert_eq!(
@@ -428,7 +428,7 @@ mod tests {
     #[test]
     fn test_sequential_iter_unstable_erase() {
         let data = Arc::new(create_test_dataset());
-        let mut iter = SequentialIter::new(data).unwrap();
+        let mut iter = SequentialIter::new(data).expect("SequentialIter should be created successfully in test");
 
         assert_eq!(iter.size(), 3);
 

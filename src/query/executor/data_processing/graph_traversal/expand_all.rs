@@ -132,7 +132,9 @@ impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
             let current_node = if current_path.steps.is_empty() {
                 &current_path.src.vid
             } else {
-                &current_path.steps.last().unwrap().dst.vid
+                &current_path.steps.last()
+                    .expect("Path should have at least one step if steps is not empty")
+                    .dst.vid
             };
 
             // 检查是否达到最大深度

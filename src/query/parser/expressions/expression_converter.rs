@@ -289,8 +289,8 @@ mod tests {
     #[test]
     fn test_convert_constant_expr() {
         let ast_expr = Expr::Constant(ConstantExpr::new(Value::Int(42), crate::query::parser::ast::Span::default()));
-        let result = convert_ast_to_graph_expression(&ast_expr).unwrap();
-        
+        let result = convert_ast_to_graph_expression(&ast_expr).expect("Expected successful conversion of constant expression");
+
         if let Expression::Literal(LiteralValue::Int(value)) = result {
             assert_eq!(value, 42);
         } else {
@@ -301,8 +301,8 @@ mod tests {
     #[test]
     fn test_convert_variable_expr() {
         let ast_expr = Expr::Variable(VariableExpr::new("test_var".to_string(), crate::query::parser::ast::Span::default()));
-        let result = convert_ast_to_graph_expression(&ast_expr).unwrap();
-        
+        let result = convert_ast_to_graph_expression(&ast_expr).expect("Expected successful conversion of variable expression");
+
         if let Expression::Variable(name) = result {
             assert_eq!(name, "test_var");
         } else {
@@ -315,9 +315,9 @@ mod tests {
         let left = Expr::Constant(ConstantExpr::new(Value::Int(5), crate::query::parser::ast::Span::default()));
         let right = Expr::Constant(ConstantExpr::new(Value::Int(3), crate::query::parser::ast::Span::default()));
         let ast_expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Add, right, crate::query::parser::ast::Span::default()));
-        
-        let result = convert_ast_to_graph_expression(&ast_expr).unwrap();
-        
+
+        let result = convert_ast_to_graph_expression(&ast_expr).expect("Expected successful conversion of binary expression");
+
         if let Expression::Binary { left, op, right } = result {
             assert_eq!(*left, Expression::Literal(LiteralValue::Int(5)));
             assert_eq!(op, BinaryOperator::Add);
@@ -331,9 +331,9 @@ mod tests {
     fn test_convert_unary_expr() {
         let operand = Expr::Constant(ConstantExpr::new(Value::Bool(true), crate::query::parser::ast::Span::default()));
         let ast_expr = Expr::Unary(UnaryExpr::new(UnaryOp::Not, operand, crate::query::parser::ast::Span::default()));
-        
-        let result = convert_ast_to_graph_expression(&ast_expr).unwrap();
-        
+
+        let result = convert_ast_to_graph_expression(&ast_expr).expect("Expected successful conversion of unary expression");
+
         if let Expression::Unary { op, operand } = result {
             assert_eq!(op, UnaryOperator::Not);
             assert_eq!(*operand, Expression::Literal(LiteralValue::Bool(true)));
@@ -347,18 +347,18 @@ mod tests {
         let left = Expr::Constant(ConstantExpr::new(Value::Int(5), crate::query::parser::ast::Span::default()));
         let right = Expr::Constant(ConstantExpr::new(Value::Int(3), crate::query::parser::ast::Span::default()));
         let ast_expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Exp, right, crate::query::parser::ast::Span::default()));
-        
+
         let result = convert_ast_to_graph_expression(&ast_expr);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("指数操作符在graph表达式中不支持"));
+        assert!(result.expect_err("Expected error for unsupported operator").contains("指数操作符在graph表达式中不支持"));
     }
 
     #[test]
     fn test_parse_expression_from_string() {
         let result = parse_expression_from_string("5 + 3");
         assert!(result.is_ok());
-        
-        let expr = result.unwrap();
+
+        let expr = result.expect("Expected successful parsing of expression from string");
         // 由于解析器可能返回复杂的表达式结构，我们只检查是否成功转换
         assert!(matches!(expr, Expression::Binary { .. }));
     }

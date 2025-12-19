@@ -212,7 +212,7 @@ mod tests {
         let result = processor.parse_simple_tag_list("user, admin, moderator");
         assert!(result.is_ok());
 
-        let expr = result.unwrap();
+        let expr = result.expect("Expected Ok result for simple tag list parsing");
         // 验证表达式结构（这里简化测试）
         match expr {
             Expression::Binary { op, .. } => {

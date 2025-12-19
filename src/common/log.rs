@@ -183,7 +183,8 @@ impl LogWriter for FileWriter {
             return Ok(());
         }
 
-        let mut file = self.file.lock().unwrap();
+        let mut file = self.file.lock()
+            .expect("File writer lock should not be poisoned");
 
         writeln!(
             file,
@@ -200,7 +201,8 @@ impl LogWriter for FileWriter {
     }
 
     fn flush(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let mut file = self.file.lock().unwrap();
+        let mut file = self.file.lock()
+            .expect("File writer lock should not be poisoned");
         file.flush()?;
         Ok(())
     }
@@ -223,11 +225,15 @@ impl MemoryWriter {
     }
 
     pub fn get_entries(&self) -> Vec<LogEntry> {
-        self.entries.lock().unwrap().clone().into()
+        self.entries.lock()
+            .expect("Memory writer entries lock should not be poisoned")
+            .clone().into()
     }
 
     pub fn clear(&self) {
-        self.entries.lock().unwrap().clear();
+        self.entries.lock()
+            .expect("Memory writer entries lock should not be poisoned")
+            .clear();
     }
 }
 
@@ -237,7 +243,8 @@ impl LogWriter for MemoryWriter {
             return Ok(());
         }
 
-        let mut entries = self.entries.lock().unwrap();
+        let mut entries = self.entries.lock()
+            .expect("Memory writer entries lock should not be poisoned");
         entries.push_back(entry.clone());
 
         if entries.len() > self.max_entries {
@@ -340,7 +347,8 @@ pub fn logger() -> Option<Arc<Mutex<Logger>>> {
 /// Log a message at the specified level
 pub fn log(level: LogLevel, target: &str, message: &str) {
     if let Some(logger) = logger() {
-        let logger = logger.lock().unwrap();
+        let logger = logger.lock()
+            .expect("Global logger lock should not be poisoned");
         logger.log(
             level,
             target,
@@ -362,7 +370,8 @@ pub fn log_with_location(
     module_path: &str,
 ) {
     if let Some(logger) = logger() {
-        let logger = logger.lock().unwrap();
+        let logger = logger.lock()
+            .expect("Global logger lock should not be poisoned");
         logger.log(
             level,
             target,
@@ -456,7 +465,8 @@ pub fn setup_logger(config: &LogConfig) -> Result<(), Box<dyn std::error::Error 
     init_logger(config.level)?;
 
     if let Some(logger) = logger() {
-        let mut logger = logger.lock().unwrap();
+        let mut logger = logger.lock()
+            .expect("Global logger lock should not be poisoned");
 
         // Add console writer if enabled
         if config.enable_console {

@@ -276,8 +276,8 @@ mod tests {
 
         // 测试设置和获取值
         let value = Value::Int(42);
-        ctx.set_value("test_var", value.clone()).unwrap();
-        let retrieved_value = ctx.get_value("test_var").unwrap();
+        ctx.set_value("test_var", value.clone()).expect("Expected successful setting of test variable");
+        let retrieved_value = ctx.get_value("test_var").expect("Expected successful retrieval of test value");
         assert_eq!(retrieved_value, value);
 
         // 测试结果操作
@@ -285,8 +285,8 @@ mod tests {
             Value::String("test_result".to_string()),
             crate::core::ResultState::Success,
         );
-        ctx.set_result("result_var", result.clone()).unwrap();
-        let retrieved_result = ctx.get_result("result_var").unwrap();
+        ctx.set_result("result_var", result.clone()).expect("Expected successful setting of result variable");
+        let retrieved_result = ctx.get_result("result_var").expect("Expected successful retrieval of result");
         assert_eq!(retrieved_result, result);
     }
 
@@ -300,15 +300,15 @@ mod tests {
         let result3 = Result::new(Value::Int(3), crate::core::ResultState::Success);
 
         // 设置不同版本的结果
-        ctx.set_result("versioned_var", result1.clone()).unwrap();
-        ctx.set_result("versioned_var", result2.clone()).unwrap();
-        ctx.set_result("versioned_var", result3.clone()).unwrap();
+        ctx.set_result("versioned_var", result1.clone()).expect("Expected successful setting of version 1");
+        ctx.set_result("versioned_var", result2.clone()).expect("Expected successful setting of version 2");
+        ctx.set_result("versioned_var", result3.clone()).expect("Expected successful setting of version 3");
 
         // 检查版本数量
-        assert_eq!(ctx.num_versions("versioned_var").unwrap(), 3);
+        assert_eq!(ctx.num_versions("versioned_var").expect("Expected successful version count check"), 3);
 
         // 获取历史记录
-        let history = ctx.get_history("versioned_var").unwrap();
+        let history = ctx.get_history("versioned_var").expect("Expected successful history retrieval");
         assert_eq!(history.len(), 3);
         // 注意：历史记录是最新在前
         assert_eq!(history[0], result3); // 最新
@@ -317,25 +317,25 @@ mod tests {
 
         // 获取指定版本（0是最新的）
         assert_eq!(
-            ctx.get_versioned_result("versioned_var", 0).unwrap(),
+            ctx.get_versioned_result("versioned_var", 0).expect("Expected successful retrieval of version 0"),
             result3
         );
         assert_eq!(
-            ctx.get_versioned_result("versioned_var", -1).unwrap(),
+            ctx.get_versioned_result("versioned_var", -1).expect("Expected successful retrieval of version -1"),
             result2
         );
         assert_eq!(
-            ctx.get_versioned_result("versioned_var", 1).unwrap(),
+            ctx.get_versioned_result("versioned_var", 1).expect("Expected successful retrieval of version 1"),
             result2
         );
         assert_eq!(
-            ctx.get_versioned_result("versioned_var", 2).unwrap(),
+            ctx.get_versioned_result("versioned_var", 2).expect("Expected successful retrieval of version 2"),
             result1
         );
 
         // 版本截断
-        ctx.trunc_history("versioned_var", 2).unwrap();
-        assert_eq!(ctx.num_versions("versioned_var").unwrap(), 2);
+        ctx.trunc_history("versioned_var", 2).expect("Expected successful truncation of history");
+        assert_eq!(ctx.num_versions("versioned_var").expect("Expected successful version count after truncation"), 2);
     }
 
     #[test]
@@ -346,21 +346,21 @@ mod tests {
         assert_eq!(ctx.variable_count(), 0);
 
         // 添加变量
-        ctx.set_value("var1", Value::Int(1)).unwrap();
+        ctx.set_value("var1", Value::Int(1)).expect("Expected successful setting of var1");
         assert_eq!(ctx.variable_count(), 1);
 
         // 添加更多变量
         ctx.set_value("var2", Value::String("test".to_string()))
-            .unwrap();
-        ctx.set_value("var3", Value::Bool(true)).unwrap();
+            .expect("Expected successful setting of var2");
+        ctx.set_value("var3", Value::Bool(true)).expect("Expected successful setting of var3");
         assert_eq!(ctx.variable_count(), 3);
 
         // 删除变量
-        ctx.drop_result("var2").unwrap();
+        ctx.drop_result("var2").expect("Expected successful dropping of var2");
         assert_eq!(ctx.variable_count(), 2);
 
         // 删除不存在的变量不应影响计数
-        ctx.drop_result("non_existent").unwrap();
+        ctx.drop_result("non_existent").expect("Expected successful dropping of non-existent var");
         assert_eq!(ctx.variable_count(), 2);
     }
 }

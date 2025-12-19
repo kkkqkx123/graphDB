@@ -542,7 +542,7 @@ mod tests {
         // 测试从管理器获取Schema
         let manager_schema = ctx.get_schema_from_manager("test_schema");
         assert!(manager_schema.is_some());
-        assert_eq!(manager_schema.unwrap().name, "test_schema");
+        assert_eq!(manager_schema.expect("Expected test schema to exist").name, "test_schema");
     }
 
     #[test]
@@ -611,7 +611,7 @@ mod tests {
             None,
         );
         assert!(detailed_result.is_ok());
-        let validation_result = detailed_result.unwrap();
+        let validation_result = detailed_result.expect("Expected successful validation in strict mode");
         assert!(validation_result.is_valid);
         assert!(validation_result.errors.is_empty());
 
@@ -623,7 +623,7 @@ mod tests {
             None,
         );
         assert!(lenient_result.is_ok());
-        let validation_result = lenient_result.unwrap();
+        let validation_result = lenient_result.expect("Expected successful validation in lenient mode");
         assert!(validation_result.is_valid);
         assert!(validation_result.errors.is_empty());
     }
@@ -665,12 +665,12 @@ mod tests {
             None,
         );
         assert!(detailed_result.is_ok());
-        let validation_result = detailed_result.unwrap();
+        let validation_result = detailed_result.expect("Expected successful validation with errors");
         assert!(!validation_result.is_valid);
         assert!(!validation_result.errors.is_empty());
 
         // 检查错误类型
-        let type_errors = ctx.validate_var_field_types("p", "person").unwrap();
+        let type_errors = ctx.validate_var_field_types("p", "person").expect("Expected successful type validation");
         assert!(!type_errors.is_empty());
         assert!(type_errors[0].contains("类型不匹配"));
     }
@@ -713,7 +713,7 @@ mod tests {
             None,
         );
         assert!(lenient_result.is_ok());
-        let validation_result = lenient_result.unwrap();
+        let validation_result = lenient_result.expect("Expected successful validation in lenient mode");
         assert!(validation_result.is_valid);
 
         // 测试严格模式 - 应该失败（不允许缺少字段）
@@ -724,11 +724,11 @@ mod tests {
             None,
         );
         assert!(strict_result.is_ok());
-        let validation_result = strict_result.unwrap();
+        let validation_result = strict_result.expect("Expected successful validation in strict mode");
         assert!(!validation_result.is_valid);
 
         // 检查缺失字段
-        let missing_fields = ctx.check_var_missing_fields("p", "person").unwrap();
+        let missing_fields = ctx.check_var_missing_fields("p", "person").expect("Expected successful missing fields check");
         assert!(missing_fields.contains(&"age".to_string()));
     }
 
@@ -773,11 +773,11 @@ mod tests {
             None,
         );
         assert!(lenient_result.is_ok());
-        let validation_result = lenient_result.unwrap();
+        let validation_result = lenient_result.expect("Expected successful validation with extra fields error");
         assert!(!validation_result.is_valid);
 
         // 检查额外字段
-        let extra_fields = ctx.check_var_extra_fields("p", "person").unwrap();
+        let extra_fields = ctx.check_var_extra_fields("p", "person").expect("Expected successful extra fields check");
         assert!(extra_fields.contains(&"email".to_string()));
     }
 
@@ -823,7 +823,7 @@ mod tests {
             Some(&required_fields),
         );
         assert!(required_result.is_ok());
-        let validation_result = required_result.unwrap();
+        let validation_result = required_result.expect("Expected successful validation in required only mode");
         assert!(validation_result.is_valid);
 
         // 测试缺少必需字段的情况
@@ -835,7 +835,7 @@ mod tests {
             Some(&required_fields_missing),
         );
         assert!(missing_result.is_ok());
-        let validation_result = missing_result.unwrap();
+        let validation_result = missing_result.expect("Expected successful validation with missing fields error");
         assert!(!validation_result.is_valid);
     }
 

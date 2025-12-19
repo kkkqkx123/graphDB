@@ -572,7 +572,7 @@ mod tests {
         // 测试字段信息获取
         let field_info = schema.get_field_info("id");
         assert!(field_info.is_some());
-        let (name, type_) = field_info.unwrap();
+        let (name, type_) = field_info.expect("Expected field info for 'id' to exist");
         assert_eq!(name, "id");
         assert_eq!(type_, "INT");
     }

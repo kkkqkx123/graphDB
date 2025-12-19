@@ -314,7 +314,10 @@ mod tests {
     #[tokio::test]
     async fn test_cypher_executor_creation() {
         let config = test_config();
-        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db")).unwrap()));
+        let storage = Arc::new(Mutex::new(
+            NativeStorage::new(config.test_db_path("test_db"))
+                .expect("Failed to create test storage")
+        ));
         let executor = CypherExecutor::new(1, storage);
 
         assert_eq!(executor.id(), 1);
@@ -325,7 +328,10 @@ mod tests {
     #[tokio::test]
     async fn test_cypher_executor_lifecycle() {
         let config = test_config();
-        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db_lifecycle")).unwrap()));
+        let storage = Arc::new(Mutex::new(
+            NativeStorage::new(config.test_db_path("test_db_lifecycle"))
+                .expect("Failed to create test storage")
+        ));
         let mut executor = CypherExecutor::new(1, storage);
 
         // 测试打开
@@ -344,7 +350,10 @@ mod tests {
     #[tokio::test]
     async fn test_cypher_executor_with_name() {
         let config = test_config();
-        let storage = Arc::new(Mutex::new(NativeStorage::new(config.test_db_path("test_db_with_name")).unwrap()));
+        let storage = Arc::new(Mutex::new(
+            NativeStorage::new(config.test_db_path("test_db_with_name"))
+                .expect("Failed to create test storage")
+        ));
         let executor = CypherExecutor::with_name(2, "TestExecutor".to_string(), storage);
 
         assert_eq!(executor.id(), 2);

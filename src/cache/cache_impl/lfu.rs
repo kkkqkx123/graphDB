@@ -31,17 +31,19 @@ where
     fn update_frequency(&mut self, key: &K) {
         if let Some((_, freq)) = self.cache.get_mut(key) {
             // 从旧频率列表中移除
-            self.frequency_order.get_mut(freq).unwrap().retain(|k| k != key);
-            
+            self.frequency_order.get_mut(freq)
+                .expect("Frequency list should exist for this frequency").retain(|k| k != key);
+
             // 更新频率
             *freq += 1;
             let new_freq = *freq;
-            
+
             // 添加到新频率列表
             self.frequency_order.entry(new_freq).or_insert_with(VecDeque::new).push_back(key.clone());
-            
+
             // 更新最小频率
-            if self.frequency_order.get(&self.min_frequency).unwrap().is_empty() {
+            if self.frequency_order.get(&self.min_frequency)
+                .expect("Frequency list should exist for min frequency").is_empty() {
                 self.min_frequency = new_freq;
             }
         }
@@ -117,7 +119,8 @@ where
     V: Clone,
 {
     fn get(&self, key: &K) -> Option<V> {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentLfuCache lock should not be poisoned");
         if let Some((value, _)) = cache.cache.get(key) {
             cache.update_frequency(key);
             Some(value.clone())
@@ -125,10 +128,11 @@ where
             None
         }
     }
-    
+
     fn put(&self, key: K, value: V) {
-        let mut cache = self.inner.lock().unwrap();
-        
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentLfuCache lock should not be poisoned");
+
         if cache.cache.contains_key(&key) {
             // 更新现有条目
             cache.cache.insert(key.clone(), (value, 1));
@@ -137,20 +141,22 @@ where
             // 添加新条目
             cache.evict_if_needed();
             cache.cache.insert(key.clone(), (value, 1));
-            
+
             // 添加到频率列表
             cache.frequency_order.entry(1).or_insert_with(VecDeque::new).push_back(key.clone());
             cache.min_frequency = 1;
         }
     }
-    
+
     fn contains(&self, key: &K) -> bool {
-        let cache = self.inner.lock().unwrap();
+        let cache = self.inner.lock()
+            .expect("ConcurrentLfuCache lock should not be poisoned");
         cache.cache.contains_key(key)
     }
-    
+
     fn remove(&self, key: &K) -> Option<V> {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentLfuCache lock should not be poisoned");
         if let Some((value, freq)) = cache.cache.remove(key) {
             // 从频率列表中移除
             if let Some(keys) = cache.frequency_order.get_mut(&freq) {
@@ -161,21 +167,24 @@ where
             None
         }
     }
-    
+
     fn clear(&self) {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentLfuCache lock should not be poisoned");
         cache.cache.clear();
         cache.frequency_order.clear();
         cache.min_frequency = 0;
     }
-    
+
     fn len(&self) -> usize {
-        let cache = self.inner.lock().unwrap();
+        let cache = self.inner.lock()
+            .expect("ConcurrentLfuCache lock should not be poisoned");
         cache.cache.len()
     }
-    
+
     fn is_empty(&self) -> bool {
-        let cache = self.inner.lock().unwrap();
+        let cache = self.inner.lock()
+            .expect("ConcurrentLfuCache lock should not be poisoned");
         cache.cache.is_empty()
     }
 }

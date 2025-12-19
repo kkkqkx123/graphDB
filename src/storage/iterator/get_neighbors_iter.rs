@@ -955,7 +955,7 @@ mod tests {
     #[test]
     fn test_get_neighbors_iter_valid() {
         let data = Arc::new(create_test_neighbors_data());
-        let mut iter = GetNeighborsIter::new(data).unwrap();
+        let mut iter = GetNeighborsIter::new(data).expect("GetNeighborsIter should be created successfully in test");
 
         assert_eq!(iter.kind(), IteratorKind::GetNeighbors);
 
@@ -985,7 +985,7 @@ mod tests {
     #[test]
     fn test_get_neighbors_iter_navigation() {
         let data = Arc::new(create_test_neighbors_data());
-        let mut iter = GetNeighborsIter::new(data).unwrap();
+        let mut iter = GetNeighborsIter::new(data).expect("GetNeighborsIter should be created successfully in test");
 
         assert!(iter.valid());
 
@@ -1001,33 +1001,33 @@ mod tests {
     #[test]
     fn test_get_neighbors_iter_get_tag_prop() {
         let data = Arc::new(create_test_neighbors_data());
-        let iter = GetNeighborsIter::new(data).unwrap();
+        let iter = GetNeighborsIter::new(data).expect("GetNeighborsIter should be created successfully in test");
 
         // 获取标签属性
         let name = iter.get_tag_prop("player", "name");
         assert!(name.is_some());
-        assert_eq!(name.unwrap(), Value::String("Alice".to_string()));
+        assert_eq!(name.expect("Tag property should exist in test"), Value::String("Alice".to_string()));
 
         let age = iter.get_tag_prop("player", "age");
         assert!(age.is_some());
-        assert_eq!(age.unwrap(), Value::Int(25));
+        assert_eq!(age.expect("Tag property should exist in test"), Value::Int(25));
     }
 
     #[test]
     fn test_get_neighbors_iter_get_edge_prop() {
         let data = Arc::new(create_test_neighbors_data());
-        let iter = GetNeighborsIter::new(data).unwrap();
+        let iter = GetNeighborsIter::new(data).expect("GetNeighborsIter should be created successfully in test");
 
         // 获取边属性
         let weight = iter.get_edge_prop("+follow", "weight");
         assert!(weight.is_some());
-        assert_eq!(weight.unwrap(), Value::Float(0.8));
+        assert_eq!(weight.expect("Edge property should exist in test"), Value::Float(0.8));
     }
 
     #[test]
     fn test_get_neighbors_iter_size() {
         let data = Arc::new(create_test_neighbors_data());
-        let iter = GetNeighborsIter::new(data).unwrap();
+        let iter = GetNeighborsIter::new(data).expect("GetNeighborsIter should be created successfully in test");
 
         // 应该有2条边
         assert_eq!(iter.size(), 2);
@@ -1036,7 +1036,7 @@ mod tests {
     #[test]
     fn test_get_neighbors_iter_reset() {
         let data = Arc::new(create_test_neighbors_data());
-        let mut iter = GetNeighborsIter::new(data).unwrap();
+        let mut iter = GetNeighborsIter::new(data).expect("GetNeighborsIter should be created successfully in test");
 
         iter.next();
         assert!(iter.valid());

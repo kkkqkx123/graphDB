@@ -563,31 +563,31 @@ mod tests {
 
     #[test]
     fn test_string_functions() {
-        let result = execute_function("upper", &[Value::String("hello".to_string())]).unwrap();
+        let result = execute_function("upper", &[Value::String("hello".to_string())]).expect("Failed to execute function in test");
         assert_eq!(result, Some(Value::String("HELLO".to_string())));
 
-        let result = execute_function("strlen", &[Value::String("test".to_string())]).unwrap();
+        let result = execute_function("strlen", &[Value::String("test".to_string())]).expect("Failed to execute function in test");
         assert_eq!(result, Some(Value::Int(4)));
     }
 
     #[test]
     fn test_math_functions() {
-        let result = execute_function("abs", &[Value::Int(-5)]).unwrap();
+        let result = execute_function("abs", &[Value::Int(-5)]).expect("Failed to execute function in test");
         assert_eq!(result, Some(Value::Int(5)));
 
-        let result = execute_function("ceil", &[Value::Float(3.2)]).unwrap();
+        let result = execute_function("ceil", &[Value::Float(3.2)]).expect("Failed to execute function in test");
         assert_eq!(result, Some(Value::Float(4.0)));
     }
 
     #[test]
     fn test_type_conversion() {
-        let result = execute_function("to_int", &[Value::String("123".to_string())]).unwrap();
+        let result = execute_function("to_int", &[Value::String("123".to_string())]).expect("Failed to execute function in test");
         assert_eq!(result, Some(Value::Int(123)));
     }
 
     #[test]
     fn test_range_function() {
-        let result = execute_function("range", &[Value::Int(1), Value::Int(5)]).unwrap();
+        let result = execute_function("range", &[Value::Int(1), Value::Int(5)]).expect("Failed to execute function in test");
         let expected = Value::List(vec![
             Value::Int(1),
             Value::Int(2),
@@ -600,7 +600,7 @@ mod tests {
 
     #[test]
     fn test_function_purity() {
-        assert!(is_function_pure("upper", 1).unwrap()); // Pure function
-        assert!(!is_function_pure("now", 0).unwrap()); // Non-pure function
+        assert!(is_function_pure("upper", 1).expect("Failed to check function purity in test")); // Pure function
+        assert!(!is_function_pure("now", 0).expect("Failed to check function purity in test")); // Non-pure function
     }
 }

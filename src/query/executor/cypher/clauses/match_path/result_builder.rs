@@ -180,22 +180,28 @@ impl ResultBuilder {
         
         if !paths.is_empty() {
             let path_lengths: Vec<usize> = paths.iter().map(|p| p.length).collect();
-            analysis.min_path_length = *path_lengths.iter().min().unwrap();
-            analysis.max_path_length = *path_lengths.iter().max().unwrap();
+            analysis.min_path_length = *path_lengths.iter().min()
+                .expect("Path lengths should not be empty when paths is not empty");
+            analysis.max_path_length = *path_lengths.iter().max()
+                .expect("Path lengths should not be empty when paths is not empty");
             analysis.avg_path_length = path_lengths.iter().sum::<usize>() as f64 / paths.len() as f64;
         }
         
         let vertex_counts: Vec<usize> = paths.iter().map(|p| p.vertex_count()).collect();
         if !vertex_counts.is_empty() {
-            analysis.min_vertices = *vertex_counts.iter().min().unwrap();
-            analysis.max_vertices = *vertex_counts.iter().max().unwrap();
+            analysis.min_vertices = *vertex_counts.iter().min()
+                .expect("Vertex counts should not be empty when paths is not empty");
+            analysis.max_vertices = *vertex_counts.iter().max()
+                .expect("Vertex counts should not be empty when paths is not empty");
             analysis.avg_vertices = vertex_counts.iter().sum::<usize>() as f64 / paths.len() as f64;
         }
         
         let edge_counts: Vec<usize> = paths.iter().map(|p| p.edge_count()).collect();
         if !edge_counts.is_empty() {
-            analysis.min_edges = *edge_counts.iter().min().unwrap();
-            analysis.max_edges = *edge_counts.iter().max().unwrap();
+            analysis.min_edges = *edge_counts.iter().min()
+                .expect("Edge counts should not be empty when paths is not empty");
+            analysis.max_edges = *edge_counts.iter().max()
+                .expect("Edge counts should not be empty when paths is not empty");
             analysis.avg_edges = edge_counts.iter().sum::<usize>() as f64 / paths.len() as f64;
         }
         
@@ -277,14 +283,16 @@ mod tests {
     #[test]
     fn test_build_success_result() {
         let builder = ResultBuilder::new();
-        let result = builder.build_success_result().unwrap();
+        let result = builder.build_success_result()
+            .expect("Failed to build success result");
         assert!(matches!(result, ExecutionResult::Success));
     }
 
     #[test]
     fn test_build_count_result() {
         let builder = ResultBuilder::new();
-        let result = builder.build_count_result(42).unwrap();
+        let result = builder.build_count_result(42)
+            .expect("Failed to build count result");
         assert!(matches!(result, ExecutionResult::Count(42)));
     }
 
@@ -292,7 +300,8 @@ mod tests {
     fn test_build_error_result() {
         let builder = ResultBuilder::new();
         let error_msg = "Test error".to_string();
-        let result = builder.build_error_result(error_msg.clone()).unwrap();
+        let result = builder.build_error_result(error_msg.clone())
+            .expect("Failed to build error result");
         
         if let ExecutionResult::Error(msg) = result {
             assert_eq!(msg, error_msg);
@@ -310,7 +319,8 @@ mod tests {
             Value::Int(42),
         ];
         
-        let result = builder.build_values_result(values.clone()).unwrap();
+        let result = builder.build_values_result(values.clone())
+            .expect("Failed to build values result");
         
         if let ExecutionResult::Values(result_values) = result {
             assert_eq!(result_values, values);

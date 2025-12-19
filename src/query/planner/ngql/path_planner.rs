@@ -95,7 +95,8 @@ impl Planner for PathPlanner {
             if let Some(ref condition) = path_ctx.filter {
                 use crate::graph::expression::Expression;
                 let expr = Expression::Variable(condition.clone());
-                let filter = Arc::new(FilterNode::new(expand_all_node.clone(), expr).unwrap());
+                let filter = Arc::new(FilterNode::new(expand_all_node.clone(), expr)
+                    .expect("FilterNode creation should succeed with valid input"));
                 filter
             } else {
                 expand_all_node
@@ -110,13 +111,15 @@ impl Planner for PathPlanner {
             is_matched: false,
         }];
         
-        let project_node = Arc::new(ProjectNode::new(filter_node.clone(), yield_columns).unwrap());
+        let project_node = Arc::new(ProjectNode::new(filter_node.clone(), yield_columns)
+            .expect("ProjectNode creation should succeed with valid input"));
 
         // 8. 如果是查找最短路径，可能需要额外的处理
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
             if path_ctx.is_shortest {
                 // 需要额外的节点来处理最短路径算法
-                let dedup_node = Arc::new(DedupNode::new(project_node).unwrap());
+                let dedup_node = Arc::new(DedupNode::new(project_node)
+                    .expect("DedupNode creation should succeed with valid input"));
                 dedup_node
             } else {
                 project_node

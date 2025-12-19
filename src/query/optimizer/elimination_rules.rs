@@ -630,13 +630,13 @@ mod tests {
         let mut child_node =
             Arc::new(crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1));
         // 注意：需要使用 PlanNode trait 中的 set_col_names 方法
-        std::sync::Arc::get_mut(&mut child_node)
-            .unwrap()
-            .set_col_names(vec![
+        if let Some(child_node_mut) = std::sync::Arc::get_mut(&mut child_node) {
+            child_node_mut.set_col_names(vec![
                 "id".to_string(),
                 "name".to_string(),
                 "age".to_string(),
             ]);
+        }
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
@@ -855,35 +855,50 @@ fn create_plan_node_with_output_var(
     // 尝试将plan_node向下转换为具体类型，并创建带有新输出变量的新实例
     // 这里我们只处理一些常见的节点类型作为示例，实际中需要处理所有类型
     if let Some(filter_node) = plan_node.as_any().downcast_ref::<FilterNode>() {
-        let input = filter_node.dependencies().get(0).unwrap().clone();
+        let input = filter_node.dependencies().get(0)
+            .expect("Filter should have at least one dependency")
+            .clone();
         let condition = filter_node.condition().clone();
-        let mut new_node = FilterNode::new(input, condition).unwrap();
+        let mut new_node = FilterNode::new(input, condition)
+            .expect("FilterNode creation should succeed with valid input");
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(project_node) = plan_node.as_any().downcast_ref::<ProjectNode>() {
-        let input = project_node.dependencies().get(0).unwrap().clone();
+        let input = project_node.dependencies().get(0)
+            .expect("Project should have at least one dependency")
+            .clone();
         let columns = project_node.columns().to_vec();
-        let mut new_node = ProjectNode::new(input, columns).unwrap();
+        let mut new_node = ProjectNode::new(input, columns)
+            .expect("ProjectNode creation should succeed with valid input");
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(dedup_node) = plan_node.as_any().downcast_ref::<DedupNode>() {
-        let input = dedup_node.dependencies().get(0).unwrap().clone();
-        let mut new_node = DedupNode::new(input).unwrap();
+        let input = dedup_node.dependencies().get(0)
+            .expect("Dedup should have at least one dependency")
+            .clone();
+        let mut new_node = DedupNode::new(input)
+            .expect("DedupNode creation should succeed with valid input");
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(sort_node) = plan_node.as_any().downcast_ref::<SortNode>() {
         // 创建新的排序节点，需要使用正确的构造函数
-        let input = sort_node.dependencies().get(0).unwrap().clone();
+        let input = sort_node.dependencies().get(0)
+            .expect("Sort should have at least one dependency")
+            .clone();
         let sort_items = sort_node.sort_items().to_vec();
-        let mut new_node = SortNode::new(input, sort_items).unwrap();
+        let mut new_node = SortNode::new(input, sort_items)
+            .expect("SortNode creation should succeed with valid input");
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(limit_node) = plan_node.as_any().downcast_ref::<LimitNode>() {
         // 创建新的限制节点，需要使用正确的构造函数
-        let input = limit_node.dependencies().get(0).unwrap().clone();
+        let input = limit_node.dependencies().get(0)
+            .expect("Limit should have at least one dependency")
+            .clone();
         let offset = limit_node.offset();
         let count = limit_node.count();
-        let mut new_node = LimitNode::new(input, offset, count).unwrap();
+        let mut new_node = LimitNode::new(input, offset, count)
+            .expect("LimitNode creation should succeed with valid input");
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(scan_vertices_node) = plan_node.as_any().downcast_ref::<ScanVerticesNode>() {
@@ -946,7 +961,7 @@ fn create_plan_node_with_output_var(
             let mut new_node = crate::query::planner::plan::core::nodes::InnerJoinNode::new(
                 left, right, hash_keys, probe_keys,
             )
-            .unwrap();
+            .expect("InnerJoinNode creation should succeed with valid input");
             new_node.set_output_var(output_var);
             Arc::new(new_node)
         } else {
@@ -965,7 +980,7 @@ fn create_plan_node_with_output_var(
             let mut new_node = crate::query::planner::plan::core::nodes::LeftJoinNode::new(
                 left, right, hash_keys, probe_keys,
             )
-            .unwrap();
+            .expect("LeftJoinNode creation should succeed with valid input");
             new_node.set_output_var(output_var);
             Arc::new(new_node)
         } else {

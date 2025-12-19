@@ -324,16 +324,16 @@ mod tests {
     #[test]
     fn test_sentence_kind_from_str() {
         assert_eq!(
-            SentenceKind::from_str("MATCH").unwrap(),
+            SentenceKind::from_str("MATCH").expect("Expected successful parsing of 'MATCH'"),
             SentenceKind::Match
         );
         assert_eq!(
-            SentenceKind::from_str("match").unwrap(),
+            SentenceKind::from_str("match").expect("Expected successful parsing of 'match'"),
             SentenceKind::Match
         );
-        assert_eq!(SentenceKind::from_str("GO").unwrap(), SentenceKind::Go);
+        assert_eq!(SentenceKind::from_str("GO").expect("Expected successful parsing of 'GO'"), SentenceKind::Go);
         assert_eq!(
-            SentenceKind::from_str("FETCH VERTICES").unwrap(),
+            SentenceKind::from_str("FETCH VERTICES").expect("Expected successful parsing of 'FETCH VERTICES'"),
             SentenceKind::FetchVertices
         );
 

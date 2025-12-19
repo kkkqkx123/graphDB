@@ -778,7 +778,7 @@ mod tests {
         // 获取参数
         let param = ctx.get_parameter("name");
         assert!(param.is_some());
-        assert_eq!(param.unwrap(), Value::String("Alice".to_string()));
+        assert_eq!(param.expect("Expected parameter 'name' to exist"), Value::String("Alice".to_string()));
 
         // 获取不存在的参数
         let missing_param = ctx.get_parameter("missing");
@@ -800,19 +800,19 @@ mod tests {
             Value::Map(std::collections::HashMap::new()),
             Value::Map(std::collections::HashMap::new()),
         ]);
-        ctx.set_response_data(data.clone()).unwrap();
+        ctx.set_response_data(data.clone()).expect("Expected successful setting of response data");
 
         // 获取响应
-        let response = ctx.get_response().unwrap();
+        let response = ctx.get_response().expect("Expected successful retrieval of response");
         assert!(response.is_success());
         assert!(response.get_data().is_some());
 
         // 设置响应错误
-        ctx.set_response_error("Query failed".to_string()).unwrap();
-        let response = ctx.get_response().unwrap();
+        ctx.set_response_error("Query failed".to_string()).expect("Expected successful setting of response error");
+        let response = ctx.get_response().expect("Expected successful retrieval of response after error");
         assert!(!response.is_success());
         assert!(response.get_error().is_some());
-        assert_eq!(response.get_error().unwrap(), "Query failed");
+        assert_eq!(response.get_error().expect("Expected error message to exist"), "Query failed");
     }
 
     #[test]
@@ -826,17 +826,17 @@ mod tests {
         );
 
         // 初始状态
-        assert_eq!(ctx.status().unwrap(), RequestStatus::Pending);
-        assert!(!ctx.is_completed().unwrap());
+        assert_eq!(ctx.status().expect("Expected successful retrieval of status"), RequestStatus::Pending);
+        assert!(!ctx.is_completed().expect("Expected successful check for completion"));
 
         // 标记为处理中
-        ctx.mark_processing().unwrap();
-        assert_eq!(ctx.status().unwrap(), RequestStatus::Processing);
+        ctx.mark_processing().expect("Expected successful marking as processing");
+        assert_eq!(ctx.status().expect("Expected successful retrieval of processing status"), RequestStatus::Processing);
 
         // 标记为完成
-        ctx.mark_completed().unwrap();
-        assert_eq!(ctx.status().unwrap(), RequestStatus::Completed);
-        assert!(ctx.is_completed().unwrap());
+        ctx.mark_completed().expect("Expected successful marking as completed");
+        assert_eq!(ctx.status().expect("Expected successful retrieval of completed status"), RequestStatus::Completed);
+        assert!(ctx.is_completed().expect("Expected successful check for completion"));
 
         // 测试失败状态
         let ctx2 = RequestContext::with_session(
@@ -846,8 +846,8 @@ mod tests {
             "127.0.0.1",
             0,
         );
-        ctx2.mark_failed().unwrap();
-        assert!(ctx2.is_failed().unwrap());
+        ctx2.mark_failed().expect("Expected successful marking as failed");
+        assert!(ctx2.is_failed().expect("Expected successful check for failure"));
 
         // 测试取消状态
         let ctx3 = RequestContext::with_session(
@@ -857,8 +857,8 @@ mod tests {
             "127.0.0.1",
             0,
         );
-        ctx3.mark_cancelled().unwrap();
-        assert!(ctx3.is_cancelled().unwrap());
+        ctx3.mark_cancelled().expect("Expected successful marking as cancelled");
+        assert!(ctx3.is_cancelled().expect("Expected successful check for cancellation"));
     }
 
     #[test]
@@ -873,29 +873,29 @@ mod tests {
 
         // 设置属性
         ctx.set_attribute("query_type".to_string(), Value::String("read".to_string()))
-            .unwrap();
+            .expect("Expected successful setting of 'query_type' attribute");
         ctx.set_attribute("priority".to_string(), Value::Int(1))
-            .unwrap();
+            .expect("Expected successful setting of 'priority' attribute");
 
         // 获取属性
-        let query_type = ctx.get_attribute("query_type").unwrap();
+        let query_type = ctx.get_attribute("query_type").expect("Expected successful retrieval of 'query_type' attribute");
         assert!(query_type.is_some());
-        assert_eq!(query_type.unwrap(), Value::String("read".to_string()));
+        assert_eq!(query_type.expect("Expected 'query_type' attribute to exist"), Value::String("read".to_string()));
 
         // 检查属性存在
-        assert!(ctx.has_attribute("priority").unwrap());
-        assert!(!ctx.has_attribute("missing").unwrap());
+        assert!(ctx.has_attribute("priority").expect("Expected successful check for 'priority' attribute"));
+        assert!(!ctx.has_attribute("missing").expect("Expected successful check for 'missing' attribute"));
 
         // 获取所有属性键
-        let keys = ctx.get_attribute_keys().unwrap();
+        let keys = ctx.get_attribute_keys().expect("Expected successful retrieval of attribute keys");
         assert_eq!(keys.len(), 2);
         assert!(keys.contains(&"query_type".to_string()));
         assert!(keys.contains(&"priority".to_string()));
 
         // 删除属性
-        let removed = ctx.remove_attribute("priority").unwrap();
+        let removed = ctx.remove_attribute("priority").expect("Expected successful removal of 'priority' attribute");
         assert!(removed.is_some());
-        assert!(!ctx.has_attribute("priority").unwrap());
+        assert!(!ctx.has_attribute("priority").expect("Expected successful check after removing 'priority' attribute"));
     }
 
     #[test]
@@ -925,9 +925,9 @@ mod tests {
             0,
         );
         ctx.set_attribute("test".to_string(), Value::String("value".to_string()))
-            .unwrap();
+            .expect("Expected successful setting of 'test' attribute");
 
-        let ctx_str = ctx.to_string().unwrap();
+        let ctx_str = ctx.to_string().expect("Expected successful retrieval of context string");
         assert!(ctx_str.contains("RequestContext"));
         assert!(ctx_str.contains("MATCH (n) RETURN n"));
         assert!(ctx_str.contains("test_session"));

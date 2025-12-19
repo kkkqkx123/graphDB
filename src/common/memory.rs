@@ -113,7 +113,8 @@ impl MemoryPool {
     }
 
     pub fn allocate(&self, size: usize) -> Option<*mut u8> {
-        let mut available_chunks = self.available_chunks.lock().unwrap();
+        let mut available_chunks = self.available_chunks.lock()
+            .expect("Available chunks lock should not be poisoned");
 
         // Look for a suitable chunk (first fit)
         if let Some(&start_idx) = available_chunks.get(&size).and_then(|v| v.first()) {

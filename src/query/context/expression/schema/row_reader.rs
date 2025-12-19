@@ -302,7 +302,8 @@ mod tests {
         test_data.extend_from_slice(&95.5f32.to_be_bytes());
 
         // 创建RowReaderWrapper
-        let reader = RowReaderWrapper::new(test_data, schema).unwrap();
+        let reader = RowReaderWrapper::new(test_data, schema)
+            .expect("RowReaderWrapper creation should succeed with valid data and schema");
 
         // 测试字段存在性检查
         assert!(reader.has_field("age"));
@@ -318,10 +319,12 @@ mod tests {
         assert_eq!(reader.data_len(), 12); // 8+4 = 12字节
 
         // 测试读取值
-        let age_value = reader.read_value("age").unwrap();
+        let age_value = reader.read_value("age")
+            .expect("Reading 'age' field should succeed");
         assert_eq!(age_value, Value::Int(25));
 
-        let score_value = reader.read_value("score").unwrap();
+        let score_value = reader.read_value("score")
+            .expect("Reading 'score' field should succeed");
         assert_eq!(score_value, Value::Float(95.5));
     }
 }

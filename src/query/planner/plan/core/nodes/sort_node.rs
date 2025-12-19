@@ -407,7 +407,7 @@ mod tests {
 
         let sort_items = vec!["name".to_string(), "age".to_string()];
 
-        let sort_node = SortNode::new(start_node, sort_items).unwrap();
+        let sort_node = SortNode::new(start_node, sort_items).expect("SortNode creation should succeed");
 
         assert_eq!(sort_node.kind(), PlanNodeKind::Sort);
         assert_eq!(sort_node.dependencies().len(), 1);

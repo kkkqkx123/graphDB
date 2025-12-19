@@ -446,7 +446,7 @@ mod tests {
 
         // 验证结果
         assert!(best_start_vid.is_some());
-        assert_eq!(best_start_vid.unwrap(), "n");
+        assert_eq!(best_start_vid.expect("best_start_vid should be Some"), "n");
     }
 
     #[test]
@@ -481,7 +481,7 @@ mod tests {
         assert_eq!(result.start_vids.len(), 1);
         assert_eq!(result.start_vids[0], "n");
         assert!(result.best_start_vid.is_some());
-        assert_eq!(result.best_start_vid.unwrap(), "n");
+        assert_eq!(result.best_start_vid.expect("best_start_vid should be Some"), "n");
     }
 
     #[test]

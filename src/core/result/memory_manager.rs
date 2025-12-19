@@ -167,7 +167,8 @@ mod tests {
         assert_eq!(manager.get_peak_usage(), 0);
 
         // 检查内存
-        assert!(manager.check_memory(500).unwrap());
+        assert!(manager.check_memory(500)
+            .expect("Memory check should succeed when within limit"));
 
         // 注册分配
         manager.register_allocation(500);
@@ -175,7 +176,8 @@ mod tests {
         assert_eq!(manager.get_peak_usage(), 500);
 
         // 检查剩余内存
-        assert!(manager.check_memory(400).unwrap());
+        assert!(manager.check_memory(400)
+            .expect("Memory check should succeed when within remaining limit"));
 
         // 超过限制
         assert!(manager.check_memory(600).is_err());

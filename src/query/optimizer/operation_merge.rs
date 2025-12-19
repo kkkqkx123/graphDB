@@ -48,7 +48,9 @@ impl OptRule for CombineFilterRule {
                         // 创建一个新的过滤节点，包含合并后的条件
                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                         // 这里简化处理，直接返回原节点
-                        let input = top_filter.dependencies().first().unwrap().clone();
+                        let input = top_filter.dependencies().first()
+                            .expect("Filter should have at least one dependency")
+                            .clone();
                         let combined_filter_node = match FilterPlanNode::new(input, crate::graph::expression::Expression::Variable(combined_condition_str)) {
                             Ok(node) => node,
                             Err(_) => top_filter.clone(),
@@ -106,7 +108,9 @@ impl MergeRule for CombineFilterRule {
 
             // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
             // 这里简化处理，直接返回原节点
-            let input = top_filter.dependencies().first().unwrap().clone();
+            let input = top_filter.dependencies().first()
+                .expect("Filter should have at least one dependency")
+                .clone();
             let combined_filter_node = match FilterPlanNode::new(input, crate::graph::expression::Expression::Variable(combined_condition_str)) {
                 Ok(node) => node,
                 Err(_) => top_filter.clone(),

@@ -137,9 +137,10 @@ where
     V: Clone,
 {
     fn get(&self, key: &K) -> Option<V> {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
-        
+
         if let Some(entry) = cache.cache.get(key) {
             if !entry.is_expired() {
                 Some(entry.value().clone())
@@ -150,51 +151,57 @@ where
             None
         }
     }
-    
+
     fn put(&self, key: K, value: V) {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
         cache.evict_if_needed();
-        
+
         let entry = TtlEntry::new(value, cache.default_ttl);
         cache.cache.insert(key, entry);
     }
-    
+
     fn contains(&self, key: &K) -> bool {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
-        
+
         if let Some(entry) = cache.cache.get(key) {
             !entry.is_expired()
         } else {
             false
         }
     }
-    
+
     fn remove(&self, key: &K) -> Option<V> {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
-        
+
         if let Some(entry) = cache.cache.remove(key) {
             Some(entry.value().clone())
         } else {
             None
         }
     }
-    
+
     fn clear(&self) {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cache.clear();
     }
-    
+
     fn len(&self) -> usize {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
         cache.cache.len()
     }
-    
+
     fn is_empty(&self) -> bool {
-        let mut cache = self.inner.lock().unwrap();
+        let mut cache = self.inner.lock()
+            .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
         cache.cache.is_empty()
     }

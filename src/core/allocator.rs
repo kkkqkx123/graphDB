@@ -62,7 +62,8 @@ impl Drop for Chunk {
     fn drop(&mut self) {
         // Safety: self.data was allocated with Layout::from_size_align(self.size, ALIGNMENT)
         // and is still valid at this point.
-        let layout = Layout::from_size_align(self.size, ALIGNMENT).unwrap();
+        let layout = Layout::from_size_align(self.size, ALIGNMENT)
+            .expect("Chunk size should be valid for layout creation");
         unsafe {
             dealloc(self.data, layout);
         }
