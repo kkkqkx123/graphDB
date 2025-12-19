@@ -1,366 +1,575 @@
-//! 查询执行上下文模块 - 管理查询执行期间的上下文信息
-//! 对应原C++中的ExecutionContext.h/cpp
+//! 执行上下文 - 执行状态管理
 //!
-//! 注意：这是查询级别的执行上下文，不同于应用级别的 services::context::ExecutionContext
+//! 执行上下文，管理执行期间的状态
+//! 对应原C++中的ExecutionContext.h/cpp
 
 use crate::core::{Result, Value};
+use crate::query::context::QueryContext;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-/// 查询执行上下文
-///
-/// 每个查询请求的执行上下文，存储查询变量值和查询结果的多版本历史
-/// 对应原C++中的ExecutionContext类
-///
-/// 与 services::context::ExecutionContext 的区别：
-/// - services::context::ExecutionContext: 应用级，追踪单个操作的超时和统计
-/// - QueryExecutionContext: 查询级，管理查询变量的多版本
-#[derive(Debug, Clone)]
-pub struct QueryExecutionContext {
-    // name -> 多版本结果列表 (最新版本在前，最老版本在后)
-    value_map: Arc<RwLock<HashMap<String, Vec<Result>>>>,
+/// 执行状态
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExecutionState {
+    /// 初始化
+    Initialized,
+    /// 执行中
+    Running,
+    /// 暂停
+    Paused,
+    /// 完成
+    Completed,
+    /// 错误
+    Error(String),
+    /// 取消
+    Cancelled,
 }
 
-impl QueryExecutionContext {
-    /// 创建新的查询执行上下文
+/// 资源管理器
+#[derive(Debug)]
+pub struct ResourceManager {
+    /// 内存使用量（字节）
+    memory_usage: Arc<RwLock<u64>>,
+    /// 打开的文件数
+    open_files: Arc<RwLock<u32>>,
+    /// 网络连接数
+    network_connections: Arc<RwLock<u32>>,
+}
+
+impl ResourceManager {
+    /// 创建新的资源管理器
     pub fn new() -> Self {
         Self {
-            value_map: Arc::new(RwLock::new(HashMap::new())),
+            memory_usage: Arc::new(RwLock::new(0)),
+            open_files: Arc::new(RwLock::new(0)),
+            network_connections: Arc::new(RwLock::new(0)),
         }
     }
 
-    /// 初始化变量
-    pub fn init_var(&self, name: &str) {
-        let mut value_map = self
-            .value_map
-            .write()
-            .expect("Failed to acquire write lock");
-        value_map.entry(name.to_string()).or_insert_with(Vec::new);
+    /// 获取内存使用量
+    pub fn memory_usage(&self) -> u64 {
+        *self.memory_usage.read().unwrap()
+    }
+
+    /// 增加内存使用量
+    pub fn add_memory_usage(&self, bytes: u64) {
+        *self.memory_usage.write().unwrap() += bytes;
+    }
+
+    /// 减少内存使用量
+    pub fn subtract_memory_usage(&self, bytes: u64) {
+        let mut usage = self.memory_usage.write().unwrap();
+        *usage = usage.saturating_sub(bytes);
+    }
+
+    /// 获取打开的文件数
+    pub fn open_files(&self) -> u32 {
+        *self.open_files.read().unwrap()
+    }
+
+    /// 增加打开的文件数
+    pub fn add_open_file(&self) {
+        *self.open_files.write().unwrap() += 1;
+    }
+
+    /// 减少打开的文件数
+    pub fn remove_open_file(&self) {
+        let mut count = self.open_files.write().unwrap();
+        *count = count.saturating_sub(1);
+    }
+
+    /// 获取网络连接数
+    pub fn network_connections(&self) -> u32 {
+        *self.network_connections.read().unwrap()
+    }
+
+    /// 增加网络连接数
+    pub fn add_network_connection(&self) {
+        *self.network_connections.write().unwrap() += 1;
+    }
+
+    /// 减少网络连接数
+    pub fn remove_network_connection(&self) {
+        let mut count = self.network_connections.write().unwrap();
+        *count = count.saturating_sub(1);
+    }
+}
+
+impl Default for ResourceManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// 执行指标
+#[derive(Debug, Clone, Default)]
+pub struct ExecutionMetrics {
+    /// 开始时间
+    pub start_time: Option<std::time::Instant>,
+    /// 结束时间
+    pub end_time: Option<std::time::Instant>,
+    /// 执行的步骤数
+    pub steps_executed: u64,
+    /// 缓存命中次数
+    pub cache_hits: u64,
+    /// 缓存未命中次数
+    pub cache_misses: u64,
+}
+
+impl ExecutionMetrics {
+    /// 创建新的执行指标
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 开始计时
+    pub fn start_timing(&mut self) {
+        self.start_time = Some(std::time::Instant::now());
+    }
+
+    /// 结束计时
+    pub fn end_timing(&mut self) {
+        self.end_time = Some(std::time::Instant::now());
+    }
+
+    /// 获取执行持续时间（毫秒）
+    pub fn duration_ms(&self) -> Option<u64> {
+        match (self.start_time, self.end_time) {
+            (Some(start), Some(end)) => Some(end.duration_since(start).as_millis() as u64),
+            _ => None,
+        }
+    }
+
+    /// 增加执行步骤数
+    pub fn add_step(&mut self) {
+        self.steps_executed += 1;
+    }
+
+    /// 增加缓存命中次数
+    pub fn add_cache_hit(&mut self) {
+        self.cache_hits += 1;
+    }
+
+    /// 增加缓存未命中次数
+    pub fn add_cache_miss(&mut self) {
+        self.cache_misses += 1;
+    }
+
+    /// 获取缓存命中率
+    pub fn cache_hit_rate(&self) -> f64 {
+        let total = self.cache_hits + self.cache_misses;
+        if total == 0 {
+            0.0
+        } else {
+            self.cache_hits as f64 / total as f64
+        }
+    }
+}
+
+/// 执行上下文，管理执行期间的状态
+#[derive(Debug)]
+pub struct ExecutionContext {
+    /// 查询上下文
+    pub query_context: Arc<QueryContext>,
+    /// 执行状态
+    execution_state: Arc<RwLock<ExecutionState>>,
+    /// 资源管理器
+    pub resource_manager: ResourceManager,
+    /// 执行指标
+    pub metrics: ExecutionMetrics,
+    /// 执行变量（运行时变量）
+    variables: Arc<RwLock<HashMap<String, Value>>>,
+    /// 执行结果
+    results: Arc<RwLock<HashMap<String, Vec<Result>>>>,
+}
+
+impl ExecutionContext {
+    /// 创建新的执行上下文
+    pub fn new(query_context: Arc<QueryContext>) -> Self {
+        Self {
+            query_context,
+            execution_state: Arc::new(RwLock::new(ExecutionState::Initialized)),
+            resource_manager: ResourceManager::new(),
+            metrics: ExecutionMetrics::new(),
+            variables: Arc::new(RwLock::new(HashMap::new())),
+            results: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    /// 获取执行状态
+    pub fn get_execution_state(&self) -> ExecutionState {
+        self.execution_state.read().unwrap().clone()
+    }
+
+    /// 设置执行状态
+    pub fn set_execution_state(&self, state: ExecutionState) {
+        *self.execution_state.write().unwrap() = state;
+    }
+
+    /// 检查是否正在运行
+    pub fn is_running(&self) -> bool {
+        matches!(self.get_execution_state(), ExecutionState::Running)
+    }
+
+    /// 检查是否已完成
+    pub fn is_completed(&self) -> bool {
+        matches!(self.get_execution_state(), ExecutionState::Completed)
+    }
+
+    /// 检查是否有错误
+    pub fn has_error(&self) -> bool {
+        matches!(self.get_execution_state(), ExecutionState::Error(_))
+    }
+
+    /// 获取错误信息
+    pub fn get_error(&self) -> Option<String> {
+        match self.get_execution_state() {
+            ExecutionState::Error(msg) => Some(msg),
+            _ => None,
+        }
+    }
+
+    /// 开始执行
+    pub fn start(&self) {
+        self.set_execution_state(ExecutionState::Running);
+    }
+
+    /// 暂停执行
+    pub fn pause(&self) {
+        if self.is_running() {
+            self.set_execution_state(ExecutionState::Paused);
+        }
+    }
+
+    /// 恢复执行
+    pub fn resume(&self) {
+        if matches!(self.get_execution_state(), ExecutionState::Paused) {
+            self.set_execution_state(ExecutionState::Running);
+        }
+    }
+
+    /// 完成执行
+    pub fn complete(&self) {
+        self.set_execution_state(ExecutionState::Completed);
+    }
+
+    /// 设置错误状态
+    pub fn set_error(&self, error: String) {
+        self.set_execution_state(ExecutionState::Error(error));
+    }
+
+    /// 取消执行
+    pub fn cancel(&self) {
+        self.set_execution_state(ExecutionState::Cancelled);
+    }
+
+    /// 获取变量值
+    pub fn get_variable(&self, name: &str) -> Option<Value> {
+        // 首先检查执行变量
+        if let Some(value) = self.variables.read().unwrap().get(name) {
+            return Some(value.clone());
+        }
+        // 然后检查查询上下文中的变量
+        self.query_context.get_variable(name).cloned()
+    }
+
+    /// 设置变量值
+    pub fn set_variable(&self, name: String, value: Value) {
+        self.variables.write().unwrap().insert(name, value);
+    }
+
+    /// 删除变量
+    pub fn remove_variable(&self, name: &str) -> Option<Value> {
+        self.variables.write().unwrap().remove(name)
+    }
+
+    /// 检查变量是否存在
+    pub fn has_variable(&self, name: &str) -> bool {
+        self.variables.read().unwrap().contains_key(name) || self.query_context.has_variable(name)
+    }
+
+    /// 获取所有变量名
+    pub fn variable_names(&self) -> Vec<String> {
+        let mut names = self.variables.read().unwrap().keys().cloned().collect::<Vec<_>>();
+        names.extend(self.query_context.variable_names());
+        names.sort();
+        names.dedup();
+        names
     }
 
     /// 获取变量的最新值
-    pub fn get_value(&self, name: &str) -> std::result::Result<Value, String> {
-        let value_map = self
-            .value_map
-            .read()
-            .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
-
-        if let Some(results) = value_map.get(name) {
-            if let Some(result) = results.first() {
-                return Ok(result.value().clone());
-            } else {
-                return Err("No results found for variable".to_string());
-            }
+    pub fn get_value(&self, name: &str) -> Result<Value, String> {
+        if let Some(value) = self.get_variable(name) {
+            Ok(value)
         } else {
-            Err("Variable not found".to_string())
-        }
-    }
-
-    /// 获取变量的最新结果
-    pub fn get_result(&self, name: &str) -> std::result::Result<Result, String> {
-        let value_map = self
-            .value_map
-            .read()
-            .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
-
-        if let Some(results) = value_map.get(name) {
-            if let Some(result) = results.first() {
-                return Ok(result.clone());
-            } else {
-                return Err("No results found for variable".to_string());
-            }
-        } else {
-            Err("Variable not found".to_string())
-        }
-    }
-
-    /// 获取变量的指定版本结果
-    pub fn get_versioned_result(
-        &self,
-        name: &str,
-        version: i64,
-    ) -> std::result::Result<Result, String> {
-        let value_map = self
-            .value_map
-            .read()
-            .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
-
-        if let Some(results) = value_map.get(name) {
-            // 版本处理：0是最新的，1是第二个最新，等等；-n表示第n个元素（与正索引访问相同元素）
-            let index = if version >= 0 {
-                // 从最新开始计数，0是最新，1是第二个最新，等等
-                version as usize
-            } else {
-                // 负数索引与正数索引访问相同的元素：-1与1访问同一元素，等等
-                (-version) as usize
-            };
-
-            // 检查索引范围
-            if index >= results.len() {
-                return Err("Version index out of range".to_string());
-            }
-
-            if let Some(result) = results.get(index) {
-                Ok(result.clone())
-            } else {
-                Err("Version index out of range".to_string())
-            }
-        } else {
-            Err("Variable not found".to_string())
-        }
-    }
-
-    /// 设置变量的指定版本结果
-    pub fn set_versioned_result(
-        &self,
-        name: &str,
-        result: Result,
-        version: i64,
-    ) -> std::result::Result<(), String> {
-        let mut value_map = self
-            .value_map
-            .write()
-            .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
-
-        let results = value_map.entry(name.to_string()).or_insert_with(Vec::new);
-
-        // 版本处理：0是最新的，-1是前一个，依此类推；1是最老的，2是第二个老的，依此类推
-        let index = if version >= 0 {
-            // 从最新开始计数
-            version as usize
-        } else {
-            // 从末尾开始计数
-            if results.len() as i64 >= (-version) {
-                results.len() - (-version) as usize
-            } else {
-                return Err("Version index out of range".to_string());
-            }
-        };
-
-        if index < results.len() {
-            results[index] = result;
-        } else if index == results.len() {
-            results.push(result);
-        } else {
-            return Err("Version index out of range".to_string());
-        }
-
-        Ok(())
-    }
-
-    /// 获取变量的版本数量
-    pub fn num_versions(&self, name: &str) -> std::result::Result<usize, String> {
-        let value_map = self
-            .value_map
-            .read()
-            .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
-
-        if let Some(results) = value_map.get(name) {
-            Ok(results.len())
-        } else {
-            Err("Variable not found".to_string())
-        }
-    }
-
-    /// 获取变量的所有历史结果（最新的在前，最老的在后）
-    pub fn get_history(&self, name: &str) -> std::result::Result<Vec<Result>, String> {
-        let value_map = self
-            .value_map
-            .read()
-            .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
-
-        if let Some(results) = value_map.get(name) {
-            Ok(results.clone())
-        } else {
-            Err("Variable not found".to_string())
+            Err(format!("变量 '{}' 不存在", name))
         }
     }
 
     /// 设置变量的最新值
-    pub fn set_value(&self, name: &str, value: Value) -> std::result::Result<(), String> {
-        let mut value_map = self
-            .value_map
-            .write()
-            .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
-
-        let results = value_map.entry(name.to_string()).or_insert_with(Vec::new);
-        let result = Result::new(value, crate::core::ResultState::Success);
-        results.insert(0, result); // 插入到最前面（最新位置）
-
+    pub fn set_value(&self, name: &str, value: Value) -> Result<(), String> {
+        self.set_variable(name.to_string(), value);
         Ok(())
+    }
+
+    /// 获取变量的最新结果
+    pub fn get_result(&self, name: &str) -> Result<Result, String> {
+        let results = self.results.read().unwrap();
+        if let Some(result_list) = results.get(name) {
+            if let Some(result) = result_list.first() {
+                Ok(result.clone())
+            } else {
+                Err(format!("变量 '{}' 没有结果", name))
+            }
+        } else {
+            Err(format!("变量 '{}' 不存在", name))
+        }
     }
 
     /// 设置变量的最新结果
-    pub fn set_result(&self, name: &str, result: Result) -> std::result::Result<(), String> {
-        let mut value_map = self
-            .value_map
-            .write()
-            .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
-
-        let results = value_map.entry(name.to_string()).or_insert_with(Vec::new);
-        results.insert(0, result); // 插入到最前面（最新位置）
-
+    pub fn set_result(&self, name: &str, result: Result) -> Result<(), String> {
+        let mut results = self.results.write().unwrap();
+        let result_list = results.entry(name.to_string()).or_insert_with(Vec::new);
+        result_list.insert(0, result);
         Ok(())
+    }
+
+    /// 获取变量的所有历史结果
+    pub fn get_history(&self, name: &str) -> Result<Vec<Result>, String> {
+        let results = self.results.read().unwrap();
+        if let Some(result_list) = results.get(name) {
+            Ok(result_list.clone())
+        } else {
+            Err(format!("变量 '{}' 不存在", name))
+        }
     }
 
     /// 删除变量的结果
-    pub fn drop_result(&self, name: &str) -> std::result::Result<(), String> {
-        let mut value_map = self
-            .value_map
-            .write()
-            .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
-
-        value_map.remove(name);
+    pub fn drop_result(&self, name: &str) -> Result<(), String> {
+        let mut results = self.results.write().unwrap();
+        results.remove(name);
         Ok(())
-    }
-
-    /// 只保留最近几个版本的结果
-    pub fn trunc_history(
-        &self,
-        name: &str,
-        num_versions_to_keep: usize,
-    ) -> std::result::Result<(), String> {
-        let mut value_map = self
-            .value_map
-            .write()
-            .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
-
-        if let Some(results) = value_map.get_mut(name) {
-            if results.len() > num_versions_to_keep {
-                results.truncate(num_versions_to_keep);
-            }
-            Ok(())
-        } else {
-            Err("Variable not found".to_string())
-        }
     }
 
     /// 检查变量是否存在
     pub fn exists(&self, name: &str) -> bool {
-        let value_map = match self.value_map.read() {
-            Ok(map) => map,
-            Err(_) => return false, // 如果无法获取读锁，返回false
-        };
-
-        value_map.contains_key(name)
+        self.has_variable(name) || self.results.read().unwrap().contains_key(name)
     }
 
     /// 获取变量数量
     pub fn variable_count(&self) -> usize {
-        let value_map = match self.value_map.read() {
-            Ok(map) => map,
-            Err(_) => return 0, // 如果无法获取读锁，返回0
-        };
-
-        value_map.len()
+        self.variable_names().len()
     }
-}
 
-impl Default for QueryExecutionContext {
-    fn default() -> Self {
-        Self::new()
+    /// 清除所有执行变量
+    pub fn clear_variables(&self) {
+        self.variables.write().unwrap().clear();
+    }
+
+    /// 清除所有结果
+    pub fn clear_results(&self) {
+        self.results.write().unwrap().clear();
+    }
+
+    /// 重置执行上下文
+    pub fn reset(&self) {
+        self.set_execution_state(ExecutionState::Initialized);
+        self.clear_variables();
+        self.clear_results();
+        self.metrics = ExecutionMetrics::new();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::context::managers::r#impl::{
+        MockIndexManager, MockMetaClient, MockSchemaManager, MockStorageClient,
+    };
 
-    #[test]
-    fn test_query_execution_context() {
-        let ctx = QueryExecutionContext::new();
+    fn create_test_context() -> Arc<QueryContext> {
+        let schema_manager = Arc::new(MockSchemaManager::new());
+        let index_manager = Arc::new(MockIndexManager::new());
+        let meta_client = Arc::new(MockMetaClient::new());
+        let storage_client = Arc::new(MockStorageClient::new());
 
-        // 测试初始化变量
-        ctx.init_var("test_var");
-        assert!(ctx.exists("test_var"));
-
-        // 测试设置和获取值
-        let value = Value::Int(42);
-        ctx.set_value("test_var", value.clone()).expect("Expected successful setting of test variable");
-        let retrieved_value = ctx.get_value("test_var").expect("Expected successful retrieval of test value");
-        assert_eq!(retrieved_value, value);
-
-        // 测试结果操作
-        let result = Result::new(
-            Value::String("test_result".to_string()),
-            crate::core::ResultState::Success,
-        );
-        ctx.set_result("result_var", result.clone()).expect("Expected successful setting of result variable");
-        let retrieved_result = ctx.get_result("result_var").expect("Expected successful retrieval of result");
-        assert_eq!(retrieved_result, result);
+        Arc::new(QueryContext::new(
+            "session123".to_string(),
+            "user456".to_string(),
+            schema_manager,
+            index_manager,
+            meta_client,
+            storage_client,
+        ))
     }
 
     #[test]
-    fn test_versioned_operations() {
-        let ctx = QueryExecutionContext::new();
+    fn test_execution_context_creation() {
+        let query_context = create_test_context();
+        let exec_ctx = ExecutionContext::new(query_context);
 
-        // 创建一些测试结果
-        let result1 = Result::new(Value::Int(1), crate::core::ResultState::Success);
-        let result2 = Result::new(Value::Int(2), crate::core::ResultState::Success);
-        let result3 = Result::new(Value::Int(3), crate::core::ResultState::Success);
+        assert_eq!(exec_ctx.get_execution_state(), ExecutionState::Initialized);
+        assert!(!exec_ctx.is_running());
+        assert!(!exec_ctx.is_completed());
+        assert!(!exec_ctx.has_error());
+    }
 
-        // 设置不同版本的结果
-        ctx.set_result("versioned_var", result1.clone()).expect("Expected successful setting of version 1");
-        ctx.set_result("versioned_var", result2.clone()).expect("Expected successful setting of version 2");
-        ctx.set_result("versioned_var", result3.clone()).expect("Expected successful setting of version 3");
+    #[test]
+    fn test_execution_state_management() {
+        let query_context = create_test_context();
+        let exec_ctx = ExecutionContext::new(query_context);
 
-        // 检查版本数量
-        assert_eq!(ctx.num_versions("versioned_var").expect("Expected successful version count check"), 3);
+        // 开始执行
+        exec_ctx.start();
+        assert_eq!(exec_ctx.get_execution_state(), ExecutionState::Running);
+        assert!(exec_ctx.is_running());
+
+        // 暂停执行
+        exec_ctx.pause();
+        assert_eq!(exec_ctx.get_execution_state(), ExecutionState::Paused);
+        assert!(!exec_ctx.is_running());
+
+        // 恢复执行
+        exec_ctx.resume();
+        assert_eq!(exec_ctx.get_execution_state(), ExecutionState::Running);
+        assert!(exec_ctx.is_running());
+
+        // 完成执行
+        exec_ctx.complete();
+        assert_eq!(exec_ctx.get_execution_state(), ExecutionState::Completed);
+        assert!(exec_ctx.is_completed());
+
+        // 设置错误
+        exec_ctx.set_error("测试错误".to_string());
+        assert_eq!(exec_ctx.get_execution_state(), ExecutionState::Error("测试错误".to_string()));
+        assert!(exec_ctx.has_error());
+        assert_eq!(exec_ctx.get_error(), Some("测试错误".to_string()));
+    }
+
+    #[test]
+    fn test_variable_management() {
+        let query_context = create_test_context();
+        let exec_ctx = ExecutionContext::new(query_context);
+
+        // 设置执行变量
+        exec_ctx.set_variable("exec_var".to_string(), Value::Int(100));
+        assert_eq!(exec_ctx.get_variable("exec_var"), Some(Value::Int(100)));
+        assert!(exec_ctx.has_variable("exec_var"));
+
+        // 设置查询上下文变量
+        let mut query_ctx = (*exec_ctx.query_context).clone();
+        query_ctx.set_variable("query_var".to_string(), Value::String("test".to_string()));
+        
+        // 执行变量优先级更高
+        exec_ctx.set_variable("query_var".to_string(), Value::Int(200));
+        assert_eq!(exec_ctx.get_variable("query_var"), Some(Value::Int(200)));
+
+        // 删除执行变量后，应该返回查询上下文变量
+        exec_ctx.remove_variable("query_var");
+        assert_eq!(exec_ctx.get_variable("query_var"), Some(Value::String("test".to_string())));
+
+        // 检查变量名列表
+        let names = exec_ctx.variable_names();
+        assert!(names.contains(&"exec_var".to_string()));
+        assert!(names.contains(&"query_var".to_string()));
+    }
+
+    #[test]
+    fn test_result_management() {
+        let query_context = create_test_context();
+        let exec_ctx = ExecutionContext::new(query_context);
+
+        // 设置结果
+        let result = Result::new(Value::Int(42), crate::core::ResultState::Success);
+        exec_ctx.set_result("test_var", result.clone()).unwrap();
+
+        // 获取结果
+        let retrieved = exec_ctx.get_result("test_var").unwrap();
+        assert_eq!(retrieved, result);
 
         // 获取历史记录
-        let history = ctx.get_history("versioned_var").expect("Expected successful history retrieval");
-        assert_eq!(history.len(), 3);
-        // 注意：历史记录是最新在前
-        assert_eq!(history[0], result3); // 最新
-        assert_eq!(history[1], result2);
-        assert_eq!(history[2], result1); // 最老
+        let history = exec_ctx.get_history("test_var").unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0], result);
 
-        // 获取指定版本（0是最新的）
-        assert_eq!(
-            ctx.get_versioned_result("versioned_var", 0).expect("Expected successful retrieval of version 0"),
-            result3
-        );
-        assert_eq!(
-            ctx.get_versioned_result("versioned_var", -1).expect("Expected successful retrieval of version -1"),
-            result2
-        );
-        assert_eq!(
-            ctx.get_versioned_result("versioned_var", 1).expect("Expected successful retrieval of version 1"),
-            result2
-        );
-        assert_eq!(
-            ctx.get_versioned_result("versioned_var", 2).expect("Expected successful retrieval of version 2"),
-            result1
-        );
-
-        // 版本截断
-        ctx.trunc_history("versioned_var", 2).expect("Expected successful truncation of history");
-        assert_eq!(ctx.num_versions("versioned_var").expect("Expected successful version count after truncation"), 2);
+        // 删除结果
+        exec_ctx.drop_result("test_var").unwrap();
+        assert!(exec_ctx.get_result("test_var").is_err());
     }
 
     #[test]
-    fn test_variable_count() {
-        let ctx = QueryExecutionContext::new();
+    fn test_resource_manager() {
+        let resource_manager = ResourceManager::new();
 
-        // 初始变量数量应为0
-        assert_eq!(ctx.variable_count(), 0);
+        // 测试内存管理
+        assert_eq!(resource_manager.memory_usage(), 0);
+        resource_manager.add_memory_usage(1024);
+        assert_eq!(resource_manager.memory_usage(), 1024);
+        resource_manager.subtract_memory_usage(512);
+        assert_eq!(resource_manager.memory_usage(), 512);
 
-        // 添加变量
-        ctx.set_value("var1", Value::Int(1)).expect("Expected successful setting of var1");
-        assert_eq!(ctx.variable_count(), 1);
+        // 测试文件管理
+        assert_eq!(resource_manager.open_files(), 0);
+        resource_manager.add_open_file();
+        assert_eq!(resource_manager.open_files(), 1);
+        resource_manager.remove_open_file();
+        assert_eq!(resource_manager.open_files(), 0);
 
-        // 添加更多变量
-        ctx.set_value("var2", Value::String("test".to_string()))
-            .expect("Expected successful setting of var2");
-        ctx.set_value("var3", Value::Bool(true)).expect("Expected successful setting of var3");
-        assert_eq!(ctx.variable_count(), 3);
+        // 测试网络连接管理
+        assert_eq!(resource_manager.network_connections(), 0);
+        resource_manager.add_network_connection();
+        assert_eq!(resource_manager.network_connections(), 1);
+        resource_manager.remove_network_connection();
+        assert_eq!(resource_manager.network_connections(), 0);
+    }
 
-        // 删除变量
-        ctx.drop_result("var2").expect("Expected successful dropping of var2");
-        assert_eq!(ctx.variable_count(), 2);
+    #[test]
+    fn test_execution_metrics() {
+        let mut metrics = ExecutionMetrics::new();
 
-        // 删除不存在的变量不应影响计数
-        ctx.drop_result("non_existent").expect("Expected successful dropping of non-existent var");
-        assert_eq!(ctx.variable_count(), 2);
+        // 测试计时
+        assert!(metrics.duration_ms().is_none());
+        metrics.start_timing();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        metrics.end_timing();
+        assert!(metrics.duration_ms().unwrap() >= 10);
+
+        // 测试步骤计数
+        assert_eq!(metrics.steps_executed, 0);
+        metrics.add_step();
+        metrics.add_step();
+        assert_eq!(metrics.steps_executed, 2);
+
+        // 测试缓存统计
+        assert_eq!(metrics.cache_hits, 0);
+        assert_eq!(metrics.cache_misses, 0);
+        assert_eq!(metrics.cache_hit_rate(), 0.0);
+
+        metrics.add_cache_hit();
+        metrics.add_cache_hit();
+        metrics.add_cache_miss();
+        assert_eq!(metrics.cache_hits, 2);
+        assert_eq!(metrics.cache_misses, 1);
+        assert_eq!(metrics.cache_hit_rate(), 2.0 / 3.0);
+    }
+
+    #[test]
+    fn test_reset() {
+        let query_context = create_test_context();
+        let exec_ctx = ExecutionContext::new(query_context);
+
+        // 设置一些状态
+        exec_ctx.start();
+        exec_ctx.set_variable("test".to_string(), Value::Int(42));
+        exec_ctx.set_result("test", Result::new(Value::Int(42), crate::core::ResultState::Success))
+            .unwrap();
+
+        // 重置
+        exec_ctx.reset();
+
+        // 检查状态
+        assert_eq!(exec_ctx.get_execution_state(), ExecutionState::Initialized);
+        assert!(!exec_ctx.has_variable("test"));
+        assert!(exec_ctx.get_result("test").is_err());
     }
 }

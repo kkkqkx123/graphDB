@@ -1,502 +1,461 @@
-//! 表达式求值上下文 - 为表达式提供运行时上下文
+//! 表达式上下文 - 表达式求值
 //!
+//! 表达式求值上下文
 //! 对应原C++中的QueryExpressionContext.h/cpp
-//! 提供：
-//! - 变量访问（从ExecutionContext）
-//! - 列访问（从当前迭代器行）
-//! - 属性访问（标签、边、顶点）
-//! - 表达式内部变量管理
 
-use super::QueryExecutionContext;
 use crate::core::Value;
+use crate::query::context::{QueryContext, ExecutionContext};
 use crate::storage::iterator::IteratorEnum;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
 
 /// 表达式求值上下文
-///
-/// 为表达式求值提供：
-/// 1. 变量值访问（来自QueryExecutionContext）
-/// 2. 当前行列数据访问（来自迭代器）
-/// 3. 属性访问（标签、边、顶点属性）
-/// 4. 表达式内部变量（用于列表解析等）
-#[derive(Clone)]
-pub struct QueryExpressionContext {
-    // 查询执行上下文（变量值来源）
-    ectx: Arc<QueryExecutionContext>,
-
-    // 当前迭代器（用于访问行数据）
-    iter: Arc<Mutex<Option<IteratorEnum>>>,
-
-    // 表达式内部变量（例如列表解析中的变量）
-    expr_value_map: Arc<RwLock<HashMap<String, Value>>>,
+pub struct ExpressionContext<'a> {
+    /// 查询上下文
+    pub query_context: &'a QueryContext,
+    /// 执行上下文（可选）
+    pub execution_context: Option<&'a ExecutionContext>,
+    /// 当前行（可选）
+    pub current_row: Option<&'a crate::storage::iterator::Row>,
+    /// 当前迭代器（可选）
+    pub current_iterator: Option<&'a IteratorEnum>,
+    /// 局部变量
+    local_variables: HashMap<String, Value>,
 }
 
-impl std::fmt::Debug for QueryExpressionContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let has_iterator = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned")
-            .is_some();
-        let expr_vars_count = self.expr_value_map.read()
-            .expect("ExpressionContext expression value map lock should not be poisoned")
-            .len();
-        
-        f.debug_struct("QueryExpressionContext")
-            .field("has_iterator", &has_iterator)
-            .field("expr_vars", &expr_vars_count)
-            .finish()
-    }
-}
-
-impl QueryExpressionContext {
+impl<'a> ExpressionContext<'a> {
     /// 创建新的表达式上下文
-    ///
-    /// # 参数
-    /// - `ectx`: 查询执行上下文的Arc指针
-    pub fn new(ectx: Arc<QueryExecutionContext>) -> Self {
+    pub fn new(query_context: &'a QueryContext) -> Self {
         Self {
-            ectx,
-            iter: Arc::new(Mutex::new(None)),
-            expr_value_map: Arc::new(RwLock::new(HashMap::new())),
+            query_context,
+            execution_context: None,
+            current_row: None,
+            current_iterator: None,
+            local_variables: HashMap::new(),
         }
     }
 
-    /// 设置当前迭代器（用于行数据访问）
-    ///
-    /// # 参数
-    /// - `iter`: 迭代器
-    ///
-    /// # 返回
-    /// 更新后的上下文（链式调用）
-    pub fn with_iterator(self, iter: IteratorEnum) -> Self {
-        *self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned") = Some(iter);
+    /// 设置执行上下文
+    pub fn with_execution_context(mut self, ctx: &'a ExecutionContext) -> Self {
+        self.execution_context = Some(ctx);
         self
     }
 
-    // ===== 变量访问 =====
-
-    /// 获取变量值（最新版本）
-    ///
-    /// # 参数
-    /// - `var`: 变量名
-    ///
-    /// # 返回
-    /// - Ok(Value): 变量值
-    /// - Err(String): 如果变量不存在
-    pub fn get_var(&self, var: &str) -> Result<Value, String> {
-        self.ectx.get_value(var)
+    /// 设置当前行
+    pub fn with_current_row(mut self, row: &'a crate::storage::iterator::Row) -> Self {
+        self.current_row = Some(row);
+        self
     }
 
-    /// 获取指定版本的变量值
+    /// 设置当前迭代器
+    pub fn with_current_iterator(mut self, iterator: &'a IteratorEnum) -> Self {
+        self.current_iterator = Some(iterator);
+        self
+    }
+
+    /// 获取变量值
     ///
-    /// # 参数
-    /// - `var`: 变量名
-    /// - `version`: 版本号（0=最新，-1=前一个）
-    pub fn get_versioned_var(&self, var: &str, version: i64) -> Result<Value, String> {
-        match self.ectx.get_versioned_result(var, version) {
-            Ok(result) => Ok(result.value().clone()),
-            Err(e) => Err(e),
+    /// 查找顺序：
+    /// 1. 局部变量
+    /// 2. 执行上下文变量
+    /// 3. 查询上下文变量
+    /// 4. 查询参数
+    pub fn get_variable(&self, name: &str) -> Option<&Value> {
+        // 1. 检查局部变量
+        if let Some(value) = self.local_variables.get(name) {
+            return Some(value);
         }
-    }
 
-    /// 设置变量值
-    ///
-    /// # 参数
-    /// - `var`: 变量名
-    /// - `value`: 变量值
-    pub fn set_var(&self, var: &str, value: Value) -> Result<(), String> {
-        self.ectx.set_value(var, value)
-    }
-
-    // ===== 表达式内部变量 =====
-
-    /// 设置表达式内部变量（不持久化到执行上下文）
-    ///
-    /// 用于列表解析、临时变量等场景
-    pub fn set_inner_var(&self, var: &str, value: Value) {
-        self.expr_value_map
-            .write()
-            .expect("ExpressionContext expression value map write lock should not be poisoned")
-            .insert(var.to_string(), value);
-    }
-
-    /// 获取表达式内部变量
-    pub fn get_inner_var(&self, var: &str) -> Option<Value> {
-        self.expr_value_map.read()
-            .expect("ExpressionContext expression value map read lock should not be poisoned")
-            .get(var).cloned()
-    }
-
-    /// 清除所有表达式内部变量
-    pub fn clear_inner_vars(&self) {
-        self.expr_value_map.write()
-            .expect("ExpressionContext expression value map write lock should not be poisoned")
-            .clear();
-    }
-
-    // ===== 列访问 =====
-
-    /// 获取列值（从当前行）
-    ///
-    /// # 参数
-    /// - `col`: 列名
-    ///
-    /// # 返回
-    /// - Ok(Value): 列值
-    /// - Err(String): 如果列不存在或没有迭代器
-    pub fn get_column(&self, col: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => iter
-                .get_column(col)
-                .ok_or_else(|| format!("列 {} 不存在", col))
-                .map(|v| v.clone()),
-            None => Err("没有设置迭代器".to_string()),
+        // 2. 检查执行上下文变量
+        if let Some(exec_ctx) = self.execution_context {
+            if let Some(value) = exec_ctx.get_variable(name) {
+                return Some(value);
+            }
         }
+
+        // 3. 检查查询上下文变量
+        if let Some(value) = self.query_context.get_variable(name) {
+            return Some(value);
+        }
+
+        // 4. 检查查询参数
+        if let Some(value) = self.query_context.get_parameter(name) {
+            return Some(value);
+        }
+
+        None
+    }
+
+    /// 设置局部变量
+    pub fn set_local_variable(&mut self, name: String, value: Value) {
+        self.local_variables.insert(name, value);
+    }
+
+    /// 获取局部变量
+    pub fn get_local_variable(&self, name: &str) -> Option<&Value> {
+        self.local_variables.get(name)
+    }
+
+    /// 删除局部变量
+    pub fn remove_local_variable(&mut self, name: &str) -> Option<Value> {
+        self.local_variables.remove(name)
+    }
+
+    /// 清除所有局部变量
+    pub fn clear_local_variables(&mut self) {
+        self.local_variables.clear();
+    }
+
+    /// 获取列值（从当前行或迭代器）
+    pub fn get_column(&self, name: &str) -> Option<&Value> {
+        // 首先尝试从迭代器获取
+        if let Some(iterator) = self.current_iterator {
+            return iterator.get_column(name);
+        }
+
+        // 如果没有迭代器，尝试从当前行获取（按索引）
+        if let Some(row) = self.current_row {
+            // 简单实现：假设第一列是name
+            if row.len() > 0 {
+                return Some(&row[0]);
+            }
+        }
+
+        None
     }
 
     /// 按索引获取列值
-    ///
-    /// # 参数
-    /// - `index`: 列索引（支持负数）
-    pub fn get_column_by_index(&self, index: i32) -> Result<Value, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => iter
-                .get_column_by_index(index)
-                .ok_or_else(|| format!("列索引 {} 不存在", index))
-                .map(|v| v.clone()),
-            None => Err("没有设置迭代器".to_string()),
+    pub fn get_column_by_index(&self, index: i32) -> Option<&Value> {
+        // 首先尝试从迭代器获取
+        if let Some(iterator) = self.current_iterator {
+            return iterator.get_column_by_index(index);
         }
+
+        // 如果没有迭代器，尝试从当前行获取
+        if let Some(row) = self.current_row {
+            let idx = if index < 0 { row.len() as i32 + index } else { index } as usize;
+            if idx < row.len() {
+                return Some(&row[idx]);
+            }
+        }
+
+        None
     }
 
     /// 获取列索引
-    ///
-    /// # 参数
-    /// - `col`: 列名
-    pub fn get_column_index(&self, col: &str) -> Result<usize, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => iter
-                .get_column_index(col)
-                .ok_or_else(|| format!("列 {} 的索引不存在", col)),
-            None => Err("没有设置迭代器".to_string()),
+    pub fn get_column_index(&self, name: &str) -> Option<usize> {
+        // 从迭代器获取
+        if let Some(iterator) = self.current_iterator {
+            return iterator.get_column_index(name);
+        }
+
+        // 简单实现：假设只有一列
+        if self.current_row.is_some() {
+            Some(0)
+        } else {
+            None
         }
     }
 
     /// 获取所有列名
-    pub fn get_col_names(&self) -> Result<Vec<String>, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => Ok(iter.get_col_names()),
-            None => Err("没有设置迭代器".to_string()),
+    pub fn get_column_names(&self) -> Vec<String> {
+        // 从迭代器获取
+        if let Some(iterator) = self.current_iterator {
+            return iterator.get_col_names();
+        }
+
+        // 简单实现：假设只有一列
+        if self.current_row.is_some() {
+            vec!["column".to_string()]
+        } else {
+            Vec::new()
         }
     }
 
-    // ===== 属性访问 =====
-
     /// 获取变量属性值（$a.prop_name）
-    ///
-    /// # 参数
-    /// - `var`: 变量名
-    /// - `prop`: 属性名
-    pub fn get_var_prop(&self, var: &str, prop: &str) -> Result<Value, String> {
-        // 获取变量值
-        let var_val = self.get_var(var)?;
-
-        // 根据Value的类型提取属性
-        match &var_val {
-            Value::Vertex(vertex) => {
-                // 从顶点中获取属性（需要指定标签名，这里使用默认标签）
-                // 在实际使用中，可能需要指定标签名，这里先使用第一个标签
-                if let Some(tag) = vertex.tags.first() {
-                    tag.properties
-                        .get(prop)
-                        .ok_or_else(|| format!("顶点变量 {} 的属性 {} 不存在", var, prop))
-                        .map(|v| v.clone())
-                } else {
-                    Err(format!("顶点变量 {} 没有标签", var))
-                }
-            }
-            Value::Edge(edge) => {
-                // 从边中获取属性
-                edge.props
-                    .get(prop)
-                    .ok_or_else(|| format!("边变量 {} 的属性 {} 不存在", var, prop))
-                    .map(|v| v.clone())
-            }
-            Value::Map(map) => {
-                // 从Map中获取属性
-                map.get(prop)
-                    .ok_or_else(|| format!("Map变量 {} 的属性 {} 不存在", var, prop))
-                    .map(|v| v.clone())
-            }
-            Value::DataSet(dataset) => {
-                // 从DataSet中获取列
-                let col_idx = dataset
-                    .col_names
-                    .iter()
-                    .position(|c| c == prop)
-                    .ok_or_else(|| format!("DataSet变量 {} 的列 {} 不存在", var, prop))?;
-
-                // 获取当前行的值（如果有迭代器）
-                let iter_guard = self.iter.lock()
-                    .expect("ExpressionContext iterator lock should not be poisoned");
-                match iter_guard.as_ref() {
-                    Some(iter) => {
-                        if iter.valid() {
-                            iter.get_column_by_index(col_idx as i32)
-                                .ok_or_else(|| {
-                                    format!("DataSet变量 {} 的列 {} 值不存在", var, prop)
-                                })
-                                .map(|v| v.clone())
-                        } else {
-                            Err("迭代器无效".to_string())
+    pub fn get_variable_property(&self, var_name: &str, prop_name: &str) -> Option<&Value> {
+        if let Some(var_value) = self.get_variable(var_name) {
+            match var_value {
+                Value::Vertex(vertex) => {
+                    // 从顶点中获取属性
+                    for tag in &vertex.tags {
+                        if let Some(value) = tag.properties.get(prop_name) {
+                            return Some(value);
                         }
                     }
-                    None => Err("没有设置迭代器".to_string()),
                 }
+                Value::Edge(edge) => {
+                    // 从边中获取属性
+                    if let Some(value) = edge.props.get(prop_name) {
+                        return Some(value);
+                    }
+                }
+                Value::Map(map) => {
+                    // 从Map中获取属性
+                    if let Some(value) = map.get(prop_name) {
+                        return Some(value);
+                    }
+                }
+                _ => {}
             }
-            _ => Err(format!("变量 {} 的类型不支持属性访问", var)),
         }
+        None
     }
 
     /// 获取标签属性（tag.prop_name）
-    ///
-    /// # 参数
-    /// - `tag`: 标签名
-    /// - `prop`: 属性名
-    pub fn get_tag_prop(&self, tag: &str, prop: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => iter
-                .get_tag_prop(tag, prop)
-                .ok_or_else(|| format!("标签 {} 的属性 {} 不存在", tag, prop)),
-            None => Err("没有设置迭代器".to_string()),
+    pub fn get_tag_property(&self, tag_name: &str, prop_name: &str) -> Option<Value> {
+        if let Some(iterator) = self.current_iterator {
+            return iterator.get_tag_prop(tag_name, prop_name);
         }
+        None
     }
 
     /// 获取边属性（edge.prop_name）
-    ///
-    /// # 参数
-    /// - `edge`: 边名
-    /// - `prop`: 属性名
-    pub fn get_edge_prop(&self, edge: &str, prop: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => iter
-                .get_edge_prop(edge, prop)
-                .ok_or_else(|| format!("边 {} 的属性 {} 不存在", edge, prop)),
-            None => Err("没有设置迭代器".to_string()),
+    pub fn get_edge_property(&self, edge_name: &str, prop_name: &str) -> Option<Value> {
+        if let Some(iterator) = self.current_iterator {
+            return iterator.get_edge_prop(edge_name, prop_name);
         }
+        None
     }
 
-    // ===== 属性访问（补充缺失的接口） =====
-
     /// 获取源顶点属性（$^.prop_name）
-    ///
-    /// # 参数
-    /// - `tag`: 标签名
-    /// - `prop`: 属性名
-    pub fn get_src_prop(&self, tag: &str, prop: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => {
-                // 从当前顶点获取源属性
-                // 这需要迭代器支持源顶点属性访问
-                // 暂时委托给 get_tag_prop
-                iter.get_tag_prop(tag, prop)
-                    .ok_or_else(|| format!("源顶点标签 {} 的属性 {} 不存在", tag, prop))
-            }
-            None => Err("没有设置迭代器".to_string()),
+    pub fn get_source_property(&self, tag_name: &str, prop_name: &str) -> Option<Value> {
+        // 暂时使用get_tag_prop作为替代
+        if let Some(iterator) = self.current_iterator {
+            return iterator.get_tag_prop(tag_name, prop_name);
         }
+        None
     }
 
     /// 获取目标顶点属性（$$.prop_name）
-    ///
-    /// # 参数
-    /// - `tag`: 标签名
-    /// - `prop`: 属性名
-    pub fn get_dst_prop(&self, tag: &str, prop: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => {
-                // 从当前边获取目标顶点属性
-                // 这需要迭代器支持目标顶点属性访问
-                // 暂时委托给 get_tag_prop
-                iter.get_tag_prop(tag, prop)
-                    .ok_or_else(|| format!("目标顶点标签 {} 的属性 {} 不存在", tag, prop))
-            }
-            None => Err("没有设置迭代器".to_string()),
+    pub fn get_destination_property(&self, tag_name: &str, prop_name: &str) -> Option<Value> {
+        // 暂时使用get_tag_prop作为替代
+        if let Some(iterator) = self.current_iterator {
+            return iterator.get_tag_prop(tag_name, prop_name);
         }
+        None
     }
 
     /// 获取输入属性（$-.prop_name）
-    ///
-    /// # 参数
-    /// - `prop`: 属性名
-    pub fn get_input_prop(&self, prop: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => {
-                // 从输入行获取属性
-                iter.get_column(prop)
-                    .ok_or_else(|| format!("输入属性 {} 不存在", prop))
-                    .map(|v| v.clone())
-            }
-            None => Err("没有设置迭代器".to_string()),
-        }
+    pub fn get_input_property(&self, prop_name: &str) -> Option<Value> {
+        // 暂时使用get_column作为替代
+        self.get_column(prop_name).cloned()
     }
-
-    /// 获取输入属性索引
-    ///
-    /// # 参数
-    /// - `prop`: 属性名
-    pub fn get_input_prop_index(&self, prop: &str) -> Result<usize, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => iter
-                .get_column_index(prop)
-                .ok_or_else(|| format!("输入属性 {} 的索引不存在", prop)),
-            None => Err("没有设置迭代器".to_string()),
-        }
-    }
-
-    // ===== 对象获取 =====
 
     /// 获取顶点
-    ///
-    /// # 参数
-    /// - `name`: 顶点名（可选）
-    pub fn get_vertex(&self, name: &str) -> Result<Value, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => iter
-                .get_vertex(name)
-                .ok_or_else(|| format!("顶点 {} 不存在", name)),
-            None => Err("没有设置迭代器".to_string()),
+    pub fn get_vertex(&self, name: &str) -> Option<Value> {
+        if let Some(iterator) = self.current_iterator {
+            return iterator.get_vertex(name);
         }
+        None
     }
 
     /// 获取边
-    pub fn get_edge(&self) -> Result<Value, String> {
-        let iter_guard = self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned");
-        match iter_guard.as_ref() {
-            Some(iter) => iter.get_edge().ok_or_else(|| "边不存在".to_string()),
-            None => Err("没有设置迭代器".to_string()),
+    pub fn get_edge(&self) -> Option<Value> {
+        if let Some(iterator) = self.current_iterator {
+            return iterator.get_edge();
+        }
+        None
+    }
+
+    /// 检查是否有当前行
+    pub fn has_current_row(&self) -> bool {
+        self.current_row.is_some()
+    }
+
+    /// 检查是否有当前迭代器
+    pub fn has_current_iterator(&self) -> bool {
+        self.current_iterator.is_some()
+    }
+
+    /// 检查迭代器是否有效
+    pub fn is_iterator_valid(&self) -> bool {
+        if let Some(iterator) = self.current_iterator {
+            iterator.valid()
+        } else {
+            false
         }
     }
 
-    // ===== 迭代器管理 =====
-
-    /// 检查是否有迭代器
-    pub fn has_iterator(&self) -> bool {
-        self.iter.lock()
-            .expect("ExpressionContext iterator lock should not be poisoned")
-            .is_some()
+    /// 获取局部变量数量
+    pub fn local_variable_count(&self) -> usize {
+        self.local_variables.len()
     }
 
-    /// 获取当前迭代器的有效性
-    pub fn is_iter_valid(&self) -> bool {
-        self.iter
-            .lock()
-            .expect("ExpressionContext iterator lock should not be poisoned")
-            .as_ref()
-            .map(|iter| iter.valid())
-            .unwrap_or(false)
-    }
-
-    /// 获取查询执行上下文的引用
-    pub fn ectx(&self) -> &Arc<QueryExecutionContext> {
-        &self.ectx
+    /// 获取所有局部变量名
+    pub fn local_variable_names(&self) -> Vec<String> {
+        self.local_variables.keys().cloned().collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::context::managers::r#impl::{
+        MockIndexManager, MockMetaClient, MockSchemaManager, MockStorageClient,
+    };
+    use std::collections::HashMap;
 
-    #[test]
-    fn test_inner_var_management() {
-        let qectx = Arc::new(QueryExecutionContext::new());
-        let qctx = QueryExpressionContext::new(qectx);
+    fn create_test_query_context() -> QueryContext {
+        let schema_manager = Arc::new(MockSchemaManager::new());
+        let index_manager = Arc::new(MockIndexManager::new());
+        let meta_client = Arc::new(MockMetaClient::new());
+        let storage_client = Arc::new(MockStorageClient::new());
 
-        qctx.set_inner_var("temp", Value::Int(100));
-        assert_eq!(qctx.get_inner_var("temp"), Some(Value::Int(100)));
-
-        qctx.clear_inner_vars();
-        assert_eq!(qctx.get_inner_var("temp"), None);
-    }
-
-    #[test]
-    fn test_var_access() {
-        let qectx = Arc::new(QueryExecutionContext::new());
-        qectx.set_value("x", Value::Int(42))
-            .expect("Failed to set test value");
-
-        let qctx = QueryExpressionContext::new(qectx);
-        let val = qctx.get_var("x")
-            .expect("Failed to get test value");
-        assert_eq!(val, Value::Int(42));
-    }
-
-    #[test]
-    fn test_nonexistent_var() {
-        let qectx = Arc::new(QueryExecutionContext::new());
-        let qctx = QueryExpressionContext::new(qectx);
-
-        let result = qctx.get_var("undefined");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_set_var() {
-        let qectx = Arc::new(QueryExecutionContext::new());
-        let qctx = QueryExpressionContext::new(qectx);
-
-        qctx.set_var("y", Value::String("hello".to_string()))
-            .expect("Failed to set test variable");
-        assert_eq!(
-            qctx.get_var("y")
-                .expect("Failed to get test variable"),
-            Value::String("hello".to_string())
+        let mut ctx = QueryContext::new(
+            "session123".to_string(),
+            "user456".to_string(),
+            schema_manager,
+            index_manager,
+            meta_client,
+            storage_client,
         );
+
+        // 设置一些测试变量和参数
+        ctx.set_variable("query_var".to_string(), Value::Int(100));
+        ctx.set_parameter("param".to_string(), Value::String("test".to_string()));
+
+        ctx
     }
 
     #[test]
-    fn test_iterator_without_iterator_set() {
-        let qectx = Arc::new(QueryExecutionContext::new());
-        let qctx = QueryExpressionContext::new(qectx);
+    fn test_expression_context_creation() {
+        let query_ctx = create_test_query_context();
+        let expr_ctx = ExpressionContext::new(&query_ctx);
 
-        assert!(!qctx.has_iterator());
-        assert!(qctx.get_column("col").is_err());
+        assert!(!expr_ctx.has_current_row());
+        assert!(!expr_ctx.has_current_iterator());
+        assert_eq!(expr_ctx.local_variable_count(), 0);
     }
 
     #[test]
-    fn test_clone() {
-        let qectx = Arc::new(QueryExecutionContext::new());
-        qectx.set_value("x", Value::Int(42))
-            .expect("Failed to set test value");
+    fn test_variable_resolution() {
+        let query_ctx = create_test_query_context();
+        let mut expr_ctx = ExpressionContext::new(&query_ctx);
 
-        let qctx = QueryExpressionContext::new(qectx);
-        qctx.set_inner_var("temp", Value::Int(100));
+        // 设置局部变量
+        expr_ctx.set_local_variable("local_var".to_string(), Value::Int(200));
 
-        let cloned = qctx.clone();
-        assert_eq!(cloned.get_var("x")
-            .expect("Failed to get test value"), Value::Int(42));
-        assert_eq!(cloned.get_inner_var("temp"), Some(Value::Int(100)));
+        // 测试变量解析顺序
+        assert_eq!(expr_ctx.get_variable("local_var"), Some(&Value::Int(200)));
+        assert_eq!(expr_ctx.get_variable("query_var"), Some(&Value::Int(100)));
+        assert_eq!(expr_ctx.get_variable("param"), Some(&Value::String("test".to_string())));
+        assert_eq!(expr_ctx.get_variable("nonexistent"), None);
+    }
+
+    #[test]
+    fn test_local_variable_management() {
+        let query_ctx = create_test_query_context();
+        let mut expr_ctx = ExpressionContext::new(&query_ctx);
+
+        // 设置局部变量
+        expr_ctx.set_local_variable("var1".to_string(), Value::Int(1));
+        expr_ctx.set_local_variable("var2".to_string(), Value::String("test".to_string()));
+
+        // 获取局部变量
+        assert_eq!(expr_ctx.get_local_variable("var1"), Some(&Value::Int(1)));
+        assert_eq!(expr_ctx.get_local_variable("var2"), Some(&Value::String("test".to_string())));
+
+        // 获取变量名列表
+        let names = expr_ctx.local_variable_names();
+        assert!(names.contains(&"var1".to_string()));
+        assert!(names.contains(&"var2".to_string()));
+        assert_eq!(names.len(), 2);
+
+        // 删除局部变量
+        let removed = expr_ctx.remove_local_variable("var1");
+        assert_eq!(removed, Some(Value::Int(1)));
+        assert_eq!(expr_ctx.get_local_variable("var1"), None);
+
+        // 清除所有局部变量
+        expr_ctx.clear_local_variables();
+        assert_eq!(expr_ctx.local_variable_count(), 0);
+    }
+
+    #[test]
+    fn test_with_methods() {
+        let query_ctx = create_test_query_context();
+        let expr_ctx = ExpressionContext::new(&query_ctx);
+
+        // 测试with_execution_context
+        let schema_manager = Arc::new(MockSchemaManager::new());
+        let index_manager = Arc::new(MockIndexManager::new());
+        let meta_client = Arc::new(MockMetaClient::new());
+        let storage_client = Arc::new(MockStorageClient::new());
+
+        let query_ctx2 = Arc::new(QueryContext::new(
+            "session123".to_string(),
+            "user456".to_string(),
+            schema_manager,
+            index_manager,
+            meta_client,
+            storage_client,
+        ));
+
+        let exec_ctx = ExecutionContext::new(query_ctx2);
+        let expr_ctx_with_exec = expr_ctx.with_execution_context(&exec_ctx);
+        assert!(expr_ctx_with_exec.execution_context.is_some());
+
+        // 注意：由于with_current_row和with_current_iterator需要具体的Row和IteratorEnum实例，
+        // 这里只测试方法存在性，实际功能需要更复杂的测试设置
+    }
+
+    #[test]
+    fn test_variable_property_access() {
+        let query_ctx = create_test_query_context();
+        let mut expr_ctx = ExpressionContext::new(&query_ctx);
+
+        // 创建一个包含属性的顶点
+        let mut properties = HashMap::new();
+        properties.insert("name".to_string(), Value::String("Alice".to_string()));
+        properties.insert("age".to_string(), Value::Int(30));
+
+        let tag = crate::core::vertex_edge_path::Tag {
+            name: "Person".to_string(),
+            properties,
+        };
+
+        let vertex = Value::Vertex(crate::core::vertex_edge_path::Vertex {
+            id: Value::String("v1".to_string()),
+            tags: vec![tag],
+        });
+
+        // 设置顶点变量
+        expr_ctx.set_local_variable("person".to_string(), vertex);
+
+        // 测试属性访问
+        assert_eq!(
+            expr_ctx.get_variable_property("person", "name"),
+            Some(&Value::String("Alice".to_string()))
+        );
+        assert_eq!(
+            expr_ctx.get_variable_property("person", "age"),
+            Some(&Value::Int(30))
+        );
+        assert_eq!(expr_ctx.get_variable_property("person", "nonexistent"), None);
+    }
+
+    #[test]
+    fn test_map_property_access() {
+        let query_ctx = create_test_query_context();
+        let mut expr_ctx = ExpressionContext::new(&query_ctx);
+
+        // 创建一个Map
+        let mut map = HashMap::new();
+        map.insert("key1".to_string(), Value::Int(1));
+        map.insert("key2".to_string(), Value::String("value2".to_string()));
+
+        // 设置Map变量
+        expr_ctx.set_local_variable("map_var".to_string(), Value::Map(map));
+
+        // 测试属性访问
+        assert_eq!(
+            expr_ctx.get_variable_property("map_var", "key1"),
+            Some(&Value::Int(1))
+        );
+        assert_eq!(
+            expr_ctx.get_variable_property("map_var", "key2"),
+            Some(&Value::String("value2".to_string()))
+        );
+        assert_eq!(expr_ctx.get_variable_property("map_var", "nonexistent"), None);
     }
 }
