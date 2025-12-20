@@ -3,8 +3,9 @@ use super::operator_conversion;
 use super::type_conversion;
 use crate::expression::{Expression, ExpressionContext, LiteralValue};
 use crate::query::parser::cypher::ast::expressions::Expression as CypherExpression;
+use super::evaluator_trait::ExpressionEvaluator as ExpressionEvaluatorTrait;
 
-/// Expression evaluator
+/// Expression evaluator implementation
 #[derive(Debug)]
 pub struct ExpressionEvaluator;
 
@@ -477,5 +478,292 @@ impl ExpressionEvaluator {
     /// 优化Cypher表达式
     pub fn optimize_cypher_expression(&self, cypher_expr: &CypherExpression) -> CypherExpression {
         super::cypher::CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr)
+    }
+}
+
+// 实现统一的ExpressionEvaluator trait
+impl ExpressionEvaluatorTrait for ExpressionEvaluator {
+    fn evaluate(&self, expr: &Expression, context: &ExpressionContext) -> Result<Value, ExpressionError> {
+        self.eval_expression(expr, context)
+    }
+
+    fn evaluate_batch(&self, exprs: &[Expression], context: &ExpressionContext) -> Result<Vec<Value>, ExpressionError> {
+        let mut results = Vec::with_capacity(exprs.len());
+        for expr in exprs {
+            results.push(self.evaluate(expr, context)?);
+        }
+        Ok(results)
+    }
+
+    fn is_constant(&self, expr: &Expression) -> bool {
+        match expr {
+            Expression::Literal(_) => true,
+            Expression::List(items) => items.iter().all(|e| self.is_constant(e)),
+            Expression::Map(pairs) => pairs.iter().all(|(_, e)| self.is_constant(e)),
+            _ => false,
+        }
+    }
+
+    fn get_variables(&self, expr: &Expression) -> Vec<String> {
+        let mut variables = Vec::new();
+        self.collect_variables(expr, &mut variables);
+        variables.sort();
+        variables.dedup();
+        variables
+    }
+
+    fn contains_aggregate(&self, expr: &Expression) -> bool {
+        match expr {
+            Expression::Aggregate { .. } => true,
+            Expression::Function { name, .. } => {
+                matches!(name.to_lowercase().as_str(), 
+                    "count" | "sum" | "avg" | "min" | "max" | "collect" | "distinct")
+                }
+            _ => {
+                // 递归检查子表达式
+                for child in expr.children() {
+                    if self.contains_aggregate(child) {
+                        return true;
+                    }
+                }
+                false
+            }
+        }
+    }
+
+    fn optimize(&self, expr: Expression) -> Expression {
+        // 可以在这里添加优化逻辑
+        expr
+    }
+
+    fn validate(&self, expr: &Expression) -> Result<(), ExpressionError> {
+        // 可以在这里添加验证逻辑
+        Ok(())
+    }
+
+    fn evaluator_name(&self) -> &'static str {
+        "ExpressionEvaluator"
+    }
+}
+
+impl ExpressionEvaluator {
+    /// 递归收集表达式中的变量
+    fn collect_variables(&self, expr: &Expression, variables: &mut Vec<String>) {
+        match expr {
+            Expression::Variable(name) => {
+                if !variables.contains(name) {
+                    variables.push(name.clone());
+                }
+            }
+            Expression::Binary { left, right, .. } => {
+                self.collect_variables(left, variables);
+                self.collect_variables(right, variables);
+            }
+            Expression::Unary { operand, .. } => {
+                self.collect_variables(operand, variables);
+            }
+            Expression::Function { args, .. } => {
+                for arg in args {
+                    self.collect_variables(arg, variables);
+                }
+            }
+            Expression::Aggregate { arg, .. } => {
+                self.collect_variables(arg, variables);
+            }
+            Expression::List(items) => {
+                for item in items {
+                    self.collect_variables(item, variables);
+                }
+            }
+            Expression::Map(pairs) => {
+                for (_, value) in pairs {
+                    self.collect_variables(value, variables);
+                }
+            }
+            Expression::Property { object, .. } => {
+                self.collect_variables(object, variables);
+            }
+            Expression::TypeCast { expr, .. } => {
+                self.collect_variables(expr, variables);
+            }
+            Expression::TypeCasting { expr, .. } => {
+                self.collect_variables(expr, variables);
+            }
+            Expression::Case { conditions, default } => {
+                for (condition, value) in conditions {
+                    self.collect_variables(condition, variables);
+                    self.collect_variables(value, variables);
+                }
+                if let Some(default_expr) = default {
+                    self.collect_variables(default_expr, variables);
+                }
+            }
+            Expression::ListComprehension { generator, condition } => {
+                self.collect_variables(generator, variables);
+                if let Some(cond) = condition {
+                    self.collect_variables(cond, variables);
+                }
+            }
+            Expression::Predicate { list, condition } => {
+                self.collect_variables(list, variables);
+                self.collect_variables(condition, variables);
+            }
+            Expression::Reduce { list, initial, expr, .. } => {
+                self.collect_variables(list, variables);
+                self.collect_variables(initial, variables);
+                self.collect_variables(expr, variables);
+            }
+            Expression::PathBuild(items) => {
+                for item in items {
+                    self.collect_variables(item, variables);
+                }
+            }
+            Expression::Subscript { collection, index } => {
+                self.collect_variables(collection, variables);
+                self.collect_variables(index, variables);
+            }
+            Expression::SubscriptRange { collection, start, end } => {
+                self.collect_variables(collection, variables);
+                if let Some(start_expr) = start {
+                    self.collect_variables(start_expr, variables);
+                }
+                if let Some(end_expr) = end {
+                    self.collect_variables(end_expr, variables);
+                }
+            }
+            Expression::Range { collection, start, end } => {
+                self.collect_variables(collection, variables);
+                if let Some(start_expr) = start {
+                    self.collect_variables(start_expr, variables);
+                }
+                if let Some(end_expr) = end {
+                    self.collect_variables(end_expr, variables);
+                }
+            }
+            Expression::Path(items) => {
+                for item in items {
+                    self.collect_variables(item, variables);
+                }
+            }
+            // 其他表达式类型...
+            _ => {}
+        }
+    }
+}
+
+impl Default for ExpressionEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// 便捷函数：创建表达式求值器
+pub fn evaluator() -> ExpressionEvaluator {
+    ExpressionEvaluator::new()
+}
+
+/// 便捷函数：使用表达式求值器求值表达式
+pub fn evaluate_expression(expr: &Expression, context: &ExpressionContext) -> Result<Value, ExpressionError> {
+    evaluator().evaluate(expr, context)
+}
+
+/// 便捷函数：使用表达式求值器批量求值表达式
+pub fn evaluate_expressions(exprs: &[Expression], context: &ExpressionContext) -> Result<Vec<Value>, ExpressionError> {
+    evaluator().evaluate_batch(exprs, context)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::evaluator_trait::ExpressionEvaluator as ExpressionEvaluatorTrait;
+    use crate::expression::{Expression, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction};
+
+    #[test]
+    fn test_evaluator_trait_implementation() {
+        let evaluator = ExpressionEvaluator::new();
+        let context = ExpressionContext::simple();
+        
+        // 测试字面量求值
+        let expr = Expression::Literal(LiteralValue::Int(42));
+        let result = evaluator.evaluate(&expr, &context).unwrap();
+        assert_eq!(result, Value::Int(42));
+        
+        // 测试变量求值
+        let mut ctx = ExpressionContext::simple();
+        ctx.set_variable("x".to_string(), Value::Int(100));
+        
+        let expr = Expression::Variable("x".to_string());
+        let result = evaluator.evaluate(&expr, &ctx).unwrap();
+        assert_eq!(result, Value::Int(100));
+    }
+
+    #[test]
+    fn test_batch_evaluation() {
+        let evaluator = ExpressionEvaluator::new();
+        let context = ExpressionContext::simple();
+        
+        let exprs = vec![
+            Expression::Literal(LiteralValue::Int(1)),
+            Expression::Literal(LiteralValue::Int(2)),
+            Expression::Literal(LiteralValue::Int(3)),
+        ];
+        
+        let results = evaluator.evaluate_batch(&exprs, &context).unwrap();
+        assert_eq!(results, vec![
+            Value::Int(1),
+            Value::Int(2),
+            Value::Int(3),
+        ]);
+    }
+
+    #[test]
+    fn test_constant_checking() {
+        let evaluator = ExpressionEvaluator::new();
+        
+        // 测试常量表达式
+        let constant_expr = Expression::Literal(LiteralValue::Int(42));
+        assert!(evaluator.is_constant(&constant_expr));
+        
+        // 测试非常量表达式
+        let variable_expr = Expression::Variable("x".to_string());
+        assert!(!evaluator.is_constant(&variable_expr));
+    }
+
+    #[test]
+    fn test_variable_collection() {
+        let evaluator = ExpressionEvaluator::new();
+        
+        let expr = Expression::Variable("x".to_string());
+        let variables = evaluator.get_variables(&expr);
+        assert_eq!(variables, vec!["x"]);
+        
+        // 测试复杂表达式
+        let complex_expr = Expression::Binary {
+            left: Box::new(Expression::Variable("x".to_string())),
+            op: BinaryOperator::Add,
+            right: Box::new(Expression::Variable("y".to_string())),
+        };
+        let variables = evaluator.get_variables(&complex_expr);
+        assert_eq!(variables, vec!["x", "y"]);
+    }
+
+    #[test]
+    fn test_aggregate_detection() {
+        let evaluator = ExpressionEvaluator::new();
+        
+        // 测试聚合函数
+        let aggregate_expr = Expression::Aggregate {
+            func: AggregateFunction::Count,
+            arg: Box::new(Expression::Variable("x".to_string())),
+            distinct: false,
+        };
+        assert!(evaluator.contains_aggregate(&aggregate_expr));
+        
+        // 测试普通函数
+        let function_expr = Expression::Function {
+            name: "abs".to_string(),
+            args: vec![Expression::Variable("x".to_string())],
+        };
+        assert!(!evaluator.contains_aggregate(&function_expr));
     }
 }

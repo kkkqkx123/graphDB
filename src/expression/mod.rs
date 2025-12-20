@@ -7,6 +7,7 @@ pub mod container;
 pub mod context;
 pub mod cypher;
 pub mod evaluator;
+pub mod evaluator_trait;
 pub mod expression;
 pub mod function;
 pub mod operator_conversion;
@@ -24,6 +25,7 @@ pub use expression::UnaryOperator;
 
 pub use context::{ExpressionContext, SimpleExpressionContext};
 pub use evaluator::ExpressionEvaluator;
+pub use evaluator_trait::{ExpressionEvaluator as ExpressionEvaluatorTrait, DefaultExpressionEvaluator, default_evaluator, evaluate_expression, evaluate_expressions};
 
 // Re-export cypher module types for convenience
 pub use cypher::{

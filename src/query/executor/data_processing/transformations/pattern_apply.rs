@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Edge, Path, Value, Vertex};
-use crate::expression::{Expression, ExpressionEvaluator};
 use crate::expression::ExpressionContext;
+use crate::expression::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -152,9 +152,11 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
 
                     // 创建临时表达式上下文
                     let mut temp_context = ExpressionContext::simple();
-                    // 复制变量
-                    for (name, value) in expr_context.get_variables() {
-                        temp_context.set_variable(name, value);
+                    // 复制变量 - 使用新的变量访问方法
+                    if let Some(variables) = expr_context.get_all_variables() {
+                        for (name, value) in variables {
+                            temp_context.set_variable(name, value);
+                        }
                     }
                     temp_context.set_variable("_".to_string(), prop_value);
 
@@ -218,9 +220,11 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
 
                     // 创建临时表达式上下文
                     let mut temp_context = ExpressionContext::simple();
-                    // 复制变量
-                    for (name, value) in expr_context.get_variables() {
-                        temp_context.set_variable(name, value);
+                    // 复制变量 - 使用新的变量访问方法
+                    if let Some(variables) = expr_context.get_all_variables() {
+                        for (name, value) in variables {
+                            temp_context.set_variable(name, value);
+                        }
                     }
                     temp_context.set_variable("_".to_string(), prop_value);
 
