@@ -22,9 +22,11 @@ pub struct UpdateVertex {
     pub cost: f64,
     pub space_id: i32,
     pub tag_id: i32,
-    pub filter: Option<String>,              // 过滤条件
-    pub update_props: Vec<(String, String)>, // 要更新的属性
-    pub insertable: bool,                    // 是否可插入
+    pub vid: String,
+    pub updated_props: Vec<(String, String)>, // 属性名和新值
+    pub insertable: bool,                     // 如果顶点不存在是否插入
+    pub return_props: Vec<String>,            // 返回的属性列表
+    pub condition: Option<String>,            // 更新条件
 }
 
 impl UpdateVertex {
@@ -32,23 +34,55 @@ impl UpdateVertex {
         id: i64,
         space_id: i32,
         tag_id: i32,
-        filter: Option<String>,
-        update_props: Vec<(String, String)>,
+        vid: &str,
+        updated_props: Vec<(String, String)>,
         insertable: bool,
+        return_props: Vec<String>,
+        condition: Option<String>,
     ) -> Self {
         Self {
             id,
             kind: PlanNodeKind::UpdateVertex,
             deps: Vec::new(),
             output_var: None,
-            col_names: Vec::new(),
+            col_names: return_props.clone(),
             cost: 0.0,
             space_id,
             tag_id,
-            filter,
-            update_props,
+            vid: vid.to_string(),
+            updated_props,
             insertable,
+            return_props,
+            condition,
         }
+    }
+
+    pub fn space_id(&self) -> i32 {
+        self.space_id
+    }
+
+    pub fn tag_id(&self) -> i32 {
+        self.tag_id
+    }
+
+    pub fn vid(&self) -> &str {
+        &self.vid
+    }
+
+    pub fn updated_props(&self) -> &[(String, String)] {
+        &self.updated_props
+    }
+
+    pub fn insertable(&self) -> bool {
+        self.insertable
+    }
+
+    pub fn return_props(&self) -> &[String] {
+        &self.return_props
+    }
+
+    pub fn condition(&self) -> Option<&str> {
+        self.condition.as_deref()
     }
 }
 
@@ -57,15 +91,17 @@ impl Clone for UpdateVertex {
         Self {
             id: self.id,
             kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
+            deps: Vec::new(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
             space_id: self.space_id,
             tag_id: self.tag_id,
-            filter: self.filter.clone(),
-            update_props: self.update_props.clone(),
+            vid: self.vid.clone(),
+            updated_props: self.updated_props.clone(),
             insertable: self.insertable,
+            return_props: self.return_props.clone(),
+            condition: self.condition.clone(),
         }
     }
 }
@@ -170,9 +206,13 @@ pub struct UpdateEdge {
     pub cost: f64,
     pub space_id: i32,
     pub edge_type_id: i32,
-    pub filter: Option<String>,              // 过滤条件
-    pub update_props: Vec<(String, String)>, // 要更新的属性
-    pub insertable: bool,                    // 是否可插入
+    pub src_id: String,
+    pub dst_id: String,
+    pub rank: i64,
+    pub updated_props: Vec<(String, String)>, // 属性名和新值
+    pub insertable: bool,                     // 如果边不存在是否插入
+    pub return_props: Vec<String>,            // 返回的属性列表
+    pub condition: Option<String>,            // 更新条件
 }
 
 impl UpdateEdge {
@@ -180,23 +220,67 @@ impl UpdateEdge {
         id: i64,
         space_id: i32,
         edge_type_id: i32,
-        filter: Option<String>,
-        update_props: Vec<(String, String)>,
+        src_id: &str,
+        dst_id: &str,
+        rank: i64,
+        updated_props: Vec<(String, String)>,
         insertable: bool,
+        return_props: Vec<String>,
+        condition: Option<String>,
     ) -> Self {
         Self {
             id,
             kind: PlanNodeKind::UpdateEdge,
             deps: Vec::new(),
             output_var: None,
-            col_names: Vec::new(),
+            col_names: return_props.clone(),
             cost: 0.0,
             space_id,
             edge_type_id,
-            filter,
-            update_props,
+            src_id: src_id.to_string(),
+            dst_id: dst_id.to_string(),
+            rank,
+            updated_props,
             insertable,
+            return_props,
+            condition,
         }
+    }
+
+    pub fn space_id(&self) -> i32 {
+        self.space_id
+    }
+
+    pub fn edge_type_id(&self) -> i32 {
+        self.edge_type_id
+    }
+
+    pub fn src_id(&self) -> &str {
+        &self.src_id
+    }
+
+    pub fn dst_id(&self) -> &str {
+        &self.dst_id
+    }
+
+    pub fn rank(&self) -> i64 {
+        self.rank
+    }
+
+    pub fn updated_props(&self) -> &[(String, String)] {
+        &self.updated_props
+    }
+
+    pub fn insertable(&self) -> bool {
+        self.insertable
+    }
+
+    pub fn return_props(&self) -> &[String] {
+        &self.return_props
+    }
+
+    pub fn condition(&self) -> Option<&str> {
+        self.condition.as_deref()
     }
 }
 
@@ -205,15 +289,19 @@ impl Clone for UpdateEdge {
         Self {
             id: self.id,
             kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
+            deps: Vec::new(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
             space_id: self.space_id,
             edge_type_id: self.edge_type_id,
-            filter: self.filter.clone(),
-            update_props: self.update_props.clone(),
+            src_id: self.src_id.clone(),
+            dst_id: self.dst_id.clone(),
+            rank: self.rank,
+            updated_props: self.updated_props.clone(),
             insertable: self.insertable,
+            return_props: self.return_props.clone(),
+            condition: self.condition.clone(),
         }
     }
 }

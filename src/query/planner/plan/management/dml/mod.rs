@@ -10,3 +10,7 @@ pub use data_constructors::*;
 pub use delete_ops::*;
 pub use insert_ops::*;
 pub use update_ops::*;
+
+// 重新导出新增的数据操作节点
+pub use update_ops::{UpdateVertex, UpdateEdge};
+pub use delete_ops::{DeleteVertices, DeleteTags, DeleteEdges};

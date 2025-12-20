@@ -942,3 +942,426 @@ impl PlanNode for SwitchSpace {
         self
     }
 }
+
+/// 删除空间计划节点
+#[derive(Debug)]
+pub struct DropSpace {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub if_exists: bool,
+    pub space_name: String,
+}
+
+impl DropSpace {
+    pub fn new(id: i64, if_exists: bool, space_name: &str) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::DropSpace,
+            deps: Vec::new(),
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 0.0,
+            if_exists,
+            space_name: space_name.to_string(),
+        }
+    }
+
+    pub fn if_exists(&self) -> bool {
+        self.if_exists
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+}
+
+impl Clone for DropSpace {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            if_exists: self.if_exists,
+            space_name: self.space_name.clone(),
+        }
+    }
+}
+
+impl PlanNodeIdentifiable for DropSpace {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+}
+
+impl PlanNodeProperties for DropSpace {
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
+impl PlanNodeDependencies for DropSpace {
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
+    }
+
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
+    }
+}
+
+impl PlanNodeDependenciesExt for DropSpace {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
+    }
+}
+
+impl PlanNodeMutable for DropSpace {
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+}
+
+impl PlanNodeClonable for DropSpace {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
+    }
+}
+
+impl PlanNodeVisitable for DropSpace {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for DropSpace {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// 清空空间计划节点
+#[derive(Debug)]
+pub struct ClearSpace {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub if_exists: bool,
+    pub space_name: String,
+}
+
+impl ClearSpace {
+    pub fn new(id: i64, if_exists: bool, space_name: &str) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::ClearSpace,
+            deps: Vec::new(),
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 0.0,
+            if_exists,
+            space_name: space_name.to_string(),
+        }
+    }
+
+    pub fn if_exists(&self) -> bool {
+        self.if_exists
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+}
+
+impl Clone for ClearSpace {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            if_exists: self.if_exists,
+            space_name: self.space_name.clone(),
+        }
+    }
+}
+
+impl PlanNodeIdentifiable for ClearSpace {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+}
+
+impl PlanNodeProperties for ClearSpace {
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
+impl PlanNodeDependencies for ClearSpace {
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
+    }
+
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
+    }
+}
+
+impl PlanNodeDependenciesExt for ClearSpace {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
+    }
+}
+
+impl PlanNodeMutable for ClearSpace {
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+}
+
+impl PlanNodeClonable for ClearSpace {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
+    }
+}
+
+impl PlanNodeVisitable for ClearSpace {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for ClearSpace {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// 修改空间选项
+#[derive(Debug, Clone)]
+pub enum AlterSpaceOption {
+    AddZone(String),
+    RemoveZone(String),
+    SetPartitionNum(i32),
+    SetReplicaFactor(i32),
+}
+
+/// 修改空间计划节点
+#[derive(Debug)]
+pub struct AlterSpace {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub space_name: String,
+    pub alter_options: Vec<AlterSpaceOption>,
+}
+
+impl AlterSpace {
+    pub fn new(id: i64, space_name: &str, alter_options: Vec<AlterSpaceOption>) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::AlterSpace,
+            deps: Vec::new(),
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 0.0,
+            space_name: space_name.to_string(),
+            alter_options,
+        }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+
+    pub fn alter_options(&self) -> &[AlterSpaceOption] {
+        &self.alter_options
+    }
+}
+
+impl Clone for AlterSpace {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            space_name: self.space_name.clone(),
+            alter_options: self.alter_options.clone(),
+        }
+    }
+}
+
+impl PlanNodeIdentifiable for AlterSpace {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+}
+
+impl PlanNodeProperties for AlterSpace {
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
+impl PlanNodeDependencies for AlterSpace {
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
+    }
+
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let initial_len = self.deps.len();
+        self.deps.retain(|dep| dep.id() != id);
+        let final_len = self.deps.len();
+
+        initial_len != final_len
+    }
+}
+
+impl PlanNodeDependenciesExt for AlterSpace {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
+    }
+}
+
+impl PlanNodeMutable for AlterSpace {
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+}
+
+impl PlanNodeClonable for AlterSpace {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
+    }
+}
+
+impl PlanNodeVisitable for AlterSpace {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for AlterSpace {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}

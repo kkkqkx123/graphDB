@@ -8,3 +8,8 @@ mod tag_ops;
 pub use edge_ops::*;
 pub use space_ops::*;
 pub use tag_ops::*;
+
+// 重新导出新增的空间管理节点
+pub use space_ops::{
+    DropSpace, ClearSpace, AlterSpace, AlterSpaceOption
+};

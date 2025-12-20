@@ -406,3 +406,549 @@ impl PlanNode for UpdateUser {
         self
     }
 }
+
+/// 修改密码计划节点
+#[derive(Debug)]
+pub struct ChangePassword {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub username: String,
+    pub password: String,
+    pub new_password: String,
+}
+
+impl ChangePassword {
+    pub fn new(id: i64, username: &str, password: &str, new_password: &str) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::ChangePassword,
+            deps: Vec::new(),
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 0.0,
+            username: username.to_string(),
+            password: password.to_string(),
+            new_password: new_password.to_string(),
+        }
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+
+    pub fn password(&self) -> &str {
+        &self.password
+    }
+
+    pub fn new_password(&self) -> &str {
+        &self.new_password
+    }
+}
+
+impl Clone for ChangePassword {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            username: self.username.clone(),
+            password: self.password.clone(),
+            new_password: self.new_password.clone(),
+        }
+    }
+}
+
+impl PlanNodeIdentifiable for ChangePassword {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+}
+
+impl PlanNodeProperties for ChangePassword {
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
+impl PlanNodeDependencies for ChangePassword {
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
+    }
+
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeDependenciesExt for ChangePassword {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
+    }
+}
+
+impl PlanNodeMutable for ChangePassword {
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+}
+
+impl PlanNodeClonable for ChangePassword {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
+    }
+}
+
+impl PlanNodeVisitable for ChangePassword {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for ChangePassword {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// 列出用户计划节点
+#[derive(Debug)]
+pub struct ListUsers {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+}
+
+impl ListUsers {
+    pub fn new(id: i64) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::ListUsers,
+            deps: Vec::new(),
+            output_var: None,
+            col_names: vec![
+                "Account".to_string(),
+            ],
+            cost: 0.0,
+        }
+    }
+}
+
+impl Clone for ListUsers {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        }
+    }
+}
+
+impl PlanNodeIdentifiable for ListUsers {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+}
+
+impl PlanNodeProperties for ListUsers {
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
+impl PlanNodeDependencies for ListUsers {
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
+    }
+
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeDependenciesExt for ListUsers {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
+    }
+}
+
+impl PlanNodeMutable for ListUsers {
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+}
+
+impl PlanNodeClonable for ListUsers {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
+    }
+}
+
+impl PlanNodeVisitable for ListUsers {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for ListUsers {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// 列出用户角色计划节点
+#[derive(Debug)]
+pub struct ListUserRoles {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub username: String,
+}
+
+impl ListUserRoles {
+    pub fn new(id: i64, username: &str) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::ListUserRoles,
+            deps: Vec::new(),
+            output_var: None,
+            col_names: vec![
+                "Account".to_string(),
+                "Space".to_string(),
+                "Role".to_string(),
+            ],
+            cost: 0.0,
+            username: username.to_string(),
+        }
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+}
+
+impl Clone for ListUserRoles {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            username: self.username.clone(),
+        }
+    }
+}
+
+impl PlanNodeIdentifiable for ListUserRoles {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+}
+
+impl PlanNodeProperties for ListUserRoles {
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
+impl PlanNodeDependencies for ListUserRoles {
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
+    }
+
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeDependenciesExt for ListUserRoles {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
+    }
+}
+
+impl PlanNodeMutable for ListUserRoles {
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+}
+
+impl PlanNodeClonable for ListUserRoles {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
+    }
+}
+
+impl PlanNodeVisitable for ListUserRoles {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for ListUserRoles {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// 描述用户计划节点
+#[derive(Debug)]
+pub struct DescribeUser {
+    pub id: i64,
+    pub kind: PlanNodeKind,
+    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub output_var: Option<Variable>,
+    pub col_names: Vec<String>,
+    pub cost: f64,
+    pub username: String,
+}
+
+impl DescribeUser {
+    pub fn new(id: i64, username: &str) -> Self {
+        Self {
+            id,
+            kind: PlanNodeKind::DescribeUser,
+            deps: Vec::new(),
+            output_var: None,
+            col_names: vec![
+                "Account".to_string(),
+                "Role".to_string(),
+                "Time Zone".to_string(),
+                "Locked".to_string(),
+            ],
+            cost: 0.0,
+            username: username.to_string(),
+        }
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+}
+
+impl Clone for DescribeUser {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            kind: self.kind.clone(),
+            deps: Vec::new(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+            username: self.username.clone(),
+        }
+    }
+}
+
+impl PlanNodeIdentifiable for DescribeUser {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn kind(&self) -> PlanNodeKind {
+        self.kind.clone()
+    }
+}
+
+impl PlanNodeProperties for DescribeUser {
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+}
+
+impl PlanNodeDependencies for DescribeUser {
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
+    }
+
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.deps.push(dep);
+    }
+
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
+            self.deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl PlanNodeDependenciesExt for DescribeUser {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
+    }
+}
+
+impl PlanNodeMutable for DescribeUser {
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+}
+
+impl PlanNodeClonable for DescribeUser {
+    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+        Arc::new(self.clone())
+    }
+    
+    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        Arc::new(cloned)
+    }
+}
+
+impl PlanNodeVisitable for DescribeUser {
+    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+        visitor.pre_visit()?;
+        visitor.post_visit()?;
+        Ok(())
+    }
+}
+
+impl PlanNode for DescribeUser {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}

@@ -6,3 +6,8 @@ mod user_ops;
 
 pub use role_ops::*;
 pub use user_ops::*;
+
+// 重新导出新增的安全管理节点
+pub use user_ops::{
+    ChangePassword, ListUsers, ListUserRoles, DescribeUser
+};
