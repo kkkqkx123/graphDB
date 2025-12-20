@@ -2,9 +2,9 @@
 //!
 //! This module provides built-in functions similar to NebulaGraph's FunctionManager system
 
+use crate::core::error::DBError;
 use crate::core::Value;
 use crate::utils::safe_lock;
-use crate::core::error::DBError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -461,7 +461,11 @@ impl FunctionManager {
     }
 
     /// Register a new function
-    pub fn register_function(&mut self, name: &str, attributes: FunctionAttributes) -> Result<(), DBError> {
+    pub fn register_function(
+        &mut self,
+        name: &str,
+        attributes: FunctionAttributes,
+    ) -> Result<(), DBError> {
         let mut functions = safe_lock(&self.functions)?;
         functions.insert(name.to_string(), attributes);
         Ok(())
@@ -491,7 +495,11 @@ impl FunctionManager {
     }
 
     /// Get the return type of a function
-    pub fn get_return_type(&self, func_name: &str, arg_types: &[ValueType]) -> Result<Option<ValueType>, DBError> {
+    pub fn get_return_type(
+        &self,
+        func_name: &str,
+        arg_types: &[ValueType],
+    ) -> Result<Option<ValueType>, DBError> {
         let functions = safe_lock(&self.functions)?;
         if let Some(attr) = functions.get(func_name) {
             for sig in &attr.type_signature {
@@ -563,31 +571,37 @@ mod tests {
 
     #[test]
     fn test_string_functions() {
-        let result = execute_function("upper", &[Value::String("hello".to_string())]).expect("Failed to execute function in test");
+        let result = execute_function("upper", &[Value::String("hello".to_string())])
+            .expect("Failed to execute function in test");
         assert_eq!(result, Some(Value::String("HELLO".to_string())));
 
-        let result = execute_function("strlen", &[Value::String("test".to_string())]).expect("Failed to execute function in test");
+        let result = execute_function("strlen", &[Value::String("test".to_string())])
+            .expect("Failed to execute function in test");
         assert_eq!(result, Some(Value::Int(4)));
     }
 
     #[test]
     fn test_math_functions() {
-        let result = execute_function("abs", &[Value::Int(-5)]).expect("Failed to execute function in test");
+        let result =
+            execute_function("abs", &[Value::Int(-5)]).expect("Failed to execute function in test");
         assert_eq!(result, Some(Value::Int(5)));
 
-        let result = execute_function("ceil", &[Value::Float(3.2)]).expect("Failed to execute function in test");
+        let result = execute_function("ceil", &[Value::Float(3.2)])
+            .expect("Failed to execute function in test");
         assert_eq!(result, Some(Value::Float(4.0)));
     }
 
     #[test]
     fn test_type_conversion() {
-        let result = execute_function("to_int", &[Value::String("123".to_string())]).expect("Failed to execute function in test");
+        let result = execute_function("to_int", &[Value::String("123".to_string())])
+            .expect("Failed to execute function in test");
         assert_eq!(result, Some(Value::Int(123)));
     }
 
     #[test]
     fn test_range_function() {
-        let result = execute_function("range", &[Value::Int(1), Value::Int(5)]).expect("Failed to execute function in test");
+        let result = execute_function("range", &[Value::Int(1), Value::Int(5)])
+            .expect("Failed to execute function in test");
         let expected = Value::List(vec![
             Value::Int(1),
             Value::Int(2),
@@ -601,6 +615,7 @@ mod tests {
     #[test]
     fn test_function_purity() {
         assert!(is_function_pure("upper", 1).expect("Failed to check function purity in test")); // Pure function
-        assert!(!is_function_pure("now", 0).expect("Failed to check function purity in test")); // Non-pure function
+        assert!(!is_function_pure("now", 0).expect("Failed to check function purity in test"));
+        // Non-pure function
     }
 }

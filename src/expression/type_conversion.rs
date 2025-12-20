@@ -69,9 +69,10 @@ pub fn cast_to_float(value: Value) -> Result<Value, ExpressionError> {
     match value {
         Value::Float(_) => Ok(value),
         Value::Int(i) => Ok(Value::Float(i as f64)),
-        Value::String(s) => s.parse::<f64>().map(Value::Float).map_err(|_| {
-            ExpressionError::TypeError("Cannot convert string to float".to_string())
-        }),
+        Value::String(s) => s
+            .parse::<f64>()
+            .map(Value::Float)
+            .map_err(|_| ExpressionError::TypeError("Cannot convert string to float".to_string())),
         Value::Bool(b) => Ok(Value::Float(if b { 1.0 } else { 0.0 })),
         Value::Null(_) => Ok(Value::Null(crate::core::NullType::Null)),
         _ => Err(ExpressionError::TypeError(

@@ -1,11 +1,11 @@
 //! Cypher AST转换逻辑
 
+use crate::core::error::QueryError;
 use crate::core::value::Value;
 use crate::core::vertex_edge_path::Tag;
-use crate::query::parser::cypher::ast::{Condition, Query};
-use crate::core::error::QueryError;
+use crate::query::parser::cypher::ast::expressions::{BinaryOperator, Expression};
 use crate::query::parser::cypher::ast::statements::CypherStatement;
-use crate::query::parser::cypher::ast::expressions::{Expression, BinaryOperator};
+use crate::query::parser::cypher::ast::{Condition, Query};
 use std::collections::HashMap;
 
 /// Cypher语句到查询的转换器
@@ -81,30 +81,14 @@ impl CypherConverter {
     /// 将Cypher语句转换为查询
     pub fn to_query(&mut self, statement: &CypherStatement) -> Result<Query, QueryError> {
         match statement {
-            CypherStatement::Match(match_clause) => {
-                self.convert_match_clause(match_clause)
-            }
-            CypherStatement::Query(query_clause) => {
-                self.convert_query_clause(query_clause)
-            }
-            CypherStatement::Create(create_clause) => {
-                self.convert_create_clause(create_clause)
-            }
-            CypherStatement::Delete(delete_clause) => {
-                self.convert_delete_clause(delete_clause)
-            }
-            CypherStatement::Set(set_clause) => {
-                self.convert_set_clause(set_clause)
-            }
-            CypherStatement::Return(return_clause) => {
-                self.convert_return_clause(return_clause)
-            }
-            CypherStatement::With(with_clause) => {
-                self.convert_with_clause(with_clause)
-            }
-            CypherStatement::Unwind(unwind_clause) => {
-                self.convert_unwind_clause(unwind_clause)
-            }
+            CypherStatement::Match(match_clause) => self.convert_match_clause(match_clause),
+            CypherStatement::Query(query_clause) => self.convert_query_clause(query_clause),
+            CypherStatement::Create(create_clause) => self.convert_create_clause(create_clause),
+            CypherStatement::Delete(delete_clause) => self.convert_delete_clause(delete_clause),
+            CypherStatement::Set(set_clause) => self.convert_set_clause(set_clause),
+            CypherStatement::Return(return_clause) => self.convert_return_clause(return_clause),
+            CypherStatement::With(with_clause) => self.convert_with_clause(with_clause),
+            CypherStatement::Unwind(unwind_clause) => self.convert_unwind_clause(unwind_clause),
             _ => Err(QueryError::InvalidQuery(format!(
                 "不支持的Cypher语句类型: {}",
                 statement.statement_type()
@@ -113,9 +97,12 @@ impl CypherConverter {
     }
 
     /// 转换MATCH子句
-    fn convert_match_clause(&mut self, match_clause: &crate::query::parser::cypher::ast::clauses::MatchClause) -> Result<Query, QueryError> {
+    fn convert_match_clause(
+        &mut self,
+        match_clause: &crate::query::parser::cypher::ast::clauses::MatchClause,
+    ) -> Result<Query, QueryError> {
         let mut paths = Vec::new();
-        
+
         // 解析模式
         for pattern in &match_clause.patterns {
             let path_info = self.convert_pattern_to_path(pattern)?;
@@ -136,105 +123,143 @@ impl CypherConverter {
     }
 
     /// 转换复合查询子句
-    fn convert_query_clause(&mut self, query_clause: &crate::query::parser::cypher::ast::statements::QueryClause) -> Result<Query, QueryError> {
+    fn convert_query_clause(
+        &mut self,
+        query_clause: &crate::query::parser::cypher::ast::statements::QueryClause,
+    ) -> Result<Query, QueryError> {
         if let Some(match_clause) = &query_clause.match_clause {
             self.convert_match_clause(match_clause)
         } else {
-            Err(QueryError::InvalidQuery("复合查询必须包含MATCH子句".to_string()))
+            Err(QueryError::InvalidQuery(
+                "复合查询必须包含MATCH子句".to_string(),
+            ))
         }
     }
 
     /// 转换CREATE子句
-    fn convert_create_clause(&mut self, create_clause: &crate::query::parser::cypher::ast::clauses::CreateClause) -> Result<Query, QueryError> {
+    fn convert_create_clause(
+        &mut self,
+        create_clause: &crate::query::parser::cypher::ast::clauses::CreateClause,
+    ) -> Result<Query, QueryError> {
         if let Some(pattern) = create_clause.patterns.first() {
             if let Some(part) = pattern.parts.first() {
                 let mut tags = Vec::new();
-                
+
                 // 为每个标签创建一个Tag对象
                 for label in &part.node.labels {
                     let mut properties = HashMap::new();
-                    
+
                     // 从节点属性中提取属性
                     if let Some(node_props) = &part.node.properties {
                         for (key, expr) in node_props {
-                            let evaluator = ExpressionEvaluator::new(&self.context.variable_bindings);
-                            let value = evaluator.evaluate(expr)
+                            let evaluator =
+                                ExpressionEvaluator::new(&self.context.variable_bindings);
+                            let value = evaluator
+                                .evaluate(expr)
                                 .map_err(|e| QueryError::ExpressionError(e))?;
                             properties.insert(key.clone(), value);
                         }
                     }
-                    
+
                     tags.push(Tag::new(label.clone(), properties));
                 }
-                
+
                 // 如果有别名，将其添加到上下文
                 if let Some(alias) = &part.node.variable {
-                    self.context.aliases_generated.insert(
-                        alias.clone(),
-                        AliasType::Node
-                    );
+                    self.context
+                        .aliases_generated
+                        .insert(alias.clone(), AliasType::Node);
                 }
-                
+
                 Ok(Query::CreateNode { id: None, tags })
             } else {
-                Err(QueryError::InvalidQuery("无法解析CREATE语句：没有有效的节点模式".to_string()))
+                Err(QueryError::InvalidQuery(
+                    "无法解析CREATE语句：没有有效的节点模式".to_string(),
+                ))
             }
         } else {
-            Err(QueryError::InvalidQuery("无法解析CREATE语句：没有模式".to_string()))
+            Err(QueryError::InvalidQuery(
+                "无法解析CREATE语句：没有模式".to_string(),
+            ))
         }
     }
 
     /// 转换DELETE子句
-    fn convert_delete_clause(&mut self, delete_clause: &crate::query::parser::cypher::ast::clauses::DeleteClause) -> Result<Query, QueryError> {
+    fn convert_delete_clause(
+        &mut self,
+        delete_clause: &crate::query::parser::cypher::ast::clauses::DeleteClause,
+    ) -> Result<Query, QueryError> {
         if let Some(expr) = delete_clause.expressions.first() {
             let evaluator = ExpressionEvaluator::new(&self.context.variable_bindings);
-            let id = evaluator.evaluate(expr)
+            let id = evaluator
+                .evaluate(expr)
                 .map_err(|e| QueryError::ExpressionError(e))?;
             Ok(Query::DeleteNode { id })
         } else {
-            Err(QueryError::InvalidQuery("无法解析DELETE语句：没有表达式".to_string()))
+            Err(QueryError::InvalidQuery(
+                "无法解析DELETE语句：没有表达式".to_string(),
+            ))
         }
     }
 
     /// 转换SET子句
-    fn convert_set_clause(&mut self, set_clause: &crate::query::parser::cypher::ast::clauses::SetClause) -> Result<Query, QueryError> {
+    fn convert_set_clause(
+        &mut self,
+        set_clause: &crate::query::parser::cypher::ast::clauses::SetClause,
+    ) -> Result<Query, QueryError> {
         if let Some(set_item) = set_clause.items.first() {
             // 解析SET表达式
             let evaluator = ExpressionEvaluator::new(&self.context.variable_bindings);
-            
+
             // 从SET项中提取节点ID和属性
             let (id, tags) = self.parse_set_item(set_item, &evaluator)?;
-            
+
             Ok(Query::UpdateNode { id, tags })
         } else {
-            Err(QueryError::InvalidQuery("无法解析SET语句：没有SET项".to_string()))
+            Err(QueryError::InvalidQuery(
+                "无法解析SET语句：没有SET项".to_string(),
+            ))
         }
     }
 
     /// 转换RETURN子句
-    fn convert_return_clause(&mut self, _return_clause: &crate::query::parser::cypher::ast::clauses::ReturnClause) -> Result<Query, QueryError> {
+    fn convert_return_clause(
+        &mut self,
+        _return_clause: &crate::query::parser::cypher::ast::clauses::ReturnClause,
+    ) -> Result<Query, QueryError> {
         // RETURN子句通常与前面的子句组合使用
         // 这里简化处理，实际应该与前面的查询结果结合
-        Err(QueryError::InvalidQuery("RETURN子句需要与前面的子句组合使用".to_string()))
+        Err(QueryError::InvalidQuery(
+            "RETURN子句需要与前面的子句组合使用".to_string(),
+        ))
     }
 
     /// 转换WITH子句
-    fn convert_with_clause(&mut self, _with_clause: &crate::query::parser::cypher::ast::clauses::WithClause) -> Result<Query, QueryError> {
+    fn convert_with_clause(
+        &mut self,
+        _with_clause: &crate::query::parser::cypher::ast::clauses::WithClause,
+    ) -> Result<Query, QueryError> {
         // WITH子句用于传递结果到下一个查询部分
         Err(QueryError::InvalidQuery("WITH子句暂未实现".to_string()))
     }
 
     /// 转换UNWIND子句
-    fn convert_unwind_clause(&mut self, _unwind_clause: &crate::query::parser::cypher::ast::clauses::UnwindClause) -> Result<Query, QueryError> {
+    fn convert_unwind_clause(
+        &mut self,
+        _unwind_clause: &crate::query::parser::cypher::ast::clauses::UnwindClause,
+    ) -> Result<Query, QueryError> {
         // UNWIND子句用于展开列表
         Err(QueryError::InvalidQuery("UNWIND子句暂未实现".to_string()))
     }
 
     /// 将模式转换为路径信息
-    fn convert_pattern_to_path(&mut self, pattern: &crate::query::parser::cypher::ast::patterns::Pattern) -> Result<PathInfo, QueryError> {
+    fn convert_pattern_to_path(
+        &mut self,
+        pattern: &crate::query::parser::cypher::ast::patterns::Pattern,
+    ) -> Result<PathInfo, QueryError> {
         let mut node_infos = Vec::new();
         let mut edge_infos = Vec::new();
-        
+
         for part in &pattern.parts {
             // 转换节点信息
             let node_info = NodeInfo {
@@ -243,17 +268,16 @@ impl CypherConverter {
                 properties: part.node.properties.clone().unwrap_or_default(),
                 anonymous: part.node.variable.is_none(),
             };
-            
+
             // 如果节点有别名，添加到上下文
             if let Some(alias) = &node_info.alias {
-                self.context.aliases_generated.insert(
-                    alias.clone(),
-                    AliasType::Node
-                );
+                self.context
+                    .aliases_generated
+                    .insert(alias.clone(), AliasType::Node);
             }
-            
+
             node_infos.push(node_info);
-            
+
             // 转换边信息（如果存在）
             for relationship in &part.relationships {
                 let edge_info = EdgeInfo {
@@ -263,19 +287,18 @@ impl CypherConverter {
                     direction: self.convert_direction(&relationship.direction),
                     anonymous: relationship.variable.is_none(),
                 };
-                
+
                 // 如果边有别名，添加到上下文
                 if let Some(alias) = &edge_info.alias {
-                    self.context.aliases_generated.insert(
-                        alias.clone(),
-                        AliasType::Edge
-                    );
+                    self.context
+                        .aliases_generated
+                        .insert(alias.clone(), AliasType::Edge);
                 }
-                
+
                 edge_infos.push(edge_info);
             }
         }
-        
+
         Ok(PathInfo {
             alias: None,
             node_infos,
@@ -285,11 +308,18 @@ impl CypherConverter {
     }
 
     /// 转换方向
-    fn convert_direction(&self, direction: &crate::query::parser::cypher::ast::patterns::Direction) -> PathDirection {
+    fn convert_direction(
+        &self,
+        direction: &crate::query::parser::cypher::ast::patterns::Direction,
+    ) -> PathDirection {
         match direction {
-            crate::query::parser::cypher::ast::patterns::Direction::Right => PathDirection::Outgoing,
+            crate::query::parser::cypher::ast::patterns::Direction::Right => {
+                PathDirection::Outgoing
+            }
             crate::query::parser::cypher::ast::patterns::Direction::Left => PathDirection::Incoming,
-            crate::query::parser::cypher::ast::patterns::Direction::Both => PathDirection::Undirected,
+            crate::query::parser::cypher::ast::patterns::Direction::Both => {
+                PathDirection::Undirected
+            }
         }
     }
 
@@ -301,32 +331,55 @@ impl CypherConverter {
     }
 
     /// 从表达式中提取条件
-    fn extract_conditions_from_expression(&self, expr: &Expression, conditions: &mut Vec<Condition>) -> Result<(), QueryError> {
+    fn extract_conditions_from_expression(
+        &self,
+        expr: &Expression,
+        conditions: &mut Vec<Condition>,
+    ) -> Result<(), QueryError> {
         match expr {
             Expression::Binary(binary) => {
                 match binary.operator {
                     BinaryOperator::Equal => {
-                        if let (Expression::Property(prop), value_expr) = (&*binary.left, &*binary.right) {
-                            let evaluator = ExpressionEvaluator::new(&self.context.variable_bindings);
-                            let value = evaluator.evaluate(value_expr)
+                        if let (Expression::Property(prop), value_expr) =
+                            (&*binary.left, &*binary.right)
+                        {
+                            let evaluator =
+                                ExpressionEvaluator::new(&self.context.variable_bindings);
+                            let value = evaluator
+                                .evaluate(value_expr)
                                 .map_err(|e| QueryError::ExpressionError(e))?;
-                            conditions.push(Condition::PropertyEquals(prop.property_name.clone(), value));
+                            conditions
+                                .push(Condition::PropertyEquals(prop.property_name.clone(), value));
                         }
                     }
                     BinaryOperator::GreaterThan => {
-                        if let (Expression::Property(prop), value_expr) = (&*binary.left, &*binary.right) {
-                            let evaluator = ExpressionEvaluator::new(&self.context.variable_bindings);
-                            let value = evaluator.evaluate(value_expr)
+                        if let (Expression::Property(prop), value_expr) =
+                            (&*binary.left, &*binary.right)
+                        {
+                            let evaluator =
+                                ExpressionEvaluator::new(&self.context.variable_bindings);
+                            let value = evaluator
+                                .evaluate(value_expr)
                                 .map_err(|e| QueryError::ExpressionError(e))?;
-                            conditions.push(Condition::PropertyGreaterThan(prop.property_name.clone(), value));
+                            conditions.push(Condition::PropertyGreaterThan(
+                                prop.property_name.clone(),
+                                value,
+                            ));
                         }
                     }
                     BinaryOperator::LessThan => {
-                        if let (Expression::Property(prop), value_expr) = (&*binary.left, &*binary.right) {
-                            let evaluator = ExpressionEvaluator::new(&self.context.variable_bindings);
-                            let value = evaluator.evaluate(value_expr)
+                        if let (Expression::Property(prop), value_expr) =
+                            (&*binary.left, &*binary.right)
+                        {
+                            let evaluator =
+                                ExpressionEvaluator::new(&self.context.variable_bindings);
+                            let value = evaluator
+                                .evaluate(value_expr)
                                 .map_err(|e| QueryError::ExpressionError(e))?;
-                            conditions.push(Condition::PropertyLessThan(prop.property_name.clone(), value));
+                            conditions.push(Condition::PropertyLessThan(
+                                prop.property_name.clone(),
+                                value,
+                            ));
                         }
                     }
                     BinaryOperator::And => {
@@ -336,14 +389,16 @@ impl CypherConverter {
                     _ => {
                         // 其他操作符暂不支持
                         return Err(QueryError::ExpressionError(format!(
-                            "不支持的操作符: {:?}", binary.operator
+                            "不支持的操作符: {:?}",
+                            binary.operator
                         )));
                     }
                 }
             }
             _ => {
                 return Err(QueryError::ExpressionError(format!(
-                    "不支持的表达式类型: {:?}", expr
+                    "不支持的表达式类型: {:?}",
+                    expr
                 )));
             }
         }
@@ -353,13 +408,13 @@ impl CypherConverter {
     /// 从路径中提取标签
     fn extract_tags_from_paths(&self, paths: &[PathInfo]) -> Option<Vec<String>> {
         let mut labels = Vec::new();
-        
+
         for path in paths {
             for node_info in &path.node_infos {
                 labels.extend(node_info.labels.clone());
             }
         }
-        
+
         if labels.is_empty() {
             None
         } else {
@@ -368,36 +423,45 @@ impl CypherConverter {
     }
 
     /// 解析SET项
-    fn parse_set_item(&self, set_item: &crate::query::parser::cypher::ast::clauses::SetItem, evaluator: &ExpressionEvaluator) -> Result<(Value, Vec<Tag>), QueryError> {
+    fn parse_set_item(
+        &self,
+        set_item: &crate::query::parser::cypher::ast::clauses::SetItem,
+        evaluator: &ExpressionEvaluator,
+    ) -> Result<(Value, Vec<Tag>), QueryError> {
         // 解析左侧表达式（通常是属性访问）
         let variable_name = if let Expression::Property(prop_expr) = &set_item.left {
             if let Expression::Variable(var) = &*prop_expr.expression {
                 var.clone()
             } else {
-                return Err(QueryError::ExpressionError("SET左侧必须是变量属性".to_string()));
+                return Err(QueryError::ExpressionError(
+                    "SET左侧必须是变量属性".to_string(),
+                ));
             }
         } else {
-            return Err(QueryError::ExpressionError("SET左侧必须是属性表达式".to_string()));
+            return Err(QueryError::ExpressionError(
+                "SET左侧必须是属性表达式".to_string(),
+            ));
         };
-        
+
         // 解析变量引用
         let id = if let Some(value) = self.context.variable_bindings.get(&variable_name) {
             value.clone()
         } else {
             Value::String(variable_name)
         };
-        
+
         // 解析右侧表达式
-        let value = evaluator.evaluate(&set_item.right)
+        let value = evaluator
+            .evaluate(&set_item.right)
             .map_err(|e| QueryError::ExpressionError(e))?;
-        
+
         // 创建包含该属性的Tag
         let mut properties = HashMap::new();
         if let Expression::Property(prop_expr) = &set_item.left {
             properties.insert(prop_expr.property_name.clone(), value);
         }
         let tag = Tag::new("default".to_string(), properties);
-        
+
         Ok((id, vec![tag]))
     }
 }
@@ -438,41 +502,66 @@ impl ExpressionEvaluator {
     }
 
     /// 求值字面量
-    fn evaluate_literal(&self, literal: &crate::query::parser::cypher::ast::expressions::Literal) -> Result<Value, String> {
+    fn evaluate_literal(
+        &self,
+        literal: &crate::query::parser::cypher::ast::expressions::Literal,
+    ) -> Result<Value, String> {
         match literal {
-            crate::query::parser::cypher::ast::expressions::Literal::String(s) => Ok(Value::String(s.clone())),
-            crate::query::parser::cypher::ast::expressions::Literal::Integer(i) => Ok(Value::Int(*i)),
-            crate::query::parser::cypher::ast::expressions::Literal::Float(f) => Ok(Value::Float(*f)),
-            crate::query::parser::cypher::ast::expressions::Literal::Boolean(b) => Ok(Value::Bool(*b)),
-            crate::query::parser::cypher::ast::expressions::Literal::Null => Ok(Value::Null(crate::core::value::NullType::Null)),
+            crate::query::parser::cypher::ast::expressions::Literal::String(s) => {
+                Ok(Value::String(s.clone()))
+            }
+            crate::query::parser::cypher::ast::expressions::Literal::Integer(i) => {
+                Ok(Value::Int(*i))
+            }
+            crate::query::parser::cypher::ast::expressions::Literal::Float(f) => {
+                Ok(Value::Float(*f))
+            }
+            crate::query::parser::cypher::ast::expressions::Literal::Boolean(b) => {
+                Ok(Value::Bool(*b))
+            }
+            crate::query::parser::cypher::ast::expressions::Literal::Null => {
+                Ok(Value::Null(crate::core::value::NullType::Null))
+            }
         }
     }
 
     /// 求值变量
     fn evaluate_variable(&self, name: &str) -> Result<Value, String> {
-        self.variable_bindings.get(name)
+        self.variable_bindings
+            .get(name)
             .cloned()
             .ok_or_else(|| format!("未定义的变量: {}", name))
     }
 
     /// 求值属性表达式
-    fn evaluate_property(&self, prop: &crate::query::parser::cypher::ast::expressions::PropertyExpression) -> Result<Value, String> {
+    fn evaluate_property(
+        &self,
+        prop: &crate::query::parser::cypher::ast::expressions::PropertyExpression,
+    ) -> Result<Value, String> {
         // 简化处理：返回属性名作为字符串
         // 实际应该从对象中获取属性值
         Ok(Value::String(prop.property_name.clone()))
     }
 
     /// 求值列表表达式
-    fn evaluate_list(&self, list: &crate::query::parser::cypher::ast::expressions::ListExpression) -> Result<Value, String> {
-        let elements: Result<Vec<Value>, String> = list.elements.iter()
+    fn evaluate_list(
+        &self,
+        list: &crate::query::parser::cypher::ast::expressions::ListExpression,
+    ) -> Result<Value, String> {
+        let elements: Result<Vec<Value>, String> = list
+            .elements
+            .iter()
             .map(|elem| self.evaluate(elem))
             .collect();
-        
+
         Ok(Value::List(elements?))
     }
 
     /// 求值Map表达式
-    fn evaluate_map(&self, map: &crate::query::parser::cypher::ast::expressions::MapExpression) -> Result<Value, String> {
+    fn evaluate_map(
+        &self,
+        map: &crate::query::parser::cypher::ast::expressions::MapExpression,
+    ) -> Result<Value, String> {
         let mut properties = HashMap::new();
         for (key, expr) in &map.properties {
             let value = self.evaluate(expr)?;
@@ -482,95 +571,76 @@ impl ExpressionEvaluator {
     }
 
     /// 求值二元表达式
-    fn evaluate_binary(&self, binary: &crate::query::parser::cypher::ast::expressions::BinaryExpression) -> Result<Value, String> {
+    fn evaluate_binary(
+        &self,
+        binary: &crate::query::parser::cypher::ast::expressions::BinaryExpression,
+    ) -> Result<Value, String> {
         let left = self.evaluate(&binary.left)?;
         let right = self.evaluate(&binary.right)?;
-        
+
         match binary.operator {
             BinaryOperator::Add => left.add(&right),
             BinaryOperator::Subtract => left.sub(&right),
             BinaryOperator::Multiply => left.mul(&right),
             BinaryOperator::Divide => left.div(&right),
             BinaryOperator::Modulo => left.modulo(&right),
-            BinaryOperator::Exponent => {
-                match (&left, &right) {
-                    (Value::Int(l), Value::Int(r)) => {
-                        let result = l.pow(*r as u32);
-                        Ok(Value::Int(result))
-                    }
-                    (Value::Float(l), Value::Float(r)) => {
-                        let result = l.powf(*r);
-                        Ok(Value::Float(result))
-                    }
-                    (Value::Int(l), Value::Float(r)) => {
-                        let result = (*l as f64).powf(*r);
-                        Ok(Value::Float(result))
-                    }
-                    (Value::Float(l), Value::Int(r)) => {
-                        let result = l.powf(*r as f64);
-                        Ok(Value::Float(result))
-                    }
-                    _ => Err("指数操作符只能应用于数字".to_string()),
+            BinaryOperator::Exponent => match (&left, &right) {
+                (Value::Int(l), Value::Int(r)) => {
+                    let result = l.pow(*r as u32);
+                    Ok(Value::Int(result))
                 }
-            }
+                (Value::Float(l), Value::Float(r)) => {
+                    let result = l.powf(*r);
+                    Ok(Value::Float(result))
+                }
+                (Value::Int(l), Value::Float(r)) => {
+                    let result = (*l as f64).powf(*r);
+                    Ok(Value::Float(result))
+                }
+                (Value::Float(l), Value::Int(r)) => {
+                    let result = l.powf(*r as f64);
+                    Ok(Value::Float(result))
+                }
+                _ => Err("指数操作符只能应用于数字".to_string()),
+            },
             BinaryOperator::Equal => Ok(Value::Bool(left.equals(&right))),
             BinaryOperator::NotEqual => Ok(Value::Bool(!left.equals(&right))),
             BinaryOperator::GreaterThan => Ok(Value::Bool(left.greater_than(&right))),
             BinaryOperator::LessThan => Ok(Value::Bool(left.less_than(&right))),
-            BinaryOperator::GreaterThanOrEqual => {
-                Ok(Value::Bool(left.greater_than(&right) || left.equals(&right)))
-            }
+            BinaryOperator::GreaterThanOrEqual => Ok(Value::Bool(
+                left.greater_than(&right) || left.equals(&right),
+            )),
             BinaryOperator::LessThanOrEqual => {
                 Ok(Value::Bool(left.less_than(&right) || left.equals(&right)))
             }
-            BinaryOperator::And => {
-                match (left, right) {
-                    (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(l && r)),
-                    _ => Err("AND操作符只能应用于布尔值".to_string()),
-                }
-            }
-            BinaryOperator::Or => {
-                match (left, right) {
-                    (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(l || r)),
-                    _ => Err("OR操作符只能应用于布尔值".to_string()),
-                }
-            }
-            BinaryOperator::Xor => {
-                match (left, right) {
-                    (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(l ^ r)),
-                    _ => Err("XOR操作符只能应用于布尔值".to_string()),
-                }
-            }
-            BinaryOperator::In => {
-                match right {
-                    Value::List(list) => Ok(Value::Bool(list.contains(&left))),
-                    _ => Err("IN操作符的右侧必须是列表".to_string()),
-                }
-            }
-            BinaryOperator::StartsWith => {
-                match (&left, &right) {
-                    (Value::String(s), Value::String(prefix)) => {
-                        Ok(Value::Bool(s.starts_with(prefix)))
-                    }
-                    _ => Err("STARTS WITH操作符只能应用于字符串".to_string()),
-                }
-            }
-            BinaryOperator::EndsWith => {
-                match (&left, &right) {
-                    (Value::String(s), Value::String(suffix)) => {
-                        Ok(Value::Bool(s.ends_with(suffix)))
-                    }
-                    _ => Err("ENDS WITH操作符只能应用于字符串".to_string()),
-                }
-            }
-            BinaryOperator::Contains => {
-                match (&left, &right) {
-                    (Value::String(s), Value::String(substr)) => {
-                        Ok(Value::Bool(s.contains(substr)))
-                    }
-                    _ => Err("CONTAINS操作符只能应用于字符串".to_string()),
-                }
-            }
+            BinaryOperator::And => match (left, right) {
+                (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(l && r)),
+                _ => Err("AND操作符只能应用于布尔值".to_string()),
+            },
+            BinaryOperator::Or => match (left, right) {
+                (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(l || r)),
+                _ => Err("OR操作符只能应用于布尔值".to_string()),
+            },
+            BinaryOperator::Xor => match (left, right) {
+                (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(l ^ r)),
+                _ => Err("XOR操作符只能应用于布尔值".to_string()),
+            },
+            BinaryOperator::In => match right {
+                Value::List(list) => Ok(Value::Bool(list.contains(&left))),
+                _ => Err("IN操作符的右侧必须是列表".to_string()),
+            },
+            BinaryOperator::StartsWith => match (&left, &right) {
+                (Value::String(s), Value::String(prefix)) => Ok(Value::Bool(s.starts_with(prefix))),
+                _ => Err("STARTS WITH操作符只能应用于字符串".to_string()),
+            },
+            BinaryOperator::EndsWith => match (&left, &right) {
+                (Value::String(s), Value::String(suffix)) => Ok(Value::Bool(s.ends_with(suffix))),
+                _ => Err("ENDS WITH操作符只能应用于字符串".to_string()),
+            },
+            BinaryOperator::Contains => match (&left, &right) {
+                (Value::String(s), Value::String(substr)) => Ok(Value::Bool(s.contains(substr))),
+                _ => Err("CONTAINS操作符只能应用于字符串".to_string()),
+            },
             BinaryOperator::RegexMatch => {
                 match (&left, &right) {
                     (Value::String(s), Value::String(pattern)) => {
@@ -585,29 +655,37 @@ impl ExpressionEvaluator {
     }
 
     /// 求值一元表达式
-    fn evaluate_unary(&self, unary: &crate::query::parser::cypher::ast::expressions::UnaryExpression) -> Result<Value, String> {
+    fn evaluate_unary(
+        &self,
+        unary: &crate::query::parser::cypher::ast::expressions::UnaryExpression,
+    ) -> Result<Value, String> {
         let expr = self.evaluate(&unary.expression)?;
-        
+
         match unary.operator {
-            crate::query::parser::cypher::ast::expressions::UnaryOperator::Not => {
-                match expr {
-                    Value::Bool(b) => Ok(Value::Bool(!b)),
-                    _ => Err("NOT操作符只能应用于布尔值".to_string()),
-                }
+            crate::query::parser::cypher::ast::expressions::UnaryOperator::Not => match expr {
+                Value::Bool(b) => Ok(Value::Bool(!b)),
+                _ => Err("NOT操作符只能应用于布尔值".to_string()),
+            },
+            crate::query::parser::cypher::ast::expressions::UnaryOperator::Negative => {
+                expr.negate()
             }
-            crate::query::parser::cypher::ast::expressions::UnaryOperator::Negative => expr.negate(),
             crate::query::parser::cypher::ast::expressions::UnaryOperator::Positive => Ok(expr),
         }
     }
 
     /// 求值函数调用
-    fn evaluate_function_call(&self, call: &crate::query::parser::cypher::ast::expressions::FunctionCall) -> Result<Value, String> {
-        let args: Result<Vec<Value>, String> = call.arguments.iter()
+    fn evaluate_function_call(
+        &self,
+        call: &crate::query::parser::cypher::ast::expressions::FunctionCall,
+    ) -> Result<Value, String> {
+        let args: Result<Vec<Value>, String> = call
+            .arguments
+            .iter()
             .map(|arg| self.evaluate(arg))
             .collect();
-        
+
         let args = args?;
-        
+
         match call.function_name.as_str() {
             "abs" => {
                 if args.len() != 1 {
@@ -638,11 +716,10 @@ impl ExpressionEvaluator {
                     return Err("toInt函数需要一个参数".to_string());
                 }
                 match &args[0] {
-                    Value::String(s) => {
-                        s.parse::<i64>()
-                            .map(Value::Int)
-                            .map_err(|_| format!("无法将字符串 '{}' 转换为整数", s))
-                    }
+                    Value::String(s) => s
+                        .parse::<i64>()
+                        .map(Value::Int)
+                        .map_err(|_| format!("无法将字符串 '{}' 转换为整数", s)),
                     Value::Float(f) => Ok(Value::Int(*f as i64)),
                     Value::Int(_) => Ok(args[0].clone()),
                     _ => Err("toInt函数只能应用于字符串或数字".to_string()),
@@ -653,11 +730,10 @@ impl ExpressionEvaluator {
                     return Err("toFloat函数需要一个参数".to_string());
                 }
                 match &args[0] {
-                    Value::String(s) => {
-                        s.parse::<f64>()
-                            .map(Value::Float)
-                            .map_err(|_| format!("无法将字符串 '{}' 转换为浮点数", s))
-                    }
+                    Value::String(s) => s
+                        .parse::<f64>()
+                        .map(Value::Float)
+                        .map_err(|_| format!("无法将字符串 '{}' 转换为浮点数", s)),
                     Value::Int(i) => Ok(Value::Float(*i as f64)),
                     Value::Float(_) => Ok(args[0].clone()),
                     _ => Err("toFloat函数只能应用于字符串或数字".to_string()),
@@ -668,13 +744,11 @@ impl ExpressionEvaluator {
                     return Err("toBoolean函数需要一个参数".to_string());
                 }
                 match &args[0] {
-                    Value::String(s) => {
-                        match s.to_lowercase().as_str() {
-                            "true" | "1" | "yes" | "on" => Ok(Value::Bool(true)),
-                            "false" | "0" | "no" | "off" => Ok(Value::Bool(false)),
-                            _ => Err(format!("无法将字符串 '{}' 转换为布尔值", s)),
-                        }
-                    }
+                    Value::String(s) => match s.to_lowercase().as_str() {
+                        "true" | "1" | "yes" | "on" => Ok(Value::Bool(true)),
+                        "false" | "0" | "no" | "off" => Ok(Value::Bool(false)),
+                        _ => Err(format!("无法将字符串 '{}' 转换为布尔值", s)),
+                    },
                     Value::Int(i) => Ok(Value::Bool(*i != 0)),
                     Value::Float(f) => Ok(Value::Bool(*f != 0.0)),
                     Value::Bool(_) => Ok(args[0].clone()),
@@ -692,7 +766,7 @@ impl ExpressionEvaluator {
                         } else {
                             return Err("substring函数的第二个参数必须是整数".to_string());
                         };
-                        
+
                         let end = if args.len() == 3 {
                             if let Value::Int(i) = &args[2] {
                                 *i as usize
@@ -702,11 +776,11 @@ impl ExpressionEvaluator {
                         } else {
                             s.len()
                         };
-                        
+
                         if start > end || end > s.len() {
                             return Err("substring函数的参数范围无效".to_string());
                         }
-                        
+
                         Ok(Value::String(s[start..end].to_string()))
                     }
                     _ => Err("substring函数只能应用于字符串".to_string()),
@@ -801,9 +875,8 @@ impl ExpressionEvaluator {
                 }
                 match &args[0] {
                     Value::Map(map) => {
-                        let keys: Vec<Value> = map.keys()
-                            .map(|k| Value::String(k.clone()))
-                            .collect();
+                        let keys: Vec<Value> =
+                            map.keys().map(|k| Value::String(k.clone())).collect();
                         Ok(Value::List(keys))
                     }
                     _ => Err("keys函数只能应用于Map".to_string()),
@@ -834,7 +907,10 @@ impl ExpressionEvaluator {
     }
 
     /// 求值CASE表达式
-    fn evaluate_case(&self, case_expr: &crate::query::parser::cypher::ast::expressions::CaseExpression) -> Result<Value, String> {
+    fn evaluate_case(
+        &self,
+        case_expr: &crate::query::parser::cypher::ast::expressions::CaseExpression,
+    ) -> Result<Value, String> {
         // 如果有表达式，先求值表达式
         let test_value = if let Some(expr) = &case_expr.expression {
             Some(self.evaluate(expr)?)
@@ -874,29 +950,25 @@ impl ExpressionEvaluator {
 mod tests {
     use super::*;
     use crate::query::parser::cypher::ast::clauses::*;
-    use crate::query::parser::cypher::ast::patterns::*;
     use crate::query::parser::cypher::ast::expressions::*;
+    use crate::query::parser::cypher::ast::patterns::*;
 
     #[test]
     fn test_simple_match_conversion() {
         let mut converter = CypherConverter::new();
-        
+
         // 创建简单的MATCH语句: MATCH (n:Person) WHERE n.age > 18
         let match_clause = MatchClause {
-            patterns: vec![
-                Pattern {
-                    parts: vec![
-                        PatternPart {
-                            node: NodePattern {
-                                variable: Some("n".to_string()),
-                                labels: vec!["Person".to_string()],
-                                properties: None,
-                            },
-                            relationships: vec![],
-                        }
-                    ],
-                }
-            ],
+            patterns: vec![Pattern {
+                parts: vec![PatternPart {
+                    node: NodePattern {
+                        variable: Some("n".to_string()),
+                        labels: vec!["Person".to_string()],
+                        properties: None,
+                    },
+                    relationships: vec![],
+                }],
+            }],
             where_clause: Some(WhereClause {
                 expression: Expression::Binary(BinaryExpression {
                     left: Box::new(Expression::Property(PropertyExpression {
@@ -909,48 +981,53 @@ mod tests {
             }),
             optional: false,
         };
-        
+
         let statement = CypherStatement::Match(match_clause);
         let result = converter.to_query(&statement);
-        
+
         assert!(result.is_ok());
         if let Ok(Query::MatchNodes { tags, conditions }) = result {
             assert_eq!(tags, Some(vec!["Person".to_string()]));
             assert_eq!(conditions.len(), 1);
-            assert!(matches!(conditions[0], Condition::PropertyGreaterThan(_, _)));
+            assert!(matches!(
+                conditions[0],
+                Condition::PropertyGreaterThan(_, _)
+            ));
         }
     }
 
     #[test]
     fn test_create_conversion() {
         let mut converter = CypherConverter::new();
-        
+
         // 创建CREATE语句: CREATE (p:Person {name: "Alice", age: 30})
         let create_clause = CreateClause {
-            patterns: vec![
-                Pattern {
-                    parts: vec![
-                        PatternPart {
-                            node: NodePattern {
-                                variable: Some("p".to_string()),
-                                labels: vec!["Person".to_string()],
-                                properties: Some({
-                                    let mut props = HashMap::new();
-                                    props.insert("name".to_string(), Expression::Literal(Literal::String("Alice".to_string())));
-                                    props.insert("age".to_string(), Expression::Literal(Literal::Integer(30)));
-                                    props
-                                }),
-                            },
-                            relationships: vec![],
-                        }
-                    ],
-                }
-            ],
+            patterns: vec![Pattern {
+                parts: vec![PatternPart {
+                    node: NodePattern {
+                        variable: Some("p".to_string()),
+                        labels: vec!["Person".to_string()],
+                        properties: Some({
+                            let mut props = HashMap::new();
+                            props.insert(
+                                "name".to_string(),
+                                Expression::Literal(Literal::String("Alice".to_string())),
+                            );
+                            props.insert(
+                                "age".to_string(),
+                                Expression::Literal(Literal::Integer(30)),
+                            );
+                            props
+                        }),
+                    },
+                    relationships: vec![],
+                }],
+            }],
         };
-        
+
         let statement = CypherStatement::Create(create_clause);
         let result = converter.to_query(&statement);
-        
+
         assert!(result.is_ok());
         if let Ok(Query::CreateNode { id, tags }) = result {
             assert!(id.is_none());
@@ -964,13 +1041,13 @@ mod tests {
     fn test_expression_evaluator() {
         let mut bindings = HashMap::new();
         bindings.insert("x".to_string(), Value::Int(10));
-        
+
         let evaluator = ExpressionEvaluator::new(&bindings);
-        
+
         // 测试变量求值
         let var_expr = Expression::Variable("x".to_string());
         assert_eq!(evaluator.evaluate(&var_expr).unwrap(), Value::Int(10));
-        
+
         // 测试二元表达式
         let binary_expr = Expression::Binary(BinaryExpression {
             left: Box::new(Expression::Literal(Literal::Integer(5))),
@@ -978,7 +1055,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Integer(3))),
         });
         assert_eq!(evaluator.evaluate(&binary_expr).unwrap(), Value::Int(8));
-        
+
         // 测试函数调用
         let func_expr = Expression::FunctionCall(FunctionCall {
             function_name: "abs".to_string(),

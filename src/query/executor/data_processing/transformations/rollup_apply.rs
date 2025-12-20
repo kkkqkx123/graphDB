@@ -8,8 +8,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, List, Value};
-use crate::expression::{Expression, ExpressionEvaluator};
+use crate::expression::context::ExpressionContextCore;
 use crate::expression::ExpressionContext;
+use crate::expression::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -404,7 +405,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         };
 
         // 创建表达式上下文
-        let mut expr_context = ExpressionContext::simple();
+        let mut expr_context = ExpressionContext::default();
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {

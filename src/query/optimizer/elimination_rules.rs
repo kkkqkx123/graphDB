@@ -761,9 +761,7 @@ mod tests {
             },
             crate::query::validator::YieldColumn {
                 expr: crate::expression::Expression::Binary {
-                    left: Box::new(crate::expression::Expression::Variable(
-                        "age".to_string(),
-                    )),
+                    left: Box::new(crate::expression::Expression::Variable("age".to_string())),
                     op: crate::expression::BinaryOperator::Add,
                     right: Box::new(crate::expression::Expression::Literal(
                         crate::expression::LiteralValue::String("1".to_string()),
@@ -855,7 +853,9 @@ fn create_plan_node_with_output_var(
     // 尝试将plan_node向下转换为具体类型，并创建带有新输出变量的新实例
     // 这里我们只处理一些常见的节点类型作为示例，实际中需要处理所有类型
     if let Some(filter_node) = plan_node.as_any().downcast_ref::<FilterNode>() {
-        let input = filter_node.dependencies().get(0)
+        let input = filter_node
+            .dependencies()
+            .get(0)
             .expect("Filter should have at least one dependency")
             .clone();
         let condition = filter_node.condition().clone();
@@ -864,7 +864,9 @@ fn create_plan_node_with_output_var(
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(project_node) = plan_node.as_any().downcast_ref::<ProjectNode>() {
-        let input = project_node.dependencies().get(0)
+        let input = project_node
+            .dependencies()
+            .get(0)
             .expect("Project should have at least one dependency")
             .clone();
         let columns = project_node.columns().to_vec();
@@ -873,16 +875,20 @@ fn create_plan_node_with_output_var(
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(dedup_node) = plan_node.as_any().downcast_ref::<DedupNode>() {
-        let input = dedup_node.dependencies().get(0)
+        let input = dedup_node
+            .dependencies()
+            .get(0)
             .expect("Dedup should have at least one dependency")
             .clone();
-        let mut new_node = DedupNode::new(input)
-            .expect("DedupNode creation should succeed with valid input");
+        let mut new_node =
+            DedupNode::new(input).expect("DedupNode creation should succeed with valid input");
         new_node.set_output_var(output_var);
         Arc::new(new_node)
     } else if let Some(sort_node) = plan_node.as_any().downcast_ref::<SortNode>() {
         // 创建新的排序节点，需要使用正确的构造函数
-        let input = sort_node.dependencies().get(0)
+        let input = sort_node
+            .dependencies()
+            .get(0)
             .expect("Sort should have at least one dependency")
             .clone();
         let sort_items = sort_node.sort_items().to_vec();
@@ -892,7 +898,9 @@ fn create_plan_node_with_output_var(
         Arc::new(new_node)
     } else if let Some(limit_node) = plan_node.as_any().downcast_ref::<LimitNode>() {
         // 创建新的限制节点，需要使用正确的构造函数
-        let input = limit_node.dependencies().get(0)
+        let input = limit_node
+            .dependencies()
+            .get(0)
             .expect("Limit should have at least one dependency")
             .clone();
         let offset = limit_node.offset();

@@ -59,9 +59,9 @@ mod tests {
             where_clause: None,
             optional: false,
         });
-        
+
         assert_eq!(match_stmt.statement_type(), "MATCH");
-        
+
         let return_stmt = CypherStatement::Return(ReturnClause {
             return_items: Vec::new(),
             distinct: false,
@@ -69,7 +69,7 @@ mod tests {
             skip: None,
             limit: None,
         });
-        
+
         assert_eq!(return_stmt.statement_type(), "RETURN");
     }
 }

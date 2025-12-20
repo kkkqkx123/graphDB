@@ -6,6 +6,7 @@ use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{
     combine_conditions, combine_expression_list, BaseOptRule, FilterSplitResult, PushDownRule,
 };
+use crate::expression::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::algorithms::IndexScan;
 use crate::query::planner::plan::core::nodes::ExpandNode as Expand;
@@ -14,7 +15,6 @@ use crate::query::planner::plan::core::nodes::ScanEdgesNode as ScanEdges;
 use crate::query::planner::plan::core::nodes::ScanVerticesNode as ScanVertices;
 use crate::query::planner::plan::core::nodes::TraverseNode;
 use crate::query::planner::plan::PlanNodeKind;
-use crate::expression::Expression;
 
 /// 通用过滤条件下推规则
 #[derive(Debug)]
@@ -170,15 +170,20 @@ impl OptRule for FilterPushDownRule {
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有过滤条件的新遍历节点
-                                if let Some(traverse_node) =
-                                    child_node.plan_node().as_any().downcast_ref::<TraverseNode>()
+                                if let Some(traverse_node) = child_node
+                                    .plan_node()
+                                    .as_any()
+                                    .downcast_ref::<TraverseNode>()
                                 {
                                     let new_traverse_node = traverse_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
                                     let _new_filter =
                                         if let Some(existing_filter) = new_traverse_node.filter() {
-                                            combine_conditions(&format!("{:?}", pushable_condition), &format!("{:?}", existing_filter))
+                                            combine_conditions(
+                                                &format!("{:?}", pushable_condition),
+                                                &format!("{:?}", existing_filter),
+                                            )
                                         } else {
                                             format!("{:?}", pushable_condition)
                                         };
@@ -316,7 +321,10 @@ impl OptRule for PushFilterDownTraverseRule {
                                 // 合并现有过滤条件和新的过滤条件
                                 let _new_filter =
                                     if let Some(existing_filter) = new_traverse_node.filter() {
-                                        combine_conditions(&format!("{:?}", pushable_condition), &format!("{:?}", existing_filter))
+                                        combine_conditions(
+                                            &format!("{:?}", pushable_condition),
+                                            &format!("{:?}", existing_filter),
+                                        )
                                     } else {
                                         format!("{:?}", pushable_condition)
                                     };
@@ -813,7 +821,10 @@ impl OptRule for PredicatePushDownRule {
                                     let _new_filter = if let Some(existing_filter) =
                                         new_scan_edges_node.filter()
                                     {
-                                        combine_conditions(&format!("{:?}", pushable_condition), &format!("{:?}", existing_filter))
+                                        combine_conditions(
+                                            &format!("{:?}", pushable_condition),
+                                            &format!("{:?}", existing_filter),
+                                        )
                                     } else {
                                         format!("{:?}", pushable_condition)
                                     };
@@ -1161,7 +1172,9 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::core::nodes::{ExpandNode, FilterNode, ScanVerticesNode, TraverseNode};
+    use crate::query::planner::plan::core::nodes::{
+        ExpandNode, FilterNode, ScanVerticesNode, TraverseNode,
+    };
     use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
     fn create_test_context() -> OptContext {
@@ -1174,10 +1187,13 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(FilterNode::new(
-            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            crate::expression::Expression::Variable("col1 > 100".to_string()),
-        ).unwrap());
+        let filter_node = std::sync::Arc::new(
+            FilterNode::new(
+                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::expression::Expression::Variable("col1 > 100".to_string()),
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1191,10 +1207,13 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(FilterNode::new(
-            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            crate::expression::Expression::Variable("col1 > 100".to_string()),
-        ).unwrap());
+        let filter_node = std::sync::Arc::new(
+            FilterNode::new(
+                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::expression::Expression::Variable("col1 > 100".to_string()),
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1208,10 +1227,13 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(FilterNode::new(
-            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            crate::expression::Expression::Variable("col1 > 100".to_string()),
-        ).unwrap());
+        let filter_node = std::sync::Arc::new(
+            FilterNode::new(
+                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::expression::Expression::Variable("col1 > 100".to_string()),
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1225,10 +1247,13 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(FilterNode::new(
-            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            crate::expression::Expression::Variable("col1 > 100".to_string()),
-        ).unwrap());
+        let filter_node = std::sync::Arc::new(
+            FilterNode::new(
+                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::expression::Expression::Variable("col1 > 100".to_string()),
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1242,10 +1267,13 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(FilterNode::new(
-            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            crate::expression::Expression::Variable("col1 > 100".to_string()),
-        ).unwrap());
+        let filter_node = std::sync::Arc::new(
+            FilterNode::new(
+                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::expression::Expression::Variable("col1 > 100".to_string()),
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1259,10 +1287,13 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(FilterNode::new(
-            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            crate::expression::Expression::Variable("col1 > 100".to_string()),
-        ).unwrap());
+        let filter_node = std::sync::Arc::new(
+            FilterNode::new(
+                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::expression::Expression::Variable("col1 > 100".to_string()),
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1276,10 +1307,13 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(FilterNode::new(
-            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            crate::expression::Expression::Variable("col1 > 100".to_string()),
-        ).unwrap());
+        let filter_node = std::sync::Arc::new(
+            FilterNode::new(
+                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::expression::Expression::Variable("col1 > 100".to_string()),
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, filter_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1290,7 +1324,9 @@ mod tests {
     #[test]
     fn test_can_push_down_to_scan() {
         // 测试辅助函数
-        let result = can_push_down_to_scan(&crate::expression::Expression::Variable("age > 18".to_string()));
+        let result = can_push_down_to_scan(&crate::expression::Expression::Variable(
+            "age > 18".to_string(),
+        ));
         // 应该返回带有可下推条件的结果
         assert!(result.pushable_condition.is_some());
     }
@@ -1298,7 +1334,9 @@ mod tests {
     #[test]
     fn test_can_push_down_to_traverse() {
         // 测试辅助函数
-        let result = can_push_down_to_traverse(&crate::expression::Expression::Variable("age > 18".to_string()));
+        let result = can_push_down_to_traverse(&crate::expression::Expression::Variable(
+            "age > 18".to_string(),
+        ));
         // 应该返回带有可下推条件的结果
         assert!(result.pushable_condition.is_some());
     }

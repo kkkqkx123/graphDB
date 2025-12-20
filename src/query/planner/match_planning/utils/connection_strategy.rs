@@ -1,12 +1,12 @@
 //! 连接策略框架
 //! 提供统一的连接机制，支持不同类型的连接策略
 
+use crate::core::error::DBError;
 use crate::query::context::ast::base::AstContext;
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::utils::join_params::JoinParams;
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
-use crate::core::error::DBError;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -37,7 +37,6 @@ impl std::fmt::Display for ConnectionType {
         }
     }
 }
-
 
 /// 连接策略特征
 pub trait ConnectionStrategy: std::fmt::Debug + Send + Sync {
@@ -82,7 +81,7 @@ impl ConnectionStrategy for InnerJoinStrategy {
         // 使用新的节点工厂创建内连接节点
         let hash_keys = params.join_keys.clone();
         let probe_keys = params.join_keys.clone(); // 简化处理，实际应该根据连接条件确定
-        
+
         let join_node = PlanNodeFactory::create_inner_join(
             left_root.clone(),
             right_root.clone(),
@@ -129,7 +128,7 @@ impl ConnectionStrategy for LeftJoinStrategy {
         // 在完整的实现中，应该创建一个专门的 LeftJoinNode
         let hash_keys = params.join_keys.clone();
         let probe_keys = params.join_keys.clone();
-        
+
         let join_node = PlanNodeFactory::create_inner_join(
             left_root.clone(),
             right_root.clone(),
@@ -363,25 +362,38 @@ impl UnifiedConnector {
     ) -> Result<SubPlan, PlannerError> {
         // 根据 JoinParams 的类型确定连接类型
         let connection_type = match params.type_specific_params {
-            crate::query::planner::plan::utils::join_params::TypeSpecificParams::InnerJoin(_) => ConnectionType::InnerJoin,
-            crate::query::planner::plan::utils::join_params::TypeSpecificParams::LeftJoin(_) => ConnectionType::LeftJoin,
-            crate::query::planner::plan::utils::join_params::TypeSpecificParams::RightJoin(_) => ConnectionType::RightJoin,
-            crate::query::planner::plan::utils::join_params::TypeSpecificParams::FullJoin(_) => ConnectionType::FullJoin,
-            crate::query::planner::plan::utils::join_params::TypeSpecificParams::Cartesian(_) => ConnectionType::Cartesian,
-            crate::query::planner::plan::utils::join_params::TypeSpecificParams::RollUpApply(_) => ConnectionType::RollUpApply,
-            crate::query::planner::plan::utils::join_params::TypeSpecificParams::PatternApply(_) => ConnectionType::PatternApply,
-            crate::query::planner::plan::utils::join_params::TypeSpecificParams::Sequential(_) => ConnectionType::Sequential,
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::InnerJoin(_) => {
+                ConnectionType::InnerJoin
+            }
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::LeftJoin(_) => {
+                ConnectionType::LeftJoin
+            }
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::RightJoin(_) => {
+                ConnectionType::RightJoin
+            }
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::FullJoin(_) => {
+                ConnectionType::FullJoin
+            }
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::Cartesian(_) => {
+                ConnectionType::Cartesian
+            }
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::RollUpApply(_) => {
+                ConnectionType::RollUpApply
+            }
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::PatternApply(
+                _,
+            ) => ConnectionType::PatternApply,
+            crate::query::planner::plan::utils::join_params::TypeSpecificParams::Sequential(_) => {
+                ConnectionType::Sequential
+            }
         };
 
-        let strategy = self
-            .strategies
-            .get(&connection_type)
-            .ok_or_else(|| {
-                PlannerError::UnsupportedOperation(format!(
-                    "Unsupported connection type: {}",
-                    connection_type
-                ))
-            })?;
+        let strategy = self.strategies.get(&connection_type).ok_or_else(|| {
+            PlannerError::UnsupportedOperation(format!(
+                "Unsupported connection type: {}",
+                connection_type
+            ))
+        })?;
 
         strategy.connect(qctx, left, right, params)
     }

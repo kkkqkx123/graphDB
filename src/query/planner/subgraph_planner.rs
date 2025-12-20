@@ -1,9 +1,8 @@
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
-use crate::query::planner::plan::SubPlan;
 /// Subgraph planner implementation for handling SUBGRAPH queries in NebulaGraph
-
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 
 #[derive(Debug)]
 pub struct SubgraphPlanner {
@@ -39,7 +38,10 @@ impl Planner for SubgraphPlanner {
         let subgraph_node = PlanNodeFactory::create_placeholder_node()?;
 
         // For now, just return a subplan with the subgraph node
-        Ok(SubPlan::new(Some(subgraph_node.clone_plan_node()), Some(subgraph_node)))
+        Ok(SubPlan::new(
+            Some(subgraph_node.clone_plan_node()),
+            Some(subgraph_node),
+        ))
     }
 
     fn match_planner(&self, ast_ctx: &AstContext) -> bool {

@@ -12,6 +12,6 @@ pub use execution_plan::{ExecutionPlan, SubPlan};
 
 pub use algorithms::*;
 pub use common::*;
+pub use core::nodes::*;
 pub use management::*;
 pub use utils::*;
-pub use core::nodes::*;

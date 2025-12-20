@@ -5,7 +5,6 @@ pub mod join_params;
 
 // 重新导出主要类型
 pub use join_params::{
-    JoinAlgorithm, JoinParams, LeftJoinParams, RightJoinParams, InnerJoinParams, 
-    FullJoinParams, CartesianParams, RollUpApplyParams, PatternApplyParams, 
-    SequentialParams, TypeSpecificParams
+    CartesianParams, FullJoinParams, InnerJoinParams, JoinAlgorithm, JoinParams, LeftJoinParams,
+    PatternApplyParams, RightJoinParams, RollUpApplyParams, SequentialParams, TypeSpecificParams,
 };

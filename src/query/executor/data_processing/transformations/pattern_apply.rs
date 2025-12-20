@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Edge, Path, Value, Vertex};
+use crate::expression::context::ExpressionContextCore;
 use crate::expression::ExpressionContext;
 use crate::expression::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
@@ -151,7 +152,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                         .unwrap_or(Value::Null(crate::core::NullType::UnknownProp));
 
                     // 创建临时表达式上下文
-                    let mut temp_context = ExpressionContext::simple();
+                    let mut temp_context = ExpressionContext::default();
                     // 复制变量 - 使用新的变量访问方法
                     if let Some(variables) = expr_context.get_all_variables() {
                         for (name, value) in variables {
@@ -219,7 +220,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                         .unwrap_or(Value::Null(crate::core::NullType::UnknownProp));
 
                     // 创建临时表达式上下文
-                    let mut temp_context = ExpressionContext::simple();
+                    let mut temp_context = ExpressionContext::default();
                     // 复制变量 - 使用新的变量访问方法
                     if let Some(variables) = expr_context.get_all_variables() {
                         for (name, value) in variables {
@@ -293,7 +294,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
             })?;
 
         // 创建表达式上下文
-        let mut expr_context = ExpressionContext::simple();
+        let mut expr_context = ExpressionContext::default();
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {

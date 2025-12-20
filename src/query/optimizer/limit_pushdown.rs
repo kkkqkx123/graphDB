@@ -267,7 +267,12 @@ impl PushDownRule for PushLimitDownGetVerticesRule {
             .as_any()
             .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
         ) {
-            if let Some(get_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::GetVerticesNode>() {
+            if let Some(get_vertices_plan_node) =
+                child
+                    .plan_node
+                    .as_any()
+                    .downcast_ref::<crate::query::planner::plan::core::nodes::GetVerticesNode>()
+            {
                 // 检查LIMIT的计数是否是可计算的
                 // 在实际实现中，我们需要验证limit表达式是否可评估
 
@@ -355,7 +360,12 @@ impl PushDownRule for PushLimitDownGetNeighborsRule {
             .as_any()
             .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
         ) {
-            if let Some(get_neighbors_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::GetNeighborsNode>() {
+            if let Some(get_neighbors_plan_node) =
+                child
+                    .plan_node
+                    .as_any()
+                    .downcast_ref::<crate::query::planner::plan::core::nodes::GetNeighborsNode>()
+            {
                 // 创建新的带有限制的GetNeighbors节点
                 let mut new_get_neighbors = get_neighbors_plan_node.clone();
 
@@ -440,7 +450,12 @@ impl PushDownRule for PushLimitDownGetEdgesRule {
             .as_any()
             .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
         ) {
-            if let Some(get_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::GetEdgesNode>() {
+            if let Some(get_edges_plan_node) =
+                child
+                    .plan_node
+                    .as_any()
+                    .downcast_ref::<crate::query::planner::plan::core::nodes::GetEdgesNode>()
+            {
                 // 创建新的带有限制的GetEdges节点
                 let mut new_get_edges = get_edges_plan_node.clone();
 
@@ -525,7 +540,12 @@ impl PushDownRule for PushLimitDownScanVerticesRule {
             .as_any()
             .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
         ) {
-            if let Some(scan_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::ScanVerticesNode>() {
+            if let Some(scan_vertices_plan_node) =
+                child
+                    .plan_node
+                    .as_any()
+                    .downcast_ref::<crate::query::planner::plan::core::nodes::ScanVerticesNode>()
+            {
                 // 创建新的带有限制的ScanVertices节点
                 let mut new_scan_vertices = scan_vertices_plan_node.clone();
 
@@ -610,7 +630,12 @@ impl PushDownRule for PushLimitDownScanEdgesRule {
             .as_any()
             .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
         ) {
-            if let Some(scan_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::ScanEdgesNode>() {
+            if let Some(scan_edges_plan_node) =
+                child
+                    .plan_node
+                    .as_any()
+                    .downcast_ref::<crate::query::planner::plan::core::nodes::ScanEdgesNode>()
+            {
                 // 创建新的带有限制的ScanEdges节点
                 let mut new_scan_edges = scan_edges_plan_node.clone();
 
@@ -934,7 +959,8 @@ mod tests {
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
     use crate::query::planner::plan::core::nodes::{
-        GetEdgesNode, GetNeighborsNode, GetVerticesNode, LimitNode, ProjectNode, ScanEdgesNode, ScanVerticesNode,
+        GetEdgesNode, GetNeighborsNode, GetVerticesNode, LimitNode, ProjectNode, ScanEdgesNode,
+        ScanVerticesNode,
     };
     use crate::query::planner::plan::{PlanNode, PlanNodeKind};
 
@@ -948,11 +974,14 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(LimitNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            10,
-            0,
-        ).unwrap());
+        let limit_node = Arc::new(
+            LimitNode::new(
+                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                10,
+                0,
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -966,11 +995,14 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(LimitNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            10,
-            0,
-        ).unwrap());
+        let limit_node = Arc::new(
+            LimitNode::new(
+                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                10,
+                0,
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -984,11 +1016,14 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(LimitNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            10,
-            0,
-        ).unwrap());
+        let limit_node = Arc::new(
+            LimitNode::new(
+                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                10,
+                0,
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1002,11 +1037,14 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(LimitNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            10,
-            0,
-        ).unwrap());
+        let limit_node = Arc::new(
+            LimitNode::new(
+                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                10,
+                0,
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1020,11 +1058,14 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(LimitNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            10,
-            0,
-        ).unwrap());
+        let limit_node = Arc::new(
+            LimitNode::new(
+                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                10,
+                0,
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1038,11 +1079,14 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(LimitNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            10,
-            0,
-        ).unwrap());
+        let limit_node = Arc::new(
+            LimitNode::new(
+                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                10,
+                0,
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1056,11 +1100,14 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(LimitNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            10,
-            0,
-        ).unwrap());
+        let limit_node = Arc::new(
+            LimitNode::new(
+                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                10,
+                0,
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();
@@ -1074,11 +1121,14 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个LIMIT节点
-        let limit_node = Arc::new(LimitNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            10,
-            0,
-        ).unwrap());
+        let limit_node = Arc::new(
+            LimitNode::new(
+                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                10,
+                0,
+            )
+            .unwrap(),
+        );
         let opt_node = OptGroupNode::new(1, limit_node);
 
         let result = rule.apply(&mut ctx, &opt_node).unwrap();

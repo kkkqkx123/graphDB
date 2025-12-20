@@ -27,8 +27,8 @@ pub use limit::LimitExecutor;
 // 聚合执行器
 pub mod aggregation;
 pub use aggregation::{
-    AggregateExecutor, AggregateFunction, AggregateState, GroupAggregateState,
-    GroupByExecutor, HavingExecutor,
+    AggregateExecutor, AggregateFunction, AggregateState, GroupAggregateState, GroupByExecutor,
+    HavingExecutor,
 };
 
 // 去重执行器

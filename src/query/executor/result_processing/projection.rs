@@ -7,8 +7,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
-use crate::expression::{Expression, ExpressionEvaluator};
+use crate::expression::context::ExpressionContextCore;
 use crate::expression::ExpressionContext;
+use crate::expression::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -52,7 +53,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
         let evaluator = ExpressionEvaluator;
 
         // 为当前行创建评估上下文
-        let mut context = ExpressionContext::simple();
+        let mut context = ExpressionContext::default();
 
         // 将当前行的值设置为上下文变量
         for (i, col_name) in col_names.iter().enumerate() {
@@ -112,13 +113,16 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
         // 对每个顶点进行投影
         for vertex in vertices {
-            let mut context = ExpressionContext::simple();
+            let mut context = ExpressionContext::default();
             // 设置顶点信息
-            context.set_variable("_vertex".to_string(), Value::Vertex(Box::new(vertex.clone())));
+            context.set_variable(
+                "_vertex".to_string(),
+                Value::Vertex(Box::new(vertex.clone())),
+            );
 
             // 设置顶点ID作为变量
             context.set_variable("id".to_string(), *vertex.vid.clone());
-            
+
             // 将顶点属性也设置为变量，以便InputProperty可以访问
             for (prop_name, prop_value) in &vertex.properties {
                 context.set_variable(prop_name.clone(), prop_value.clone());
@@ -158,7 +162,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
         // 对每个边进行投影
         for edge in edges {
-            let mut context = ExpressionContext::simple();
+            let mut context = ExpressionContext::default();
             // 设置边信息
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
@@ -246,7 +250,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                 let evaluator = ExpressionEvaluator;
 
                 for path in paths {
-                    let mut context = ExpressionContext::simple();
+                    let mut context = ExpressionContext::default();
                     // 设置路径相关信息作为变量
                     context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
                     context
@@ -335,9 +339,9 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
 mod tests {
     use super::*;
     use crate::core::value::{DataSet, Value};
-    use crate::expression::{Expression, BinaryOperator};
+    use crate::expression::{BinaryOperator, Expression};
+    use crate::query::executor::traits::{ExecutionResult, Executor, ExecutorCore};
     use crate::storage::StorageEngine;
-    use crate::query::executor::traits::{Executor, ExecutorCore, ExecutionResult};
 
     // 模拟存储引擎
     pub struct MockStorageEngine;
@@ -364,10 +368,7 @@ mod tests {
             Ok(())
         }
 
-        fn delete_node(
-            &mut self,
-            _id: &Value,
-        ) -> Result<(), crate::storage::StorageError> {
+        fn delete_node(&mut self, _id: &Value) -> Result<(), crate::storage::StorageError> {
             Ok(())
         }
 
@@ -616,7 +617,8 @@ mod tests {
         };
 
         // 创建模拟输入执行器
-        let input_executor = MockInputExecutor::new(ExecutionResult::Vertices(vec![vertex1, vertex2]));
+        let input_executor =
+            MockInputExecutor::new(ExecutionResult::Vertices(vec![vertex1, vertex2]));
         executor.set_input(Box::new(input_executor));
 
         // 执行投影
@@ -627,8 +629,14 @@ mod tests {
             ExecutionResult::DataSet(dataset) => {
                 assert_eq!(dataset.col_names, vec!["vertex_id", "name"]);
                 assert_eq!(dataset.rows.len(), 2);
-                assert_eq!(dataset.rows[0], vec![Value::Int(1), Value::String("Alice".to_string())]);
-                assert_eq!(dataset.rows[1], vec![Value::Int(2), Value::String("Bob".to_string())]);
+                assert_eq!(
+                    dataset.rows[0],
+                    vec![Value::Int(1), Value::String("Alice".to_string())]
+                );
+                assert_eq!(
+                    dataset.rows[1],
+                    vec![Value::Int(2), Value::String("Bob".to_string())]
+                );
             }
             _ => panic!("期望DataSet结果"),
         }
@@ -662,9 +670,7 @@ mod tests {
             dst: Box::new(Value::Int(2)),
             edge_type: "knows".to_string(),
             ranking: 0,
-            props: std::collections::HashMap::from([
-                ("since".to_string(), Value::Int(2020)),
-            ]),
+            props: std::collections::HashMap::from([("since".to_string(), Value::Int(2020))]),
         };
 
         let edge2 = crate::core::Edge {
@@ -672,9 +678,10 @@ mod tests {
             dst: Box::new(Value::Int(3)),
             edge_type: "works_with".to_string(),
             ranking: 0,
-            props: std::collections::HashMap::from([
-                ("project".to_string(), Value::String("GraphDB".to_string())),
-            ]),
+            props: std::collections::HashMap::from([(
+                "project".to_string(),
+                Value::String("GraphDB".to_string()),
+            )]),
         };
 
         // 创建模拟输入执行器

@@ -3,8 +3,11 @@
 //! SortNode 用于对输入数据进行排序操作
 
 use super::super::plan_node_kind::PlanNodeKind;
-use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable};
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+use super::traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+    PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
+};
 use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
@@ -59,48 +62,61 @@ impl SortNode {
     pub fn set_limit(&mut self, limit: i64) {
         self.limit = Some(limit);
     }
-
 }
 
 impl PlanNodeIdentifiable for SortNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::Sort }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::Sort
+    }
 }
 
 impl PlanNodeProperties for SortNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for SortNode {
-     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-         self.deps.clone()
-     }
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
+    }
 
-     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.input = dep.clone();
-         self.deps.clear();
-         self.deps.push(dep);
-     }
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.input = dep.clone();
+        self.deps.clear();
+        self.deps.push(dep);
+    }
 
-     fn remove_dependency(&mut self, _id: i64) -> bool {
-         false
-     }
- }
+    fn remove_dependency(&mut self, _id: i64) -> bool {
+        false
+    }
+}
 
 impl PlanNodeDependenciesExt for SortNode {
-     fn with_dependencies<F, R>(&self, f: F) -> R
-     where
-         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-     {
-         f(&self.deps)
-     }
- }
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        f(&self.deps)
+    }
+}
 
 impl PlanNodeMutable for SortNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for SortNode {
@@ -141,7 +157,9 @@ impl PlanNodeVisitable for SortNode {
 }
 
 impl PlanNode for SortNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 限制节点
@@ -191,48 +209,61 @@ impl LimitNode {
     pub fn count(&self) -> i64 {
         self.count
     }
-
 }
 
 impl PlanNodeIdentifiable for LimitNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::Limit }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::Limit
+    }
 }
 
 impl PlanNodeProperties for LimitNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for LimitNode {
-     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-         self.deps.clone()
-     }
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
+    }
 
-     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.input = dep.clone();
-         self.deps.clear();
-         self.deps.push(dep);
-     }
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.input = dep.clone();
+        self.deps.clear();
+        self.deps.push(dep);
+    }
 
-     fn remove_dependency(&mut self, _id: i64) -> bool {
-         false
-     }
- }
+    fn remove_dependency(&mut self, _id: i64) -> bool {
+        false
+    }
+}
 
 impl PlanNodeDependenciesExt for LimitNode {
-     fn with_dependencies<F, R>(&self, f: F) -> R
-     where
-         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-     {
-         f(&self.deps)
-     }
- }
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        f(&self.deps)
+    }
+}
 
 impl PlanNodeMutable for LimitNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for LimitNode {
@@ -273,7 +304,9 @@ impl PlanNodeVisitable for LimitNode {
 }
 
 impl PlanNode for LimitNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// TopN节点
@@ -326,44 +359,58 @@ impl TopNNode {
 }
 
 impl PlanNodeIdentifiable for TopNNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::TopN }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::TopN
+    }
 }
 
 impl PlanNodeProperties for TopNNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for TopNNode {
-     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-         self.deps.clone()
-     }
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
+    }
 
-     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.input = dep.clone();
-         self.deps.clear();
-         self.deps.push(dep);
-     }
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.input = dep.clone();
+        self.deps.clear();
+        self.deps.push(dep);
+    }
 
-     fn remove_dependency(&mut self, _id: i64) -> bool {
-         false
-     }
- }
+    fn remove_dependency(&mut self, _id: i64) -> bool {
+        false
+    }
+}
 
 impl PlanNodeDependenciesExt for TopNNode {
-     fn with_dependencies<F, R>(&self, f: F) -> R
-     where
-         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-     {
-         f(&self.deps)
-     }
- }
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        f(&self.deps)
+    }
+}
 
 impl PlanNodeMutable for TopNNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for TopNNode {
@@ -404,7 +451,9 @@ impl PlanNodeVisitable for TopNNode {
 }
 
 impl PlanNode for TopNNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[cfg(test)]
@@ -419,7 +468,8 @@ mod tests {
 
         let sort_items = vec!["name".to_string(), "age".to_string()];
 
-        let sort_node = SortNode::new(start_node, sort_items).expect("SortNode creation should succeed");
+        let sort_node =
+            SortNode::new(start_node, sort_items).expect("SortNode creation should succeed");
 
         assert_eq!(sort_node.kind(), PlanNodeKind::Sort);
         assert_eq!(sort_node.dependencies().len(), 1);

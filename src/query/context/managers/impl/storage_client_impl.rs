@@ -1,6 +1,6 @@
 //! 存储客户端实现 - 内存中的存储操作
 
-use super::super::{StorageOperation, StorageResponse, StorageClient};
+use super::super::{StorageClient, StorageOperation, StorageResponse};
 use crate::core::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -91,27 +91,29 @@ impl StorageClient for MemoryStorageClient {
 
         match operation {
             StorageOperation::Read { table, key } => {
-                let table_data = tables.get_mut(&table).ok_or_else(|| format!("表 {} 不存在", table))?;
+                let table_data = tables
+                    .get_mut(&table)
+                    .ok_or_else(|| format!("表 {} 不存在", table))?;
                 let data = table_data.get(&key).cloned();
-                
+
                 Ok(StorageResponse {
                     success: true,
                     data,
                     error_message: None,
                 })
             }
-            
+
             StorageOperation::Write { table, key, value } => {
                 let table_data = tables.entry(table).or_insert_with(HashMap::new);
                 table_data.insert(key, value);
-                
+
                 Ok(StorageResponse {
                     success: true,
                     data: None,
                     error_message: None,
                 })
             }
-            
+
             StorageOperation::Delete { table, key } => {
                 if let Some(table_data) = tables.get_mut(&table) {
                     table_data.remove(&key);
@@ -128,17 +130,19 @@ impl StorageClient for MemoryStorageClient {
                     })
                 }
             }
-            
+
             StorageOperation::Scan { table, prefix } => {
-                let table_data = tables.get(&table).ok_or_else(|| format!("表 {} 不存在", table))?;
-                
+                let table_data = tables
+                    .get(&table)
+                    .ok_or_else(|| format!("表 {} 不存在", table))?;
+
                 let mut results = HashMap::new();
                 for (key, value) in table_data {
                     if key.starts_with(&prefix) {
                         results.insert(key.clone(), value.clone());
                     }
                 }
-                
+
                 Ok(StorageResponse {
                     success: true,
                     data: Some(Value::Map(results)),
@@ -167,24 +171,24 @@ mod tests {
     #[test]
     fn test_memory_storage_client_read_write() {
         let client = MemoryStorageClient::new();
-        
+
         // 写入数据
         let write_op = StorageOperation::Write {
             table: "users".to_string(),
             key: "user1".to_string(),
             value: Value::String("Alice".to_string()),
         };
-        
+
         let result = client.execute(write_op);
         assert!(result.is_ok());
         assert!(result.unwrap().success);
-        
+
         // 读取数据
         let read_op = StorageOperation::Read {
             table: "users".to_string(),
             key: "user1".to_string(),
         };
-        
+
         let result = client.execute(read_op);
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -195,7 +199,7 @@ mod tests {
     #[test]
     fn test_memory_storage_client_delete() {
         let client = MemoryStorageClient::new();
-        
+
         // 先写入数据
         let write_op = StorageOperation::Write {
             table: "users".to_string(),
@@ -203,23 +207,23 @@ mod tests {
             value: Value::String("Alice".to_string()),
         };
         client.execute(write_op).unwrap();
-        
+
         // 删除数据
         let delete_op = StorageOperation::Delete {
             table: "users".to_string(),
             key: "user1".to_string(),
         };
-        
+
         let result = client.execute(delete_op);
         assert!(result.is_ok());
         assert!(result.unwrap().success);
-        
+
         // 验证数据已删除
         let read_op = StorageOperation::Read {
             table: "users".to_string(),
             key: "user1".to_string(),
         };
-        
+
         let result = client.execute(read_op);
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -230,37 +234,43 @@ mod tests {
     #[test]
     fn test_memory_storage_client_scan() {
         let client = MemoryStorageClient::new();
-        
+
         // 写入多个数据
-        client.execute(StorageOperation::Write {
-            table: "users".to_string(),
-            key: "user1".to_string(),
-            value: Value::String("Alice".to_string()),
-        }).unwrap();
-        
-        client.execute(StorageOperation::Write {
-            table: "users".to_string(),
-            key: "user2".to_string(),
-            value: Value::String("Bob".to_string()),
-        }).unwrap();
-        
-        client.execute(StorageOperation::Write {
-            table: "users".to_string(),
-            key: "admin1".to_string(),
-            value: Value::String("Admin".to_string()),
-        }).unwrap();
-        
+        client
+            .execute(StorageOperation::Write {
+                table: "users".to_string(),
+                key: "user1".to_string(),
+                value: Value::String("Alice".to_string()),
+            })
+            .unwrap();
+
+        client
+            .execute(StorageOperation::Write {
+                table: "users".to_string(),
+                key: "user2".to_string(),
+                value: Value::String("Bob".to_string()),
+            })
+            .unwrap();
+
+        client
+            .execute(StorageOperation::Write {
+                table: "users".to_string(),
+                key: "admin1".to_string(),
+                value: Value::String("Admin".to_string()),
+            })
+            .unwrap();
+
         // 扫描以"user"开头的数据
         let scan_op = StorageOperation::Scan {
             table: "users".to_string(),
             prefix: "user".to_string(),
         };
-        
+
         let result = client.execute(scan_op);
         assert!(result.is_ok());
         let response = result.unwrap();
         assert!(response.success);
-        
+
         if let Some(Value::Map(data)) = response.data {
             assert_eq!(data.len(), 2); // 应该找到user1和user2
             assert!(data.contains_key("user1"));
@@ -275,21 +285,21 @@ mod tests {
     fn test_memory_storage_client_disconnect() {
         let mut client = MemoryStorageClient::new();
         assert!(client.is_connected());
-        
+
         client.disconnect();
         assert!(!client.is_connected());
-        
+
         let op = StorageOperation::Read {
             table: "users".to_string(),
             key: "user1".to_string(),
         };
-        
+
         let result = client.execute(op);
         assert!(result.is_ok());
         let response = result.unwrap();
         assert!(!response.success);
         assert!(response.error_message.is_some());
-        
+
         client.reconnect();
         assert!(client.is_connected());
     }
@@ -297,12 +307,12 @@ mod tests {
     #[test]
     fn test_memory_storage_client_table_operations() {
         let client = MemoryStorageClient::new();
-        
+
         // 创建表
         assert!(client.create_table("users").is_ok());
         assert!(client.has_table("users"));
         assert_eq!(client.list_tables(), vec!["users".to_string()]);
-        
+
         // 删除表
         assert!(client.drop_table("users").is_ok());
         assert!(!client.has_table("users"));

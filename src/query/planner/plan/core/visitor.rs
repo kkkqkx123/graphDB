@@ -1,12 +1,11 @@
-use super::plan_node_traits::PlanNode as BasePlanNode;
 use super::nodes::{
-    FilterNode, ProjectNode, InnerJoinNode, LeftJoinNode, StartNode, PlaceholderNode,
-    AggregateNode, SortNode, LimitNode, TopNNode,
-    GetVerticesNode, GetEdgesNode, GetNeighborsNode, ScanVerticesNode, ScanEdgesNode,
-    ExpandNode, ExpandAllNode, TraverseNode, AppendVerticesNode,
-    ArgumentNode, SelectNode, LoopNode, PassThroughNode,
-    UnionNode, UnwindNode, DedupNode, RollUpApplyNode, PatternApplyNode, DataCollectNode
+    AggregateNode, AppendVerticesNode, ArgumentNode, DataCollectNode, DedupNode, ExpandAllNode,
+    ExpandNode, FilterNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, InnerJoinNode,
+    LeftJoinNode, LimitNode, LoopNode, PassThroughNode, PatternApplyNode, PlaceholderNode,
+    ProjectNode, RollUpApplyNode, ScanEdgesNode, ScanVerticesNode, SelectNode, SortNode, StartNode,
+    TopNNode, TraverseNode, UnionNode, UnwindNode,
 };
+use super::plan_node_traits::PlanNode as BasePlanNode;
 use crate::query::planner::plan::algorithms::{FulltextIndexScan, IndexScan};
 use crate::query::planner::plan::management::dml::{
     DeleteEdges, DeleteTags, DeleteVertices, InsertEdges, InsertVertices, NewEdge, NewProp, NewTag,
@@ -39,7 +38,10 @@ pub trait PlanNodeVisitor: std::fmt::Debug {
         Ok(())
     }
 
-    fn visit_append_vertices(&mut self, _node: &AppendVerticesNode) -> Result<(), PlanNodeVisitError> {
+    fn visit_append_vertices(
+        &mut self,
+        _node: &AppendVerticesNode,
+    ) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
@@ -221,7 +223,6 @@ pub trait PlanNodeVisitor: std::fmt::Debug {
         Ok(())
     }
 
-
     /// 在访问节点后调用的方法
     fn post_visit(&mut self) -> Result<(), PlanNodeVisitError> {
         Ok(())
@@ -282,7 +283,10 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
 
-    fn visit_append_vertices(&mut self, _node: &AppendVerticesNode) -> Result<(), PlanNodeVisitError> {
+    fn visit_append_vertices(
+        &mut self,
+        _node: &AppendVerticesNode,
+    ) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
@@ -452,7 +456,6 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
     fn visit_new_edge(&mut self, _node: &NewEdge) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
-    
 
     fn post_visit(&mut self) -> Result<(), PlanNodeVisitError> {
         Ok(())

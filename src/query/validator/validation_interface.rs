@@ -1,8 +1,8 @@
 //! 验证策略接口定义
 //! 定义验证策略的统一接口，使用core模块中的统一错误类型
 
-use crate::query::validator::structs::*;
 use crate::core::error::{DBError, QueryError};
+use crate::query::validator::structs::*;
 use std::collections::HashMap;
 
 /// 验证错误类型（为了向后兼容保留，但建议使用DBError）
@@ -47,15 +47,11 @@ impl ValidationError {
         };
 
         match self.error_type {
-            ValidationErrorType::SyntaxError => {
-                DBError::Query(QueryError::ParseError(error_msg))
-            }
+            ValidationErrorType::SyntaxError => DBError::Query(QueryError::ParseError(error_msg)),
             ValidationErrorType::SemanticError | ValidationErrorType::TypeError => {
                 DBError::Query(QueryError::InvalidQuery(error_msg))
             }
-            _ => {
-                DBError::Query(QueryError::ExecutionError(error_msg))
-            }
+            _ => DBError::Query(QueryError::ExecutionError(error_msg)),
         }
     }
 }

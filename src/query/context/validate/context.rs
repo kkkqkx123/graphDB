@@ -7,10 +7,11 @@ use super::schema::{self, SchemaInfo, SchemaProvider};
 use super::types::{ColsDef, SpaceInfo, Variable};
 use crate::core::symbol::SymbolTable;
 use crate::core::Value;
+use crate::expression::context::ExpressionContextCore;
+use crate::query::validator::structs::{AliasType, QueryPart};
 use crate::query::validator::validation_interface::{
     ValidationContext as ValidationContextTrait, ValidationError, ValidationErrorType,
 };
-use crate::query::validator::structs::{AliasType, QueryPart};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -537,14 +538,8 @@ impl ValidateContext {
             "  symbol_table: {:?},\n",
             self.symbol_table.size().unwrap_or(0)
         ));
-        result.push_str(&format!(
-            "  query_parts: {:?},\n",
-            self.query_parts.len()
-        ));
-        result.push_str(&format!(
-            "  alias_types: {:?},\n",
-            self.alias_types.len()
-        ));
+        result.push_str(&format!("  query_parts: {:?},\n", self.query_parts.len()));
+        result.push_str(&format!("  alias_types: {:?},\n", self.alias_types.len()));
         result.push_str(&format!(
             "  validation_errors: {:?},\n",
             self.validation_errors.len()
@@ -665,7 +660,10 @@ mod tests {
         // 测试从管理器获取Schema
         let manager_schema = ctx.get_schema_from_manager("test_schema");
         assert!(manager_schema.is_some());
-        assert_eq!(manager_schema.expect("Expected test schema to exist").name, "test_schema");
+        assert_eq!(
+            manager_schema.expect("Expected test schema to exist").name,
+            "test_schema"
+        );
     }
 
     #[test]
@@ -734,7 +732,8 @@ mod tests {
             None,
         );
         assert!(detailed_result.is_ok());
-        let validation_result = detailed_result.expect("Expected successful validation in strict mode");
+        let validation_result =
+            detailed_result.expect("Expected successful validation in strict mode");
         assert!(validation_result.is_valid);
         assert!(validation_result.errors.is_empty());
 
@@ -746,7 +745,8 @@ mod tests {
             None,
         );
         assert!(lenient_result.is_ok());
-        let validation_result = lenient_result.expect("Expected successful validation in lenient mode");
+        let validation_result =
+            lenient_result.expect("Expected successful validation in lenient mode");
         assert!(validation_result.is_valid);
         assert!(validation_result.errors.is_empty());
     }
@@ -788,12 +788,15 @@ mod tests {
             None,
         );
         assert!(detailed_result.is_ok());
-        let validation_result = detailed_result.expect("Expected successful validation with errors");
+        let validation_result =
+            detailed_result.expect("Expected successful validation with errors");
         assert!(!validation_result.is_valid);
         assert!(!validation_result.errors.is_empty());
 
         // 检查错误类型
-        let type_errors = ctx.validate_var_field_types("p", "person").expect("Expected successful type validation");
+        let type_errors = ctx
+            .validate_var_field_types("p", "person")
+            .expect("Expected successful type validation");
         assert!(!type_errors.is_empty());
         assert!(type_errors[0].contains("类型不匹配"));
     }
@@ -836,7 +839,8 @@ mod tests {
             None,
         );
         assert!(lenient_result.is_ok());
-        let validation_result = lenient_result.expect("Expected successful validation in lenient mode");
+        let validation_result =
+            lenient_result.expect("Expected successful validation in lenient mode");
         assert!(validation_result.is_valid);
 
         // 测试严格模式 - 应该失败（不允许缺少字段）
@@ -847,11 +851,14 @@ mod tests {
             None,
         );
         assert!(strict_result.is_ok());
-        let validation_result = strict_result.expect("Expected successful validation in strict mode");
+        let validation_result =
+            strict_result.expect("Expected successful validation in strict mode");
         assert!(!validation_result.is_valid);
 
         // 检查缺失字段
-        let missing_fields = ctx.check_var_missing_fields("p", "person").expect("Expected successful missing fields check");
+        let missing_fields = ctx
+            .check_var_missing_fields("p", "person")
+            .expect("Expected successful missing fields check");
         assert!(missing_fields.contains(&"age".to_string()));
     }
 
@@ -896,11 +903,14 @@ mod tests {
             None,
         );
         assert!(lenient_result.is_ok());
-        let validation_result = lenient_result.expect("Expected successful validation with extra fields error");
+        let validation_result =
+            lenient_result.expect("Expected successful validation with extra fields error");
         assert!(!validation_result.is_valid);
 
         // 检查额外字段
-        let extra_fields = ctx.check_var_extra_fields("p", "person").expect("Expected successful extra fields check");
+        let extra_fields = ctx
+            .check_var_extra_fields("p", "person")
+            .expect("Expected successful extra fields check");
         assert!(extra_fields.contains(&"email".to_string()));
     }
 
@@ -946,7 +956,8 @@ mod tests {
             Some(&required_fields),
         );
         assert!(required_result.is_ok());
-        let validation_result = required_result.expect("Expected successful validation in required only mode");
+        let validation_result =
+            required_result.expect("Expected successful validation in required only mode");
         assert!(validation_result.is_valid);
 
         // 测试缺少必需字段的情况
@@ -958,7 +969,8 @@ mod tests {
             Some(&required_fields_missing),
         );
         assert!(missing_result.is_ok());
-        let validation_result = missing_result.expect("Expected successful validation with missing fields error");
+        let validation_result =
+            missing_result.expect("Expected successful validation with missing fields error");
         assert!(!validation_result.is_valid);
     }
 

@@ -5,7 +5,6 @@
 use super::ast::*;
 use super::parser_core::CypherParserCore;
 
-
 /// Cypher解析器
 #[derive(Debug)]
 pub struct CypherParser {
@@ -189,15 +188,9 @@ pub enum ParseError {
         column: usize,
     },
     /// 语义错误
-    SemanticError {
-        message: String,
-        position: usize,
-    },
+    SemanticError { message: String, position: usize },
     /// 词法错误
-    LexicalError {
-        message: String,
-        position: usize,
-    },
+    LexicalError { message: String, position: usize },
 }
 
 impl ParseError {
@@ -243,8 +236,17 @@ impl ParseError {
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::SyntaxError { message, position, line, column } => {
-                write!(f, "语法错误 (行: {}, 列: {}, 位置: {}): {}", line, column, position, message)
+            ParseError::SyntaxError {
+                message,
+                position,
+                line,
+                column,
+            } => {
+                write!(
+                    f,
+                    "语法错误 (行: {}, 列: {}, 位置: {}): {}",
+                    line, column, position, message
+                )
             }
             ParseError::SemanticError { message, position } => {
                 write!(f, "语义错误 (位置: {}): {}", position, message)
@@ -345,13 +347,13 @@ mod tests {
     #[test]
     fn test_parser_reset() {
         let mut parser = CypherParser::new("MATCH (n) RETURN n".to_string());
-        
+
         // 解析第一个语句
         let _ = parser.parse_statement();
-        
+
         // 重置解析器
         parser.reset();
-        
+
         // 再次解析应该成功
         let result = parser.parse_statement();
         assert!(result.is_ok());
@@ -360,10 +362,10 @@ mod tests {
     #[test]
     fn test_get_remaining_input() {
         let mut parser = CypherParser::new("MATCH (n) RETURN n".to_string());
-        
+
         // 消费一些标记
         let _ = parser.parse_statement();
-        
+
         // 获取剩余输入
         let remaining = parser.get_remaining_input();
         assert!(!remaining.is_empty());
@@ -387,18 +389,18 @@ mod tests {
             total_tokens: 5,
             current_token: None,
         };
-        
+
         let result = ParseResult::success("test".to_string(), info.clone());
         assert_eq!(result.result, "test");
         assert_eq!(result.warning_count(), 0);
-        
+
         let mut result_with_warnings = ParseResult::success_with_warnings(
             "test".to_string(),
             vec!["Warning 1".to_string(), "Warning 2".to_string()],
             info,
         );
         assert_eq!(result_with_warnings.warning_count(), 2);
-        
+
         result_with_warnings.add_warning("Warning 3".to_string());
         assert_eq!(result_with_warnings.warning_count(), 3);
     }

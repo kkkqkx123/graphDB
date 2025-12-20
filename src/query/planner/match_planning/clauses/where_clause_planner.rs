@@ -2,46 +2,46 @@
 //! 架构重构：实现统一的 CypherClausePlanner 接口
 //!
 //! ## 重构说明
-//! 
+//!
 //! ### 删除冗余方法
 //! - 移除 `validate_input`, `can_start_flow`, `requires_input` 等冗余方法
 //! - 通过 `flow_direction()` 统一表达数据流行为
-//! 
+//!
 //! ### 简化变量管理
 //! - WHERE 子句不产生新变量，只过滤输入
 //! - 移除不必要的 `VariableRequirement` 和 `VariableProvider`
-//! 
+//!
 //! ### 优化实现逻辑
 //! - 专注于核心的过滤功能
 //! - 简化路径表达式处理
 
-use crate::query::planner::match_planning::core::{
-    CypherClausePlanner, ClauseType, PlanningContext, DataFlowNode
-};
+use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
+use crate::query::planner::match_planning::core::{
+    ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext,
+};
 use crate::query::planner::match_planning::paths::match_path_planner::MatchPathPlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
-use crate::query::parser::ast::expr::Expr;
 use std::collections::HashSet;
 
 /// WHERE 子句规划器
-/// 
+///
 /// 负责规划 WHERE 子句的执行。WHERE 子句是一个转换子句，
 /// 它需要输入数据流并根据指定的过滤条件对结果进行过滤。
-/// 
+///
 /// # 示例
-/// 
+///
 /// ```cypher
 /// MATCH (n:Person)
 /// WHERE n.age > 25 AND n.name STARTS WITH 'John'
 /// RETURN n.name, n.age
 /// ```
-/// 
+///
 /// 在上面的例子中，WHERE 子句会过滤出年龄大于25且姓名以'John'开头的人员。
 #[derive(Debug)]
 pub struct WhereClausePlanner {
@@ -51,7 +51,7 @@ pub struct WhereClausePlanner {
 
 impl WhereClausePlanner {
     /// 创建新的 WHERE 子句规划器
-    /// 
+    ///
     /// # 参数
     /// * `need_stable_filter` - 是否需要稳定的过滤器，用于ORDER BY场景
     pub fn new(need_stable_filter: bool) -> Self {
@@ -59,14 +59,14 @@ impl WhereClausePlanner {
     }
 
     /// 构建 WHERE 子句的执行计划
-    /// 
+    ///
     /// # 参数
     /// * `where_clause_ctx` - WHERE 子句的上下文信息
     /// * `input_plan` - 输入的执行计划
     /// * `context` - 规划上下文
-    /// 
+    ///
     /// # 返回值
-    /// 
+    ///
     /// 返回包含 WHERE 子句执行计划的 SubPlan
     fn build_where(
         &self,
@@ -150,10 +150,7 @@ impl WhereClausePlanner {
 
             // 创建过滤器节点 - 将 Expression 转换为 Expr
             let expr = convert_expression_to_expr(filter);
-            let filter_node = PlanNodeFactory::create_filter(
-                start_node,
-                expr,
-            )?;
+            let filter_node = PlanNodeFactory::create_filter(start_node, expr)?;
 
             let where_plan = SubPlan::from_single_node(filter_node);
 
@@ -165,12 +162,7 @@ impl WhereClausePlanner {
                 &context.query_info.statement_type,
                 &context.query_info.query_id,
             );
-            plan = UnifiedConnector::add_input(
-                &temp_ast_context,
-                &where_plan,
-                &plan,
-                true,
-            )?;
+            plan = UnifiedConnector::add_input(&temp_ast_context, &where_plan, &plan, true)?;
         }
 
         Ok(plan)
@@ -228,7 +220,9 @@ impl CypherClausePlanner for WhereClausePlanner {
 }
 
 impl DataFlowNode for WhereClausePlanner {
-    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+    fn flow_direction(
+        &self,
+    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
         self.clause_type().flow_direction()
     }
 }
@@ -238,7 +232,7 @@ impl DataFlowNode for WhereClausePlanner {
 fn convert_expression_to_expr(expr: &crate::expression::Expression) -> Expr {
     use crate::query::parser::ast::expr::*;
     use crate::query::parser::ast::types::Span;
-    
+
     match expr {
         crate::expression::Expression::Variable(name) => {
             Expr::Variable(VariableExpr::new(name.clone(), Span::default()))
@@ -250,13 +244,18 @@ fn convert_expression_to_expr(expr: &crate::expression::Expression) -> Expr {
                 crate::expression::expression::LiteralValue::Int(i) => Value::Int(*i),
                 crate::expression::expression::LiteralValue::Float(f) => Value::Float(*f),
                 crate::expression::expression::LiteralValue::Bool(b) => Value::Bool(*b),
-                crate::expression::expression::LiteralValue::Null => Value::Null(crate::core::NullType::Null),
+                crate::expression::expression::LiteralValue::Null => {
+                    Value::Null(crate::core::NullType::Null)
+                }
             };
             Expr::Constant(ConstantExpr::new(const_val, Span::default()))
         }
         _ => {
             // 其他表达式类型暂时使用默认的 true 表达式
-            Expr::Constant(ConstantExpr::new(crate::core::Value::Bool(true), Span::default()))
+            Expr::Constant(ConstantExpr::new(
+                crate::core::Value::Bool(true),
+                Span::default(),
+            ))
         }
     }
 }
@@ -264,7 +263,7 @@ fn convert_expression_to_expr(expr: &crate::expression::Expression) -> Expr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_where_clause_planner_interface() {
         let planner = WhereClausePlanner::new(false);
@@ -272,26 +271,26 @@ mod tests {
         assert_eq!(<WhereClausePlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Transform);
         assert!(planner.requires_input());
     }
-    
+
     #[test]
     fn test_where_clause_planner_validate_flow() {
         let planner = WhereClausePlanner::new(false);
-        
+
         // 测试没有输入的情况（应该失败）
         let result = planner.validate_flow(None);
         assert!(result.is_err());
-        
+
         // 测试有输入的情况（应该成功）
         let dummy_plan = SubPlan::new(None, None);
         let result = planner.validate_flow(Some(&dummy_plan));
         assert!(result.is_ok());
     }
-    
+
     #[test]
     fn test_where_clause_planner_stable_filter() {
         let planner = WhereClausePlanner::new(true);
         assert!(planner.need_stable_filter);
-        
+
         let planner = WhereClausePlanner::new(false);
         assert!(!planner.need_stable_filter);
     }

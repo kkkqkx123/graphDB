@@ -32,9 +32,7 @@ impl ExpressionValidationStrategy {
 
         // 简化验证：直接检查布尔常量
         match filter {
-            Expression::Literal(crate::expression::expression::LiteralValue::Bool(_)) => {
-                Ok(())
-            }
+            Expression::Literal(crate::expression::expression::LiteralValue::Bool(_)) => Ok(()),
             Expression::Literal(_) => Err(ValidationError::new(
                 "WHERE表达式必须求值为布尔类型".to_string(),
                 ValidationErrorType::TypeError,
@@ -321,9 +319,8 @@ mod tests {
         };
 
         // 测试布尔表达式
-        let bool_expr = Expression::Literal(
-            crate::expression::expression::LiteralValue::Bool(true),
-        );
+        let bool_expr =
+            Expression::Literal(crate::expression::expression::LiteralValue::Bool(true));
         assert!(strategy.validate_filter(&bool_expr, &where_context).is_ok());
     }
 
@@ -373,8 +370,7 @@ mod tests {
         };
 
         // 测试Return子句验证
-        let return_expr =
-            Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
+        let return_expr = Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
         assert!(strategy
             .validate_return(&return_expr, &[], &return_context)
             .is_ok());
@@ -408,8 +404,7 @@ mod tests {
         };
 
         // 测试With子句验证
-        let with_expr =
-            Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
+        let with_expr = Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
         assert!(strategy
             .validate_with(&with_expr, &[], &with_context)
             .is_ok());
@@ -421,17 +416,14 @@ mod tests {
 
         let unwind_context = UnwindClauseContext {
             alias: "test".to_string(),
-            unwind_expr: Expression::Literal(
-                crate::expression::expression::LiteralValue::Int(1),
-            ),
+            unwind_expr: Expression::Literal(crate::expression::expression::LiteralValue::Int(1)),
             aliases_available: std::collections::HashMap::new(),
             aliases_generated: std::collections::HashMap::new(),
             paths: Vec::new(),
         };
 
         // 测试Unwind子句验证
-        let unwind_expr =
-            Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
+        let unwind_expr = Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
         assert!(strategy
             .validate_unwind(&unwind_expr, &unwind_context)
             .is_ok());
@@ -478,8 +470,7 @@ mod tests {
         };
 
         // 测试单个路径模式验证
-        let pattern =
-            Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
+        let pattern = Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
         assert!(strategy
             .validate_single_path_pattern(&pattern, &mut match_context)
             .is_ok());

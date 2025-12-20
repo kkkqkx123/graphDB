@@ -1,5 +1,4 @@
 /// Path planner implementation for handling PATH queries in NebulaGraph
-
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
@@ -39,7 +38,10 @@ impl Planner for PathPlanner {
         let path_node = PlanNodeFactory::create_placeholder_node()?;
 
         // For now, just return a subplan with the path node
-        Ok(SubPlan::new(Some(path_node.clone_plan_node()), Some(path_node)))
+        Ok(SubPlan::new(
+            Some(path_node.clone_plan_node()),
+            Some(path_node),
+        ))
     }
 
     fn match_planner(&self, ast_ctx: &AstContext) -> bool {

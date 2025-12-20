@@ -398,6 +398,7 @@ impl Default for SymbolTable {
 mod tests {
     use super::*;
     use crate::core::symbol::plan_node::PlanNodeType;
+    use crate::expression::context::ExpressionContextCore;
 
     #[test]
     fn test_symbol_table() {

@@ -5,8 +5,8 @@ use super::space_ops::Schema;
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable,
-        PlanNodeProperties, PlanNodeVisitable,
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+        PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
@@ -103,7 +103,7 @@ impl PlanNodeDependencies for CreateTag {
 impl PlanNodeDependenciesExt for CreateTag {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -123,7 +123,7 @@ impl PlanNodeClonable for CreateTag {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -236,7 +236,7 @@ impl PlanNodeDependencies for DescTag {
 impl PlanNodeDependenciesExt for DescTag {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -256,7 +256,7 @@ impl PlanNodeClonable for DescTag {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -374,7 +374,7 @@ impl PlanNodeDependencies for DropTag {
 impl PlanNodeDependenciesExt for DropTag {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -394,7 +394,7 @@ impl PlanNodeClonable for DropTag {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -434,9 +434,7 @@ impl ShowTags {
             kind: PlanNodeKind::ShowTags,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec![
-                "Name".to_string(),
-            ],
+            col_names: vec!["Name".to_string()],
             cost: 0.0,
         }
     }
@@ -500,7 +498,7 @@ impl PlanNodeDependencies for ShowTags {
 impl PlanNodeDependenciesExt for ShowTags {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -520,7 +518,7 @@ impl PlanNodeClonable for ShowTags {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -561,10 +559,7 @@ impl ShowCreateTag {
             kind: PlanNodeKind::ShowCreateTag,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec![
-                "Tag".to_string(),
-                "Create Tag".to_string(),
-            ],
+            col_names: vec!["Tag".to_string(), "Create Tag".to_string()],
             cost: 0.0,
             tag_name: tag_name.to_string(),
         }
@@ -634,7 +629,7 @@ impl PlanNodeDependencies for ShowCreateTag {
 impl PlanNodeDependenciesExt for ShowCreateTag {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -654,7 +649,7 @@ impl PlanNodeClonable for ShowCreateTag {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;

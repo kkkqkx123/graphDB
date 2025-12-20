@@ -4,8 +4,10 @@
 use crate::query::context::ast::{AstContext, FetchVerticesContext};
 use crate::query::context::validate::types::{Column, Variable};
 use crate::query::planner::plan::core::common::TagProp;
+use crate::query::planner::plan::core::nodes::{
+    ArgumentNode, DedupNode, GetVerticesNode, ProjectNode,
+};
 use crate::query::planner::plan::core::plan_node_traits::{PlanNodeDependencies, PlanNodeMutable};
-use crate::query::planner::plan::core::nodes::{ArgumentNode, DedupNode, GetVerticesNode, ProjectNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::utils::expect_arc_mut;
@@ -53,7 +55,8 @@ impl Planner for FetchVerticesPlanner {
         // 1. 创建参数节点，获取顶点ID
         let mut arg_node = Arc::new(ArgumentNode::new(1, &fetch_ctx.from.user_defined_var_name));
         {
-            let arg_node_mut = expect_arc_mut(&mut arg_node, "Failed to get mutable reference to arg_node")?;
+            let arg_node_mut =
+                expect_arc_mut(&mut arg_node, "Failed to get mutable reference to arg_node")?;
             arg_node_mut.set_col_names(vec!["vid".to_string()]);
             arg_node_mut.set_output_var(Variable {
                 name: "vertex_ids".to_string(),
@@ -62,9 +65,15 @@ impl Planner for FetchVerticesPlanner {
         }
 
         // 2. 创建获取顶点的节点
-        let mut get_vertices_node = Arc::new(GetVerticesNode::new(1, &fetch_ctx.from.user_defined_var_name));
+        let mut get_vertices_node = Arc::new(GetVerticesNode::new(
+            1,
+            &fetch_ctx.from.user_defined_var_name,
+        ));
         {
-            let get_vertices_node_mut = expect_arc_mut(&mut get_vertices_node, "Failed to get mutable reference to get_vertices_node")?;
+            let get_vertices_node_mut = expect_arc_mut(
+                &mut get_vertices_node,
+                "Failed to get mutable reference to get_vertices_node",
+            )?;
             get_vertices_node_mut.add_dependency(arg_node.clone());
             get_vertices_node_mut.set_output_var(Variable {
                 name: "fetched_vertices".to_string(),
@@ -87,9 +96,12 @@ impl Planner for FetchVerticesPlanner {
             vec![], // 这里需要提供YieldColumn列表
         )?);
         {
-            let project_node_mut = expect_arc_mut(&mut project_node, "Failed to get mutable reference to project_node")?;
+            let project_node_mut = expect_arc_mut(
+                &mut project_node,
+                "Failed to get mutable reference to project_node",
+            )?;
             project_node_mut.add_dependency(get_vertices_node.clone());
-            
+
             let result_columns: Vec<Column> = fetch_ctx
                 .from
                 .vids
@@ -99,7 +111,7 @@ impl Planner for FetchVerticesPlanner {
                     type_: "STRING".to_string(),
                 })
                 .collect();
-            
+
             project_node_mut.set_output_var(Variable {
                 name: "project_result".to_string(),
                 columns: result_columns,
@@ -112,7 +124,10 @@ impl Planner for FetchVerticesPlanner {
         {
             let mut dedup_node = Arc::new(DedupNode::new(project_node.clone())?);
             {
-                let dedup_node_mut = expect_arc_mut(&mut dedup_node, "Failed to get mutable reference to dedup_node")?;
+                let dedup_node_mut = expect_arc_mut(
+                    &mut dedup_node,
+                    "Failed to get mutable reference to dedup_node",
+                )?;
                 dedup_node_mut.add_dependency(project_node.clone());
                 dedup_node_mut.set_output_var(Variable {
                     name: "dedup_result".to_string(),

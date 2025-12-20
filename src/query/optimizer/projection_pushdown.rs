@@ -127,10 +127,13 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = std::sync::Arc::new(ProjectNode::new(
-            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            vec![],
-        ).unwrap())
+        let project_node = std::sync::Arc::new(
+            ProjectNode::new(
+                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                vec![],
+            )
+            .unwrap(),
+        )
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, project_node);
 
@@ -145,10 +148,13 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = std::sync::Arc::new(ProjectNode::new(
-            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            vec![],
-        ).unwrap())
+        let project_node = std::sync::Arc::new(
+            ProjectNode::new(
+                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                vec![],
+            )
+            .unwrap(),
+        )
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, project_node);
 

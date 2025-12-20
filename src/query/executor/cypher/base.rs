@@ -316,7 +316,7 @@ mod tests {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
             NativeStorage::new(config.test_db_path("test_db"))
-                .expect("Failed to create test storage")
+                .expect("Failed to create test storage"),
         ));
         let executor = CypherExecutor::new(1, storage);
 
@@ -330,7 +330,7 @@ mod tests {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
             NativeStorage::new(config.test_db_path("test_db_lifecycle"))
-                .expect("Failed to create test storage")
+                .expect("Failed to create test storage"),
         ));
         let mut executor = CypherExecutor::new(1, storage);
 
@@ -352,7 +352,7 @@ mod tests {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
             NativeStorage::new(config.test_db_path("test_db_with_name"))
-                .expect("Failed to create test storage")
+                .expect("Failed to create test storage"),
         ));
         let executor = CypherExecutor::with_name(2, "TestExecutor".to_string(), storage);
 

@@ -4,8 +4,8 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable,
-        PlanNodeProperties, PlanNodeVisitable,
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+        PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
@@ -152,7 +152,7 @@ impl PlanNodeDependencies for UpdateVertex {
 impl PlanNodeDependenciesExt for UpdateVertex {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -172,7 +172,7 @@ impl PlanNodeClonable for UpdateVertex {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -352,7 +352,7 @@ impl PlanNodeDependencies for UpdateEdge {
 impl PlanNodeDependenciesExt for UpdateEdge {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -372,7 +372,7 @@ impl PlanNodeClonable for UpdateEdge {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;

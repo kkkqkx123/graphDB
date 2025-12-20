@@ -157,7 +157,6 @@ impl ConnectionBuilder {
         connector.connect(qctx, left, right, &self.join_params)
     }
 
-
     /// 获取构建的连接参数
     pub fn build(&self) -> &JoinParams {
         &self.join_params
@@ -242,7 +241,10 @@ mod tests {
         assert_eq!(params.intersected_aliases, aliases);
         assert!(params.as_inner_join().is_some());
         assert_eq!(
-            params.as_inner_join().expect("params should be inner_join").algorithm,
+            params
+                .as_inner_join()
+                .expect("params should be inner_join")
+                .algorithm,
             JoinAlgorithm::Hash
         );
     }
@@ -267,6 +269,11 @@ mod tests {
         let builder = sequential(true);
         let params = builder.build();
         assert!(params.as_sequential().is_some());
-        assert!(params.as_sequential().expect("params should be sequential").copy_col_names);
+        assert!(
+            params
+                .as_sequential()
+                .expect("params should be sequential")
+                .copy_col_names
+        );
     }
 }

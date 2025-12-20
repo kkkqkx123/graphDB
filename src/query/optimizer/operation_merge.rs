@@ -43,15 +43,23 @@ impl OptRule for CombineFilterRule {
                         let child_condition = child_filter.condition();
 
                         // 合并两个过滤条件，使用AND连接
-                        let combined_condition_str = combine_conditions(&format!("{:?}", top_condition), &format!("{:?}", child_condition));
+                        let combined_condition_str = combine_conditions(
+                            &format!("{:?}", top_condition),
+                            &format!("{:?}", child_condition),
+                        );
 
                         // 创建一个新的过滤节点，包含合并后的条件
                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                         // 这里简化处理，直接返回原节点
-                        let input = top_filter.dependencies().first()
+                        let input = top_filter
+                            .dependencies()
+                            .first()
                             .expect("Filter should have at least one dependency")
                             .clone();
-                        let combined_filter_node = match FilterPlanNode::new(input, crate::expression::Expression::Variable(combined_condition_str)) {
+                        let combined_filter_node = match FilterPlanNode::new(
+                            input,
+                            crate::expression::Expression::Variable(combined_condition_str),
+                        ) {
                             Ok(node) => node,
                             Err(_) => top_filter.clone(),
                         };
@@ -104,14 +112,22 @@ impl MergeRule for CombineFilterRule {
             let top_condition = top_filter.condition();
             let child_condition = child_filter.condition();
 
-            let combined_condition_str = combine_conditions(&format!("{:?}", top_condition), &format!("{:?}", child_condition));
+            let combined_condition_str = combine_conditions(
+                &format!("{:?}", top_condition),
+                &format!("{:?}", child_condition),
+            );
 
             // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
             // 这里简化处理，直接返回原节点
-            let input = top_filter.dependencies().first()
+            let input = top_filter
+                .dependencies()
+                .first()
                 .expect("Filter should have at least one dependency")
                 .clone();
-            let combined_filter_node = match FilterPlanNode::new(input, crate::expression::Expression::Variable(combined_condition_str)) {
+            let combined_filter_node = match FilterPlanNode::new(
+                input,
+                crate::expression::Expression::Variable(combined_condition_str),
+            ) {
                 Ok(node) => node,
                 Err(_) => top_filter.clone(),
             };
@@ -456,8 +472,11 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::planner::plan::core::nodes::{
+        DedupNode as Dedup, FilterNode as Filter, GetNeighborsNode as GetNeighbors,
+        GetVerticesNode as GetVertices, ProjectNode as Project,
+    };
     use crate::query::planner::plan::PlanNodeKind;
-    use crate::query::planner::plan::core::nodes::{DedupNode as Dedup, FilterNode as Filter, GetNeighborsNode as GetNeighbors, GetVerticesNode as GetVertices, ProjectNode as Project};
 
     fn create_test_context() -> OptContext {
         OptContext::new(QueryContext::default())
@@ -469,8 +488,12 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let start_node = std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new());
-        let filter_node = match Filter::new(start_node, crate::expression::Expression::Variable("col1 > 100".to_string())) {
+        let start_node =
+            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new());
+        let filter_node = match Filter::new(
+            start_node,
+            crate::expression::Expression::Variable("col1 > 100".to_string()),
+        ) {
             Ok(node) => std::sync::Arc::new(node),
             Err(_) => return,
         };
@@ -487,7 +510,8 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let start_node = std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new());
+        let start_node =
+            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new());
         let project_node = match Project::new(start_node, vec![]) {
             Ok(node) => std::sync::Arc::new(node),
             Err(_) => return,

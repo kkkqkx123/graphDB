@@ -7,9 +7,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
-use crate::expression::{Expression, ExpressionEvaluator};
-use crate::expression::ExpressionContext;
 use crate::expression::context::ExpressionContextCore;
+use crate::expression::ExpressionContext;
+use crate::expression::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -59,7 +59,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
             loop_state: LoopState::NotStarted,
             evaluator: ExpressionEvaluator,
             results: Vec::new(),
-            loop_context: ExpressionContext::simple(),
+            loop_context: ExpressionContext::default(),
         }
     }
 }
@@ -292,7 +292,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
         self.loop_state = LoopState::NotStarted;
         self.current_iteration = 0;
         self.results.clear();
-        self.loop_context = ExpressionContext::simple();
+        self.loop_context = ExpressionContext::default();
 
         // 打开循环体执行器
         self.body_executor.open()?;
@@ -305,7 +305,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
 
         // 清理资源
         self.results.clear();
-        self.loop_context = ExpressionContext::simple();
+        self.loop_context = ExpressionContext::default();
 
         Ok(())
     }
@@ -598,11 +598,18 @@ mod tests {
             Ok(())
         }
 
-        fn scan_all_vertices(&self) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_all_vertices(
+            &self,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_vertices_by_tag(
+            &self,
+            _tag: &str,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
     }

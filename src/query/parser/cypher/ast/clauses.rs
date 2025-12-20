@@ -1,7 +1,7 @@
 //! Cypher子句结构定义
 
-use crate::query::parser::cypher::ast::patterns::Pattern;
 use crate::query::parser::cypher::ast::expressions::Expression;
+use crate::query::parser::cypher::ast::patterns::Pattern;
 
 /// MATCH子句
 #[derive(Debug, Clone)]

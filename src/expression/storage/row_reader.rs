@@ -319,11 +319,13 @@ mod tests {
         assert_eq!(reader.data_len(), 12); // 8+4 = 12字节
 
         // 测试读取值
-        let age_value = reader.read_value("age")
+        let age_value = reader
+            .read_value("age")
             .expect("Reading 'age' field should succeed");
         assert_eq!(age_value, Value::Int(25));
 
-        let score_value = reader.read_value("score")
+        let score_value = reader
+            .read_value("score")
             .expect("Reading 'score' field should succeed");
         assert_eq!(score_value, Value::Float(95.5));
     }

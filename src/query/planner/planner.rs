@@ -331,9 +331,13 @@ mod tests {
             SentenceKind::from_str("match").expect("Expected successful parsing of 'match'"),
             SentenceKind::Match
         );
-        assert_eq!(SentenceKind::from_str("GO").expect("Expected successful parsing of 'GO'"), SentenceKind::Go);
         assert_eq!(
-            SentenceKind::from_str("FETCH VERTICES").expect("Expected successful parsing of 'FETCH VERTICES'"),
+            SentenceKind::from_str("GO").expect("Expected successful parsing of 'GO'"),
+            SentenceKind::Go
+        );
+        assert_eq!(
+            SentenceKind::from_str("FETCH VERTICES")
+                .expect("Expected successful parsing of 'FETCH VERTICES'"),
             SentenceKind::FetchVertices
         );
 

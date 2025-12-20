@@ -402,7 +402,8 @@ mod tests {
         graph.insert("B".to_string(), vec!["C".to_string()]);
         graph.insert("C".to_string(), vec![]);
 
-        let sorted = GraphAlgorithms::topological_sort(&graph).expect("Topological sort should succeed in test");
+        let sorted = GraphAlgorithms::topological_sort(&graph)
+            .expect("Topological sort should succeed in test");
         assert_eq!(
             sorted,
             vec!["A".to_string(), "B".to_string(), "C".to_string()]
@@ -419,8 +420,17 @@ mod tests {
         graph.insert('D', vec![]);
 
         let distances = GraphAlgorithms::dijkstra(&graph, &'A');
-        assert_eq!(*distances.get(&'D').expect("Distance should exist in test"), 9); // A->B->D = 4+5=9
-        assert_eq!(*distances.get(&'C').expect("Distance should exist in test"), 2);
-        assert_eq!(*distances.get(&'B').expect("Distance should exist in test"), 4);
+        assert_eq!(
+            *distances.get(&'D').expect("Distance should exist in test"),
+            9
+        ); // A->B->D = 4+5=9
+        assert_eq!(
+            *distances.get(&'C').expect("Distance should exist in test"),
+            2
+        );
+        assert_eq!(
+            *distances.get(&'B').expect("Distance should exist in test"),
+            4
+        );
     }
 }

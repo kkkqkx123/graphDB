@@ -25,7 +25,9 @@ fn test_safe_lock_poisoned() {
     // 在另一个线程中故意污染锁
     let (tx, rx) = mpsc::channel::<()>();
     thread::spawn(move || {
-        let _guard = mutex_clone.lock().expect("Mutex should be accessible in test thread");
+        let _guard = mutex_clone
+            .lock()
+            .expect("Mutex should be accessible in test thread");
         // 故意 panic 来污染锁
         panic!("Intentional panic to poison the lock");
     });
@@ -129,7 +131,9 @@ fn test_error_propagation() {
     // 在另一个线程中故意污染锁
     let (tx, rx) = mpsc::channel::<()>();
     thread::spawn(move || {
-        let _guard = mutex_clone.lock().expect("Mutex should be accessible in test thread");
+        let _guard = mutex_clone
+            .lock()
+            .expect("Mutex should be accessible in test thread");
         panic!("Intentional panic to poison the lock");
     });
 
@@ -207,7 +211,9 @@ fn test_lock_recovery() {
     // 在另一个线程中故意污染锁
     let (tx, rx) = mpsc::channel::<()>();
     thread::spawn(move || {
-        let _guard = mutex_clone.lock().expect("Mutex should be accessible in test thread");
+        let _guard = mutex_clone
+            .lock()
+            .expect("Mutex should be accessible in test thread");
         panic!("Intentional panic to poison the lock");
     });
 

@@ -5,8 +5,8 @@ use super::space_ops::Schema;
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable,
-        PlanNodeProperties, PlanNodeVisitable,
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+        PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
@@ -103,7 +103,7 @@ impl PlanNodeDependencies for CreateEdge {
 impl PlanNodeDependenciesExt for CreateEdge {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -123,7 +123,7 @@ impl PlanNodeClonable for CreateEdge {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -241,7 +241,7 @@ impl PlanNodeDependencies for DropEdge {
 impl PlanNodeDependenciesExt for DropEdge {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -261,7 +261,7 @@ impl PlanNodeClonable for DropEdge {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -301,9 +301,7 @@ impl ShowEdges {
             kind: PlanNodeKind::ShowEdges,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec![
-                "Name".to_string(),
-            ],
+            col_names: vec!["Name".to_string()],
             cost: 0.0,
         }
     }
@@ -367,7 +365,7 @@ impl PlanNodeDependencies for ShowEdges {
 impl PlanNodeDependenciesExt for ShowEdges {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -387,7 +385,7 @@ impl PlanNodeClonable for ShowEdges {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -428,10 +426,7 @@ impl ShowCreateEdge {
             kind: PlanNodeKind::ShowCreateEdge,
             deps: Vec::new(),
             output_var: None,
-            col_names: vec![
-                "Edge".to_string(),
-                "Create Edge".to_string(),
-            ],
+            col_names: vec!["Edge".to_string(), "Create Edge".to_string()],
             cost: 0.0,
             edge_name: edge_name.to_string(),
         }
@@ -501,7 +496,7 @@ impl PlanNodeDependencies for ShowCreateEdge {
 impl PlanNodeDependenciesExt for ShowCreateEdge {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -521,7 +516,7 @@ impl PlanNodeClonable for ShowCreateEdge {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;

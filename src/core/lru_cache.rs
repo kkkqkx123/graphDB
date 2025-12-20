@@ -242,7 +242,8 @@ where
     /// Get a value from the cache
     pub fn get(&self, key: &K) -> Option<V> {
         let bucket_idx = self.bucket_index(key, None);
-        let mut bucket = self.buckets[bucket_idx].lock()
+        let mut bucket = self.buckets[bucket_idx]
+            .lock()
             .expect("LRU Cache bucket lock should not be poisoned");
 
         let result = bucket.get(key);
@@ -257,7 +258,8 @@ where
     /// Put a key-value pair in the cache
     pub fn put(&self, key: K, value: V) {
         let bucket_idx = self.bucket_index(&key, None);
-        let mut bucket = self.buckets[bucket_idx].lock()
+        let mut bucket = self.buckets[bucket_idx]
+            .lock()
             .expect("LRU Cache bucket lock should not be poisoned");
 
         // If replacing, we need to remove first to get the old value out of the map
@@ -267,7 +269,8 @@ where
     /// Check if the cache contains a key
     pub fn contains(&self, key: &K) -> bool {
         let bucket_idx = self.bucket_index(key, None);
-        let bucket = self.buckets[bucket_idx].lock()
+        let bucket = self.buckets[bucket_idx]
+            .lock()
             .expect("LRU Cache bucket lock should not be poisoned");
 
         bucket.contains(key)

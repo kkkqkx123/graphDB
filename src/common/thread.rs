@@ -38,7 +38,9 @@ impl ThreadPool {
         F: FnOnce() + Send + 'static,
     {
         {
-            let mut tasks = self.tasks.lock()
+            let mut tasks = self
+                .tasks
+                .lock()
                 .expect("Thread pool tasks lock should not be poisoned");
             tasks.push_back(Box::new(f));
         }
@@ -70,7 +72,8 @@ impl Worker {
 
                 // Check for tasks in a blocking way
                 let task = {
-                    let mut tasks = tasks.lock()
+                    let mut tasks = tasks
+                        .lock()
                         .expect("Worker tasks lock should not be poisoned");
                     tasks.pop_front()
                 };
@@ -148,7 +151,9 @@ impl<T> Lazy<T> {
         }
 
         // Slow path: initialize the value
-        let mut guard = self.value.write()
+        let mut guard = self
+            .value
+            .write()
             .expect("Lazy value lock should not be poisoned");
         if let Some(ref value) = *guard {
             return value.clone();
@@ -156,8 +161,10 @@ impl<T> Lazy<T> {
 
         let value = (self.init_fn)();
         *guard = Some(value);
-        guard.as_ref()
-            .expect("Value should have been initialized in the previous line").clone()
+        guard
+            .as_ref()
+            .expect("Value should have been initialized in the previous line")
+            .clone()
     }
 }
 
@@ -178,7 +185,8 @@ impl ConditionVariable {
     }
 
     pub fn wait<'a>(&self, guard: std::sync::MutexGuard<'a, ()>) -> std::sync::MutexGuard<'a, ()> {
-        self.condvar.wait(guard)
+        self.condvar
+            .wait(guard)
             .expect("Condition variable should not be corrupted")
     }
 
@@ -208,7 +216,8 @@ impl ThreadManager {
         F: FnOnce() + Send + 'static,
     {
         let handle = thread::spawn(f);
-        self.active_threads.lock()
+        self.active_threads
+            .lock()
             .expect("Thread manager active threads lock should not be poisoned")
             .push(handle);
         Ok(())
@@ -225,13 +234,17 @@ impl ThreadManager {
     }
 
     pub fn active_count(&self) -> usize {
-        let threads = self.active_threads.lock()
+        let threads = self
+            .active_threads
+            .lock()
             .expect("Thread manager active threads lock should not be poisoned");
         threads.len()
     }
 
     pub fn join_all(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let mut threads = self.active_threads.lock()
+        let mut threads = self
+            .active_threads
+            .lock()
             .expect("Thread manager active threads lock should not be poisoned");
         let mut errors = Vec::new();
 
@@ -259,7 +272,8 @@ pub mod async_utils {
         F: FnOnce() -> R + Send + 'static,
         R: Send + 'static,
     {
-        task::spawn_blocking(f).await
+        task::spawn_blocking(f)
+            .await
             .expect("Blocking task should complete successfully")
     }
 
@@ -360,8 +374,7 @@ mod tests {
 
         let t = thread::spawn(move || {
             let (lock, cvar) = &*pair2;
-            let mut started = lock.lock()
-                .expect("Test mutex lock should not be poisoned");
+            let mut started = lock.lock().expect("Test mutex lock should not be poisoned");
             *started = true;
             // We notify the condvar that the value has changed.
             cvar.notify_one();
@@ -369,15 +382,14 @@ mod tests {
 
         // Wait for the thread to start up.
         let (lock, cvar) = &*pair;
-        let mut started = lock.lock()
-            .expect("Test mutex lock should not be poisoned");
+        let mut started = lock.lock().expect("Test mutex lock should not be poisoned");
         while !*started {
-            started = cvar.wait(started)
+            started = cvar
+                .wait(started)
                 .expect("Test condition variable should not be corrupted");
         }
 
-        t.join()
-            .expect("Test thread should complete successfully");
+        t.join().expect("Test thread should complete successfully");
     }
 
     #[tokio::test]

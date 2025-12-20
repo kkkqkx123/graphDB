@@ -3,11 +3,11 @@
 //! 负责根据执行计划创建对应的执行器实例
 //! 基于nebula-graph的工厂模式设计
 
+use crate::core::error::QueryError;
 use crate::query::executor::traits::Executor;
 use crate::query::parser::expressions::parse_expression_from_string;
 use crate::query::planner::plan::core::nodes::traits::PlanNodeProperties;
 use crate::query::planner::plan::core::{PlanNode, PlanNodeKind};
-use crate::core::error::QueryError;
 use crate::storage::StorageEngine;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -473,27 +473,26 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Aggreg
         let id = plan_node.id() as usize;
 
         // 尝试从具体的Aggregate计划节点中提取参数
-        let (group_keys, agg_exprs) = if let Some(agg_node) =
-            plan_node.as_any().downcast_ref::<AggregateNode>()
-        {
-            // 解析分组键和聚合函数
-            let group_keys = agg_node
-                .group_keys()
-                .iter()
-                .map(|k| crate::expression::Expression::variable(k.clone()))
-                .collect::<Vec<_>>();
-            let agg_funcs = agg_node
+        let (group_keys, agg_exprs) =
+            if let Some(agg_node) = plan_node.as_any().downcast_ref::<AggregateNode>() {
+                // 解析分组键和聚合函数
+                let group_keys = agg_node
+                    .group_keys()
+                    .iter()
+                    .map(|k| crate::expression::Expression::variable(k.clone()))
+                    .collect::<Vec<_>>();
+                let agg_funcs = agg_node
                 .agg_exprs()
                 .iter()
                 .map(|_| {
                     crate::query::executor::result_processing::aggregation::AggregateFunction::Count
                 })
                 .collect::<Vec<_>>();
-            (group_keys, agg_funcs)
-        } else {
-            // 如果不是具体的Aggregate节点，使用默认值
-            (vec![], vec![])
-        };
+                (group_keys, agg_funcs)
+            } else {
+                // 如果不是具体的Aggregate节点，使用默认值
+                (vec![], vec![])
+            };
 
         let executor = AggregateExecutor::new(id, storage, agg_exprs, group_keys);
         Ok(Box::new(executor))

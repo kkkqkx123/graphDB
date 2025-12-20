@@ -1,9 +1,10 @@
-use crate::core::{ExpressionError, Value};
+use super::evaluator_trait::ExpressionEvaluator as ExpressionEvaluatorTrait;
 use super::operator_conversion;
 use super::type_conversion;
+use crate::core::{ExpressionError, Value};
+use crate::expression::context::ExpressionContextCore;
 use crate::expression::{Expression, ExpressionContext, LiteralValue};
 use crate::query::parser::cypher::ast::expressions::Expression as CypherExpression;
-use super::evaluator_trait::ExpressionEvaluator as ExpressionEvaluatorTrait;
 
 /// Expression evaluator implementation
 #[derive(Debug)]
@@ -156,7 +157,7 @@ impl ExpressionEvaluator {
                     Value::List(items) => {
                         for item in items {
                             // 创建一个临时上下文，将当前元素作为变量
-                            let mut temp_context = crate::expression::ExpressionContext::simple();
+                            let mut temp_context = crate::expression::ExpressionContext::default();
                             temp_context.set_variable("__item".to_string(), item);
 
                             let cond_result = self.evaluate(&condition_clone, &temp_context)?;
@@ -185,7 +186,7 @@ impl ExpressionEvaluator {
                     Value::List(items) => {
                         let mut accumulator = initial_value;
                         for item in items {
-                            let mut temp_context = crate::expression::ExpressionContext::simple();
+                            let mut temp_context = crate::expression::ExpressionContext::default();
                             temp_context.set_variable(var.clone(), item);
 
                             // 这里需要使用当前累加器值，但在简化实现中，我们只计算一次
@@ -483,11 +484,19 @@ impl ExpressionEvaluator {
 
 // 实现统一的ExpressionEvaluator trait
 impl ExpressionEvaluatorTrait for ExpressionEvaluator {
-    fn evaluate(&self, expr: &Expression, context: &ExpressionContext) -> Result<Value, ExpressionError> {
+    fn evaluate(
+        &self,
+        expr: &Expression,
+        context: &ExpressionContext,
+    ) -> Result<Value, ExpressionError> {
         self.eval_expression(expr, context)
     }
 
-    fn evaluate_batch(&self, exprs: &[Expression], context: &ExpressionContext) -> Result<Vec<Value>, ExpressionError> {
+    fn evaluate_batch(
+        &self,
+        exprs: &[Expression],
+        context: &ExpressionContext,
+    ) -> Result<Vec<Value>, ExpressionError> {
         let mut results = Vec::with_capacity(exprs.len());
         for expr in exprs {
             results.push(self.evaluate(expr, context)?);
@@ -516,9 +525,11 @@ impl ExpressionEvaluatorTrait for ExpressionEvaluator {
         match expr {
             Expression::Aggregate { .. } => true,
             Expression::Function { name, .. } => {
-                matches!(name.to_lowercase().as_str(), 
-                    "count" | "sum" | "avg" | "min" | "max" | "collect" | "distinct")
-                }
+                matches!(
+                    name.to_lowercase().as_str(),
+                    "count" | "sum" | "avg" | "min" | "max" | "collect" | "distinct"
+                )
+            }
             _ => {
                 // 递归检查子表达式
                 for child in expr.children() {
@@ -589,7 +600,10 @@ impl ExpressionEvaluator {
             Expression::TypeCasting { expr, .. } => {
                 self.collect_variables(expr, variables);
             }
-            Expression::Case { conditions, default } => {
+            Expression::Case {
+                conditions,
+                default,
+            } => {
                 for (condition, value) in conditions {
                     self.collect_variables(condition, variables);
                     self.collect_variables(value, variables);
@@ -598,7 +612,10 @@ impl ExpressionEvaluator {
                     self.collect_variables(default_expr, variables);
                 }
             }
-            Expression::ListComprehension { generator, condition } => {
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => {
                 self.collect_variables(generator, variables);
                 if let Some(cond) = condition {
                     self.collect_variables(cond, variables);
@@ -608,7 +625,12 @@ impl ExpressionEvaluator {
                 self.collect_variables(list, variables);
                 self.collect_variables(condition, variables);
             }
-            Expression::Reduce { list, initial, expr, .. } => {
+            Expression::Reduce {
+                list,
+                initial,
+                expr,
+                ..
+            } => {
                 self.collect_variables(list, variables);
                 self.collect_variables(initial, variables);
                 self.collect_variables(expr, variables);
@@ -622,7 +644,11 @@ impl ExpressionEvaluator {
                 self.collect_variables(collection, variables);
                 self.collect_variables(index, variables);
             }
-            Expression::SubscriptRange { collection, start, end } => {
+            Expression::SubscriptRange {
+                collection,
+                start,
+                end,
+            } => {
                 self.collect_variables(collection, variables);
                 if let Some(start_expr) = start {
                     self.collect_variables(start_expr, variables);
@@ -631,7 +657,11 @@ impl ExpressionEvaluator {
                     self.collect_variables(end_expr, variables);
                 }
             }
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 self.collect_variables(collection, variables);
                 if let Some(start_expr) = start {
                     self.collect_variables(start_expr, variables);
@@ -663,35 +693,43 @@ pub fn evaluator() -> ExpressionEvaluator {
 }
 
 /// 便捷函数：使用表达式求值器求值表达式
-pub fn evaluate_expression(expr: &Expression, context: &ExpressionContext) -> Result<Value, ExpressionError> {
+pub fn evaluate_expression(
+    expr: &Expression,
+    context: &ExpressionContext,
+) -> Result<Value, ExpressionError> {
     evaluator().evaluate(expr, context)
 }
 
 /// 便捷函数：使用表达式求值器批量求值表达式
-pub fn evaluate_expressions(exprs: &[Expression], context: &ExpressionContext) -> Result<Vec<Value>, ExpressionError> {
+pub fn evaluate_expressions(
+    exprs: &[Expression],
+    context: &ExpressionContext,
+) -> Result<Vec<Value>, ExpressionError> {
     evaluator().evaluate_batch(exprs, context)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::evaluator_trait::ExpressionEvaluator as ExpressionEvaluatorTrait;
-    use crate::expression::{Expression, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction};
+    use super::*;
+    use crate::expression::{
+        AggregateFunction, BinaryOperator, Expression, LiteralValue, UnaryOperator,
+    };
 
     #[test]
     fn test_evaluator_trait_implementation() {
         let evaluator = ExpressionEvaluator::new();
-        let context = ExpressionContext::simple();
-        
+        let context = ExpressionContext::default();
+
         // 测试字面量求值
         let expr = Expression::Literal(LiteralValue::Int(42));
         let result = evaluator.evaluate(&expr, &context).unwrap();
         assert_eq!(result, Value::Int(42));
-        
+
         // 测试变量求值
-        let mut ctx = ExpressionContext::simple();
+        let mut ctx = ExpressionContext::default();
         ctx.set_variable("x".to_string(), Value::Int(100));
-        
+
         let expr = Expression::Variable("x".to_string());
         let result = evaluator.evaluate(&expr, &ctx).unwrap();
         assert_eq!(result, Value::Int(100));
@@ -700,30 +738,26 @@ mod tests {
     #[test]
     fn test_batch_evaluation() {
         let evaluator = ExpressionEvaluator::new();
-        let context = ExpressionContext::simple();
-        
+        let context = ExpressionContext::default();
+
         let exprs = vec![
             Expression::Literal(LiteralValue::Int(1)),
             Expression::Literal(LiteralValue::Int(2)),
             Expression::Literal(LiteralValue::Int(3)),
         ];
-        
+
         let results = evaluator.evaluate_batch(&exprs, &context).unwrap();
-        assert_eq!(results, vec![
-            Value::Int(1),
-            Value::Int(2),
-            Value::Int(3),
-        ]);
+        assert_eq!(results, vec![Value::Int(1), Value::Int(2), Value::Int(3),]);
     }
 
     #[test]
     fn test_constant_checking() {
         let evaluator = ExpressionEvaluator::new();
-        
+
         // 测试常量表达式
         let constant_expr = Expression::Literal(LiteralValue::Int(42));
         assert!(evaluator.is_constant(&constant_expr));
-        
+
         // 测试非常量表达式
         let variable_expr = Expression::Variable("x".to_string());
         assert!(!evaluator.is_constant(&variable_expr));
@@ -732,11 +766,11 @@ mod tests {
     #[test]
     fn test_variable_collection() {
         let evaluator = ExpressionEvaluator::new();
-        
+
         let expr = Expression::Variable("x".to_string());
         let variables = evaluator.get_variables(&expr);
         assert_eq!(variables, vec!["x"]);
-        
+
         // 测试复杂表达式
         let complex_expr = Expression::Binary {
             left: Box::new(Expression::Variable("x".to_string())),
@@ -750,7 +784,7 @@ mod tests {
     #[test]
     fn test_aggregate_detection() {
         let evaluator = ExpressionEvaluator::new();
-        
+
         // 测试聚合函数
         let aggregate_expr = Expression::Aggregate {
             func: AggregateFunction::Count,
@@ -758,7 +792,7 @@ mod tests {
             distinct: false,
         };
         assert!(evaluator.contains_aggregate(&aggregate_expr));
-        
+
         // 测试普通函数
         let function_expr = Expression::Function {
             name: "abs".to_string(),

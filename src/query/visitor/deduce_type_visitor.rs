@@ -1,11 +1,11 @@
 //! DeduceTypeVisitor - 用于推导表达式类型的访问器
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
+use crate::core::TypeUtils;
 use crate::core::ValueTypeDef;
 use crate::expression::Expression;
 use crate::expression::{BinaryOperator, UnaryOperator};
 use crate::query::validator::ValidateContext;
-use crate::core::TypeUtils;
 use crate::storage::StorageEngine;
 use thiserror::Error;
 
@@ -108,7 +108,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         match expr {
             Expression::Literal(value) => self.visit_literal(value),
             Expression::Variable(name) => self.visit_variable(name),
-            Expression::Property { object, property: _ } => {
+            Expression::Property {
+                object,
+                property: _,
+            } => {
                 self.visit(object)?;
                 // 属性访问返回Empty类型（实际类型应该查询Schema）
                 self.type_ = ValueTypeDef::Empty;
@@ -840,15 +843,21 @@ mod tests {
     #[test]
     fn test_type_utils() {
         // 测试统一的类型工具
-        assert!(TypeUtils::are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::Int));
-        assert!(TypeUtils::are_types_compatible(&ValueTypeDef::Null, &ValueTypeDef::String));
+        assert!(TypeUtils::are_types_compatible(
+            &ValueTypeDef::Int,
+            &ValueTypeDef::Int
+        ));
+        assert!(TypeUtils::are_types_compatible(
+            &ValueTypeDef::Null,
+            &ValueTypeDef::String
+        ));
         assert!(TypeUtils::is_superior_type(&ValueTypeDef::Null));
-        
+
         // 测试类型优先级
         assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::Int), 2);
         assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::Float), 3);
         assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::String), 4);
-        
+
         // 测试公共类型
         assert_eq!(
             TypeUtils::get_common_type(&ValueTypeDef::Int, &ValueTypeDef::Float),

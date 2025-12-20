@@ -302,7 +302,8 @@ mod tests {
         // Test timestamp formatting and parsing
         let ts = Timestamp::new(1672531200, 0); // 2023-01-01T00:00:00Z
         let iso_str = time_utils::format_timestamp_iso(&ts);
-        let parsed_ts = time_utils::parse_timestamp_iso(&iso_str).expect("Failed to parse timestamp");
+        let parsed_ts =
+            time_utils::parse_timestamp_iso(&iso_str).expect("Failed to parse timestamp");
         assert_eq!(ts.secs, parsed_ts.secs);
     }
 }

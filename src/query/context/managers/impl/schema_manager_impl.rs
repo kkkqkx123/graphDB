@@ -1,6 +1,7 @@
 //! Schema管理器实现 - 内存中的Schema管理
-
+//!
 use super::super::{Schema, SchemaManager};
+use crate::expression::context::ExpressionContextCore;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -80,7 +81,7 @@ mod tests {
     #[test]
     fn test_memory_schema_manager_add_schema() {
         let manager = MemorySchemaManager::new();
-        
+
         let schema = Schema {
             name: "users".to_string(),
             fields: HashMap::from([
@@ -89,7 +90,7 @@ mod tests {
             ]),
             is_vertex: true,
         };
-        
+
         assert!(manager.add_schema(schema).is_ok());
         assert!(manager.has_schema("users"));
         assert_eq!(manager.list_schemas(), vec!["users".to_string()]);
@@ -98,7 +99,7 @@ mod tests {
     #[test]
     fn test_memory_schema_manager_get_schema() {
         let manager = MemorySchemaManager::new();
-        
+
         let schema = Schema {
             name: "users".to_string(),
             fields: HashMap::from([
@@ -107,41 +108,50 @@ mod tests {
             ]),
             is_vertex: true,
         };
-        
-        manager.add_schema(schema.clone()).expect("Expected successful addition of schema");
+
+        manager
+            .add_schema(schema.clone())
+            .expect("Expected successful addition of schema");
 
         let retrieved = manager.get_schema("users");
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.expect("Expected schema 'users' to exist").name, "users");
+        assert_eq!(
+            retrieved.expect("Expected schema 'users' to exist").name,
+            "users"
+        );
     }
 
     #[test]
     fn test_memory_schema_manager_remove_schema() {
         let manager = MemorySchemaManager::new();
-        
+
         let schema = Schema {
             name: "users".to_string(),
             fields: HashMap::new(),
             is_vertex: true,
         };
 
-        manager.add_schema(schema).expect("Expected successful addition of schema for removal test");
+        manager
+            .add_schema(schema)
+            .expect("Expected successful addition of schema for removal test");
         assert!(manager.has_schema("users"));
 
-        manager.remove_schema("users").expect("Expected successful removal of schema");
+        manager
+            .remove_schema("users")
+            .expect("Expected successful removal of schema");
         assert!(!manager.has_schema("users"));
     }
 
     #[test]
     fn test_memory_schema_manager_update_schema() {
         let manager = MemorySchemaManager::new();
-        
+
         let schema1 = Schema {
             name: "users".to_string(),
             fields: HashMap::from([("id".to_string(), "int".to_string())]),
             is_vertex: true,
         };
-        
+
         let schema2 = Schema {
             name: "users".to_string(),
             fields: HashMap::from([
@@ -150,11 +160,29 @@ mod tests {
             ]),
             is_vertex: true,
         };
-        
-        manager.add_schema(schema1).expect("Expected successful addition of first schema");
-        assert_eq!(manager.get_schema("users").expect("Expected schema 'users' to exist").fields.len(), 1);
 
-        manager.update_schema("users", schema2).expect("Expected successful update of schema");
-        assert_eq!(manager.get_schema("users").expect("Expected schema 'users' to exist after update").fields.len(), 2);
+        manager
+            .add_schema(schema1)
+            .expect("Expected successful addition of first schema");
+        assert_eq!(
+            manager
+                .get_schema("users")
+                .expect("Expected schema 'users' to exist")
+                .fields
+                .len(),
+            1
+        );
+
+        manager
+            .update_schema("users", schema2)
+            .expect("Expected successful update of schema");
+        assert_eq!(
+            manager
+                .get_schema("users")
+                .expect("Expected schema 'users' to exist after update")
+                .fields
+                .len(),
+            2
+        );
     }
 }

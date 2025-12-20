@@ -46,25 +46,25 @@ impl Default for ResultProcessorContext {
 pub trait ResultProcessor<S: StorageEngine> {
     /// 处理输入数据并返回结果
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult>;
-    
+
     /// 设置输入数据
     fn set_input(&mut self, input: ExecutionResult);
-    
+
     /// 获取当前输入数据
     fn get_input(&self) -> Option<&ExecutionResult>;
-    
+
     /// 获取处理上下文
     fn context(&self) -> &ResultProcessorContext;
-    
+
     /// 设置处理上下文
     fn set_context(&mut self, context: ResultProcessorContext);
-    
+
     /// 获取内存使用量
     fn memory_usage(&self) -> usize;
-    
+
     /// 重置处理器状态
     fn reset(&mut self);
-    
+
     /// 验证输入数据是否有效
     fn validate_input(&self, input: &ExecutionResult) -> DBResult<()> {
         match input {
@@ -102,12 +102,7 @@ pub struct BaseResultProcessor<S: StorageEngine> {
 
 impl<S: StorageEngine> BaseResultProcessor<S> {
     /// 创建新的基础结果处理器
-    pub fn new(
-        id: usize,
-        name: String,
-        description: String,
-        storage: Arc<Mutex<S>>,
-    ) -> Self {
+    pub fn new(id: usize, name: String, description: String, storage: Arc<Mutex<S>>) -> Self {
         Self {
             id,
             name,
@@ -118,51 +113,52 @@ impl<S: StorageEngine> BaseResultProcessor<S> {
             memory_usage: 0,
         }
     }
-    
+
     /// 设置内存限制
     pub fn with_memory_limit(mut self, limit: usize) -> Self {
         self.context.memory_limit = Some(limit);
         self
     }
-    
+
     /// 启用并行处理
     pub fn with_parallel(mut self, enable: bool) -> Self {
         self.context.enable_parallel = enable;
         self
     }
-    
+
     /// 设置并行度
     pub fn with_parallel_degree(mut self, degree: usize) -> Self {
         self.context.parallel_degree = Some(degree);
         self
     }
-    
+
     /// 启用磁盘溢出
     pub fn with_disk_spill(mut self, enable: bool) -> Self {
         self.context.enable_disk_spill = enable;
         self
     }
-    
+
     /// 设置临时目录
     pub fn with_temp_dir(mut self, dir: String) -> Self {
         self.context.temp_dir = Some(dir);
         self
     }
-    
+
     /// 检查内存限制
     pub fn check_memory_limit(&self) -> DBResult<()> {
         if let Some(limit) = self.context.memory_limit {
             if self.memory_usage > limit {
                 return Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        format!("内存使用超出限制: {} > {}", self.memory_usage, limit),
-                    ),
+                    crate::core::error::QueryError::ExecutionError(format!(
+                        "内存使用超出限制: {} > {}",
+                        self.memory_usage, limit
+                    )),
                 ));
             }
         }
         Ok(())
     }
-    
+
     /// 更新内存使用量
     pub fn update_memory_usage(&mut self, delta: isize) {
         if delta >= 0 {
@@ -173,12 +169,12 @@ impl<S: StorageEngine> BaseResultProcessor<S> {
             self.memory_usage = 0;
         }
     }
-    
+
     /// 估算数据集内存使用量
     pub fn estimate_dataset_memory_usage(dataset: &DataSet) -> usize {
         let mut usage = std::mem::size_of::<DataSet>();
         usage += dataset.col_names.len() * std::mem::size_of::<String>();
-        
+
         for row in &dataset.rows {
             usage += std::mem::size_of::<Vec<crate::core::Value>>();
             for _value in row {
@@ -186,7 +182,7 @@ impl<S: StorageEngine> BaseResultProcessor<S> {
                 // 这里可以添加更精确的值大小估算
             }
         }
-        
+
         usage
     }
 }
@@ -201,10 +197,10 @@ pub trait StreamableResultProcessor<S: StorageEngine>: ResultProcessor<S> {
         &mut self,
         input_stream: Box<dyn futures::Stream<Item = DBResult<ExecutionResult>> + Send + Unpin>,
     ) -> DBResult<ExecutionResult>;
-    
+
     /// 设置批处理大小
     fn set_batch_size(&mut self, batch_size: usize);
-    
+
     /// 获取批处理大小
     fn batch_size(&self) -> usize;
 }
@@ -216,10 +212,10 @@ pub trait StreamableResultProcessor<S: StorageEngine>: ResultProcessor<S> {
 pub trait ParallelResultProcessor<S: StorageEngine>: ResultProcessor<S> {
     /// 并行处理数据集
     async fn process_parallel(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult>;
-    
+
     /// 设置并行度
     fn set_parallel_degree(&mut self, degree: usize);
-    
+
     /// 获取并行度
     fn parallel_degree(&self) -> usize;
 }
@@ -236,9 +232,11 @@ impl ResultProcessorFactory {
         storage: Arc<Mutex<S>>,
         columns: Vec<crate::query::executor::result_processing::projection::ProjectionColumn>,
     ) -> crate::query::executor::result_processing::projection::ProjectExecutor<S> {
-        crate::query::executor::result_processing::projection::ProjectExecutor::new(id, storage, columns)
+        crate::query::executor::result_processing::projection::ProjectExecutor::new(
+            id, storage, columns,
+        )
     }
-    
+
     /// 创建排序处理器
     pub fn create_sorter<S: StorageEngine>(
         id: usize,
@@ -246,9 +244,11 @@ impl ResultProcessorFactory {
         sort_keys: Vec<crate::query::executor::result_processing::sort::SortKey>,
         limit: Option<usize>,
     ) -> crate::query::executor::result_processing::sort::SortExecutor<S> {
-        crate::query::executor::result_processing::sort::SortExecutor::new(id, storage, sort_keys, limit)
+        crate::query::executor::result_processing::sort::SortExecutor::new(
+            id, storage, sort_keys, limit,
+        )
     }
-    
+
     /// 创建限制处理器
     pub fn create_limiter<S: StorageEngine>(
         id: usize,
@@ -256,19 +256,28 @@ impl ResultProcessorFactory {
         limit: Option<usize>,
         offset: usize,
     ) -> crate::query::executor::result_processing::limit::LimitExecutor<S> {
-        crate::query::executor::result_processing::limit::LimitExecutor::new(id, storage, limit, offset)
+        crate::query::executor::result_processing::limit::LimitExecutor::new(
+            id, storage, limit, offset,
+        )
     }
-    
+
     /// 创建聚合处理器
     pub fn create_aggregator<S: StorageEngine>(
         id: usize,
         storage: Arc<Mutex<S>>,
-        aggregate_functions: Vec<crate::query::executor::result_processing::aggregation::AggregateFunction>,
+        aggregate_functions: Vec<
+            crate::query::executor::result_processing::aggregation::AggregateFunction,
+        >,
         group_keys: Vec<crate::expression::Expression>,
     ) -> crate::query::executor::result_processing::aggregation::AggregateExecutor<S> {
-        crate::query::executor::result_processing::aggregation::AggregateExecutor::new(id, storage, aggregate_functions, group_keys)
+        crate::query::executor::result_processing::aggregation::AggregateExecutor::new(
+            id,
+            storage,
+            aggregate_functions,
+            group_keys,
+        )
     }
-    
+
     /// 创建去重处理器
     pub fn create_deduper<S: StorageEngine>(
         id: usize,
@@ -276,18 +285,25 @@ impl ResultProcessorFactory {
         strategy: crate::query::executor::result_processing::dedup::DedupStrategy,
         memory_limit: Option<usize>,
     ) -> crate::query::executor::result_processing::dedup::DedupExecutor<S> {
-        crate::query::executor::result_processing::dedup::DedupExecutor::new(id, storage, strategy, memory_limit)
+        crate::query::executor::result_processing::dedup::DedupExecutor::new(
+            id,
+            storage,
+            strategy,
+            memory_limit,
+        )
     }
-    
+
     /// 创建过滤处理器
     pub fn create_filter<S: StorageEngine>(
         id: usize,
         storage: Arc<Mutex<S>>,
         condition: crate::expression::Expression,
     ) -> crate::query::executor::result_processing::filter::FilterExecutor<S> {
-        crate::query::executor::result_processing::filter::FilterExecutor::new(id, storage, condition)
+        crate::query::executor::result_processing::filter::FilterExecutor::new(
+            id, storage, condition,
+        )
     }
-    
+
     /// 创建采样处理器
     pub fn create_sampler<S: StorageEngine>(
         id: usize,
@@ -296,9 +312,11 @@ impl ResultProcessorFactory {
         count: usize,
         seed: Option<u64>,
     ) -> crate::query::executor::result_processing::sample::SampleExecutor<S> {
-        crate::query::executor::result_processing::sample::SampleExecutor::new(id, storage, method, count, seed)
+        crate::query::executor::result_processing::sample::SampleExecutor::new(
+            id, storage, method, count, seed,
+        )
     }
-    
+
     /// 创建TopN处理器
     pub fn create_topn<S: StorageEngine>(
         id: usize,
@@ -308,7 +326,13 @@ impl ResultProcessorFactory {
         ascending: bool,
         _offset: usize,
     ) -> crate::query::executor::result_processing::topn::TopNExecutor<S> {
-        crate::query::executor::result_processing::topn::TopNExecutor::new(id, storage, n, sort_columns, ascending)
+        crate::query::executor::result_processing::topn::TopNExecutor::new(
+            id,
+            storage,
+            n,
+            sort_columns,
+            ascending,
+        )
     }
 }
 
@@ -316,7 +340,7 @@ impl ResultProcessorFactory {
 mod tests {
     use super::*;
     use crate::core::value::DataSet;
-    
+
     #[test]
     fn test_result_processor_context_default() {
         let context = ResultProcessorContext::default();
@@ -326,7 +350,7 @@ mod tests {
         assert!(!context.enable_disk_spill);
         assert!(context.temp_dir.is_none());
     }
-    
+
     #[test]
     fn test_base_result_processor() {
         // 这里需要模拟存储引擎，暂时跳过具体实现
@@ -340,18 +364,18 @@ mod tests {
         // assert_eq!(processor.id, 1);
         // assert_eq!(processor.name, "test");
     }
-    
+
     #[test]
     fn test_estimate_dataset_memory_usage() {
         use crate::query::executor::data_processing::join::cross_join::tests::MockStorage;
-        
+
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["col1".to_string(), "col2".to_string()];
         dataset.rows.push(vec![
             crate::core::Value::Int(1),
             crate::core::Value::String("test".to_string()),
         ]);
-        
+
         // 测试内存使用估算
         let usage = BaseResultProcessor::<MockStorage>::estimate_dataset_memory_usage(&dataset);
         assert!(usage > 0);

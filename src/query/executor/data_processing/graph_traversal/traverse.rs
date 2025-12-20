@@ -171,9 +171,12 @@ impl<S: StorageEngine> TraverseExecutor<S> {
             let current_node = if path.steps.is_empty() {
                 &path.src.vid
             } else {
-                &path.steps.last()
+                &path
+                    .steps
+                    .last()
                     .expect("Path should have at least one step if steps is not empty")
-                    .dst.vid
+                    .dst
+                    .vid
             };
 
             // 获取邻居节点和边

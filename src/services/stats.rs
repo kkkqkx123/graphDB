@@ -1,9 +1,9 @@
+use crate::core::error::DBError;
+use crate::utils::{expect_max, expect_min, safe_lock};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use crate::utils::{safe_lock, expect_min, expect_max};
-use crate::core::error::DBError;
 
 /// Statistics counter for a specific metric
 #[derive(Debug, Clone)]
@@ -192,8 +192,14 @@ impl Timer {
         let sum = vals.iter().sum::<Duration>();
         let avg = Duration::from_nanos(sum.as_nanos() as u64 / vals.len() as u64);
 
-        let min = *expect_min(vals.iter(), "Timer values should not be empty when calculating min")?;
-        let max = *expect_max(vals.iter(), "Timer values should not be empty when calculating max")?;
+        let min = *expect_min(
+            vals.iter(),
+            "Timer values should not be empty when calculating min",
+        )?;
+        let max = *expect_max(
+            vals.iter(),
+            "Timer values should not be empty when calculating max",
+        )?;
 
         Ok((avg, min, max, vals.len()))
     }
@@ -282,30 +288,27 @@ impl StatsRegistry {
 
         let counter_values: HashMap<String, u64> = counters
             .iter()
-            .filter_map(|(name, counter)| {
-                counter.get().ok().map(|value| (name.clone(), value))
-            })
+            .filter_map(|(name, counter)| counter.get().ok().map(|value| (name.clone(), value)))
             .collect();
 
         let gauge_values: HashMap<String, f64> = gauges
             .iter()
-            .filter_map(|(name, gauge)| {
-                gauge.get().ok().map(|value| (name.clone(), value))
-            })
+            .filter_map(|(name, gauge)| gauge.get().ok().map(|value| (name.clone(), value)))
             .collect();
 
         let histogram_values: HashMap<String, (f64, f64, Vec<(f64, u64)>)> = histograms
             .iter()
             .filter_map(|(name, histogram)| {
-                histogram.get_summary().ok().map(|summary| (name.clone(), summary))
+                histogram
+                    .get_summary()
+                    .ok()
+                    .map(|summary| (name.clone(), summary))
             })
             .collect();
 
         let timer_values: HashMap<String, (Duration, Duration, Duration, usize)> = timers
             .iter()
-            .filter_map(|(name, timer)| {
-                timer.get_stats().ok().map(|stats| (name.clone(), stats))
-            })
+            .filter_map(|(name, timer)| timer.get_stats().ok().map(|stats| (name.clone(), stats)))
             .collect();
 
         Ok(StatsSnapshot {
@@ -407,7 +410,9 @@ mod tests {
     fn test_counter() {
         let counter = Counter::new("test_counter", "A test counter");
         counter.inc().expect("Counter increment should succeed");
-        counter.inc_by(5).expect("Counter increment by should succeed");
+        counter
+            .inc_by(5)
+            .expect("Counter increment by should succeed");
         assert_eq!(counter.get().expect("Counter get should succeed"), 6);
     }
 
@@ -422,11 +427,19 @@ mod tests {
     fn test_histogram() {
         let histogram = Histogram::new("test_histogram", "A test histogram", vec![1.0, 2.0, 5.0]);
 
-        histogram.observe(0.5).expect("Histogram observe should succeed");
-        histogram.observe(1.5).expect("Histogram observe should succeed");
-        histogram.observe(4.0).expect("Histogram observe should succeed");
+        histogram
+            .observe(0.5)
+            .expect("Histogram observe should succeed");
+        histogram
+            .observe(1.5)
+            .expect("Histogram observe should succeed");
+        histogram
+            .observe(4.0)
+            .expect("Histogram observe should succeed");
 
-        let (avg, sum, bucket_counts) = histogram.get_summary().expect("Histogram get_summary should succeed");
+        let (avg, sum, bucket_counts) = histogram
+            .get_summary()
+            .expect("Histogram get_summary should succeed");
         assert_eq!(sum, 6.0); // 0.5 + 1.5 + 4.0
         assert!((avg - 2.0).abs() < f64::EPSILON); // 6.0 / 3
 
@@ -439,8 +452,12 @@ mod tests {
     #[test]
     fn test_timer() {
         let timer = Timer::new("test_timer", "A test timer");
-        timer.record(Duration::from_millis(100)).expect("Timer record should succeed");
-        timer.record(Duration::from_millis(200)).expect("Timer record should succeed");
+        timer
+            .record(Duration::from_millis(100))
+            .expect("Timer record should succeed");
+        timer
+            .record(Duration::from_millis(200))
+            .expect("Timer record should succeed");
 
         let (_avg, min, max, count) = timer.get_stats().expect("Timer get_stats should succeed");
         assert_eq!(count, 2);
@@ -452,36 +469,62 @@ mod tests {
     async fn test_stats_registry() {
         let registry = StatsRegistry::new();
 
-        let counter = registry.register_counter("req_count", "Request count")
+        let counter = registry
+            .register_counter("req_count", "Request count")
             .expect("Registry register_counter should succeed");
-        let gauge = registry.register_gauge("mem_usage", "Memory usage")
+        let gauge = registry
+            .register_gauge("mem_usage", "Memory usage")
             .expect("Registry register_gauge should succeed");
-        let histogram = registry.register_histogram("query_time", "Query execution time", vec![1.0, 5.0, 10.0])
+        let histogram = registry
+            .register_histogram("query_time", "Query execution time", vec![1.0, 5.0, 10.0])
             .expect("Registry register_histogram should succeed");
-        let timer = registry.register_timer("proc_time", "Processing time")
+        let timer = registry
+            .register_timer("proc_time", "Processing time")
             .expect("Registry register_timer should succeed");
 
-        counter.inc_by(5).expect("Counter increment by should succeed");
+        counter
+            .inc_by(5)
+            .expect("Counter increment by should succeed");
         gauge.set(25.6).expect("Gauge set should succeed");
-        histogram.observe(3.5).expect("Histogram observe should succeed");
-        timer.record(Duration::from_millis(150)).expect("Timer record should succeed");
+        histogram
+            .observe(3.5)
+            .expect("Histogram observe should succeed");
+        timer
+            .record(Duration::from_millis(150))
+            .expect("Timer record should succeed");
 
         // Test getting the registered stats
-        assert_eq!(registry.get_counter("req_count")
-            .expect("Registry get_counter should succeed")
-            .expect("Counter should exist")
-            .get().expect("Counter get should succeed"), 5);
-        assert!((registry.get_gauge("mem_usage")
-            .expect("Registry get_gauge should succeed")
-            .expect("Gauge should exist")
-            .get().expect("Gauge get should succeed") - 25.6).abs() < f64::EPSILON);
+        assert_eq!(
+            registry
+                .get_counter("req_count")
+                .expect("Registry get_counter should succeed")
+                .expect("Counter should exist")
+                .get()
+                .expect("Counter get should succeed"),
+            5
+        );
+        assert!(
+            (registry
+                .get_gauge("mem_usage")
+                .expect("Registry get_gauge should succeed")
+                .expect("Gauge should exist")
+                .get()
+                .expect("Gauge get should succeed")
+                - 25.6)
+                .abs()
+                < f64::EPSILON
+        );
 
-        let snapshot = registry.snapshot().expect("Registry snapshot should succeed");
+        let snapshot = registry
+            .snapshot()
+            .expect("Registry snapshot should succeed");
         assert_eq!(snapshot.counters.get("req_count"), Some(&5));
         assert_eq!(snapshot.gauges.get("mem_usage"), Some(&25.6));
 
         // Check the snapshot has the right values
-        let hist_summary = snapshot.histograms.get("query_time")
+        let hist_summary = snapshot
+            .histograms
+            .get("query_time")
             .expect("Histogram should exist in snapshot");
         assert_eq!(hist_summary.1, 3.5); // sum
     }
@@ -497,13 +540,21 @@ mod tests {
             counters.clear();
         }
 
-        let counter = registry.register_counter("global_test", "Global test counter")
+        let counter = registry
+            .register_counter("global_test", "Global test counter")
             .expect("Registry register_counter should succeed");
-        counter.inc_by(10).expect("Counter increment by should succeed");
+        counter
+            .inc_by(10)
+            .expect("Counter increment by should succeed");
 
-        assert_eq!(registry.get_counter("global_test")
-            .expect("Registry get_counter should succeed")
-            .expect("Counter should exist")
-            .get().expect("Counter get should succeed"), 10);
+        assert_eq!(
+            registry
+                .get_counter("global_test")
+                .expect("Registry get_counter should succeed")
+                .expect("Counter should exist")
+                .get()
+                .expect("Counter get should succeed"),
+            10
+        );
     }
 }

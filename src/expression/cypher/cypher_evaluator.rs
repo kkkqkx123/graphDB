@@ -1,5 +1,6 @@
-use crate::core::{Value, ExpressionError};
-use crate::expression::{Expression, LiteralValue, ExpressionContext};
+use crate::core::{ExpressionError, Value};
+use crate::expression::context::ExpressionContextCore;
+use crate::expression::{Expression, ExpressionContext, LiteralValue};
 use crate::query::parser::cypher::ast::expressions::{
     BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
@@ -109,8 +110,7 @@ impl CypherEvaluator {
         };
 
         // 使用ExpressionEvaluator评估统一函数
-        crate::expression::evaluator::ExpressionEvaluator::new()
-            .evaluate(&unified_func, context)
+        crate::expression::evaluator::ExpressionEvaluator::new().evaluate(&unified_func, context)
     }
 
     /// 评估Cypher二元表达式
@@ -209,9 +209,9 @@ impl CypherEvaluator {
         right: &Value,
     ) -> Result<Value, ExpressionError> {
         match op {
-            BinaryOperator::Equal => Ok(Value::Bool(
-                crate::expression::comparison::values_equal(left, right),
-            )),
+            BinaryOperator::Equal => Ok(Value::Bool(crate::expression::comparison::values_equal(
+                left, right,
+            ))),
             BinaryOperator::NotEqual => Ok(Value::Bool(
                 !crate::expression::comparison::values_equal(left, right),
             )),
@@ -248,21 +248,15 @@ impl CypherEvaluator {
                     Ok(Value::Bool(false))
                 }
             }
-            BinaryOperator::Add => {
-                crate::expression::arithmetic::arithmetic_add(left, right)
-            }
+            BinaryOperator::Add => crate::expression::arithmetic::arithmetic_add(left, right),
             BinaryOperator::Subtract => {
                 crate::expression::arithmetic::arithmetic_subtract(left, right)
             }
             BinaryOperator::Multiply => {
                 crate::expression::arithmetic::arithmetic_multiply(left, right)
             }
-            BinaryOperator::Divide => {
-                crate::expression::arithmetic::arithmetic_divide(left, right)
-            }
-            BinaryOperator::Modulo => {
-                crate::expression::arithmetic::arithmetic_modulo(left, right)
-            }
+            BinaryOperator::Divide => crate::expression::arithmetic::arithmetic_divide(left, right),
+            BinaryOperator::Modulo => crate::expression::arithmetic::arithmetic_modulo(left, right),
             BinaryOperator::Exponent => {
                 crate::expression::arithmetic::arithmetic_exponent(left, right)
             }
@@ -270,12 +264,8 @@ impl CypherEvaluator {
             BinaryOperator::StartsWith => {
                 crate::expression::comparison::check_starts_with(left, right)
             }
-            BinaryOperator::EndsWith => {
-                crate::expression::comparison::check_ends_with(left, right)
-            }
-            BinaryOperator::Contains => {
-                crate::expression::comparison::check_contains(left, right)
-            }
+            BinaryOperator::EndsWith => crate::expression::comparison::check_ends_with(left, right),
+            BinaryOperator::Contains => crate::expression::comparison::check_contains(left, right),
             BinaryOperator::RegexMatch => {
                 // 简化的正则匹配实现
                 match (left, right) {
@@ -427,7 +417,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_literal() {
-        let context = ExpressionContext::simple();
+        let context = ExpressionContext::default();
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
         let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &context).unwrap();
 
@@ -436,7 +426,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_variable() {
-        let mut context = ExpressionContext::simple();
+        let mut context = ExpressionContext::default();
         context.set_variable("x".to_string(), Value::Int(100));
 
         let cypher_expr = CypherExpression::Variable("x".to_string());
@@ -447,7 +437,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_binary_add() {
-        let context = ExpressionContext::simple();
+        let context = ExpressionContext::default();
         let left = Box::new(CypherExpression::Literal(CypherLiteral::Integer(1)));
         let right = Box::new(CypherExpression::Literal(CypherLiteral::Integer(2)));
         let cypher_expr = CypherExpression::Binary(BinaryExpression {

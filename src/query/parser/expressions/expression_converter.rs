@@ -4,7 +4,7 @@
 use crate::core::Value;
 use crate::expression::expression::{BinaryOperator, Expression, LiteralValue, UnaryOperator};
 use crate::query::parser::ast::{
-    BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, Expr, FunctionCallExpr, ListExpr, MapExpr, 
+    BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, Expr, FunctionCallExpr, ListExpr, MapExpr,
     PredicateExpr, PropertyAccessExpr, SubscriptExpr, UnaryExpr, UnaryOp, VariableExpr,
 };
 
@@ -48,7 +48,7 @@ fn convert_binary_expr(expr: &BinaryExpr) -> Result<Expression, String> {
     let left = convert_ast_to_graph_expression(&expr.left)?;
     let right = convert_ast_to_graph_expression(&expr.right)?;
     let op = convert_binary_op(&expr.op)?;
-    
+
     Ok(Expression::Binary {
         left: Box::new(left),
         op,
@@ -60,7 +60,7 @@ fn convert_binary_expr(expr: &BinaryExpr) -> Result<Expression, String> {
 fn convert_unary_expr(expr: &UnaryExpr) -> Result<Expression, String> {
     let operand = convert_ast_to_graph_expression(&expr.operand)?;
     let op = convert_unary_op(&expr.op)?;
-    
+
     Ok(Expression::Unary {
         op,
         operand: Box::new(operand),
@@ -74,18 +74,22 @@ fn convert_function_call_expr(expr: &FunctionCallExpr) -> Result<Expression, Str
         .iter()
         .map(|arg| convert_ast_to_graph_expression(arg))
         .collect();
-    
+
     let args = args?;
-    
+
     // 检查是否为聚合函数
     let func_name = expr.name.to_uppercase();
     if is_aggregate_function(&func_name) {
         if args.len() != 1 {
-            return Err(format!("聚合函数 {} 需要一个参数，但提供了 {}", expr.name, args.len()));
+            return Err(format!(
+                "聚合函数 {} 需要一个参数，但提供了 {}",
+                expr.name,
+                args.len()
+            ));
         }
         let arg = Box::new(args[0].clone());
         let aggregate_func = convert_aggregate_function(&func_name)?;
-        
+
         Ok(Expression::Aggregate {
             func: aggregate_func,
             arg,
@@ -116,7 +120,7 @@ fn convert_list_expr(expr: &ListExpr) -> Result<Expression, String> {
         .iter()
         .map(|elem| convert_ast_to_graph_expression(elem))
         .collect();
-    
+
     Ok(Expression::List(elements?))
 }
 
@@ -130,33 +134,33 @@ fn convert_map_expr(expr: &MapExpr) -> Result<Expression, String> {
             Ok((key.clone(), converted_value))
         })
         .collect();
-    
+
     Ok(Expression::Map(pairs?))
 }
 
 /// 转换CASE表达式
 fn convert_case_expr(expr: &CaseExpr) -> Result<Expression, String> {
     let mut conditions = Vec::new();
-    
+
     // 处理WHEN-THEN条件对
     for (when, then) in &expr.when_then_pairs {
         let when_expr = convert_ast_to_graph_expression(when)?;
         let then_expr = convert_ast_to_graph_expression(then)?;
         conditions.push((when_expr, then_expr));
     }
-    
+
     let default = if let Some(ref default_expr) = expr.default {
         Some(Box::new(convert_ast_to_graph_expression(default_expr)?))
     } else {
         None
     };
-    
+
     // 如果存在match表达式，需要特殊处理
     if let Some(ref match_expr) = expr.match_expr {
         // 对于有match表达式的CASE，需要将每个WHEN条件转换为与match表达式的比较
         let match_expr = convert_ast_to_graph_expression(match_expr)?;
         let mut new_conditions = Vec::new();
-        
+
         for (when, then) in conditions {
             let condition = Expression::Binary {
                 left: Box::new(match_expr.clone()),
@@ -165,13 +169,16 @@ fn convert_case_expr(expr: &CaseExpr) -> Result<Expression, String> {
             };
             new_conditions.push((condition, then));
         }
-        
+
         Ok(Expression::Case {
             conditions: new_conditions,
-            default
+            default,
         })
     } else {
-        Ok(Expression::Case { conditions, default })
+        Ok(Expression::Case {
+            conditions,
+            default,
+        })
     }
 }
 
@@ -179,7 +186,7 @@ fn convert_case_expr(expr: &CaseExpr) -> Result<Expression, String> {
 fn convert_subscript_expr(expr: &SubscriptExpr) -> Result<Expression, String> {
     let collection = convert_ast_to_graph_expression(&expr.collection)?;
     let index = convert_ast_to_graph_expression(&expr.index)?;
-    
+
     Ok(Expression::Subscript {
         collection: Box::new(collection),
         index: Box::new(index),
@@ -190,7 +197,7 @@ fn convert_subscript_expr(expr: &SubscriptExpr) -> Result<Expression, String> {
 fn convert_predicate_expr(expr: &PredicateExpr) -> Result<Expression, String> {
     let list = convert_ast_to_graph_expression(&expr.list)?;
     let condition = convert_ast_to_graph_expression(&expr.condition)?;
-    
+
     Ok(Expression::Predicate {
         list: Box::new(list),
         condition: Box::new(condition),
@@ -207,12 +214,12 @@ fn convert_binary_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
         BinaryOp::Div => Ok(BinaryOperator::Divide),
         BinaryOp::Mod => Ok(BinaryOperator::Modulo),
         BinaryOp::Exp => Err("指数操作符在graph表达式中不支持".to_string()),
-        
+
         // 逻辑操作符
         BinaryOp::And => Ok(BinaryOperator::And),
         BinaryOp::Or => Ok(BinaryOperator::Or),
         BinaryOp::Xor => Err("XOR操作符在graph表达式中不支持".to_string()),
-        
+
         // 关系操作符
         BinaryOp::Eq => Ok(BinaryOperator::Equal),
         BinaryOp::Ne => Ok(BinaryOperator::NotEqual),
@@ -220,7 +227,7 @@ fn convert_binary_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
         BinaryOp::Le => Ok(BinaryOperator::LessThanOrEqual),
         BinaryOp::Gt => Ok(BinaryOperator::GreaterThan),
         BinaryOp::Ge => Ok(BinaryOperator::GreaterThanOrEqual),
-        
+
         // 字符串操作符
         BinaryOp::Regex => Err("正则表达式操作符在graph表达式中不支持".to_string()),
         BinaryOp::In => Ok(BinaryOperator::In),
@@ -245,7 +252,9 @@ fn convert_unary_op(op: &UnaryOp) -> Result<UnaryOperator, String> {
 }
 
 /// 转换聚合函数
-fn convert_aggregate_function(func_name: &str) -> Result<crate::expression::expression::AggregateFunction, String> {
+fn convert_aggregate_function(
+    func_name: &str,
+) -> Result<crate::expression::expression::AggregateFunction, String> {
     match func_name {
         "COUNT" => Ok(crate::expression::expression::AggregateFunction::Count),
         "SUM" => Ok(crate::expression::expression::AggregateFunction::Sum),
@@ -288,8 +297,12 @@ mod tests {
 
     #[test]
     fn test_convert_constant_expr() {
-        let ast_expr = Expr::Constant(ConstantExpr::new(Value::Int(42), crate::query::parser::ast::Span::default()));
-        let result = convert_ast_to_graph_expression(&ast_expr).expect("Expected successful conversion of constant expression");
+        let ast_expr = Expr::Constant(ConstantExpr::new(
+            Value::Int(42),
+            crate::query::parser::ast::Span::default(),
+        ));
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of constant expression");
 
         if let Expression::Literal(LiteralValue::Int(value)) = result {
             assert_eq!(value, 42);
@@ -300,8 +313,12 @@ mod tests {
 
     #[test]
     fn test_convert_variable_expr() {
-        let ast_expr = Expr::Variable(VariableExpr::new("test_var".to_string(), crate::query::parser::ast::Span::default()));
-        let result = convert_ast_to_graph_expression(&ast_expr).expect("Expected successful conversion of variable expression");
+        let ast_expr = Expr::Variable(VariableExpr::new(
+            "test_var".to_string(),
+            crate::query::parser::ast::Span::default(),
+        ));
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of variable expression");
 
         if let Expression::Variable(name) = result {
             assert_eq!(name, "test_var");
@@ -312,11 +329,23 @@ mod tests {
 
     #[test]
     fn test_convert_binary_expr() {
-        let left = Expr::Constant(ConstantExpr::new(Value::Int(5), crate::query::parser::ast::Span::default()));
-        let right = Expr::Constant(ConstantExpr::new(Value::Int(3), crate::query::parser::ast::Span::default()));
-        let ast_expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Add, right, crate::query::parser::ast::Span::default()));
+        let left = Expr::Constant(ConstantExpr::new(
+            Value::Int(5),
+            crate::query::parser::ast::Span::default(),
+        ));
+        let right = Expr::Constant(ConstantExpr::new(
+            Value::Int(3),
+            crate::query::parser::ast::Span::default(),
+        ));
+        let ast_expr = Expr::Binary(BinaryExpr::new(
+            left,
+            BinaryOp::Add,
+            right,
+            crate::query::parser::ast::Span::default(),
+        ));
 
-        let result = convert_ast_to_graph_expression(&ast_expr).expect("Expected successful conversion of binary expression");
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of binary expression");
 
         if let Expression::Binary { left, op, right } = result {
             assert_eq!(*left, Expression::Literal(LiteralValue::Int(5)));
@@ -329,10 +358,18 @@ mod tests {
 
     #[test]
     fn test_convert_unary_expr() {
-        let operand = Expr::Constant(ConstantExpr::new(Value::Bool(true), crate::query::parser::ast::Span::default()));
-        let ast_expr = Expr::Unary(UnaryExpr::new(UnaryOp::Not, operand, crate::query::parser::ast::Span::default()));
+        let operand = Expr::Constant(ConstantExpr::new(
+            Value::Bool(true),
+            crate::query::parser::ast::Span::default(),
+        ));
+        let ast_expr = Expr::Unary(UnaryExpr::new(
+            UnaryOp::Not,
+            operand,
+            crate::query::parser::ast::Span::default(),
+        ));
 
-        let result = convert_ast_to_graph_expression(&ast_expr).expect("Expected successful conversion of unary expression");
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of unary expression");
 
         if let Expression::Unary { op, operand } = result {
             assert_eq!(op, UnaryOperator::Not);
@@ -344,13 +381,26 @@ mod tests {
 
     #[test]
     fn test_convert_unsupported_operator() {
-        let left = Expr::Constant(ConstantExpr::new(Value::Int(5), crate::query::parser::ast::Span::default()));
-        let right = Expr::Constant(ConstantExpr::new(Value::Int(3), crate::query::parser::ast::Span::default()));
-        let ast_expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Exp, right, crate::query::parser::ast::Span::default()));
+        let left = Expr::Constant(ConstantExpr::new(
+            Value::Int(5),
+            crate::query::parser::ast::Span::default(),
+        ));
+        let right = Expr::Constant(ConstantExpr::new(
+            Value::Int(3),
+            crate::query::parser::ast::Span::default(),
+        ));
+        let ast_expr = Expr::Binary(BinaryExpr::new(
+            left,
+            BinaryOp::Exp,
+            right,
+            crate::query::parser::ast::Span::default(),
+        ));
 
         let result = convert_ast_to_graph_expression(&ast_expr);
         assert!(result.is_err());
-        assert!(result.expect_err("Expected error for unsupported operator").contains("指数操作符在graph表达式中不支持"));
+        assert!(result
+            .expect_err("Expected error for unsupported operator")
+            .contains("指数操作符在graph表达式中不支持"));
     }
 
     #[test]

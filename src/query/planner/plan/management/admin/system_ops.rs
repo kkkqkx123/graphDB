@@ -4,8 +4,8 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable,
-        PlanNodeProperties, PlanNodeVisitable,
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+        PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
@@ -124,7 +124,7 @@ impl PlanNodeDependencies for SubmitJob {
 impl PlanNodeDependenciesExt for SubmitJob {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -144,7 +144,7 @@ impl PlanNodeClonable for SubmitJob {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -263,7 +263,7 @@ impl PlanNodeDependencies for CreateSnapshot {
 impl PlanNodeDependenciesExt for CreateSnapshot {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -283,7 +283,7 @@ impl PlanNodeClonable for CreateSnapshot {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -395,7 +395,7 @@ impl PlanNodeDependencies for DropSnapshot {
 impl PlanNodeDependenciesExt for DropSnapshot {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -415,7 +415,7 @@ impl PlanNodeClonable for DropSnapshot {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -524,7 +524,7 @@ impl PlanNodeDependencies for ShowSnapshots {
 impl PlanNodeDependenciesExt for ShowSnapshots {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
@@ -544,7 +544,7 @@ impl PlanNodeClonable for ShowSnapshots {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;

@@ -1,7 +1,7 @@
+use crate::core::error::DBError;
 use crate::core::{Edge, Path, Value, Vertex};
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
-use crate::core::error::DBError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -255,8 +255,7 @@ mod tests {
             .expect("Failed to increment edges created");
 
         {
-            let metrics = safe_lock(&ctx.metrics)
-                .expect("Failed to lock metrics for test");
+            let metrics = safe_lock(&ctx.metrics).expect("Failed to lock metrics for test");
             assert_eq!(metrics.vertices_created, 1);
             assert_eq!(metrics.edges_created, 1);
         }
@@ -264,7 +263,8 @@ mod tests {
         // Test session variables
         ctx.set_session_var("test_key".to_string(), Value::Int(42))
             .expect("Failed to set session variable");
-        let value = ctx.get_session_var("test_key")
+        let value = ctx
+            .get_session_var("test_key")
             .expect("Failed to get session variable");
         assert_eq!(value, Some(Value::Int(42)));
     }

@@ -8,10 +8,12 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::result_processing::traits::{
+    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
+};
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
-use crate::query::executor::result_processing::traits::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::storage::StorageEngine;
 
 /// 去重策略
@@ -56,7 +58,7 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
             "Removes duplicate records from query results".to_string(),
             storage,
         );
-        
+
         Self {
             base,
             input_executor: None,
@@ -93,7 +95,10 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
     }
 
     /// 值去重
-    async fn dedup_values(&mut self, values: Vec<Value>) -> Result<Vec<Value>, crate::query::QueryError> {
+    async fn dedup_values(
+        &mut self,
+        values: Vec<Value>,
+    ) -> Result<Vec<Value>, crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
                 self.hash_based_dedup(values, |value| format!("{:?}", value))
@@ -115,7 +120,10 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
     }
 
     /// 顶点去重
-    async fn dedup_vertices(&mut self, vertices: Vec<Vertex>) -> Result<Vec<Vertex>, crate::query::QueryError> {
+    async fn dedup_vertices(
+        &mut self,
+        vertices: Vec<Vertex>,
+    ) -> Result<Vec<Vertex>, crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
                 self.hash_based_dedup(vertices, |vertex| format!("{:?}", vertex))
@@ -142,7 +150,10 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
     }
 
     /// 边去重
-    async fn dedup_edges(&mut self, edges: Vec<Edge>) -> Result<Vec<Edge>, crate::query::QueryError> {
+    async fn dedup_edges(
+        &mut self,
+        edges: Vec<Edge>,
+    ) -> Result<Vec<Edge>, crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
                 self.hash_based_dedup(edges, |edge| format!("{:?}", edge))
@@ -172,48 +183,54 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
     }
 
     /// 数据集去重
-    async fn dedup_dataset(&mut self, dataset: &mut crate::core::value::DataSet) -> Result<(), crate::query::QueryError> {
+    async fn dedup_dataset(
+        &mut self,
+        dataset: &mut crate::core::value::DataSet,
+    ) -> Result<(), crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
                 let mut seen = HashSet::new();
                 let mut unique_rows = Vec::new();
-                
+
                 for row in &dataset.rows {
                     let key = format!("{:?}", row);
                     if seen.insert(key) {
                         unique_rows.push(row.clone());
                     }
                 }
-                
+
                 dataset.rows = unique_rows;
                 Ok(())
             }
             DedupStrategy::ByKeys(keys) => {
                 let mut seen = HashSet::new();
                 let mut unique_rows = Vec::new();
-                
+
                 for row in &dataset.rows {
                     let mut key_parts = Vec::new();
                     for key in &keys {
-                        if let Some(col_index) = dataset.col_names.iter().position(|name| name == key) {
+                        if let Some(col_index) =
+                            dataset.col_names.iter().position(|name| name == key)
+                        {
                             if col_index < row.len() {
                                 key_parts.push(format!("{:?}", row[col_index]));
                             }
                         }
                     }
                     let key = key_parts.join("|");
-                    
+
                     if seen.insert(key) {
                         unique_rows.push(row.clone());
                     }
                 }
-                
+
                 dataset.rows = unique_rows;
                 Ok(())
             }
             _ => {
                 // 对于数据集，默认使用完全去重
-                self.dedup_dataset_with_strategy(dataset, DedupStrategy::Full).await
+                self.dedup_dataset_with_strategy(dataset, DedupStrategy::Full)
+                    .await
             }
         }
     }
@@ -228,14 +245,14 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
             DedupStrategy::Full => {
                 let mut seen = HashSet::new();
                 let mut unique_rows = Vec::new();
-                
+
                 for row in &dataset.rows {
                     let key = format!("{:?}", row);
                     if seen.insert(key) {
                         unique_rows.push(row.clone());
                     }
                 }
-                
+
                 dataset.rows = unique_rows;
                 Ok(())
             }
@@ -267,7 +284,9 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
 
                 // 检查内存限制
                 if self.current_memory_usage + memory_usage > self.memory_limit {
-                    return Err(crate::query::QueryError::ExecutionError("内存限制超出".to_string()));
+                    return Err(crate::query::QueryError::ExecutionError(
+                        "内存限制超出".to_string(),
+                    ));
                 }
 
                 seen.insert(key);
@@ -357,10 +376,10 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
 impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for DedupExecutor<S> {
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         <Self as ResultProcessor<S>>::set_input(self, input.clone());
-        
+
         // 重置内存使用量
         self.reset_memory_usage();
-        
+
         // 执行去重操作
         self.execute_dedup(input).await.map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
@@ -403,7 +422,10 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for DedupExecutor<S> {
             input_exec.execute().await?
         } else {
             // 如果没有输入执行器，使用设置的输入数据
-            self.base.input.clone().unwrap_or(ExecutionResult::Values(Vec::new()))
+            self.base
+                .input
+                .clone()
+                .unwrap_or(ExecutionResult::Values(Vec::new()))
         };
 
         self.process(input_result).await
@@ -556,11 +578,18 @@ mod tests {
             Ok(())
         }
 
-        fn scan_all_vertices(&self) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_all_vertices(
+            &self,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_vertices_by_tag(
+            &self,
+            _tag: &str,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
     }
@@ -631,10 +660,16 @@ mod tests {
             storage,
         };
 
-        <DedupExecutor<MockStorage> as InputExecutor<MockStorage>>::set_input(&mut executor, Box::new(input_executor));
+        <DedupExecutor<MockStorage> as InputExecutor<MockStorage>>::set_input(
+            &mut executor,
+            Box::new(input_executor),
+        );
 
         // 执行去重
-        let result = executor.process(ExecutionResult::Values(Vec::new())).await.unwrap();
+        let result = executor
+            .process(ExecutionResult::Values(Vec::new()))
+            .await
+            .unwrap();
 
         // 验证结果
         match result {
@@ -682,7 +717,10 @@ mod tests {
         ];
 
         // 直接设置输入数据并处理
-        let result = executor.process(ExecutionResult::Values(test_data)).await.unwrap();
+        let result = executor
+            .process(ExecutionResult::Values(test_data))
+            .await
+            .unwrap();
 
         // 验证结果
         match result {

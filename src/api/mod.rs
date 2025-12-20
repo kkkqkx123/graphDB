@@ -16,7 +16,10 @@ pub async fn start_service(config_path: String) -> Result<()> {
     let config = match Config::load(&config_path) {
         Ok(config) => config,
         Err(e) => {
-            eprintln!("Failed to load config from '{}': {}, using default config", config_path, e);
+            eprintln!(
+                "Failed to load config from '{}': {}, using default config",
+                config_path, e
+            );
             Config::default()
         }
     };

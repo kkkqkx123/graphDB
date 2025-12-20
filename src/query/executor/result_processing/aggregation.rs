@@ -10,13 +10,16 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
-use crate::expression::{Expression, ExpressionEvaluator};
+use crate::expression::context::ExpressionContextCore;
 use crate::expression::ExpressionContext;
+use crate::expression::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::result_processing::traits::{
+    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
+};
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
-use crate::query::executor::result_processing::traits::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::storage::StorageEngine;
 
 /// 聚合函数类型
@@ -24,10 +27,10 @@ use crate::storage::StorageEngine;
 pub enum AggregateFunction {
     Count,
     CountDistinct(String), // 字段名
-    Sum(String),          // 字段名
-    Avg(String),          // 字段名
-    Max(String),          // 字段名
-    Min(String),          // 字段名
+    Sum(String),           // 字段名
+    Avg(String),           // 字段名
+    Max(String),           // 字段名
+    Min(String),           // 字段名
 }
 
 /// 聚合状态
@@ -57,12 +60,8 @@ impl AggregateState {
 
         // 更新 sum
         let new_sum = match &self.sum {
-            Some(sum) => {
-                Some(Self::add_values_static(sum, value)?)
-            }
-            None => {
-                Some(value.clone())
-            }
+            Some(sum) => Some(Self::add_values_static(sum, value)?),
+            None => Some(value.clone()),
         };
         self.sum = new_sum;
 
@@ -117,9 +116,7 @@ impl AggregateState {
     fn divide_value_static(value: &Value, divisor: usize) -> DBResult<Value> {
         if divisor == 0 {
             return Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Division by zero".to_string(),
-                ),
+                crate::core::error::QueryError::ExecutionError("Division by zero".to_string()),
             ));
         }
 
@@ -150,7 +147,10 @@ impl GroupAggregateState {
 
     /// 更新分组聚合状态
     pub fn update(&mut self, group_key: Vec<Value>, value: &Value) -> DBResult<()> {
-        let state = self.groups.entry(group_key).or_insert_with(AggregateState::new);
+        let state = self
+            .groups
+            .entry(group_key)
+            .or_insert_with(AggregateState::new);
         state.update(value)
     }
 }
@@ -182,7 +182,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
             "Performs aggregation operations on query results".to_string(),
             storage,
         );
-        
+
         Self {
             base,
             aggregate_functions,
@@ -197,9 +197,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
             let input_result = input_exec.execute().await?;
 
             match input_result {
-                ExecutionResult::DataSet(dataset) => {
-                    self.aggregate_dataset(dataset).await
-                }
+                ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset).await,
                 _ => Err(crate::core::error::DBError::Query(
                     crate::core::error::QueryError::ExecutionError(
                         "Aggregate executor expects DataSet input".to_string(),
@@ -216,14 +214,17 @@ impl<S: StorageEngine> AggregateExecutor<S> {
     }
 
     /// 对数据集执行聚合
-    async fn aggregate_dataset(&mut self, dataset: crate::core::value::DataSet) -> DBResult<crate::core::value::DataSet> {
+    async fn aggregate_dataset(
+        &mut self,
+        dataset: crate::core::value::DataSet,
+    ) -> DBResult<crate::core::value::DataSet> {
         let evaluator = ExpressionEvaluator::new();
         let mut group_state = GroupAggregateState::new();
 
         // 处理每一行数据
         for row in &dataset.rows {
             // 构建表达式上下文
-            let mut context = ExpressionContext::simple();
+            let mut context = ExpressionContext::default();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
                     context.set_variable(col_name.clone(), row[i].clone());
@@ -233,12 +234,14 @@ impl<S: StorageEngine> AggregateExecutor<S> {
             // 计算分组键
             let mut group_key = Vec::new();
             for group_expr in &self.group_keys {
-                let key_value = evaluator.evaluate(group_expr, &context)
-                    .map_err(|e| crate::core::error::DBError::Expression(
+                let key_value = evaluator.evaluate(group_expr, &context).map_err(|e| {
+                    crate::core::error::DBError::Expression(
                         crate::core::error::ExpressionError::FunctionError(format!(
-                            "Failed to evaluate group key: {}", e
+                            "Failed to evaluate group key: {}",
+                            e
                         )),
-                    ))?;
+                    )
+                })?;
                 group_key.push(key_value);
             }
 
@@ -251,16 +254,22 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                     }
                     AggregateFunction::CountDistinct(field) => {
                         // COUNT(DISTINCT field)
-                        if let Some(col_index) = dataset.col_names.iter().position(|name| name == field) {
+                        if let Some(col_index) =
+                            dataset.col_names.iter().position(|name| name == field)
+                        {
                             if col_index < row.len() {
                                 group_state.update(group_key.clone(), &row[col_index])?;
                             }
                         }
                     }
-                    AggregateFunction::Sum(field) | AggregateFunction::Avg(field) |
-                    AggregateFunction::Max(field) | AggregateFunction::Min(field) => {
+                    AggregateFunction::Sum(field)
+                    | AggregateFunction::Avg(field)
+                    | AggregateFunction::Max(field)
+                    | AggregateFunction::Min(field) => {
                         // 其他聚合函数
-                        if let Some(col_index) = dataset.col_names.iter().position(|name| name == field) {
+                        if let Some(col_index) =
+                            dataset.col_names.iter().position(|name| name == field)
+                        {
                             if col_index < row.len() {
                                 group_state.update(group_key.clone(), &row[col_index])?;
                             }
@@ -272,12 +281,14 @@ impl<S: StorageEngine> AggregateExecutor<S> {
 
         // 构建结果数据集
         let mut result_dataset = crate::core::value::DataSet::new();
-        
+
         // 设置列名
         for _group_expr in &self.group_keys {
-            result_dataset.col_names.push(format!("group_{}", result_dataset.col_names.len()));
+            result_dataset
+                .col_names
+                .push(format!("group_{}", result_dataset.col_names.len()));
         }
-        
+
         for agg_func in &self.aggregate_functions {
             let col_name = match agg_func {
                 AggregateFunction::Count => "count".to_string(),
@@ -293,23 +304,35 @@ impl<S: StorageEngine> AggregateExecutor<S> {
         // 填充结果行
         for (group_key, agg_state) in &group_state.groups {
             let mut result_row = Vec::new();
-            
+
             // 添加分组键值
             result_row.extend_from_slice(group_key);
-            
+
             // 添加聚合结果
             for agg_func in &self.aggregate_functions {
                 let agg_value = match agg_func {
                     AggregateFunction::Count => Value::Int(agg_state.count as i64),
                     AggregateFunction::CountDistinct(_) => Value::Int(agg_state.count as i64),
-                    AggregateFunction::Sum(_) => agg_state.sum.clone().unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Avg(_) => agg_state.avg.clone().unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Max(_) => agg_state.max.clone().unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Min(_) => agg_state.min.clone().unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
+                    AggregateFunction::Sum(_) => agg_state
+                        .sum
+                        .clone()
+                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
+                    AggregateFunction::Avg(_) => agg_state
+                        .avg
+                        .clone()
+                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
+                    AggregateFunction::Max(_) => agg_state
+                        .max
+                        .clone()
+                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
+                    AggregateFunction::Min(_) => agg_state
+                        .min
+                        .clone()
+                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
                 };
                 result_row.push(agg_value);
             }
-            
+
             result_dataset.rows.push(result_row);
         }
 
@@ -359,7 +382,10 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for AggregateExecutor<S> {
             input_exec.execute().await?
         } else {
             // 如果没有输入执行器，使用设置的输入数据
-            self.base.input.clone().unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+            self.base
+                .input
+                .clone()
+                .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
         };
 
         self.process(input_result).await
@@ -432,7 +458,12 @@ impl<S: StorageEngine> GroupByExecutor<S> {
         group_keys: Vec<Expression>,
     ) -> Self {
         Self {
-            aggregate_executor: AggregateExecutor::new(id, storage, aggregate_functions, group_keys),
+            aggregate_executor: AggregateExecutor::new(
+                id,
+                storage,
+                aggregate_functions,
+                group_keys,
+            ),
         }
     }
 }
@@ -509,7 +540,7 @@ impl<S: StorageEngine> HavingExecutor<S> {
             "Filters grouped results using HAVING clause".to_string(),
             storage,
         );
-        
+
         Self {
             base,
             condition,
@@ -549,7 +580,7 @@ impl<S: StorageEngine> HavingExecutor<S> {
 
         for row in &dataset.rows {
             // 构建表达式上下文
-            let mut context = ExpressionContext::simple();
+            let mut context = ExpressionContext::default();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
                     context.set_variable(col_name.clone(), row[i].clone());
@@ -557,12 +588,14 @@ impl<S: StorageEngine> HavingExecutor<S> {
             }
 
             // 评估 HAVING 条件
-            let condition_result = evaluator.evaluate(&self.condition, &context)
-                .map_err(|e| crate::core::error::DBError::Expression(
+            let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
+                crate::core::error::DBError::Expression(
                     crate::core::error::ExpressionError::FunctionError(format!(
-                        "Failed to evaluate HAVING condition: {}", e
+                        "Failed to evaluate HAVING condition: {}",
+                        e
                     )),
-                ))?;
+                )
+            })?;
 
             // 如果条件为真，保留该行
             if let Value::Bool(true) = condition_result {
@@ -617,7 +650,10 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for HavingExecutor<S> {
             input_exec.execute().await?
         } else {
             // 如果没有输入执行器，使用设置的输入数据
-            self.base.input.clone().unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+            self.base
+                .input
+                .clone()
+                .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
         };
 
         self.process(input_result).await
@@ -763,11 +799,18 @@ mod tests {
             Ok(())
         }
 
-        fn scan_all_vertices(&self) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_all_vertices(
+            &self,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_vertices_by_tag(
+            &self,
+            _tag: &str,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
     }
@@ -775,40 +818,47 @@ mod tests {
     #[tokio::test]
     async fn test_aggregate_executor_basic() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建测试数据
         let mut dataset = crate::core::value::DataSet::new();
         dataset.col_names = vec!["department".to_string(), "salary".to_string()];
-        dataset.rows.push(vec![Value::String("IT".to_string()), Value::Int(50000)]);
-        dataset.rows.push(vec![Value::String("HR".to_string()), Value::Int(45000)]);
-        dataset.rows.push(vec![Value::String("IT".to_string()), Value::Int(60000)]);
-        dataset.rows.push(vec![Value::String("HR".to_string()), Value::Int(48000)]);
+        dataset
+            .rows
+            .push(vec![Value::String("IT".to_string()), Value::Int(50000)]);
+        dataset
+            .rows
+            .push(vec![Value::String("HR".to_string()), Value::Int(45000)]);
+        dataset
+            .rows
+            .push(vec![Value::String("IT".to_string()), Value::Int(60000)]);
+        dataset
+            .rows
+            .push(vec![Value::String("HR".to_string()), Value::Int(48000)]);
 
         // 创建聚合执行器 (按部门分组，计算平均薪资)
-        let aggregate_functions = vec![
-            AggregateFunction::Avg("salary".to_string()),
-        ];
-        let group_keys = vec![
-            Expression::Property {
-                object: Box::new(Expression::Variable("row".to_string())),
-                property: "department".to_string(),
-            },
-        ];
-        
+        let aggregate_functions = vec![AggregateFunction::Avg("salary".to_string())];
+        let group_keys = vec![Expression::Property {
+            object: Box::new(Expression::Variable("row".to_string())),
+            property: "department".to_string(),
+        }];
+
         let mut executor = AggregateExecutor::new(1, storage, aggregate_functions, group_keys);
-        
+
         // 设置输入数据
         ResultProcessor::set_input(&mut executor, ExecutionResult::DataSet(dataset));
-        
+
         // 执行聚合
-        let result = executor.process(ExecutionResult::DataSet(crate::core::value::DataSet::new())).await.unwrap();
-        
+        let result = executor
+            .process(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+            .await
+            .unwrap();
+
         // 验证结果
         match result {
             ExecutionResult::DataSet(agg_dataset) => {
                 assert_eq!(agg_dataset.rows.len(), 2); // 两个部门
                 assert_eq!(agg_dataset.col_names, vec!["group_0", "avg_salary"]);
-                
+
                 // 验证聚合结果
                 for row in &agg_dataset.rows {
                     if let Value::String(dept) = &row[0] {

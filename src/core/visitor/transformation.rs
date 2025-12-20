@@ -736,9 +736,11 @@ impl ValueVisitor for TypeConversionVisitor {
                 Ok(Value::String(format!("[{}]", items.join(", "))))
             }
             _ => {
-                let target_type = self.target_type.as_ref().ok_or_else(||
-                    TransformationError::Transformation("Target type not specified for list conversion".to_string())
-                )?;
+                let target_type = self.target_type.as_ref().ok_or_else(|| {
+                    TransformationError::Transformation(
+                        "Target type not specified for list conversion".to_string(),
+                    )
+                })?;
                 Ok(Value::List(
                     value
                         .iter()
@@ -765,9 +767,11 @@ impl ValueVisitor for TypeConversionVisitor {
                 Ok(Value::String(format!("{{{}}}", pairs.join(", "))))
             }
             _ => {
-                let target_type = self.target_type.as_ref().ok_or_else(||
-                    TransformationError::Transformation("Target type not specified for map conversion".to_string())
-                )?;
+                let target_type = self.target_type.as_ref().ok_or_else(|| {
+                    TransformationError::Transformation(
+                        "Target type not specified for map conversion".to_string(),
+                    )
+                })?;
                 Ok(Value::Map(
                     value
                         .iter()
@@ -794,9 +798,11 @@ impl ValueVisitor for TypeConversionVisitor {
                 Ok(Value::String(format!("[{}]", items.join(", "))))
             }
             _ => {
-                let target_type = self.target_type.as_ref().ok_or_else(||
-                    TransformationError::Transformation("Target type not specified for set conversion".to_string())
-                )?;
+                let target_type = self.target_type.as_ref().ok_or_else(|| {
+                    TransformationError::Transformation(
+                        "Target type not specified for set conversion".to_string(),
+                    )
+                })?;
                 Ok(Value::Set(
                     value
                         .iter()
@@ -878,8 +884,10 @@ mod tests {
     fn test_hash_calculator_visitor() {
         let value1 = Value::Int(42);
         let value2 = Value::Int(42);
-        let hash1 = HashCalculatorVisitor::calculate_hash(&value1).expect("Failed to calculate hash");
-        let hash2 = HashCalculatorVisitor::calculate_hash(&value2).expect("Failed to calculate hash");
+        let hash1 =
+            HashCalculatorVisitor::calculate_hash(&value1).expect("Failed to calculate hash");
+        let hash2 =
+            HashCalculatorVisitor::calculate_hash(&value2).expect("Failed to calculate hash");
         assert_eq!(hash1, hash2);
     }
 

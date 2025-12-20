@@ -2,36 +2,45 @@
 //!
 //! 定义了表达式求值器的统一接口，提供类型安全和扩展性
 
-use crate::core::Value;
-use crate::expression::{Expression, ExpressionContext};
 use crate::core::ExpressionError;
+use crate::core::Value;
+use crate::expression::context::ExpressionContextCore;
+use crate::expression::{Expression, ExpressionContext};
 
 /// 表达式求值器统一接口
-/// 
+///
 /// 这个trait定义了所有表达式求值器必须实现的基本方法，
 /// 提供了类型安全和扩展性
 pub trait ExpressionEvaluator {
     /// 求值表达式
-    /// 
+    ///
     /// # 参数
     /// - `expr`: 要计算的表达式
     /// - `context`: 求值上下文
-    /// 
+    ///
     /// # 返回
     /// - `Ok(Value)`: 求值结果
     /// - `Err(ExpressionError)`: 求值错误
-    fn evaluate(&self, expr: &Expression, context: &ExpressionContext) -> Result<Value, ExpressionError>;
+    fn evaluate(
+        &self,
+        expr: &Expression,
+        context: &ExpressionContext,
+    ) -> Result<Value, ExpressionError>;
 
     /// 批量求值表达式
-    /// 
+    ///
     /// # 参数
     /// - `exprs`: 表达式列表
     /// - `context`: 求值上下文
-    /// 
+    ///
     /// # 返回
     /// - `Ok(Vec<Value>)`: 求值结果列表
     /// - `Err(ExpressionError)`: 求值错误
-    fn evaluate_batch(&self, exprs: &[Expression], context: &ExpressionContext) -> Result<Vec<Value>, ExpressionError> {
+    fn evaluate_batch(
+        &self,
+        exprs: &[Expression],
+        context: &ExpressionContext,
+    ) -> Result<Vec<Value>, ExpressionError> {
         let mut results = Vec::with_capacity(exprs.len());
         for expr in exprs {
             results.push(self.evaluate(expr, context)?);
@@ -40,39 +49,39 @@ pub trait ExpressionEvaluator {
     }
 
     /// 检查表达式是否为常量
-    /// 
+    ///
     /// # 参数
     /// - `expr`: 要检查的表达式
-    /// 
+    ///
     /// # 返回
     /// `true`: 如果表达式是常量，`false` 否则
     fn is_constant(&self, expr: &Expression) -> bool;
 
     /// 获取表达式中使用的所有变量
-    /// 
+    ///
     /// # 参数
     /// - `expr`: 要分析的表达式
-    /// 
+    ///
     /// # 返回
     /// 变量名列表（去重且排序）
     fn get_variables(&self, expr: &Expression) -> Vec<String>;
 
     /// 检查表达式是否包含聚合函数
-    /// 
+    ///
     /// # 参数
     /// - `expr`: 要检查的表达式
-    /// 
+    ///
     /// # 返回
     /// `true`: 如果包含聚合函数，`false` 否则
     fn contains_aggregate(&self, expr: &Expression) -> bool;
 
     /// 优化表达式（可选实现）
-    /// 
+    ///
     /// 默认实现返回表达式本身，子类可以重写以提供优化
-    /// 
+    ///
     /// # 参数
     /// - `expr`: 要优化的表达式
-    /// 
+    ///
     /// # 返回
     /// 优化后的表达式
     fn optimize(&self, expr: Expression) -> Expression {
@@ -80,12 +89,12 @@ pub trait ExpressionEvaluator {
     }
 
     /// 验证表达式（可选实现）
-    /// 
+    ///
     /// 默认实现返回Ok，子类可以重写以提供验证逻辑
-    /// 
+    ///
     /// # 参数
     /// - `expr`: 要验证的表达式
-    /// 
+    ///
     /// # 返回
     /// `Ok(())`: 验证通过，`Err(ExpressionError)` 验证失败
     fn validate(&self, _expr: &Expression) -> Result<(), ExpressionError> {
@@ -99,7 +108,7 @@ pub trait ExpressionEvaluator {
 }
 
 /// 默认表达式求值器实现
-/// 
+///
 /// 提供了基本的表达式求值功能
 #[derive(Debug, Clone)]
 pub struct DefaultExpressionEvaluator;
@@ -112,12 +121,20 @@ impl DefaultExpressionEvaluator {
 }
 
 impl ExpressionEvaluator for DefaultExpressionEvaluator {
-    fn evaluate(&self, expr: &Expression, context: &ExpressionContext) -> Result<Value, ExpressionError> {
+    fn evaluate(
+        &self,
+        expr: &Expression,
+        context: &ExpressionContext,
+    ) -> Result<Value, ExpressionError> {
         // 委托给具体的求值实现
         self.eval_expression(expr, context)
     }
 
-    fn evaluate_batch(&self, exprs: &[Expression], context: &ExpressionContext) -> Result<Vec<Value>, ExpressionError> {
+    fn evaluate_batch(
+        &self,
+        exprs: &[Expression],
+        context: &ExpressionContext,
+    ) -> Result<Vec<Value>, ExpressionError> {
         let mut results = Vec::with_capacity(exprs.len());
         for expr in exprs {
             results.push(self.evaluate(expr, context)?);
@@ -146,8 +163,10 @@ impl ExpressionEvaluator for DefaultExpressionEvaluator {
         match expr {
             Expression::Aggregate { .. } => true,
             Expression::Function { name, .. } => {
-                matches!(name.to_lowercase().as_str(),
-                    "count" | "sum" | "avg" | "min" | "max" | "collect" | "distinct")
+                matches!(
+                    name.to_lowercase().as_str(),
+                    "count" | "sum" | "avg" | "min" | "max" | "collect" | "distinct"
+                )
             }
             _ => {
                 // 递归检查子表达式
@@ -168,7 +187,11 @@ impl ExpressionEvaluator for DefaultExpressionEvaluator {
 
 impl DefaultExpressionEvaluator {
     /// 内部求值实现
-    fn eval_expression(&self, expr: &Expression, context: &ExpressionContext) -> Result<Value, ExpressionError> {
+    fn eval_expression(
+        &self,
+        expr: &Expression,
+        context: &ExpressionContext,
+    ) -> Result<Value, ExpressionError> {
         match expr {
             Expression::Literal(literal_value) => {
                 // 将 LiteralValue 转换为 Value
@@ -177,7 +200,9 @@ impl DefaultExpressionEvaluator {
                     crate::expression::LiteralValue::Int(i) => Ok(Value::Int(*i)),
                     crate::expression::LiteralValue::Float(f) => Ok(Value::Float(*f)),
                     crate::expression::LiteralValue::String(s) => Ok(Value::String(s.clone())),
-                    crate::expression::LiteralValue::Null => Ok(Value::Null(crate::core::NullType::Null)),
+                    crate::expression::LiteralValue::Null => {
+                        Ok(Value::Null(crate::core::NullType::Null))
+                    }
                 }
             }
             Expression::Variable(var_name) => {
@@ -195,14 +220,14 @@ impl DefaultExpressionEvaluator {
                 // 求值左右操作数
                 let left_val = self.eval_expression(left, context)?;
                 let right_val = self.eval_expression(right, context)?;
-                
+
                 // 执行二元操作
                 self.eval_binary_operation(&left_val, op, &right_val)
             }
             Expression::Unary { op, operand } => {
                 // 求值操作数
                 let operand_val = self.eval_expression(operand, context)?;
-                
+
                 // 执行一元操作
                 self.eval_unary_operation(op, &operand_val)
             }
@@ -212,16 +237,20 @@ impl DefaultExpressionEvaluator {
                     .iter()
                     .map(|arg| self.eval_expression(arg, context))
                     .collect();
-                
+
                 let arg_values = arg_values?;
-                
+
                 // 执行函数调用
                 self.eval_function(name, &arg_values)
             }
-            Expression::Aggregate { func, arg, distinct } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
                 // 求值聚合参数
                 let arg_val = self.eval_expression(arg, context)?;
-                
+
                 // 执行聚合函数
                 self.eval_aggregate(func, &arg_val, *distinct)
             }
@@ -231,7 +260,7 @@ impl DefaultExpressionEvaluator {
                     .iter()
                     .map(|item| self.eval_expression(item, context))
                     .collect();
-                
+
                 Ok(Value::List(evaluated_items?))
             }
             Expression::Map(pairs) => {
@@ -243,28 +272,29 @@ impl DefaultExpressionEvaluator {
                         Ok((key.clone(), evaluated_value))
                     })
                     .collect();
-                
+
                 let map = evaluated_pairs?.into_iter().collect();
                 Ok(Value::Map(map))
             }
             Expression::Property { object, property } => {
                 // 求值对象
                 let obj_val = self.eval_expression(object, context)?;
-                
+
                 // 获取属性
                 self.get_property(&obj_val, property)
             }
             Expression::TypeCast { expr, target_type } => {
                 // 求值表达式
                 let value = self.eval_expression(expr, context)?;
-                
+
                 // 执行类型转换
                 self.cast_value(&value, target_type)
             }
             // 其他表达式类型的处理...
-            _ => Err(ExpressionError::InvalidOperation(
-                format!("Expression type not yet supported: {:?}", expr)
-            )),
+            _ => Err(ExpressionError::InvalidOperation(format!(
+                "Expression type not yet supported: {:?}",
+                expr
+            ))),
         }
     }
 
@@ -313,9 +343,14 @@ impl DefaultExpressionEvaluator {
     }
 
     /// 执行二元操作
-    fn eval_binary_operation(&self, left: &Value, op: &crate::expression::BinaryOperator, right: &Value) -> Result<Value, ExpressionError> {
+    fn eval_binary_operation(
+        &self,
+        left: &Value,
+        op: &crate::expression::BinaryOperator,
+        right: &Value,
+    ) -> Result<Value, ExpressionError> {
         use crate::expression::BinaryOperator;
-        
+
         match op {
             BinaryOperator::Add => self.add_values(left, right),
             BinaryOperator::Subtract => self.subtract_values(left, right),
@@ -324,23 +359,40 @@ impl DefaultExpressionEvaluator {
             BinaryOperator::Modulo => self.modulo_values(left, right),
             BinaryOperator::Equal => Ok(Value::Bool(self.values_equal(left, right))),
             BinaryOperator::NotEqual => Ok(Value::Bool(!self.values_equal(left, right))),
-            BinaryOperator::LessThan => Ok(Value::Bool(matches!(self.compare_values(left, right), std::cmp::Ordering::Less))),
-            BinaryOperator::LessThanOrEqual => Ok(Value::Bool(!matches!(self.compare_values(left, right), std::cmp::Ordering::Greater))),
-            BinaryOperator::GreaterThan => Ok(Value::Bool(matches!(self.compare_values(left, right), std::cmp::Ordering::Greater))),
-            BinaryOperator::GreaterThanOrEqual => Ok(Value::Bool(!matches!(self.compare_values(left, right), std::cmp::Ordering::Less))),
+            BinaryOperator::LessThan => Ok(Value::Bool(matches!(
+                self.compare_values(left, right),
+                std::cmp::Ordering::Less
+            ))),
+            BinaryOperator::LessThanOrEqual => Ok(Value::Bool(!matches!(
+                self.compare_values(left, right),
+                std::cmp::Ordering::Greater
+            ))),
+            BinaryOperator::GreaterThan => Ok(Value::Bool(matches!(
+                self.compare_values(left, right),
+                std::cmp::Ordering::Greater
+            ))),
+            BinaryOperator::GreaterThanOrEqual => Ok(Value::Bool(!matches!(
+                self.compare_values(left, right),
+                std::cmp::Ordering::Less
+            ))),
             BinaryOperator::And => Ok(self.logical_and(left, right)),
             BinaryOperator::Or => Ok(self.logical_or(left, right)),
             // 其他操作符...
-            _ => Err(ExpressionError::InvalidOperation(
-                format!("Binary operator not yet supported: {:?}", op)
-            )),
+            _ => Err(ExpressionError::InvalidOperation(format!(
+                "Binary operator not yet supported: {:?}",
+                op
+            ))),
         }
     }
 
     /// 执行一元操作
-    fn eval_unary_operation(&self, op: &crate::expression::UnaryOperator, operand: &Value) -> Result<Value, ExpressionError> {
+    fn eval_unary_operation(
+        &self,
+        op: &crate::expression::UnaryOperator,
+        operand: &Value,
+    ) -> Result<Value, ExpressionError> {
         use crate::expression::UnaryOperator;
-        
+
         match op {
             UnaryOperator::Plus => Ok(operand.clone()),
             UnaryOperator::Minus => Ok(self.negate_value(operand)),
@@ -348,9 +400,10 @@ impl DefaultExpressionEvaluator {
             UnaryOperator::IsNull => Ok(Value::Bool(matches!(operand, Value::Null(_)))),
             UnaryOperator::IsNotNull => Ok(Value::Bool(!matches!(operand, Value::Null(_)))),
             // 其他操作符...
-            _ => Err(ExpressionError::InvalidOperation(
-                format!("Unary operator not yet supported: {:?}", op)
-            )),
+            _ => Err(ExpressionError::InvalidOperation(format!(
+                "Unary operator not yet supported: {:?}",
+                op
+            ))),
         }
     }
 
@@ -366,9 +419,14 @@ impl DefaultExpressionEvaluator {
     }
 
     /// 执行聚合函数
-    fn eval_aggregate(&self, func: &crate::expression::AggregateFunction, arg: &Value, distinct: bool) -> Result<Value, ExpressionError> {
+    fn eval_aggregate(
+        &self,
+        func: &crate::expression::AggregateFunction,
+        arg: &Value,
+        distinct: bool,
+    ) -> Result<Value, ExpressionError> {
         use crate::expression::AggregateFunction;
-        
+
         match func {
             AggregateFunction::Count => {
                 if let Value::List(items) = arg {
@@ -388,12 +446,12 @@ impl DefaultExpressionEvaluator {
             }
             AggregateFunction::Sum => {
                 if let Value::List(items) = arg {
-                    let sum = items.iter().try_fold(0i64, |acc, val| {
-                        match val {
-                            Value::Int(i) => Ok(acc + i),
-                            Value::Float(f) => Ok(acc + *f as i64),
-                            _ => Err(ExpressionError::TypeError("Sum requires numeric values".to_string())),
-                        }
+                    let sum = items.iter().try_fold(0i64, |acc, val| match val {
+                        Value::Int(i) => Ok(acc + i),
+                        Value::Float(f) => Ok(acc + *f as i64),
+                        _ => Err(ExpressionError::TypeError(
+                            "Sum requires numeric values".to_string(),
+                        )),
                     });
                     Ok(Value::Int(sum?))
                 } else {
@@ -405,12 +463,12 @@ impl DefaultExpressionEvaluator {
                     if items.is_empty() {
                         return Ok(Value::Null(crate::core::NullType::Null));
                     }
-                    let sum = items.iter().try_fold(0.0, |acc, val| {
-                        match val {
-                            Value::Int(i) => Ok(acc + *i as f64),
-                            Value::Float(f) => Ok(acc + f),
-                            _ => Err(ExpressionError::TypeError("Avg requires numeric values".to_string())),
-                        }
+                    let sum = items.iter().try_fold(0.0, |acc, val| match val {
+                        Value::Int(i) => Ok(acc + *i as f64),
+                        Value::Float(f) => Ok(acc + f),
+                        _ => Err(ExpressionError::TypeError(
+                            "Avg requires numeric values".to_string(),
+                        )),
                     });
                     Ok(Value::Float(sum? / items.len() as f64))
                 } else {
@@ -422,9 +480,10 @@ impl DefaultExpressionEvaluator {
                     if items.is_empty() {
                         return Ok(Value::Null(crate::core::NullType::Null));
                     }
-                    let min = items.iter().min_by(|a, b| {
-                        self.compare_values(a, b)
-                    }).cloned();
+                    let min = items
+                        .iter()
+                        .min_by(|a, b| self.compare_values(a, b))
+                        .cloned();
                     Ok(min.unwrap_or(Value::Null(crate::core::NullType::Null)))
                 } else {
                     Ok(arg.clone())
@@ -435,18 +494,20 @@ impl DefaultExpressionEvaluator {
                     if items.is_empty() {
                         return Ok(Value::Null(crate::core::NullType::Null));
                     }
-                    let max = items.iter().max_by(|a, b| {
-                        self.compare_values(a, b)
-                    }).cloned();
+                    let max = items
+                        .iter()
+                        .max_by(|a, b| self.compare_values(a, b))
+                        .cloned();
                     Ok(max.unwrap_or(Value::Null(crate::core::NullType::Null)))
                 } else {
                     Ok(arg.clone())
                 }
             }
             // 其他聚合函数...
-            _ => Err(ExpressionError::InvalidOperation(
-                format!("Aggregate function not yet supported: {:?}", func)
-            )),
+            _ => Err(ExpressionError::InvalidOperation(format!(
+                "Aggregate function not yet supported: {:?}",
+                func
+            ))),
         }
     }
 
@@ -457,7 +518,9 @@ impl DefaultExpressionEvaluator {
             (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
             (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 + b)),
             (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a + *b as f64)),
-            _ => Err(ExpressionError::TypeError("Add operation requires numeric values".to_string())),
+            _ => Err(ExpressionError::TypeError(
+                "Add operation requires numeric values".to_string(),
+            )),
         }
     }
 
@@ -467,7 +530,9 @@ impl DefaultExpressionEvaluator {
             (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a - b)),
             (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 - b)),
             (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a - *b as f64)),
-            _ => Err(ExpressionError::TypeError("Subtract operation requires numeric values".to_string())),
+            _ => Err(ExpressionError::TypeError(
+                "Subtract operation requires numeric values".to_string(),
+            )),
         }
     }
 
@@ -477,7 +542,9 @@ impl DefaultExpressionEvaluator {
             (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a * b)),
             (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 * b)),
             (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a * *b as f64)),
-            _ => Err(ExpressionError::TypeError("Multiply operation requires numeric values".to_string())),
+            _ => Err(ExpressionError::TypeError(
+                "Multiply operation requires numeric values".to_string(),
+            )),
         }
     }
 
@@ -485,33 +552,43 @@ impl DefaultExpressionEvaluator {
         match (left, right) {
             (Value::Int(a), Value::Int(b)) => {
                 if *b == 0 {
-                    Err(ExpressionError::InvalidOperation("Division by zero".to_string()))
+                    Err(ExpressionError::InvalidOperation(
+                        "Division by zero".to_string(),
+                    ))
                 } else {
                     Ok(Value::Int(a / b))
                 }
             }
             (Value::Float(a), Value::Float(b)) => {
                 if *b == 0.0 {
-                    Err(ExpressionError::InvalidOperation("Division by zero".to_string()))
+                    Err(ExpressionError::InvalidOperation(
+                        "Division by zero".to_string(),
+                    ))
                 } else {
                     Ok(Value::Float(a / b))
                 }
             }
             (Value::Int(a), Value::Float(b)) => {
                 if *b == 0.0 {
-                    Err(ExpressionError::InvalidOperation("Division by zero".to_string()))
+                    Err(ExpressionError::InvalidOperation(
+                        "Division by zero".to_string(),
+                    ))
                 } else {
                     Ok(Value::Float(*a as f64 / b))
                 }
             }
             (Value::Float(a), Value::Int(b)) => {
                 if *b == 0 {
-                    Err(ExpressionError::InvalidOperation("Division by zero".to_string()))
+                    Err(ExpressionError::InvalidOperation(
+                        "Division by zero".to_string(),
+                    ))
                 } else {
                     Ok(Value::Float(a / *b as f64))
                 }
             }
-            _ => Err(ExpressionError::TypeError("Divide operation requires numeric values".to_string())),
+            _ => Err(ExpressionError::TypeError(
+                "Divide operation requires numeric values".to_string(),
+            )),
         }
     }
 
@@ -519,12 +596,16 @@ impl DefaultExpressionEvaluator {
         match (left, right) {
             (Value::Int(a), Value::Int(b)) => {
                 if *b == 0 {
-                    Err(ExpressionError::InvalidOperation("Division by zero".to_string()))
+                    Err(ExpressionError::InvalidOperation(
+                        "Division by zero".to_string(),
+                    ))
                 } else {
                     Ok(Value::Int(a % b))
                 }
             }
-            _ => Err(ExpressionError::TypeError("Modulo operation requires integer values".to_string())),
+            _ => Err(ExpressionError::TypeError(
+                "Modulo operation requires integer values".to_string(),
+            )),
         }
     }
 
@@ -543,9 +624,13 @@ impl DefaultExpressionEvaluator {
         match (left, right) {
             (Value::Int(a), Value::Int(b)) => a.cmp(b),
             (Value::Float(a), Value::Float(b)) => {
-                if a < b { std::cmp::Ordering::Less }
-                else if a > b { std::cmp::Ordering::Greater }
-                else { std::cmp::Ordering::Equal }
+                if a < b {
+                    std::cmp::Ordering::Less
+                } else if a > b {
+                    std::cmp::Ordering::Greater
+                } else {
+                    std::cmp::Ordering::Equal
+                }
             }
             (Value::String(a), Value::String(b)) => a.cmp(b),
             _ => std::cmp::Ordering::Equal,
@@ -594,49 +679,45 @@ impl DefaultExpressionEvaluator {
         }
     }
 
-    fn cast_value(&self, value: &Value, target_type: &crate::expression::DataType) -> Result<Value, ExpressionError> {
+    fn cast_value(
+        &self,
+        value: &Value,
+        target_type: &crate::expression::DataType,
+    ) -> Result<Value, ExpressionError> {
         use crate::expression::DataType;
-        
+
         match (value, target_type) {
-            (_, DataType::Bool) => {
-                match value {
-                    Value::Bool(_) => Ok(value.clone()),
-                    Value::Int(i) => Ok(Value::Bool(*i != 0)),
-                    Value::Float(f) => Ok(Value::Bool(*f != 0.0)),
-                    Value::String(s) => Ok(Value::Bool(!s.is_empty())),
-                    _ => Ok(Value::Bool(false)),
-                }
-            }
-            (_, DataType::Int) => {
-                match value {
-                    Value::Int(_) => Ok(value.clone()),
-                    Value::Float(f) => Ok(Value::Int(*f as i64)),
-                    Value::String(s) => {
-                        s.parse::<i64>()
-                            .map(Value::Int)
-                            .map_err(|_| ExpressionError::TypeError("Cannot convert string to int".to_string()))
-                    }
-                    _ => Err(ExpressionError::TypeError("Cannot convert to int".to_string())),
-                }
-            }
-            (_, DataType::Float) => {
-                match value {
-                    Value::Int(i) => Ok(Value::Float(*i as f64)),
-                    Value::Float(_) => Ok(value.clone()),
-                    Value::String(s) => {
-                        s.parse::<f64>()
-                            .map(Value::Float)
-                            .map_err(|_| ExpressionError::TypeError("Cannot convert string to float".to_string()))
-                    }
-                    _ => Err(ExpressionError::TypeError("Cannot convert to float".to_string())),
-                }
-            }
-            (_, DataType::String) => {
-                match value {
-                    Value::String(_) => Ok(value.clone()),
-                    _ => Ok(Value::String(format!("{:?}", value))),
-                }
-            }
+            (_, DataType::Bool) => match value {
+                Value::Bool(_) => Ok(value.clone()),
+                Value::Int(i) => Ok(Value::Bool(*i != 0)),
+                Value::Float(f) => Ok(Value::Bool(*f != 0.0)),
+                Value::String(s) => Ok(Value::Bool(!s.is_empty())),
+                _ => Ok(Value::Bool(false)),
+            },
+            (_, DataType::Int) => match value {
+                Value::Int(_) => Ok(value.clone()),
+                Value::Float(f) => Ok(Value::Int(*f as i64)),
+                Value::String(s) => s.parse::<i64>().map(Value::Int).map_err(|_| {
+                    ExpressionError::TypeError("Cannot convert string to int".to_string())
+                }),
+                _ => Err(ExpressionError::TypeError(
+                    "Cannot convert to int".to_string(),
+                )),
+            },
+            (_, DataType::Float) => match value {
+                Value::Int(i) => Ok(Value::Float(*i as f64)),
+                Value::Float(_) => Ok(value.clone()),
+                Value::String(s) => s.parse::<f64>().map(Value::Float).map_err(|_| {
+                    ExpressionError::TypeError("Cannot convert string to float".to_string())
+                }),
+                _ => Err(ExpressionError::TypeError(
+                    "Cannot convert to float".to_string(),
+                )),
+            },
+            (_, DataType::String) => match value {
+                Value::String(_) => Ok(value.clone()),
+                _ => Ok(Value::String(format!("{:?}", value))),
+            },
             _ => Ok(value.clone()),
         }
     }
@@ -645,11 +726,13 @@ impl DefaultExpressionEvaluator {
         if args.len() != 1 {
             return Err(ExpressionError::InvalidArgumentCount("abs".to_string()));
         }
-        
+
         match &args[0] {
             Value::Int(i) => Ok(Value::Int(i.abs())),
             Value::Float(f) => Ok(Value::Float(f.abs())),
-            _ => Err(ExpressionError::TypeError("abs expects numeric argument".to_string())),
+            _ => Err(ExpressionError::TypeError(
+                "abs expects numeric argument".to_string(),
+            )),
         }
     }
 
@@ -657,11 +740,13 @@ impl DefaultExpressionEvaluator {
         if args.len() != 1 {
             return Err(ExpressionError::InvalidArgumentCount("length".to_string()));
         }
-        
+
         match &args[0] {
             Value::String(s) => Ok(Value::Int(s.len() as i64)),
             Value::List(list) => Ok(Value::Int(list.len() as i64)),
-            _ => Err(ExpressionError::TypeError("length expects string or list argument".to_string())),
+            _ => Err(ExpressionError::TypeError(
+                "length expects string or list argument".to_string(),
+            )),
         }
     }
 
@@ -669,7 +754,7 @@ impl DefaultExpressionEvaluator {
         if args.len() != 1 {
             return Err(ExpressionError::InvalidArgumentCount("type".to_string()));
         }
-        
+
         let type_name = match &args[0] {
             Value::Null(_) => "NULL",
             Value::Bool(_) => "BOOLEAN",
@@ -686,7 +771,7 @@ impl DefaultExpressionEvaluator {
             Value::Time(_) => "TIME",
             _ => "UNKNOWN",
         };
-        
+
         Ok(Value::String(type_name.to_string()))
     }
 }
@@ -703,34 +788,42 @@ pub fn default_evaluator() -> DefaultExpressionEvaluator {
 }
 
 /// 便捷函数：使用默认求值器求值表达式
-pub fn evaluate_expression(expr: &Expression, context: &ExpressionContext) -> Result<Value, ExpressionError> {
+pub fn evaluate_expression(
+    expr: &Expression,
+    context: &ExpressionContext,
+) -> Result<Value, ExpressionError> {
     default_evaluator().evaluate(expr, context)
 }
 
 /// 便捷函数：使用默认求值器批量求值表达式
-pub fn evaluate_expressions(exprs: &[Expression], context: &ExpressionContext) -> Result<Vec<Value>, ExpressionError> {
+pub fn evaluate_expressions(
+    exprs: &[Expression],
+    context: &ExpressionContext,
+) -> Result<Vec<Value>, ExpressionError> {
     default_evaluator().evaluate_batch(exprs, context)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::{Expression, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction};
+    use crate::expression::{
+        AggregateFunction, BinaryOperator, Expression, LiteralValue, UnaryOperator,
+    };
 
     #[test]
     fn test_default_evaluator() {
         let evaluator = DefaultExpressionEvaluator::new();
-        let context = ExpressionContext::simple();
-        
+        let context = ExpressionContext::default();
+
         // 测试字面量求值
         let expr = Expression::Literal(LiteralValue::Int(42));
         let result = evaluator.evaluate(&expr, &context).unwrap();
         assert_eq!(result, Value::Int(42));
-        
+
         // 测试变量求值
-        let mut ctx = ExpressionContext::simple();
+        let mut ctx = ExpressionContext::default();
         ctx.set_variable("x".to_string(), Value::Int(100));
-        
+
         let expr = Expression::Variable("x".to_string());
         let result = evaluator.evaluate(&expr, &ctx).unwrap();
         assert_eq!(result, Value::Int(100));
@@ -739,8 +832,8 @@ mod tests {
     #[test]
     fn test_binary_operations() {
         let evaluator = DefaultExpressionEvaluator::new();
-        let context = ExpressionContext::simple();
-        
+        let context = ExpressionContext::default();
+
         // 测试加法
         let left = Expression::Literal(LiteralValue::Int(10));
         let right = Expression::Literal(LiteralValue::Int(20));
@@ -749,7 +842,7 @@ mod tests {
             op: BinaryOperator::Add,
             right: Box::new(right),
         };
-        
+
         let result = evaluator.evaluate(&expr, &context).unwrap();
         assert_eq!(result, Value::Int(30));
     }
@@ -757,11 +850,11 @@ mod tests {
     #[test]
     fn test_constant_checking() {
         let evaluator = DefaultExpressionEvaluator::new();
-        
+
         // 测试常量表达式
         let constant_expr = Expression::Literal(LiteralValue::Int(42));
         assert!(evaluator.is_constant(&constant_expr));
-        
+
         // 测试非常量表达式
         let variable_expr = Expression::Variable("x".to_string());
         assert!(!evaluator.is_constant(&variable_expr));
@@ -770,11 +863,11 @@ mod tests {
     #[test]
     fn test_variable_collection() {
         let evaluator = DefaultExpressionEvaluator::new();
-        
+
         let expr = Expression::Variable("x".to_string());
         let variables = evaluator.get_variables(&expr);
         assert_eq!(variables, vec!["x"]);
-        
+
         // 测试复杂表达式
         let complex_expr = Expression::Binary {
             left: Box::new(Expression::Variable("x".to_string())),

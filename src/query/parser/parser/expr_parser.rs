@@ -345,7 +345,6 @@ impl super::Parser {
         }
     }
 
-
     /// 解析整数
     fn parse_integer(&mut self) -> Result<i64, ParseError> {
         if let LexerToken::IntegerLiteral(n) = self.current_token.kind {

@@ -337,8 +337,7 @@ mod tests {
         );
 
         // 测试从常量表达式中提取别名（应该返回None）
-        let const_expr =
-            Expression::Literal(crate::expression::expression::LiteralValue::Int(42));
+        let const_expr = Expression::Literal(crate::expression::expression::LiteralValue::Int(42));
         assert_eq!(strategy.extract_alias_name(&const_expr), None);
     }
 }

@@ -1,7 +1,7 @@
 //! Cypher模式定义
 
-use std::collections::HashMap;
 use crate::query::parser::cypher::ast::expressions::Expression;
+use std::collections::HashMap;
 
 /// 模式定义
 #[derive(Debug, Clone)]
@@ -59,11 +59,23 @@ mod tests {
             variable: Some("n".to_string()),
             labels: vec!["Person".to_string(), "User".to_string()],
             properties: Some(HashMap::from([
-                ("name".to_string(), Expression::Literal(crate::query::parser::cypher::ast::expressions::Literal::String("Alice".to_string()))),
-                ("age".to_string(), Expression::Literal(crate::query::parser::cypher::ast::expressions::Literal::Integer(25))),
+                (
+                    "name".to_string(),
+                    Expression::Literal(
+                        crate::query::parser::cypher::ast::expressions::Literal::String(
+                            "Alice".to_string(),
+                        ),
+                    ),
+                ),
+                (
+                    "age".to_string(),
+                    Expression::Literal(
+                        crate::query::parser::cypher::ast::expressions::Literal::Integer(25),
+                    ),
+                ),
             ])),
         };
-        
+
         assert_eq!(node.variable, Some("n".to_string()));
         assert_eq!(node.labels.len(), 2);
         assert!(node.properties.is_some());

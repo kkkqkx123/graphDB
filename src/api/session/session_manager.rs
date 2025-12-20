@@ -59,7 +59,10 @@ impl GraphSessionManager {
         // Add to sessions and active sessions
         {
             let mut sessions = self.sessions.lock().expect("Sessions lock was poisoned");
-            let mut active_sessions = self.active_sessions.lock().expect("Active sessions lock was poisoned");
+            let mut active_sessions = self
+                .active_sessions
+                .lock()
+                .expect("Active sessions lock was poisoned");
 
             sessions.insert(session_id, Arc::clone(&client_session));
             active_sessions.insert(session_id, Instant::now());
@@ -83,7 +86,10 @@ impl GraphSessionManager {
     pub fn remove_session(&self, session_id: i64) {
         {
             let mut sessions = self.sessions.lock().expect("Sessions lock was poisoned");
-            let mut active_sessions = self.active_sessions.lock().expect("Active sessions lock was poisoned");
+            let mut active_sessions = self
+                .active_sessions
+                .lock()
+                .expect("Active sessions lock was poisoned");
 
             sessions.remove(&session_id);
             active_sessions.remove(&session_id);
@@ -101,7 +107,10 @@ impl GraphSessionManager {
 
     /// Whether exceeds the max allowed connections
     pub fn is_out_of_connections(&self) -> bool {
-        let active_sessions = self.active_sessions.lock().expect("Active sessions lock was poisoned");
+        let active_sessions = self
+            .active_sessions
+            .lock()
+            .expect("Active sessions lock was poisoned");
         active_sessions.len() >= MAX_ALLOWED_CONNECTIONS
     }
 
@@ -127,7 +136,10 @@ impl GraphSessionManager {
 
     /// Reclaims expired sessions
     fn reclaim_expired_sessions(&self) {
-        let active_sessions = self.active_sessions.lock().expect("Active sessions lock was poisoned");
+        let active_sessions = self
+            .active_sessions
+            .lock()
+            .expect("Active sessions lock was poisoned");
         let expired_sessions: Vec<i64> = active_sessions
             .iter()
             .filter(|(_, last_activity)| last_activity.elapsed() > SESSION_IDLE_TIMEOUT)
@@ -165,7 +177,9 @@ mod tests {
         assert_eq!(session.user(), "testuser");
         assert!(!session_manager.is_out_of_connections());
 
-        let found_session = session_manager.find_session(session.id()).expect("Failed to find session");
+        let found_session = session_manager
+            .find_session(session.id())
+            .expect("Failed to find session");
         assert_eq!(found_session.user(), "testuser");
 
         // Test find non-existent session

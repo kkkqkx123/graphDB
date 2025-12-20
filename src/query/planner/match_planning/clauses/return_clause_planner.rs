@@ -2,15 +2,15 @@
 //! 架构重构：实现统一的 CypherClausePlanner 接口
 //!
 //! ## 重构说明
-//! 
+//!
 //! ### 删除冗余方法
 //! - 移除 `validate_input`, `can_start_flow`, `requires_input` 等冗余方法
 //! - 通过 `flow_direction()` 统一表达数据流行为
-//! 
+//!
 //! ### 简化变量管理
 //! - RETURN 子句标记输出变量，但不产生新变量
 //! - 移除不必要的 `VariableRequirement` 和 `VariableProvider`
-//! 
+//!
 //! ### 优化实现逻辑
 //! - 专注于核心的投影和输出功能
 //! - 简化排序、分页和去重处理
@@ -18,30 +18,32 @@
 use super::order_by_planner::OrderByClausePlanner;
 use super::pagination_planner::PaginationPlanner;
 use super::yield_planner::YieldClausePlanner;
-use crate::query::planner::match_planning::core::ClauseType;
-use crate::query::planner::match_planning::core::cypher_clause_planner::{CypherClausePlanner, DataFlowNode, PlanningContext};
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
+use crate::query::planner::match_planning::core::cypher_clause_planner::{
+    CypherClausePlanner, DataFlowNode, PlanningContext,
+};
+use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
 
 /// RETURN 子句规划器
-/// 
+///
 /// 负责规划 RETURN 子句的执行。RETURN 子句是一个输出子句，
 /// 它需要输入数据流并根据指定的投影列、排序、分页和去重选项对结果进行处理。
-/// 
+///
 /// # 示例
-/// 
+///
 /// ```cypher
 /// MATCH (n:Person)
 /// RETURN n.name, n.age
 /// ORDER BY n.age DESC
 /// LIMIT 10
 /// ```
-/// 
+///
 /// 在上面的例子中，RETURN 子句会返回人员的姓名和年龄，按年龄降序排列，并限制返回10条记录。
 #[derive(Debug)]
 pub struct ReturnClausePlanner;
@@ -53,15 +55,15 @@ impl ReturnClausePlanner {
     }
 
     /// 构建 RETURN 子句的执行计划
-    /// 
+    ///
     /// # 参数
-    /// 
+    ///
     /// * `return_clause_ctx` - RETURN 子句的上下文信息
     /// * `input_plan` - 输入的执行计划
     /// * `context` - 规划上下文
-    /// 
+    ///
     /// # 返回值
-    /// 
+    ///
     /// 返回包含 RETURN 子句执行计划的 SubPlan
     fn build_return(
         &self,
@@ -85,19 +87,15 @@ impl ReturnClausePlanner {
         if let Some(order_by) = &return_clause_ctx.order_by {
             let order_by_planner = OrderByClausePlanner::new();
             let order_by_clause_ctx = CypherClauseContext::OrderBy(order_by.clone());
-            let order_plan = order_by_planner.transform(&order_by_clause_ctx, Some(&plan), context)?;
+            let order_plan =
+                order_by_planner.transform(&order_by_clause_ctx, Some(&plan), context)?;
 
             // 使用新的统一连接器连接排序计划
             let temp_ast_context = crate::query::context::ast::base::AstContext::new(
                 &context.query_info.statement_type,
                 &context.query_info.query_id,
             );
-            plan = UnifiedConnector::add_input(
-                &temp_ast_context,
-                &order_plan,
-                &plan,
-                true,
-            )?;
+            plan = UnifiedConnector::add_input(&temp_ast_context, &order_plan, &plan, true)?;
         }
 
         // 步骤3: 处理分页（LIMIT/OFFSET）
@@ -109,18 +107,15 @@ impl ReturnClausePlanner {
             if pagination.skip != 0 || pagination.limit != i64::MAX {
                 let pagination_planner = PaginationPlanner::new();
                 let pagination_clause_ctx = CypherClauseContext::Pagination(pagination.clone());
-                let pagination_plan = pagination_planner.transform(&pagination_clause_ctx, Some(&plan), context)?;
+                let pagination_plan =
+                    pagination_planner.transform(&pagination_clause_ctx, Some(&plan), context)?;
 
                 let temp_ast_context = crate::query::context::ast::base::AstContext::new(
                     &context.query_info.statement_type,
                     &context.query_info.query_id,
                 );
-                plan = UnifiedConnector::add_input(
-                    &temp_ast_context,
-                    &pagination_plan,
-                    &plan,
-                    true,
-                )?;
+                plan =
+                    UnifiedConnector::add_input(&temp_ast_context, &pagination_plan, &plan, true)?;
             }
         }
 
@@ -206,7 +201,9 @@ impl CypherClausePlanner for ReturnClausePlanner {
 }
 
 impl DataFlowNode for ReturnClausePlanner {
-    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+    fn flow_direction(
+        &self,
+    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
         self.clause_type().flow_direction()
     }
 }

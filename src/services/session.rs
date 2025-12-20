@@ -1,6 +1,7 @@
-use crate::core::Value;
-use crate::utils::{safe_lock, safe_read, safe_write};
 use crate::core::error::DBError;
+use crate::core::Value;
+use crate::expression::context::ExpressionContextCore;
+use crate::utils::{safe_lock, safe_read, safe_write};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -179,7 +180,10 @@ impl SessionManager {
     }
 
     /// Get a session by ID
-    pub fn get_session(&self, session_id: &SessionId) -> Result<Option<Arc<Mutex<Session>>>, DBError> {
+    pub fn get_session(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<Option<Arc<Mutex<Session>>>, DBError> {
         let sessions = safe_read(&self.sessions)?;
         Ok(sessions.get(session_id).cloned())
     }
@@ -225,7 +229,7 @@ impl SessionManager {
     pub fn list_active_sessions(&self) -> Result<Vec<SessionInfo>, DBError> {
         let sessions = safe_read(&self.sessions)?;
         let mut active_sessions = Vec::new();
-        
+
         for session in sessions.values() {
             if let Ok(session) = safe_lock(session) {
                 if matches!(session.status, SessionStatus::Active)
@@ -235,7 +239,7 @@ impl SessionManager {
                 }
             }
         }
-        
+
         Ok(active_sessions)
     }
 
@@ -349,18 +353,26 @@ mod tests {
         let session = Session::new(None, "".to_string(), "".to_string());
 
         // Set a variable
-        session.set_variable("test_key".to_string(), Value::Int(42)).expect("Failed to set session variable in test");
+        session
+            .set_variable("test_key".to_string(), Value::Int(42))
+            .expect("Failed to set session variable in test");
 
         // Get the variable
-        let value = session.get_variable("test_key").expect("Failed to get session variable in test");
+        let value = session
+            .get_variable("test_key")
+            .expect("Failed to get session variable in test");
         assert_eq!(value, Some(Value::Int(42)));
 
         // Remove the variable
-        let removed_value = session.remove_variable("test_key").expect("Failed to remove session variable in test");
+        let removed_value = session
+            .remove_variable("test_key")
+            .expect("Failed to remove session variable in test");
         assert_eq!(removed_value, Some(Value::Int(42)));
 
         // Check that it's gone
-        let value = session.get_variable("test_key").expect("Failed to get session variable in test");
+        let value = session
+            .get_variable("test_key")
+            .expect("Failed to get session variable in test");
         assert_eq!(value, None);
     }
 
@@ -369,30 +381,47 @@ mod tests {
         let session_manager = SessionManager::new(Duration::from_secs(300)); // 5 minutes timeout
 
         // Create a session
-        let session_id = session_manager.create_session(
-            Some("user123".to_string()),
-            "client_info".to_string(),
-            "connection_info".to_string(),
-        ).expect("Failed to create session in test");
+        let session_id = session_manager
+            .create_session(
+                Some("user123".to_string()),
+                "client_info".to_string(),
+                "connection_info".to_string(),
+            )
+            .expect("Failed to create session in test");
 
         // Verify the session exists
-        assert!(session_manager.is_valid_session(&session_id).expect("Failed to check session validity in test"));
+        assert!(session_manager
+            .is_valid_session(&session_id)
+            .expect("Failed to check session validity in test"));
 
         // Get session info
-        let info = session_manager.get_session_info(&session_id).expect("Failed to get session info in test");
+        let info = session_manager
+            .get_session_info(&session_id)
+            .expect("Failed to get session info in test");
         assert!(info.is_some());
-        assert_eq!(info.as_ref().expect("Session info should exist").user_id, Some("user123".to_string()));
+        assert_eq!(
+            info.as_ref().expect("Session info should exist").user_id,
+            Some("user123".to_string())
+        );
 
         // Touch the session to update last_accessed time
-        assert!(session_manager.touch_session(&session_id).expect("Failed to touch session in test"));
+        assert!(session_manager
+            .touch_session(&session_id)
+            .expect("Failed to touch session in test"));
 
         // List active sessions
-        let active_sessions = session_manager.list_active_sessions().expect("Failed to list active sessions in test");
+        let active_sessions = session_manager
+            .list_active_sessions()
+            .expect("Failed to list active sessions in test");
         assert_eq!(active_sessions.len(), 1);
 
         // Clean up
-        session_manager.remove_session(&session_id).expect("Failed to remove session in test");
-        assert!(!session_manager.is_valid_session(&session_id).expect("Failed to check session validity in test"));
+        session_manager
+            .remove_session(&session_id)
+            .expect("Failed to remove session in test");
+        assert!(!session_manager
+            .is_valid_session(&session_id)
+            .expect("Failed to check session validity in test"));
     }
 
     #[test]

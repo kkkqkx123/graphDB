@@ -24,9 +24,14 @@ pub use expression::Expression;
 pub use expression::LiteralValue;
 pub use expression::UnaryOperator;
 
-pub use context::{ExpressionContext, SimpleExpressionContext, ExpressionContextCore, StorageExpressionContext};
+pub use context::{
+    DefaultExpressionContext, ExpressionContext, ExpressionContextCore, StorageExpressionContext,
+};
 pub use evaluator::ExpressionEvaluator;
-pub use evaluator_trait::{ExpressionEvaluator as ExpressionEvaluatorTrait, DefaultExpressionEvaluator, default_evaluator, evaluate_expression, evaluate_expressions};
+pub use evaluator_trait::{
+    default_evaluator, evaluate_expression, evaluate_expressions, DefaultExpressionEvaluator,
+    ExpressionEvaluator as ExpressionEvaluatorTrait,
+};
 
 // Re-export cypher module types for convenience
 pub use cypher::{
@@ -34,4 +39,4 @@ pub use cypher::{
 };
 
 // Re-export storage module types for convenience
-pub use storage::{Schema, RowReaderWrapper, FieldType, FieldDef, ColumnDef};
+pub use storage::{ColumnDef, FieldDef, FieldType, RowReaderWrapper, Schema};

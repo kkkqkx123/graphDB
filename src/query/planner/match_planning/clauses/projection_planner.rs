@@ -1,18 +1,19 @@
-use crate::query::planner::plan::SubPlan;
 /// 投影规划器
 /// 提供RETURN和WITH子句的公共逻辑
 /// 处理结果投影、排序、分页等公共功能
-
 use super::order_by_planner::OrderByClausePlanner;
 use super::pagination_planner::PaginationPlanner;
-use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use super::where_clause_planner::WhereClausePlanner;
 use super::yield_planner::YieldClausePlanner;
 use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
+use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
-    clause_structs::{OrderByClauseContext, PaginationContext, WhereClauseContext, YieldClauseContext},
+    clause_structs::{
+        OrderByClauseContext, PaginationContext, WhereClauseContext, YieldClauseContext,
+    },
     CypherClauseContext,
 };
 
@@ -28,7 +29,7 @@ impl ProjectionPlanner {
     }
 
     /// 构建投影计划
-    /// 
+    ///
     /// 处理YIELD、ORDER BY、分页和去重等公共逻辑
     pub fn build_projection_plan(
         &self,
@@ -40,33 +41,36 @@ impl ProjectionPlanner {
         need_stable_filter: bool,
     ) -> Result<SubPlan, PlannerError> {
         // 创建规划上下文
-        let query_info = crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
-            query_id: "test".to_string(),
-            statement_type: "PROJECTION".to_string(),
-        };
+        let query_info =
+            crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
+                query_id: "test".to_string(),
+                statement_type: "PROJECTION".to_string(),
+            };
         let mut context = crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext::new(query_info);
-        
+
         // 首先处理YIELD子句（投影部分）
         let yield_planner = YieldClausePlanner::new();
         let yield_clause_ctx = CypherClauseContext::Yield(yield_clause.clone());
-        
+
         // 创建空的输入计划用于YIELD子句
         let empty_input_plan = SubPlan::new(None, None);
-        let mut plan = yield_planner.transform(&yield_clause_ctx, Some(&empty_input_plan), &mut context)?;
+        let mut plan =
+            yield_planner.transform(&yield_clause_ctx, Some(&empty_input_plan), &mut context)?;
 
         // 处理ORDER BY子句
         if let Some(order_by) = order_by {
             let order_by_planner = OrderByClausePlanner::new();
             let order_by_clause_ctx = CypherClauseContext::OrderBy(order_by.clone());
-            
+
             // 确保plan有有效的root节点
             if plan.root.is_none() {
                 // 如果YIELD没有产生有效的计划，创建一个空的起始节点
                 let start_node = PlanNodeFactory::create_placeholder_node()?;
                 plan = SubPlan::new(Some(start_node.clone_plan_node()), Some(start_node));
             }
-            
-            let order_plan = order_by_planner.transform(&order_by_clause_ctx, Some(&plan), &mut context)?;
+
+            let order_plan =
+                order_by_planner.transform(&order_by_clause_ctx, Some(&plan), &mut context)?;
 
             // 使用新的统一连接器
             plan = UnifiedConnector::add_input(
@@ -82,15 +86,19 @@ impl ProjectionPlanner {
             if pagination.skip != 0 || pagination.limit != i64::MAX {
                 let pagination_planner = PaginationPlanner::new();
                 let pagination_clause_ctx = CypherClauseContext::Pagination(pagination.clone());
-                
+
                 // 确保plan有有效的root节点
                 if plan.root.is_none() {
                     // 如果前面的步骤没有产生有效的计划，创建一个空的起始节点
                     let start_node = PlanNodeFactory::create_placeholder_node()?;
                     plan = SubPlan::new(Some(start_node.clone_plan_node()), Some(start_node));
                 }
-                
-                let pagination_plan = pagination_planner.transform(&pagination_clause_ctx, Some(&plan), &mut context)?;
+
+                let pagination_plan = pagination_planner.transform(
+                    &pagination_clause_ctx,
+                    Some(&plan),
+                    &mut context,
+                )?;
 
                 // 使用新的统一连接器
                 plan = UnifiedConnector::add_input(
@@ -106,15 +114,16 @@ impl ProjectionPlanner {
         if let Some(where_clause) = where_clause {
             let where_planner = WhereClausePlanner::new(need_stable_filter);
             let where_clause_ctx = CypherClauseContext::Where(where_clause.clone());
-            
+
             // 确保plan有有效的root节点
             if plan.root.is_none() {
                 // 如果前面的步骤没有产生有效的计划，创建一个空的起始节点
                 let start_node = PlanNodeFactory::create_placeholder_node()?;
                 plan = SubPlan::new(Some(start_node.clone_plan_node()), Some(start_node));
             }
-            
-            let where_plan = where_planner.transform(&where_clause_ctx, Some(&plan), &mut context)?;
+
+            let where_plan =
+                where_planner.transform(&where_clause_ctx, Some(&plan), &mut context)?;
 
             // 使用新的统一连接器
             plan = UnifiedConnector::add_input(
@@ -146,7 +155,7 @@ impl ProjectionPlanner {
     }
 
     /// 构建RETURN投影计划
-    /// 
+    ///
     /// 专门用于RETURN子句的投影计划构建
     pub fn build_return_projection(
         &self,
@@ -159,7 +168,7 @@ impl ProjectionPlanner {
     }
 
     /// 构建WITH投影计划
-    /// 
+    ///
     /// 专门用于WITH子句的投影计划构建
     pub fn build_with_projection(
         &self,
@@ -169,7 +178,14 @@ impl ProjectionPlanner {
         where_clause: Option<&WhereClauseContext>,
     ) -> Result<SubPlan, PlannerError> {
         let need_stable_filter = order_by.is_some(); // 如果有ORDER BY，需要稳定的过滤器
-        self.build_projection_plan(yield_clause, order_by, pagination, where_clause, false, need_stable_filter)
+        self.build_projection_plan(
+            yield_clause,
+            order_by,
+            pagination,
+            where_clause,
+            false,
+            need_stable_filter,
+        )
     }
 
     /// 检查是否需要处理ORDER BY
@@ -197,7 +213,7 @@ impl ProjectionPlanner {
     }
 
     /// 估算投影计划的成本
-    /// 
+    ///
     /// 根据投影操作的复杂性估算成本
     pub fn estimate_projection_cost(
         order_by: Option<&OrderByClauseContext>,
@@ -240,8 +256,8 @@ impl Default for ProjectionPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::structs::{
-        clause_structs::{OrderByClauseContext, PaginationContext, WhereClauseContext, YieldClauseContext},
+    use crate::query::validator::structs::clause_structs::{
+        OrderByClauseContext, PaginationContext, WhereClauseContext, YieldClauseContext,
     };
 
     fn create_test_yield_clause() -> YieldClauseContext {
@@ -304,7 +320,12 @@ mod tests {
         let order_by = Some(create_test_order_by());
         let pagination = Some(create_test_pagination());
 
-        let result = planner.build_return_projection(&yield_clause, order_by.as_ref(), pagination.as_ref(), true);
+        let result = planner.build_return_projection(
+            &yield_clause,
+            order_by.as_ref(),
+            pagination.as_ref(),
+            true,
+        );
         if let Err(e) = &result {
             println!("Error in test_build_return_projection: {:?}", e);
         }
@@ -333,19 +354,25 @@ mod tests {
 
     #[test]
     fn test_needs_order_by() {
-        assert!(ProjectionPlanner::needs_order_by(Some(&create_test_order_by())));
+        assert!(ProjectionPlanner::needs_order_by(Some(
+            &create_test_order_by()
+        )));
         assert!(!ProjectionPlanner::needs_order_by(None));
     }
 
     #[test]
     fn test_needs_pagination() {
-        assert!(ProjectionPlanner::needs_pagination(Some(&create_test_pagination())));
-        
+        assert!(ProjectionPlanner::needs_pagination(Some(
+            &create_test_pagination()
+        )));
+
         let empty_pagination = PaginationContext {
             skip: 0,
             limit: i64::MAX,
         };
-        assert!(!ProjectionPlanner::needs_pagination(Some(&empty_pagination)));
+        assert!(!ProjectionPlanner::needs_pagination(Some(
+            &empty_pagination
+        )));
         assert!(!ProjectionPlanner::needs_pagination(None));
     }
 
@@ -412,14 +439,7 @@ mod tests {
         let planner = ProjectionPlanner::new();
         let yield_clause = create_test_yield_clause();
 
-        let result = planner.build_projection_plan(
-            &yield_clause,
-            None,
-            None,
-            None,
-            false,
-            false,
-        );
+        let result = planner.build_projection_plan(&yield_clause, None, None, None, false, false);
 
         if let Err(e) = &result {
             println!("Error in test_build_projection_plan_yield_only: {:?}", e);

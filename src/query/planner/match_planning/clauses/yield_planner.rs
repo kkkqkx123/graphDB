@@ -1,34 +1,33 @@
-use crate::query::planner::plan::SubPlan;
+use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
+use crate::query::planner::match_planning::core::cypher_clause_planner::{
+    CypherClausePlanner, DataFlowNode, PlanningContext,
+};
 /// YIELD子句规划器
 /// 处理YIELD子句的规划
 /// 负责规划YIELD子句中的结果产出
 ///
 /// YIELD子句是Cypher查询中的核心投影操作，负责选择和计算要输出的列。
 /// 它可以包含聚合函数、投影列和去重操作。
-
 use crate::query::planner::match_planning::core::ClauseType;
-use crate::query::planner::match_planning::core::cypher_clause_planner::{
-    CypherClausePlanner, DataFlowNode, PlanningContext,
-};
-use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
 
 /// YIELD子句规划器
-/// 
+///
 /// 负责规划YIELD子句的执行。YIELD子句是一个转换子句，
 /// 它需要输入数据流并根据指定的投影列和聚合函数对结果进行处理。
-/// 
+///
 /// # 示例
-/// 
+///
 /// ```cypher
 /// MATCH (n:Person)
 /// YIELD n.name, count(*) AS count
 /// ```
-/// 
+///
 /// 在上面的例子中，YIELD子句会输出人员的姓名和数量统计。
 #[derive(Debug, Clone)]
 pub struct YieldClausePlanner;
@@ -40,15 +39,15 @@ impl YieldClausePlanner {
     }
 
     /// 构建YIELD子句的执行计划
-    /// 
+    ///
     /// # 参数
-    /// 
+    ///
     /// * `yield_clause_ctx` - YIELD子句的上下文信息
     /// * `input_plan` - 输入的执行计划
     /// * `context` - 规划上下文
-    /// 
+    ///
     /// # 返回值
-    /// 
+    ///
     /// 返回包含YIELD子句执行计划的SubPlan
     fn build_yield(
         &self,
@@ -74,7 +73,7 @@ impl YieldClausePlanner {
             // 创建投影节点
             let _input_root = plan.root.as_ref().ok_or_else(|| {
                 PlannerError::PlanGenerationFailed(
-                    "YIELD clause requires input plan for projection".to_string()
+                    "YIELD clause requires input plan for projection".to_string(),
                 )
             })?;
 
@@ -106,7 +105,7 @@ impl YieldClausePlanner {
             // 创建去重节点
             let _input_root = plan.root.as_ref().ok_or_else(|| {
                 PlannerError::PlanGenerationFailed(
-                    "YIELD clause requires input plan for deduplication".to_string()
+                    "YIELD clause requires input plan for deduplication".to_string(),
                 )
             })?;
 
@@ -174,9 +173,7 @@ impl CypherClausePlanner for YieldClausePlanner {
 
         // 确保有输入计划
         let input_plan = input_plan.ok_or_else(|| {
-            PlannerError::PlanGenerationFailed(
-                "YIELD clause requires input plan".to_string()
-            )
+            PlannerError::PlanGenerationFailed("YIELD clause requires input plan".to_string())
         })?;
 
         // 构建YIELD子句的执行计划
@@ -189,7 +186,9 @@ impl CypherClausePlanner for YieldClausePlanner {
 }
 
 impl DataFlowNode for YieldClausePlanner {
-    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+    fn flow_direction(
+        &self,
+    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
         self.clause_type().flow_direction()
     }
 }

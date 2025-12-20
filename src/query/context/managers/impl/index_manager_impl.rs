@@ -54,9 +54,9 @@ impl MemoryIndexManager {
     /// 检查字段是否被索引
     pub fn is_field_indexed(&self, schema_name: &str, field_name: &str) -> bool {
         match self.indexes.read() {
-            Ok(indexes) => indexes
-                .values()
-                .any(|index| index.schema_name == schema_name && index.fields.contains(&field_name.to_string())),
+            Ok(indexes) => indexes.values().any(|index| {
+                index.schema_name == schema_name && index.fields.contains(&field_name.to_string())
+            }),
             Err(_) => false,
         }
     }
@@ -102,14 +102,14 @@ mod tests {
     #[test]
     fn test_memory_index_manager_add_index() {
         let manager = MemoryIndexManager::new();
-        
+
         let index = Index {
             name: "idx_users_id".to_string(),
             schema_name: "users".to_string(),
             fields: vec!["id".to_string()],
             is_unique: true,
         };
-        
+
         assert!(manager.add_index(index).is_ok());
         assert!(manager.has_index("idx_users_id"));
         assert_eq!(manager.list_indexes(), vec!["idx_users_id".to_string()]);
@@ -118,16 +118,16 @@ mod tests {
     #[test]
     fn test_memory_index_manager_get_index() {
         let manager = MemoryIndexManager::new();
-        
+
         let index = Index {
             name: "idx_users_id".to_string(),
             schema_name: "users".to_string(),
             fields: vec!["id".to_string()],
             is_unique: true,
         };
-        
+
         manager.add_index(index.clone()).unwrap();
-        
+
         let retrieved = manager.get_index("idx_users_id");
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().name, "idx_users_id");
@@ -136,17 +136,17 @@ mod tests {
     #[test]
     fn test_memory_index_manager_remove_index() {
         let manager = MemoryIndexManager::new();
-        
+
         let index = Index {
             name: "idx_users_id".to_string(),
             schema_name: "users".to_string(),
             fields: vec!["id".to_string()],
             is_unique: true,
         };
-        
+
         manager.add_index(index).unwrap();
         assert!(manager.has_index("idx_users_id"));
-        
+
         manager.remove_index("idx_users_id").unwrap();
         assert!(!manager.has_index("idx_users_id"));
     }
@@ -154,35 +154,35 @@ mod tests {
     #[test]
     fn test_memory_index_manager_get_indexes_by_schema() {
         let manager = MemoryIndexManager::new();
-        
+
         let index1 = Index {
             name: "idx_users_id".to_string(),
             schema_name: "users".to_string(),
             fields: vec!["id".to_string()],
             is_unique: true,
         };
-        
+
         let index2 = Index {
             name: "idx_users_name".to_string(),
             schema_name: "users".to_string(),
             fields: vec!["name".to_string()],
             is_unique: false,
         };
-        
+
         let index3 = Index {
             name: "idx_orders_id".to_string(),
             schema_name: "orders".to_string(),
             fields: vec!["id".to_string()],
             is_unique: true,
         };
-        
+
         manager.add_index(index1).unwrap();
         manager.add_index(index2).unwrap();
         manager.add_index(index3).unwrap();
-        
+
         let user_indexes = manager.get_indexes_by_schema("users");
         assert_eq!(user_indexes.len(), 2);
-        
+
         let order_indexes = manager.get_indexes_by_schema("orders");
         assert_eq!(order_indexes.len(), 1);
     }
@@ -190,16 +190,16 @@ mod tests {
     #[test]
     fn test_memory_index_manager_is_field_indexed() {
         let manager = MemoryIndexManager::new();
-        
+
         let index = Index {
             name: "idx_users_id".to_string(),
             schema_name: "users".to_string(),
             fields: vec!["id".to_string()],
             is_unique: true,
         };
-        
+
         manager.add_index(index).unwrap();
-        
+
         assert!(manager.is_field_indexed("users", "id"));
         assert!(!manager.is_field_indexed("users", "name"));
         assert!(!manager.is_field_indexed("orders", "id"));

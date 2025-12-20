@@ -99,7 +99,7 @@ impl SubPlan {
             tail: Some(root),
         }
     }
-    
+
     /// 创建仅包含单个节点的SubPlan
     pub fn from_single_node(node: Arc<dyn PlanNode>) -> Self {
         Self {
@@ -127,32 +127,32 @@ impl SubPlan {
     pub fn set_tail(&mut self, tail: Arc<dyn PlanNode>) {
         self.tail = Some(tail);
     }
-    
+
     /// 检查SubPlan是否为空
     pub fn is_empty(&self) -> bool {
         self.root.is_none()
     }
-    
+
     /// 获取SubPlan中的所有节点
     pub fn collect_nodes(&self) -> Vec<Arc<dyn PlanNode>> {
         let mut nodes = Vec::new();
-        
+
         if let Some(root) = &self.root {
             nodes.push(root.clone_plan_node());
         }
-        
+
         if let Some(tail) = &self.tail {
             nodes.push(tail.clone_plan_node());
         }
-        
+
         nodes
     }
-    
+
     /// 合并两个SubPlan
     pub fn merge(&self, other: &SubPlan) -> SubPlan {
         let root = self.root.clone();
         let tail = other.tail.clone();
-        
+
         SubPlan::new(root, tail)
     }
 }

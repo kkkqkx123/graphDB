@@ -21,7 +21,10 @@ pub use match_validator::MatchValidator;
 // 重新导出context版本的ValidateContext
 pub use crate::query::context::validate::ValidateContext;
 pub use validation_factory::ValidationFactory;
-pub use validation_interface::{ValidationContext, ValidationError, ValidationErrorType, ValidationStrategy, ValidationStrategyType};
+pub use validation_interface::{
+    ValidationContext, ValidationError, ValidationErrorType, ValidationStrategy,
+    ValidationStrategyType,
+};
 
 // 为了向后兼容，导出类型定义
 pub use crate::query::context::validate::types::{Column, Variable};

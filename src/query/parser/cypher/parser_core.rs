@@ -2,8 +2,8 @@
 //!
 //! 提供解析器的基础结构和通用方法
 
-use super::lexer::{CypherLexer, Token, TokenType};
 use super::ast::*;
+use super::lexer::{CypherLexer, Token, TokenType};
 use std::collections::HashMap;
 
 /// Cypher解析器核心结构
@@ -67,8 +67,8 @@ impl CypherParserCore {
 
     /// 检查当前标记是否为关键字
     pub fn is_current_keyword(&self, keyword: &str) -> bool {
-        self.is_current_token_type(TokenType::Keyword) && 
-        self.current_token().value.to_uppercase() == keyword.to_uppercase()
+        self.is_current_token_type(TokenType::Keyword)
+            && self.current_token().value.to_uppercase() == keyword.to_uppercase()
     }
 
     /// 期望当前标记为指定类型，否则返回错误
@@ -128,9 +128,10 @@ impl CypherParserCore {
     /// 解析标识符
     pub fn parse_identifier(&mut self) -> Result<String, String> {
         self.skip_whitespace();
-        
-        if self.is_current_token_type(TokenType::Identifier) || 
-           self.is_current_token_type(TokenType::Keyword) {
+
+        if self.is_current_token_type(TokenType::Identifier)
+            || self.is_current_token_type(TokenType::Keyword)
+        {
             Ok(self.consume_token().value.clone())
         } else {
             Err(format!(
@@ -144,7 +145,7 @@ impl CypherParserCore {
     /// 解析字符串字面量
     pub fn parse_string_literal(&mut self) -> Result<String, String> {
         self.skip_whitespace();
-        
+
         if self.is_current_token_type(TokenType::LiteralString) {
             Ok(self.consume_token().value.clone())
         } else {
@@ -159,7 +160,7 @@ impl CypherParserCore {
     /// 解析数字字面量
     pub fn parse_number_literal(&mut self) -> Result<i64, String> {
         self.skip_whitespace();
-        
+
         if self.is_current_token_type(TokenType::LiteralNumber) {
             let value = self.consume_token().value.clone();
             value.parse().map_err(|e| {
@@ -182,21 +183,21 @@ impl CypherParserCore {
     /// 解析属性映射
     pub fn parse_properties(&mut self) -> Result<Option<HashMap<String, Expression>>, String> {
         self.skip_whitespace();
-        
+
         if self.is_current_token_value("{") {
             self.consume_token(); // 消费 '{'
             let mut properties = HashMap::new();
-            
+
             self.skip_whitespace();
             while !self.is_current_token_value("}") && !self.is_eof() {
                 let key = self.parse_identifier()?;
-                
+
                 self.skip_whitespace();
                 self.expect_token_value(":")?;
-                
+
                 let value = self.parse_expression()?;
                 properties.insert(key, value);
-                
+
                 self.skip_whitespace();
                 if self.is_current_token_value(",") {
                     self.consume_token(); // 消费 ','
@@ -205,7 +206,7 @@ impl CypherParserCore {
                     break;
                 }
             }
-            
+
             self.expect_token_value("}")?;
             Ok(Some(properties))
         } else {
@@ -216,7 +217,7 @@ impl CypherParserCore {
     /// 解析表达式（基础实现，具体实现在expression_parser.rs中）
     pub fn parse_expression(&mut self) -> Result<Expression, String> {
         self.skip_whitespace();
-        
+
         if self.is_current_token_type(TokenType::LiteralString) {
             let value = self.parse_string_literal()?;
             Ok(Expression::Literal(Literal::String(value)))
@@ -225,7 +226,7 @@ impl CypherParserCore {
             Ok(Expression::Literal(Literal::Integer(value)))
         } else if self.is_current_token_type(TokenType::Identifier) {
             let identifier = self.parse_identifier()?;
-            
+
             // 检查是否是属性表达式
             self.skip_whitespace();
             if self.is_current_token_value(".") {
@@ -250,7 +251,7 @@ impl CypherParserCore {
     /// 解析标签列表
     pub fn parse_labels(&mut self) -> Result<Vec<String>, String> {
         let mut labels = Vec::new();
-        
+
         self.skip_whitespace();
         while self.is_current_token_value(":") {
             self.consume_token(); // 消费 ':'
@@ -258,14 +259,14 @@ impl CypherParserCore {
             labels.push(label);
             self.skip_whitespace();
         }
-        
+
         Ok(labels)
     }
 
     /// 解析类型列表
     pub fn parse_types(&mut self) -> Result<Vec<String>, String> {
         let mut types = Vec::new();
-        
+
         self.skip_whitespace();
         while self.is_current_token_value(":") {
             self.consume_token(); // 消费 ':'
@@ -273,35 +274,35 @@ impl CypherParserCore {
             types.push(type_name);
             self.skip_whitespace();
         }
-        
+
         Ok(types)
     }
 
     /// 解析范围
     pub fn parse_range(&mut self) -> Result<Option<Range>, String> {
         self.skip_whitespace();
-        
+
         if self.is_current_token_value("*") {
             self.consume_token(); // 消费 '*'
-            
+
             let start = if self.is_current_token_type(TokenType::LiteralNumber) {
                 Some(self.parse_number_literal()?)
             } else {
                 None
             };
-            
+
             self.skip_whitespace();
             if self.is_current_token_value(".") {
                 self.consume_token(); // 消费 '.'
                 self.expect_token_value(".")?; // 消费第二个 '.'
-                
+
                 self.skip_whitespace();
                 let end = if self.is_current_token_type(TokenType::LiteralNumber) {
                     Some(self.parse_number_literal()?)
                 } else {
                     None
                 };
-                
+
                 Ok(Some(Range { start, end }))
             } else {
                 Ok(Some(Range { start, end: start }))

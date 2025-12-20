@@ -103,13 +103,10 @@ mod tests {
     #[test]
     fn test_add_vertex() {
         let mut path = PathInfo::new();
-        
+
         let tag = Tag::new("Person".to_string(), HashMap::new());
-        let vertex = Vertex::new(
-            crate::core::Value::String("v1".to_string()),
-            vec![tag],
-        );
-        
+        let vertex = Vertex::new(crate::core::Value::String("v1".to_string()), vec![tag]);
+
         path.add_vertex(vertex.clone());
         assert!(!path.is_empty());
         assert_eq!(path.length, 0);
@@ -121,22 +118,16 @@ mod tests {
     #[test]
     fn test_add_multiple_vertices() {
         let mut path = PathInfo::new();
-        
+
         let tag1 = Tag::new("Person".to_string(), HashMap::new());
-        let vertex1 = Vertex::new(
-            crate::core::Value::String("v1".to_string()),
-            vec![tag1],
-        );
-        
+        let vertex1 = Vertex::new(crate::core::Value::String("v1".to_string()), vec![tag1]);
+
         let tag2 = Tag::new("Person".to_string(), HashMap::new());
-        let vertex2 = Vertex::new(
-            crate::core::Value::String("v2".to_string()),
-            vec![tag2],
-        );
-        
+        let vertex2 = Vertex::new(crate::core::Value::String("v2".to_string()), vec![tag2]);
+
         path.add_vertex(vertex1);
         path.add_vertex(vertex2);
-        
+
         assert_eq!(path.length, 1);
         assert_eq!(path.vertex_count(), 2);
         assert_eq!(path.edge_count(), 0);
@@ -145,19 +136,13 @@ mod tests {
     #[test]
     fn test_add_edge() {
         let mut path = PathInfo::new();
-        
+
         let tag1 = Tag::new("Person".to_string(), HashMap::new());
-        let vertex1 = Vertex::new(
-            crate::core::Value::String("v1".to_string()),
-            vec![tag1],
-        );
-        
+        let vertex1 = Vertex::new(crate::core::Value::String("v1".to_string()), vec![tag1]);
+
         let tag2 = Tag::new("Person".to_string(), HashMap::new());
-        let vertex2 = Vertex::new(
-            crate::core::Value::String("v2".to_string()),
-            vec![tag2],
-        );
-        
+        let vertex2 = Vertex::new(crate::core::Value::String("v2".to_string()), vec![tag2]);
+
         let edge = Edge::new(
             crate::core::Value::String("v1".to_string()),
             crate::core::Value::String("v2".to_string()),
@@ -165,11 +150,11 @@ mod tests {
             0,
             HashMap::new(),
         );
-        
+
         path.add_vertex(vertex1);
         path.add_vertex(vertex2);
         path.add_edge(edge.clone());
-        
+
         assert_eq!(path.length, 1);
         assert_eq!(path.vertex_count(), 2);
         assert_eq!(path.edge_count(), 1);
@@ -178,19 +163,13 @@ mod tests {
     #[test]
     fn test_has_duplicate_edge() {
         let mut path = PathInfo::new();
-        
+
         let tag1 = Tag::new("Person".to_string(), HashMap::new());
-        let vertex1 = Vertex::new(
-            crate::core::Value::String("v1".to_string()),
-            vec![tag1],
-        );
-        
+        let vertex1 = Vertex::new(crate::core::Value::String("v1".to_string()), vec![tag1]);
+
         let tag2 = Tag::new("Person".to_string(), HashMap::new());
-        let vertex2 = Vertex::new(
-            crate::core::Value::String("v2".to_string()),
-            vec![tag2],
-        );
-        
+        let vertex2 = Vertex::new(crate::core::Value::String("v2".to_string()), vec![tag2]);
+
         let edge = Edge::new(
             crate::core::Value::String("v1".to_string()),
             crate::core::Value::String("v2".to_string()),
@@ -198,13 +177,13 @@ mod tests {
             0,
             HashMap::new(),
         );
-        
+
         path.add_vertex(vertex1);
         path.add_vertex(vertex2);
         path.add_edge(edge.clone());
-        
+
         assert!(!path.has_duplicate_edge(&edge));
-        
+
         // 添加相同的边
         path.add_edge(edge.clone());
         assert!(path.has_duplicate_edge(&edge));
@@ -213,15 +192,12 @@ mod tests {
     #[test]
     fn test_contains_vertex() {
         let mut path = PathInfo::new();
-        
+
         let tag = Tag::new("Person".to_string(), HashMap::new());
-        let vertex = Vertex::new(
-            crate::core::Value::String("v1".to_string()),
-            vec![tag],
-        );
-        
+        let vertex = Vertex::new(crate::core::Value::String("v1".to_string()), vec![tag]);
+
         path.add_vertex(vertex.clone());
-        
+
         assert!(path.contains_vertex(&crate::core::Value::String("v1".to_string())));
         assert!(!path.contains_vertex(&crate::core::Value::String("v2".to_string())));
     }
@@ -229,16 +205,13 @@ mod tests {
     #[test]
     fn test_clear() {
         let mut path = PathInfo::new();
-        
+
         let tag = Tag::new("Person".to_string(), HashMap::new());
-        let vertex = Vertex::new(
-            crate::core::Value::String("v1".to_string()),
-            vec![tag],
-        );
-        
+        let vertex = Vertex::new(crate::core::Value::String("v1".to_string()), vec![tag]);
+
         path.add_vertex(vertex);
         assert!(!path.is_empty());
-        
+
         path.clear();
         assert!(path.is_empty());
         assert_eq!(path.length, 0);

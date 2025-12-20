@@ -182,26 +182,26 @@ impl StorageEngine for NativeStorage {
 
     fn scan_all_vertices(&self) -> Result<Vec<Vertex>, StorageError> {
         let mut vertices = Vec::new();
-        
+
         // 遍历nodes_tree中的所有顶点
         for item in self.nodes_tree.iter() {
-            let (_, vertex_bytes) = item.map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            let (_, vertex_bytes) =
+                item.map_err(|e| StorageError::SerializationError(e.to_string()))?;
             let vertex: Vertex = serde_json::from_slice(&vertex_bytes)
                 .map_err(|e| StorageError::SerializationError(e.to_string()))?;
             vertices.push(vertex);
         }
-        
+
         Ok(vertices)
     }
 
     fn scan_vertices_by_tag(&self, tag: &str) -> Result<Vec<Vertex>, StorageError> {
         let all_vertices = self.scan_all_vertices()?;
-        let filtered_vertices = all_vertices.into_iter()
-            .filter(|vertex| {
-                vertex.tags.iter().any(|vertex_tag| vertex_tag.name == tag)
-            })
+        let filtered_vertices = all_vertices
+            .into_iter()
+            .filter(|vertex| vertex.tags.iter().any(|vertex_tag| vertex_tag.name == tag))
             .collect();
-        
+
         Ok(filtered_vertices)
     }
 

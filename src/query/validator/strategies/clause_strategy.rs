@@ -74,7 +74,10 @@ impl ClauseValidationStrategy {
         }
 
         let curr_query_part = query_parts.last().ok_or_else(|| {
-            ValidationError::new("Query parts should not be empty".to_string(), ValidationErrorType::SemanticError)
+            ValidationError::new(
+                "Query parts should not be empty".to_string(),
+                ValidationErrorType::SemanticError,
+            )
         })?;
 
         // 处理前一个查询部分的边界子句
@@ -142,7 +145,10 @@ impl ClauseValidationStrategy {
 
                 // 添加最后的节点别名
                 let last_node = path.node_infos.last().ok_or_else(|| {
-                    ValidationError::new("Path should have at least one node".to_string(), ValidationErrorType::SemanticError)
+                    ValidationError::new(
+                        "Path should have at least one node".to_string(),
+                        ValidationErrorType::SemanticError,
+                    )
                 })?;
                 if !last_node.anonymous {
                     columns.push(YieldColumn::new(

@@ -4,7 +4,10 @@
 
 use super::super::plan_node_kind::PlanNodeKind;
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
-use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable, };
+use super::traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+    PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
+};
 use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 

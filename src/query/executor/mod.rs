@@ -3,10 +3,10 @@ pub mod base;
 pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
+pub mod factory;
 pub mod result_processing;
 pub mod tag_filter;
 pub mod traits;
-pub mod factory;
 
 // Cypher执行器模块
 pub mod cypher;
@@ -27,17 +27,17 @@ pub use factory::{BaseExecutorFactory, ExecutorCreator};
 
 // Re-export result processing executors
 pub use result_processing::{
-    ProjectExecutor, SortExecutor, LimitExecutor, AggregateExecutor, GroupByExecutor, HavingExecutor,
-    DedupExecutor, FilterExecutor, SampleExecutor, TopNExecutor,
-    SortKey, SortOrder, AggregateFunction, AggregateState, GroupAggregateState, DedupStrategy, SampleMethod,
-    ResultProcessor, ResultProcessorContext,
+    AggregateExecutor, AggregateFunction, AggregateState, DedupExecutor, DedupStrategy,
+    FilterExecutor, GroupAggregateState, GroupByExecutor, HavingExecutor, LimitExecutor,
+    ProjectExecutor, ResultProcessor, ResultProcessorContext, SampleExecutor, SampleMethod,
+    SortExecutor, SortKey, SortOrder, TopNExecutor,
 };
 
 pub use result_processing::traits::ResultProcessorFactory;
 
 // Re-export Cypher executor types
 pub use cypher::{
-    CypherExecutor, CypherExecutionContext, CypherExecutorFactory, CypherExecutorTrait,
+    CypherExecutionContext, CypherExecutor, CypherExecutorFactory, CypherExecutorTrait,
 };
 
 // Re-export Cypher clause executors

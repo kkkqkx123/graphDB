@@ -1,31 +1,30 @@
-use crate::query::planner::plan::SubPlan;
-/// 分页规划器
-/// 处理LIMIT和OFFSET子句的规划
-/// 负责规划LIMIT和OFFSET子句
-
-use crate::query::planner::match_planning::core::ClauseType;
+use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
     CypherClausePlanner, DataFlowNode, PlanningContext,
 };
-use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
+/// 分页规划器
+/// 处理LIMIT和OFFSET子句的规划
+/// 负责规划LIMIT和OFFSET子句
+use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 
 /// 分页规划器
-/// 
+///
 /// 负责规划LIMIT和OFFSET子句。分页子句是一个修饰子句，
 /// 它需要输入数据流并根据指定的skip和limit值对结果进行分页。
-/// 
+///
 /// # 示例
-/// 
+///
 /// ```cypher
 /// MATCH (n:Person)
 /// RETURN n.name
 /// SKIP 10
 /// LIMIT 5
 /// ```
-/// 
+///
 /// 在上面的例子中，分页子句会跳过前10个结果，然后返回接下来的5个结果。
 #[derive(Debug, Clone)]
 pub struct PaginationPlanner;
@@ -37,18 +36,18 @@ impl PaginationPlanner {
     }
 
     /// 构建分页节点
-    /// 
+    ///
     /// 根据分页上下文信息构建LIMIT节点。
     /// skip和limit值会存储在节点的列名中，以便执行阶段使用。
-    /// 
+    ///
     /// # 参数
-    /// 
+    ///
     /// * `pagination_ctx` - 分页上下文信息
     /// * `input_plan` - 输入的执行计划
     /// * `context` - 规划上下文
-    /// 
+    ///
     /// # 返回值
-    /// 
+    ///
     /// 返回包含LIMIT节点的执行计划
     fn build_limit(
         &self,
@@ -58,9 +57,7 @@ impl PaginationPlanner {
     ) -> Result<SubPlan, PlannerError> {
         // 获取输入计划的根节点
         let _input_root = input_plan.root.as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed(
-                "Pagination clause requires input plan".to_string()
-            )
+            PlannerError::PlanGenerationFailed("Pagination clause requires input plan".to_string())
         })?;
 
         // 创建Limit节点
@@ -112,9 +109,7 @@ impl CypherClausePlanner for PaginationPlanner {
 
         // 确保有输入计划
         let input_plan = input_plan.ok_or_else(|| {
-            PlannerError::PlanGenerationFailed(
-                "Pagination clause requires input plan".to_string()
-            )
+            PlannerError::PlanGenerationFailed("Pagination clause requires input plan".to_string())
         })?;
 
         // 构建分页计划
@@ -127,7 +122,9 @@ impl CypherClausePlanner for PaginationPlanner {
 }
 
 impl DataFlowNode for PaginationPlanner {
-    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+    fn flow_direction(
+        &self,
+    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
         self.clause_type().flow_direction()
     }
 }
@@ -160,17 +157,15 @@ mod tests {
     #[test]
     fn test_pagination_planner_transform() {
         let planner = PaginationPlanner::new();
-        let query_info = crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
-            query_id: "test".to_string(),
-            statement_type: "PAGINATION".to_string(),
-        };
+        let query_info =
+            crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
+                query_id: "test".to_string(),
+                statement_type: "PAGINATION".to_string(),
+            };
         let mut context = PlanningContext::new(query_info);
 
         // 创建分页上下文
-        let pagination_ctx = PaginationContext {
-            skip: 10,
-            limit: 5,
-        };
+        let pagination_ctx = PaginationContext { skip: 10, limit: 5 };
 
         let clause_ctx = CypherClauseContext::Pagination(pagination_ctx);
 

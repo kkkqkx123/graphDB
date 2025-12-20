@@ -90,7 +90,6 @@ impl Lexer {
         self.input[start_position..self.position].iter().collect()
     }
 
-
     fn read_string(&mut self) -> String {
         self.read_char(); // Skip opening quote
         let start_position = self.position;

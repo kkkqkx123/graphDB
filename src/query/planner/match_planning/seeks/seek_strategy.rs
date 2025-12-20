@@ -6,32 +6,32 @@ use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
 
 /// 查找策略trait
-/// 
+///
 /// 所有查找策略都应该实现这个trait，提供统一的接口
 pub trait SeekStrategy {
     /// 构建查找计划
-    /// 
+    ///
     /// 根据节点信息构建相应的查找计划
     fn build_plan(&self) -> Result<SubPlan, PlannerError>;
-    
+
     /// 检查是否可以使用该查找策略
-    /// 
+    ///
     /// 根据节点信息判断是否可以使用该查找策略
     fn match_node(&self) -> bool;
-    
+
     /// 获取查找策略的名称
-    /// 
+    ///
     /// 返回查找策略的名称，用于调试和日志
     fn name(&self) -> &'static str;
-    
+
     /// 估算查找成本
-    /// 
+    ///
     /// 返回该查找策略的估算成本，用于选择最优策略
     fn estimate_cost(&self) -> f64;
 }
 
 /// 查找策略类型枚举
-/// 
+///
 /// 用于标识不同的查找策略类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SeekStrategyType {
@@ -51,7 +51,7 @@ pub enum SeekStrategyType {
 
 impl SeekStrategyType {
     /// 获取查找策略的优先级
-    /// 
+    ///
     /// 返回查找策略的优先级，数值越小优先级越高
     pub fn priority(&self) -> u8 {
         match self {
@@ -63,30 +63,30 @@ impl SeekStrategyType {
             SeekStrategyType::Scan => 6,              // 扫描查找优先级最低
         }
     }
-    
+
     /// 获取查找策略的默认成本
-    /// 
+    ///
     /// 返回查找策略的默认成本估算
     pub fn default_cost(&self) -> f64 {
         match self {
-            SeekStrategyType::VertexId => 1.0,          // 顶点ID查找成本最低
-            SeekStrategyType::VariableVertexId => 5.0,  // 可变顶点ID查找成本较低
-            SeekStrategyType::PropIndex => 10.0,        // 属性索引查找成本中等
+            SeekStrategyType::VertexId => 1.0,           // 顶点ID查找成本最低
+            SeekStrategyType::VariableVertexId => 5.0,   // 可变顶点ID查找成本较低
+            SeekStrategyType::PropIndex => 10.0,         // 属性索引查找成本中等
             SeekStrategyType::VariablePropIndex => 20.0, // 可变属性索引查找成本较高
-            SeekStrategyType::LabelIndex => 50.0,       // 标签索引查找成本较高
-            SeekStrategyType::Scan => 1000.0,           // 扫描查找成本最高
+            SeekStrategyType::LabelIndex => 50.0,        // 标签索引查找成本较高
+            SeekStrategyType::Scan => 1000.0,            // 扫描查找成本最高
         }
     }
 }
 
 /// 查找策略选择器
-/// 
+///
 /// 用于根据节点信息选择最优的查找策略
 pub struct SeekStrategySelector;
 
 impl SeekStrategySelector {
     /// 选择最优的查找策略
-    /// 
+    ///
     /// 根据节点信息和可用策略选择最优的查找策略
     pub fn select_best_strategy(
         _node_info: &NodeInfo,
@@ -94,7 +94,7 @@ impl SeekStrategySelector {
     ) -> Option<usize> {
         let mut best_index = None;
         let mut best_cost = f64::MAX;
-        
+
         for (index, strategy) in strategies.iter().enumerate() {
             if strategy.match_node() {
                 let cost = strategy.estimate_cost();
@@ -104,18 +104,20 @@ impl SeekStrategySelector {
                 }
             }
         }
-        
+
         best_index
     }
-    
+
     /// 按优先级排序策略
-    /// 
+    ///
     /// 根据策略类型和优先级对策略进行排序
     pub fn sort_strategies_by_priority(strategies: &mut [Box<dyn SeekStrategy>]) {
         strategies.sort_by(|a, b| {
             let cost_a = a.estimate_cost();
             let cost_b = b.estimate_cost();
-            cost_a.partial_cmp(&cost_b).unwrap_or(std::cmp::Ordering::Equal)
+            cost_a
+                .partial_cmp(&cost_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
     }
 }
@@ -132,7 +134,9 @@ mod tests {
 
     impl SeekStrategy for TestSeekStrategy {
         fn build_plan(&self) -> Result<SubPlan, PlannerError> {
-            Err(PlannerError::UnsupportedOperation("Test strategy".to_string()))
+            Err(PlannerError::UnsupportedOperation(
+                "Test strategy".to_string(),
+            ))
         }
 
         fn match_node(&self) -> bool {
@@ -173,7 +177,8 @@ mod tests {
             }),
         ];
 
-        let best_index = SeekStrategySelector::select_best_strategy(&NodeInfo::default(), &strategies);
+        let best_index =
+            SeekStrategySelector::select_best_strategy(&NodeInfo::default(), &strategies);
         assert_eq!(best_index, Some(1)); // VertexId策略应该被选中
     }
 
@@ -190,7 +195,8 @@ mod tests {
             }),
         ];
 
-        let best_index = SeekStrategySelector::select_best_strategy(&NodeInfo::default(), &strategies);
+        let best_index =
+            SeekStrategySelector::select_best_strategy(&NodeInfo::default(), &strategies);
         assert_eq!(best_index, None); // 没有匹配的策略
     }
 }

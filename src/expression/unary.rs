@@ -42,7 +42,7 @@ pub fn evaluate_unary_op(
                 _ => false,
             };
             Ok(Value::Bool(is_empty))
-        },
+        }
         UnaryOperator::IsNotEmpty => {
             let is_not_empty = match &operand_val {
                 Value::String(s) => !s.is_empty(),
@@ -51,7 +51,7 @@ pub fn evaluate_unary_op(
                 _ => true,
             };
             Ok(Value::Bool(is_not_empty))
-        },
+        }
         UnaryOperator::Increment => Err(ExpressionError::InvalidOperation(
             "Increment operation not supported".to_string(),
         )),

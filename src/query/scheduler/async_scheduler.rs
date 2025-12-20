@@ -73,9 +73,12 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         execution_schedule: &mut ExecutionSchedule<S>,
     ) -> Result<ExecutionResult, QueryError> {
         // 从执行调度中获取执行器
-        let mut executor = execution_schedule.executors.remove(&executor_id).ok_or_else(|| {
-            QueryError::InvalidQuery(format!("Executor {} not found", executor_id))
-        })?;
+        let mut executor = execution_schedule
+            .executors
+            .remove(&executor_id)
+            .ok_or_else(|| {
+                QueryError::InvalidQuery(format!("Executor {} not found", executor_id))
+            })?;
 
         {
             let mut state = safe_lock(&self.execution_state)
@@ -137,7 +140,8 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     fn get_executable_executors(&self, execution_schedule: &ExecutionSchedule<S>) -> Vec<usize> {
         let state = safe_lock(&self.execution_state)
             .expect("AsyncScheduler execution_state lock should not be poisoned");
-        execution_schedule.get_executable_executors(&state.execution_results)
+        execution_schedule
+            .get_executable_executors(&state.execution_results)
             .into_iter()
             .filter(|id| !state.is_executor_executing(*id))
             .collect()
@@ -174,7 +178,8 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             .expect("AsyncScheduler completion_notifier lock should not be poisoned");
 
         while !*completed && !self.all_executors_completed() {
-            completed = cvar.wait(completed)
+            completed = cvar
+                .wait(completed)
                 .expect("AsyncScheduler completion_notifier wait should not be poisoned");
         }
 
@@ -352,7 +357,8 @@ impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBase
             .expect("AsyncScheduler completion_notifier lock should not be poisoned");
 
         while !*completed && !self.all_executors_completed() {
-            completed = cvar.wait(completed)
+            completed = cvar
+                .wait(completed)
                 .expect("AsyncScheduler completion_notifier wait should not be poisoned");
         }
 

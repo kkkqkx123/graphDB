@@ -467,9 +467,7 @@ fn can_push_down_to_index_scan(condition: &Expression) -> FilterSplitResult {
 }
 
 /// 尝试解析过滤条件为表达式
-fn parse_filter_condition(
-    condition: &Expression,
-) -> Result<crate::expression::Expression, String> {
+fn parse_filter_condition(condition: &Expression) -> Result<crate::expression::Expression, String> {
     // 直接返回表达式
     Ok(condition.clone())
 }
@@ -624,18 +622,10 @@ fn extract_column_and_value(
     };
 
     let value = match right {
-        Expression::Literal(crate::expression::LiteralValue::String(s)) => {
-            Some(s.clone())
-        }
-        Expression::Literal(crate::expression::LiteralValue::Int(i)) => {
-            Some(i.to_string())
-        }
-        Expression::Literal(crate::expression::LiteralValue::Float(f)) => {
-            Some(f.to_string())
-        }
-        Expression::Literal(crate::expression::LiteralValue::Bool(b)) => {
-            Some(b.to_string())
-        }
+        Expression::Literal(crate::expression::LiteralValue::String(s)) => Some(s.clone()),
+        Expression::Literal(crate::expression::LiteralValue::Int(i)) => Some(i.to_string()),
+        Expression::Literal(crate::expression::LiteralValue::Float(f)) => Some(f.to_string()),
+        Expression::Literal(crate::expression::LiteralValue::Bool(b)) => Some(b.to_string()),
         _ => None,
     };
 
@@ -1058,10 +1048,13 @@ mod tests {
         let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
 
         // 创建一个过滤节点作为依赖
-        let filter_node = Arc::new(crate::query::planner::plan::core::nodes::FilterNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            crate::expression::Expression::Variable("age > 18".to_string()),
-        ).unwrap());
+        let filter_node = Arc::new(
+            crate::query::planner::plan::core::nodes::FilterNode::new(
+                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::expression::Expression::Variable("age > 18".to_string()),
+            )
+            .unwrap(),
+        );
         let filter_opt_node = OptGroupNode::new(2, filter_node);
 
         // 设置依赖关系：索引扫描依赖于过滤节点
@@ -1085,10 +1078,13 @@ mod tests {
         let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
 
         // 创建一个过滤节点作为依赖
-        let filter_node = Arc::new(crate::query::planner::plan::core::nodes::FilterNode::new(
-            Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-            crate::expression::Expression::Variable("name = 'test'".to_string()),
-        ).unwrap());
+        let filter_node = Arc::new(
+            crate::query::planner::plan::core::nodes::FilterNode::new(
+                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::expression::Expression::Variable("name = 'test'".to_string()),
+            )
+            .unwrap(),
+        );
         let filter_opt_node = OptGroupNode::new(2, filter_node);
 
         // 设置依赖关系：索引扫描依赖于过滤节点
@@ -1225,7 +1221,10 @@ mod tests {
         let mut index_scan = IndexScan::new(1, 1, 2, 3, "RANGE");
 
         // 更新索引扫描限制
-        update_index_scan_limits(&mut index_scan, &crate::expression::Expression::Variable("age > 18".to_string()));
+        update_index_scan_limits(
+            &mut index_scan,
+            &crate::expression::Expression::Variable("age > 18".to_string()),
+        );
 
         // 验证限制已添加
         assert!(!index_scan.scan_limits.is_empty());

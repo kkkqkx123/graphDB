@@ -85,8 +85,8 @@ pub struct UnaryExpression {
 #[derive(Debug, Clone)]
 pub enum UnaryOperator {
     Not,
-    Positive,  // +
-    Negative,  // -
+    Positive, // +
+    Negative, // -
 }
 
 /// CASE表达式
@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn test_expression_literal() {
         let expr = Expression::Literal(Literal::String("hello".to_string()));
-        
+
         match expr {
             Expression::Literal(Literal::String(s)) => assert_eq!(s, "hello"),
             _ => panic!("Expected string literal"),
@@ -161,11 +161,17 @@ mod tests {
             operator: BinaryOperator::Add,
             right: Box::new(Expression::Literal(Literal::Integer(3))),
         });
-        
+
         match expr {
             Expression::Binary(bin) => {
-                assert!(matches!(*bin.left, Expression::Literal(Literal::Integer(5))));
-                assert!(matches!(*bin.right, Expression::Literal(Literal::Integer(3))));
+                assert!(matches!(
+                    *bin.left,
+                    Expression::Literal(Literal::Integer(5))
+                ));
+                assert!(matches!(
+                    *bin.right,
+                    Expression::Literal(Literal::Integer(3))
+                ));
                 assert_eq!(bin.operator, BinaryOperator::Add);
             }
             _ => panic!("Expected binary expression"),

@@ -1,12 +1,12 @@
+use crate::core::error::{DBError, DBResult};
 use crate::query::context::{QueryContext, RequestContext};
+use crate::query::executor::traits::ExecutionResult;
 use crate::query::executor_factory::ExecutorFactory;
 use crate::query::optimizer::Optimizer;
 use crate::query::parser::parser::Parser;
 use crate::query::planner::Planner;
-use crate::query::executor::traits::ExecutionResult;
 use crate::query::validator::Validator;
 use crate::storage::StorageEngine;
-use crate::core::error::{DBError, DBResult};
 use std::sync::{Arc, Mutex};
 
 /// 查询管道管理器 - 负责协调整个查询处理流程
@@ -104,9 +104,12 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         _query_context: &mut QueryContext,
         _ast: &crate::query::context::ast::QueryAstContext,
     ) -> DBResult<()> {
-        self.validator
-            .validate_unified()
-            .map_err(|e| DBError::Query(crate::core::error::QueryError::InvalidQuery(format!("验证失败: {}", e))))
+        self.validator.validate_unified().map_err(|e| {
+            DBError::Query(crate::core::error::QueryError::InvalidQuery(format!(
+                "验证失败: {}",
+                e
+            )))
+        })
     }
 
     /// 生成执行计划
@@ -144,6 +147,11 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         self.executor_factory
             .execute_plan(query_context, plan)
             .await
-            .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(format!("执行失败: {}", e))))
+            .map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "执行失败: {}",
+                    e
+                )))
+            })
     }
 }

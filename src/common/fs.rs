@@ -213,21 +213,27 @@ impl FileHandle {
 
     /// Read from the file
     pub fn read(&self, buf: &mut [u8]) -> FsResult<usize> {
-        let mut file = self.file.lock()
+        let mut file = self
+            .file
+            .lock()
             .expect("File handle lock should not be poisoned");
         file.read(buf).map_err(|e| FsError::IoError(e))
     }
 
     /// Write to the file
     pub fn write(&self, buf: &[u8]) -> FsResult<usize> {
-        let mut file = self.file.lock()
+        let mut file = self
+            .file
+            .lock()
             .expect("File handle lock should not be poisoned");
         file.write(buf).map_err(|e| FsError::IoError(e))
     }
 
     /// Seek to a position in the file
     pub fn seek(&self, pos: SeekFrom) -> FsResult<u64> {
-        let mut file = self.file.lock()
+        let mut file = self
+            .file
+            .lock()
             .expect("File handle lock should not be poisoned");
         file.seek(pos).map_err(|e| FsError::IoError(e))
     }
@@ -255,7 +261,9 @@ impl FileHandle {
 
     /// Synchronize the file to disk
     pub fn sync_all(&self) -> FsResult<()> {
-        let file = self.file.lock()
+        let file = self
+            .file
+            .lock()
             .expect("File handle lock should not be poisoned");
         file.sync_all().map_err(|e| FsError::IoError(e))
     }
@@ -324,7 +332,9 @@ impl FileCache {
 
         // Check if it's in cache first
         {
-            let cache = self.cache.lock()
+            let cache = self
+                .cache
+                .lock()
                 .expect("File cache lock should not be poisoned");
             if let Some(data) = cache.get(&path_buf) {
                 return Ok(data.clone());
@@ -336,10 +346,14 @@ impl FileCache {
 
         // Add to cache if it fits
         {
-            let mut current_size = self.current_size.lock()
+            let mut current_size = self
+                .current_size
+                .lock()
                 .expect("File cache size lock should not be poisoned");
             if *current_size + data.len() <= self.max_size {
-                let mut cache = self.cache.lock()
+                let mut cache = self
+                    .cache
+                    .lock()
                     .expect("File cache lock should not be poisoned");
                 cache.insert(path_buf, data.clone());
                 *current_size += data.len();
@@ -353,10 +367,14 @@ impl FileCache {
     pub fn put<P: AsRef<Path>>(&self, path: P, data: Vec<u8>) {
         let path_buf = path.as_ref().to_path_buf();
 
-        let mut current_size = self.current_size.lock()
+        let mut current_size = self
+            .current_size
+            .lock()
             .expect("File cache size lock should not be poisoned");
         if *current_size + data.len() <= self.max_size {
-            let mut cache = self.cache.lock()
+            let mut cache = self
+                .cache
+                .lock()
                 .expect("File cache lock should not be poisoned");
             cache.insert(path_buf, data.clone());
             *current_size += data.len();
@@ -367,10 +385,14 @@ impl FileCache {
     pub fn remove<P: AsRef<Path>>(&self, path: P) {
         let path_buf = path.as_ref().to_path_buf();
 
-        let mut cache = self.cache.lock()
+        let mut cache = self
+            .cache
+            .lock()
             .expect("File cache lock should not be poisoned");
         if let Some(data) = cache.remove(&path_buf) {
-            let mut current_size = self.current_size.lock()
+            let mut current_size = self
+                .current_size
+                .lock()
                 .expect("File cache size lock should not be poisoned");
             *current_size -= data.len();
         }
@@ -378,16 +400,22 @@ impl FileCache {
 
     /// Get the current cache size
     pub fn size(&self) -> usize {
-        *self.current_size.lock()
+        *self
+            .current_size
+            .lock()
             .expect("File cache size lock should not be poisoned")
     }
 
     /// Clear the cache
     pub fn clear(&self) {
-        let mut cache = self.cache.lock()
+        let mut cache = self
+            .cache
+            .lock()
             .expect("File cache lock should not be poisoned");
         cache.clear();
-        *self.current_size.lock()
+        *self
+            .current_size
+            .lock()
             .expect("File cache size lock should not be poisoned") = 0;
     }
 }
@@ -438,14 +466,17 @@ impl FileSystemWatcher {
     /// Remove a path from watching
     pub fn unwatch<P: AsRef<Path>>(&self, path: P) {
         let path_buf = path.as_ref().to_path_buf();
-        self.watched_paths.lock()
+        self.watched_paths
+            .lock()
             .expect("File system watcher paths lock should not be poisoned")
             .remove(&path_buf);
     }
 
     /// Check for changes (in a real implementation, this would run continuously)
     pub fn check_for_changes(&self) -> FsResult<Vec<(PathBuf, FileEvent)>> {
-        let watched_paths = self.watched_paths.lock()
+        let watched_paths = self
+            .watched_paths
+            .lock()
             .expect("File system watcher paths lock should not be poisoned");
         let mut changes = Vec::new();
 
@@ -529,7 +560,8 @@ mod tests {
         FileSystemUtils::write(&file_path, content).expect("Failed to write file");
 
         // Read it back
-        let read_content = FileSystemUtils::read_to_string(&file_path).expect("Failed to read file");
+        let read_content =
+            FileSystemUtils::read_to_string(&file_path).expect("Failed to read file");
         assert_eq!(content, read_content);
     }
 
@@ -542,7 +574,8 @@ mod tests {
         FileSystemUtils::write(&file_path, "test").expect("Failed to write file");
 
         // Get its attributes
-        let attrs = FileSystemUtils::get_attributes(&file_path).expect("Failed to get file attributes");
+        let attrs =
+            FileSystemUtils::get_attributes(&file_path).expect("Failed to get file attributes");
 
         assert!(attrs.is_file);
         assert!(!attrs.is_directory);
@@ -559,7 +592,9 @@ mod tests {
 
         // Write to the file
         let content = b"Hello from file handle!";
-        handle.write(content).expect("Failed to write to file handle");
+        handle
+            .write(content)
+            .expect("Failed to write to file handle");
         handle.sync_all().expect("Failed to sync file handle");
 
         // Read it back with standard fs
@@ -580,7 +615,9 @@ mod tests {
         let cache = FileCache::new(1024); // 1KB cache
 
         // Load the file into cache
-        let cached_content = cache.get_or_load(&file_path).expect("Failed to load file into cache");
+        let cached_content = cache
+            .get_or_load(&file_path)
+            .expect("Failed to load file into cache");
         assert_eq!(content.to_vec(), cached_content);
 
         assert_eq!(cache.size(), content.len());

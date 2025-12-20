@@ -1,5 +1,5 @@
 //! 类型系统工具模块
-//! 
+//!
 //! 提供类型兼容性检查、类型优先级和类型转换等核心功能
 
 use crate::core::ValueTypeDef;
@@ -13,19 +13,19 @@ impl TypeUtils {
         if type1 == type2 {
             return true;
         }
-        
+
         // NULL和EMPTY类型与任何类型兼容
         if Self::is_superior_type(type1) || Self::is_superior_type(type2) {
             return true;
         }
-        
+
         // Int和Float可以相互兼容
         if (type1 == &ValueTypeDef::Int && type2 == &ValueTypeDef::Float)
             || (type1 == &ValueTypeDef::Float && type2 == &ValueTypeDef::Int)
         {
             return true;
         }
-        
+
         false
     }
 
@@ -61,7 +61,7 @@ impl TypeUtils {
         if type1 == type2 {
             return type1.clone();
         }
-        
+
         // 如果其中一个是NULL或EMPTY，返回另一个
         if Self::is_superior_type(type1) {
             return type2.clone();
@@ -69,14 +69,14 @@ impl TypeUtils {
         if Self::is_superior_type(type2) {
             return type1.clone();
         }
-        
+
         // Int和Float的公共类型是Float
         if (type1 == &ValueTypeDef::Int && type2 == &ValueTypeDef::Float)
             || (type1 == &ValueTypeDef::Float && type2 == &ValueTypeDef::Int)
         {
             return ValueTypeDef::Float;
         }
-        
+
         // 其他情况返回Empty
         ValueTypeDef::Empty
     }
@@ -89,18 +89,36 @@ mod tests {
     #[test]
     fn test_are_types_compatible() {
         // 相同类型兼容
-        assert!(TypeUtils::are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::Int));
-        
+        assert!(TypeUtils::are_types_compatible(
+            &ValueTypeDef::Int,
+            &ValueTypeDef::Int
+        ));
+
         // 优越类型与任何类型兼容
-        assert!(TypeUtils::are_types_compatible(&ValueTypeDef::Null, &ValueTypeDef::Int));
-        assert!(TypeUtils::are_types_compatible(&ValueTypeDef::Empty, &ValueTypeDef::String));
-        
+        assert!(TypeUtils::are_types_compatible(
+            &ValueTypeDef::Null,
+            &ValueTypeDef::Int
+        ));
+        assert!(TypeUtils::are_types_compatible(
+            &ValueTypeDef::Empty,
+            &ValueTypeDef::String
+        ));
+
         // Int和Float兼容
-        assert!(TypeUtils::are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::Float));
-        assert!(TypeUtils::are_types_compatible(&ValueTypeDef::Float, &ValueTypeDef::Int));
-        
+        assert!(TypeUtils::are_types_compatible(
+            &ValueTypeDef::Int,
+            &ValueTypeDef::Float
+        ));
+        assert!(TypeUtils::are_types_compatible(
+            &ValueTypeDef::Float,
+            &ValueTypeDef::Int
+        ));
+
         // 不同类型不兼容
-        assert!(!TypeUtils::are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::String));
+        assert!(!TypeUtils::are_types_compatible(
+            &ValueTypeDef::Int,
+            &ValueTypeDef::String
+        ));
     }
 
     #[test]

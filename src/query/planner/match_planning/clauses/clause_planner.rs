@@ -1,7 +1,9 @@
 //! 子句规划器基类
 //! 定义所有子句规划器的通用接口和trait
 
-use crate::query::planner::match_planning::core::cypher_clause_planner::{CypherClausePlanner, DataFlowNode};
+use crate::query::planner::match_planning::core::cypher_clause_planner::{
+    CypherClausePlanner, DataFlowNode,
+};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
@@ -296,10 +298,11 @@ mod tests {
     #[test]
     fn test_base_clause_planner_transform() {
         let planner = BaseClausePlanner::new("TestPlanner", CypherClauseKind::Match);
-        let query_info = crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
-            query_id: "test".to_string(),
-            statement_type: "TEST".to_string(),
-        };
+        let query_info =
+            crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
+                query_id: "test".to_string(),
+                statement_type: "TEST".to_string(),
+            };
         let mut context = crate::query::planner::match_planning::core::cypher_clause_planner::PlanningContext::new(query_info);
 
         let clause_ctx = CypherClauseContext::Match(MatchClauseContext {
@@ -352,7 +355,9 @@ mod tests {
 }
 
 impl DataFlowNode for BaseClausePlanner {
-    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+    fn flow_direction(
+        &self,
+    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
         self.clause_type().flow_direction()
     }
 }

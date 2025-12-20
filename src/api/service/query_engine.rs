@@ -73,7 +73,11 @@ mod tests {
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
-            storage_path: temp_dir.path().to_str().expect("Failed to convert temp path to string").to_string(),
+            storage_path: temp_dir
+                .path()
+                .to_str()
+                .expect("Failed to convert temp path to string")
+                .to_string(),
             cache_size: 1000,
             enable_cache: true,
             max_connections: 10,
@@ -81,7 +85,9 @@ mod tests {
             log_level: "info".to_string(),
         };
 
-        let storage = Arc::new(NativeStorage::new(&config.storage_path).expect("Failed to create native storage"));
+        let storage = Arc::new(
+            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+        );
         let _query_engine = QueryEngine::new(storage);
 
         // We can't directly check the data dir, so we'll just test that storage initialization succeeded
@@ -95,7 +101,11 @@ mod tests {
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
-            storage_path: temp_dir.path().to_str().expect("Failed to convert temp path to string").to_string(),
+            storage_path: temp_dir
+                .path()
+                .to_str()
+                .expect("Failed to convert temp path to string")
+                .to_string(),
             cache_size: 1000,
             enable_cache: true,
             max_connections: 10,
@@ -103,7 +113,9 @@ mod tests {
             log_level: "info".to_string(),
         };
 
-        let storage = Arc::new(NativeStorage::new(&config.storage_path).expect("Failed to create native storage"));
+        let storage = Arc::new(
+            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+        );
         let mut query_engine = QueryEngine::new(storage);
 
         // Create a dummy session

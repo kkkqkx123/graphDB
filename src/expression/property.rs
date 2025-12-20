@@ -1,5 +1,6 @@
 use crate::core::ExpressionError;
 use crate::core::Value;
+use crate::expression::context::ExpressionContextCore;
 use crate::expression::{Expression, ExpressionContext};
 
 /// 评估属性表达式

@@ -1,7 +1,5 @@
 //! Cypher词法分析器
 
-
-
 /// Cypher词法分析器
 #[derive(Debug)]
 pub struct CypherLexer {
@@ -46,26 +44,26 @@ impl CypherLexer {
     /// 词法分析
     pub fn tokenize(&mut self) -> Result<Vec<Token>, String> {
         self.tokens.clear();
-        
+
         while !self.is_eof() {
             let token = self.next_token()?;
             self.tokens.push(token);
         }
-        
+
         // 添加EOF标记
         self.tokens.push(Token {
             token_type: TokenType::EOF,
             value: "".to_string(),
             position: self.position,
         });
-        
+
         Ok(self.tokens.clone())
     }
 
     /// 获取下一个标记
     fn next_token(&mut self) -> Result<Token, String> {
         self.skip_whitespace();
-        
+
         if self.is_eof() {
             return Ok(Token {
                 token_type: TokenType::EOF,
@@ -73,10 +71,10 @@ impl CypherLexer {
                 position: self.position,
             });
         }
-        
+
         let ch = self.peek_char().unwrap();
         let position = self.position;
-        
+
         match ch {
             // 字符串字面量
             '"' => {
@@ -87,7 +85,7 @@ impl CypherLexer {
                     position,
                 })
             }
-            
+
             // 数字字面量
             '0'..='9' => {
                 let value = self.read_number()?;
@@ -97,7 +95,7 @@ impl CypherLexer {
                     position,
                 })
             }
-            
+
             // 标识符或关键字
             'a'..='z' | 'A'..='Z' | '_' => {
                 let value = self.read_identifier()?;
@@ -112,7 +110,7 @@ impl CypherLexer {
                     position,
                 })
             }
-            
+
             // 标点符号
             '(' | ')' | '[' | ']' | '{' | '}' | ':' | ',' | ';' | '.' => {
                 let value = self.read_punctuation()?;
@@ -122,7 +120,7 @@ impl CypherLexer {
                     position,
                 })
             }
-            
+
             // 注释
             '/' if self.peek_next_char() == Some('/') => {
                 let value = self.read_comment()?;
@@ -142,7 +140,7 @@ impl CypherLexer {
                     position,
                 })
             }
-            
+
             _ => Err(format!("无法识别的字符: '{}'", ch)),
         }
     }
@@ -151,7 +149,7 @@ impl CypherLexer {
     fn read_string(&mut self) -> Result<String, String> {
         self.expect_char('"')?;
         let mut string = String::new();
-        
+
         while let Some(ch) = self.peek_char() {
             if ch == '"' {
                 break;
@@ -159,7 +157,7 @@ impl CypherLexer {
             string.push(ch);
             self.consume_char();
         }
-        
+
         self.expect_char('"')?;
         Ok(string)
     }
@@ -167,7 +165,7 @@ impl CypherLexer {
     /// 读取数字字面量
     fn read_number(&mut self) -> Result<String, String> {
         let mut number = String::new();
-        
+
         while let Some(ch) = self.peek_char() {
             if ch.is_digit(10) || ch == '.' {
                 number.push(ch);
@@ -176,14 +174,14 @@ impl CypherLexer {
                 break;
             }
         }
-        
+
         Ok(number)
     }
 
     /// 读取标识符
     fn read_identifier(&mut self) -> Result<String, String> {
         let mut identifier = String::new();
-        
+
         while let Some(ch) = self.peek_char() {
             if ch.is_alphanumeric() || ch == '_' {
                 identifier.push(ch);
@@ -192,7 +190,7 @@ impl CypherLexer {
                 break;
             }
         }
-        
+
         Ok(identifier)
     }
 
@@ -209,7 +207,7 @@ impl CypherLexer {
         let first_char = self.peek_char().unwrap();
         operator.push(first_char);
         self.consume_char();
-        
+
         // 检查多字符操作符
         if let Some(next_char) = self.peek_char() {
             match (first_char, next_char) {
@@ -224,7 +222,7 @@ impl CypherLexer {
                 _ => {}
             }
         }
-        
+
         Ok(operator)
     }
 
@@ -232,9 +230,9 @@ impl CypherLexer {
     fn read_comment(&mut self) -> Result<String, String> {
         self.expect_char('/')?;
         self.expect_char('/')?;
-        
+
         let mut comment = String::new();
-        
+
         while let Some(ch) = self.peek_char() {
             if ch == '\n' {
                 break;
@@ -242,7 +240,7 @@ impl CypherLexer {
             comment.push(ch);
             self.consume_char();
         }
-        
+
         Ok(comment)
     }
 
@@ -260,13 +258,12 @@ impl CypherLexer {
     /// 检查是否为关键字
     fn is_keyword(word: &str) -> bool {
         let keywords = vec![
-            "MATCH", "RETURN", "CREATE", "DELETE", "SET", "REMOVE", "MERGE",
-            "WITH", "UNWIND", "CALL", "WHERE", "ORDER", "BY", "SKIP", "LIMIT",
-            "DISTINCT", "AS", "AND", "OR", "NOT", "TRUE", "FALSE", "NULL",
-            "ON", "CREATE", "MATCH", "DETACH", "START", "END", "CONTAINS",
+            "MATCH", "RETURN", "CREATE", "DELETE", "SET", "REMOVE", "MERGE", "WITH", "UNWIND",
+            "CALL", "WHERE", "ORDER", "BY", "SKIP", "LIMIT", "DISTINCT", "AS", "AND", "OR", "NOT",
+            "TRUE", "FALSE", "NULL", "ON", "CREATE", "MATCH", "DETACH", "START", "END", "CONTAINS",
             "STARTS", "ENDS", "IN", "IS", "ALL", "ANY", "NONE", "SINGLE",
         ];
-        
+
         keywords.contains(&word.to_uppercase().as_str())
     }
 
@@ -335,13 +332,13 @@ mod tests {
     fn test_tokenize_string_literal() {
         let input = "\"Hello, World!\"".to_string();
         let mut lexer = CypherLexer::new(input);
-        
+
         let result = lexer.tokenize();
         assert!(result.is_ok());
-        
+
         let tokens = result.unwrap();
         assert_eq!(tokens.len(), 2); // 字符串和EOF
-        
+
         assert_eq!(tokens[0].token_type, TokenType::LiteralString);
         assert_eq!(tokens[0].value, "Hello, World!");
     }
@@ -350,16 +347,16 @@ mod tests {
     fn test_tokenize_number_literal() {
         let input = "123 45.67".to_string();
         let mut lexer = CypherLexer::new(input);
-        
+
         let result = lexer.tokenize();
         assert!(result.is_ok());
-        
+
         let tokens = result.unwrap();
         assert_eq!(tokens.len(), 3); // 123, 45.67, EOF
-        
+
         assert_eq!(tokens[0].token_type, TokenType::LiteralNumber);
         assert_eq!(tokens[0].value, "123");
-        
+
         assert_eq!(tokens[1].token_type, TokenType::LiteralNumber);
         assert_eq!(tokens[1].value, "45.67");
     }
@@ -422,21 +419,21 @@ mod tests {
     fn test_tokenize_complex_query() {
         let input = "MATCH (n:Person {name: \"Alice\", age: 25}) RETURN n.name, n.age".to_string();
         let mut lexer = CypherLexer::new(input);
-        
+
         let result = lexer.tokenize();
         assert!(result.is_ok());
-        
+
         let tokens = result.unwrap();
         assert!(tokens.len() > 10);
-        
+
         // 检查关键字
         assert_eq!(tokens[0].token_type, TokenType::Keyword);
         assert_eq!(tokens[0].value, "MATCH");
-        
+
         // 检查字符串字面量
         let string_token = tokens.iter().find(|t| t.value == "Alice").unwrap();
         assert_eq!(string_token.token_type, TokenType::LiteralString);
-        
+
         // 检查数字字面量
         let number_token = tokens.iter().find(|t| t.value == "25").unwrap();
         assert_eq!(number_token.token_type, TokenType::LiteralNumber);
@@ -446,12 +443,12 @@ mod tests {
     fn test_tokenize_comment() {
         let input = "MATCH (n) // 这是一个注释\nRETURN n".to_string();
         let mut lexer = CypherLexer::new(input);
-        
+
         let result = lexer.tokenize();
         assert!(result.is_ok());
-        
+
         let tokens = result.unwrap();
-        
+
         // 查找注释标记
         let comment_token = tokens.iter().find(|t| t.token_type == TokenType::Comment);
         assert!(comment_token.is_some());
@@ -462,7 +459,7 @@ mod tests {
     fn test_tokenize_invalid_character() {
         let input = "MATCH (n@Person)".to_string();
         let mut lexer = CypherLexer::new(input);
-        
+
         let result = lexer.tokenize();
         assert!(result.is_err());
     }

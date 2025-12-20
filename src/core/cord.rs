@@ -58,11 +58,15 @@ impl Cord {
         let mut remaining = data;
         while !remaining.is_empty() {
             // Get or create a block
-            if self.blocks.is_empty() || self.blocks.last().map_or(0, |b| b.len()) == self.block_size {
+            if self.blocks.is_empty()
+                || self.blocks.last().map_or(0, |b| b.len()) == self.block_size
+            {
                 self.blocks.push(Vec::with_capacity(self.block_size));
             }
 
-            let last_block = self.blocks.last_mut()
+            let last_block = self
+                .blocks
+                .last_mut()
                 .expect("Cord should have at least one block after push");
             let space_left = self.block_size - last_block.len();
 
@@ -134,8 +138,7 @@ impl Cord {
     /// Write any value that implements Display to the Cord
     pub fn write<T: std::fmt::Display>(&mut self, value: T) -> &mut Self {
         let mut s = String::new();
-        write!(s, "{}", value)
-            .expect("String write should not fail for Display types");
+        write!(s, "{}", value).expect("String write should not fail for Display types");
         self.append_str(&s)
     }
 

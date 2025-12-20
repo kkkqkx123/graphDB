@@ -8,10 +8,12 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::result_processing::traits::{
+    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
+};
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
-use crate::query::executor::result_processing::traits::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::storage::StorageEngine;
 
 /// 限制执行器 - 实现LIMIT和OFFSET功能
@@ -27,19 +29,14 @@ pub struct LimitExecutor<S: StorageEngine + Send + 'static> {
 }
 
 impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        limit: Option<usize>,
-        offset: usize,
-    ) -> Self {
+    pub fn new(id: usize, storage: Arc<Mutex<S>>, limit: Option<usize>, offset: usize) -> Self {
         let base = BaseResultProcessor::new(
             id,
             "LimitExecutor".to_string(),
             "Limits query results with LIMIT and OFFSET".to_string(),
             storage,
         );
-        
+
         Self {
             base,
             limit,
@@ -182,8 +179,7 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
         }
 
         // 将边转换为数据集
-        let rows: Vec<Vec<Value>> =
-            edges.into_iter().map(|e| vec![Value::Edge(e)]).collect();
+        let rows: Vec<Vec<Value>> = edges.into_iter().map(|e| vec![Value::Edge(e)]).collect();
 
         Ok(DataSet {
             col_names: vec!["_edge".to_string()],
@@ -234,7 +230,10 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for LimitExecutor<S> {
             input_exec.execute().await?
         } else {
             // 如果没有输入执行器，使用设置的输入数据
-            self.base.input.clone().unwrap_or(ExecutionResult::DataSet(DataSet::new()))
+            self.base
+                .input
+                .clone()
+                .unwrap_or(ExecutionResult::DataSet(DataSet::new()))
         };
 
         self.process(input_result).await
@@ -380,11 +379,18 @@ mod tests {
             Ok(())
         }
 
-        fn scan_all_vertices(&self) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_all_vertices(
+            &self,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError> {
+        fn scan_vertices_by_tag(
+            &self,
+            _tag: &str,
+        ) -> Result<Vec<crate::core::vertex_edge_path::Vertex>, crate::storage::StorageError>
+        {
             Ok(Vec::new())
         }
     }
@@ -392,7 +398,7 @@ mod tests {
     #[tokio::test]
     async fn test_limit_executor_basic() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建测试数据
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["name".to_string(), "age".to_string()];
@@ -405,13 +411,16 @@ mod tests {
 
         // 创建限制执行器 (LIMIT 5 OFFSET 2)
         let mut executor = LimitExecutor::new(1, storage, Some(5), 2);
-        
+
         // 设置输入数据
         ResultProcessor::set_input(&mut executor, ExecutionResult::DataSet(dataset));
-        
+
         // 执行限制
-        let result = executor.process(ExecutionResult::DataSet(DataSet::new())).await.unwrap();
-        
+        let result = executor
+            .process(ExecutionResult::DataSet(DataSet::new()))
+            .await
+            .unwrap();
+
         // 验证结果
         match result {
             ExecutionResult::DataSet(limited_dataset) => {
@@ -427,19 +436,22 @@ mod tests {
     #[tokio::test]
     async fn test_limit_executor_only_limit() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        
+
         // 创建测试数据
         let values: Vec<Value> = (1..=10).map(|i| Value::Int(i)).collect();
 
         // 创建限制执行器 (仅 LIMIT 3)
         let mut executor = LimitExecutor::with_limit(1, storage, 3);
-        
+
         // 设置输入数据
         ResultProcessor::set_input(&mut executor, ExecutionResult::Values(values));
-        
+
         // 执行限制
-        let result = executor.process(ExecutionResult::DataSet(DataSet::new())).await.unwrap();
-        
+        let result = executor
+            .process(ExecutionResult::DataSet(DataSet::new()))
+            .await
+            .unwrap();
+
         // 验证结果
         match result {
             ExecutionResult::DataSet(limited_dataset) => {

@@ -15,7 +15,7 @@ pub mod vertex_edge_path;
 pub mod visitor;
 pub mod visitors_legacy;
 
-pub use error::{DBError, DBResult, QueryError, ExpressionError};
+pub use error::{DBError, DBResult, ExpressionError, QueryError};
 pub use result::*;
 pub use schema::*;
 pub use symbol::*;

@@ -24,6 +24,6 @@ pub mod query_pipeline_manager;
 pub use executor_factory::ExecutorFactory;
 pub use query_pipeline_manager::QueryPipelineManager;
 // Re-export error types from core module
-pub use crate::core::{QueryError, DBResult};
+pub use crate::core::{DBResult, QueryError};
 // Re-export execution result from executor module
 pub use executor::traits::ExecutionResult;

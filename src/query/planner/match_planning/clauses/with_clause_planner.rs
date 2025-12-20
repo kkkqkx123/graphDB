@@ -105,7 +105,9 @@ impl CypherClausePlanner for WithClausePlanner {
 }
 
 impl DataFlowNode for WithClausePlanner {
-    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+    fn flow_direction(
+        &self,
+    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
         self.clause_type().flow_direction()
     }
 }
@@ -114,7 +116,7 @@ impl DataFlowNode for WithClausePlanner {
 mod tests {
     use super::*;
     use crate::query::planner::match_planning::core::ClauseType;
-    
+
     #[test]
     fn test_with_clause_planner_interface() {
         let planner = WithClausePlanner::new();

@@ -4,53 +4,53 @@ use super::base::AstContext;
 use std::collections::HashMap;
 
 /// 查询AST上下文
-/// 
+///
 /// 专门用于查询计划生成和优化的AST上下文
 /// 包含查询执行计划相关的信息
 #[derive(Debug, Clone)]
 pub struct QueryAstContext {
     base: AstContext,
-    query_plan: QueryPlan,              // 查询计划
-    optimization_hints: Vec<OptimizationHint>, // 优化提示
-    execution_stats: ExecutionStats,     // 执行统计
+    query_plan: QueryPlan,                      // 查询计划
+    optimization_hints: Vec<OptimizationHint>,  // 优化提示
+    execution_stats: ExecutionStats,            // 执行统计
     dependencies: HashMap<String, Vec<String>>, // 依赖关系
 }
 
 /// 查询计划
 #[derive(Debug, Clone)]
 pub struct QueryPlan {
-    pub plan_type: String,               // "sequential", "parallel", "distributed"
-    pub steps: Vec<QueryStep>,           // 查询步骤
-    pub estimated_cost: f64,             // 预估成本
-    pub estimated_rows: usize,          // 预估行数
+    pub plan_type: String,     // "sequential", "parallel", "distributed"
+    pub steps: Vec<QueryStep>, // 查询步骤
+    pub estimated_cost: f64,   // 预估成本
+    pub estimated_rows: usize, // 预估行数
 }
 
 /// 查询步骤
 #[derive(Debug, Clone)]
 pub struct QueryStep {
-    pub step_type: String,              // "scan", "filter", "join", "aggregate"
-    pub description: String,             // 步骤描述
-    pub dependencies: Vec<String>,      // 依赖的步骤
-    pub estimated_cost: f64,            // 预估成本
-    pub estimated_rows: usize,          // 预估行数
+    pub step_type: String,         // "scan", "filter", "join", "aggregate"
+    pub description: String,       // 步骤描述
+    pub dependencies: Vec<String>, // 依赖的步骤
+    pub estimated_cost: f64,       // 预估成本
+    pub estimated_rows: usize,     // 预估行数
 }
 
 /// 优化提示
 #[derive(Debug, Clone)]
 pub struct OptimizationHint {
-    pub hint_type: String,               // "index", "join_order", "predicate_pushdown"
-    pub target: String,                  // 目标对象
+    pub hint_type: String, // "index", "join_order", "predicate_pushdown"
+    pub target: String,    // 目标对象
     pub parameters: HashMap<String, String>, // 参数
 }
 
 /// 执行统计
 #[derive(Debug, Clone)]
 pub struct ExecutionStats {
-    pub total_time: f64,                 // 总执行时间
-    pub memory_usage: usize,             // 内存使用量
-    pub rows_processed: usize,           // 处理的行数
-    pub cache_hits: usize,               // 缓存命中数
-    pub cache_misses: usize,             // 缓存未命中数
+    pub total_time: f64,       // 总执行时间
+    pub memory_usage: usize,   // 内存使用量
+    pub rows_processed: usize, // 处理的行数
+    pub cache_hits: usize,     // 缓存命中数
+    pub cache_misses: usize,   // 缓存未命中数
 }
 
 impl QueryAstContext {
@@ -123,17 +123,26 @@ impl QueryAstContext {
 
     /// 计算查询计划的总预估成本
     pub fn total_estimated_cost(&self) -> f64 {
-        self.query_plan.steps.iter().map(|step| step.estimated_cost).sum()
+        self.query_plan
+            .steps
+            .iter()
+            .map(|step| step.estimated_cost)
+            .sum()
     }
 
     /// 检查是否包含特定类型的优化提示
     pub fn has_optimization_hint(&self, hint_type: &str) -> bool {
-        self.optimization_hints.iter().any(|h| h.hint_type == hint_type)
+        self.optimization_hints
+            .iter()
+            .any(|h| h.hint_type == hint_type)
     }
 
     /// 获取特定类型的优化提示
     pub fn get_optimization_hints_by_type(&self, hint_type: &str) -> Vec<&OptimizationHint> {
-        self.optimization_hints.iter().filter(|h| h.hint_type == hint_type).collect()
+        self.optimization_hints
+            .iter()
+            .filter(|h| h.hint_type == hint_type)
+            .collect()
     }
 
     /// 获取步骤的依赖关系
@@ -178,7 +187,7 @@ mod tests {
     fn test_query_ast_context_creation() {
         let query = "SELECT * FROM users WHERE age > 30";
         let context = QueryAstContext::new(query);
-        
+
         assert_eq!(context.base_context().statement_type(), "QUERY");
         assert!(context.is_plan_empty());
         assert_eq!(context.total_estimated_cost(), 0.0);
@@ -187,7 +196,7 @@ mod tests {
     #[test]
     fn test_query_ast_context_add_step() {
         let mut context = QueryAstContext::new("SELECT * FROM users");
-        
+
         let step = QueryStep {
             step_type: "scan".to_string(),
             description: "Scan users table".to_string(),
@@ -195,7 +204,7 @@ mod tests {
             estimated_cost: 10.0,
             estimated_rows: 1000,
         };
-        
+
         context.add_step(step);
         assert!(!context.is_plan_empty());
         assert_eq!(context.total_estimated_cost(), 10.0);
@@ -204,13 +213,13 @@ mod tests {
     #[test]
     fn test_query_ast_context_add_optimization_hint() {
         let mut context = QueryAstContext::new("SELECT * FROM users WHERE id = 1");
-        
+
         let hint = OptimizationHint {
             hint_type: "index".to_string(),
             target: "users.id".to_string(),
             parameters: HashMap::new(),
         };
-        
+
         context.add_optimization_hint(hint);
         assert!(context.has_optimization_hint("index"));
         assert_eq!(context.get_optimization_hints_by_type("index").len(), 1);
@@ -218,18 +227,19 @@ mod tests {
 
     #[test]
     fn test_query_ast_context_add_dependency() {
-        let mut context = QueryAstContext::new("SELECT * FROM users JOIN orders ON users.id = orders.user_id");
-        
+        let mut context =
+            QueryAstContext::new("SELECT * FROM users JOIN orders ON users.id = orders.user_id");
+
         let dependencies = vec!["scan_users".to_string(), "scan_orders".to_string()];
         context.add_dependency("join".to_string(), dependencies.clone());
-        
+
         assert_eq!(context.get_step_dependencies("join"), Some(&dependencies));
     }
 
     #[test]
     fn test_query_ast_context_update_execution_stats() {
         let mut context = QueryAstContext::new("SELECT * FROM users");
-        
+
         let stats = ExecutionStats {
             total_time: 0.5,
             memory_usage: 1024,
@@ -237,9 +247,9 @@ mod tests {
             cache_hits: 10,
             cache_misses: 5,
         };
-        
+
         context.update_execution_stats(stats);
-        
+
         assert_eq!(context.execution_stats().total_time, 0.5);
         assert_eq!(context.execution_stats().memory_usage, 1024);
         assert_eq!(context.execution_stats().rows_processed, 100);

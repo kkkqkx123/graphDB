@@ -3,8 +3,11 @@
 //! 包含Union、Unwind、Dedup等数据处理相关的计划节点
 
 use super::super::plan_node_kind::PlanNodeKind;
-use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable};
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+use super::traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+    PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
+};
 use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
@@ -21,7 +24,10 @@ pub struct UnionNode {
 }
 
 impl UnionNode {
-    pub fn new(input: Arc<dyn PlanNode>, distinct: bool) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    pub fn new(
+        input: Arc<dyn PlanNode>,
+        distinct: bool,
+    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
         deps.push(input.clone());
@@ -43,14 +49,24 @@ impl UnionNode {
 }
 
 impl PlanNodeIdentifiable for UnionNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::Union }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::Union
+    }
 }
 
 impl PlanNodeProperties for UnionNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for UnionNode {
@@ -65,22 +81,26 @@ impl PlanNodeDependencies for UnionNode {
     }
 
     fn remove_dependency(&mut self, _id: i64) -> bool {
-         false
-     }
+        false
+    }
 }
 
 impl PlanNodeDependenciesExt for UnionNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
 }
-    
+
 impl PlanNodeMutable for UnionNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for UnionNode {
@@ -113,7 +133,9 @@ impl PlanNodeVisitable for UnionNode {
 }
 
 impl PlanNode for UnionNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Unwind节点
@@ -137,7 +159,7 @@ impl UnwindNode {
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = input.col_names().to_vec();
         col_names.push(alias.to_string());
-        
+
         let mut deps = Vec::new();
         deps.push(input.clone());
 
@@ -163,14 +185,24 @@ impl UnwindNode {
 }
 
 impl PlanNodeIdentifiable for UnwindNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::Unwind }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::Unwind
+    }
 }
 
 impl PlanNodeProperties for UnwindNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for UnwindNode {
@@ -185,22 +217,26 @@ impl PlanNodeDependencies for UnwindNode {
     }
 
     fn remove_dependency(&mut self, _id: i64) -> bool {
-         false
-     }
+        false
+    }
 }
 
 impl PlanNodeDependenciesExt for UnwindNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
 }
-    
+
 impl PlanNodeMutable for UnwindNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for UnwindNode {
@@ -234,7 +270,9 @@ impl PlanNodeVisitable for UnwindNode {
 }
 
 impl PlanNode for UnwindNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 去重节点
@@ -249,7 +287,9 @@ pub struct DedupNode {
 }
 
 impl DedupNode {
-    pub fn new(input: Arc<dyn PlanNode>) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    pub fn new(
+        input: Arc<dyn PlanNode>,
+    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
         deps.push(input.clone());
@@ -266,14 +306,24 @@ impl DedupNode {
 }
 
 impl PlanNodeIdentifiable for DedupNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::Dedup }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::Dedup
+    }
 }
 
 impl PlanNodeProperties for DedupNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for DedupNode {
@@ -288,22 +338,26 @@ impl PlanNodeDependencies for DedupNode {
     }
 
     fn remove_dependency(&mut self, _id: i64) -> bool {
-         false
-     }
+        false
+    }
 }
 
 impl PlanNodeDependenciesExt for DedupNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
 }
-    
+
 impl PlanNodeMutable for DedupNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for DedupNode {
@@ -335,7 +389,9 @@ impl PlanNodeVisitable for DedupNode {
 }
 
 impl PlanNode for DedupNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// RollUpApply节点
@@ -383,14 +439,24 @@ impl RollUpApplyNode {
 }
 
 impl PlanNodeIdentifiable for RollUpApplyNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::RollUpApply }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::RollUpApply
+    }
 }
 
 impl PlanNodeProperties for RollUpApplyNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for RollUpApplyNode {
@@ -405,22 +471,26 @@ impl PlanNodeDependencies for RollUpApplyNode {
     }
 
     fn remove_dependency(&mut self, _id: i64) -> bool {
-         false
-     }
+        false
+    }
 }
 
 impl PlanNodeDependenciesExt for RollUpApplyNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
 }
-    
+
 impl PlanNodeMutable for RollUpApplyNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for RollUpApplyNode {
@@ -454,7 +524,9 @@ impl PlanNodeVisitable for RollUpApplyNode {
 }
 
 impl PlanNode for RollUpApplyNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// PatternApply节点
@@ -502,14 +574,24 @@ impl PatternApplyNode {
 }
 
 impl PlanNodeIdentifiable for PatternApplyNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::PatternApply }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::PatternApply
+    }
 }
 
 impl PlanNodeProperties for PatternApplyNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for PatternApplyNode {
@@ -524,22 +606,26 @@ impl PlanNodeDependencies for PatternApplyNode {
     }
 
     fn remove_dependency(&mut self, _id: i64) -> bool {
-         false
-     }
+        false
+    }
 }
 
 impl PlanNodeDependenciesExt for PatternApplyNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
 }
-    
+
 impl PlanNodeMutable for PatternApplyNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for PatternApplyNode {
@@ -573,7 +659,9 @@ impl PlanNodeVisitable for PatternApplyNode {
 }
 
 impl PlanNode for PatternApplyNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 数据收集节点
@@ -589,7 +677,10 @@ pub struct DataCollectNode {
 }
 
 impl DataCollectNode {
-    pub fn new(input: Arc<dyn PlanNode>, collect_kind: &str) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    pub fn new(
+        input: Arc<dyn PlanNode>,
+        collect_kind: &str,
+    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
         deps.push(input.clone());
@@ -611,14 +702,24 @@ impl DataCollectNode {
 }
 
 impl PlanNodeIdentifiable for DataCollectNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::DataCollect }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::DataCollect
+    }
 }
 
 impl PlanNodeProperties for DataCollectNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for DataCollectNode {
@@ -633,22 +734,26 @@ impl PlanNodeDependencies for DataCollectNode {
     }
 
     fn remove_dependency(&mut self, _id: i64) -> bool {
-         false
-     }
+        false
+    }
 }
 
 impl PlanNodeDependenciesExt for DataCollectNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
 }
-    
+
 impl PlanNodeMutable for DataCollectNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for DataCollectNode {
@@ -681,46 +786,48 @@ impl PlanNodeVisitable for DataCollectNode {
 }
 
 impl PlanNode for DataCollectNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
-    
+
     #[test]
     fn test_union_node_creation() {
         let start_node = StartNode::new();
         let start_node = Arc::new(start_node);
-        
+
         let union_node = UnionNode::new(start_node, true).unwrap();
-        
+
         assert_eq!(union_node.kind(), PlanNodeKind::Union);
         assert_eq!(union_node.dependencies().len(), 1);
         assert!(union_node.distinct());
     }
-    
+
     #[test]
     fn test_unwind_node_creation() {
         let start_node = StartNode::new();
         let start_node = Arc::new(start_node);
-        
+
         let unwind_node = UnwindNode::new(start_node, "item", "list").unwrap();
-        
+
         assert_eq!(unwind_node.kind(), PlanNodeKind::Unwind);
         assert_eq!(unwind_node.dependencies().len(), 1);
         assert_eq!(unwind_node.alias(), "item");
         assert_eq!(unwind_node.list_expr(), "list");
     }
-    
+
     #[test]
     fn test_dedup_node_creation() {
         let start_node = StartNode::new();
         let start_node = Arc::new(start_node);
-        
+
         let dedup_node = DedupNode::new(start_node).unwrap();
-        
+
         assert_eq!(dedup_node.kind(), PlanNodeKind::Dedup);
         assert_eq!(dedup_node.dependencies().len(), 1);
     }

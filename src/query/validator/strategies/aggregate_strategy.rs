@@ -367,8 +367,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试没有聚合函数的表达式
-        let non_agg_expr =
-            Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
+        let non_agg_expr = Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
         assert_eq!(strategy.has_aggregate_expr(&non_agg_expr), false);
 
         // 测试包含聚合函数的表达式
@@ -390,8 +389,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试没有聚合函数的UNWIND表达式
-        let non_agg_expr =
-            Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
+        let non_agg_expr = Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
         assert!(strategy.validate_unwind_aggregate(&non_agg_expr).is_ok());
 
         // 测试包含聚合函数的UNWIND表达式
@@ -635,9 +633,7 @@ mod tests {
                     }),
                     op: BinaryOperator::Equal,
                     right: Box::new(Expression::Literal(
-                        crate::expression::expression::LiteralValue::String(
-                            "active".to_string(),
-                        ),
+                        crate::expression::expression::LiteralValue::String("active".to_string()),
                     )),
                 },
                 Expression::Literal(crate::expression::expression::LiteralValue::Int(1)),

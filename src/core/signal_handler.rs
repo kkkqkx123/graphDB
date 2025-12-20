@@ -158,7 +158,9 @@ impl SignalHandler {
             Ok(info) => info.clone(),
             Err(poisoned) => {
                 // 尝试从污染的锁中恢复数据
-                log::warn!("Signal info lock is poisoned when getting last signal, attempting recovery");
+                log::warn!(
+                    "Signal info lock is poisoned when getting last signal, attempting recovery"
+                );
                 poisoned.into_inner().clone()
             }
         }

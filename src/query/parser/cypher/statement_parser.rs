@@ -2,18 +2,18 @@
 //!
 //! 提供完整的Cypher语句解析功能
 
-use super::parser_core::CypherParserCore;
 use super::ast::*;
+use super::parser_core::CypherParserCore;
 
 impl CypherParserCore {
     /// 解析单个语句
     pub fn parse_statement(&mut self) -> Result<CypherStatement, String> {
         self.skip_whitespace();
-        
+
         if self.is_eof() {
             return Err("意外的文件结束".to_string());
         }
-        
+
         // 检查是否是关键字
         let keyword = if self.is_current_token_type(super::lexer::TokenType::Keyword) {
             self.current_token().value.clone()
@@ -27,7 +27,7 @@ impl CypherParserCore {
                 self.current_token().position
             ));
         };
-        
+
         match keyword.to_uppercase().as_str() {
             "MATCH" => self.parse_match_statement(),
             "RETURN" => self.parse_return_statement(),
@@ -55,15 +55,18 @@ impl CypherParserCore {
             let delete_clause = self.parse_delete_clause()?;
             Ok(CypherStatement::Delete(delete_clause))
         } else {
-            Err(format!("DETACH关键字后期望DELETE，但得到 '{}' 在位置 {}",
-                self.current_token().value, self.current_token().position))
+            Err(format!(
+                "DETACH关键字后期望DELETE，但得到 '{}' 在位置 {}",
+                self.current_token().value,
+                self.current_token().position
+            ))
         }
     }
 
     /// 解析MATCH语句
     fn parse_match_statement(&mut self) -> Result<CypherStatement, String> {
         let match_clause = self.parse_match_clause()?;
-        
+
         // 检查是否有后续的RETURN或WITH子句
         self.skip_whitespace();
         if self.is_current_keyword("RETURN") || self.is_current_keyword("WITH") {
@@ -72,13 +75,13 @@ impl CypherParserCore {
             } else {
                 None
             };
-            
+
             let with_clause = if self.is_current_keyword("WITH") {
                 Some(self.parse_with_clause()?)
             } else {
                 None
             };
-            
+
             Ok(CypherStatement::Query(QueryClause {
                 match_clause: Some(match_clause),
                 where_clause: None, // WHERE子句已经在match_clause中处理
@@ -150,36 +153,36 @@ impl CypherParserCore {
         let mut where_clause = None;
         let mut return_clause = None;
         let mut with_clause = None;
-        
+
         // 解析MATCH子句
         self.skip_whitespace();
         if self.is_current_keyword("MATCH") {
             match_clause = Some(self.parse_match_clause()?);
         }
-        
+
         // 解析独立的WHERE子句
         self.skip_whitespace();
         if self.is_current_keyword("WHERE") && match_clause.is_some() {
             where_clause = Some(self.parse_where_clause()?);
         }
-        
+
         // 解析RETURN子句
         self.skip_whitespace();
         if self.is_current_keyword("RETURN") {
             return_clause = Some(self.parse_return_clause()?);
         }
-        
+
         // 解析WITH子句
         self.skip_whitespace();
         if self.is_current_keyword("WITH") {
             with_clause = Some(self.parse_with_clause()?);
         }
-        
+
         // 确保至少有一个子句
         if match_clause.is_none() && return_clause.is_none() && with_clause.is_none() {
             return Err("查询语句必须包含至少一个MATCH、RETURN或WITH子句".to_string());
         }
-        
+
         Ok(CypherStatement::Query(QueryClause {
             match_clause,
             where_clause,
@@ -191,16 +194,16 @@ impl CypherParserCore {
     /// 解析多个语句
     pub fn parse_statements(&mut self) -> Result<Vec<CypherStatement>, String> {
         let mut statements = Vec::new();
-        
+
         while !self.is_eof() {
             self.skip_whitespace();
             if self.is_eof() {
                 break;
             }
-            
+
             let current_pos = self.current_token().position;
             let statement = self.parse_statement();
-            
+
             match statement {
                 Ok(stmt) => {
                     statements.push(stmt);
@@ -210,14 +213,14 @@ impl CypherParserCore {
                     return Err(e);
                 }
             }
-            
+
             // 跳过语句分隔符
             self.skip_whitespace();
             if self.is_current_token_value(";") {
                 self.consume_token();
             }
         }
-        
+
         if statements.is_empty() {
             Err("没有有效的Cypher语句".to_string())
         } else {
@@ -234,7 +237,7 @@ mod tests {
     fn test_parse_simple_match_statement() {
         let mut parser = CypherParserCore::new("MATCH (n:Person)".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Match(match_clause) => {
                 assert_eq!(match_clause.patterns.len(), 1);
@@ -248,7 +251,7 @@ mod tests {
     fn test_parse_match_with_where_statement() {
         let mut parser = CypherParserCore::new("MATCH (n:Person) WHERE n.age > 30".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Match(match_clause) => {
                 assert_eq!(match_clause.patterns.len(), 1);
@@ -262,7 +265,7 @@ mod tests {
     fn test_parse_match_return_statement() {
         let mut parser = CypherParserCore::new("MATCH (n:Person) RETURN n.name".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Query(query_clause) => {
                 assert!(query_clause.match_clause.is_some());
@@ -277,7 +280,7 @@ mod tests {
     fn test_parse_return_statement() {
         let mut parser = CypherParserCore::new("RETURN n.name, n.age".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Return(return_clause) => {
                 assert_eq!(return_clause.return_items.len(), 2);
@@ -290,7 +293,7 @@ mod tests {
     fn test_parse_create_statement() {
         let mut parser = CypherParserCore::new("CREATE (n:Person {name: \"Alice\"})".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Create(create_clause) => {
                 assert_eq!(create_clause.patterns.len(), 1);
@@ -303,7 +306,7 @@ mod tests {
     fn test_parse_delete_statement() {
         let mut parser = CypherParserCore::new("DELETE n".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Delete(delete_clause) => {
                 assert_eq!(delete_clause.expressions.len(), 1);
@@ -317,7 +320,7 @@ mod tests {
     fn test_parse_detach_delete_statement() {
         let mut parser = CypherParserCore::new("DETACH DELETE n".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Delete(delete_clause) => {
                 assert_eq!(delete_clause.expressions.len(), 1);
@@ -331,7 +334,7 @@ mod tests {
     fn test_parse_set_statement() {
         let mut parser = CypherParserCore::new("SET n.name = \"Alice\"".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Set(set_clause) => {
                 assert_eq!(set_clause.items.len(), 1);
@@ -344,7 +347,7 @@ mod tests {
     fn test_parse_remove_statement() {
         let mut parser = CypherParserCore::new("REMOVE n.name".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Remove(remove_clause) => {
                 assert_eq!(remove_clause.items.len(), 1);
@@ -357,7 +360,7 @@ mod tests {
     fn test_parse_merge_statement() {
         let mut parser = CypherParserCore::new("MERGE (n:Person {name: \"Alice\"})".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Merge(merge_clause) => {
                 assert_eq!(merge_clause.pattern.parts.len(), 1);
@@ -370,7 +373,7 @@ mod tests {
     fn test_parse_with_statement() {
         let mut parser = CypherParserCore::new("WITH n.name AS name".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::With(with_clause) => {
                 assert_eq!(with_clause.return_items.len(), 1);
@@ -383,7 +386,7 @@ mod tests {
     fn test_parse_unwind_statement() {
         let mut parser = CypherParserCore::new("UNWIND [1, 2, 3] AS number".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Unwind(unwind_clause) => {
                 assert_eq!(unwind_clause.variable, "number");
@@ -396,7 +399,7 @@ mod tests {
     fn test_parse_call_statement() {
         let mut parser = CypherParserCore::new("CALL db.info()".to_string());
         let statement = parser.parse_statement().unwrap();
-        
+
         match statement {
             CypherStatement::Call(call_clause) => {
                 assert_eq!(call_clause.procedure, "db.info");
@@ -407,11 +410,12 @@ mod tests {
 
     #[test]
     fn test_parse_multiple_statements() {
-        let mut parser = CypherParserCore::new("MATCH (n:Person) RETURN n; MATCH (m:User) RETURN m".to_string());
+        let mut parser =
+            CypherParserCore::new("MATCH (n:Person) RETURN n; MATCH (m:User) RETURN m".to_string());
         let statements = parser.parse_statements().unwrap();
-        
+
         assert_eq!(statements.len(), 2);
-        
+
         match &statements[0] {
             CypherStatement::Query(query_clause) => {
                 assert!(query_clause.match_clause.is_some());
@@ -419,7 +423,7 @@ mod tests {
             }
             _ => panic!("Expected Query statement"),
         }
-        
+
         match &statements[1] {
             CypherStatement::Query(query_clause) => {
                 assert!(query_clause.match_clause.is_some());

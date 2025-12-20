@@ -119,10 +119,10 @@ pub fn convert_unified_to_cypher_binary_operator(
         GraphOp::GreaterThanOrEqual => Ok(CypherOp::GreaterThanOrEqual),
         GraphOp::In => Ok(CypherOp::In),
         GraphOp::StringConcat => Ok(CypherOp::Add), // 临时映射
-        GraphOp::Like => Ok(CypherOp::RegexMatch), // 临时映射
-        GraphOp::Union => Ok(CypherOp::Add), // 临时映射
-        GraphOp::Intersect => Ok(CypherOp::And), // 临时映射
-        GraphOp::Except => Ok(CypherOp::Subtract), // 临时映射
+        GraphOp::Like => Ok(CypherOp::RegexMatch),  // 临时映射
+        GraphOp::Union => Ok(CypherOp::Add),        // 临时映射
+        GraphOp::Intersect => Ok(CypherOp::And),    // 临时映射
+        GraphOp::Except => Ok(CypherOp::Subtract),  // 临时映射
     }
 }
 
