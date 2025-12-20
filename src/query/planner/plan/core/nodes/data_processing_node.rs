@@ -3,10 +3,7 @@
 //! 包含Union、Unwind、Dedup等数据处理相关的计划节点
 
 use super::super::plan_node_kind::PlanNodeKind;
-use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
-    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
-};
+use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable};
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
@@ -58,14 +55,7 @@ impl PlanNodeProperties for UnionNode {
 
 impl PlanNodeDependencies for UnionNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
-        f(&self.deps)
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -77,9 +67,18 @@ impl PlanNodeDependencies for UnionNode {
     fn remove_dependency(&mut self, _id: i64) -> bool {
          false
      }
+}
+
+impl PlanNodeDependenciesExt for UnionNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
+}
     
-    impl PlanNodeMutable for UnionNode {
+impl PlanNodeMutable for UnionNode {
     fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
     fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
 }
@@ -176,14 +175,7 @@ impl PlanNodeProperties for UnwindNode {
 
 impl PlanNodeDependencies for UnwindNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
-        f(&self.deps)
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -195,9 +187,18 @@ impl PlanNodeDependencies for UnwindNode {
     fn remove_dependency(&mut self, _id: i64) -> bool {
          false
      }
+}
+
+impl PlanNodeDependenciesExt for UnwindNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
+}
     
-    impl PlanNodeMutable for UnwindNode {
+impl PlanNodeMutable for UnwindNode {
     fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
     fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
 }
@@ -277,14 +278,7 @@ impl PlanNodeProperties for DedupNode {
 
 impl PlanNodeDependencies for DedupNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
-        f(&self.deps)
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -296,9 +290,18 @@ impl PlanNodeDependencies for DedupNode {
     fn remove_dependency(&mut self, _id: i64) -> bool {
          false
      }
+}
+
+impl PlanNodeDependenciesExt for DedupNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
+}
     
-    impl PlanNodeMutable for DedupNode {
+impl PlanNodeMutable for DedupNode {
     fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
     fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
 }
@@ -392,14 +395,7 @@ impl PlanNodeProperties for RollUpApplyNode {
 
 impl PlanNodeDependencies for RollUpApplyNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
-        f(&self.deps)
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -411,9 +407,18 @@ impl PlanNodeDependencies for RollUpApplyNode {
     fn remove_dependency(&mut self, _id: i64) -> bool {
          false
      }
+}
+
+impl PlanNodeDependenciesExt for RollUpApplyNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
+}
     
-    impl PlanNodeMutable for RollUpApplyNode {
+impl PlanNodeMutable for RollUpApplyNode {
     fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
     fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
 }
@@ -509,14 +514,7 @@ impl PlanNodeProperties for PatternApplyNode {
 
 impl PlanNodeDependencies for PatternApplyNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
-        f(&self.deps)
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -528,9 +526,18 @@ impl PlanNodeDependencies for PatternApplyNode {
     fn remove_dependency(&mut self, _id: i64) -> bool {
          false
      }
+}
+
+impl PlanNodeDependenciesExt for PatternApplyNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
+}
     
-    impl PlanNodeMutable for PatternApplyNode {
+impl PlanNodeMutable for PatternApplyNode {
     fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
     fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
 }
@@ -616,14 +623,7 @@ impl PlanNodeProperties for DataCollectNode {
 
 impl PlanNodeDependencies for DataCollectNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
-        f(&self.deps)
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -635,9 +635,18 @@ impl PlanNodeDependencies for DataCollectNode {
     fn remove_dependency(&mut self, _id: i64) -> bool {
          false
      }
+}
+
+impl PlanNodeDependenciesExt for DataCollectNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
+}
     
-    impl PlanNodeMutable for DataCollectNode {
+impl PlanNodeMutable for DataCollectNode {
     fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
     fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
 }

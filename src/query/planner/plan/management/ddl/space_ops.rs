@@ -4,7 +4,7 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable,
         PlanNodeProperties, PlanNodeVisitable,
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
@@ -80,12 +80,8 @@ impl PlanNodeProperties for CreateNode {
 }
 
 impl PlanNodeDependencies for CreateNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -98,6 +94,15 @@ impl PlanNodeDependencies for CreateNode {
         let final_len = self.deps.len();
 
         initial_len != final_len
+    }
+}
+
+impl PlanNodeDependenciesExt for CreateNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -206,12 +211,8 @@ impl PlanNodeProperties for DropNode {
 }
 
 impl PlanNodeDependencies for DropNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -224,6 +225,15 @@ impl PlanNodeDependencies for DropNode {
         let final_len = self.deps.len();
 
         initial_len != final_len
+    }
+}
+
+impl PlanNodeDependenciesExt for DropNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -357,12 +367,8 @@ impl PlanNodeProperties for CreateSpace {
 }
 
 impl PlanNodeDependencies for CreateSpace {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -375,6 +381,15 @@ impl PlanNodeDependencies for CreateSpace {
         let final_len = self.deps.len();
 
         initial_len != final_len
+    }
+}
+
+impl PlanNodeDependenciesExt for CreateSpace {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -488,12 +503,8 @@ impl PlanNodeProperties for DescSpace {
 }
 
 impl PlanNodeDependencies for DescSpace {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -506,6 +517,15 @@ impl PlanNodeDependencies for DescSpace {
         let final_len = self.deps.len();
 
         initial_len != final_len
+    }
+}
+
+impl PlanNodeDependenciesExt for DescSpace {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -610,12 +630,8 @@ impl PlanNodeProperties for ShowCreateSpace {
 }
 
 impl PlanNodeDependencies for ShowCreateSpace {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -628,6 +644,15 @@ impl PlanNodeDependencies for ShowCreateSpace {
         let final_len = self.deps.len();
 
         initial_len != final_len
+    }
+}
+
+impl PlanNodeDependenciesExt for ShowCreateSpace {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -729,12 +754,8 @@ impl PlanNodeProperties for ShowSpaces {
 }
 
 impl PlanNodeDependencies for ShowSpaces {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -747,6 +768,15 @@ impl PlanNodeDependencies for ShowSpaces {
         let final_len = self.deps.len();
 
         initial_len != final_len
+    }
+}
+
+impl PlanNodeDependenciesExt for ShowSpaces {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -851,12 +881,8 @@ impl PlanNodeProperties for SwitchSpace {
 }
 
 impl PlanNodeDependencies for SwitchSpace {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -869,6 +895,15 @@ impl PlanNodeDependencies for SwitchSpace {
         let final_len = self.deps.len();
 
         initial_len != final_len
+    }
+}
+
+impl PlanNodeDependenciesExt for SwitchSpace {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 

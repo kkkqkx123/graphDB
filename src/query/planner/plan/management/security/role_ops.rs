@@ -4,7 +4,7 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable,
         PlanNodeProperties, PlanNodeVisitable,
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
@@ -91,12 +91,8 @@ impl PlanNodeProperties for CreateRole {
 }
 
 impl PlanNodeDependencies for CreateRole {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -110,6 +106,15 @@ impl PlanNodeDependencies for CreateRole {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for CreateRole {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -217,12 +222,8 @@ impl PlanNodeProperties for DropRole {
 }
 
 impl PlanNodeDependencies for DropRole {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -236,6 +237,15 @@ impl PlanNodeDependencies for DropRole {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for DropRole {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -346,12 +356,8 @@ impl PlanNodeProperties for GrantRole {
 }
 
 impl PlanNodeDependencies for GrantRole {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -365,6 +371,15 @@ impl PlanNodeDependencies for GrantRole {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for GrantRole {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -475,12 +490,8 @@ impl PlanNodeProperties for RevokeRole {
 }
 
 impl PlanNodeDependencies for RevokeRole {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -494,6 +505,15 @@ impl PlanNodeDependencies for RevokeRole {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for RevokeRole {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -602,12 +622,8 @@ impl PlanNodeProperties for ShowRoles {
 }
 
 impl PlanNodeDependencies for ShowRoles {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -621,6 +637,15 @@ impl PlanNodeDependencies for ShowRoles {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for ShowRoles {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 

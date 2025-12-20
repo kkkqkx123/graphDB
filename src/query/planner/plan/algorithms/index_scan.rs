@@ -4,8 +4,8 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
-        PlanNodeProperties, PlanNodeVisitable,
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+        PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
@@ -112,14 +112,10 @@ impl PlanNodeProperties for IndexScan {
 }
 
 impl PlanNodeDependencies for IndexScan {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
-    }
-    
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
     }
@@ -135,20 +131,20 @@ impl PlanNodeDependencies for IndexScan {
 }
 
 impl PlanNodeMutable for IndexScan {
-     fn set_output_var(&mut self, var: Variable) {
-         self.output_var = Some(var);
-     }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
 
-     fn set_col_names(&mut self, names: Vec<String>) {
-         self.col_names = names;
-     }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for IndexScan {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;
@@ -245,14 +241,10 @@ impl PlanNodeProperties for FulltextIndexScan {
 }
 
 impl PlanNodeDependencies for FulltextIndexScan {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
-    }
-    
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.deps.push(dep);
     }
@@ -268,20 +260,20 @@ impl PlanNodeDependencies for FulltextIndexScan {
 }
 
 impl PlanNodeMutable for FulltextIndexScan {
-     fn set_output_var(&mut self, var: Variable) {
-         self.output_var = Some(var);
-     }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
 
-     fn set_col_names(&mut self, names: Vec<String>) {
-         self.col_names = names;
-     }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for FulltextIndexScan {
     fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
         Arc::new(self.clone())
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         let mut cloned = self.clone();
         cloned.id = new_id;

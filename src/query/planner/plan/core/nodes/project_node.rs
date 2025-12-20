@@ -5,8 +5,8 @@
 use super::super::plan_node_kind::PlanNodeKind;
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
-    PlanNodeProperties, PlanNodeVisitable,
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+    PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
 };
 use crate::query::context::validate::types::Variable;
 use crate::query::validator::YieldColumn;
@@ -77,14 +77,7 @@ impl PlanNodeProperties for ProjectNode {
 
 impl PlanNodeDependencies for ProjectNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
-        f(&self.dependencies_vec)
+        self.dependencies_vec.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -110,6 +103,15 @@ impl PlanNodeDependencies for ProjectNode {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for ProjectNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        f(&self.dependencies_vec)
     }
 }
 

@@ -4,7 +4,7 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable,
         PlanNodeProperties, PlanNodeVisitable,
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
@@ -91,12 +91,8 @@ impl PlanNodeProperties for InsertVertices {
 }
 
 impl PlanNodeDependencies for InsertVertices {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -110,6 +106,15 @@ impl PlanNodeDependencies for InsertVertices {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for InsertVertices {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -230,12 +235,8 @@ impl PlanNodeProperties for InsertEdges {
 }
 
 impl PlanNodeDependencies for InsertEdges {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -249,6 +250,15 @@ impl PlanNodeDependencies for InsertEdges {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for InsertEdges {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 

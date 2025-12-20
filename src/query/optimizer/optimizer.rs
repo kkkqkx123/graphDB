@@ -216,12 +216,8 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeProperties for
 }
 
 impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies for DummyPlanNode {
-    fn dependencies(&self) -> &[std::sync::Arc<dyn PlanNode>] {
-        &self.dependencies
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<std::sync::Arc<dyn PlanNode>> {
-        &mut self.dependencies
+    fn dependencies(&self) -> Vec<std::sync::Arc<dyn PlanNode>> {
+        self.dependencies.clone()
     }
 
     fn add_dependency(&mut self, dep: std::sync::Arc<dyn PlanNode>) {
@@ -232,6 +228,17 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies f
         let initial_len = self.dependencies.len();
         self.dependencies.retain(|dep| dep.id() != id);
         self.dependencies.len() < initial_len
+    }
+}
+
+impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependenciesExt
+    for DummyPlanNode
+{
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[std::sync::Arc<dyn PlanNode>]) -> R,
+    {
+        f(&self.dependencies)
     }
 }
 

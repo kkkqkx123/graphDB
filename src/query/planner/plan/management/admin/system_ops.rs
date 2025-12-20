@@ -4,7 +4,7 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable,
         PlanNodeProperties, PlanNodeVisitable,
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
@@ -103,12 +103,8 @@ impl PlanNodeProperties for SubmitJob {
 }
 
 impl PlanNodeDependencies for SubmitJob {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -122,6 +118,15 @@ impl PlanNodeDependencies for SubmitJob {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for SubmitJob {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -237,12 +242,8 @@ impl PlanNodeProperties for CreateSnapshot {
 }
 
 impl PlanNodeDependencies for CreateSnapshot {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -256,6 +257,15 @@ impl PlanNodeDependencies for CreateSnapshot {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for CreateSnapshot {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -364,12 +374,8 @@ impl PlanNodeProperties for DropSnapshot {
 }
 
 impl PlanNodeDependencies for DropSnapshot {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -383,6 +389,15 @@ impl PlanNodeDependencies for DropSnapshot {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for DropSnapshot {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -488,12 +503,8 @@ impl PlanNodeProperties for ShowSnapshots {
 }
 
 impl PlanNodeDependencies for ShowSnapshots {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -507,6 +518,15 @@ impl PlanNodeDependencies for ShowSnapshots {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for ShowSnapshots {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 

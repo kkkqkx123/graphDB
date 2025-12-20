@@ -4,7 +4,7 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable,
         PlanNodeProperties, PlanNodeVisitable,
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
@@ -91,12 +91,8 @@ impl PlanNodeProperties for CreateIndex {
 }
 
 impl PlanNodeDependencies for CreateIndex {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -110,6 +106,15 @@ impl PlanNodeDependencies for CreateIndex {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for CreateIndex {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -217,12 +222,8 @@ impl PlanNodeProperties for DropIndex {
 }
 
 impl PlanNodeDependencies for DropIndex {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -236,6 +237,15 @@ impl PlanNodeDependencies for DropIndex {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for DropIndex {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -345,12 +355,8 @@ impl PlanNodeProperties for ShowIndexes {
 }
 
 impl PlanNodeDependencies for ShowIndexes {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -364,6 +370,15 @@ impl PlanNodeDependencies for ShowIndexes {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for ShowIndexes {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -468,12 +483,8 @@ impl PlanNodeProperties for DescIndex {
 }
 
 impl PlanNodeDependencies for DescIndex {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -487,6 +498,15 @@ impl PlanNodeDependencies for DescIndex {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for DescIndex {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 

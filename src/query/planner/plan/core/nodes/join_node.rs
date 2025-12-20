@@ -3,15 +3,11 @@
 //! 包含各种连接节点类型，如内连接、左连接等
 
 use super::super::plan_node_kind::PlanNodeKind;
-use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
-    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
-};
+use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable};
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
 use crate::graph::expression::Expression;
 use std::sync::Arc;
-
 
 /// 内连接节点
 /// 
@@ -80,14 +76,7 @@ impl PlanNodeProperties for InnerJoinNode {
 
 impl PlanNodeDependencies for InnerJoinNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
-        f(&self.inner_deps)
+        self.inner_deps.clone()
     }
 
     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
@@ -117,6 +106,15 @@ impl PlanNodeDependencies for InnerJoinNode {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for InnerJoinNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.inner_deps)
     }
 }
 
@@ -169,7 +167,6 @@ impl PlanNodeVisitable for InnerJoinNode {
 impl PlanNode for InnerJoinNode {
     fn as_any(&self) -> &dyn std::any::Any { self }
 }
-
 
 /// 左连接节点
 ///
@@ -237,14 +234,7 @@ impl PlanNodeProperties for LeftJoinNode {
 
 impl PlanNodeDependencies for LeftJoinNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
-        f(&self.inner_deps)
+        self.inner_deps.clone()
     }
 
     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
@@ -271,6 +261,15 @@ impl PlanNodeDependencies for LeftJoinNode {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for LeftJoinNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.inner_deps)
     }
 }
 
@@ -374,14 +373,7 @@ impl PlanNodeProperties for CrossJoinNode {
 
 impl PlanNodeDependencies for CrossJoinNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
-        f(&self.inner_deps)
+        self.inner_deps.clone()
     }
 
     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
@@ -408,6 +400,15 @@ impl PlanNodeDependencies for CrossJoinNode {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for CrossJoinNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.inner_deps)
     }
 }
 

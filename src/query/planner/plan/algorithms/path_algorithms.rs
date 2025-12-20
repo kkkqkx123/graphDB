@@ -4,7 +4,7 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable,
         PlanNodeProperties, PlanNodeVisitable,
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
@@ -118,12 +118,8 @@ impl PlanNodeProperties for MultiShortestPath {
 }
 
 impl PlanNodeDependencies for MultiShortestPath {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -137,6 +133,15 @@ impl PlanNodeDependencies for MultiShortestPath {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for MultiShortestPath {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        f(&self.deps)
     }
 }
 
@@ -264,12 +269,8 @@ impl PlanNodeProperties for BFSShortest {
 }
 
 impl PlanNodeDependencies for BFSShortest {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -283,6 +284,15 @@ impl PlanNodeDependencies for BFSShortest {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for BFSShortest {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        f(&self.deps)
     }
 }
 
@@ -423,12 +433,8 @@ impl PlanNodeProperties for AllPaths {
 }
 
 impl PlanNodeDependencies for AllPaths {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -442,6 +448,15 @@ impl PlanNodeDependencies for AllPaths {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for AllPaths {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        f(&self.deps)
     }
 }
 
@@ -573,12 +588,8 @@ impl PlanNodeProperties for ShortestPath {
 }
 
 impl PlanNodeDependencies for ShortestPath {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -592,6 +603,15 @@ impl PlanNodeDependencies for ShortestPath {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for ShortestPath {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        f(&self.deps)
     }
 }
 

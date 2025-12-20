@@ -3,10 +3,7 @@
 //! PlaceholderNode 用于表示计划中的占位符，通常用于参数化查询
 
 use super::super::plan_node_kind::PlanNodeKind;
-use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
-    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
-};
+use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable};
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
@@ -48,12 +45,8 @@ impl PlanNodeProperties for PlaceholderNode {
 }
 
 impl PlanNodeDependencies for PlaceholderNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.dependencies_vec
-    }
-
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.dependencies_vec
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.dependencies_vec.clone()
     }
 
     fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
@@ -64,6 +57,15 @@ impl PlanNodeDependencies for PlaceholderNode {
     fn remove_dependency(&mut self, _id: i64) -> bool {
         // 占位符节点没有依赖，所以无法移除依赖
         false
+    }
+}
+
+impl PlanNodeDependenciesExt for PlaceholderNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.dependencies_vec)
     }
 }
 

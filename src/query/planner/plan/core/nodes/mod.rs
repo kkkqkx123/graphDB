@@ -36,6 +36,6 @@ pub use data_processing_node::{
 };
 
 pub use traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable,
     PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
 };

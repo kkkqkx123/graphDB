@@ -5,7 +5,7 @@
 use super::super::plan_node_kind::PlanNodeKind;
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable,
     PlanNodeProperties, PlanNodeVisitable,
 };
 use crate::query::context::validate::types::Variable;
@@ -75,36 +75,47 @@ impl PlanNodeProperties for ArgumentNode {
 }
 
 impl PlanNodeDependencies for ArgumentNode {
-     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-         self.with_dependencies(|deps| deps.clone())
-     }
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        let deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        deps.clone()
+    }
 
-     fn with_dependencies<F, R>(&self, f: F) -> R
-     where
-         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-     {
-         let deps = self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned");
-         f(&deps)
-     }
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned")
+            .push(dep);
+    }
 
-     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned")
-             .push(dep);
-     }
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let mut deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+            deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
 
-     fn remove_dependency(&mut self, id: i64) -> bool {
-         let mut deps = self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned");
-         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
-             deps.remove(pos);
-             true
-         } else {
-             false
-         }
-     }
- }
+impl PlanNodeDependenciesExt for ArgumentNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        let deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        f(&deps)
+    }
+}
 
 impl PlanNodeMutable for ArgumentNode {
     fn set_output_var(&mut self, var: Variable) {
@@ -228,36 +239,47 @@ impl PlanNodeProperties for SelectNode {
 }
 
 impl PlanNodeDependencies for SelectNode {
-     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-         self.with_dependencies(|deps| deps.clone())
-     }
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        let deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        deps.clone()
+    }
 
-     fn with_dependencies<F, R>(&self, f: F) -> R
-     where
-         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-     {
-         let deps = self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned");
-         f(&deps)
-     }
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned")
+            .push(dep);
+    }
 
-     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned")
-             .push(dep);
-     }
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let mut deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+            deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
 
-     fn remove_dependency(&mut self, id: i64) -> bool {
-         let mut deps = self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned");
-         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
-             deps.remove(pos);
-             true
-         } else {
-             false
-         }
-     }
- }
+impl PlanNodeDependenciesExt for SelectNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        let deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        f(&deps)
+    }
+}
 
 impl PlanNodeMutable for SelectNode {
     fn set_output_var(&mut self, var: Variable) {
@@ -379,36 +401,47 @@ impl PlanNodeProperties for LoopNode {
 }
 
 impl PlanNodeDependencies for LoopNode {
-     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-         self.with_dependencies(|deps| deps.clone())
-     }
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        let deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        deps.clone()
+    }
 
-     fn with_dependencies<F, R>(&self, f: F) -> R
-     where
-         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-     {
-         let deps = self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned");
-         f(&deps)
-     }
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned")
+            .push(dep);
+    }
 
-     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned")
-             .push(dep);
-     }
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let mut deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+            deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
 
-     fn remove_dependency(&mut self, id: i64) -> bool {
-         let mut deps = self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned");
-         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
-             deps.remove(pos);
-             true
-         } else {
-             false
-         }
-     }
- }
+impl PlanNodeDependenciesExt for LoopNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        let deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        f(&deps)
+    }
+}
 
 impl PlanNodeMutable for LoopNode {
     fn set_output_var(&mut self, var: Variable) {
@@ -511,36 +544,47 @@ impl PlanNodeProperties for PassThroughNode {
 }
 
 impl PlanNodeDependencies for PassThroughNode {
-     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-         self.with_dependencies(|deps| deps.clone())
-     }
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        let deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        deps.clone()
+    }
 
-     fn with_dependencies<F, R>(&self, f: F) -> R
-     where
-         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-     {
-         let deps = self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned");
-         f(&deps)
-     }
+    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+        self.dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned")
+            .push(dep);
+    }
 
-     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
-         self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned")
-             .push(dep);
-     }
+    fn remove_dependency(&mut self, id: i64) -> bool {
+        let mut deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
+            deps.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+}
 
-     fn remove_dependency(&mut self, id: i64) -> bool {
-         let mut deps = self.dependencies.lock()
-             .expect("PlanNode dependencies lock should not be poisoned");
-         if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
-             deps.remove(pos);
-             true
-         } else {
-             false
-         }
-     }
- }
+impl PlanNodeDependenciesExt for PassThroughNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        let deps = self
+            .dependencies
+            .lock()
+            .expect("PlanNode dependencies lock should not be poisoned");
+        f(&deps)
+    }
+}
 
 impl PlanNodeMutable for PassThroughNode {
     fn set_output_var(&mut self, var: Variable) {

@@ -3,15 +3,11 @@
 //! FilterNode 用于根据指定的条件过滤输入数据流
 
 use super::super::plan_node_kind::PlanNodeKind;
-use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
-    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
-};
+use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable};
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
 use crate::graph::expression::Expression;
 use std::sync::Arc;
-
 
 /// 过滤节点
 ///
@@ -67,14 +63,7 @@ impl PlanNodeProperties for FilterNode {
 
 impl PlanNodeDependencies for FilterNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
-        f(&self.deps)
+        self.deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -99,6 +88,15 @@ impl PlanNodeDependencies for FilterNode {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for FilterNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 }
 
@@ -147,7 +145,6 @@ impl PlanNodeVisitable for FilterNode {
 impl PlanNode for FilterNode {
     fn as_any(&self) -> &dyn std::any::Any { self }
 }
-
 
 #[cfg(test)]
 mod tests {

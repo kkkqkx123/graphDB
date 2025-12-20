@@ -5,10 +5,7 @@
 use super::super::common::{EdgeProp, TagProp};
 use super::super::plan_node_kind::PlanNodeKind;
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
-use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
-    PlanNodeProperties, PlanNodeVisitable,
-};
+use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable, };
 use crate::graph::expression::Expression;
 use crate::query::context::validate::types::Variable;
 use crate::utils::safe_lock;
@@ -120,16 +117,9 @@ impl PlanNodeProperties for GetVerticesNode {
 
 impl PlanNodeDependencies for GetVerticesNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
         let deps = safe_lock(&self.dependencies)
             .expect("GetVerticesNode dependencies lock should not be poisoned");
-        f(&deps)
+        deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -147,6 +137,17 @@ impl PlanNodeDependencies for GetVerticesNode {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for GetVerticesNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        let deps = safe_lock(&self.dependencies)
+            .expect("GetVerticesNode dependencies lock should not be poisoned");
+        f(&deps)
     }
 }
 
@@ -311,16 +312,9 @@ impl PlanNodeProperties for GetEdgesNode {
 
 impl PlanNodeDependencies for GetEdgesNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
         let deps = safe_lock(&self.dependencies)
             .expect("GetEdgesNode dependencies lock should not be poisoned");
-        f(&deps)
+        deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -338,6 +332,17 @@ impl PlanNodeDependencies for GetEdgesNode {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for GetEdgesNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        let deps = safe_lock(&self.dependencies)
+            .expect("GetEdgesNode dependencies lock should not be poisoned");
+        f(&deps)
     }
 }
 
@@ -474,16 +479,9 @@ impl PlanNodeProperties for GetNeighborsNode {
 
 impl PlanNodeDependencies for GetNeighborsNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
         let deps = safe_lock(&self.dependencies)
             .expect("GetNeighborsNode dependencies lock should not be poisoned");
-        f(&deps)
+        deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -501,6 +499,17 @@ impl PlanNodeDependencies for GetNeighborsNode {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for GetNeighborsNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        let deps = safe_lock(&self.dependencies)
+            .expect("GetNeighborsNode dependencies lock should not be poisoned");
+        f(&deps)
     }
 }
 
@@ -638,16 +647,9 @@ impl PlanNodeProperties for ScanVerticesNode {
 
 impl PlanNodeDependencies for ScanVerticesNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
         let deps = safe_lock(&self.dependencies)
             .expect("ScanVerticesNode dependencies lock should not be poisoned");
-        f(&deps)
+        deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -665,6 +667,17 @@ impl PlanNodeDependencies for ScanVerticesNode {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for ScanVerticesNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        let deps = safe_lock(&self.dependencies)
+            .expect("ScanVerticesNode dependencies lock should not be poisoned");
+        f(&deps)
     }
 }
 
@@ -806,16 +819,9 @@ impl PlanNodeProperties for ScanEdgesNode {
 
 impl PlanNodeDependencies for ScanEdgesNode {
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-        self.with_dependencies(|deps| deps.clone())
-    }
-
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-    {
         let deps = safe_lock(&self.dependencies)
             .expect("ScanEdgesNode dependencies lock should not be poisoned");
-        f(&deps)
+        deps.clone()
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -833,6 +839,17 @@ impl PlanNodeDependencies for ScanEdgesNode {
         } else {
             false
         }
+    }
+}
+
+impl PlanNodeDependenciesExt for ScanEdgesNode {
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        let deps = safe_lock(&self.dependencies)
+            .expect("ScanEdgesNode dependencies lock should not be poisoned");
+        f(&deps)
     }
 }
 

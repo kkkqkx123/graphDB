@@ -11,7 +11,7 @@ pub use nodes::{
     ExpandNode, ExpandAllNode, TraverseNode, AppendVerticesNode,
     ArgumentNode, SelectNode, LoopNode, PassThroughNode,
     UnionNode, UnwindNode, DedupNode, RollUpApplyNode, PatternApplyNode, DataCollectNode,
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable,
     PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
 };
 pub use plan_node_kind::PlanNodeKind;

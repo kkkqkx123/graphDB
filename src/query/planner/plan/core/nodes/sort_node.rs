@@ -3,10 +3,7 @@
 //! SortNode 用于对输入数据进行排序操作
 
 use super::super::plan_node_kind::PlanNodeKind;
-use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
-    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
-};
+use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable};
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
@@ -78,14 +75,7 @@ impl PlanNodeProperties for SortNode {
 
 impl PlanNodeDependencies for SortNode {
      fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-         self.with_dependencies(|deps| deps.clone())
-     }
-
-     fn with_dependencies<F, R>(&self, f: F) -> R
-     where
-         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-     {
-         f(&self.deps)
+         self.deps.clone()
      }
 
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -96,6 +86,15 @@ impl PlanNodeDependencies for SortNode {
 
      fn remove_dependency(&mut self, _id: i64) -> bool {
          false
+     }
+ }
+
+impl PlanNodeDependenciesExt for SortNode {
+     fn with_dependencies<F, R>(&self, f: F) -> R
+     where
+         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+     {
+         f(&self.deps)
      }
  }
 
@@ -208,14 +207,7 @@ impl PlanNodeProperties for LimitNode {
 
 impl PlanNodeDependencies for LimitNode {
      fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-         self.with_dependencies(|deps| deps.clone())
-     }
-
-     fn with_dependencies<F, R>(&self, f: F) -> R
-     where
-         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-     {
-         f(&self.deps)
+         self.deps.clone()
      }
 
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -226,6 +218,15 @@ impl PlanNodeDependencies for LimitNode {
 
      fn remove_dependency(&mut self, _id: i64) -> bool {
          false
+     }
+ }
+
+impl PlanNodeDependenciesExt for LimitNode {
+     fn with_dependencies<F, R>(&self, f: F) -> R
+     where
+         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+     {
+         f(&self.deps)
      }
  }
 
@@ -337,14 +338,7 @@ impl PlanNodeProperties for TopNNode {
 
 impl PlanNodeDependencies for TopNNode {
      fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
-         self.with_dependencies(|deps| deps.clone())
-     }
-
-     fn with_dependencies<F, R>(&self, f: F) -> R
-     where
-         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
-     {
-         f(&self.deps)
+         self.deps.clone()
      }
 
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -355,6 +349,15 @@ impl PlanNodeDependencies for TopNNode {
 
      fn remove_dependency(&mut self, _id: i64) -> bool {
          false
+     }
+ }
+
+impl PlanNodeDependenciesExt for TopNNode {
+     fn with_dependencies<F, R>(&self, f: F) -> R
+     where
+         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+     {
+         f(&self.deps)
      }
  }
 

@@ -33,19 +33,9 @@ pub trait PlanNodeDependencies {
     /// 获取节点的依赖节点列表（返回克隆以避免生命周期问题）
     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>>;
 
-    /// 使用闭包访问依赖节点列表（更安全的访问方式）
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R;
-
     /// 获取依赖节点的数量
     fn dependency_count(&self) -> usize {
         self.dependencies().len()
-    }
-
-    /// 检查是否包含指定ID的依赖
-    fn has_dependency(&self, id: i64) -> bool {
-        self.with_dependencies(|deps| deps.iter().any(|dep| dep.id() == id))
     }
 
     /// 添加依赖节点（主要用于构建阶段）
@@ -53,6 +43,19 @@ pub trait PlanNodeDependencies {
 
     /// 移除指定ID的依赖节点
     fn remove_dependency(&mut self, id: i64) -> bool;
+}
+
+/// 依赖管理扩展 trait - 提供更安全的访问方式
+pub trait PlanNodeDependenciesExt {
+    /// 使用闭包访问依赖节点列表（更安全的访问方式）
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R;
+
+    /// 检查是否包含指定ID的依赖
+    fn has_dependency(&self, id: i64) -> bool {
+        self.with_dependencies(|deps| deps.iter().any(|dep| dep.id() == id))
+    }
 }
 
 /// 可变性 trait - 提供节点的可变操作
