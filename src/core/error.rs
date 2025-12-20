@@ -83,6 +83,10 @@ pub enum ExpressionError {
     FunctionError(String),
     #[error("无效操作: {0}")]
     InvalidOperation(String),
+    #[error("未知函数: {0}")]
+    UnknownFunction(String),
+    #[error("无效的参数个数: {0}")]
+    InvalidArgumentCount(String),
 }
 
 // 计划节点访问错误类型（从 query/planner/plan/plan_node_visitor.rs 移动过来）
@@ -137,24 +141,7 @@ impl From<crate::storage::StorageError> for DBError {
 
 // 移除冲突的From实现，因为现在QueryError在core模块中定义
 
-impl From<crate::expression::ExpressionError> for DBError {
-    fn from(err: crate::expression::ExpressionError) -> Self {
-        match err {
-            crate::expression::ExpressionError::TypeError(msg) => {
-                DBError::Expression(ExpressionError::TypeError(msg))
-            }
-            crate::expression::ExpressionError::PropertyNotFound(msg) => {
-                DBError::Expression(ExpressionError::PropertyNotFound(msg))
-            }
-            crate::expression::ExpressionError::FunctionError(msg) => {
-                DBError::Expression(ExpressionError::FunctionError(msg))
-            }
-            crate::expression::ExpressionError::InvalidOperation(msg) => {
-                DBError::Expression(ExpressionError::InvalidOperation(msg))
-            }
-        }
-    }
-}
+// ExpressionError 是本地定义，无需转换实现
 
 impl From<crate::query::planner::plan::core::visitor::PlanNodeVisitError> for DBError {
     fn from(err: crate::query::planner::plan::core::visitor::PlanNodeVisitError) -> Self {

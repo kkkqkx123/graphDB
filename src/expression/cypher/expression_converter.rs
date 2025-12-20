@@ -1,5 +1,4 @@
-use crate::core::Value;
-use crate::expression::error::ExpressionError;
+use crate::core::{Value, ExpressionError};
 use crate::expression::operator_conversion;
 use crate::expression::{Expression, LiteralValue};
 use crate::query::parser::cypher::ast::expressions::{

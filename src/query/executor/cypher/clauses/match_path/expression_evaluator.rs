@@ -67,9 +67,9 @@ impl ExpressionEvaluator {
     fn convert_context(
         &self,
         context: &CypherExecutionContext,
-    ) -> crate::query::context::EvalContext {
+    ) -> crate::expression::ExpressionContext {
         // 创建新的求值上下文
-        let mut eval_context = crate::query::context::EvalContext::new();
+        let mut eval_context = crate::expression::ExpressionContext::simple();
 
         // 复制变量
         for (name, cypher_var) in context.variables() {
@@ -80,21 +80,21 @@ impl ExpressionEvaluator {
 
         // 复制基础上下文中的变量
         for (name, value) in &context.base_context().variables {
-            if !eval_context.vars.contains_key(name) {
+            if eval_context.get_variable(name).is_none() {
                 eval_context.set_variable(name.clone(), value.clone());
             }
         }
 
         // 复制参数作为变量
         for (name, value) in context.parameters() {
-            if !eval_context.vars.contains_key(name) {
+            if eval_context.get_variable(&format!("${}", name)).is_none() {
                 eval_context.set_variable(format!("${}", name), value.clone());
             }
         }
 
         // 复制路径信息
         for (name, path) in context.paths() {
-            eval_context.add_path(name.clone(), path.clone());
+            eval_context.set_variable(name.clone(), Value::Path(path.clone()));
         }
 
         eval_context

@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
 use crate::expression::{Expression, ExpressionEvaluator};
-use crate::query::context::EvalContext;
+use crate::expression::ExpressionContext;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
@@ -131,7 +131,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
 
         for row in &data_set.rows {
             // 构建表达式上下文
-            let mut expr_context = EvalContext::new();
+            let mut expr_context = ExpressionContext::simple();
             for (i, col_name) in data_set.col_names.iter().enumerate() {
                 if i < row.len() {
                     expr_context.set_variable(col_name.clone(), row[i].clone());

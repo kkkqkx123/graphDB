@@ -1,9 +1,7 @@
-use super::error::ExpressionError;
+use crate::core::{ExpressionError, Value};
 use super::operator_conversion;
 use super::type_conversion;
-use crate::core::Value;
-use crate::expression::{Expression, LiteralValue};
-use crate::query::context::EvalContext;
+use crate::expression::{Expression, ExpressionContext, LiteralValue};
 use crate::query::parser::cypher::ast::expressions::Expression as CypherExpression;
 
 /// Expression evaluator
@@ -20,7 +18,7 @@ impl ExpressionEvaluator {
     pub fn evaluate(
         &self,
         expr: &Expression,
-        context: &EvalContext,
+        context: &ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         self.eval_expression(expr, context)
     }
@@ -29,7 +27,7 @@ impl ExpressionEvaluator {
     pub fn eval_expression(
         &self,
         expr: &Expression,
-        context: &EvalContext,
+        context: &ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         match expr {
             Expression::Literal(literal_value) => {
@@ -157,8 +155,8 @@ impl ExpressionEvaluator {
                     Value::List(items) => {
                         for item in items {
                             // 创建一个临时上下文，将当前元素作为变量
-                            let mut temp_context = context.clone();
-                            temp_context.vars.insert("__item".to_string(), item);
+                            let mut temp_context = crate::expression::ExpressionContext::simple();
+                            temp_context.set_variable("__item".to_string(), item);
 
                             let cond_result = self.evaluate(&condition_clone, &temp_context)?;
                             if super::unary::value_to_bool(&cond_result) {
@@ -186,8 +184,8 @@ impl ExpressionEvaluator {
                     Value::List(items) => {
                         let mut accumulator = initial_value;
                         for item in items {
-                            let mut temp_context = context.clone();
-                            temp_context.vars.insert(var.clone(), item);
+                            let mut temp_context = crate::expression::ExpressionContext::simple();
+                            temp_context.set_variable(var.clone(), item);
 
                             // 这里需要使用当前累加器值，但在简化实现中，我们只计算一次
                             accumulator = self.evaluate(expr, &temp_context)?;
@@ -222,8 +220,8 @@ impl ExpressionEvaluator {
 
             Expression::Variable(var_name) => {
                 // 从上下文变量中获取值
-                if let Some(value) = context.vars.get(var_name) {
-                    Ok(value.clone())
+                if let Some(value) = context.get_variable(var_name) {
+                    Ok(value)
                 } else {
                     Err(ExpressionError::PropertyNotFound(format!(
                         "Variable ${}",
@@ -447,7 +445,7 @@ impl ExpressionEvaluator {
     pub fn evaluate_cypher(
         &self,
         cypher_expr: &CypherExpression,
-        context: &EvalContext,
+        context: &ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         super::cypher::CypherEvaluator::evaluate_cypher(cypher_expr, context)
     }
@@ -456,7 +454,7 @@ impl ExpressionEvaluator {
     pub fn evaluate_cypher_batch(
         &self,
         cypher_exprs: &[CypherExpression],
-        context: &EvalContext,
+        context: &ExpressionContext,
     ) -> Result<Vec<Value>, ExpressionError> {
         super::cypher::CypherEvaluator::evaluate_cypher_batch(cypher_exprs, context)
     }
@@ -477,10 +475,7 @@ impl ExpressionEvaluator {
     }
 
     /// 优化Cypher表达式
-    pub fn optimize_cypher_expression(
-        &self,
-        cypher_expr: &CypherExpression,
-    ) -> CypherExpression {
+    pub fn optimize_cypher_expression(&self, cypher_expr: &CypherExpression) -> CypherExpression {
         super::cypher::CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr)
     }
 }

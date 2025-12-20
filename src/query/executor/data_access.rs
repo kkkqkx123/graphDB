@@ -96,7 +96,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                     all_vertices = all_vertices.into_iter()
                         .filter(|vertex| {
                             // 创建评估上下文
-                            let mut context = crate::query::context::EvalContext::new();
+                            let mut context = crate::expression::ExpressionContext::simple();
                             context.set_variable("vertex".to_string(), crate::core::Value::Vertex(Box::new(vertex.clone())));
                             
                             // 评估过滤表达式

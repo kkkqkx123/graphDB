@@ -4,8 +4,8 @@ pub mod arithmetic;
 pub mod binary;
 pub mod comparison;
 pub mod container;
+pub mod context;
 pub mod cypher;
-pub mod error;
 pub mod evaluator;
 pub mod expression;
 pub mod function;
@@ -15,9 +15,6 @@ pub mod type_conversion;
 pub mod unary;
 pub mod visitor;
 
-// Re-export common types at the root level
-pub use error::*;
-
 pub use expression::AggregateFunction;
 pub use expression::BinaryOperator;
 pub use expression::DataType;
@@ -25,7 +22,10 @@ pub use expression::Expression;
 pub use expression::LiteralValue;
 pub use expression::UnaryOperator;
 
+pub use context::{ExpressionContext, SimpleExpressionContext};
 pub use evaluator::ExpressionEvaluator;
 
 // Re-export cypher module types for convenience
-pub use cypher::{CypherProcessor, ExpressionConverter, CypherEvaluator, CypherExpressionOptimizer};
+pub use cypher::{
+    CypherEvaluator, CypherExpressionOptimizer, CypherProcessor, ExpressionConverter,
+};

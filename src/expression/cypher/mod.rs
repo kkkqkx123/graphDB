@@ -28,8 +28,8 @@ impl CypherProcessor {
     /// 处理Cypher表达式的完整流程：转换 -> 优化 -> 评估
     pub fn process(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-        context: &crate::query::context::EvalContext,
-    ) -> Result<crate::core::Value, super::error::ExpressionError> {
+        context: &crate::expression::ExpressionContext,
+    ) -> Result<crate::core::Value, crate::core::ExpressionError> {
         // 1. 转换为统一表达式
         let unified_expr = ExpressionConverter::convert_cypher_to_unified(cypher_expr)?;
         
@@ -40,8 +40,8 @@ impl CypherProcessor {
     /// 处理Cypher表达式的优化流程：优化 -> 转换 -> 评估
     pub fn process_with_optimization(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-        context: &crate::query::context::EvalContext,
-    ) -> Result<crate::core::Value, super::error::ExpressionError> {
+        context: &crate::expression::ExpressionContext,
+    ) -> Result<crate::core::Value, crate::core::ExpressionError> {
         // 1. 优化Cypher表达式
         let optimized_expr = CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr);
         
@@ -55,8 +55,8 @@ impl CypherProcessor {
     /// 直接评估Cypher表达式（不进行转换）
     pub fn evaluate_direct(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-        context: &crate::query::context::EvalContext,
-    ) -> Result<crate::core::Value, super::error::ExpressionError> {
+        context: &crate::expression::ExpressionContext,
+    ) -> Result<crate::core::Value, crate::core::ExpressionError> {
         CypherEvaluator::evaluate_cypher(cypher_expr, context)
     }
 }
@@ -64,14 +64,14 @@ impl CypherProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::EvalContext;
+    use crate::expression::ExpressionContext;
     use crate::query::parser::cypher::ast::expressions::{
         Expression as CypherExpression, Literal as CypherLiteral, UnaryExpression, UnaryOperator,
     };
 
     #[test]
     fn test_cypher_processor_basic() {
-        let context = EvalContext::new();
+        let context = ExpressionContext::simple();
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
         
         let result = CypherProcessor::process(&cypher_expr, &context).unwrap();
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_cypher_processor_with_optimization() {
-        let context = EvalContext::new();
+        let context = ExpressionContext::simple();
         let expr = CypherExpression::Unary(UnaryExpression {
             operator: UnaryOperator::Not,
             expression: Box::new(CypherExpression::Literal(CypherLiteral::Boolean(true))),
@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn test_cypher_processor_evaluate_direct() {
-        let mut context = EvalContext::new();
+        let mut context = ExpressionContext::simple();
         context.set_variable("x".to_string(), crate::core::Value::Int(100));
         
         let cypher_expr = CypherExpression::Variable("x".to_string());

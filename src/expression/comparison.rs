@@ -1,4 +1,4 @@
-use super::error::ExpressionError;
+use crate::core::ExpressionError;
 use crate::core::Value;
 
 /// 比较和字符串操作模块

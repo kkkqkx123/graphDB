@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value, Vertex};
 use crate::expression::{Expression, ExpressionEvaluator};
-use crate::query::context::expression_eval_context::EvalContext;
+use crate::expression::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -112,7 +112,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
             })?;
 
         // 创建表达式上下文
-        let mut expr_context = EvalContext::new();
+        let mut expr_context = ExpressionContext::simple();
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {
@@ -222,7 +222,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         };
 
         // 创建表达式上下文
-        let mut expr_context = EvalContext::new();
+        let mut expr_context = ExpressionContext::simple();
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {
@@ -310,7 +310,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         let vertices = self.fetch_vertices(vids).await?;
 
         // 创建表达式上下文
-        let mut expr_context = EvalContext::new();
+        let mut expr_context = ExpressionContext::simple();
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {
