@@ -12,6 +12,7 @@ pub mod expression;
 pub mod function;
 pub mod operator_conversion;
 pub mod property;
+pub mod storage;
 pub mod type_conversion;
 pub mod unary;
 pub mod visitor;
@@ -23,7 +24,7 @@ pub use expression::Expression;
 pub use expression::LiteralValue;
 pub use expression::UnaryOperator;
 
-pub use context::{ExpressionContext, SimpleExpressionContext};
+pub use context::{ExpressionContext, SimpleExpressionContext, ExpressionContextCore, StorageExpressionContext};
 pub use evaluator::ExpressionEvaluator;
 pub use evaluator_trait::{ExpressionEvaluator as ExpressionEvaluatorTrait, DefaultExpressionEvaluator, default_evaluator, evaluate_expression, evaluate_expressions};
 
@@ -31,3 +32,6 @@ pub use evaluator_trait::{ExpressionEvaluator as ExpressionEvaluatorTrait, Defau
 pub use cypher::{
     CypherEvaluator, CypherExpressionOptimizer, CypherProcessor, ExpressionConverter,
 };
+
+// Re-export storage module types for convenience
+pub use storage::{Schema, RowReaderWrapper, FieldType, FieldDef, ColumnDef};

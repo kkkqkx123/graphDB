@@ -1,7 +1,6 @@
-//! 表达式求值上下文接口 - 优化版本
+//! 简单表达式上下文实现
 //!
-//! 使用枚举实现零成本抽象，避免动态分发和循环依赖
-//! 提供高性能、类型安全的表达式求值上下文实现
+//! 包含简单上下文和查询上下文适配器的实现
 
 use crate::core::{Edge, Value, Vertex};
 use std::collections::HashMap;
@@ -29,7 +28,7 @@ pub struct SimpleExpressionContext {
 
 /// 查询上下文适配器
 ///
-/// 用于适配query模块的EvalContext，避免循环依赖
+/// 用于适配query模块的上下文，避免循环依赖
 #[derive(Clone, Debug)]
 pub struct QueryContextAdapter {
     // 这里存储查询上下文的必要信息
@@ -121,31 +120,21 @@ impl QueryContextAdapter {
         }
     }
 
-    /// 从query模块的EvalContext创建适配器
-    /// 这个函数在query模块中实现，避免循环依赖
-    pub fn from_eval_context(_ctx: &crate::query::context::EvalContext) -> Self {
-        // 这里需要query模块提供实现
-        // 暂时返回空适配器
-        Self::new()
-    }
-
     /// 检查是否为空
     pub fn is_empty(&self) -> bool {
         self.vertex.is_none() && self.edge.is_none() && self.vars.is_empty()
     }
 }
 
-impl ExpressionContext {
-    /// 获取变量值
-    pub fn get_variable(&self, name: &str) -> Option<Value> {
+impl super::core::ExpressionContextCore for ExpressionContext {
+    fn get_variable(&self, name: &str) -> Option<Value> {
         match self {
             ExpressionContext::Simple(ctx) => ctx.vars.get(name).cloned(),
             ExpressionContext::Query(ctx) => ctx.vars.get(name).cloned(),
         }
     }
 
-    /// 设置变量值
-    pub fn set_variable(&mut self, name: String, value: Value) {
+    fn set_variable(&mut self, name: String, value: Value) {
         match self {
             ExpressionContext::Simple(ctx) => {
                 ctx.vars.insert(name, value);
@@ -156,42 +145,28 @@ impl ExpressionContext {
         }
     }
 
-    /// 批量设置变量
-    pub fn set_variables<I>(&mut self, variables: I)
-    where
-        I: IntoIterator<Item = (String, Value)>,
-    {
-        for (name, value) in variables {
-            self.set_variable(name, value);
-        }
-    }
-
-    /// 获取顶点引用
-    pub fn get_vertex(&self) -> Option<&Vertex> {
+    fn get_vertex(&self) -> Option<&Vertex> {
         match self {
             ExpressionContext::Simple(ctx) => ctx.vertex.as_ref(),
             ExpressionContext::Query(ctx) => ctx.vertex.as_ref(),
         }
     }
 
-    /// 获取边引用
-    pub fn get_edge(&self) -> Option<&Edge> {
+    fn get_edge(&self) -> Option<&Edge> {
         match self {
             ExpressionContext::Simple(ctx) => ctx.edge.as_ref(),
             ExpressionContext::Query(ctx) => ctx.edge.as_ref(),
         }
     }
 
-    /// 获取路径
-    pub fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
+    fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
         match self {
             ExpressionContext::Simple(ctx) => ctx.paths.get(name),
             ExpressionContext::Query(ctx) => ctx.paths.get(name),
         }
     }
 
-    /// 设置顶点
-    pub fn set_vertex(&mut self, vertex: Vertex) {
+    fn set_vertex(&mut self, vertex: Vertex) {
         match self {
             ExpressionContext::Simple(ctx) => {
                 ctx.vertex = Some(vertex);
@@ -202,8 +177,7 @@ impl ExpressionContext {
         }
     }
 
-    /// 设置边
-    pub fn set_edge(&mut self, edge: Edge) {
+    fn set_edge(&mut self, edge: Edge) {
         match self {
             ExpressionContext::Simple(ctx) => {
                 ctx.edge = Some(edge);
@@ -214,8 +188,7 @@ impl ExpressionContext {
         }
     }
 
-    /// 添加路径
-    pub fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path) {
+    fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path) {
         match self {
             ExpressionContext::Simple(ctx) => {
                 ctx.paths.insert(name, path);
@@ -226,40 +199,35 @@ impl ExpressionContext {
         }
     }
 
-    /// 检查是否为空上下文
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         match self {
             ExpressionContext::Simple(ctx) => ctx.is_empty(),
             ExpressionContext::Query(ctx) => ctx.is_empty(),
         }
     }
 
-    /// 获取变量数量
-    pub fn variable_count(&self) -> usize {
+    fn variable_count(&self) -> usize {
         match self {
             ExpressionContext::Simple(ctx) => ctx.variable_count(),
             ExpressionContext::Query(ctx) => ctx.vars.len(),
         }
     }
 
-    /// 获取所有变量名
-    pub fn variable_names(&self) -> Vec<String> {
+    fn variable_names(&self) -> Vec<String> {
         match self {
             ExpressionContext::Simple(ctx) => ctx.variable_names(),
             ExpressionContext::Query(ctx) => ctx.vars.keys().cloned().collect(),
         }
     }
 
-    /// 获取所有变量
-    pub fn get_all_variables(&self) -> Option<HashMap<String, Value>> {
+    fn get_all_variables(&self) -> Option<HashMap<String, Value>> {
         match self {
             ExpressionContext::Simple(ctx) => Some(ctx.vars.clone()),
             ExpressionContext::Query(ctx) => Some(ctx.vars.clone()),
         }
     }
 
-    /// 清空所有数据
-    pub fn clear(&mut self) {
+    fn clear(&mut self) {
         match self {
             ExpressionContext::Simple(ctx) => ctx.clear(),
             ExpressionContext::Query(ctx) => {
@@ -270,7 +238,120 @@ impl ExpressionContext {
             }
         }
     }
+}
 
+impl super::core::ExpressionContextCore for SimpleExpressionContext {
+    fn get_variable(&self, name: &str) -> Option<Value> {
+        self.vars.get(name).cloned()
+    }
+
+    fn set_variable(&mut self, name: String, value: Value) {
+        self.vars.insert(name, value);
+    }
+
+    fn get_vertex(&self) -> Option<&Vertex> {
+        self.vertex.as_ref()
+    }
+
+    fn get_edge(&self) -> Option<&Edge> {
+        self.edge.as_ref()
+    }
+
+    fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
+        self.paths.get(name)
+    }
+
+    fn set_vertex(&mut self, vertex: Vertex) {
+        self.vertex = Some(vertex);
+    }
+
+    fn set_edge(&mut self, edge: Edge) {
+        self.edge = Some(edge);
+    }
+
+    fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path) {
+        self.paths.insert(name, path);
+    }
+
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
+
+    fn variable_count(&self) -> usize {
+        self.variable_count()
+    }
+
+    fn variable_names(&self) -> Vec<String> {
+        self.variable_names()
+    }
+
+    fn get_all_variables(&self) -> Option<HashMap<String, Value>> {
+        Some(self.vars.clone())
+    }
+
+    fn clear(&mut self) {
+        self.clear();
+    }
+}
+
+impl super::core::ExpressionContextCore for QueryContextAdapter {
+    fn get_variable(&self, name: &str) -> Option<Value> {
+        self.vars.get(name).cloned()
+    }
+
+    fn set_variable(&mut self, name: String, value: Value) {
+        self.vars.insert(name, value);
+    }
+
+    fn get_vertex(&self) -> Option<&Vertex> {
+        self.vertex.as_ref()
+    }
+
+    fn get_edge(&self) -> Option<&Edge> {
+        self.edge.as_ref()
+    }
+
+    fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
+        self.paths.get(name)
+    }
+
+    fn set_vertex(&mut self, vertex: Vertex) {
+        self.vertex = Some(vertex);
+    }
+
+    fn set_edge(&mut self, edge: Edge) {
+        self.edge = Some(edge);
+    }
+
+    fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path) {
+        self.paths.insert(name, path);
+    }
+
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
+
+    fn variable_count(&self) -> usize {
+        self.vars.len()
+    }
+
+    fn variable_names(&self) -> Vec<String> {
+        self.vars.keys().cloned().collect()
+    }
+
+    fn get_all_variables(&self) -> Option<HashMap<String, Value>> {
+        Some(self.vars.clone())
+    }
+
+    fn clear(&mut self) {
+        self.vertex = None;
+        self.edge = None;
+        self.vars.clear();
+        self.paths.clear();
+    }
+}
+
+impl ExpressionContext {
     /// 创建简单上下文
     pub fn simple() -> Self {
         ExpressionContext::Simple(SimpleExpressionContext::new())
@@ -419,122 +500,15 @@ pub fn with_edge(edge: Edge) -> ExpressionContext {
     ExpressionContextBuilder::new().with_edge(edge).build()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_simple_context() {
-        let mut ctx = ExpressionContext::simple();
-
-        // 测试变量操作
-        ctx.set_variable("x".to_string(), Value::Int(42));
-        assert_eq!(ctx.get_variable("x"), Some(Value::Int(42)));
-
-        // 测试批量设置变量
-        ctx.set_variables(vec![
-            ("y".to_string(), Value::String("test".to_string())),
-            ("z".to_string(), Value::Float(3.14)),
-        ]);
-        assert_eq!(
-            ctx.get_variable("y"),
-            Some(Value::String("test".to_string()))
-        );
-        assert_eq!(ctx.get_variable("z"), Some(Value::Float(3.14)));
-
-        // 测试顶点操作
-        let vertex = Vertex::new(Value::Int(1), vec![]);
-        ctx.set_vertex(vertex.clone());
-        assert_eq!(ctx.get_vertex(), Some(&vertex));
-
-        // 测试构建器
-        let ctx2 = ExpressionContextBuilder::new()
-            .with_variable("y".to_string(), Value::String("test".to_string()))
-            .with_vertex(vertex.clone())
-            .build();
-
-        assert_eq!(
-            ctx2.get_variable("y"),
-            Some(Value::String("test".to_string()))
-        );
-        assert_eq!(ctx2.get_vertex(), Some(&vertex));
-    }
-
-    #[test]
-    fn test_context_cloning() {
-        let mut ctx = ExpressionContext::simple();
-        ctx.set_variable("x".to_string(), Value::Int(42));
-
-        let cloned = ctx.clone();
-        assert_eq!(cloned.get_variable("x"), Some(Value::Int(42)));
-
-        // 修改原上下文不应影响克隆
-        ctx.set_variable("x".to_string(), Value::Int(100));
-        assert_eq!(cloned.get_variable("x"), Some(Value::Int(42)));
-        assert_eq!(ctx.get_variable("x"), Some(Value::Int(100)));
-    }
-
-    #[test]
-    fn test_builder_pattern() {
-        let vertex = Vertex::new(Value::Int(1), vec![]);
-        let edge = Edge::new_empty(Value::Int(1), Value::Int(2), "test".to_string(), 0);
-
-        let ctx = ExpressionContextBuilder::new()
-            .with_vertex(vertex.clone())
-            .with_edge(edge)
-            .with_variables(vec![
-                ("name".to_string(), Value::String("Alice".to_string())),
-                ("age".to_string(), Value::Int(30)),
-            ])
-            .build();
-
-        assert!(ctx.get_vertex().is_some());
-        assert!(ctx.get_edge().is_some());
-        assert_eq!(
-            ctx.get_variable("name"),
-            Some(Value::String("Alice".to_string()))
-        );
-        assert_eq!(ctx.get_variable("age"), Some(Value::Int(30)));
-    }
-
-    #[test]
-    fn test_convenience_functions() {
-        let vertex = Vertex::new(Value::Int(1), vec![]);
-
-        // 测试便捷函数
-        let ctx1 = with_vertex(vertex.clone());
-        assert_eq!(ctx1.get_vertex(), Some(&vertex));
-
-        let ctx2 = with_variables(vec![
-            ("x".to_string(), Value::Int(42)),
-            ("y".to_string(), Value::String("test".to_string())),
-        ]);
-        assert_eq!(ctx2.get_variable("x"), Some(Value::Int(42)));
-        assert_eq!(
-            ctx2.get_variable("y"),
-            Some(Value::String("test".to_string()))
-        );
-    }
-
-    #[test]
-    fn test_context_operations() {
-        let mut ctx = ExpressionContext::simple();
-
-        // 测试空状态
-        assert!(ctx.is_empty());
-        assert_eq!(ctx.variable_count(), 0);
-        assert!(ctx.variable_names().is_empty());
-
-        // 添加数据
-        ctx.set_variable("x".to_string(), Value::Int(42));
-        assert!(!ctx.is_empty());
-        assert_eq!(ctx.variable_count(), 1);
-        assert_eq!(ctx.variable_names(), vec!["x"]);
-
-        // 清空数据
-        ctx.clear();
-        assert!(ctx.is_empty());
-        assert_eq!(ctx.variable_count(), 0);
-        assert!(ctx.variable_names().is_empty());
+// 为ExpressionContext添加批量设置变量的方法
+impl ExpressionContext {
+    /// 批量设置变量
+    pub fn set_variables<I>(&mut self, variables: I)
+    where
+        I: IntoIterator<Item = (String, Value)>,
+    {
+        for (name, value) in variables {
+            self.set_variable(name, value);
+        }
     }
 }

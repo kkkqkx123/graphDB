@@ -3,57 +3,53 @@
 //! StorageExpressionContext支持从RowReader读取值和用户设置值
 //! 对应C++版本中的StorageExpressionContext类
 
-use super::schema::{ColumnDef, RowReaderWrapper, Schema};
-use crate::core::{NullType, Value};
+use crate::core::{Edge, NullType, Value, Vertex};
+use crate::storage::{ColumnDef, RowReaderWrapper, Schema};
 use std::collections::HashMap;
+/// 获取变量值（最新版本）
+fn get_var(&self, name: &str) -> Result<Value, String>;
 
-/// 表达式上下文trait
-pub trait ExpressionContext: Send + Sync + std::fmt::Debug {
-    /// 获取变量值（最新版本）
-    fn get_var(&self, name: &str) -> Result<Value, String>;
+/// 获取指定版本的变量值
+fn get_versioned_var(&self, name: &str, version: i64) -> Result<Value, String>;
 
-    /// 获取指定版本的变量值
-    fn get_versioned_var(&self, name: &str, version: i64) -> Result<Value, String>;
+/// 设置变量值
+fn set_var(&mut self, name: &str, value: Value) -> Result<(), String>;
 
-    /// 设置变量值
-    fn set_var(&mut self, name: &str, value: Value) -> Result<(), String>;
+/// 设置表达式内部变量
+fn set_inner_var(&mut self, var: &str, value: Value);
 
-    /// 设置表达式内部变量
-    fn set_inner_var(&mut self, var: &str, value: Value);
+/// 获取表达式内部变量
+fn get_inner_var(&self, var: &str) -> Option<Value>;
 
-    /// 获取表达式内部变量
-    fn get_inner_var(&self, var: &str) -> Option<Value>;
+/// 获取变量属性值
+fn get_var_prop(&self, var: &str, prop: &str) -> Result<Value, String>;
 
-    /// 获取变量属性值
-    fn get_var_prop(&self, var: &str, prop: &str) -> Result<Value, String>;
+/// 获取目标顶点属性值
+fn get_dst_prop(&self, tag: &str, prop: &str) -> Result<Value, String>;
 
-    /// 获取目标顶点属性值
-    fn get_dst_prop(&self, tag: &str, prop: &str) -> Result<Value, String>;
+/// 获取输入属性值
+fn get_input_prop(&self, prop: &str) -> Result<Value, String>;
 
-    /// 获取输入属性值
-    fn get_input_prop(&self, prop: &str) -> Result<Value, String>;
+/// 获取输入属性索引
+fn get_input_prop_index(&self, prop: &str) -> Result<usize, String>;
 
-    /// 获取输入属性索引
-    fn get_input_prop_index(&self, prop: &str) -> Result<usize, String>;
+/// 按列索引获取值
+fn get_column(&self, index: i32) -> Result<Value, String>;
 
-    /// 按列索引获取值
-    fn get_column(&self, index: i32) -> Result<Value, String>;
+/// 获取标签属性值
+fn get_tag_prop(&self, tag: &str, prop: &str) -> Result<Value, String>;
 
-    /// 获取标签属性值
-    fn get_tag_prop(&self, tag: &str, prop: &str) -> Result<Value, String>;
+/// 获取边属性值
+fn get_edge_prop(&self, edge: &str, prop: &str) -> Result<Value, String>;
 
-    /// 获取边属性值
-    fn get_edge_prop(&self, edge: &str, prop: &str) -> Result<Value, String>;
+/// 获取源顶点属性值
+fn get_src_prop(&self, tag: &str, prop: &str) -> Result<Value, String>;
 
-    /// 获取源顶点属性值
-    fn get_src_prop(&self, tag: &str, prop: &str) -> Result<Value, String>;
+/// 获取顶点
+fn get_vertex(&self, name: &str) -> Result<Value, String>;
 
-    /// 获取顶点
-    fn get_vertex(&self, name: &str) -> Result<Value, String>;
-
-    /// 获取边
-    fn get_edge(&self) -> Result<Value, String>;
-}
+/// 获取边
+fn get_edge(&self) -> Result<Value, String>;
 
 /// 存储层表达式上下文
 #[derive(Debug, Clone)]
@@ -485,7 +481,6 @@ impl StorageExpressionContext {
         }
     }
 
-
     /// 获取顶点ID长度
     pub fn v_id_len(&self) -> usize {
         self.v_id_len
@@ -708,11 +703,92 @@ impl StorageExpressionContext {
     }
 }
 
-impl ExpressionContext for StorageExpressionContext {
+impl super::core::ExpressionContextCore for StorageExpressionContext {
+    fn get_variable(&self, name: &str) -> Option<Value> {
+        if let Some(values) = self.value_map.get(name) {
+            if !values.is_empty() {
+                Some(
+                    values
+                        .last()
+                        .expect("Values vector should not be empty when checked")
+                        .clone(),
+                )
+            } else {
+                Some(Value::Null(NullType::Null))
+            }
+        } else {
+            Some(Value::Null(NullType::Null))
+        }
+    }
+
+    fn set_variable(&mut self, name: String, value: Value) {
+        self.value_map
+            .entry(name)
+            .or_insert_with(Vec::new)
+            .push(value);
+    }
+
+    fn get_vertex(&self) -> Option<&Vertex> {
+        // 存储上下文通常不直接持有顶点引用
+        None
+    }
+
+    fn get_edge(&self) -> Option<&Edge> {
+        // 存储上下文通常不直接持有边引用
+        None
+    }
+
+    fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
+        // 存储上下文通常不处理路径
+        None
+    }
+
+    fn set_vertex(&mut self, _vertex: Vertex) {
+        // 存储上下文通常不直接设置顶点
+    }
+
+    fn set_edge(&mut self, _edge: Edge) {
+        // 存储上下文通常不直接设置边
+    }
+
+    fn add_path(&mut self, _name: String, _path: crate::core::vertex_edge_path::Path) {
+        // 存储上下文通常不处理路径
+    }
+
+    fn is_empty(&self) -> bool {
+        self.value_map.is_empty() && self.expr_value_map.is_empty()
+    }
+
+    fn variable_count(&self) -> usize {
+        self.value_map.len()
+    }
+
+    fn variable_names(&self) -> Vec<String> {
+        self.value_map.keys().cloned().collect()
+    }
+
+    fn get_all_variables(&self) -> Option<HashMap<String, Value>> {
+        let mut result = HashMap::new();
+        for (name, values) in &self.value_map {
+            if let Some(latest) = values.last() {
+                result.insert(name.clone(), latest.clone());
+            }
+        }
+        Some(result)
+    }
+
+    fn clear(&mut self) {
+        self.value_map.clear();
+        self.expr_value_map.clear();
+    }
+}
+
+impl super::core::StorageExpressionContextTrait for StorageExpressionContext {
     fn get_var(&self, name: &str) -> Result<Value, String> {
         if let Some(values) = self.value_map.get(name) {
             if !values.is_empty() {
-                Ok(values.last()
+                Ok(values
+                    .last()
                     .expect("Values vector should not be empty when checked")
                     .clone())
             } else {
@@ -763,7 +839,8 @@ impl ExpressionContext for StorageExpressionContext {
         // 获取变量的属性值
         if let Some(values) = self.value_map.get(var) {
             if !values.is_empty() {
-                let latest_value = values.last()
+                let latest_value = values
+                    .last()
                     .expect("Values vector should not be empty when checked");
                 return self.get_property_from_value(latest_value, prop);
             }

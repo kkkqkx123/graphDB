@@ -8,9 +8,6 @@
 
 pub mod ast;
 pub mod execution_context;
-pub mod expression;
-pub mod expression_context;
-pub mod expression_eval_context;
 pub mod request_context;
 pub mod runtime_context;
 pub mod validate;
@@ -22,8 +19,6 @@ pub mod managers;
 // 重新导出主要类型
 pub use ast::*;
 pub use execution_context::QueryExecutionContext;
-pub use expression_context::*;
-pub use expression_eval_context::*;
 pub use request_context::RequestContext;
 pub use validate::*;
 
