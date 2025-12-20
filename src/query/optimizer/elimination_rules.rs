@@ -292,7 +292,7 @@ impl RemoveNoopProjectRule {
         for column in columns {
             // 检查是否是表达式（不是简单的变量引用）
             match &column.expr {
-                crate::graph::expression::Expression::Variable(_) => {
+                crate::expression::Expression::Variable(_) => {
                     // 简单变量，继续检查
                 }
                 _ => {
@@ -302,7 +302,7 @@ impl RemoveNoopProjectRule {
             }
 
             // 检查别名是否与原始表达式不同
-            if let crate::graph::expression::Expression::Variable(var_name) = &column.expr {
+            if let crate::expression::Expression::Variable(var_name) = &column.expr {
                 if var_name != &column.alias {
                     // 别名与变量名不同，认为是别名
                     return Ok(true);
@@ -579,7 +579,7 @@ mod tests {
         let filter_node = Arc::new(
             FilterNode::new(
                 Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::graph::expression::Expression::Variable("1 = 1".to_string()),
+                crate::expression::Expression::Variable("1 = 1".to_string()),
             )
             .unwrap(),
         );
@@ -642,7 +642,7 @@ mod tests {
 
         // 测试1: 创建一个投影所有列的投影节点（应该被消除）
         let columns_all = vec![crate::query::validator::YieldColumn {
-            expr: crate::graph::expression::Expression::Variable("*".to_string()),
+            expr: crate::expression::Expression::Variable("*".to_string()),
             alias: "*".to_string(),
             is_matched: false,
         }];
@@ -662,17 +662,17 @@ mod tests {
         // 测试2: 创建一个投影相同列的投影节点（应该被消除）
         let columns_same = vec![
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                expr: crate::expression::Expression::Variable("id".to_string()),
                 alias: "id".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                expr: crate::expression::Expression::Variable("name".to_string()),
                 alias: "name".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::Variable("age".to_string()),
+                expr: crate::expression::Expression::Variable("age".to_string()),
                 alias: "age".to_string(),
                 is_matched: false,
             },
@@ -693,12 +693,12 @@ mod tests {
         // 测试3: 创建一个投影不同列的投影节点（不应该被消除）
         let columns_diff = vec![
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                expr: crate::expression::Expression::Variable("id".to_string()),
                 alias: "id".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                expr: crate::expression::Expression::Variable("name".to_string()),
                 alias: "name".to_string(),
                 is_matched: false,
             },
@@ -719,17 +719,17 @@ mod tests {
         // 测试4: 创建一个投影带别名的节点（不应该被消除）
         let columns_alias = vec![
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                expr: crate::expression::Expression::Variable("id".to_string()),
                 alias: "vertex_id".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                expr: crate::expression::Expression::Variable("name".to_string()),
                 alias: "vertex_name".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::Variable("age".to_string()),
+                expr: crate::expression::Expression::Variable("age".to_string()),
                 alias: "age".to_string(),
                 is_matched: false,
             },
@@ -750,23 +750,23 @@ mod tests {
         // 测试5: 创建一个投影包含表达式的节点（不应该被消除）
         let columns_expr = vec![
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::Variable("id".to_string()),
+                expr: crate::expression::Expression::Variable("id".to_string()),
                 alias: "id".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::Variable("name".to_string()),
+                expr: crate::expression::Expression::Variable("name".to_string()),
                 alias: "name".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::graph::expression::Expression::Binary {
-                    left: Box::new(crate::graph::expression::Expression::Variable(
+                expr: crate::expression::Expression::Binary {
+                    left: Box::new(crate::expression::Expression::Variable(
                         "age".to_string(),
                     )),
-                    op: crate::graph::expression::BinaryOperator::Add,
-                    right: Box::new(crate::graph::expression::Expression::Literal(
-                        crate::graph::expression::LiteralValue::String("1".to_string()),
+                    op: crate::expression::BinaryOperator::Add,
+                    right: Box::new(crate::expression::Expression::Literal(
+                        crate::expression::LiteralValue::String("1".to_string()),
                     )),
                 },
                 alias: "age_plus_1".to_string(),

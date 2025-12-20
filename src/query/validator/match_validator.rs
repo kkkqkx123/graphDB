@@ -10,7 +10,7 @@ use super::structs::{
 use super::ValidateContext;
 use super::validation_factory::ValidationFactory;
 use super::validation_interface::{ValidationError, ValidationErrorType, ValidationStrategy};
-use crate::graph::expression::Expression;
+use crate::expression::Expression;
 use std::collections::HashMap;
 
 /// Match语句验证器
@@ -211,7 +211,7 @@ impl MatchValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::Expression;
+    use crate::expression::Expression;
 
     #[test]
     fn test_match_validator_creation() {
@@ -237,9 +237,9 @@ mod tests {
 
         // 测试有效的分页表达式
         let skip_expr =
-            Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1));
+            Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
         let limit_expr =
-            Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(10));
+            Expression::Literal(crate::expression::expression::LiteralValue::Int(10));
         let pagination_ctx = PaginationContext { skip: 0, limit: 10 };
 
         assert!(validator
@@ -275,7 +275,7 @@ mod tests {
 
         // 测试没有聚合函数的表达式
         let non_agg_expr =
-            Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1));
+            Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
         assert_eq!(validator.has_aggregate_expr(&non_agg_expr), false);
     }
 

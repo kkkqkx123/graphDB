@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
-use crate::graph::expression::{Expression, ExpressionEvaluator};
+use crate::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::EvalContext;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
@@ -331,7 +331,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
 mod tests {
     use super::*;
     use crate::core::value::{DataSet, Value};
-    use crate::graph::expression::{Expression, BinaryOperator};
+    use crate::expression::{Expression, BinaryOperator};
     use crate::storage::StorageEngine;
     use crate::query::executor::traits::{Executor, ExecutorCore, ExecutionResult};
 

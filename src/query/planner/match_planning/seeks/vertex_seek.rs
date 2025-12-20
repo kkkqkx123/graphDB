@@ -1,7 +1,7 @@
 /// 顶点查找规划器
 /// 根据顶点ID进行查找
 /// 负责规划基于顶点ID的查找操作，包括固定ID和可变ID
-use crate::graph::expression::Expression;
+use crate::expression::Expression;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
@@ -53,7 +53,7 @@ impl VertexSeek {
                         "顶点ID列表不能为空".to_string(),
                     ));
                 }
-                
+
                 // 创建获取顶点节点，传入顶点ID列表
                 // 注意：这里使用默认的space_id，实际应该从上下文中获取
                 let space_id = 1; // 默认space_id
@@ -67,7 +67,7 @@ impl VertexSeek {
                         "无效的顶点ID表达式".to_string(),
                     ));
                 }
-                
+
                 // 对于变量表达式，需要根据表达式类型创建不同的节点
                 match vid_expr {
                     Expression::Variable(var_name) => {
@@ -125,7 +125,6 @@ impl VertexSeek {
         }
     }
 
-
     /// 获取查找类型
     pub fn seek_type(&self) -> &VertexSeekType {
         &self.seek_type
@@ -170,7 +169,7 @@ impl SeekStrategy for VertexSeek {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::Expression;
+    use crate::expression::Expression;
 
     fn create_test_node_info() -> NodeInfo {
         NodeInfo {
@@ -230,7 +229,7 @@ mod tests {
         assert!(seeker.match_node());
 
         let invalid_expr = Expression::Literal(
-            crate::graph::expression::expression::LiteralValue::String("test".to_string()),
+            crate::expression::expression::LiteralValue::String("test".to_string()),
         );
         let invalid_seeker = VertexSeek::new_variable(node_info.clone(), invalid_expr);
         assert!(!invalid_seeker.match_node());
@@ -309,7 +308,7 @@ mod tests {
         let node_info = create_test_node_info();
         let seeker = VertexSeek::new_variable(
             node_info,
-            Expression::Literal(crate::graph::expression::expression::LiteralValue::String(
+            Expression::Literal(crate::expression::expression::LiteralValue::String(
                 "test".to_string(),
             )),
         );
@@ -317,34 +316,33 @@ mod tests {
         assert!(result.is_err());
     }
 
-
     #[test]
     fn test_is_valid_variable_expression_enhanced() {
         let node_info = create_test_node_info();
         let seeker = VertexSeek::new_fixed(node_info, vec!["1".to_string()]);
-        
+
         // 测试变量表达式
         let var_expr = Expression::Variable("x".to_string());
         assert!(seeker.is_valid_variable_expression(&var_expr));
-        
+
         // 测试标签表达式
         let label_expr = Expression::Label("n".to_string());
         assert!(seeker.is_valid_variable_expression(&label_expr));
-        
+
         // 测试有效的 id() 函数表达式
         let valid_id_expr = Expression::Function {
             name: "id".to_string(),
             args: vec![Expression::Label("node".to_string())],
         };
         assert!(seeker.is_valid_variable_expression(&valid_id_expr));
-        
+
         // 测试无效的 id() 函数表达式（参数不是标签）
         let invalid_id_expr = Expression::Function {
             name: "id".to_string(),
             args: vec![Expression::Variable("node".to_string())],
         };
         assert!(!seeker.is_valid_variable_expression(&invalid_id_expr));
-        
+
         // 测试其他函数表达式
         let other_func_expr = Expression::Function {
             name: "other".to_string(),
@@ -352,6 +350,4 @@ mod tests {
         };
         assert!(!seeker.is_valid_variable_expression(&other_func_expr));
     }
-
-
 }

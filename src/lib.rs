@@ -7,6 +7,7 @@ pub mod api;
 pub mod common;
 pub mod config;
 pub mod core;
+pub mod expression;
 pub mod graph;
 pub mod query;
 pub mod services;
@@ -28,8 +29,8 @@ pub use crate::storage::{NativeStorage, StorageEngine, StorageError};
 pub use crate::common::{
     base::id::*, charset::*, fs::*, log::*, memory::*, network::*, process::*, thread::*, time::*,
 };
+pub use crate::expression::*;
 pub use crate::graph::{
-    expression::*,
     index::*,
     transaction::*,
     utils::{generate_id, is_valid_id, EPIdGenerator, IdGenerator, INVALID_ID},

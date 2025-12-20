@@ -235,22 +235,22 @@ impl DataFlowNode for WhereClausePlanner {
 
 /// 将 Expression 转换为 Expr
 /// 辅助函数，用于在不同表达式类型之间转换
-fn convert_expression_to_expr(expr: &crate::graph::expression::Expression) -> Expr {
+fn convert_expression_to_expr(expr: &crate::expression::Expression) -> Expr {
     use crate::query::parser::ast::expr::*;
     use crate::query::parser::ast::types::Span;
     
     match expr {
-        crate::graph::expression::Expression::Variable(name) => {
+        crate::expression::Expression::Variable(name) => {
             Expr::Variable(VariableExpr::new(name.clone(), Span::default()))
         }
-        crate::graph::expression::Expression::Literal(val) => {
+        crate::expression::Expression::Literal(val) => {
             use crate::core::Value;
             let const_val = match val {
-                crate::graph::expression::expression::LiteralValue::String(s) => Value::String(s.clone()),
-                crate::graph::expression::expression::LiteralValue::Int(i) => Value::Int(*i),
-                crate::graph::expression::expression::LiteralValue::Float(f) => Value::Float(*f),
-                crate::graph::expression::expression::LiteralValue::Bool(b) => Value::Bool(*b),
-                crate::graph::expression::expression::LiteralValue::Null => Value::Null(crate::core::NullType::Null),
+                crate::expression::expression::LiteralValue::String(s) => Value::String(s.clone()),
+                crate::expression::expression::LiteralValue::Int(i) => Value::Int(*i),
+                crate::expression::expression::LiteralValue::Float(f) => Value::Float(*f),
+                crate::expression::expression::LiteralValue::Bool(b) => Value::Bool(*b),
+                crate::expression::expression::LiteralValue::Null => Value::Null(crate::core::NullType::Null),
             };
             Expr::Constant(ConstantExpr::new(const_val, Span::default()))
         }

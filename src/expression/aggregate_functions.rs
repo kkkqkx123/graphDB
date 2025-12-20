@@ -1,6 +1,6 @@
 use crate::core::Value;
-use crate::graph::expression::error::ExpressionError;
-use crate::graph::expression::Expression;
+use crate::expression::error::ExpressionError;
+use crate::expression::Expression;
 use serde::{Deserialize, Serialize};
 
 /// 聚合函数类型

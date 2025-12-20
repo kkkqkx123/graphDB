@@ -4,7 +4,7 @@
 
 use super::super::structs::*;
 use super::super::validation_interface::*;
-use crate::graph::expression::Expression;
+use crate::expression::Expression;
 
 /// 子句验证策略
 pub struct ClauseValidationStrategy;
@@ -279,7 +279,7 @@ impl ValidationStrategy for ClauseValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::Expression;
+    use crate::expression::Expression;
     use std::collections::HashMap;
 
     #[test]
@@ -297,7 +297,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1)),
+                    Expression::Literal(crate::expression::expression::LiteralValue::Int(1)),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -330,7 +330,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1)),
+                    Expression::Literal(crate::expression::expression::LiteralValue::Int(1)),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -363,7 +363,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1)),
+                    Expression::Literal(crate::expression::expression::LiteralValue::Int(1)),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -423,7 +423,7 @@ mod tests {
 
         let mut yield_context = YieldClauseContext {
             yield_columns: vec![YieldColumn::new(
-                Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(1)),
+                Expression::Literal(crate::expression::expression::LiteralValue::Int(1)),
                 "col1".to_string(),
             )],
             aliases_available: HashMap::new(),

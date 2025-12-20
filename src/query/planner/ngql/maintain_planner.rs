@@ -58,16 +58,18 @@ impl Planner for MaintainPlanner {
         let arg_node = Arc::new(ArgumentNode::new(1, "maintain_args"));
 
         // 2. 根据不同类型创建相应的计划节点
+        use crate::expression::Expression;
         use crate::query::validator::YieldColumn;
-        use crate::graph::expression::Expression;
         let yield_columns = vec![YieldColumn {
             expr: Expression::Variable(format!("MAINTAIN_{}", stmt_type)),
             alias: "maintain_result".to_string(),
             is_matched: false,
         }];
-        
-        let project_node = Arc::new(ProjectNode::new(arg_node.clone(), yield_columns)
-            .expect("ProjectNode creation should succeed with valid input"));
+
+        let project_node = Arc::new(
+            ProjectNode::new(arg_node.clone(), yield_columns)
+                .expect("ProjectNode creation should succeed with valid input"),
+        );
 
         // 3. 不同类型的操作可能需要不同处理
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =

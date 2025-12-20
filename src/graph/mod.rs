@@ -3,7 +3,6 @@
 //! 包含图相关的核心操作，包括事务管理、索引系统和表达式计算
 
 pub mod batch_operation;
-pub mod expression;
 pub mod index;
 pub mod response;
 pub mod result_set;
@@ -13,9 +12,6 @@ pub mod utils;
 
 // 重新导出图操作相关功能
 pub use batch_operation::*;
-pub use expression::{
-    AggregateFunction, BinaryOperator, Expression, ExpressionEvaluator, LiteralValue, UnaryOperator,
-};
 pub use index::*;
 pub use response::*;
 pub use result_set::*;

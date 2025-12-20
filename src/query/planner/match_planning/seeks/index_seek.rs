@@ -1,7 +1,7 @@
 /// 索引查找规划器
 /// 根据标签索引和属性索引进行查找
 /// 负责规划基于索引的查找操作，包括标签索引、属性索引和可变属性索引
-use crate::graph::expression::Expression;
+use crate::expression::Expression;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
@@ -261,7 +261,7 @@ impl IndexSeek {
         for expr in &prop_exprs[1..] {
             filter_expr = Expression::Binary {
                 left: Box::new(filter_expr),
-                op: crate::graph::expression::BinaryOperator::And,
+                op: crate::expression::BinaryOperator::And,
                 right: Box::new(expr.clone()),
             };
         }
@@ -295,7 +295,7 @@ impl IndexSeek {
         for expr in &valid_exprs[1..] {
             filter_expr = Expression::Binary {
                 left: Box::new(filter_expr),
-                op: crate::graph::expression::BinaryOperator::And,
+                op: crate::expression::BinaryOperator::And,
                 right: Box::new((*expr).clone()),
             };
         }
@@ -333,7 +333,10 @@ impl IndexSeek {
     }
 
     /// 验证属性表达式
-    pub fn validate_property_expressions(&self, expressions: &[Expression]) -> Result<(), PlannerError> {
+    pub fn validate_property_expressions(
+        &self,
+        expressions: &[Expression],
+    ) -> Result<(), PlannerError> {
         if expressions.is_empty() {
             return Err(PlannerError::InvalidAstContext(
                 "属性表达式列表不能为空".to_string(),
@@ -346,18 +349,19 @@ impl IndexSeek {
                 Expression::Binary { op, .. } => {
                     // 只允许比较操作符
                     match op {
-                        crate::graph::expression::BinaryOperator::Equal
-                        | crate::graph::expression::BinaryOperator::NotEqual
-                        | crate::graph::expression::BinaryOperator::LessThan
-                        | crate::graph::expression::BinaryOperator::LessThanOrEqual
-                        | crate::graph::expression::BinaryOperator::GreaterThan
-                        | crate::graph::expression::BinaryOperator::GreaterThanOrEqual => {
+                        crate::expression::BinaryOperator::Equal
+                        | crate::expression::BinaryOperator::NotEqual
+                        | crate::expression::BinaryOperator::LessThan
+                        | crate::expression::BinaryOperator::LessThanOrEqual
+                        | crate::expression::BinaryOperator::GreaterThan
+                        | crate::expression::BinaryOperator::GreaterThanOrEqual => {
                             // 这些是有效的比较操作符
                         }
                         _ => {
-                            return Err(PlannerError::InvalidAstContext(
-                                format!("不支持的操作符 {:?} 用于属性索引查找", op),
-                            ));
+                            return Err(PlannerError::InvalidAstContext(format!(
+                                "不支持的操作符 {:?} 用于属性索引查找",
+                                op
+                            )));
                         }
                     }
                 }
@@ -368,9 +372,10 @@ impl IndexSeek {
                     // 字面量是有效的
                 }
                 _ => {
-                    return Err(PlannerError::InvalidAstContext(
-                        format!("不支持的表达式类型 {:?} 用于属性索引查找", expr),
-                    ));
+                    return Err(PlannerError::InvalidAstContext(format!(
+                        "不支持的表达式类型 {:?} 用于属性索引查找",
+                        expr
+                    )));
                 }
             }
         }
@@ -414,7 +419,7 @@ impl SeekStrategy for IndexSeek {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::Expression;
+    use crate::expression::Expression;
 
     fn create_test_node_info(labels: Vec<&str>, tids: Vec<i32>) -> NodeInfo {
         NodeInfo {
@@ -499,7 +504,7 @@ mod tests {
         assert!(seeker.match_node());
 
         let invalid_exprs = vec![Expression::Literal(
-            crate::graph::expression::expression::LiteralValue::String("test".to_string()),
+            crate::expression::expression::LiteralValue::String("test".to_string()),
         )];
         let invalid_seeker = IndexSeek::new_variable_property(node_info, invalid_exprs);
         assert!(!invalid_seeker.match_node());
@@ -647,7 +652,7 @@ mod tests {
         let expr = result.expect("Failed to create property filter expression");
         match expr {
             Expression::Binary { op, .. } => {
-                assert_eq!(op, crate::graph::expression::BinaryOperator::And);
+                assert_eq!(op, crate::expression::BinaryOperator::And);
             }
             _ => panic!("Expected Binary expression with AND operator"),
         }
@@ -664,7 +669,7 @@ mod tests {
 
         // 无效表达式列表
         let invalid_exprs = vec![Expression::Literal(
-            crate::graph::expression::expression::LiteralValue::String("test".to_string()),
+            crate::expression::expression::LiteralValue::String("test".to_string()),
         )];
         let result = seeker.create_variable_property_filter_expression(&invalid_exprs);
         assert!(result.is_err());
@@ -696,9 +701,9 @@ mod tests {
         // 有效的表达式
         let valid_exprs = vec![Expression::Binary {
             left: Box::new(Expression::Variable("x".to_string())),
-            op: crate::graph::expression::BinaryOperator::Equal,
+            op: crate::expression::BinaryOperator::Equal,
             right: Box::new(Expression::Literal(
-                crate::graph::expression::expression::LiteralValue::String("test".to_string()),
+                crate::expression::expression::LiteralValue::String("test".to_string()),
             )),
         }];
         let result = seeker.validate_property_expressions(&valid_exprs);
@@ -707,9 +712,9 @@ mod tests {
         // 无效的二元操作符
         let invalid_exprs = vec![Expression::Binary {
             left: Box::new(Expression::Variable("x".to_string())),
-            op: crate::graph::expression::BinaryOperator::Add,
+            op: crate::expression::BinaryOperator::Add,
             right: Box::new(Expression::Literal(
-                crate::graph::expression::expression::LiteralValue::Int(1),
+                crate::expression::expression::LiteralValue::Int(1),
             )),
         }];
         let result = seeker.validate_property_expressions(&invalid_exprs);
@@ -733,9 +738,9 @@ mod tests {
         let node_info = create_test_node_info(vec!["Person"], vec![1]);
         let prop_exprs = vec![Expression::Binary {
             left: Box::new(Expression::Variable("x".to_string())),
-            op: crate::graph::expression::BinaryOperator::Equal,
+            op: crate::expression::BinaryOperator::Equal,
             right: Box::new(Expression::Literal(
-                crate::graph::expression::expression::LiteralValue::String("test".to_string()),
+                crate::expression::expression::LiteralValue::String("test".to_string()),
             )),
         }];
         let seeker = IndexSeek::new_property(node_info, prop_exprs);

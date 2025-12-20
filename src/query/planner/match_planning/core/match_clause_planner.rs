@@ -1,34 +1,33 @@
 /// MATCH子句规划器
 /// 架构重构：实现统一的 CypherClausePlanner 接口
-/// 
+///
 /// ## 重构说明
-/// 
+///
 /// ### 删除冗余方法
 /// - 移除 `validate_input`, `can_start_flow`, `requires_input` 等冗余方法
 /// - 通过 `flow_direction()` 统一表达数据流行为
-/// 
+///
 /// ### 优化上下文管理
 /// - 使用 `VariableInfo` 替代简单的字符串映射
 /// - 提供完整的变量生命周期管理
-/// 
+///
 /// ### 简化实现逻辑
 /// - 移除复杂的验证逻辑，内聚到接口中
 /// - 专注于核心的路径处理和变量管理
-
-use crate::graph::expression::Expression;
+use crate::expression::Expression;
 use crate::query::planner::match_planning::core::{
-    CypherClausePlanner, PlanningContext, ClauseType, VariableInfo, DataFlowNode
+    ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext, VariableInfo,
 };
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 use crate::query::planner::match_planning::utils::finder::Finder;
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 
 /// MATCH子句规划器
 /// 负责规划 MATCH 子句的执行，是数据流的起始点
-/// 
+///
 /// MATCH 子句是 Cypher 查询的核心，用于匹配图中的模式。
 /// 它可以包含多个路径，每个路径由节点和边组成。
 #[derive(Debug)]
@@ -39,7 +38,7 @@ pub struct MatchClausePlanner {
 
 impl MatchClausePlanner {
     /// 创建新的 MATCH 子句规划器
-    /// 
+    ///
     /// # 参数
     /// * `paths` - 要匹配的路径列表
     pub fn new(paths: Vec<crate::query::validator::structs::Path>) -> Self {
@@ -130,11 +129,7 @@ impl CypherClausePlanner for MatchClausePlanner {
                     &context.query_info.statement_type,
                     &context.query_info.query_id,
                 );
-                plan = UnifiedConnector::cartesian_product(
-                    &temp_ast_context,
-                    &plan,
-                    &path_plan,
-                )?;
+                plan = UnifiedConnector::cartesian_product(&temp_ast_context, &plan, &path_plan)?;
             }
         }
 
@@ -142,9 +137,7 @@ impl CypherClausePlanner for MatchClausePlanner {
         if let Some(skip) = &match_clause_ctx.skip {
             // 检查 skip 是否大于 0，需要将 Expression 转换为数值
             let skip_value = match skip {
-                Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(v)) => {
-                    *v
-                }
+                Expression::Literal(crate::expression::expression::LiteralValue::Int(v)) => *v,
                 _ => 0, // 默认值为 0
             };
 
@@ -157,19 +150,16 @@ impl CypherClausePlanner for MatchClausePlanner {
         if let Some(limit) = &match_clause_ctx.limit {
             // 检查 limit 是否不是最大值，需要将 Expression 转换为数值
             let limit_value = match limit {
-                Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(v)) => {
-                    *v
-                }
+                Expression::Literal(crate::expression::expression::LiteralValue::Int(v)) => *v,
                 _ => i64::MAX, // 默认值为最大值
             };
 
             if limit_value != i64::MAX {
-                 // 创建限制节点
-                 let limit_node =
-                     PlanNodeFactory::create_placeholder_node()?;
+                // 创建限制节点
+                let limit_node = PlanNodeFactory::create_placeholder_node()?;
 
-                 plan = SubPlan::new(Some(limit_node.clone()), Some(limit_node));
-             }
+                plan = SubPlan::new(Some(limit_node.clone()), Some(limit_node));
+            }
         }
 
         Ok(plan)
@@ -231,13 +221,14 @@ mod tests {
         };
 
         let planner = MatchClausePlanner::new(vec![path.clone()]);
-        
-        let query_info = crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
-            query_id: "test".to_string(),
-            statement_type: "MATCH".to_string(),
-        };
+
+        let query_info =
+            crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
+                query_id: "test".to_string(),
+                statement_type: "MATCH".to_string(),
+            };
         let mut context = PlanningContext::new(query_info);
-        
+
         // 创建一个简单的 MATCH 上下文
         let match_clause_ctx = crate::query::validator::structs::MatchClauseContext {
             paths: vec![path],
@@ -248,15 +239,15 @@ mod tests {
             skip: None,
             limit: None,
         };
-        
+
         let clause_ctx = CypherClauseContext::Match(match_clause_ctx);
-        
+
         // 执行转换以更新上下文
         let _result = planner.transform(&clause_ctx, None, &mut context);
-        
+
         // 验证变量被添加到上下文
         assert!(context.has_variable("n"));
-        
+
         if let Some(variable) = context.get_variable("n") {
             assert_eq!(variable.name, "n");
             assert_eq!(variable.var_type, "Vertex");
@@ -267,7 +258,9 @@ mod tests {
 }
 
 impl DataFlowNode for MatchClausePlanner {
-    fn flow_direction(&self) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+    fn flow_direction(
+        &self,
+    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
         self.clause_type().flow_direction()
     }
 }

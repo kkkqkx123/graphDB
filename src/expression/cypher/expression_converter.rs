@@ -1,7 +1,7 @@
 use crate::core::Value;
-use crate::graph::expression::error::ExpressionError;
-use crate::graph::expression::operator_conversion;
-use crate::graph::expression::{Expression, LiteralValue};
+use crate::expression::error::ExpressionError;
+use crate::expression::operator_conversion;
+use crate::expression::{Expression, LiteralValue};
 use crate::query::parser::cypher::ast::expressions::{
     BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
@@ -225,7 +225,7 @@ impl ExpressionConverter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::{Expression, LiteralValue};
+    use crate::expression::{Expression, LiteralValue};
     use crate::query::parser::cypher::ast::expressions::{
         BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
         Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,

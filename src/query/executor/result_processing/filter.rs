@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
-use crate::graph::expression::{Expression, ExpressionEvaluator};
+use crate::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::EvalContext;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{
@@ -426,9 +426,9 @@ mod tests {
                 object: Box::new(Expression::Variable("row".to_string())),
                 property: "age".to_string(),
             }),
-            op: crate::graph::expression::BinaryOperator::GreaterThan,
+            op: crate::expression::BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(
-                crate::graph::expression::LiteralValue::Int(25),
+                crate::expression::LiteralValue::Int(25),
             )),
         };
 

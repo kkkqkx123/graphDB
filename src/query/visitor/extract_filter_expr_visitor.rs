@@ -1,7 +1,7 @@
 //! ExtractFilterExprVisitor - 用于提取过滤表达式的访问器
 //! 对应 NebulaGraph ExtractFilterExprVisitor.h/.cpp 的功能
 
-use crate::graph::expression::Expression;
+use crate::expression::Expression;
 
 #[derive(Debug, Clone)]
 pub struct ExtractFilterExprVisitor {

@@ -1,6 +1,6 @@
 use super::error::ExpressionError;
 use crate::core::{NullType, Value};
-use crate::graph::expression::Expression;
+use crate::expression::Expression;
 use crate::query::context::EvalContext;
 use serde::{Deserialize, Serialize};
 

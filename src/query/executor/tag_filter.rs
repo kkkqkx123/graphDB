@@ -4,7 +4,7 @@
 
 use crate::core::vertex_edge_path::Vertex;
 use crate::core::Value;
-use crate::graph::expression::{Expression, ExpressionEvaluator};
+use crate::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::EvalContext;
 
 /// 标签过滤器处理器
@@ -129,7 +129,7 @@ impl TagFilterProcessor {
         for tag in tags {
             let tag_expr = Expression::binary(
                 Expression::variable("tags".to_string()),
-                crate::graph::expression::expression::BinaryOperator::In,
+                crate::expression::expression::BinaryOperator::In,
                 Expression::list(vec![Expression::literal(tag)]),
             );
 
@@ -137,7 +137,7 @@ impl TagFilterProcessor {
                 None => Some(tag_expr),
                 Some(existing) => Some(Expression::binary(
                     existing,
-                    crate::graph::expression::expression::BinaryOperator::Or,
+                    crate::expression::expression::BinaryOperator::Or,
                     tag_expr,
                 )),
             };
@@ -157,7 +157,7 @@ impl Default for TagFilterProcessor {
 mod tests {
     use super::*;
     use crate::core::vertex_edge_path::{Tag, Vertex};
-    use crate::graph::expression::expression::BinaryOperator;
+    use crate::expression::expression::BinaryOperator;
 
     #[test]
     fn test_process_tag_filter_with_contains() {

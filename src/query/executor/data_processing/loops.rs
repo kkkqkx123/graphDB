@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
-use crate::graph::expression::{Expression, ExpressionEvaluator};
+use crate::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::EvalContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
@@ -511,7 +511,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
 mod tests {
     use super::*;
     use crate::core::value::NullType;
-    use crate::graph::expression::BinaryOperator;
+    use crate::expression::BinaryOperator;
     use std::sync::{Arc, Mutex};
 
     // 模拟存储引擎

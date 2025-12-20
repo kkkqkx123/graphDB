@@ -3,7 +3,7 @@
 
 use crate::query::context::ast::{AstContext, PathContext};
 use crate::query::planner::plan::core::{
-    ArgumentNode, DedupNode, ExpandNode, ExpandAllNode, FilterNode, GetVerticesNode, ProjectNode,
+    ArgumentNode, DedupNode, ExpandAllNode, ExpandNode, FilterNode, GetVerticesNode, ProjectNode,
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -53,7 +53,10 @@ impl Planner for PathPlanner {
         let _end_arg_node = Arc::new(ArgumentNode::new(2, &path_ctx.to.user_defined_var_name));
 
         // 2. 创建GetVertices节点来获取顶点
-        let _get_vertices_node = Arc::new(GetVerticesNode::new(1, &path_ctx.from.user_defined_var_name));
+        let _get_vertices_node = Arc::new(GetVerticesNode::new(
+            1,
+            &path_ctx.from.user_defined_var_name,
+        ));
 
         // 3. 创建扩展节点进行路径搜索
         let expand_direction = if path_ctx.over.direction == "both" {
@@ -63,7 +66,7 @@ impl Planner for PathPlanner {
         } else {
             "out"
         };
-        
+
         let mut edge_types = path_ctx.over.edge_types.clone();
         // 如果是双向边，设置方向
         if path_ctx.over.direction == "both" {
@@ -76,7 +79,7 @@ impl Planner for PathPlanner {
                 .map(|et| format!("-{}", et))
                 .collect();
         }
-        
+
         let _expand_node = Arc::new(ExpandNode::new(1, edge_types.clone(), expand_direction));
 
         // 5. 创建ExpandAll节点进行多步扩展
@@ -87,39 +90,45 @@ impl Planner for PathPlanner {
         } else {
             "out"
         };
-        
+
         let expand_all_node = Arc::new(ExpandAllNode::new(1, edge_types, expand_all_direction));
 
         // 6. 创建过滤节点（如果有过滤条件）
         let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
             if let Some(ref condition) = path_ctx.filter {
-                use crate::graph::expression::Expression;
+                use crate::expression::Expression;
                 let expr = Expression::Variable(condition.clone());
-                let filter = Arc::new(FilterNode::new(expand_all_node.clone(), expr)
-                    .expect("FilterNode creation should succeed with valid input"));
+                let filter = Arc::new(
+                    FilterNode::new(expand_all_node.clone(), expr)
+                        .expect("FilterNode creation should succeed with valid input"),
+                );
                 filter
             } else {
                 expand_all_node
             };
 
         // 7. 创建投影节点
+        use crate::expression::Expression;
         use crate::query::validator::YieldColumn;
-        use crate::graph::expression::Expression;
         let yield_columns = vec![YieldColumn {
             expr: Expression::Variable("DEFAULT".to_string()),
             alias: "projected_path".to_string(),
             is_matched: false,
         }];
-        
-        let project_node = Arc::new(ProjectNode::new(filter_node.clone(), yield_columns)
-            .expect("ProjectNode creation should succeed with valid input"));
+
+        let project_node = Arc::new(
+            ProjectNode::new(filter_node.clone(), yield_columns)
+                .expect("ProjectNode creation should succeed with valid input"),
+        );
 
         // 8. 如果是查找最短路径，可能需要额外的处理
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
             if path_ctx.is_shortest {
                 // 需要额外的节点来处理最短路径算法
-                let dedup_node = Arc::new(DedupNode::new(project_node)
-                    .expect("DedupNode creation should succeed with valid input"));
+                let dedup_node = Arc::new(
+                    DedupNode::new(project_node)
+                        .expect("DedupNode creation should succeed with valid input"),
+                );
                 dedup_node
             } else {
                 project_node

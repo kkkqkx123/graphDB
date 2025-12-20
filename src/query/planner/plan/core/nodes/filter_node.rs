@@ -3,10 +3,13 @@
 //! FilterNode 用于根据指定的条件过滤输入数据流
 
 use super::super::plan_node_kind::PlanNodeKind;
-use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable};
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+use super::traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+    PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
+};
+use crate::expression::Expression;
 use crate::query::context::validate::types::Variable;
-use crate::graph::expression::Expression;
 use std::sync::Arc;
 
 /// 过滤节点
@@ -34,7 +37,7 @@ impl FilterNode {
         deps.push(input.clone());
 
         Ok(Self {
-            id: -1,  // 将在后续分配
+            id: -1, // 将在后续分配
             input,
             deps,
             condition,
@@ -51,14 +54,24 @@ impl FilterNode {
 }
 
 impl PlanNodeIdentifiable for FilterNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::Filter }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::Filter
+    }
 }
 
 impl PlanNodeProperties for FilterNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for FilterNode {
@@ -82,7 +95,9 @@ impl PlanNodeDependencies for FilterNode {
             } else if self.deps.is_empty() {
                 // 这种情况不应该发生，因为FilterNode应该始终有一个输入
                 // 但为了安全，我们可以创建一个占位符节点
-                self.input = Arc::new(crate::query::planner::plan::core::nodes::start_node::StartNode::new());
+                self.input = Arc::new(
+                    crate::query::planner::plan::core::nodes::start_node::StartNode::new(),
+                );
             }
             true
         } else {
@@ -94,14 +109,16 @@ impl PlanNodeDependencies for FilterNode {
 impl PlanNodeDependenciesExt for FilterNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.deps)
     }
 }
 
 impl PlanNodeMutable for FilterNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
@@ -143,45 +160,47 @@ impl PlanNodeVisitable for FilterNode {
 }
 
 impl PlanNode for FilterNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::Expression;
-    
+    use crate::expression::Expression;
+
     #[test]
     fn test_filter_node_creation() {
         // 创建一个起始节点作为输入
         let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         let start_node = Arc::new(start_node);
-        
+
         let condition = Expression::Variable("test".to_string());
         let filter_node = FilterNode::new(start_node, condition).unwrap();
-        
+
         assert_eq!(filter_node.kind(), PlanNodeKind::Filter);
         assert_eq!(filter_node.dependencies().len(), 1);
     }
-    
+
     #[test]
     fn test_filter_node_dependencies() {
         let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         let start_node = Arc::new(start_node);
         let start_node_id = start_node.id();
-        
+
         let condition = Expression::Variable("test".to_string());
         let mut filter_node = FilterNode::new(start_node, condition).unwrap();
-        
+
         // 测试依赖管理
         assert_eq!(filter_node.dependency_count(), 1);
         assert!(filter_node.has_dependency(start_node_id));
-        
+
         // 测试替换依赖
         let new_start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         let new_start_node = Arc::new(new_start_node);
         filter_node.add_dependency(new_start_node.clone());
-        
+
         assert_eq!(filter_node.dependency_count(), 1);
         assert!(filter_node.has_dependency(new_start_node.id()));
     }

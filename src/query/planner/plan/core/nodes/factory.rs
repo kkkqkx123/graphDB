@@ -294,20 +294,22 @@ impl PlanNodeFactory {
         index_id: i32,
         scan_type: &str,
     ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(crate::query::planner::plan::algorithms::IndexScan::new(
-            crate::generate_id() as i64,
-            space_id,
-            tag_id,
-            index_id,
-            scan_type,
-        )))
+        Ok(Arc::new(
+            crate::query::planner::plan::algorithms::IndexScan::new(
+                crate::generate_id() as i64,
+                space_id,
+                tag_id,
+                index_id,
+                scan_type,
+            ),
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::Expression;
+    use crate::expression::Expression;
     use crate::query::parser::ast::expr::{Expr, VariableExpr};
     use crate::query::parser::ast::types::Span;
     use crate::query::planner::PlanNodeKind;

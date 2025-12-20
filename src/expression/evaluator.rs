@@ -2,7 +2,7 @@ use super::error::ExpressionError;
 use super::operator_conversion;
 use super::type_conversion;
 use crate::core::Value;
-use crate::graph::expression::{Expression, LiteralValue};
+use crate::expression::{Expression, LiteralValue};
 use crate::query::context::EvalContext;
 use crate::query::parser::cypher::ast::expressions::Expression as CypherExpression;
 

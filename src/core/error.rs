@@ -101,13 +101,13 @@ pub enum PlanNodeVisitError {
 pub enum LockError {
     #[error("Mutex锁被污染: {reason}")]
     MutexPoisoned { reason: String },
-    
+
     #[error("RwLock读锁被污染: {reason}")]
     RwLockReadPoisoned { reason: String },
-    
+
     #[error("RwLock写锁被污染: {reason}")]
     RwLockWritePoisoned { reason: String },
-    
+
     #[error("锁操作超时: {reason}")]
     LockTimeout { reason: String },
 }
@@ -137,19 +137,19 @@ impl From<crate::storage::StorageError> for DBError {
 
 // 移除冲突的From实现，因为现在QueryError在core模块中定义
 
-impl From<crate::graph::expression::ExpressionError> for DBError {
-    fn from(err: crate::graph::expression::ExpressionError) -> Self {
+impl From<crate::expression::ExpressionError> for DBError {
+    fn from(err: crate::expression::ExpressionError) -> Self {
         match err {
-            crate::graph::expression::ExpressionError::TypeError(msg) => {
+            crate::expression::ExpressionError::TypeError(msg) => {
                 DBError::Expression(ExpressionError::TypeError(msg))
             }
-            crate::graph::expression::ExpressionError::PropertyNotFound(msg) => {
+            crate::expression::ExpressionError::PropertyNotFound(msg) => {
                 DBError::Expression(ExpressionError::PropertyNotFound(msg))
             }
-            crate::graph::expression::ExpressionError::FunctionError(msg) => {
+            crate::expression::ExpressionError::FunctionError(msg) => {
                 DBError::Expression(ExpressionError::FunctionError(msg))
             }
-            crate::graph::expression::ExpressionError::InvalidOperation(msg) => {
+            crate::expression::ExpressionError::InvalidOperation(msg) => {
                 DBError::Expression(ExpressionError::InvalidOperation(msg))
             }
         }

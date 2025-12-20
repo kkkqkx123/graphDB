@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, List, Value};
-use crate::graph::expression::{Expression, ExpressionEvaluator};
+use crate::expression::{Expression, ExpressionEvaluator};
 use crate::query::context::expression_eval_context::EvalContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
@@ -519,7 +519,7 @@ mod tests {
     use super::*;
     use crate::config::test_config::test_config;
     use crate::core::Value;
-    use crate::graph::expression::Expression;
+    use crate::expression::Expression;
     use crate::storage::NativeStorage;
     use std::sync::{Arc, Mutex};
 

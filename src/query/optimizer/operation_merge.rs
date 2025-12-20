@@ -51,7 +51,7 @@ impl OptRule for CombineFilterRule {
                         let input = top_filter.dependencies().first()
                             .expect("Filter should have at least one dependency")
                             .clone();
-                        let combined_filter_node = match FilterPlanNode::new(input, crate::graph::expression::Expression::Variable(combined_condition_str)) {
+                        let combined_filter_node = match FilterPlanNode::new(input, crate::expression::Expression::Variable(combined_condition_str)) {
                             Ok(node) => node,
                             Err(_) => top_filter.clone(),
                         };
@@ -111,7 +111,7 @@ impl MergeRule for CombineFilterRule {
             let input = top_filter.dependencies().first()
                 .expect("Filter should have at least one dependency")
                 .clone();
-            let combined_filter_node = match FilterPlanNode::new(input, crate::graph::expression::Expression::Variable(combined_condition_str)) {
+            let combined_filter_node = match FilterPlanNode::new(input, crate::expression::Expression::Variable(combined_condition_str)) {
                 Ok(node) => node,
                 Err(_) => top_filter.clone(),
             };
@@ -470,7 +470,7 @@ mod tests {
 
         // 创建一个过滤节点
         let start_node = std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new());
-        let filter_node = match Filter::new(start_node, crate::graph::expression::Expression::Variable("col1 > 100".to_string())) {
+        let filter_node = match Filter::new(start_node, crate::expression::Expression::Variable("col1 > 100".to_string())) {
             Ok(node) => std::sync::Arc::new(node),
             Err(_) => return,
         };

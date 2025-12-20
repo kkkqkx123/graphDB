@@ -299,7 +299,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Filter
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        use crate::graph::expression::Expression;
+        use crate::expression::Expression;
         use crate::query::executor::result_processing::filter::FilterExecutor;
         use crate::query::planner::plan::core::nodes::FilterNode;
 
@@ -330,7 +330,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Projec
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        use crate::graph::expression::Expression;
+        use crate::expression::Expression;
         use crate::query::executor::result_processing::projection::ProjectExecutor;
         use crate::query::executor::result_processing::projection::ProjectionColumn;
         use crate::query::planner::plan::core::nodes::ProjectNode;
@@ -404,7 +404,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for SortCr
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        use crate::graph::expression::Expression;
+        use crate::expression::Expression;
         use crate::query::executor::result_processing::sort::{SortExecutor, SortKey, SortOrder};
         use crate::query::planner::plan::core::nodes::SortNode;
 
@@ -480,7 +480,7 @@ impl<S: StorageEngine + std::fmt::Debug + 'static> ExecutorCreator<S> for Aggreg
             let group_keys = agg_node
                 .group_keys()
                 .iter()
-                .map(|k| crate::graph::expression::Expression::variable(k.clone()))
+                .map(|k| crate::expression::Expression::variable(k.clone()))
                 .collect::<Vec<_>>();
             let agg_funcs = agg_node
                 .agg_exprs()

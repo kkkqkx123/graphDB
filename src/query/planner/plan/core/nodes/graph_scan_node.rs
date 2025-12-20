@@ -5,8 +5,11 @@
 use super::super::common::{EdgeProp, TagProp};
 use super::super::plan_node_kind::PlanNodeKind;
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
-use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable, };
-use crate::graph::expression::Expression;
+use super::traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+    PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
+};
+use crate::expression::Expression;
 use crate::query::context::validate::types::Variable;
 use crate::utils::safe_lock;
 use std::sync::{Arc, Mutex};

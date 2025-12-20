@@ -5,7 +5,7 @@
 
 use crate::core::error::DBError;
 use crate::core::Value;
-use crate::graph::expression::ExpressionEvaluator as GraphExpressionEvaluator;
+use crate::expression::ExpressionEvaluator as GraphExpressionEvaluator;
 use crate::query::executor::cypher::context::CypherExecutionContext;
 use crate::query::parser::cypher::ast::expressions::Expression;
 

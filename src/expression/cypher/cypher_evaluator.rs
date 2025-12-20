@@ -1,6 +1,6 @@
 use crate::core::Value;
-use crate::graph::expression::error::ExpressionError;
-use crate::graph::expression::{Expression, LiteralValue};
+use crate::expression::error::ExpressionError;
+use crate::expression::{Expression, LiteralValue};
 use crate::query::context::EvalContext;
 use crate::query::parser::cypher::ast::expressions::{
     BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
@@ -113,7 +113,7 @@ impl CypherEvaluator {
         };
 
         // 使用ExpressionEvaluator评估统一函数
-        crate::graph::expression::evaluator::ExpressionEvaluator::new()
+        crate::expression::evaluator::ExpressionEvaluator::new()
             .evaluate(&unified_func, context)
     }
 
@@ -159,7 +159,7 @@ impl CypherEvaluator {
     ) -> Result<Value, ExpressionError> {
         for alternative in &case_expr.alternatives {
             let cond_result = Self::evaluate_cypher(&alternative.when_expression, context)?;
-            if crate::graph::expression::comparison::value_to_bool(&cond_result) {
+            if crate::expression::comparison::value_to_bool(&cond_result) {
                 return Self::evaluate_cypher(&alternative.then_expression, context);
             }
         }
@@ -214,22 +214,22 @@ impl CypherEvaluator {
     ) -> Result<Value, ExpressionError> {
         match op {
             BinaryOperator::Equal => Ok(Value::Bool(
-                crate::graph::expression::comparison::values_equal(left, right),
+                crate::expression::comparison::values_equal(left, right),
             )),
             BinaryOperator::NotEqual => Ok(Value::Bool(
-                !crate::graph::expression::comparison::values_equal(left, right),
+                !crate::expression::comparison::values_equal(left, right),
             )),
             BinaryOperator::GreaterThan => Ok(Value::Bool(
-                crate::graph::expression::comparison::compare_values(left, right) > 0,
+                crate::expression::comparison::compare_values(left, right) > 0,
             )),
             BinaryOperator::LessThan => Ok(Value::Bool(
-                crate::graph::expression::comparison::compare_values(left, right) < 0,
+                crate::expression::comparison::compare_values(left, right) < 0,
             )),
             BinaryOperator::GreaterThanOrEqual => Ok(Value::Bool(
-                crate::graph::expression::comparison::compare_values(left, right) >= 0,
+                crate::expression::comparison::compare_values(left, right) >= 0,
             )),
             BinaryOperator::LessThanOrEqual => Ok(Value::Bool(
-                crate::graph::expression::comparison::compare_values(left, right) <= 0,
+                crate::expression::comparison::compare_values(left, right) <= 0,
             )),
             BinaryOperator::And => {
                 if let (Value::Bool(left_bool), Value::Bool(right_bool)) = (left, right) {
@@ -253,32 +253,32 @@ impl CypherEvaluator {
                 }
             }
             BinaryOperator::Add => {
-                crate::graph::expression::arithmetic::arithmetic_add(left, right)
+                crate::expression::arithmetic::arithmetic_add(left, right)
             }
             BinaryOperator::Subtract => {
-                crate::graph::expression::arithmetic::arithmetic_subtract(left, right)
+                crate::expression::arithmetic::arithmetic_subtract(left, right)
             }
             BinaryOperator::Multiply => {
-                crate::graph::expression::arithmetic::arithmetic_multiply(left, right)
+                crate::expression::arithmetic::arithmetic_multiply(left, right)
             }
             BinaryOperator::Divide => {
-                crate::graph::expression::arithmetic::arithmetic_divide(left, right)
+                crate::expression::arithmetic::arithmetic_divide(left, right)
             }
             BinaryOperator::Modulo => {
-                crate::graph::expression::arithmetic::arithmetic_modulo(left, right)
+                crate::expression::arithmetic::arithmetic_modulo(left, right)
             }
             BinaryOperator::Exponent => {
-                crate::graph::expression::arithmetic::arithmetic_exponent(left, right)
+                crate::expression::arithmetic::arithmetic_exponent(left, right)
             }
-            BinaryOperator::In => crate::graph::expression::comparison::check_in(left, right),
+            BinaryOperator::In => crate::expression::comparison::check_in(left, right),
             BinaryOperator::StartsWith => {
-                crate::graph::expression::comparison::check_starts_with(left, right)
+                crate::expression::comparison::check_starts_with(left, right)
             }
             BinaryOperator::EndsWith => {
-                crate::graph::expression::comparison::check_ends_with(left, right)
+                crate::expression::comparison::check_ends_with(left, right)
             }
             BinaryOperator::Contains => {
-                crate::graph::expression::comparison::check_contains(left, right)
+                crate::expression::comparison::check_contains(left, right)
             }
             BinaryOperator::RegexMatch => {
                 // 简化的正则匹配实现

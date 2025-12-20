@@ -1,4 +1,4 @@
-use crate::graph::expression::error::ExpressionError;
+use crate::expression::error::ExpressionError;
 use crate::query::parser::cypher::ast::expressions::{
     BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,

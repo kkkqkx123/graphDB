@@ -3,7 +3,7 @@
 
 use super::super::structs::*;
 use super::super::validation_interface::*;
-use crate::graph::expression::Expression;
+use crate::expression::Expression;
 use std::collections::HashMap;
 
 /// 别名验证策略
@@ -316,7 +316,7 @@ impl ValidationStrategy for AliasValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::Expression;
+    use crate::expression::Expression;
 
     #[test]
     fn test_alias_validation_strategy_creation() {
@@ -338,7 +338,7 @@ mod tests {
 
         // 测试从常量表达式中提取别名（应该返回None）
         let const_expr =
-            Expression::Literal(crate::graph::expression::expression::LiteralValue::Int(42));
+            Expression::Literal(crate::expression::expression::LiteralValue::Int(42));
         assert_eq!(strategy.extract_alias_name(&const_expr), None);
     }
 }

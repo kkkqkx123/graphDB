@@ -1,7 +1,7 @@
 //! FindVisitor - 用于查找表达式中特定类型子表达式的访问器
 //! 对应 NebulaGraph FindVisitor.h/.cpp 的功能
 
-use crate::graph::expression::Expression;
+use crate::expression::Expression;
 use std::collections::HashSet;
 
 pub struct FindVisitor {
@@ -443,7 +443,7 @@ impl FindVisitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::{BinaryOperator, LiteralValue};
+    use crate::expression::{BinaryOperator, LiteralValue};
 
     #[test]
     fn test_find_literals() {

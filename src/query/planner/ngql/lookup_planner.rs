@@ -2,7 +2,9 @@
 //! 处理Nebula LOOKUP查询的规划
 
 use crate::query::context::ast::{AstContext, LookupContext};
-use crate::query::planner::plan::core::{DedupNode, FilterNode, GetEdgesNode, GetVerticesNode, ProjectNode};
+use crate::query::planner::plan::core::{
+    DedupNode, FilterNode, GetEdgesNode, GetVerticesNode, ProjectNode,
+};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
@@ -62,11 +64,13 @@ impl Planner for LookupPlanner {
         if let Some(ref condition) = lookup_ctx.filter {
             // 这里需要将condition转换为Expression类型
             // 暂时使用空表达式作为占位符
-            use crate::graph::expression::Expression;
+            use crate::expression::Expression;
             let expr = Expression::Variable(condition.clone());
-            
-            let filter_node = Arc::new(FilterNode::new(index_scan_node.clone(), expr)
-                .expect("FilterNode creation should succeed with valid input"));
+
+            let filter_node = Arc::new(
+                FilterNode::new(index_scan_node.clone(), expr)
+                    .expect("FilterNode creation should succeed with valid input"),
+            );
             index_scan_node = filter_node;
 
             // 如果是全文索引
@@ -81,20 +85,24 @@ impl Planner for LookupPlanner {
         // 3. 创建投影节点
         use crate::query::validator::YieldColumn;
         let yield_columns = vec![YieldColumn {
-            expr: crate::graph::expression::Expression::Variable(
-                lookup_ctx.yield_expr.clone().unwrap_or("*".to_string())
+            expr: crate::expression::Expression::Variable(
+                lookup_ctx.yield_expr.clone().unwrap_or("*".to_string()),
             ),
             alias: "result".to_string(),
             is_matched: false,
         }];
-        
-        let project_node = Arc::new(ProjectNode::new(index_scan_node.clone(), yield_columns)
-            .expect("ProjectNode creation should succeed with valid input"));
+
+        let project_node = Arc::new(
+            ProjectNode::new(index_scan_node.clone(), yield_columns)
+                .expect("ProjectNode creation should succeed with valid input"),
+        );
 
         // 4. 如果需要去重，创建去重节点
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if lookup_ctx.dedup {
-            let dedup_node = Arc::new(DedupNode::new(project_node)
-                .expect("DedupNode creation should succeed with valid input"));
+            let dedup_node = Arc::new(
+                DedupNode::new(project_node)
+                    .expect("DedupNode creation should succeed with valid input"),
+            );
             dedup_node
         } else {
             project_node

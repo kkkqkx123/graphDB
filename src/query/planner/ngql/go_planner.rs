@@ -3,7 +3,7 @@
 
 use crate::query::context::ast::{AstContext, GoContext};
 use crate::query::planner::plan::core::{
-    ArgumentNode, DedupNode, ExpandNode, ExpandAllNode, FilterNode, InnerJoinNode, ProjectNode,
+    ArgumentNode, DedupNode, ExpandAllNode, ExpandNode, FilterNode, InnerJoinNode, ProjectNode,
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -87,14 +87,17 @@ impl Planner for GoPlanner {
         // 4. 如果有JOIN操作，创建JOIN节点
         let join_node = if go_ctx.join_dst {
             // 使用InnerJoinNode替代HashLeftJoin
-            use crate::graph::expression::Expression;
+            use crate::expression::Expression;
             let join_key = Expression::Variable("_expandall_vid".to_string());
-            let join = Arc::new(InnerJoinNode::new(
-                expand_all_node.clone(),
-                arg_node.clone(),
-                vec![join_key.clone()],
-                vec![join_key],
-            ).expect("InnerJoinNode creation should succeed with valid input"));
+            let join = Arc::new(
+                InnerJoinNode::new(
+                    expand_all_node.clone(),
+                    arg_node.clone(),
+                    vec![join_key.clone()],
+                    vec![join_key],
+                )
+                .expect("InnerJoinNode creation should succeed with valid input"),
+            );
             Some(join)
         } else {
             None
@@ -102,7 +105,7 @@ impl Planner for GoPlanner {
 
         // 5. 创建过滤节点（如果有过滤条件）
         let filter_node = if let Some(ref condition) = go_ctx.filter {
-            use crate::graph::expression::Expression;
+            use crate::expression::Expression;
             let expr = Expression::Variable(condition.clone());
             let dependency_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
                 if let Some(ref join_ref) = join_node {
@@ -110,22 +113,24 @@ impl Planner for GoPlanner {
                 } else {
                     expand_all_node.clone()
                 };
-            let filter = Arc::new(FilterNode::new(dependency_node, expr)
-                .expect("FilterNode creation should succeed with valid input"));
+            let filter = Arc::new(
+                FilterNode::new(dependency_node, expr)
+                    .expect("FilterNode creation should succeed with valid input"),
+            );
             Some(filter)
         } else {
             None
         };
 
         // 6. 创建投影节点
+        use crate::expression::Expression;
         use crate::query::validator::YieldColumn;
-        use crate::graph::expression::Expression;
         let yield_columns = vec![YieldColumn {
             expr: Expression::Variable(go_ctx.yield_expr.clone().unwrap_or("DEFAULT".to_string())),
             alias: "project_result".to_string(),
             is_matched: false,
         }];
-        
+
         let last_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
             if let Some(ref filter_ref) = filter_node {
                 filter_ref.clone()
@@ -135,13 +140,17 @@ impl Planner for GoPlanner {
                 expand_all_node.clone()
             };
 
-        let project_node = Arc::new(ProjectNode::new(last_node, yield_columns)
-            .expect("ProjectNode creation should succeed with valid input"));
+        let project_node = Arc::new(
+            ProjectNode::new(last_node, yield_columns)
+                .expect("ProjectNode creation should succeed with valid input"),
+        );
 
         // 7. 如果需要去重，创建去重节点
         let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if go_ctx.distinct {
-            let dedup_node = Arc::new(DedupNode::new(project_node)
-                .expect("DedupNode creation should succeed with valid input"));
+            let dedup_node = Arc::new(
+                DedupNode::new(project_node)
+                    .expect("DedupNode creation should succeed with valid input"),
+            );
             dedup_node
         } else {
             project_node

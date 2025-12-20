@@ -1,16 +1,19 @@
 //! 连接节点实现
-//! 
+//!
 //! 包含各种连接节点类型，如内连接、左连接等
 
 use super::super::plan_node_kind::PlanNodeKind;
-use super::traits::{PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt, PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable};
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+use super::traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
+    PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
+};
+use crate::expression::Expression;
 use crate::query::context::validate::types::Variable;
-use crate::graph::expression::Expression;
 use std::sync::Arc;
 
 /// 内连接节点
-/// 
+///
 /// 根据指定的连接键对两个输入进行内连接
 #[derive(Debug, Clone)]
 pub struct InnerJoinNode {
@@ -36,9 +39,9 @@ impl InnerJoinNode {
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
-        
+
         let inner_deps = vec![left.clone(), right.clone()];
-        
+
         Ok(Self {
             id: -1,
             left,
@@ -51,12 +54,12 @@ impl InnerJoinNode {
             inner_deps,
         })
     }
-    
+
     /// 获取哈希键
     pub fn hash_keys(&self) -> &[Expression] {
         &self.hash_keys
     }
-    
+
     /// 获取探测键
     pub fn probe_keys(&self) -> &[Expression] {
         &self.probe_keys
@@ -64,14 +67,24 @@ impl InnerJoinNode {
 }
 
 impl PlanNodeIdentifiable for InnerJoinNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::HashInnerJoin }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::HashInnerJoin
+    }
 }
 
 impl PlanNodeProperties for InnerJoinNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for InnerJoinNode {
@@ -112,14 +125,16 @@ impl PlanNodeDependencies for InnerJoinNode {
 impl PlanNodeDependenciesExt for InnerJoinNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.inner_deps)
     }
 }
 
 impl PlanNodeMutable for InnerJoinNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
@@ -139,7 +154,7 @@ impl PlanNodeClonable for InnerJoinNode {
             inner_deps: self.inner_deps.clone(),
         })
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         Arc::new(Self {
             id: new_id,
@@ -165,7 +180,9 @@ impl PlanNodeVisitable for InnerJoinNode {
 }
 
 impl PlanNode for InnerJoinNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 左连接节点
@@ -194,9 +211,9 @@ impl LeftJoinNode {
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
-        
+
         let inner_deps = vec![left.clone(), right.clone()];
-        
+
         Ok(Self {
             id: -1,
             left,
@@ -209,12 +226,12 @@ impl LeftJoinNode {
             inner_deps,
         })
     }
-    
+
     /// 获取哈希键
     pub fn hash_keys(&self) -> &[Expression] {
         &self.hash_keys
     }
-    
+
     /// 获取探测键
     pub fn probe_keys(&self) -> &[Expression] {
         &self.probe_keys
@@ -222,14 +239,24 @@ impl LeftJoinNode {
 }
 
 impl PlanNodeIdentifiable for LeftJoinNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::HashLeftJoin }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::HashLeftJoin
+    }
 }
 
 impl PlanNodeProperties for LeftJoinNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for LeftJoinNode {
@@ -267,14 +294,16 @@ impl PlanNodeDependencies for LeftJoinNode {
 impl PlanNodeDependenciesExt for LeftJoinNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.inner_deps)
     }
 }
 
 impl PlanNodeMutable for LeftJoinNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
@@ -294,7 +323,7 @@ impl PlanNodeClonable for LeftJoinNode {
             inner_deps: self.inner_deps.clone(),
         })
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         Arc::new(Self {
             id: new_id,
@@ -320,7 +349,9 @@ impl PlanNodeVisitable for LeftJoinNode {
 }
 
 impl PlanNode for LeftJoinNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// 交叉连接节点
@@ -345,9 +376,9 @@ impl CrossJoinNode {
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
-        
+
         let inner_deps = vec![left.clone(), right.clone()];
-        
+
         Ok(Self {
             id: -1,
             left,
@@ -361,14 +392,24 @@ impl CrossJoinNode {
 }
 
 impl PlanNodeIdentifiable for CrossJoinNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::CrossJoin }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::CrossJoin
+    }
 }
 
 impl PlanNodeProperties for CrossJoinNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for CrossJoinNode {
@@ -406,14 +447,16 @@ impl PlanNodeDependencies for CrossJoinNode {
 impl PlanNodeDependenciesExt for CrossJoinNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
     {
         f(&self.inner_deps)
     }
 }
 
 impl PlanNodeMutable for CrossJoinNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
@@ -431,7 +474,7 @@ impl PlanNodeClonable for CrossJoinNode {
             inner_deps: self.inner_deps.clone(),
         })
     }
-    
+
     fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
         Arc::new(Self {
             id: new_id,
@@ -455,68 +498,62 @@ impl PlanNodeVisitable for CrossJoinNode {
 }
 
 impl PlanNode for CrossJoinNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::Expression;
-    
+    use crate::expression::Expression;
+
     #[test]
     fn test_inner_join_node_creation() {
         let left_node = crate::query::planner::plan::core::StartNode::new();
         let right_node = crate::query::planner::plan::core::StartNode::new();
         let left_node = Arc::new(left_node);
         let right_node = Arc::new(right_node);
-        
+
         let hash_keys = vec![Expression::Variable("key".to_string())];
         let probe_keys = vec![Expression::Variable("key".to_string())];
-        
-        let join_node = InnerJoinNode::new(
-            left_node,
-            right_node,
-            hash_keys,
-            probe_keys,
-        ).unwrap();
-        
+
+        let join_node = InnerJoinNode::new(left_node, right_node, hash_keys, probe_keys).unwrap();
+
         assert_eq!(join_node.kind(), PlanNodeKind::HashInnerJoin);
         assert_eq!(join_node.dependencies().len(), 2);
         assert_eq!(join_node.hash_keys().len(), 1);
         assert_eq!(join_node.probe_keys().len(), 1);
     }
-    
+
     #[test]
     fn test_inner_join_node_dependencies() {
         let left_node = crate::query::planner::plan::core::StartNode::new();
         let right_node = crate::query::planner::plan::core::StartNode::new();
         let left_node = Arc::new(left_node);
         let right_node = Arc::new(right_node);
-        
+
         let hash_keys = vec![Expression::Variable("key".to_string())];
         let probe_keys = vec![Expression::Variable("key".to_string())];
-        
-        let mut join_node = InnerJoinNode::new(
-            left_node.clone(),
-            right_node.clone(),
-            hash_keys,
-            probe_keys,
-        ).unwrap();
-        
+
+        let mut join_node =
+            InnerJoinNode::new(left_node.clone(), right_node.clone(), hash_keys, probe_keys)
+                .unwrap();
+
         // 测试依赖管理
         assert_eq!(join_node.dependency_count(), 2);
         assert!(join_node.has_dependency(left_node.id()));
         assert!(join_node.has_dependency(right_node.id()));
-        
+
         // 测试替换依赖
         let new_left_node = crate::query::planner::plan::core::StartNode::new();
         let new_right_node = crate::query::planner::plan::core::StartNode::new();
         let new_left_node = Arc::new(new_left_node);
         let new_right_node = Arc::new(new_right_node);
-        
+
         // 注意：由于内连接节点不支持直接修改依赖，这个测试可能需要调整
         // 在实际应用中，应该创建新的连接节点而不是修改现有节点的依赖
-        
+
         assert_eq!(join_node.dependency_count(), 2);
         assert!(join_node.has_dependency(new_left_node.id()));
         assert!(join_node.has_dependency(new_right_node.id()));

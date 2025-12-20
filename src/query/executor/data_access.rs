@@ -14,8 +14,8 @@ use crate::utils::safe_lock;
 pub struct GetVerticesExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
-    tag_filter: Option<crate::graph::expression::Expression>,
-    vertex_filter: Option<crate::graph::expression::Expression>,
+    tag_filter: Option<crate::expression::Expression>,
+    vertex_filter: Option<crate::expression::Expression>,
     limit: Option<usize>,
     tag_processor: crate::query::executor::tag_filter::TagFilterProcessor,
 }
@@ -25,8 +25,8 @@ impl<S: StorageEngine> GetVerticesExecutor<S> {
         id: usize,
         storage: Arc<Mutex<S>>,
         vertex_ids: Option<Vec<Value>>,
-        tag_filter: Option<crate::graph::expression::Expression>,
-        vertex_filter: Option<crate::graph::expression::Expression>,
+        tag_filter: Option<crate::expression::Expression>,
+        vertex_filter: Option<crate::expression::Expression>,
         limit: Option<usize>,
     ) -> Self {
         Self {
@@ -92,7 +92,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                 
                 // 应用顶点过滤表达式
                 if let Some(ref filter_expr) = self.vertex_filter {
-                    let evaluator = crate::graph::expression::ExpressionEvaluator::new();
+                    let evaluator = crate::expression::ExpressionEvaluator::new();
                     all_vertices = all_vertices.into_iter()
                         .filter(|vertex| {
                             // 创建评估上下文

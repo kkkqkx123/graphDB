@@ -2,8 +2,10 @@
 //! 处理FETCH EDGES查询的规划
 
 use crate::query::context::ast::{AstContext, FetchEdgesContext};
+use crate::query::planner::plan::core::nodes::{
+    ArgumentNode, DedupNode, FilterNode, GetEdgesNode, ProjectNode,
+};
 use crate::query::planner::plan::execution_plan::SubPlan;
-use crate::query::planner::plan::core::nodes::{ArgumentNode, DedupNode, FilterNode, GetEdgesNode, ProjectNode};
 use crate::query::planner::planner::{Planner, PlannerError};
 use std::sync::Arc;
 
@@ -48,7 +50,7 @@ impl Planner for FetchEdgesPlanner {
 
         // 1. 创建参数节点，获取边的条件
         let arg_node = Arc::new(ArgumentNode::new(1, &fetch_ctx.input_var_name));
-        
+
         // 2. 创建获取边的节点
         let get_edges_node = Arc::new(GetEdgesNode::new(
             1, // space_id
@@ -61,17 +63,19 @@ impl Planner for FetchEdgesPlanner {
         // 3. 创建过滤空边的节点
         let filter_node = match FilterNode::new(
             get_edges_node.clone(),
-            crate::graph::expression::Expression::Variable(format!("{} IS NOT EMPTY", fetch_ctx.edge_name)),
+            crate::expression::Expression::Variable(format!(
+                "{} IS NOT EMPTY",
+                fetch_ctx.edge_name
+            )),
         ) {
-            Ok(node) => Arc::new(node) as Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>,
-            Err(_) => get_edges_node.clone() as Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>,
+            Ok(node) => Arc::new(node)
+                as Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>,
+            Err(_) => get_edges_node.clone()
+                as Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>,
         };
 
         // 4. 创建投影节点
-        let project_node = match ProjectNode::new(
-            filter_node.clone(),
-            vec![],
-        ) {
+        let project_node = match ProjectNode::new(filter_node.clone(), vec![]) {
             Ok(node) => Arc::new(node),
             Err(_) => filter_node.clone(),
         };

@@ -2,8 +2,8 @@
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
 use crate::core::ValueTypeDef;
-use crate::graph::expression::Expression;
-use crate::graph::expression::{BinaryOperator, UnaryOperator};
+use crate::expression::Expression;
+use crate::expression::{BinaryOperator, UnaryOperator};
 use crate::query::validator::ValidateContext;
 use crate::core::TypeUtils;
 use crate::storage::StorageEngine;
@@ -383,9 +383,9 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     /// 推导字面量表达式的类型
     fn visit_literal(
         &mut self,
-        value: &crate::graph::expression::LiteralValue,
+        value: &crate::expression::LiteralValue,
     ) -> Result<(), TypeDeductionError> {
-        use crate::graph::expression::LiteralValue;
+        use crate::expression::LiteralValue;
         self.type_ = match value {
             LiteralValue::Bool(_) => ValueTypeDef::Bool,
             LiteralValue::Int(_) => ValueTypeDef::Int,
@@ -553,9 +553,9 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     /// 推导聚合表达式的类型
     fn visit_aggregate_func(
         &mut self,
-        func: &crate::graph::expression::AggregateFunction,
+        func: &crate::expression::AggregateFunction,
     ) -> Result<(), TypeDeductionError> {
-        use crate::graph::expression::AggregateFunction;
+        use crate::expression::AggregateFunction;
         self.type_ = match func {
             AggregateFunction::Count => ValueTypeDef::Int,
             AggregateFunction::Sum => ValueTypeDef::Float,
@@ -704,8 +704,8 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 将DataType解析为ValueTypeDef
-    fn parse_data_type(&self, data_type: &crate::graph::expression::DataType) -> ValueTypeDef {
-        use crate::graph::expression::DataType;
+    fn parse_data_type(&self, data_type: &crate::expression::DataType) -> ValueTypeDef {
+        use crate::expression::DataType;
         match data_type {
             DataType::Bool => ValueTypeDef::Bool,
             DataType::Int => ValueTypeDef::Int,

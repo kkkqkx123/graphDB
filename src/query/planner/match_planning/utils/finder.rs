@@ -21,7 +21,7 @@ impl Finder {
     // ==================== 参数查找功能 ====================
 
     /// 查找参数
-    /// 
+    ///
     /// 根据子句上下文查找所有相关的参数
     pub fn find_arguments(&self, clause_ctx: &CypherClauseContext) -> HashSet<String> {
         let mut arguments = HashSet::new();
@@ -138,7 +138,7 @@ impl Finder {
     // ==================== 起始顶点ID查找功能 ====================
 
     /// 查找起始顶点ID
-    /// 
+    ///
     /// 根据子句上下文查找所有可能的起始顶点
     pub fn find_start_vids(&self, clause_ctx: &CypherClauseContext) -> Vec<String> {
         let mut start_vids = Vec::new();
@@ -193,7 +193,7 @@ impl Finder {
     }
 
     /// 查找最优起始顶点
-    /// 
+    ///
     /// 从所有可能的起始顶点中选择最优的一个
     pub fn find_best_start_vid(&self, clause_ctx: &CypherClauseContext) -> Option<String> {
         let start_vids = self.find_start_vids(clause_ctx);
@@ -209,7 +209,7 @@ impl Finder {
     // ==================== 组合查找功能 ====================
 
     /// 查找参数和起始顶点ID
-    /// 
+    ///
     /// 同时查找参数和起始顶点ID，返回一个包含两者的结构
     pub fn find_arguments_and_start_vids(&self, clause_ctx: &CypherClauseContext) -> FinderResult {
         let arguments = self.find_arguments(clause_ctx);
@@ -224,7 +224,7 @@ impl Finder {
     }
 
     /// 检查节点是否既是参数又是起始顶点
-    /// 
+    ///
     /// 返回既是参数又是起始顶点的节点列表
     pub fn find_argument_start_vids(&self, clause_ctx: &CypherClauseContext) -> Vec<String> {
         let arguments = self.find_arguments(clause_ctx);
@@ -238,7 +238,7 @@ impl Finder {
 }
 
 /// 查找结果
-/// 
+///
 /// 包含参数查找和起始顶点ID查找的结果
 #[derive(Debug, Clone)]
 pub struct FinderResult {
@@ -285,12 +285,10 @@ impl Default for Finder {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::expression::Expression;
+    use crate::expression::Expression;
     use crate::query::validator::structs::{
         AliasType, CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
         ReturnClauseContext, UnwindClauseContext, WhereClauseContext, WithClauseContext,
@@ -481,7 +479,12 @@ mod tests {
         assert_eq!(result.start_vids.len(), 1);
         assert_eq!(result.start_vids[0], "n");
         assert!(result.best_start_vid.is_some());
-        assert_eq!(result.best_start_vid.expect("best_start_vid should be Some"), "n");
+        assert_eq!(
+            result
+                .best_start_vid
+                .expect("best_start_vid should be Some"),
+            "n"
+        );
     }
 
     #[test]
@@ -523,7 +526,11 @@ mod tests {
         let start_vids = vec!["n".to_string(), "x".to_string()];
         let best_start_vid = Some("n".to_string());
 
-        let result = FinderResult::new(arguments.clone(), start_vids.clone(), best_start_vid.clone());
+        let result = FinderResult::new(
+            arguments.clone(),
+            start_vids.clone(),
+            best_start_vid.clone(),
+        );
 
         // 验证结果
         assert_eq!(result.arguments, arguments);
