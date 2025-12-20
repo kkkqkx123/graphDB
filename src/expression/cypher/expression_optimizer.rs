@@ -136,11 +136,28 @@ impl CypherExpressionOptimizer {
     }
 
     /// 尝试对二元表达式进行常量折叠
-    fn try_fold_constants(_bin_expr: &BinaryExpression) -> Option<CypherExpression> {
-        // 这里需要创建一个临时的评估上下文来计算常量表达式
-        // 由于当前实现中没有直接的评估功能，这里返回None
-        // 在实际实现中，应该调用评估器来计算结果
-        None
+    fn try_fold_constants(bin_expr: &BinaryExpression) -> Option<CypherExpression> {
+        // 创建临时的空上下文用于常量计算
+        let context = crate::expression::ExpressionContext::default();
+        
+        // 使用 CypherEvaluator 评估表达式
+        match super::cypher_evaluator::CypherEvaluator::evaluate_cypher(
+            &CypherExpression::Binary(bin_expr.clone()),
+            &context
+        ) {
+            Ok(value) => {
+                // 将评估结果转换回 Cypher 表达式
+                match value {
+                    crate::core::Value::Int(i) => Some(CypherExpression::Literal(CypherLiteral::Integer(i))),
+                    crate::core::Value::Float(f) => Some(CypherExpression::Literal(CypherLiteral::Float(f))),
+                    crate::core::Value::Bool(b) => Some(CypherExpression::Literal(CypherLiteral::Boolean(b))),
+                    crate::core::Value::String(s) => Some(CypherExpression::Literal(CypherLiteral::String(s))),
+                    crate::core::Value::Null(_) => Some(CypherExpression::Literal(CypherLiteral::Null)),
+                    _ => None, // 复杂类型不进行常量折叠
+                }
+            }
+            Err(_) => None, // 评估失败时不进行常量折叠
+        }
     }
 
     /// 尝试对一元表达式进行常量折叠
@@ -246,7 +263,7 @@ impl CypherExpressionOptimizer {
     }
 
     /// 检查Cypher表达式是否为常量
-    fn is_cypher_constant(cypher_expr: &CypherExpression) -> bool {
+    pub fn is_cypher_constant(cypher_expr: &CypherExpression) -> bool {
         match cypher_expr {
             CypherExpression::Literal(_) => true,
             CypherExpression::List(list_expr) => {

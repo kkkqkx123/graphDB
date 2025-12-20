@@ -41,6 +41,12 @@ impl CypherEvaluator {
 
     /// 评估Cypher字面量
     fn evaluate_cypher_literal(literal: &CypherLiteral) -> Result<Value, ExpressionError> {
+        // 使用共享的字面量转换逻辑
+        Self::cypher_literal_to_value(literal)
+    }
+
+    /// 将Cypher字面量转换为Value - 共享函数
+    pub fn cypher_literal_to_value(literal: &CypherLiteral) -> Result<Value, ExpressionError> {
         match literal {
             CypherLiteral::String(s) => Ok(Value::String(s.clone())),
             CypherLiteral::Integer(i) => Ok(Value::Int(*i)),
@@ -118,10 +124,12 @@ impl CypherEvaluator {
         bin_expr: &BinaryExpression,
         context: &ExpressionContext,
     ) -> Result<Value, ExpressionError> {
-        let left_value = Self::evaluate_cypher(&bin_expr.left, context)?;
-        let right_value = Self::evaluate_cypher(&bin_expr.right, context)?;
-
-        Self::evaluate_binary_operation(&left_value, &bin_expr.operator, &right_value)
+        // 转换为统一表达式并使用现有的评估逻辑
+        let unified_expr = super::expression_converter::ExpressionConverter::convert_cypher_to_unified(
+            &CypherExpression::Binary(bin_expr.clone())
+        )?;
+        
+        crate::expression::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
     }
 
     /// 评估Cypher一元表达式
@@ -202,82 +210,6 @@ impl CypherEvaluator {
         Ok(Value::String(format!("{:?}", pattern_expr.pattern)))
     }
 
-    /// 评估二元操作
-    fn evaluate_binary_operation(
-        left: &Value,
-        op: &BinaryOperator,
-        right: &Value,
-    ) -> Result<Value, ExpressionError> {
-        match op {
-            BinaryOperator::Equal => Ok(Value::Bool(crate::expression::comparison::values_equal(
-                left, right,
-            ))),
-            BinaryOperator::NotEqual => Ok(Value::Bool(
-                !crate::expression::comparison::values_equal(left, right),
-            )),
-            BinaryOperator::GreaterThan => Ok(Value::Bool(
-                crate::expression::comparison::compare_values(left, right) > 0,
-            )),
-            BinaryOperator::LessThan => Ok(Value::Bool(
-                crate::expression::comparison::compare_values(left, right) < 0,
-            )),
-            BinaryOperator::GreaterThanOrEqual => Ok(Value::Bool(
-                crate::expression::comparison::compare_values(left, right) >= 0,
-            )),
-            BinaryOperator::LessThanOrEqual => Ok(Value::Bool(
-                crate::expression::comparison::compare_values(left, right) <= 0,
-            )),
-            BinaryOperator::And => {
-                if let (Value::Bool(left_bool), Value::Bool(right_bool)) = (left, right) {
-                    Ok(Value::Bool(*left_bool && *right_bool))
-                } else {
-                    Ok(Value::Bool(false))
-                }
-            }
-            BinaryOperator::Or => {
-                if let (Value::Bool(left_bool), Value::Bool(right_bool)) = (left, right) {
-                    Ok(Value::Bool(*left_bool || *right_bool))
-                } else {
-                    Ok(Value::Bool(false))
-                }
-            }
-            BinaryOperator::Xor => {
-                if let (Value::Bool(left_bool), Value::Bool(right_bool)) = (left, right) {
-                    Ok(Value::Bool(*left_bool ^ *right_bool))
-                } else {
-                    Ok(Value::Bool(false))
-                }
-            }
-            BinaryOperator::Add => crate::expression::arithmetic::arithmetic_add(left, right),
-            BinaryOperator::Subtract => {
-                crate::expression::arithmetic::arithmetic_subtract(left, right)
-            }
-            BinaryOperator::Multiply => {
-                crate::expression::arithmetic::arithmetic_multiply(left, right)
-            }
-            BinaryOperator::Divide => crate::expression::arithmetic::arithmetic_divide(left, right),
-            BinaryOperator::Modulo => crate::expression::arithmetic::arithmetic_modulo(left, right),
-            BinaryOperator::Exponent => {
-                crate::expression::arithmetic::arithmetic_exponent(left, right)
-            }
-            BinaryOperator::In => crate::expression::comparison::check_in(left, right),
-            BinaryOperator::StartsWith => {
-                crate::expression::comparison::check_starts_with(left, right)
-            }
-            BinaryOperator::EndsWith => crate::expression::comparison::check_ends_with(left, right),
-            BinaryOperator::Contains => crate::expression::comparison::check_contains(left, right),
-            BinaryOperator::RegexMatch => {
-                // 简化的正则匹配实现
-                match (left, right) {
-                    (Value::String(text), Value::String(pattern)) => {
-                        // 简单的包含检查作为正则匹配的替代
-                        Ok(Value::Bool(text.contains(pattern.as_str())))
-                    }
-                    _ => Ok(Value::Bool(false)),
-                }
-            }
-        }
-    }
 
     /// 批量评估Cypher表达式
     pub fn evaluate_cypher_batch(
@@ -293,16 +225,8 @@ impl CypherEvaluator {
 
     /// 检查Cypher表达式是否为常量
     pub fn is_cypher_constant(cypher_expr: &CypherExpression) -> bool {
-        match cypher_expr {
-            CypherExpression::Literal(_) => true,
-            CypherExpression::List(list_expr) => {
-                list_expr.elements.iter().all(Self::is_cypher_constant)
-            }
-            CypherExpression::Map(map_expr) => {
-                map_expr.properties.values().all(Self::is_cypher_constant)
-            }
-            _ => false,
-        }
+        // 使用共享的常量检查逻辑
+        super::expression_optimizer::CypherExpressionOptimizer::is_cypher_constant(cypher_expr)
     }
 
     /// 获取Cypher表达式中使用的所有变量
@@ -413,7 +337,6 @@ impl CypherEvaluator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     #[test]
     fn test_evaluate_literal() {

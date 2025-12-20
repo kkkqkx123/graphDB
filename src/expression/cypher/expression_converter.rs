@@ -1,8 +1,8 @@
-use crate::core::{ExpressionError, Value};
+use crate::core::ExpressionError;
 use crate::expression::operator_conversion;
 use crate::expression::{Expression, LiteralValue};
 use crate::query::parser::cypher::ast::expressions::{
-    BinaryExpression, CaseExpression,
+    BinaryExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
     MapExpression, PropertyExpression, UnaryExpression,
 };
@@ -20,12 +20,15 @@ impl ExpressionConverter {
     ) -> Result<Expression, ExpressionError> {
         match cypher_expr {
             CypherExpression::Literal(literal) => {
-                let unified_literal = match literal {
-                    CypherLiteral::String(s) => LiteralValue::String(s.clone()),
-                    CypherLiteral::Integer(i) => LiteralValue::Int(*i),
-                    CypherLiteral::Float(f) => LiteralValue::Float(*f),
-                    CypherLiteral::Boolean(b) => LiteralValue::Bool(*b),
-                    CypherLiteral::Null => LiteralValue::Null,
+                // 使用共享的字面量转换逻辑
+                let value = super::cypher_evaluator::CypherEvaluator::cypher_literal_to_value(literal)?;
+                let unified_literal = match value {
+                    crate::core::Value::String(s) => LiteralValue::String(s),
+                    crate::core::Value::Int(i) => LiteralValue::Int(i),
+                    crate::core::Value::Float(f) => LiteralValue::Float(f),
+                    crate::core::Value::Bool(b) => LiteralValue::Bool(b),
+                    crate::core::Value::Null(_) => LiteralValue::Null,
+                    _ => return Err(ExpressionError::InvalidOperation("Unsupported literal type".to_string())),
                 };
                 Ok(Expression::Literal(unified_literal))
             }
@@ -122,12 +125,22 @@ impl ExpressionConverter {
     ) -> Result<CypherExpression, ExpressionError> {
         match expr {
             Expression::Literal(literal) => {
-                let cypher_literal = match literal {
-                    LiteralValue::String(s) => CypherLiteral::String(s.clone()),
-                    LiteralValue::Int(i) => CypherLiteral::Integer(*i),
-                    LiteralValue::Float(f) => CypherLiteral::Float(*f),
-                    LiteralValue::Bool(b) => CypherLiteral::Boolean(*b),
-                    LiteralValue::Null => CypherLiteral::Null,
+                // 使用共享的字面量转换逻辑
+                let value = match literal {
+                    LiteralValue::String(s) => crate::core::Value::String(s.clone()),
+                    LiteralValue::Int(i) => crate::core::Value::Int(*i),
+                    LiteralValue::Float(f) => crate::core::Value::Float(*f),
+                    LiteralValue::Bool(b) => crate::core::Value::Bool(*b),
+                    LiteralValue::Null => crate::core::Value::Null(crate::core::NullType::Null),
+                };
+                
+                let cypher_literal = match value {
+                    crate::core::Value::String(s) => CypherLiteral::String(s),
+                    crate::core::Value::Int(i) => CypherLiteral::Integer(i),
+                    crate::core::Value::Float(f) => CypherLiteral::Float(f),
+                    crate::core::Value::Bool(b) => CypherLiteral::Boolean(b),
+                    crate::core::Value::Null(_) => CypherLiteral::Null,
+                    _ => return Err(ExpressionError::InvalidOperation("Unsupported value type".to_string())),
                 };
                 Ok(CypherExpression::Literal(cypher_literal))
             }
