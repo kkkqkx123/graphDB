@@ -122,7 +122,7 @@ impl ShortestPathPlanner {
                 name: node_info.alias.clone(),
                 columns: vec![Column {
                     name: node_info.alias.clone(),
-                    type_: ValueTypeDef::Vertex,
+                    type_: "Vertex".to_string(),
                 }],
             };
             let argument_node = PlanNodeFactory::create_argument(0, &node_info.alias)?;
@@ -233,7 +233,7 @@ impl ShortestPathPlanner {
             name: format!("index_scan_{}", node_info.labels.join("_")),
             columns: vec![Column {
                 name: "vid".to_string(),
-                type_: ValueTypeDef::Vertex,
+                type_: "Vertex".to_string(),
             }],
         };
 
@@ -255,7 +255,7 @@ impl ShortestPathPlanner {
             name: format!("prop_index_scan_{}", node_info.alias),
             columns: vec![Column {
                 name: "vid".to_string(),
-                type_: ValueTypeDef::Vertex,
+                type_: "Vertex".to_string(),
             }],
         };
 

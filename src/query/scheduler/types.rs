@@ -17,10 +17,10 @@ pub struct ExecutorDep {
 pub trait QueryScheduler<S: StorageEngine> {
     async fn schedule(
         &mut self,
-        execution_plan: super::execution_plan::ExecutionPlan<S>,
+        execution_schedule: super::execution_schedule::ExecutionSchedule<S>,
     ) -> Result<ExecutionResult, QueryError>;
 
     fn wait_finish(&mut self) -> Result<(), QueryError>;
 }
 
-// ExecutionPlan is defined in execution_plan.rs to avoid duplication
+// ExecutionSchedule is defined in execution_schedule.rs to avoid duplication

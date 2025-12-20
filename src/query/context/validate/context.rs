@@ -7,6 +7,10 @@ use super::schema::{self, SchemaInfo, SchemaProvider};
 use super::types::{ColsDef, SpaceInfo, Variable};
 use crate::core::symbol::SymbolTable;
 use crate::core::Value;
+use crate::query::validator::validation_interface::{
+    ValidationContext as ValidationContextTrait, ValidationError, ValidationErrorType,
+};
+use crate::query::validator::structs::{AliasType, QueryPart};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -38,6 +42,15 @@ pub struct ValidateContext {
 
     // Schema缓存
     schemas: HashMap<String, SchemaInfo>,
+
+    // 查询部分列表（用于ValidationContext trait）
+    query_parts: Vec<QueryPart>,
+
+    // 别名类型映射（用于ValidationContext trait）
+    alias_types: HashMap<String, AliasType>,
+
+    // 验证错误列表（用于ValidationContext trait）
+    validation_errors: Vec<ValidationError>,
 }
 
 impl ValidateContext {
@@ -50,6 +63,9 @@ impl ValidateContext {
             anon_col_gen: GeneratorFactory::create_anon_col_generator(),
             symbol_table: SymbolTable::new(),
             schemas: HashMap::new(),
+            query_parts: Vec::new(),
+            alias_types: HashMap::new(),
+            validation_errors: Vec::new(),
         }
     }
 
@@ -62,6 +78,9 @@ impl ValidateContext {
             anon_col_gen: GeneratorFactory::create_anon_col_generator(),
             symbol_table: SymbolTable::new(),
             schemas: HashMap::new(),
+            query_parts: Vec::new(),
+            alias_types: HashMap::new(),
+            validation_errors: Vec::new(),
         }
     }
 
@@ -195,6 +214,72 @@ impl ValidateContext {
         }
 
         names
+    }
+
+    // ==================== QueryPart管理 ====================
+
+    /// 添加查询部分
+    pub fn add_query_part(&mut self, query_part: QueryPart) {
+        self.query_parts.push(query_part);
+    }
+
+    /// 获取所有查询部分
+    pub fn get_query_parts(&self) -> &[QueryPart] {
+        &self.query_parts
+    }
+
+    /// 清空查询部分
+    pub fn clear_query_parts(&mut self) {
+        self.query_parts.clear();
+    }
+
+    // ==================== AliasType管理 ====================
+
+    /// 添加别名类型
+    pub fn add_alias_type(&mut self, alias: String, alias_type: AliasType) {
+        self.alias_types.insert(alias, alias_type);
+    }
+
+    /// 获取别名类型
+    pub fn get_alias_type(&self, alias: &str) -> Option<&AliasType> {
+        self.alias_types.get(alias)
+    }
+
+    /// 获取所有别名类型
+    pub fn get_alias_types(&self) -> &HashMap<String, AliasType> {
+        &self.alias_types
+    }
+
+    /// 检查别名是否存在
+    pub fn has_alias_type(&self, alias: &str) -> bool {
+        self.alias_types.contains_key(alias)
+    }
+
+    // ==================== 验证错误管理 ====================
+
+    /// 添加验证错误
+    pub fn add_validation_error(&mut self, error: ValidationError) {
+        self.validation_errors.push(error);
+    }
+
+    /// 获取所有验证错误
+    pub fn get_validation_errors(&self) -> &[ValidationError] {
+        &self.validation_errors
+    }
+
+    /// 检查是否有验证错误
+    pub fn has_validation_errors(&self) -> bool {
+        !self.validation_errors.is_empty()
+    }
+
+    /// 清空验证错误
+    pub fn clear_validation_errors(&mut self) {
+        self.validation_errors.clear();
+    }
+
+    /// 获取验证错误数量
+    pub fn validation_error_count(&self) -> usize {
+        self.validation_errors.len()
     }
 
     // ==================== 匿名生成器 ====================
@@ -337,18 +422,18 @@ impl ValidateContext {
 
     // ==================== 别名管理（委托） ====================
 
-    /// 添加别名及其类型
-    pub fn add_alias(&mut self, alias: String, type_: String) {
+    /// 添加别名及其类型（字符串类型）
+    pub fn add_alias_string(&mut self, alias: String, type_: String) {
         self.basic_context.add_alias(alias, type_);
     }
 
-    /// 获取别名的类型
-    pub fn get_alias_type(&self, alias: &str) -> Option<&String> {
+    /// 获取别名的类型（字符串类型）
+    pub fn get_alias_string_type(&self, alias: &str) -> Option<&String> {
         self.basic_context.get_alias_type(alias)
     }
 
-    /// 检查别名是否存在
-    pub fn exist_alias(&self, alias: &str) -> bool {
+    /// 检查别名是否存在（字符串类型）
+    pub fn exist_alias_string(&self, alias: &str) -> bool {
         self.basic_context.exist_alias(alias)
     }
 
@@ -452,6 +537,18 @@ impl ValidateContext {
             "  symbol_table: {:?},\n",
             self.symbol_table.size().unwrap_or(0)
         ));
+        result.push_str(&format!(
+            "  query_parts: {:?},\n",
+            self.query_parts.len()
+        ));
+        result.push_str(&format!(
+            "  alias_types: {:?},\n",
+            self.alias_types.len()
+        ));
+        result.push_str(&format!(
+            "  validation_errors: {:?},\n",
+            self.validation_errors.len()
+        ));
         result.push_str("}");
         result
     }
@@ -466,7 +563,33 @@ impl std::fmt::Debug for ValidateContext {
             .field("anon_col_gen", &self.anon_col_gen)
             .field("symbol_table", &self.symbol_table)
             .field("schemas", &self.schemas)
+            .field("query_parts", &self.query_parts)
+            .field("alias_types", &self.alias_types)
+            .field("validation_errors", &self.validation_errors)
             .finish()
+    }
+}
+
+// 实现ValidationContext trait
+impl ValidationContextTrait for ValidateContext {
+    fn get_query_parts(&self) -> &[QueryPart] {
+        &self.query_parts
+    }
+
+    fn get_aliases(&self) -> &HashMap<String, AliasType> {
+        &self.alias_types
+    }
+
+    fn add_error(&mut self, error: ValidationError) {
+        self.validation_errors.push(error);
+    }
+
+    fn has_errors(&self) -> bool {
+        !self.validation_errors.is_empty()
+    }
+
+    fn get_errors(&self) -> &[ValidationError] {
+        &self.validation_errors
     }
 }
 

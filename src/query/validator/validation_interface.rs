@@ -1,10 +1,11 @@
 //! 验证策略接口定义
-//! 定义验证策略的统一接口和错误类型
+//! 定义验证策略的统一接口，使用core模块中的统一错误类型
 
 use crate::query::validator::structs::*;
+use crate::core::error::{DBError, QueryError};
 use std::collections::HashMap;
 
-/// 验证错误类型
+/// 验证错误类型（为了向后兼容保留，但建议使用DBError）
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValidationErrorType {
     SyntaxError,
@@ -15,7 +16,7 @@ pub enum ValidationErrorType {
     PaginationError,
 }
 
-/// 验证错误结构
+/// 验证错误结构（为了向后兼容保留，但建议使用DBError）
 #[derive(Debug, Clone)]
 pub struct ValidationError {
     pub message: String,
@@ -36,6 +37,27 @@ impl ValidationError {
         self.context = Some(context);
         self
     }
+
+    /// 转换为统一的DBError
+    pub fn to_db_error(&self) -> DBError {
+        let error_msg = if let Some(ref ctx) = self.context {
+            format!("{} (上下文: {})", self.message, ctx)
+        } else {
+            self.message.clone()
+        };
+
+        match self.error_type {
+            ValidationErrorType::SyntaxError => {
+                DBError::Query(QueryError::ParseError(error_msg))
+            }
+            ValidationErrorType::SemanticError | ValidationErrorType::TypeError => {
+                DBError::Query(QueryError::InvalidQuery(error_msg))
+            }
+            _ => {
+                DBError::Query(QueryError::ExecutionError(error_msg))
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for ValidationError {
@@ -45,6 +67,12 @@ impl std::fmt::Display for ValidationError {
 }
 
 impl std::error::Error for ValidationError {}
+
+impl From<ValidationError> for DBError {
+    fn from(err: ValidationError) -> Self {
+        err.to_db_error()
+    }
+}
 
 /// 验证策略类型枚举
 #[derive(Debug, Clone, PartialEq)]

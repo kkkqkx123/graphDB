@@ -5,6 +5,7 @@ use crate::core::ValueTypeDef;
 use crate::graph::expression::Expression;
 use crate::graph::expression::{BinaryOperator, UnaryOperator};
 use crate::query::validator::ValidateContext;
+use crate::core::TypeUtils;
 use crate::storage::StorageEngine;
 use thiserror::Error;
 
@@ -671,26 +672,13 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
 
     /// 检查两种类型是否兼容
     fn are_types_compatible(&self, type1: &ValueTypeDef, type2: &ValueTypeDef) -> bool {
-        if type1 == type2 {
-            return true;
-        }
-        // NULL和EMPTY类型与任何类型兼容
-        if self.is_superior_type(type1) || self.is_superior_type(type2) {
-            return true;
-        }
-        // Int和Float可以相互兼容
-        if (type1 == &ValueTypeDef::Int && type2 == &ValueTypeDef::Float)
-            || (type1 == &ValueTypeDef::Float && type2 == &ValueTypeDef::Int)
-        {
-            return true;
-        }
-        false
+        TypeUtils::are_types_compatible(type1, type2)
     }
 
     /// 检查类型是否为"优越类型"
     /// 优越类型包括NULL和EMPTY，它们可以与任何类型兼容
     fn is_superior_type(&self, type_: &ValueTypeDef) -> bool {
-        matches!(type_, ValueTypeDef::Null | ValueTypeDef::Empty)
+        TypeUtils::is_superior_type(type_)
     }
 
     /// 将字符串解析为ValueTypeDef
@@ -847,5 +835,28 @@ mod tests {
 
         // 不同类型不兼容
         assert!(!visitor.are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::String));
+    }
+
+    #[test]
+    fn test_type_utils() {
+        // 测试统一的类型工具
+        assert!(TypeUtils::are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::Int));
+        assert!(TypeUtils::are_types_compatible(&ValueTypeDef::Null, &ValueTypeDef::String));
+        assert!(TypeUtils::is_superior_type(&ValueTypeDef::Null));
+        
+        // 测试类型优先级
+        assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::Int), 2);
+        assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::Float), 3);
+        assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::String), 4);
+        
+        // 测试公共类型
+        assert_eq!(
+            TypeUtils::get_common_type(&ValueTypeDef::Int, &ValueTypeDef::Float),
+            ValueTypeDef::Float
+        );
+        assert_eq!(
+            TypeUtils::get_common_type(&ValueTypeDef::Null, &ValueTypeDef::String),
+            ValueTypeDef::String
+        );
     }
 }

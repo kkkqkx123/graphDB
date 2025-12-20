@@ -19,9 +19,11 @@ pub mod visitor;
 // Module-specific implementations
 pub mod executor_factory;
 pub mod query_pipeline_manager;
-pub mod types;
 
 // Re-export commonly used types for convenience
 pub use executor_factory::ExecutorFactory;
 pub use query_pipeline_manager::QueryPipelineManager;
-pub use types::{Condition, Query, QueryError, QueryResult};
+// Re-export error types from core module
+pub use crate::core::{QueryError, DBResult};
+// Re-export execution result from executor module
+pub use executor::traits::ExecutionResult;

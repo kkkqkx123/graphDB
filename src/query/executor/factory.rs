@@ -7,7 +7,7 @@ use crate::query::executor::traits::Executor;
 use crate::query::parser::expressions::parse_expression_from_string;
 use crate::query::planner::plan::core::nodes::traits::PlanNodeProperties;
 use crate::query::planner::plan::core::{PlanNode, PlanNodeKind};
-use crate::query::types::QueryError;
+use crate::core::error::QueryError;
 use crate::storage::StorageEngine;
 use std::collections::HashMap;
 use std::marker::PhantomData;

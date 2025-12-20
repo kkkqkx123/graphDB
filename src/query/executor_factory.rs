@@ -2,7 +2,8 @@ use crate::query::context::QueryContext;
 use crate::query::executor::factory::BaseExecutorFactory;
 use crate::query::executor::Executor;
 use crate::query::planner::plan::{ExecutionPlan, PlanNode};
-use crate::query::types::{QueryError, QueryResult};
+use crate::query::executor::traits::{ExecutionResult, ExecutorCore};
+use crate::core::error::QueryError;
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
 
@@ -33,13 +34,13 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
     /// * `plan` - 优化后的执行计划
     ///
     /// # 返回
-    /// * `Ok(QueryResult)` - 查询执行结果
+    /// * `Ok(ExecutionResult)` - 查询执行结果
     /// * `Err(QueryError)` - 执行过程中的错误
     pub async fn execute_plan(
         &mut self,
         _query_context: &mut QueryContext,
         plan: ExecutionPlan,
-    ) -> Result<QueryResult, QueryError> {
+    ) -> Result<ExecutionResult, QueryError> {
         // 获取执行计划的根节点
         let root_node = plan
             .root()
@@ -52,38 +53,8 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
         // 执行查询
         match root_executor.execute().await {
             Ok(execution_result) => {
-                // 将 ExecutionResult 转换为 QueryResult
-                match execution_result {
-                    crate::query::executor::traits::ExecutionResult::Success => {
-                        Ok(QueryResult::Success)
-                    }
-                    crate::query::executor::traits::ExecutionResult::Count(count) => {
-                        Ok(QueryResult::Count(count))
-                    }
-                    crate::query::executor::traits::ExecutionResult::Values(values) => {
-                        // 这里需要根据实际需求处理 Values 类型
-                        Ok(QueryResult::Count(values.len()))
-                    }
-                    crate::query::executor::traits::ExecutionResult::Vertices(vertices) => {
-                        // 这里需要根据实际需求处理 Vertices 类型
-                        Ok(QueryResult::Count(vertices.len()))
-                    }
-                    crate::query::executor::traits::ExecutionResult::Edges(edges) => {
-                        // 这里需要根据实际需求处理 Edges 类型
-                        Ok(QueryResult::Count(edges.len()))
-                    }
-                    crate::query::executor::traits::ExecutionResult::DataSet(dataset) => {
-                        // 这里需要根据实际需求处理 DataSet 类型
-                        Ok(QueryResult::Count(dataset.rows.len()))
-                    }
-                    crate::query::executor::traits::ExecutionResult::Paths(paths) => {
-                        // 这里需要根据实际需求处理 Paths 类型
-                        Ok(QueryResult::Count(paths.len()))
-                    }
-                    crate::query::executor::traits::ExecutionResult::Error(error_msg) => {
-                        Err(QueryError::ExecutionError(error_msg))
-                    }
-                }
+                // 直接返回 ExecutionResult
+                Ok(execution_result)
             }
             Err(db_error) => Err(QueryError::ExecutionError(db_error.to_string())),
         }

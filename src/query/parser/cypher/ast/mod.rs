@@ -7,6 +7,7 @@ pub mod clauses;
 pub mod patterns;
 pub mod expressions;
 pub mod converters;
+pub mod query_types;
 
 // 重新导出主要类型
 pub use statements::{CypherStatement, QueryClause};
@@ -26,3 +27,4 @@ pub use expressions::{
     CaseAlternative, ListExpression, MapExpression, PatternExpression
 };
 pub use converters::{CypherConverter, ExpressionEvaluator};
+pub use query_types::{Query, Condition};

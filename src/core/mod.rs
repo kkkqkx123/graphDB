@@ -9,15 +9,17 @@ pub mod result;
 pub mod schema;
 pub mod signal_handler;
 pub mod symbol;
+pub mod type_utils;
 pub mod value;
 pub mod vertex_edge_path;
 pub mod visitor;
 pub mod visitors_legacy;
 
-pub use error::{DBError, DBResult};
+pub use error::{DBError, DBResult, QueryError};
 pub use result::*;
 pub use schema::*;
 pub use symbol::*;
+pub use type_utils::TypeUtils;
 pub use value::*;
 pub use vertex_edge_path::*;
 pub use visitor::*;

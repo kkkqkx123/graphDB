@@ -60,12 +60,16 @@ pub enum StorageError {
 // 查询错误类型（从 query/mod.rs 移动过来）
 #[derive(Error, Debug, Clone)]
 pub enum QueryError {
+    #[error("存储错误: {0}")]
+    StorageError(String),
     #[error("解析错误: {0}")]
     ParseError(String),
     #[error("无效查询: {0}")]
     InvalidQuery(String),
     #[error("执行错误: {0}")]
     ExecutionError(String),
+    #[error("表达式错误: {0}")]
+    ExpressionError(String),
 }
 
 // 表达式错误类型（从 graph/expression/error.rs 移动过来）
@@ -131,27 +135,7 @@ impl From<crate::storage::StorageError> for DBError {
     }
 }
 
-impl From<crate::query::QueryError> for DBError {
-    fn from(err: crate::query::QueryError) -> Self {
-        match err {
-            crate::query::QueryError::StorageError(storage_err) => {
-                DBError::Storage(StorageError::DbError(storage_err.to_string()))
-            }
-            crate::query::QueryError::ParseError(msg) => {
-                DBError::Query(QueryError::ParseError(msg))
-            }
-            crate::query::QueryError::InvalidQuery(msg) => {
-                DBError::Query(QueryError::InvalidQuery(msg))
-            }
-            crate::query::QueryError::ExecutionError(msg) => {
-                DBError::Query(QueryError::ExecutionError(msg))
-            }
-            crate::query::QueryError::ExpressionError(msg) => {
-                DBError::Expression(ExpressionError::InvalidOperation(msg))
-            }
-        }
-    }
-}
+// 移除冲突的From实现，因为现在QueryError在core模块中定义
 
 impl From<crate::graph::expression::ExpressionError> for DBError {
     fn from(err: crate::graph::expression::ExpressionError) -> Self {

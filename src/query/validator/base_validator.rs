@@ -38,4 +38,12 @@ impl Validator {
     pub fn add_error(&mut self, error: String) {
         self.context.add_error(error);
     }
+
+    /// 使用统一错误类型的验证方法
+    pub fn validate_unified(&mut self) -> Result<(), crate::core::error::DBError> {
+        self.validate()
+            .map_err(|e| crate::core::error::DBError::Query(
+                crate::core::error::QueryError::InvalidQuery(format!("验证失败: {}", e))
+            ))
+    }
 }

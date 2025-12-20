@@ -73,7 +73,7 @@ impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
         // 获取节点的所有边
         let edges = storage
             .get_node_edges(node_id, crate::core::Direction::Both)
-            .map_err(|e| QueryError::StorageError(e))?;
+            .map_err(|e| QueryError::StorageError(e.to_string()))?;
 
         // 过滤边类型
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
@@ -173,7 +173,7 @@ impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
                         .expect("ExpandAllExecutor storage lock should not be poisoned");
                     storage
                         .get_node(&neighbor_id)
-                        .map_err(|e| QueryError::StorageError(e))?
+                        .map_err(|e| QueryError::StorageError(e.to_string()))?
                 };
 
                 if let Some(vertex) = neighbor_vertex {

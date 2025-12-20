@@ -8,19 +8,23 @@
 //! 3. 消除循环依赖，提高模块的可维护性和可测试性
 //! 4. 合并冗余文件，拆分大型文件
 
-mod base_validator;
-mod match_validator;
-mod validate_context;
-mod validation_factory;
-mod validation_interface;
+pub mod base_validator;
+pub mod match_validator;
+pub mod validation_factory;
+pub mod validation_interface;
 
 pub mod strategies;
 pub mod structs;
 
 pub use base_validator::Validator;
 pub use match_validator::MatchValidator;
-pub use validate_context::{Column, ValidateContext, Variable};
+// 重新导出context版本的ValidateContext
+pub use crate::query::context::validate::ValidateContext;
 pub use validation_factory::ValidationFactory;
+pub use validation_interface::{ValidationContext, ValidationError, ValidationErrorType, ValidationStrategy, ValidationStrategyType};
+
+// 为了向后兼容，导出类型定义
+pub use crate::query::context::validate::types::{Column, Variable};
 
 // 导出策略模块
 pub use strategies::*;

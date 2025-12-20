@@ -5,14 +5,15 @@ use crate::query::executor::{ExecutionResult, Executor};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
-// Execution plan containing multiple executors and their dependencies
-pub struct ExecutionPlan<S: StorageEngine> {
+// Execution schedule containing multiple executors and their dependencies
+// This represents the physical execution plan with executor dependencies and scheduling
+pub struct ExecutionSchedule<S: StorageEngine> {
     pub executors: HashMap<usize, Box<dyn Executor<S>>>,
     pub dependencies: HashMap<usize, ExecutorDep>,
     pub root_executor_id: usize, // The executor that starts the execution
 }
 
-impl<S: StorageEngine + Send + 'static> ExecutionPlan<S> {
+impl<S: StorageEngine + Send + 'static> ExecutionSchedule<S> {
     pub fn new(root_id: usize) -> Self {
         Self {
             executors: HashMap::new(),
@@ -123,7 +124,7 @@ impl<S: StorageEngine + Send + 'static> ExecutionPlan<S> {
             .unwrap_or(true) // No dependencies means satisfied
     }
 
-    /// Validate the execution plan for cycles and missing dependencies
+    /// Validate the execution schedule for cycles and missing dependencies
     pub fn validate(&self) -> Result<(), QueryError> {
         // Check for cycles using DFS
         let mut visited = std::collections::HashSet::new();
@@ -133,7 +134,7 @@ impl<S: StorageEngine + Send + 'static> ExecutionPlan<S> {
             if !visited.contains(executor_id) {
                 if self.has_cycle(*executor_id, &mut visited, &mut recursion_stack)? {
                     return Err(QueryError::InvalidQuery(
-                        "Cycle detected in execution plan".to_string(),
+                        "Cycle detected in execution schedule".to_string(),
                     ));
                 }
             }

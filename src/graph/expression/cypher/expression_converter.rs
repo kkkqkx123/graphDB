@@ -1,6 +1,6 @@
+use crate::core::Value;
 use crate::graph::expression::error::ExpressionError;
 use crate::graph::expression::operator_conversion;
-use crate::core::Value;
 use crate::graph::expression::{Expression, LiteralValue};
 use crate::query::parser::cypher::ast::expressions::{
     BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
@@ -9,7 +9,7 @@ use crate::query::parser::cypher::ast::expressions::{
 };
 
 /// Cypher表达式转换器
-/// 
+///
 /// 专注于Cypher表达式与统一表达式系统之间的转换，
 /// 不包含评估和优化逻辑，保持职责单一。
 pub struct ExpressionConverter;
@@ -103,19 +103,20 @@ impl ExpressionConverter {
                         Ok((format!("when_{}", "condition"), then_expr))
                     })
                     .collect();
-                
-                let default_alternative = case_expr.default_alternative
+
+                let default_alternative = case_expr
+                    .default_alternative
                     .as_ref()
                     .map(|expr| Self::convert_cypher_to_unified(expr))
                     .transpose()?;
-                
+
                 Ok(Expression::Map(alternatives?))
             }
         }
     }
 
     /// 将统一表达式转换为Cypher表达式
-    /// 
+    ///
     /// 这个方法主要用于调试和测试，在实际查询执行中不常用
     pub fn convert_unified_to_cypher(
         expr: &Expression,
@@ -190,7 +191,10 @@ impl ExpressionConverter {
             // 如果需要处理字符串，应该使用Expression::Literal(LiteralValue::String)
             _ => {
                 // 对于其他未处理的情况，返回错误
-                Err(ExpressionError::InvalidOperation(format!("Unsupported expression type: {:?}", expr)))
+                Err(ExpressionError::InvalidOperation(format!(
+                    "Unsupported expression type: {:?}",
+                    expr
+                )))
             }
         }
     }
@@ -221,13 +225,18 @@ impl ExpressionConverter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::cypher::ast::expressions::*;
+    use crate::graph::expression::{Expression, LiteralValue};
+    use crate::query::parser::cypher::ast::expressions::{
+        BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
+        Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
+        MapExpression, PatternExpression, PropertyExpression, UnaryExpression, UnaryOperator,
+    };
 
     #[test]
     fn test_convert_literal() {
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
         let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).unwrap();
-        
+
         match unified_expr {
             Expression::Literal(LiteralValue::Int(i)) => assert_eq!(i, 42),
             _ => panic!("Expected integer literal"),
@@ -238,7 +247,7 @@ mod tests {
     fn test_convert_variable() {
         let cypher_expr = CypherExpression::Variable("x".to_string());
         let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).unwrap();
-        
+
         match unified_expr {
             Expression::Variable(name) => assert_eq!(name, "x"),
             _ => panic!("Expected variable"),
@@ -254,11 +263,15 @@ mod tests {
             operator: BinaryOperator::Add,
             right,
         });
-        
+
         let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).unwrap();
-        
+
         match unified_expr {
-            Expression::Binary { left: _, op, right: _ } => {
+            Expression::Binary {
+                left: _,
+                op,
+                right: _,
+            } => {
                 // 验证操作符转换正确
                 assert_eq!(format!("{:?}", op), "Add");
             }
@@ -271,7 +284,7 @@ mod tests {
         let original = CypherExpression::Literal(CypherLiteral::String("test".to_string()));
         let unified = ExpressionConverter::convert_cypher_to_unified(&original).unwrap();
         let back_to_cypher = ExpressionConverter::convert_unified_to_cypher(&unified).unwrap();
-        
+
         match back_to_cypher {
             CypherExpression::Literal(CypherLiteral::String(s)) => assert_eq!(s, "test"),
             _ => panic!("Expected string literal"),

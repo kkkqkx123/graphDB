@@ -6,7 +6,8 @@ use super::structs::{
     AliasType, MatchStepRange, PaginationContext, Path, QueryPart, ReturnClauseContext,
     UnwindClauseContext, WhereClauseContext, WithClauseContext, YieldClauseContext, YieldColumn,
 };
-use super::validate_context::ValidateContext;
+// 使用context版本的ValidateContext
+use super::ValidateContext;
 use super::validation_factory::ValidationFactory;
 use super::validation_interface::{ValidationError, ValidationErrorType, ValidationStrategy};
 use crate::graph::expression::Expression;
@@ -28,17 +29,39 @@ impl MatchValidator {
 
     pub fn validate(&mut self) -> Result<(), ValidationError> {
         // 执行所有验证策略
-        for _strategy in &self.validation_strategies {
-            // 由于 ValidateContext 没有实现 ValidationContext trait，
-            // 这里需要重新设计验证逻辑
-            // 暂时跳过策略验证
+        for strategy in &self.validation_strategies {
+            // 现在ValidateContext已经实现了ValidationContext trait
+            if let Err(error) = strategy.validate(self.base.context()) {
+                self.base.context_mut().add_validation_error(error);
+            }
         }
 
-        if self.base.context().has_errors() {
+        if self.base.context().has_validation_errors() {
             return Err(ValidationError::new(
                 "验证失败".to_string(),
                 ValidationErrorType::SemanticError,
             ));
+        }
+
+        Ok(())
+    }
+
+    /// 使用统一错误类型的验证方法
+    pub fn validate_unified(&mut self) -> Result<(), crate::core::error::DBError> {
+        // 执行所有验证策略
+        for strategy in &self.validation_strategies {
+            // 现在ValidateContext已经实现了ValidationContext trait
+            if let Err(error) = strategy.validate(self.base.context()) {
+                self.base.context_mut().add_validation_error(error);
+            }
+        }
+
+        if self.base.context().has_validation_errors() {
+            // 将ValidationError转换为DBError
+            let errors = self.base.context().get_validation_errors();
+            if let Some(first_error) = errors.first() {
+                return Err(first_error.clone().to_db_error());
+            }
         }
 
         Ok(())

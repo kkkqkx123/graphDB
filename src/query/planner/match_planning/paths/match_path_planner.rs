@@ -388,7 +388,7 @@ impl MatchPathPlanner {
             name: format!("index_scan_{}", node_info.labels.join("_")),
             columns: vec![Column {
                 name: "vid".to_string(),
-                type_: ValueTypeDef::Vertex,
+                type_: "Vertex".to_string(),
             }],
         };
 
@@ -414,7 +414,7 @@ impl MatchPathPlanner {
             name: format!("prop_index_scan_{}", node_info.alias),
             columns: vec![Column {
                 name: "vid".to_string(),
-                type_: ValueTypeDef::Vertex,
+                type_: "Vertex".to_string(),
             }],
         };
 
@@ -444,11 +444,11 @@ impl MatchPathPlanner {
             columns: vec![
                 Column {
                     name: "src".to_string(),
-                    type_: ValueTypeDef::Vertex,
+                    type_: "Vertex".to_string(),
                 },
                 Column {
                     name: "dst".to_string(),
-                    type_: ValueTypeDef::Vertex,
+                    type_: "Vertex".to_string(),
                 },
             ],
         };

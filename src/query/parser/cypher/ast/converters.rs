@@ -2,7 +2,8 @@
 
 use crate::core::value::Value;
 use crate::core::vertex_edge_path::Tag;
-use crate::query::types::{Condition, Query, QueryError};
+use crate::query::parser::cypher::ast::{Condition, Query};
+use crate::core::error::QueryError;
 use crate::query::parser::cypher::ast::statements::CypherStatement;
 use crate::query::parser::cypher::ast::expressions::{Expression, BinaryOperator};
 use std::collections::HashMap;

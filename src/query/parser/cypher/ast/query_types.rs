@@ -1,19 +1,4 @@
 use crate::core::{Edge, Value, Vertex, Tag};
-use thiserror::Error;
-
-#[derive(Error, Debug, Clone)]
-pub enum QueryError {
-    #[error("Storage error: {0}")]
-    StorageError(#[from] crate::storage::StorageError),
-    #[error("Parse error: {0}")]
-    ParseError(String),
-    #[error("Invalid query: {0}")]
-    InvalidQuery(String),
-    #[error("Execution error: {0}")]
-    ExecutionError(String),
-    #[error("Expression error: {0}")]
-    ExpressionError(String),
-}
 
 #[derive(Debug, Clone)]
 pub enum Query {
@@ -48,14 +33,4 @@ pub enum Condition {
     PropertyGreaterThan(String, Value),
     PropertyLessThan(String, Value),
     PropertyIn(String, Vec<Value>),
-}
-
-#[derive(Debug)]
-pub enum QueryResult {
-    NodeId(Value),
-    EdgeId(Value),
-    Nodes(Vec<Vertex>),
-    Edges(Vec<Edge>),
-    Count(usize),
-    Success,
 }

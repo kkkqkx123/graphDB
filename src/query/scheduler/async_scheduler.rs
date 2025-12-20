@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Condvar, Mutex};
 
-use super::execution_plan::ExecutionPlan;
+use super::execution_schedule::ExecutionSchedule;
 use super::types::QueryScheduler;
 use crate::query::executor::{ExecutionContext, ExecutionResult};
 use crate::query::QueryError;
@@ -70,10 +70,10 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     async fn execute_executor(
         &self,
         executor_id: usize,
-        plan: &mut ExecutionPlan<S>,
+        execution_schedule: &mut ExecutionSchedule<S>,
     ) -> Result<ExecutionResult, QueryError> {
-        // 从计划中获取执行器
-        let mut executor = plan.executors.remove(&executor_id).ok_or_else(|| {
+        // 从执行调度中获取执行器
+        let mut executor = execution_schedule.executors.remove(&executor_id).ok_or_else(|| {
             QueryError::InvalidQuery(format!("Executor {} not found", executor_id))
         })?;
 
@@ -127,17 +127,17 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             }
         }
 
-        // 将执行器放回计划中
-        plan.executors.insert(executor_id, executor);
+        // 将执行器放回执行调度中
+        execution_schedule.executors.insert(executor_id, executor);
 
         result
     }
 
     // Get executable executors (those with all dependencies satisfied)
-    fn get_executable_executors(&self, plan: &ExecutionPlan<S>) -> Vec<usize> {
+    fn get_executable_executors(&self, execution_schedule: &ExecutionSchedule<S>) -> Vec<usize> {
         let state = safe_lock(&self.execution_state)
             .expect("AsyncScheduler execution_state lock should not be poisoned");
-        plan.get_executable_executors(&state.execution_results)
+        execution_schedule.get_executable_executors(&state.execution_results)
             .into_iter()
             .filter(|id| !state.is_executor_executing(*id))
             .collect()
@@ -192,15 +192,15 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     async fn execute_executor_batch(
         &self,
         executor_ids: &[usize],
-        plan: &mut ExecutionPlan<S>,
+        execution_schedule: &mut ExecutionSchedule<S>,
     ) -> Result<Vec<usize>, QueryError> {
         let mut tasks = Vec::new();
         let mut next_executors = Vec::new();
 
         // Create tasks for parallel execution
         for &executor_id in executor_ids {
-            // 从计划中取出执行器
-            if let Some(mut executor) = plan.executors.remove(&executor_id) {
+            // 从执行调度中取出执行器
+            if let Some(mut executor) = execution_schedule.executors.remove(&executor_id) {
                 let state = self.execution_state.clone();
 
                 let task = tokio::spawn(async move {
@@ -221,7 +221,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                 tasks.push(task);
             } else {
                 return Err(QueryError::InvalidQuery(format!(
-                    "Executor {} not found in plan",
+                    "Executor {} not found in execution schedule",
                     executor_id
                 )));
             }
@@ -232,8 +232,8 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         for task in tasks {
             match task.await {
                 Ok((executor_id, executor, result)) => {
-                    // 将执行器放回计划中
-                    plan.executors.insert(executor_id, executor);
+                    // 将执行器放回执行调度中
+                    execution_schedule.executors.insert(executor_id, executor);
                     results.push((executor_id, result));
                 }
                 Err(e) => {
@@ -259,9 +259,9 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                             .insert(executor_id, execution_result);
 
                         // 添加后继执行器到下一个批次
-                        let successors = plan.get_successors(executor_id);
+                        let successors = execution_schedule.get_successors(executor_id);
                         for successor_id in successors {
-                            if plan
+                            if execution_schedule
                                 .are_dependencies_satisfied(successor_id, &state.execution_results)
                             {
                                 next_executors.push(successor_id);
@@ -291,7 +291,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
 impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBasedScheduler<S> {
     async fn schedule(
         &mut self,
-        mut execution_plan: ExecutionPlan<S>,
+        mut execution_schedule: ExecutionSchedule<S>,
     ) -> Result<ExecutionResult, QueryError> {
         // 重置完成通知器
         {
@@ -310,17 +310,17 @@ impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBase
             state.failed_status = None;
         }
 
-        // Validate the execution plan
-        execution_plan.validate()?;
+        // Validate the execution schedule
+        execution_schedule.validate()?;
 
         // Start with the root executor
-        let mut current_executors = vec![execution_plan.root_executor_id];
+        let mut current_executors = vec![execution_schedule.root_executor_id];
 
-        // Execute the plan using a breadth-first approach
+        // Execute the schedule using a breadth-first approach
         while !current_executors.is_empty() && !self.has_failure() {
             // Execute all currently executable executors in parallel
             current_executors = self
-                .execute_executor_batch(&current_executors, &mut execution_plan)
+                .execute_executor_batch(&current_executors, &mut execution_schedule)
                 .await?;
         }
 
@@ -337,7 +337,7 @@ impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBase
         // Return the result of the root executor
         match state
             .execution_results
-            .get(&execution_plan.root_executor_id)
+            .get(&execution_schedule.root_executor_id)
         {
             Some(result) => Ok(result.clone()),
             None => Ok(ExecutionResult::Success),

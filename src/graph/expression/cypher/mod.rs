@@ -65,11 +65,13 @@ impl CypherProcessor {
 mod tests {
     use super::*;
     use crate::query::context::EvalContext;
-    use crate::query::parser::cypher::ast::expressions::*;
+    use crate::query::parser::cypher::ast::expressions::{
+        Expression as CypherExpression, Literal as CypherLiteral, UnaryExpression, UnaryOperator,
+    };
 
     #[test]
     fn test_cypher_processor_basic() {
-        let context = EvalContext::default();
+        let context = EvalContext::new();
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
         
         let result = CypherProcessor::process(&cypher_expr, &context).unwrap();
@@ -78,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_cypher_processor_with_optimization() {
-        let context = EvalContext::default();
+        let context = EvalContext::new();
         let expr = CypherExpression::Unary(UnaryExpression {
             operator: UnaryOperator::Not,
             expression: Box::new(CypherExpression::Literal(CypherLiteral::Boolean(true))),
@@ -90,8 +92,8 @@ mod tests {
 
     #[test]
     fn test_cypher_processor_evaluate_direct() {
-        let mut context = EvalContext::default();
-        context.vars.insert("x".to_string(), crate::core::Value::Int(100));
+        let mut context = EvalContext::new();
+        context.set_variable("x".to_string(), crate::core::Value::Int(100));
         
         let cypher_expr = CypherExpression::Variable("x".to_string());
         let result = CypherProcessor::evaluate_direct(&cypher_expr, &context).unwrap();
