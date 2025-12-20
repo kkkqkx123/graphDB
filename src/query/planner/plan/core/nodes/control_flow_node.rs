@@ -75,24 +75,25 @@ impl PlanNodeProperties for ArgumentNode {
 }
 
 impl PlanNodeDependencies for ArgumentNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-         // 注意: 此实现为解决借用检查错误的临时方案
-         // 在实际实现中，应使用更安全的生命周期管理方式
-         unsafe {
-             let deps = &*self.dependencies.lock()
-                 .expect("PlanNode dependencies lock should not be poisoned") as *const Vec<Arc<dyn PlanNode>>;
-             &*deps
-         }
+     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+         self.with_dependencies(|deps| deps.clone())
      }
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         self.dependencies.get_mut()
-             .expect("PlanNode should have unique reference for mutable access")
+
+     fn with_dependencies<F, R>(&self, f: F) -> R
+     where
+         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+     {
+         let deps = self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned");
+         f(&deps)
      }
+
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
          self.dependencies.lock()
              .expect("PlanNode dependencies lock should not be poisoned")
              .push(dep);
      }
+
      fn remove_dependency(&mut self, id: i64) -> bool {
          let mut deps = self.dependencies.lock()
              .expect("PlanNode dependencies lock should not be poisoned");
@@ -227,20 +228,17 @@ impl PlanNodeProperties for SelectNode {
 }
 
 impl PlanNodeDependencies for SelectNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-         // 注意: 此实现为解决借用检查错误的临时方案
-         // 在实际实现中，应使用更安全的生命周期管理方式
-         unsafe {
-             let deps = &*self.dependencies.lock()
-                 .expect("PlanNode dependencies lock should not be poisoned") as *const Vec<Arc<dyn PlanNode>>;
-             &*deps
-         }
-
+     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+         self.with_dependencies(|deps| deps.clone())
      }
 
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         self.dependencies.get_mut()
-             .expect("PlanNode should have unique reference for mutable access")
+     fn with_dependencies<F, R>(&self, f: F) -> R
+     where
+         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+     {
+         let deps = self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned");
+         f(&deps)
      }
 
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -381,20 +379,17 @@ impl PlanNodeProperties for LoopNode {
 }
 
 impl PlanNodeDependencies for LoopNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-         // 注意: 此实现为解决借用检查错误的临时方案
-         // 在实际实现中，应使用更安全的生命周期管理方式
-         unsafe {
-             let deps = &*self.dependencies.lock()
-                 .expect("PlanNode dependencies lock should not be poisoned") as *const Vec<Arc<dyn PlanNode>>;
-             &*deps
-         }
-
+     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+         self.with_dependencies(|deps| deps.clone())
      }
 
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         self.dependencies.get_mut()
-             .expect("PlanNode should have unique reference for mutable access")
+     fn with_dependencies<F, R>(&self, f: F) -> R
+     where
+         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+     {
+         let deps = self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned");
+         f(&deps)
      }
 
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -516,24 +511,25 @@ impl PlanNodeProperties for PassThroughNode {
 }
 
 impl PlanNodeDependencies for PassThroughNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-         // 注意: 此实现为解决借用检查错误的临时方案
-         // 在实际实现中，应使用更安全的生命周期管理方式
-         unsafe {
-             let deps = &*self.dependencies.lock()
-                 .expect("PlanNode dependencies lock should not be poisoned") as *const Vec<Arc<dyn PlanNode>>;
-             &*deps
-         }
+     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+         self.with_dependencies(|deps| deps.clone())
      }
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         self.dependencies.get_mut()
-             .expect("PlanNode should have unique reference for mutable access")
+
+     fn with_dependencies<F, R>(&self, f: F) -> R
+     where
+         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+     {
+         let deps = self.dependencies.lock()
+             .expect("PlanNode dependencies lock should not be poisoned");
+         f(&deps)
      }
+
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
          self.dependencies.lock()
              .expect("PlanNode dependencies lock should not be poisoned")
              .push(dep);
      }
+
      fn remove_dependency(&mut self, id: i64) -> bool {
          let mut deps = self.dependencies.lock()
              .expect("PlanNode dependencies lock should not be poisoned");

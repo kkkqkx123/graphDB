@@ -76,16 +76,20 @@ impl PlanNodeProperties for ProjectNode {
 }
 
 impl PlanNodeDependencies for ProjectNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.dependencies_vec
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.with_dependencies(|deps| deps.clone())
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.dependencies_vec
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.dependencies_vec)
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
         self.input = dep.clone();
+        self.dependencies_vec.clear();
         self.dependencies_vec.push(dep);
     }
 

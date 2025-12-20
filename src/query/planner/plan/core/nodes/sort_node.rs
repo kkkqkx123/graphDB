@@ -77,20 +77,23 @@ impl PlanNodeProperties for SortNode {
 }
 
 impl PlanNodeDependencies for SortNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-         &self.deps
+     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+         self.with_dependencies(|deps| deps.clone())
      }
- 
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         &mut self.deps
+
+     fn with_dependencies<F, R>(&self, f: F) -> R
+     where
+         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+     {
+         f(&self.deps)
      }
- 
+
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
          self.input = dep.clone();
          self.deps.clear();
          self.deps.push(dep);
      }
- 
+
      fn remove_dependency(&mut self, _id: i64) -> bool {
          false
      }
@@ -204,20 +207,23 @@ impl PlanNodeProperties for LimitNode {
 }
 
 impl PlanNodeDependencies for LimitNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-         &self.deps
+     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+         self.with_dependencies(|deps| deps.clone())
      }
- 
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         &mut self.deps
+
+     fn with_dependencies<F, R>(&self, f: F) -> R
+     where
+         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+     {
+         f(&self.deps)
      }
- 
+
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
          self.input = dep.clone();
          self.deps.clear();
          self.deps.push(dep);
      }
- 
+
      fn remove_dependency(&mut self, _id: i64) -> bool {
          false
      }
@@ -330,12 +336,15 @@ impl PlanNodeProperties for TopNNode {
 }
 
 impl PlanNodeDependencies for TopNNode {
-     fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-         &self.deps
+     fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+         self.with_dependencies(|deps| deps.clone())
      }
 
-     fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-         &mut self.deps
+     fn with_dependencies<F, R>(&self, f: F) -> R
+     where
+         F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+     {
+         f(&self.deps)
      }
 
      fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {

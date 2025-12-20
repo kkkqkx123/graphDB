@@ -66,12 +66,15 @@ impl PlanNodeProperties for FilterNode {
 }
 
 impl PlanNodeDependencies for FilterNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.with_dependencies(|deps| deps.clone())
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -180,8 +183,7 @@ mod tests {
         // 测试替换依赖
         let new_start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         let new_start_node = Arc::new(new_start_node);
-        filter_node.dependencies_mut().clear();
-        filter_node.dependencies_mut().push(new_start_node.clone());
+        filter_node.add_dependency(new_start_node.clone());
         
         assert_eq!(filter_node.dependency_count(), 1);
         assert!(filter_node.has_dependency(new_start_node.id()));

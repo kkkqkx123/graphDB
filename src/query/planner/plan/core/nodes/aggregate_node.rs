@@ -3,11 +3,11 @@
 //! AggregateNode 用于对输入数据进行聚合操作
 
 use super::super::plan_node_kind::PlanNodeKind;
-use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable,
-    PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable
-};
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+use super::traits::{
+    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeIdentifiable, PlanNodeMutable,
+    PlanNodeProperties, PlanNodeVisitable,
+};
 use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
@@ -33,11 +33,8 @@ impl AggregateNode {
         group_keys: Vec<String>,
         agg_exprs: Vec<String>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
-        let col_names: Vec<String> = group_keys.iter()
-            .chain(agg_exprs.iter())
-            .cloned()
-            .collect();
-        
+        let col_names: Vec<String> = group_keys.iter().chain(agg_exprs.iter()).cloned().collect();
+
         let mut deps = Vec::new();
         deps.push(input.clone());
 
@@ -62,27 +59,39 @@ impl AggregateNode {
     pub fn agg_exprs(&self) -> &[String] {
         &self.agg_exprs
     }
-
 }
 
 impl PlanNodeIdentifiable for AggregateNode {
-    fn id(&self) -> i64 { self.id }
-    fn kind(&self) -> PlanNodeKind { PlanNodeKind::Aggregate }
+    fn id(&self) -> i64 {
+        self.id
+    }
+    fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::Aggregate
+    }
 }
 
 impl PlanNodeProperties for AggregateNode {
-    fn output_var(&self) -> Option<&Variable> { self.output_var.as_ref() }
-    fn col_names(&self) -> &[String] { &self.col_names }
-    fn cost(&self) -> f64 { self.cost }
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    fn cost(&self) -> f64 {
+        self.cost
+    }
 }
 
 impl PlanNodeDependencies for AggregateNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.with_dependencies(|deps| deps.clone())
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+    {
+        f(&self.deps)
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -98,8 +107,12 @@ impl PlanNodeDependencies for AggregateNode {
 }
 
 impl PlanNodeMutable for AggregateNode {
-    fn set_output_var(&mut self, var: Variable) { self.output_var = Some(var); }
-    fn set_col_names(&mut self, names: Vec<String>) { self.col_names = names; }
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
 }
 
 impl PlanNodeClonable for AggregateNode {
@@ -140,24 +153,26 @@ impl PlanNodeVisitable for AggregateNode {
 }
 
 impl PlanNode for AggregateNode {
-    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
-    
+
     #[test]
     fn test_aggregate_node_creation() {
         let start_node = StartNode::new();
         let start_node = Arc::new(start_node);
-        
+
         let group_keys = vec!["category".to_string()];
         let agg_exprs = vec!["COUNT(*)".to_string()];
-        
+
         let aggregate_node = AggregateNode::new(start_node, group_keys, agg_exprs).unwrap();
-        
+
         assert_eq!(aggregate_node.kind(), PlanNodeKind::Aggregate);
         assert_eq!(aggregate_node.dependencies().len(), 1);
         assert_eq!(aggregate_node.group_keys().len(), 1);

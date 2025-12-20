@@ -30,11 +30,13 @@ pub trait PlanNodeProperties {
 
 /// 依赖管理 trait - 管理节点的依赖关系
 pub trait PlanNodeDependencies {
-    /// 获取节点的依赖节点列表
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>];
+    /// 获取节点的依赖节点列表（返回克隆以避免生命周期问题）
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>>;
 
-    /// 获取依赖节点的可变引用列表
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>>;
+    /// 使用闭包访问依赖节点列表（更安全的访问方式）
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R;
 
     /// 获取依赖节点的数量
     fn dependency_count(&self) -> usize {
@@ -43,7 +45,7 @@ pub trait PlanNodeDependencies {
 
     /// 检查是否包含指定ID的依赖
     fn has_dependency(&self, id: i64) -> bool {
-        self.dependencies().iter().any(|dep| dep.id() == id)
+        self.with_dependencies(|deps| deps.iter().any(|dep| dep.id() == id))
     }
 
     /// 添加依赖节点（主要用于构建阶段）
@@ -78,6 +80,7 @@ pub trait PlanNodeClonable {
 }
 
 /// 组合 trait - 组合所有 PlanNode 相关 trait
+#[allow(clippy::type_complexity)]
 pub trait PlanNode:
     PlanNodeIdentifiable
     + PlanNodeProperties
@@ -88,6 +91,7 @@ pub trait PlanNode:
     + Send
     + Sync
     + std::fmt::Debug
+    + 'static
 {
     /// 将节点作为Any类型返回，以支持downcast
     fn as_any(&self) -> &dyn std::any::Any;

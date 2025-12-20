@@ -57,12 +57,15 @@ impl PlanNodeProperties for UnionNode {
 }
 
 impl PlanNodeDependencies for UnionNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.with_dependencies(|deps| deps.clone())
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -172,12 +175,15 @@ impl PlanNodeProperties for UnwindNode {
 }
 
 impl PlanNodeDependencies for UnwindNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.with_dependencies(|deps| deps.clone())
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -270,12 +276,15 @@ impl PlanNodeProperties for DedupNode {
 }
 
 impl PlanNodeDependencies for DedupNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.with_dependencies(|deps| deps.clone())
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -382,12 +391,15 @@ impl PlanNodeProperties for RollUpApplyNode {
 }
 
 impl PlanNodeDependencies for RollUpApplyNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.with_dependencies(|deps| deps.clone())
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -496,12 +508,15 @@ impl PlanNodeProperties for PatternApplyNode {
 }
 
 impl PlanNodeDependencies for PatternApplyNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.with_dependencies(|deps| deps.clone())
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
@@ -600,12 +615,15 @@ impl PlanNodeProperties for DataCollectNode {
 }
 
 impl PlanNodeDependencies for DataCollectNode {
-    fn dependencies(&self) -> &[Arc<dyn PlanNode>] {
-        &self.deps
+    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+        self.with_dependencies(|deps| deps.clone())
     }
 
-    fn dependencies_mut(&mut self) -> &mut Vec<Arc<dyn PlanNode>> {
-        &mut self.deps
+    fn with_dependencies<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[Arc<dyn PlanNode>]) -> R
+    {
+        f(&self.deps)
     }
 
     fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
