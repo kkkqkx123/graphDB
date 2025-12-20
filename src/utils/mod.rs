@@ -4,10 +4,6 @@
 pub mod object_pool;
 pub use object_pool::ObjectPool;
 
-// LRU缓存模块
-pub mod lru_cache;
-pub use lru_cache::LruCache;
-
 // ID工具模块
 
 // 日志模块

@@ -1,7 +1,6 @@
 //! 连接策略框架
 //! 提供统一的连接机制，支持不同类型的连接策略
 
-use crate::core::error::DBError;
 use crate::query::context::ast::base::AstContext;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::utils::join_params::JoinParams;

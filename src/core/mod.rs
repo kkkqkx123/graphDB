@@ -3,7 +3,6 @@ pub mod collect_n_succeeded;
 pub mod cord;
 pub mod either;
 pub mod error;
-pub mod lru_cache;
 pub mod murmur;
 pub mod result;
 pub mod schema;

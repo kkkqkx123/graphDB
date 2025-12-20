@@ -10,7 +10,7 @@ use crate::core::Value;
 use crate::expression::context::ExpressionContextCore;
 use crate::query::validator::structs::{AliasType, QueryPart};
 use crate::query::validator::validation_interface::{
-    ValidationContext as ValidationContextTrait, ValidationError, ValidationErrorType,
+    ValidationContext as ValidationContextTrait, ValidationError,
 };
 use std::collections::HashMap;
 use std::sync::Arc;

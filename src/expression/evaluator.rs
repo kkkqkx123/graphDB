@@ -547,7 +547,7 @@ impl ExpressionEvaluatorTrait for ExpressionEvaluator {
         expr
     }
 
-    fn validate(&self, expr: &Expression) -> Result<(), ExpressionError> {
+    fn validate(&self, _expr: &Expression) -> Result<(), ExpressionError> {
         // 可以在这里添加验证逻辑
         Ok(())
     }

@@ -2,7 +2,6 @@
 //! 提供Schema相关的数据结构和管理功能
 //!
 
-use crate::expression::context::ExpressionContextCore;
 use std::collections::HashMap;
 
 /// Schema验证错误类型

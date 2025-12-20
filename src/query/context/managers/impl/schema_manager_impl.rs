@@ -1,7 +1,6 @@
 //! Schema管理器实现 - 内存中的Schema管理
 //!
 use super::super::{Schema, SchemaManager};
-use crate::expression::context::ExpressionContextCore;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 

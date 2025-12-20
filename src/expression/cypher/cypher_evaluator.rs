@@ -1,8 +1,8 @@
 use crate::core::{ExpressionError, Value};
 use crate::expression::context::ExpressionContextCore;
-use crate::expression::{Expression, ExpressionContext, LiteralValue};
+use crate::expression::{Expression, ExpressionContext};
 use crate::query::parser::cypher::ast::expressions::{
-    BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
+    BinaryExpression, BinaryOperator, CaseExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
     MapExpression, PatternExpression, PropertyExpression, UnaryExpression, UnaryOperator,
 };

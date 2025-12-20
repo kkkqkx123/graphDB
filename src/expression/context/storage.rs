@@ -4,7 +4,6 @@
 //! 对应C++版本中的StorageExpressionContext类
 
 use crate::core::{Edge, NullType, Value, Vertex};
-use crate::expression::context::ExpressionContextCore;
 use crate::expression::storage::{ColumnDef, RowReaderWrapper, Schema};
 use std::collections::HashMap;
 
@@ -695,7 +694,7 @@ impl super::core::ExpressionContextCore for StorageExpressionContext {
         None
     }
 
-    fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
+    fn get_path(&self, _name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
         // 存储上下文通常不处理路径
         None
     }

@@ -4,7 +4,6 @@
 
 use crate::core::error::DBError;
 use crate::core::{Edge, Value, Vertex};
-use crate::expression::context::ExpressionContextCore;
 use crate::query::executor::cypher::clauses::match_path::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::cypher::context::CypherExecutionContext;
 use crate::query::parser::cypher::ast::patterns::NodePattern;

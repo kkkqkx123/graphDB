@@ -2,9 +2,9 @@ use crate::core::{ExpressionError, Value};
 use crate::expression::operator_conversion;
 use crate::expression::{Expression, LiteralValue};
 use crate::query::parser::cypher::ast::expressions::{
-    BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
+    BinaryExpression, CaseExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
-    MapExpression, PatternExpression, PropertyExpression, UnaryExpression, UnaryOperator,
+    MapExpression, PropertyExpression, UnaryExpression,
 };
 
 /// Cypher表达式转换器
@@ -97,13 +97,13 @@ impl ExpressionConverter {
                     .alternatives
                     .iter()
                     .map(|alt| {
-                        let when_expr = Self::convert_cypher_to_unified(&alt.when_expression)?;
+                        let _when_expr = Self::convert_cypher_to_unified(&alt.when_expression)?;
                         let then_expr = Self::convert_cypher_to_unified(&alt.then_expression)?;
                         Ok((format!("when_{}", "condition"), then_expr))
                     })
                     .collect();
 
-                let default_alternative = case_expr
+                let _default_alternative = case_expr
                     .default_alternative
                     .as_ref()
                     .map(|expr| Self::convert_cypher_to_unified(expr))

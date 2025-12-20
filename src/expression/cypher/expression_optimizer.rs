@@ -136,7 +136,7 @@ impl CypherExpressionOptimizer {
     }
 
     /// 尝试对二元表达式进行常量折叠
-    fn try_fold_constants(bin_expr: &BinaryExpression) -> Option<CypherExpression> {
+    fn try_fold_constants(_bin_expr: &BinaryExpression) -> Option<CypherExpression> {
         // 这里需要创建一个临时的评估上下文来计算常量表达式
         // 由于当前实现中没有直接的评估功能，这里返回None
         // 在实际实现中，应该调用评估器来计算结果

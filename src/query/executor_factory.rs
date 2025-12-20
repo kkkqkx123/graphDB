@@ -1,7 +1,7 @@
 use crate::core::error::QueryError;
 use crate::query::context::QueryContext;
 use crate::query::executor::factory::BaseExecutorFactory;
-use crate::query::executor::traits::{ExecutionResult, ExecutorCore};
+use crate::query::executor::traits::ExecutionResult;
 use crate::query::executor::Executor;
 use crate::query::planner::plan::{ExecutionPlan, PlanNode};
 use crate::storage::StorageEngine;

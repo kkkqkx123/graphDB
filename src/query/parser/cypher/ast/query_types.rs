@@ -1,4 +1,4 @@
-use crate::core::{Edge, Tag, Value, Vertex};
+use crate::core::{Tag, Value};
 
 #[derive(Debug, Clone)]
 pub enum Query {
