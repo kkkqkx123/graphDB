@@ -7,7 +7,7 @@ use super::nodes::{
 };
 use super::plan_node_traits::PlanNode as BasePlanNode;
 use crate::core::error::{DBError, DBResult};
-use crate::core::visitor::core::{
+use crate::core::visitor::{
     VisitorConfig, VisitorContext, VisitorCore, VisitorResult, VisitorState,
 };
 use crate::query::planner::plan::algorithms::{FulltextIndexScan, IndexScan};
@@ -253,7 +253,7 @@ impl UnifiedPlanNodeVisitor {
     pub fn new() -> Self {
         Self {
             context: VisitorContext::new(VisitorConfig::default()),
-            state: Box::new(crate::core::visitor::core::DefaultVisitorState::new()),
+            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
             visit_count: 0,
             node_stack: Vec::new(),
         }
@@ -262,7 +262,7 @@ impl UnifiedPlanNodeVisitor {
     pub fn with_config(config: VisitorConfig) -> Self {
         Self {
             context: VisitorContext::new(config),
-            state: Box::new(crate::core::visitor::core::DefaultVisitorState::new()),
+            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
             visit_count: 0,
             node_stack: Vec::new(),
         }
@@ -687,7 +687,7 @@ macro_rules! create_plan_visitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::visitor::core::VisitorConfig;
+    use crate::core::visitor::VisitorConfig;
 
     #[test]
     fn test_unified_plan_node_visitor() {

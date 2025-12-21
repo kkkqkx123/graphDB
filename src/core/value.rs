@@ -848,7 +848,8 @@ impl Value {
         }
     }
 
-    /// 接受访问者进行访问
+    /// 获取值的长度（如果是可度量类型）
+    /// 注意：原有的 accept 方法已被删除，不再支持访问者模式处理值类型
     pub fn accept<V: crate::core::visitor::ValueVisitor>(&self, visitor: &mut V) -> V::Result {
         match self {
             Value::Bool(b) => visitor.visit_bool(*b),

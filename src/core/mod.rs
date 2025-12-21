@@ -20,4 +20,3 @@ pub use symbol::*;
 pub use type_utils::TypeUtils;
 pub use value::*;
 pub use vertex_edge_path::*;
-pub use visitor::*;
