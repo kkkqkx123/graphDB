@@ -442,7 +442,7 @@ mod tests {
             nullable: false,
         }];
         runtime_ctx.set_props(props.clone());
-        assert_eq!(runtime_ctx.props.as_ref().unwrap().len(), 1);
+        assert_eq!(runtime_ctx.props.as_ref().expect("Props should exist").len(), 1);
 
         // 设置标志
         runtime_ctx.set_insert(true);

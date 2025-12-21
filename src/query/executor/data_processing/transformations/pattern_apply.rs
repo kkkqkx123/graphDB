@@ -463,7 +463,7 @@ mod tests {
     async fn test_pattern_apply_executor() {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_pattern_apply")).unwrap(),
+            NativeStorage::new(config.test_db_path("test_db_pattern_apply")).expect("NativeStorage should be created successfully"),
         ));
 
         // 创建测试顶点
@@ -506,7 +506,7 @@ mod tests {
         );
 
         // 执行模式匹配
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Executor should execute successfully");
 
         // 检查结果
         if let ExecutionResult::Values(values) = result {

@@ -581,7 +581,7 @@ mod tests {
                 Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::expression::Expression::Variable("1 = 1".to_string()),
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let mut opt_node = OptGroupNode::new(1, filter_node);
 
@@ -592,7 +592,7 @@ mod tests {
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该识别永真式过滤并尝试消除它们
         assert!(result.is_some());
     }
@@ -607,7 +607,7 @@ mod tests {
             DedupNode::new(Arc::new(
                 crate::query::planner::plan::core::nodes::StartNode::new(),
             ))
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let mut opt_node = OptGroupNode::new(1, dedup_node);
 
@@ -617,7 +617,7 @@ mod tests {
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         assert!(result.is_some());
     }
 
@@ -651,7 +651,7 @@ mod tests {
                 Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 columns_all,
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let mut opt_node_all = OptGroupNode::new(1, project_node_all);
         opt_node_all.dependencies.push(2);
@@ -682,7 +682,7 @@ mod tests {
                 Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 columns_same,
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let mut opt_node_same = OptGroupNode::new(3, project_node_same);
         opt_node_same.dependencies.push(2);
@@ -708,7 +708,7 @@ mod tests {
                 Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 columns_diff,
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let mut opt_node_diff = OptGroupNode::new(4, project_node_diff);
         opt_node_diff.dependencies.push(2);
@@ -739,7 +739,7 @@ mod tests {
                 Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 columns_alias,
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let mut opt_node_alias = OptGroupNode::new(5, project_node_alias);
         opt_node_alias.dependencies.push(2);
@@ -776,7 +776,7 @@ mod tests {
                 Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 columns_expr,
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let mut opt_node_expr = OptGroupNode::new(6, project_node_expr);
         opt_node_expr.dependencies.push(2);
@@ -801,7 +801,7 @@ mod tests {
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         assert!(result.is_some());
     }
 
@@ -822,13 +822,13 @@ mod tests {
                 vec![],
                 vec![],
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         assert!(result.is_some());
     }
 

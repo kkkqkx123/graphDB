@@ -1192,11 +1192,11 @@ mod tests {
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::expression::Expression::Variable("col1 > 100".to_string()),
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推条件
         assert!(result.is_some());
     }
@@ -1212,11 +1212,11 @@ mod tests {
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::expression::Expression::Variable("col1 > 100".to_string()),
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到遍历操作
         assert!(result.is_some());
     }
@@ -1232,11 +1232,11 @@ mod tests {
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::expression::Expression::Variable("col1 > 100".to_string()),
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到扩展操作
         assert!(result.is_some());
     }
@@ -1252,11 +1252,11 @@ mod tests {
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::expression::Expression::Variable("col1 > 100".to_string()),
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到哈希内连接
         assert!(result.is_some());
     }
@@ -1272,11 +1272,11 @@ mod tests {
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::expression::Expression::Variable("col1 > 100".to_string()),
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到哈希左连接
         assert!(result.is_some());
     }
@@ -1292,11 +1292,11 @@ mod tests {
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::expression::Expression::Variable("col1 > 100".to_string()),
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到内连接
         assert!(result.is_some());
     }
@@ -1312,11 +1312,11 @@ mod tests {
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::expression::Expression::Variable("col1 > 100".to_string()),
             )
-            .unwrap(),
+            .expect("Filter node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推谓词到存储
         assert!(result.is_some());
     }

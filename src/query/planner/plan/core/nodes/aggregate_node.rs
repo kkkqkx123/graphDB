@@ -173,7 +173,7 @@ mod tests {
         let group_keys = vec!["category".to_string()];
         let agg_exprs = vec!["COUNT(*)".to_string()];
 
-        let aggregate_node = AggregateNode::new(start_node, group_keys, agg_exprs).unwrap();
+        let aggregate_node = AggregateNode::new(start_node, group_keys, agg_exprs).expect("Aggregate node should be created successfully");
 
         assert_eq!(aggregate_node.kind(), PlanNodeKind::Aggregate);
         assert_eq!(aggregate_node.dependencies().len(), 1);

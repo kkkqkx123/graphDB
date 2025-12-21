@@ -177,7 +177,7 @@ mod tests {
         let start_node = Arc::new(start_node);
 
         let condition = Expression::Variable("test".to_string());
-        let filter_node = FilterNode::new(start_node, condition).unwrap();
+        let filter_node = FilterNode::new(start_node, condition).expect("Filter node should be created successfully");
 
         assert_eq!(filter_node.kind(), PlanNodeKind::Filter);
         assert_eq!(filter_node.dependencies().len(), 1);

@@ -980,11 +980,11 @@ mod tests {
                 10,
                 0,
             )
-            .unwrap(),
+            .expect("Limit node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推
         assert!(result.is_some());
     }
@@ -1001,11 +1001,11 @@ mod tests {
                 10,
                 0,
             )
-            .unwrap(),
+            .expect("Limit node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到获取顶点操作
         assert!(result.is_some());
     }
@@ -1022,11 +1022,11 @@ mod tests {
                 10,
                 0,
             )
-            .unwrap(),
+            .expect("Limit node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到获取邻居操作
         assert!(result.is_some());
     }
@@ -1043,11 +1043,11 @@ mod tests {
                 10,
                 0,
             )
-            .unwrap(),
+            .expect("Limit node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到获取边操作
         assert!(result.is_some());
     }
@@ -1064,11 +1064,11 @@ mod tests {
                 10,
                 0,
             )
-            .unwrap(),
+            .expect("Limit node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到扫描顶点操作
         assert!(result.is_some());
     }
@@ -1085,11 +1085,11 @@ mod tests {
                 10,
                 0,
             )
-            .unwrap(),
+            .expect("Limit node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到扫描边操作
         assert!(result.is_some());
     }
@@ -1106,11 +1106,11 @@ mod tests {
                 10,
                 0,
             )
-            .unwrap(),
+            .expect("Limit node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到索引扫描操作
         assert!(result.is_some());
     }
@@ -1127,11 +1127,11 @@ mod tests {
                 10,
                 0,
             )
-            .unwrap(),
+            .expect("Limit node should be created successfully"),
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到投影操作
         assert!(result.is_some());
     }
@@ -1147,7 +1147,7 @@ mod tests {
         let limit_node = Box::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到全路径操作
         assert!(result.is_some());
     }
@@ -1161,7 +1161,7 @@ mod tests {
         let limit_node = Box::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到全展开操作
         assert!(result.is_some());
     }

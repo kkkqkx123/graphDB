@@ -316,9 +316,9 @@ mod tests {
 
     #[test]
     fn test_create_filter_node() {
-        let start_node = PlanNodeFactory::create_start_node().unwrap();
+        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
         let condition = Expr::Variable(VariableExpr::new("test".to_string(), Span::default()));
-        let filter_node = PlanNodeFactory::create_filter(start_node, condition).unwrap();
+        let filter_node = PlanNodeFactory::create_filter(start_node, condition).expect("Filter node should be created successfully");
 
         assert_eq!(filter_node.kind(), PlanNodeKind::Filter);
         assert_eq!(filter_node.dependencies().len(), 1);
@@ -326,13 +326,13 @@ mod tests {
 
     #[test]
     fn test_create_project_node() {
-        let start_node = PlanNodeFactory::create_start_node().unwrap();
+        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
         let columns = vec![YieldColumn {
             expr: Expression::Variable("test".to_string()),
             alias: "test".to_string(),
             is_matched: false,
         }];
-        let project_node = PlanNodeFactory::create_project(start_node, columns).unwrap();
+        let project_node = PlanNodeFactory::create_project(start_node, columns).expect("Project node should be created successfully");
 
         assert_eq!(project_node.kind(), PlanNodeKind::Project);
         assert_eq!(project_node.dependencies().len(), 1);
@@ -342,8 +342,8 @@ mod tests {
 
     #[test]
     fn test_create_inner_join_node() {
-        let left_node = PlanNodeFactory::create_start_node().unwrap();
-        let right_node = PlanNodeFactory::create_start_node().unwrap();
+        let left_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
+        let right_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
         let hash_keys = vec![Expr::Variable(VariableExpr::new(
             "key".to_string(),
             Span::default(),
@@ -355,7 +355,7 @@ mod tests {
 
         let join_node =
             PlanNodeFactory::create_inner_join(left_node, right_node, hash_keys, probe_keys)
-                .unwrap();
+                .expect("Join node should be created successfully");
 
         assert_eq!(join_node.kind(), PlanNodeKind::HashInnerJoin);
         assert_eq!(join_node.dependencies().len(), 2);
@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn test_create_start_node() {
-        let start_node = PlanNodeFactory::create_start_node().unwrap();
+        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
 
         assert_eq!(start_node.kind(), PlanNodeKind::Start);
         assert_eq!(start_node.dependencies().len(), 0);
@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_create_placeholder_node() {
-        let placeholder_node = PlanNodeFactory::create_placeholder_node().unwrap();
+        let placeholder_node = PlanNodeFactory::create_placeholder_node().expect("Placeholder node should be created successfully");
 
         assert_eq!(placeholder_node.kind(), PlanNodeKind::Argument);
         assert_eq!(placeholder_node.dependencies().len(), 0);
@@ -381,12 +381,12 @@ mod tests {
 
     #[test]
     fn test_create_aggregate_node() {
-        let start_node = PlanNodeFactory::create_start_node().unwrap();
+        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
         let group_keys = vec!["category".to_string()];
         let agg_exprs = vec!["COUNT(*)".to_string()];
 
         let aggregate_node =
-            PlanNodeFactory::create_aggregate(start_node, group_keys, agg_exprs).unwrap();
+            PlanNodeFactory::create_aggregate(start_node, group_keys, agg_exprs).expect("Aggregate node should be created successfully");
 
         assert_eq!(aggregate_node.kind(), PlanNodeKind::Aggregate);
         assert_eq!(aggregate_node.dependencies().len(), 1);
@@ -396,10 +396,10 @@ mod tests {
 
     #[test]
     fn test_create_sort_node() {
-        let start_node = PlanNodeFactory::create_start_node().unwrap();
+        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
         let sort_items = vec!["name".to_string(), "age".to_string()];
 
-        let sort_node = PlanNodeFactory::create_sort(start_node, sort_items).unwrap();
+        let sort_node = PlanNodeFactory::create_sort(start_node, sort_items).expect("Sort node should be created successfully");
 
         assert_eq!(sort_node.kind(), PlanNodeKind::Sort);
         assert_eq!(sort_node.dependencies().len(), 1);
@@ -409,9 +409,9 @@ mod tests {
 
     #[test]
     fn test_create_limit_node() {
-        let start_node = PlanNodeFactory::create_start_node().unwrap();
+        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
 
-        let limit_node = PlanNodeFactory::create_limit(start_node, 10, 100).unwrap();
+        let limit_node = PlanNodeFactory::create_limit(start_node, 10, 100).expect("Limit node should be created successfully");
 
         assert_eq!(limit_node.kind(), PlanNodeKind::Limit);
         assert_eq!(limit_node.dependencies().len(), 1);

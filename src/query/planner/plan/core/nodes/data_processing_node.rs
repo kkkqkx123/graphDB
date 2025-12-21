@@ -801,7 +801,7 @@ mod tests {
         let start_node = StartNode::new();
         let start_node = Arc::new(start_node);
 
-        let union_node = UnionNode::new(start_node, true).unwrap();
+        let union_node = UnionNode::new(start_node, true).expect("Union node should be created successfully");
 
         assert_eq!(union_node.kind(), PlanNodeKind::Union);
         assert_eq!(union_node.dependencies().len(), 1);
@@ -813,7 +813,7 @@ mod tests {
         let start_node = StartNode::new();
         let start_node = Arc::new(start_node);
 
-        let unwind_node = UnwindNode::new(start_node, "item", "list").unwrap();
+        let unwind_node = UnwindNode::new(start_node, "item", "list").expect("Unwind node should be created successfully");
 
         assert_eq!(unwind_node.kind(), PlanNodeKind::Unwind);
         assert_eq!(unwind_node.dependencies().len(), 1);
@@ -826,7 +826,7 @@ mod tests {
         let start_node = StartNode::new();
         let start_node = Arc::new(start_node);
 
-        let dedup_node = DedupNode::new(start_node).unwrap();
+        let dedup_node = DedupNode::new(start_node).expect("Dedup node should be created successfully");
 
         assert_eq!(dedup_node.kind(), PlanNodeKind::Dedup);
         assert_eq!(dedup_node.dependencies().len(), 1);

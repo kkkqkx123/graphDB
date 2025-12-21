@@ -566,7 +566,7 @@ mod tests {
                 vid_type: "INT".to_string(),
             });
         assert!(ctx.vctx().current_space().is_some());
-        assert_eq!(ctx.vctx().current_space().unwrap().name, "test_space");
+        assert_eq!(ctx.vctx().current_space().expect("Current space should exist").name, "test_space");
 
         // 测试存在参数检查（参数不存在）
         assert!(!ctx.exist_parameter("non_existent_param"));

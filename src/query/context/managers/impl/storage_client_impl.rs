@@ -181,7 +181,7 @@ mod tests {
 
         let result = client.execute(write_op);
         assert!(result.is_ok());
-        assert!(result.unwrap().success);
+        assert!(result.expect("Result should be successful").success);
 
         // 读取数据
         let read_op = StorageOperation::Read {
@@ -191,7 +191,7 @@ mod tests {
 
         let result = client.execute(read_op);
         assert!(result.is_ok());
-        let response = result.unwrap();
+        let response = result.expect("Result should be available");
         assert!(response.success);
         assert_eq!(response.data, Some(Value::String("Alice".to_string())));
     }
@@ -206,7 +206,7 @@ mod tests {
             key: "user1".to_string(),
             value: Value::String("Alice".to_string()),
         };
-        client.execute(write_op).unwrap();
+        client.execute(write_op).expect("Write operation should succeed");
 
         // 删除数据
         let delete_op = StorageOperation::Delete {
@@ -216,7 +216,7 @@ mod tests {
 
         let result = client.execute(delete_op);
         assert!(result.is_ok());
-        assert!(result.unwrap().success);
+        assert!(result.expect("Result should be successful").success);
 
         // 验证数据已删除
         let read_op = StorageOperation::Read {
@@ -226,7 +226,7 @@ mod tests {
 
         let result = client.execute(read_op);
         assert!(result.is_ok());
-        let response = result.unwrap();
+        let response = result.expect("Result should be available");
         assert!(response.success);
         assert!(response.data.is_none());
     }
@@ -242,7 +242,7 @@ mod tests {
                 key: "user1".to_string(),
                 value: Value::String("Alice".to_string()),
             })
-            .unwrap();
+            .expect("Write operation should succeed");
 
         client
             .execute(StorageOperation::Write {
@@ -250,7 +250,7 @@ mod tests {
                 key: "user2".to_string(),
                 value: Value::String("Bob".to_string()),
             })
-            .unwrap();
+            .expect("Write operation should succeed");
 
         client
             .execute(StorageOperation::Write {
@@ -258,7 +258,7 @@ mod tests {
                 key: "admin1".to_string(),
                 value: Value::String("Admin".to_string()),
             })
-            .unwrap();
+            .expect("Write operation should succeed");
 
         // 扫描以"user"开头的数据
         let scan_op = StorageOperation::Scan {
@@ -268,7 +268,7 @@ mod tests {
 
         let result = client.execute(scan_op);
         assert!(result.is_ok());
-        let response = result.unwrap();
+        let response = result.expect("Result should be available");
         assert!(response.success);
 
         if let Some(Value::Map(data)) = response.data {
@@ -296,7 +296,7 @@ mod tests {
 
         let result = client.execute(op);
         assert!(result.is_ok());
-        let response = result.unwrap();
+        let response = result.expect("Result should be available");
         assert!(!response.success);
         assert!(response.error_message.is_some());
 

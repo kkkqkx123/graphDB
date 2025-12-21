@@ -518,7 +518,7 @@ mod tests {
         let hash_keys = vec![Expression::Variable("key".to_string())];
         let probe_keys = vec![Expression::Variable("key".to_string())];
 
-        let join_node = InnerJoinNode::new(left_node, right_node, hash_keys, probe_keys).unwrap();
+        let join_node = InnerJoinNode::new(left_node, right_node, hash_keys, probe_keys).expect("Join node should be created successfully");
 
         assert_eq!(join_node.kind(), PlanNodeKind::HashInnerJoin);
         assert_eq!(join_node.dependencies().len(), 2);
@@ -538,7 +538,7 @@ mod tests {
 
         let mut join_node =
             InnerJoinNode::new(left_node.clone(), right_node.clone(), hash_keys, probe_keys)
-                .unwrap();
+                .expect("Join node should be created successfully");
 
         // 测试依赖管理
         assert_eq!(join_node.dependency_count(), 2);

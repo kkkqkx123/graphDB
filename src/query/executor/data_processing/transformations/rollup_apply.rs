@@ -362,8 +362,8 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         self.check_bi_input_data_sets()?;
 
         // 获取输入结果
-        let left_result = self.base.context.get_result(&self.left_input_var).unwrap();
-        let right_result = self.base.context.get_result(&self.right_input_var).unwrap();
+        let left_result = self.base.context.get_result(&self.left_input_var).expect("Context should have left result");
+        let right_result = self.base.context.get_result(&self.right_input_var).expect("Context should have right result");
 
         // 将结果转换为值列表
         let left_values = match left_result {
@@ -528,7 +528,7 @@ mod tests {
     async fn test_rollup_apply_executor() {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_rollup_apply")).unwrap(),
+            NativeStorage::new(config.test_db_path("test_db_rollup_apply")).expect("NativeStorage should be created successfully"),
         ));
 
         // 创建左输入数据
@@ -566,7 +566,7 @@ mod tests {
         );
 
         // 执行RollUpApply
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Executor should execute successfully");
 
         // 检查结果
         if let ExecutionResult::Values(values) = result {

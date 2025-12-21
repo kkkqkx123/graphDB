@@ -481,7 +481,7 @@ mod tests {
         let start_node = StartNode::new();
         let start_node = Arc::new(start_node);
 
-        let limit_node = LimitNode::new(start_node, 10, 100).unwrap();
+        let limit_node = LimitNode::new(start_node, 10, 100).expect("Limit node should be created successfully");
 
         assert_eq!(limit_node.kind(), PlanNodeKind::Limit);
         assert_eq!(limit_node.dependencies().len(), 1);
@@ -495,7 +495,7 @@ mod tests {
         let start_node = Arc::new(start_node);
 
         let sort_items = vec!["name".to_string(), "age".to_string()];
-        let topn_node = TopNNode::new(start_node, sort_items, 10).unwrap();
+        let topn_node = TopNNode::new(start_node, sort_items, 10).expect("TopN node should be created successfully");
 
         assert_eq!(topn_node.kind(), PlanNodeKind::TopN);
         assert_eq!(topn_node.dependencies().len(), 1);

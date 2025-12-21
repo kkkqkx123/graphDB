@@ -166,7 +166,7 @@ mod tests {
     async fn test_assign_executor() {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_assign")).unwrap(),
+            NativeStorage::new(config.test_db_path("test_db_assign")).expect("NativeStorage should be created successfully"),
         ));
 
         // 创建赋值项
@@ -178,7 +178,7 @@ mod tests {
         let mut executor = AssignExecutor::new(1, storage, assign_items);
 
         // 执行赋值
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Executor should execute successfully");
         assert!(matches!(result, ExecutionResult::Success));
 
         // 检查变量是否正确设置

@@ -1169,14 +1169,14 @@ mod tests {
         let condition = "age > 18";
         let result = extract_range_condition(condition, ">");
         assert!(result.is_some());
-        let (column, value) = result.unwrap();
+        let (column, value) = result.expect("Result should contain column and value");
         assert_eq!(column, "age");
         assert_eq!(value, "18");
 
         let condition = "name = 'John'";
         let result = extract_range_condition(condition, "=");
         assert!(result.is_some());
-        let (column, value) = result.unwrap();
+        let (column, value) = result.expect("Result should contain column and value");
         assert_eq!(column, "name");
         assert_eq!(value, "'John'");
     }

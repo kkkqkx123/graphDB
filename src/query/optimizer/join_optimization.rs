@@ -123,12 +123,12 @@ mod tests {
                 10,
                 0,
             )
-            .unwrap(),
+            .expect("Limit node should be created successfully"),
         )
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, join_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         assert!(result.is_some());
     }
 }

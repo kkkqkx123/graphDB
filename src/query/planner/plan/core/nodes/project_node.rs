@@ -190,7 +190,7 @@ mod tests {
             is_matched: false,
         }];
 
-        let project_node = ProjectNode::new(start_node, columns).unwrap();
+        let project_node = ProjectNode::new(start_node, columns).expect("Project node should be created successfully");
 
         assert_eq!(project_node.kind(), PlanNodeKind::Project);
         assert_eq!(project_node.dependencies().len(), 1);
@@ -216,7 +216,7 @@ mod tests {
             },
         ];
 
-        let project_node = ProjectNode::new(start_node, columns).unwrap();
+        let project_node = ProjectNode::new(start_node, columns).expect("Project node should be created successfully");
 
         assert_eq!(project_node.columns().len(), 2);
         assert_eq!(project_node.columns()[0].alias, "name");

@@ -231,7 +231,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         }
 
         // 获取输入结果
-        let _input_result = self.base.context.get_result(&self.input_var).unwrap();
+        let _input_result = self.base.context.get_result(&self.input_var).expect("Context should have input result");
 
         for vid in vids {
             if vid.is_empty() {
@@ -432,7 +432,7 @@ mod tests {
     async fn test_append_vertices_executor() {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_append_vertices")).unwrap(),
+            NativeStorage::new(config.test_db_path("test_db_append_vertices")).expect("NativeStorage should be created successfully"),
         ));
 
         // 创建输入数据
@@ -464,7 +464,7 @@ mod tests {
         );
 
         // 执行追加顶点
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Executor should execute successfully");
 
         // 检查结果
         if let ExecutionResult::Values(values) = result {
