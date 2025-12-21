@@ -80,6 +80,140 @@ impl TypeUtils {
         // 其他情况返回Empty
         ValueTypeDef::Empty
     }
+
+    /// 统一的类型兼容性检查（无需缓存）
+    /// 基于性能分析，此操作开销极小，缓存反而增加复杂度
+    pub fn check_compatibility(type1: &ValueTypeDef, type2: &ValueTypeDef) -> bool {
+        // 直接复用现有逻辑，无需缓存
+        Self::are_types_compatible(type1, type2)
+    }
+
+    /// 批量类型检查（优化内存分配）
+    pub fn check_compatibility_batch(pairs: &[(ValueTypeDef, ValueTypeDef)]) -> Vec<bool> {
+        // 预分配结果向量，避免重复分配
+        let mut results = Vec::with_capacity(pairs.len());
+
+        for (t1, t2) in pairs {
+            results.push(Self::check_compatibility(t1, t2));
+        }
+        results
+    }
+
+    /// 获取字面值类型
+    pub fn literal_type(value: &crate::core::value::Value) -> ValueTypeDef {
+        value.get_type()
+    }
+
+    /// 二元操作结果类型
+    pub fn binary_operation_result_type(
+        op: &str,
+        left_type: &ValueTypeDef,
+        right_type: &ValueTypeDef,
+    ) -> ValueTypeDef {
+        match op {
+            "+" | "-" | "*" | "/" => {
+                // 数值运算
+                if left_type == &ValueTypeDef::Float || right_type == &ValueTypeDef::Float {
+                    ValueTypeDef::Float
+                } else {
+                    ValueTypeDef::Int
+                }
+            }
+            "==" | "!=" | "<" | "<=" | ">" | ">=" => {
+                // 比较运算返回布尔值
+                ValueTypeDef::Bool
+            }
+            _ => ValueTypeDef::Empty,
+        }
+    }
+
+    /// 判断是否需要缓存（基于复杂度启发式）
+    pub fn should_cache_expression(expr_depth: usize, expr_node_count: usize) -> bool {
+        expr_depth > 3 || expr_node_count > 10
+    }
+
+    #[cfg(test)]
+    fn test_check_compatibility() {
+        // 测试类型兼容性检查
+        assert!(TypeUtils::check_compatibility(
+            &ValueTypeDef::Int,
+            &ValueTypeDef::Int
+        ));
+        assert!(TypeUtils::check_compatibility(
+            &ValueTypeDef::Int,
+            &ValueTypeDef::Float
+        ));
+        assert!(!TypeUtils::check_compatibility(
+            &ValueTypeDef::Int,
+            &ValueTypeDef::String
+        ));
+    }
+
+    #[cfg(test)]
+    fn test_check_compatibility_batch() {
+        let pairs = vec![
+            (ValueTypeDef::Int, ValueTypeDef::Int),
+            (ValueTypeDef::Int, ValueTypeDef::Float),
+            (ValueTypeDef::Int, ValueTypeDef::String),
+            (ValueTypeDef::Null, ValueTypeDef::Int),
+        ];
+
+        let results = TypeUtils::check_compatibility_batch(&pairs);
+        assert_eq!(results.len(), 4);
+        assert!(results[0]); // Int == Int
+        assert!(results[1]); // Int == Float
+        assert!(!results[2]); // Int != String
+        assert!(results[3]); // Null == Int
+    }
+
+    #[cfg(test)]
+    fn test_literal_type() {
+        use crate::core::value::Value;
+
+        assert_eq!(TypeUtils::literal_type(&Value::Int(42)), ValueTypeDef::Int);
+        assert_eq!(
+            TypeUtils::literal_type(&Value::String("test".to_string())),
+            ValueTypeDef::String
+        );
+        assert_eq!(
+            TypeUtils::literal_type(&Value::Bool(true)),
+            ValueTypeDef::Bool
+        );
+    }
+
+    #[cfg(test)]
+    fn test_binary_operation_result_type() {
+        // 数值运算
+        assert_eq!(
+            TypeUtils::binary_operation_result_type("+", &ValueTypeDef::Int, &ValueTypeDef::Int),
+            ValueTypeDef::Int
+        );
+        assert_eq!(
+            TypeUtils::binary_operation_result_type("+", &ValueTypeDef::Int, &ValueTypeDef::Float),
+            ValueTypeDef::Float
+        );
+
+        // 比较运算
+        assert_eq!(
+            TypeUtils::binary_operation_result_type("==", &ValueTypeDef::Int, &ValueTypeDef::Int),
+            ValueTypeDef::Bool
+        );
+    }
+
+    #[cfg(test)]
+    fn test_should_cache_expression() {
+        // 简单表达式不应缓存
+        assert!(!TypeUtils::should_cache_expression(2, 5));
+
+        // 深度表达式应该缓存
+        assert!(TypeUtils::should_cache_expression(4, 5));
+
+        // 节点数多的表达式应该缓存
+        assert!(TypeUtils::should_cache_expression(2, 15));
+
+        // 复杂表达式应该缓存
+        assert!(TypeUtils::should_cache_expression(5, 20));
+    }
 }
 
 #[cfg(test)]

@@ -138,8 +138,6 @@ impl From<crate::storage::StorageError> for DBError {
     }
 }
 
-// 移除冲突的From实现，因为现在QueryError在core模块中定义
-
 // ExpressionError 是本地定义，无需转换实现
 
 impl From<crate::query::planner::plan::core::visitor::PlanNodeVisitError> for DBError {
@@ -170,7 +168,6 @@ impl From<serde_json::Error> for DBError {
     }
 }
 
-
 /// 类型别名，用于向后兼容
 pub type GraphDBResult<T> = DBResult<T>;
 
@@ -191,5 +188,4 @@ mod tests {
         let db_err: DBError = query_err.into();
         assert!(matches!(db_err, DBError::Query(_)));
     }
-
 }

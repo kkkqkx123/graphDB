@@ -4,9 +4,8 @@
 //! 访问者模式允许在不修改 Value 类型的情况下添加新的操作。
 
 pub mod analysis;
-pub mod core;
 pub mod conversion_utils;
-pub mod factory;
+pub mod core;
 pub mod hash_utils;
 pub mod serialization;
 pub mod size_utils;
@@ -14,26 +13,20 @@ pub mod transformation;
 pub mod validation;
 
 // 重新导出主要的类型和特征
-pub use analysis::{ComplexityAnalyzerVisitor, ComplexityLevel, TypeCategory, TypeCheckerVisitor};
+pub use analysis::{
+    are_types_compatible, ComplexityAnalyzerVisitor, ComplexityLevel,
+    ExpressionTypeDeductionVisitor, TypeCategory, TypeCheckerVisitor,
+};
 pub use core::{
     DefaultVisitorState, ValueAcceptor, ValueVisitor, VisitorConfig, VisitorContext, VisitorCore,
     VisitorError, VisitorResult, VisitorState,
 };
-pub use factory::{
-    VisitorFactory, VisitorRegistry, VisitorBuilder, simple_factory, create_visitor
-};
-pub use hash_utils::{
-    ValueHasher, HashConfig, HashError
-};
+pub use hash_utils::{HashConfig, HashError, ValueHasher};
 pub use serialization::{
     JsonSerializationVisitor, SerializationError, SerializationFormat, XmlSerializationVisitor,
 };
-pub use transformation::{
-    DeepCloneVisitor, TransformationError,
-};
-pub use size_utils::{
-    ValueSizeCalculator,
-};
+pub use size_utils::ValueSizeCalculator;
+pub use transformation::{DeepCloneVisitor, TransformationError};
 pub use validation::{
     BasicValidationVisitor, TypeValidationVisitor, ValidationConfig, ValidationError,
     ValidationRule,
@@ -95,7 +88,9 @@ pub fn calculate_size_with_config(
 }
 
 /// 便捷函数：计算多个值的总大小
-pub fn calculate_total_size(values: &[crate::core::value::Value]) -> Result<usize, TransformationError> {
+pub fn calculate_total_size(
+    values: &[crate::core::value::Value],
+) -> Result<usize, TransformationError> {
     size_utils::calculate_total_size(values).map_err(|e| match e {
         size_utils::SizeError::MaxDepthExceeded => TransformationError::MaxDepthExceeded,
         size_utils::SizeError::Calculation(msg) => TransformationError::Transformation(msg),
@@ -127,7 +122,9 @@ pub fn calculate_hash_with_config(
 }
 
 /// 便捷函数：计算多个值的组合哈希
-pub fn calculate_combined_hash(values: &[crate::core::value::Value]) -> Result<u64, TransformationError> {
+pub fn calculate_combined_hash(
+    values: &[crate::core::value::Value],
+) -> Result<u64, TransformationError> {
     hash_utils::calculate_combined_hash(values).map_err(|e| match e {
         hash_utils::HashError::MaxDepthExceeded => TransformationError::MaxDepthExceeded,
         hash_utils::HashError::Calculation(msg) => TransformationError::Transformation(msg),
@@ -151,7 +148,9 @@ pub fn convert_type(
     target_type: crate::core::value::ValueTypeDef,
 ) -> Result<crate::core::value::Value, TransformationError> {
     conversion_utils::convert(value, target_type).map_err(|e| match e {
-        conversion_utils::ConversionError::Conversion(msg) => TransformationError::Transformation(msg),
+        conversion_utils::ConversionError::Conversion(msg) => {
+            TransformationError::Transformation(msg)
+        }
         conversion_utils::ConversionError::UnsupportedConversion { from, to } => {
             TransformationError::Transformation(format!("不支持的转换: {} -> {}", from, to))
         }
@@ -168,7 +167,9 @@ pub fn convert_type_with_config(
     config: conversion_utils::ConversionConfig,
 ) -> Result<crate::core::value::Value, TransformationError> {
     conversion_utils::convert_with_config(value, target_type, config).map_err(|e| match e {
-        conversion_utils::ConversionError::Conversion(msg) => TransformationError::Transformation(msg),
+        conversion_utils::ConversionError::Conversion(msg) => {
+            TransformationError::Transformation(msg)
+        }
         conversion_utils::ConversionError::UnsupportedConversion { from, to } => {
             TransformationError::Transformation(format!("不支持的转换: {} -> {}", from, to))
         }
@@ -192,7 +193,9 @@ pub fn convert_type_batch(
     target_type: crate::core::value::ValueTypeDef,
 ) -> Result<Vec<crate::core::value::Value>, TransformationError> {
     conversion_utils::convert_batch(values, target_type).map_err(|e| match e {
-        conversion_utils::ConversionError::Conversion(msg) => TransformationError::Transformation(msg),
+        conversion_utils::ConversionError::Conversion(msg) => {
+            TransformationError::Transformation(msg)
+        }
         conversion_utils::ConversionError::UnsupportedConversion { from, to } => {
             TransformationError::Transformation(format!("不支持的转换: {} -> {}", from, to))
         }

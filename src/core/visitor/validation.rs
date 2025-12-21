@@ -6,7 +6,10 @@ use crate::core::value::{
     DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
 };
 use crate::core::vertex_edge_path::{Edge, Path, Vertex};
-use crate::core::visitor::core::{utils, ValueVisitor, VisitorCore, VisitorContext, VisitorConfig, DefaultVisitorState, VisitorState, VisitorResult, VisitorError};
+use crate::core::visitor::core::{
+    utils, DefaultVisitorState, ValueVisitor, VisitorConfig, VisitorContext, VisitorCore,
+    VisitorError, VisitorResult, VisitorState,
+};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -110,7 +113,7 @@ impl BasicValidationVisitor {
         let visitor_config = VisitorConfig::new()
             .with_max_depth(config.max_depth)
             .with_strict_mode(config.strict_type_checking);
-        
+
         Self {
             config,
             errors: Vec::new(),
@@ -118,7 +121,7 @@ impl BasicValidationVisitor {
             state: DefaultVisitorState::new(),
         }
     }
-    
+
     pub fn with_visitor_config(config: ValidationConfig, visitor_config: VisitorConfig) -> Self {
         Self {
             config,
@@ -178,14 +181,10 @@ impl BasicValidationVisitor {
 
     fn check_depth(&mut self) -> Result<(), ValidationError> {
         if self.state.depth() > self.config.max_depth {
-            self.add_error(ValidationError::MaxDepthExceeded {
-                depth: self.state.depth(),
-                max_depth: self.config.max_depth,
-            });
-            return Err(ValidationError::MaxDepthExceeded {
-                depth: self.state.depth(),
-                max_depth: self.config.max_depth,
-            });
+            let depth = self.state.depth();
+            let max_depth = self.config.max_depth;
+            self.add_error(ValidationError::MaxDepthExceeded { depth, max_depth });
+            return Err(ValidationError::MaxDepthExceeded { depth, max_depth });
         }
         Ok(())
     }
@@ -205,7 +204,7 @@ impl ValueVisitor for BasicValidationVisitor {
     fn visit_float(&mut self, value: f64) -> Self::Result {
         self.check_depth()?;
 
-        // 检查 NaN 和无穷大
+        // 直接检查浮点数约束
         if value.is_nan() {
             self.add_error(ValidationError::Validation("浮点数不能为 NaN".to_string()));
         }
@@ -500,8 +499,11 @@ impl TypeValidationVisitor {
             state: DefaultVisitorState::new(),
         }
     }
-    
-    pub fn with_config(expected_type: crate::core::value::ValueTypeDef, config: VisitorConfig) -> Self {
+
+    pub fn with_config(
+        expected_type: crate::core::value::ValueTypeDef,
+        config: VisitorConfig,
+    ) -> Self {
         Self {
             expected_type: Some(expected_type),
             context: VisitorContext::new(config),
@@ -742,33 +744,34 @@ impl From<utils::RecursionError> for ValidationError {
 
 impl VisitorCore for BasicValidationVisitor {
     type Result = Result<(), ValidationError>;
-    
+
     fn context(&self) -> &VisitorContext {
         &self.context
     }
-    
+
     fn context_mut(&mut self) -> &mut VisitorContext {
         &mut self.context
     }
-    
+
     fn state(&self) -> &dyn VisitorState {
         &self.state
     }
-    
+
     fn state_mut(&mut self) -> &mut dyn VisitorState {
         &mut self.state
     }
-    
+
     fn pre_visit(&mut self) -> VisitorResult<()> {
         self.state.inc_visit_count();
         if self.state.depth() > self.context.config().max_depth {
-            return Err(VisitorError::Validation(
-                format!("访问深度超过限制: {}", self.context.config().max_depth)
-            ));
+            return Err(VisitorError::Validation(format!(
+                "访问深度超过限制: {}",
+                self.context.config().max_depth
+            )));
         }
         Ok(())
     }
-    
+
     fn post_visit(&mut self) -> VisitorResult<()> {
         Ok(())
     }
@@ -776,33 +779,34 @@ impl VisitorCore for BasicValidationVisitor {
 
 impl VisitorCore for TypeValidationVisitor {
     type Result = Result<(), ValidationError>;
-    
+
     fn context(&self) -> &VisitorContext {
         &self.context
     }
-    
+
     fn context_mut(&mut self) -> &mut VisitorContext {
         &mut self.context
     }
-    
+
     fn state(&self) -> &dyn VisitorState {
         &self.state
     }
-    
+
     fn state_mut(&mut self) -> &mut dyn VisitorState {
         &mut self.state
     }
-    
+
     fn pre_visit(&mut self) -> VisitorResult<()> {
         self.state.inc_visit_count();
         if self.state.depth() > self.context.config().max_depth {
-            return Err(VisitorError::Validation(
-                format!("访问深度超过限制: {}", self.context.config().max_depth)
-            ));
+            return Err(VisitorError::Validation(format!(
+                "访问深度超过限制: {}",
+                self.context.config().max_depth
+            )));
         }
         Ok(())
     }
-    
+
     fn post_visit(&mut self) -> VisitorResult<()> {
         Ok(())
     }
@@ -883,22 +887,22 @@ mod tests {
         });
         assert!(BasicValidationVisitor::validate(&invalid_time).is_err());
     }
-    
+
     #[test]
     fn test_visitor_core_integration() {
         let config = ValidationConfig::default();
         let mut visitor = BasicValidationVisitor::new(config);
-        
+
         // 测试VisitorCore方法
         assert!(visitor.should_continue());
         assert_eq!(visitor.state().depth(), 0);
-        
+
         visitor.state_mut().inc_depth();
         assert_eq!(visitor.state().depth(), 1);
-        
+
         visitor.reset().unwrap();
         assert_eq!(visitor.state().depth(), 0);
-        
+
         // 测试原始ValueVisitor功能
         let value = Value::Int(42);
         let result = value.accept(&mut visitor);
