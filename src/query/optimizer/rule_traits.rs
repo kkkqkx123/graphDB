@@ -687,16 +687,16 @@ mod tests {
         // 测试 get_first_dependency
         let first_dep = get_first_dependency(&opt_ctx, &node_with_deps);
         assert!(first_dep.is_some());
-        assert_eq!(first_dep.unwrap().id, 1);
+        assert_eq!(first_dep.expect("Dependency should exist").id, 1);
 
         // 测试 get_dependency_at
         let dep_at_1 = get_dependency_at(&opt_ctx, &node_with_deps, 1);
         assert!(dep_at_1.is_some());
-        assert_eq!(dep_at_1.unwrap().id, 2);
+        assert_eq!(dep_at_1.expect("Dependency should exist").id, 2);
 
         let dep_at_2 = get_dependency_at(&opt_ctx, &node_with_deps, 2);
         assert!(dep_at_2.is_some());
-        assert_eq!(dep_at_2.unwrap().id, 3);
+        assert_eq!(dep_at_2.expect("Dependency should exist").id, 3);
 
         // 测试越界索引
         let dep_at_3 = get_dependency_at(&opt_ctx, &node_with_deps, 3);

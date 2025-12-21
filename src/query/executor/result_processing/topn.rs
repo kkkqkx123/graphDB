@@ -178,17 +178,19 @@ impl<S: StorageEngine> TopNExecutor<S> {
             };
 
             // 根据排序方向决定是否替换堆顶元素
-            let should_replace = if self.is_ascending() {
-                // 升序：维护最大堆，如果新元素小于堆顶，则替换
-                new_item < *heap.peek().unwrap()
-            } else {
-                // 降序：维护最小堆，如果新元素大于堆顶，则替换
-                new_item > *heap.peek().unwrap()
-            };
+            if let Some(peeked) = heap.peek() {
+                let should_replace = if self.is_ascending() {
+                    // 升序：维护最大堆，如果新元素小于堆顶，则替换
+                    new_item < *peeked
+                } else {
+                    // 降序：维护最小堆，如果新元素大于堆顶，则替换
+                    new_item > *peeked
+                };
 
-            if should_replace {
-                heap.pop();
-                heap.push(new_item);
+                if should_replace {
+                    heap.pop();
+                    heap.push(new_item);
+                }
             }
         }
 
@@ -247,12 +249,14 @@ impl<S: StorageEngine> TopNExecutor<S> {
         let evaluator = ExpressionEvaluator;
 
         dataset.rows.sort_by(|a, b| {
-            let sort_a = self
-                .calculate_sort_value(a, &dataset.col_names, &evaluator)
-                .unwrap();
-            let sort_b = self
-                .calculate_sort_value(b, &dataset.col_names, &evaluator)
-                .unwrap();
+            let sort_a = match self.calculate_sort_value(a, &dataset.col_names, &evaluator) {
+                Ok(val) => val,
+                Err(_) => return Ordering::Less, // 如果计算排序值失败，将此行放在前面
+            };
+            let sort_b = match self.calculate_sort_value(b, &dataset.col_names, &evaluator) {
+                Ok(val) => val,
+                Err(_) => return Ordering::Greater, // 如果计算排序值失败，将此行放在后面
+            };
 
             // 逐个比较排序键
             for ((idx, sort_val_a), sort_val_b) in sort_a.iter().enumerate().zip(sort_b.iter()) {
@@ -629,7 +633,7 @@ mod tests {
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .await
-            .unwrap();
+            .expect("TopN executor should process successfully");
 
         // 验证结果
         match result {
@@ -662,7 +666,7 @@ mod tests {
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .await
-            .unwrap();
+            .expect("TopN executor should process successfully");
 
         // 验证结果
         match result {

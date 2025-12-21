@@ -2,7 +2,6 @@
 //!
 //! 这个模块提供了统一的错误类型，整合了所有子系统的错误
 
-use std::fmt;
 use thiserror::Error;
 
 /// 统一的数据库错误类型
@@ -171,114 +170,8 @@ impl From<serde_json::Error> for DBError {
     }
 }
 
-// 为了向后兼容，保留旧的 Status 类型
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Status {
-    /// 操作成功
-    Ok,
-    /// 值已插入
-    Inserted,
-    /// 一般错误
-    Error(String),
-    /// 文件未找到
-    NoSuchFile(String),
-    /// 不支持的功能
-    NotSupported(String),
-    /// 查询语法错误
-    SyntaxError(String),
-    /// 查询语义错误
-    SemanticError(String),
-    /// 图内存超出
-    GraphMemoryExceeded,
-    /// 没有语句可执行
-    StatementEmpty,
-    /// 存储中未找到键
-    KeyNotFound,
-    /// 部分成功
-    PartialSuccess,
-    /// 存储内存超出
-    StorageMemoryExceeded,
-    /// 空间未找到
-    SpaceNotFound,
-    /// 主机未找到
-    HostNotFound,
-    /// 标签未找到
-    TagNotFound,
-    /// 边未找到
-    EdgeNotFound,
-    /// 用户未找到
-    UserNotFound,
-    /// 索引未找到
-    IndexNotFound,
-    /// 组未找到
-    GroupNotFound,
-    /// 区域未找到
-    ZoneNotFound,
-    /// 领导者已更改
-    LeaderChanged,
-    /// 已平衡
-    Balanced,
-    /// 分区未找到
-    PartNotFound,
-    /// 监听器未找到
-    ListenerNotFound,
-    /// 会话未找到
-    SessionNotFound,
-    /// 权限错误
-    PermissionError,
-}
-
-impl fmt::Display for Status {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Status::Ok => write!(f, "OK"),
-            Status::Inserted => write!(f, "Inserted"),
-            Status::Error(msg) => write!(f, "Error: {}", msg),
-            Status::NoSuchFile(path) => write!(f, "No such file: {}", path),
-            Status::NotSupported(feature) => write!(f, "Not supported: {}", feature),
-            Status::SyntaxError(msg) => write!(f, "Syntax error: {}", msg),
-            Status::SemanticError(msg) => write!(f, "Semantic error: {}", msg),
-            Status::GraphMemoryExceeded => write!(f, "Graph memory exceeded"),
-            Status::StatementEmpty => write!(f, "Statement is empty"),
-            Status::KeyNotFound => write!(f, "Key not found"),
-            Status::PartialSuccess => write!(f, "Partial success"),
-            Status::StorageMemoryExceeded => write!(f, "Storage memory exceeded"),
-            Status::SpaceNotFound => write!(f, "Space not found"),
-            Status::HostNotFound => write!(f, "Host not found"),
-            Status::TagNotFound => write!(f, "Tag not found"),
-            Status::EdgeNotFound => write!(f, "Edge not found"),
-            Status::UserNotFound => write!(f, "User not found"),
-            Status::IndexNotFound => write!(f, "Index not found"),
-            Status::GroupNotFound => write!(f, "Group not found"),
-            Status::ZoneNotFound => write!(f, "Zone not found"),
-            Status::LeaderChanged => write!(f, "Leader changed"),
-            Status::Balanced => write!(f, "Balanced"),
-            Status::PartNotFound => write!(f, "Part not found"),
-            Status::ListenerNotFound => write!(f, "Listener not found"),
-            Status::SessionNotFound => write!(f, "Session not found"),
-            Status::PermissionError => write!(f, "Permission error"),
-        }
-    }
-}
-
-impl std::error::Error for Status {}
-
-impl From<Status> for DBError {
-    fn from(status: Status) -> Self {
-        match status {
-            Status::Error(msg) => DBError::Internal(msg),
-            Status::SyntaxError(msg) => DBError::Query(QueryError::ParseError(msg)),
-            Status::SemanticError(msg) => DBError::Query(QueryError::InvalidQuery(msg)),
-            Status::KeyNotFound => DBError::Storage(StorageError::NodeNotFound(
-                crate::core::Value::Null(crate::core::NullType::Null),
-            )),
-            _ => DBError::Internal(format!("Status error: {}", status)),
-        }
-    }
-}
 
 /// 类型别名，用于向后兼容
-pub type StatusOr<T> = Result<T, Status>;
 pub type GraphDBResult<T> = DBResult<T>;
 
 #[cfg(test)]
@@ -299,10 +192,4 @@ mod tests {
         assert!(matches!(db_err, DBError::Query(_)));
     }
 
-    #[test]
-    fn test_status_to_dberror() {
-        let status = Status::SyntaxError("test syntax error".to_string());
-        let db_err: DBError = status.into();
-        assert!(matches!(db_err, DBError::Query(_)));
-    }
 }

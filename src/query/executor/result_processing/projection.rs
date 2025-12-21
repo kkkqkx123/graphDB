@@ -513,7 +513,7 @@ mod tests {
         executor.set_input(Box::new(input_executor));
 
         // 执行投影
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Projection executor should execute successfully");
 
         // 验证结果
         match result {
@@ -558,7 +558,7 @@ mod tests {
         executor.set_input(Box::new(input_executor));
 
         // 执行投影
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Projection executor should execute successfully");
 
         // 验证结果
         match result {
@@ -622,7 +622,7 @@ mod tests {
         executor.set_input(Box::new(input_executor));
 
         // 执行投影
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Projection executor should execute successfully");
 
         // 验证结果
         match result {
@@ -689,7 +689,7 @@ mod tests {
         executor.set_input(Box::new(input_executor));
 
         // 执行投影
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Projection executor should execute successfully");
 
         // 验证结果
         match result {

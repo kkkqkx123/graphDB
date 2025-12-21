@@ -427,7 +427,7 @@ mod tests {
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .await
-            .unwrap();
+            .expect("Sort executor should process successfully");
 
         // 验证结果
         match result {

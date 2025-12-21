@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn test_convert_literal() {
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
-        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).unwrap();
+        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).expect("Conversion from cypher to unified should succeed for literals");
 
         match unified_expr {
             Expression::Literal(LiteralValue::Int(i)) => assert_eq!(i, 42),
@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn test_convert_variable() {
         let cypher_expr = CypherExpression::Variable("x".to_string());
-        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).unwrap();
+        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).expect("Conversion from cypher to unified should succeed for variables");
 
         match unified_expr {
             Expression::Variable(name) => assert_eq!(name, "x"),
@@ -276,7 +276,7 @@ mod tests {
             right,
         });
 
-        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).unwrap();
+        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).expect("Conversion from cypher to unified should succeed for binary operations");
 
         match unified_expr {
             Expression::Binary {
@@ -294,8 +294,8 @@ mod tests {
     #[test]
     fn test_round_trip_conversion() {
         let original = CypherExpression::Literal(CypherLiteral::String("test".to_string()));
-        let unified = ExpressionConverter::convert_cypher_to_unified(&original).unwrap();
-        let back_to_cypher = ExpressionConverter::convert_unified_to_cypher(&unified).unwrap();
+        let unified = ExpressionConverter::convert_cypher_to_unified(&original).expect("Conversion from cypher to unified should succeed for round trip");
+        let back_to_cypher = ExpressionConverter::convert_unified_to_cypher(&unified).expect("Conversion from unified to cypher should succeed for round trip");
 
         match back_to_cypher {
             CypherExpression::Literal(CypherLiteral::String(s)) => assert_eq!(s, "test"),

@@ -1046,7 +1046,7 @@ mod tests {
 
         // 测试变量求值
         let var_expr = Expression::Variable("x".to_string());
-        assert_eq!(evaluator.evaluate(&var_expr).unwrap(), Value::Int(10));
+        assert_eq!(evaluator.evaluate(&var_expr).expect("Evaluator should evaluate variable expression"), Value::Int(10));
 
         // 测试二元表达式
         let binary_expr = Expression::Binary(BinaryExpression {
@@ -1054,13 +1054,13 @@ mod tests {
             operator: BinaryOperator::Add,
             right: Box::new(Expression::Literal(Literal::Integer(3))),
         });
-        assert_eq!(evaluator.evaluate(&binary_expr).unwrap(), Value::Int(8));
+        assert_eq!(evaluator.evaluate(&binary_expr).expect("Evaluator should evaluate binary expression"), Value::Int(8));
 
         // 测试函数调用
         let func_expr = Expression::FunctionCall(FunctionCall {
             function_name: "abs".to_string(),
             arguments: vec![Expression::Literal(Literal::Integer(-5))],
         });
-        assert_eq!(evaluator.evaluate(&func_expr).unwrap(), Value::Int(5));
+        assert_eq!(evaluator.evaluate(&func_expr).expect("Evaluator should evaluate function expression"), Value::Int(5));
     }
 }

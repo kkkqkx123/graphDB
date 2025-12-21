@@ -584,15 +584,15 @@ mod tests {
     #[test]
     fn test_json_serialization_visitor() {
         let int_value = Value::Int(42);
-        let json = JsonSerializationVisitor::serialize(&int_value).unwrap();
+        let json = JsonSerializationVisitor::serialize(&int_value).expect("JsonSerializationVisitor::serialize should succeed for int value");
         assert_eq!(json, "42");
 
         let string_value = Value::String("test".to_string());
-        let json = JsonSerializationVisitor::serialize(&string_value).unwrap();
+        let json = JsonSerializationVisitor::serialize(&string_value).expect("JsonSerializationVisitor::serialize should succeed for string value");
         assert_eq!(json, "\"test\"");
 
         let bool_value = Value::Bool(true);
-        let json = JsonSerializationVisitor::serialize(&bool_value).unwrap();
+        let json = JsonSerializationVisitor::serialize(&bool_value).expect("JsonSerializationVisitor::serialize should succeed for bool value");
         assert_eq!(json, "true");
     }
 
@@ -603,7 +603,7 @@ mod tests {
             ("age".to_string(), Value::Int(30)),
         ]));
 
-        let json = JsonSerializationVisitor::serialize_pretty(&complex_value).unwrap();
+        let json = JsonSerializationVisitor::serialize_pretty(&complex_value).expect("JsonSerializationVisitor::serialize_pretty should succeed for complex value");
         assert!(json.contains("{\n"));
         assert!(json.contains("\"name\": \"Alice\""));
         assert!(json.contains("\"age\": 30"));
@@ -612,11 +612,11 @@ mod tests {
     #[test]
     fn test_xml_serialization_visitor() {
         let int_value = Value::Int(42);
-        let xml = XmlSerializationVisitor::serialize(&int_value).unwrap();
+        let xml = XmlSerializationVisitor::serialize(&int_value).expect("XmlSerializationVisitor::serialize should succeed for int value");
         assert!(xml.contains("<int>42</int>"));
 
         let string_value = Value::String("test".to_string());
-        let xml = XmlSerializationVisitor::serialize(&string_value).unwrap();
+        let xml = XmlSerializationVisitor::serialize(&string_value).expect("XmlSerializationVisitor::serialize should succeed for string value");
         assert!(xml.contains("<test>test</test>"));
     }
 }

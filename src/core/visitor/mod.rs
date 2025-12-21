@@ -126,23 +126,23 @@ mod tests {
         assert_eq!(complexity, ComplexityLevel::Simple);
 
         // 测试 JSON 序列化
-        let json = to_json(&value).unwrap();
+        let json = to_json(&value).expect("to_json should succeed in test");
         assert_eq!(json, "42");
 
         // 测试深度克隆
-        let cloned = deep_clone(&value).unwrap();
+        let cloned = deep_clone(&value).expect("deep_clone should succeed in test");
         assert_eq!(value, cloned);
 
         // 测试大小计算
-        let size = calculate_size(&value).unwrap();
+        let size = calculate_size(&value).expect("calculate_size should succeed in test");
         assert!(size > 0);
 
         // 测试哈希计算
-        let hash = calculate_hash(&value).unwrap();
+        let hash = calculate_hash(&value).expect("calculate_hash should succeed in test");
         assert!(hash > 0);
 
         // 测试类型转换
-        let string_value = convert_type(&value, crate::core::value::ValueTypeDef::String).unwrap();
+        let string_value = convert_type(&value, crate::core::value::ValueTypeDef::String).expect("convert_type should succeed in test");
         assert_eq!(string_value, Value::String("42".to_string()));
 
         // 测试基础验证
@@ -172,12 +172,12 @@ mod tests {
         assert_eq!(complexity, ComplexityLevel::Complex);
 
         // 测试 JSON 序列化
-        let json = to_json_pretty(&complex_value).unwrap();
+        let json = to_json_pretty(&complex_value).expect("to_json_pretty should succeed in test");
         assert!(json.contains("\"name\": \"Alice\""));
         assert!(json.contains("\"age\": 30"));
 
         // 测试深度克隆
-        let cloned = deep_clone(&complex_value).unwrap();
+        let cloned = deep_clone(&complex_value).expect("deep_clone should succeed in test");
         assert_eq!(complex_value, cloned);
 
         // 测试大小计算

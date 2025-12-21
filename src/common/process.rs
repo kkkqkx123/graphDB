@@ -75,7 +75,8 @@ impl ProcessManager {
         Ok(ProcessInfo {
             pid,
             name: {
-                let opt_name = env::current_exe()?.file_name();
+                let exe_path = env::current_exe()?;
+                let opt_name = exe_path.file_name();
                 match opt_name {
                     Some(name) => name.to_string_lossy().to_string(),
                     None => String::default(),

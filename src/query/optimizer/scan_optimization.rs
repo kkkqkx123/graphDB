@@ -116,7 +116,7 @@ mod tests {
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配扫描节点并尝试优化
         assert!(result.is_some());
     }
@@ -131,7 +131,7 @@ mod tests {
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配扫描节点并尝试优化带过滤条件的扫描
         assert!(result.is_some());
     }

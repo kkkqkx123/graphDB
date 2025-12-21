@@ -75,7 +75,7 @@ mod tests {
         let context = ExpressionContext::default();
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
 
-        let result = CypherProcessor::process(&cypher_expr, &context).unwrap();
+        let result = CypherProcessor::process(&cypher_expr, &context).expect("Cypher processing should succeed for literal values");
         assert_eq!(result, crate::core::Value::Int(42));
     }
 
@@ -87,7 +87,7 @@ mod tests {
             expression: Box::new(CypherExpression::Literal(CypherLiteral::Boolean(true))),
         });
 
-        let result = CypherProcessor::process_with_optimization(&expr, &context).unwrap();
+        let result = CypherProcessor::process_with_optimization(&expr, &context).expect("Cypher processing with optimization should succeed");
         assert_eq!(result, crate::core::Value::Bool(false));
     }
 
@@ -97,7 +97,7 @@ mod tests {
         context.set_variable("x".to_string(), crate::core::Value::Int(100));
 
         let cypher_expr = CypherExpression::Variable("x".to_string());
-        let result = CypherProcessor::evaluate_direct(&cypher_expr, &context).unwrap();
+        let result = CypherProcessor::evaluate_direct(&cypher_expr, &context).expect("Cypher direct evaluation should succeed");
         assert_eq!(result, crate::core::Value::Int(100));
     }
 }

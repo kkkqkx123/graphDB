@@ -499,7 +499,7 @@ mod tests {
         };
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试合并连续的过滤操作
         assert!(result.is_some());
     }
@@ -518,7 +518,7 @@ mod tests {
         };
         let opt_node = OptGroupNode::new(1, project_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配投影节点并尝试折叠连续的投影操作
         assert!(result.is_some());
     }
@@ -532,7 +532,7 @@ mod tests {
         let get_vertices_node = std::sync::Arc::new(GetVertices::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_vertices_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配获取顶点节点并尝试与投影操作合并
         assert!(result.is_some());
     }
@@ -546,7 +546,7 @@ mod tests {
         let get_vertices_node = std::sync::Arc::new(GetVertices::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_vertices_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配获取顶点节点并尝试与去重操作合并
         assert!(result.is_some());
     }
@@ -560,7 +560,7 @@ mod tests {
         let get_nbrs_node = std::sync::Arc::new(GetNeighbors::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_nbrs_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配获取邻居节点并尝试与去重操作合并
         assert!(result.is_some());
     }
@@ -574,7 +574,7 @@ mod tests {
         let get_nbrs_node = std::sync::Arc::new(GetNeighbors::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_nbrs_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配获取邻居节点并尝试与投影操作合并
         assert!(result.is_some());
     }

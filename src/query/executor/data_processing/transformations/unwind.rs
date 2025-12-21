@@ -366,7 +366,7 @@ mod tests {
     async fn test_unwind_executor() {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_unwind")).unwrap(),
+            NativeStorage::new(config.test_db_path("test_db_unwind")).expect("NativeStorage should be created successfully"),
         ));
 
         // 创建输入数据
@@ -391,7 +391,7 @@ mod tests {
         );
 
         // 执行展开
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Executor should execute successfully");
 
         // 检查结果
         if let ExecutionResult::Values(values) = result {

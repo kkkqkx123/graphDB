@@ -53,7 +53,7 @@ impl OptRule for TopNRule {
                                 sort_input,                           // 使用Sort的输入
                                 sort_plan_node.sort_items().to_vec(), // 使用Sort的排序项
                                 limit_plan_node.count(), // 使用Limit的计数值作为TopN的限制
-                            ).unwrap();
+                            ).expect("TopN node should be created successfully");
 
                             // 保持输出变量不变
                             if let Some(output_var) = node.plan_node.output_var() {
@@ -110,12 +110,12 @@ mod tests {
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 vec![],
             )
-            .unwrap(),
+            .expect("Sort node should be created successfully"),
         )
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, sort_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         assert!(result.is_none());
     }
 }

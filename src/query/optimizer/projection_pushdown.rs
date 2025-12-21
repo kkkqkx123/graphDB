@@ -132,12 +132,12 @@ mod tests {
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 vec![],
             )
-            .unwrap(),
+            .expect("Node should be created successfully"),
         )
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, project_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配投影节点并尝试下推
         assert!(result.is_some());
     }
@@ -153,12 +153,12 @@ mod tests {
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 vec![],
             )
-            .unwrap(),
+            .expect("Node should be created successfully"),
         )
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, project_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         // 规则应该匹配投影节点并尝试下推到数据源
         assert!(result.is_some());
     }

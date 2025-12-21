@@ -18,7 +18,6 @@ pub mod utils;
 // Re-export common types at the crate root for convenience
 pub use crate::config::Config;
 pub use crate::core::{
-    error::{Status, StatusOr},
     DateTimeValue, DateValue, Direction, DurationValue, Edge, GeographyValue, NullType, Path, Step,
     Tag, TimeValue, Value, Vertex,
 };

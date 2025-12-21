@@ -817,7 +817,7 @@ mod tests {
 
         // 测试字面量求值
         let expr = Expression::Literal(LiteralValue::Int(42));
-        let result = evaluator.evaluate(&expr, &context).unwrap();
+        let result = evaluator.evaluate(&expr, &context).expect("Evaluation should succeed for literal values");
         assert_eq!(result, Value::Int(42));
 
         // 测试变量求值
@@ -825,7 +825,7 @@ mod tests {
         ctx.set_variable("x".to_string(), Value::Int(100));
 
         let expr = Expression::Variable("x".to_string());
-        let result = evaluator.evaluate(&expr, &ctx).unwrap();
+        let result = evaluator.evaluate(&expr, &ctx).expect("Evaluation should succeed for variable values");
         assert_eq!(result, Value::Int(100));
     }
 
@@ -843,7 +843,7 @@ mod tests {
             right: Box::new(right),
         };
 
-        let result = evaluator.evaluate(&expr, &context).unwrap();
+        let result = evaluator.evaluate(&expr, &context).expect("Evaluation should succeed for binary operations");
         assert_eq!(result, Value::Int(30));
     }
 

@@ -869,14 +869,14 @@ mod tests {
             )])),
         ]);
 
-        let cloned = DeepCloneVisitor::clone_value(&original).unwrap();
+        let cloned = DeepCloneVisitor::clone_value(&original).expect("DeepCloneVisitor::clone_value should succeed in test");
         assert_eq!(original, cloned);
     }
 
     #[test]
     fn test_size_calculator_visitor() {
         let value = Value::String("test".to_string());
-        let size = SizeCalculatorVisitor::calculate_size(&value).expect("Failed to calculate size");
+        let size = SizeCalculatorVisitor::calculate_size(&value).expect("SizeCalculatorVisitor::calculate_size should succeed in test");
         assert!(size > std::mem::size_of::<String>());
     }
 
@@ -885,9 +885,9 @@ mod tests {
         let value1 = Value::Int(42);
         let value2 = Value::Int(42);
         let hash1 =
-            HashCalculatorVisitor::calculate_hash(&value1).expect("Failed to calculate hash");
+            HashCalculatorVisitor::calculate_hash(&value1).expect("HashCalculatorVisitor::calculate_hash should succeed in test");
         let hash2 =
-            HashCalculatorVisitor::calculate_hash(&value2).expect("Failed to calculate hash");
+            HashCalculatorVisitor::calculate_hash(&value2).expect("HashCalculatorVisitor::calculate_hash should succeed in test");
         assert_eq!(hash1, hash2);
     }
 

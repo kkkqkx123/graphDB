@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn test_parse_simple_match_statement() {
         let mut parser = CypherParserCore::new("MATCH (n:Person)".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Match(match_clause) => {
@@ -250,7 +250,7 @@ mod tests {
     #[test]
     fn test_parse_match_with_where_statement() {
         let mut parser = CypherParserCore::new("MATCH (n:Person) WHERE n.age > 30".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Match(match_clause) => {
@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn test_parse_match_return_statement() {
         let mut parser = CypherParserCore::new("MATCH (n:Person) RETURN n.name".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Query(query_clause) => {
@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn test_parse_return_statement() {
         let mut parser = CypherParserCore::new("RETURN n.name, n.age".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Return(return_clause) => {
@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn test_parse_create_statement() {
         let mut parser = CypherParserCore::new("CREATE (n:Person {name: \"Alice\"})".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Create(create_clause) => {
@@ -305,7 +305,7 @@ mod tests {
     #[test]
     fn test_parse_delete_statement() {
         let mut parser = CypherParserCore::new("DELETE n".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Delete(delete_clause) => {
@@ -319,7 +319,7 @@ mod tests {
     #[test]
     fn test_parse_detach_delete_statement() {
         let mut parser = CypherParserCore::new("DETACH DELETE n".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Delete(delete_clause) => {
@@ -333,7 +333,7 @@ mod tests {
     #[test]
     fn test_parse_set_statement() {
         let mut parser = CypherParserCore::new("SET n.name = \"Alice\"".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Set(set_clause) => {
@@ -346,7 +346,7 @@ mod tests {
     #[test]
     fn test_parse_remove_statement() {
         let mut parser = CypherParserCore::new("REMOVE n.name".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Remove(remove_clause) => {
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn test_parse_merge_statement() {
         let mut parser = CypherParserCore::new("MERGE (n:Person {name: \"Alice\"})".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Merge(merge_clause) => {
@@ -372,7 +372,7 @@ mod tests {
     #[test]
     fn test_parse_with_statement() {
         let mut parser = CypherParserCore::new("WITH n.name AS name".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::With(with_clause) => {
@@ -385,7 +385,7 @@ mod tests {
     #[test]
     fn test_parse_unwind_statement() {
         let mut parser = CypherParserCore::new("UNWIND [1, 2, 3] AS number".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Unwind(unwind_clause) => {
@@ -398,7 +398,7 @@ mod tests {
     #[test]
     fn test_parse_call_statement() {
         let mut parser = CypherParserCore::new("CALL db.info()".to_string());
-        let statement = parser.parse_statement().unwrap();
+        let statement = parser.parse_statement().expect("Statement parser should parse valid statements");
 
         match statement {
             CypherStatement::Call(call_clause) => {
@@ -412,7 +412,7 @@ mod tests {
     fn test_parse_multiple_statements() {
         let mut parser =
             CypherParserCore::new("MATCH (n:Person) RETURN n; MATCH (m:User) RETURN m".to_string());
-        let statements = parser.parse_statements().unwrap();
+        let statements = parser.parse_statements().expect("Statement parser should parse valid statements");
 
         assert_eq!(statements.len(), 2);
 

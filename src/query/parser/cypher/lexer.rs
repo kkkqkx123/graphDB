@@ -72,7 +72,7 @@ impl CypherLexer {
             });
         }
 
-        let ch = self.peek_char().unwrap();
+        let ch = self.peek_char().expect("Lexer should have a character to peek at");
         let position = self.position;
 
         match ch {
@@ -196,7 +196,7 @@ impl CypherLexer {
 
     /// 读取标点符号
     fn read_punctuation(&mut self) -> Result<String, String> {
-        let ch = self.peek_char().unwrap();
+        let ch = self.peek_char().expect("Lexer should have a character to peek at");
         self.consume_char();
         Ok(ch.to_string())
     }
@@ -306,7 +306,7 @@ mod tests {
         let result = lexer.tokenize();
         assert!(result.is_ok());
 
-        let tokens = result.unwrap();
+        let tokens = result.expect("Lexer should return valid tokens");
         assert_eq!(tokens.len(), 7); // MATCH, (, n, :, Person, ), EOF
 
         assert_eq!(tokens[0].token_type, TokenType::Keyword);
@@ -336,7 +336,7 @@ mod tests {
         let result = lexer.tokenize();
         assert!(result.is_ok());
 
-        let tokens = result.unwrap();
+        let tokens = result.expect("Lexer should return valid tokens");
         assert_eq!(tokens.len(), 2); // 字符串和EOF
 
         assert_eq!(tokens[0].token_type, TokenType::LiteralString);
@@ -351,7 +351,7 @@ mod tests {
         let result = lexer.tokenize();
         assert!(result.is_ok());
 
-        let tokens = result.unwrap();
+        let tokens = result.expect("Lexer should return valid tokens");
         assert_eq!(tokens.len(), 3); // 123, 45.67, EOF
 
         assert_eq!(tokens[0].token_type, TokenType::LiteralNumber);
@@ -369,7 +369,7 @@ mod tests {
         let result = lexer.tokenize();
         assert!(result.is_ok());
 
-        let tokens = result.unwrap();
+        let tokens = result.expect("Lexer should return valid tokens");
         assert_eq!(tokens.len(), 12); // 11个操作符 + EOF
 
         assert_eq!(tokens[0].token_type, TokenType::Operator);
@@ -390,7 +390,7 @@ mod tests {
         let result = lexer.tokenize();
         assert!(result.is_ok());
 
-        let tokens = result.unwrap();
+        let tokens = result.expect("Lexer should return valid tokens");
         assert_eq!(tokens.len(), 13); // (, a, ), -, [, :, FRIENDS_WITH, ], ->, (, b, ), EOF
 
         assert_eq!(tokens[2].token_type, TokenType::Punctuation);
@@ -423,7 +423,7 @@ mod tests {
         let result = lexer.tokenize();
         assert!(result.is_ok());
 
-        let tokens = result.unwrap();
+        let tokens = result.expect("Lexer should return valid tokens");
         assert!(tokens.len() > 10);
 
         // 检查关键字
@@ -447,12 +447,12 @@ mod tests {
         let result = lexer.tokenize();
         assert!(result.is_ok());
 
-        let tokens = result.unwrap();
+        let tokens = result.expect("Lexer should return valid tokens");
 
         // 查找注释标记
         let comment_token = tokens.iter().find(|t| t.token_type == TokenType::Comment);
         assert!(comment_token.is_some());
-        assert_eq!(comment_token.unwrap().value, " 这是一个注释");
+        assert_eq!(comment_token.expect("Should find comment token").value, " 这是一个注释");
     }
 
     #[test]

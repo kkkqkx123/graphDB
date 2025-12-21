@@ -342,7 +342,7 @@ mod tests {
     fn test_evaluate_literal() {
         let context = ExpressionContext::default();
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
-        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &context).unwrap();
+        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &context).expect("Cypher evaluation should succeed for literal values");
 
         assert_eq!(result, Value::Int(42));
     }
@@ -353,7 +353,7 @@ mod tests {
         context.set_variable("x".to_string(), Value::Int(100));
 
         let cypher_expr = CypherExpression::Variable("x".to_string());
-        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &context).unwrap();
+        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &context).expect("Cypher evaluation should succeed for variable values");
 
         assert_eq!(result, Value::Int(100));
     }
@@ -369,7 +369,7 @@ mod tests {
             right,
         });
 
-        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &context).unwrap();
+        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &context).expect("Cypher evaluation should succeed for binary operations");
 
         assert_eq!(result, Value::Int(3));
     }

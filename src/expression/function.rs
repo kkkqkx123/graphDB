@@ -428,12 +428,12 @@ fn evaluate_min(
             for item in list {
                 match item {
                     Value::Int(i) => {
-                        if min.is_none() || min.as_ref().unwrap() < &Value::Int(i) {
+                        if min.is_none() || min.as_ref().expect("min value should exist") < &Value::Int(i) {
                             min = Some(Value::Int(i));
                         }
                     }
                     Value::Float(f) => {
-                        if min.is_none() || min.as_ref().unwrap() < &Value::Float(f) {
+                        if min.is_none() || min.as_ref().expect("min value should exist") < &Value::Float(f) {
                             min = Some(Value::Float(f));
                         }
                     }
@@ -466,12 +466,12 @@ fn evaluate_max(
             for item in list {
                 match item {
                     Value::Int(i) => {
-                        if max.is_none() || max.as_ref().unwrap() > &Value::Int(i) {
+                        if max.is_none() || max.as_ref().expect("max value should exist") > &Value::Int(i) {
                             max = Some(Value::Int(i));
                         }
                     }
                     Value::Float(f) => {
-                        if max.is_none() || max.as_ref().unwrap() > &Value::Float(f) {
+                        if max.is_none() || max.as_ref().expect("max value should exist") > &Value::Float(f) {
                             max = Some(Value::Float(f));
                         }
                     }
