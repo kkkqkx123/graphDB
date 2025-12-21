@@ -327,7 +327,7 @@ mod tests {
     #[test]
     fn test_identifier_parsing() {
         let mut parser = CypherParserCore::new("myVariable".to_string());
-        let identifier = parser.parse_identifier().unwrap();
+        let identifier = parser.parse_identifier().expect("Failed to parse identifier");
         assert_eq!(identifier, "myVariable");
     }
 

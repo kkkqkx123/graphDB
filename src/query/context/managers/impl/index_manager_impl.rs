@@ -126,11 +126,11 @@ mod tests {
             is_unique: true,
         };
 
-        manager.add_index(index.clone()).unwrap();
+        manager.add_index(index.clone()).expect("Failed to add index");
 
         let retrieved = manager.get_index("idx_users_id");
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().name, "idx_users_id");
+        assert_eq!(retrieved.expect("Failed to retrieve index").name, "idx_users_id");
     }
 
     #[test]
@@ -144,10 +144,10 @@ mod tests {
             is_unique: true,
         };
 
-        manager.add_index(index).unwrap();
+        manager.add_index(index).expect("Failed to add index");
         assert!(manager.has_index("idx_users_id"));
 
-        manager.remove_index("idx_users_id").unwrap();
+        manager.remove_index("idx_users_id").expect("Failed to remove index");
         assert!(!manager.has_index("idx_users_id"));
     }
 
@@ -176,9 +176,9 @@ mod tests {
             is_unique: true,
         };
 
-        manager.add_index(index1).unwrap();
-        manager.add_index(index2).unwrap();
-        manager.add_index(index3).unwrap();
+        manager.add_index(index1).expect("Failed to add index1");
+        manager.add_index(index2).expect("Failed to add index2");
+        manager.add_index(index3).expect("Failed to add index3");
 
         let user_indexes = manager.get_indexes_by_schema("users");
         assert_eq!(user_indexes.len(), 2);
@@ -198,7 +198,7 @@ mod tests {
             is_unique: true,
         };
 
-        manager.add_index(index).unwrap();
+        manager.add_index(index).expect("Failed to add index");
 
         assert!(manager.is_field_indexed("users", "id"));
         assert!(!manager.is_field_indexed("users", "name"));

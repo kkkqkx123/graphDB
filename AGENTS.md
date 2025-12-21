@@ -1,13 +1,15 @@
 # GraphDB Project Context
 
-## Code Standards
+## Coding Standards
 
 **Security Assurance**
 Always avoid the use of unwrap. In testing, substitute with expect.
-Refrain from using unsafe methods except for operations directly involving underlying layers.
+Refrain from using unsafe methods except where directly involving low-level operations.
+All instances of unsafe usage must be explicitly documented in the unsafe.md file within the docs\archive directory.
 
-**Type Design Standards**
-Minimise the use of dynamic distribution forms such as dyn. Always prioritise the use of deterministic types.
+**Type Design Guidelines**
+Minimise the use of dynamic dispatch forms such as `dyn`, always prioritising deterministic types.
+All instances of dynamic dispatch must be explicitly documented in the `dynamic.md` file within the `docs\archive` directory.
 
 ## Language
 

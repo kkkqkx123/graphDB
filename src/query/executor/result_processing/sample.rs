@@ -623,7 +623,7 @@ mod tests {
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .await
-            .unwrap();
+            .expect("Failed to process sample");
 
         // 验证结果
         match result {
@@ -664,7 +664,7 @@ mod tests {
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .await
-            .unwrap();
+            .expect("Failed to process sample");
 
         // 验证结果
         match result {

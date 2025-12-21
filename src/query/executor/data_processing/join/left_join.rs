@@ -496,7 +496,7 @@ mod tests {
         );
 
         // 执行连接
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Failed to execute");
 
         // 验证结果
         match result {
@@ -576,7 +576,7 @@ mod tests {
         );
 
         // 执行连接
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Failed to execute");
 
         // 验证结果
         match result {

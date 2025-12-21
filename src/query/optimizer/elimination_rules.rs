@@ -656,7 +656,7 @@ mod tests {
         let mut opt_node_all = OptGroupNode::new(1, project_node_all);
         opt_node_all.dependencies.push(2);
 
-        let result_all = rule.apply(&mut ctx, &opt_node_all).unwrap();
+        let result_all = rule.apply(&mut ctx, &opt_node_all).expect("Failed to apply rule");
         assert!(result_all.is_some(), "投影所有列的节点应该被消除");
 
         // 测试2: 创建一个投影相同列的投影节点（应该被消除）
@@ -687,7 +687,7 @@ mod tests {
         let mut opt_node_same = OptGroupNode::new(3, project_node_same);
         opt_node_same.dependencies.push(2);
 
-        let result_same = rule.apply(&mut ctx, &opt_node_same).unwrap();
+        let result_same = rule.apply(&mut ctx, &opt_node_same).expect("Failed to apply rule");
         assert!(result_same.is_some(), "投影相同列的节点应该被消除");
 
         // 测试3: 创建一个投影不同列的投影节点（不应该被消除）
@@ -713,7 +713,7 @@ mod tests {
         let mut opt_node_diff = OptGroupNode::new(4, project_node_diff);
         opt_node_diff.dependencies.push(2);
 
-        let result_diff = rule.apply(&mut ctx, &opt_node_diff).unwrap();
+        let result_diff = rule.apply(&mut ctx, &opt_node_diff).expect("Failed to apply rule");
         assert!(result_diff.is_none(), "投影不同列的节点不应该被消除");
 
         // 测试4: 创建一个投影带别名的节点（不应该被消除）
@@ -744,7 +744,7 @@ mod tests {
         let mut opt_node_alias = OptGroupNode::new(5, project_node_alias);
         opt_node_alias.dependencies.push(2);
 
-        let result_alias = rule.apply(&mut ctx, &opt_node_alias).unwrap();
+        let result_alias = rule.apply(&mut ctx, &opt_node_alias).expect("Failed to apply rule");
         assert!(result_alias.is_none(), "投影带别名的节点不应该被消除");
 
         // 测试5: 创建一个投影包含表达式的节点（不应该被消除）
@@ -781,7 +781,7 @@ mod tests {
         let mut opt_node_expr = OptGroupNode::new(6, project_node_expr);
         opt_node_expr.dependencies.push(2);
 
-        let result_expr = rule.apply(&mut ctx, &opt_node_expr).unwrap();
+        let result_expr = rule.apply(&mut ctx, &opt_node_expr).expect("Failed to apply rule");
         assert!(result_expr.is_none(), "投影包含表达式的节点不应该被消除");
     }
 

@@ -145,15 +145,15 @@ mod tests {
         let context = CypherExecutionContext::new();
 
         let string_expr = Expression::Literal(Literal::String("test".to_string()));
-        let result = evaluator.evaluate(&string_expr, &context).unwrap();
+        let result = evaluator.evaluate(&string_expr, &context).expect("Failed to evaluate string expression");
         assert_eq!(result, Value::String("test".to_string()));
 
         let int_expr = Expression::Literal(Literal::Integer(42));
-        let result = evaluator.evaluate(&int_expr, &context).unwrap();
+        let result = evaluator.evaluate(&int_expr, &context).expect("Failed to evaluate int expression");
         assert_eq!(result, Value::Int(42));
 
         let bool_expr = Expression::Literal(Literal::Boolean(true));
-        let result = evaluator.evaluate(&bool_expr, &context).unwrap();
+        let result = evaluator.evaluate(&bool_expr, &context).expect("Failed to evaluate bool expression");
         assert_eq!(result, Value::Bool(true));
     }
 
@@ -168,7 +168,7 @@ mod tests {
             operator: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(Literal::Integer(42))),
         });
-        let result = evaluator.evaluate(&equal_expr, &context).unwrap();
+        let result = evaluator.evaluate(&equal_expr, &context).expect("Failed to evaluate equal expression");
         assert_eq!(result, Value::Bool(true));
 
         // 测试不相等比较
@@ -177,7 +177,7 @@ mod tests {
             operator: BinaryOperator::NotEqual,
             right: Box::new(Expression::Literal(Literal::Integer(43))),
         });
-        let result = evaluator.evaluate(&not_equal_expr, &context).unwrap();
+        let result = evaluator.evaluate(&not_equal_expr, &context).expect("Failed to evaluate not equal expression");
         assert_eq!(result, Value::Bool(true));
 
         // 测试AND操作
@@ -186,7 +186,7 @@ mod tests {
             operator: BinaryOperator::And,
             right: Box::new(Expression::Literal(Literal::Boolean(true))),
         });
-        let result = evaluator.evaluate(&and_expr, &context).unwrap();
+        let result = evaluator.evaluate(&and_expr, &context).expect("Failed to evaluate and expression");
         assert_eq!(result, Value::Bool(true));
     }
 
@@ -200,7 +200,7 @@ mod tests {
             operator: UnaryOperator::Not,
             expression: Box::new(Expression::Literal(Literal::Boolean(true))),
         });
-        let result = evaluator.evaluate(&not_expr, &context).unwrap();
+        let result = evaluator.evaluate(&not_expr, &context).expect("Failed to evaluate not expression");
         assert_eq!(result, Value::Bool(false));
 
         // 测试负号
@@ -208,7 +208,7 @@ mod tests {
             operator: UnaryOperator::Negative,
             expression: Box::new(Expression::Literal(Literal::Integer(42))),
         });
-        let result = evaluator.evaluate(&neg_expr, &context).unwrap();
+        let result = evaluator.evaluate(&neg_expr, &context).expect("Failed to evaluate neg expression");
         assert_eq!(result, Value::Int(-42));
     }
 
@@ -223,7 +223,7 @@ mod tests {
             operator: BinaryOperator::Add,
             right: Box::new(Expression::Literal(Literal::Integer(5))),
         });
-        let result = evaluator.evaluate(&add_expr, &context).unwrap();
+        let result = evaluator.evaluate(&add_expr, &context).expect("Failed to evaluate add expression");
         assert_eq!(result, Value::Int(15));
 
         // 测试字符串连接
@@ -232,7 +232,7 @@ mod tests {
             operator: BinaryOperator::Add,
             right: Box::new(Expression::Literal(Literal::String(" World".to_string()))),
         });
-        let result = evaluator.evaluate(&concat_expr, &context).unwrap();
+        let result = evaluator.evaluate(&concat_expr, &context).expect("Failed to evaluate concat expression");
         assert_eq!(result, Value::String("Hello World".to_string()));
     }
 
@@ -295,7 +295,7 @@ mod tests {
             Expression::Literal(Literal::Integer(3)),
         ];
 
-        let results = evaluator.evaluate_batch(&exprs, &context).unwrap();
+        let results = evaluator.evaluate_batch(&exprs, &context).expect("Failed to evaluate batch expressions");
         assert_eq!(results.len(), 3);
         assert_eq!(results[0], Value::Int(1));
         assert_eq!(results[1], Value::Int(2));

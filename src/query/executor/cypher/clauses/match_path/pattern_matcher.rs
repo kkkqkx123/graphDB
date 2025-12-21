@@ -309,7 +309,7 @@ mod tests {
 
         let filtered = matcher
             .filter_vertices_by_properties(vertices, &properties, &context)
-            .unwrap();
+            .expect("Failed to get next");
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].id(), &Value::String("v1".to_string()));
     }
@@ -360,7 +360,7 @@ mod tests {
 
         let filtered = matcher
             .filter_edges_by_properties(edges, &properties, &context)
-            .unwrap();
+            .expect("Failed to get next");
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].src(), &Value::String("v1".to_string()));
     }

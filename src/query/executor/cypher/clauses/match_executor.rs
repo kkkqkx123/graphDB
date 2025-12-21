@@ -279,7 +279,7 @@ mod tests {
 
         let result = executor.execute_match(clause, &mut context).await;
         assert!(result.is_ok());
-        assert!(matches!(result.unwrap(), ExecutionResult::Success));
+        assert!(matches!(result.expect("Failed to execute match"), ExecutionResult::Success));
     }
 
     #[tokio::test]
@@ -395,7 +395,7 @@ mod tests {
 
         let result = executor.execute_match(clause, &mut context).await;
         assert!(result.is_ok());
-        assert!(matches!(result.unwrap(), ExecutionResult::Success));
+        assert!(matches!(result.expect("Failed to execute match"), ExecutionResult::Success));
     }
 
     #[test]

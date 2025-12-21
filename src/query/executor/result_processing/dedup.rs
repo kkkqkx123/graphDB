@@ -669,7 +669,7 @@ mod tests {
         let result = executor
             .process(ExecutionResult::Values(Vec::new()))
             .await
-            .unwrap();
+            .expect("Failed to process dedup");
 
         // 验证结果
         match result {
@@ -720,7 +720,7 @@ mod tests {
         let result = executor
             .process(ExecutionResult::Values(test_data))
             .await
-            .unwrap();
+            .expect("Failed to process dedup");
 
         // 验证结果
         match result {

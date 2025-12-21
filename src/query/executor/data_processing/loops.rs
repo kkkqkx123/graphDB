@@ -192,10 +192,10 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
         {
             // 合并数据集
             if all_datasets.len() == 1 {
-                ExecutionResult::DataSet(all_datasets.into_iter().next().unwrap())
+                ExecutionResult::DataSet(all_datasets.into_iter().next().expect("Failed to get next dataset"))
             } else {
                 // 简化处理：返回第一个数据集
-                ExecutionResult::DataSet(all_datasets.into_iter().next().unwrap())
+                ExecutionResult::DataSet(all_datasets.into_iter().next().expect("Failed to get next dataset"))
             }
         } else {
             // 混合类型，返回值列表
@@ -689,7 +689,7 @@ mod tests {
         );
 
         // 执行循环
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Failed to execute");
 
         // 调试信息
         println!("Loop result: {:?}", result);
@@ -723,7 +723,7 @@ mod tests {
             ForLoopExecutor::new(1, storage, "i".to_string(), 1, 3, 1, body_executor);
 
         // 执行循环
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().await.expect("Failed to execute");
 
         // 验证结果
         match result {

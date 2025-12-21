@@ -1053,7 +1053,7 @@ mod tests {
                 Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::expression::Expression::Variable("age > 18".to_string()),
             )
-            .unwrap(),
+            .expect("Failed to create filter node"),
         );
         let filter_opt_node = OptGroupNode::new(2, filter_node);
 
@@ -1064,7 +1064,7 @@ mod tests {
         ctx.add_plan_node_and_group_node(1, &index_scan_opt_node);
         ctx.add_plan_node_and_group_node(2, &filter_opt_node);
 
-        let result = rule.apply(&mut ctx, &index_scan_opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &index_scan_opt_node).expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1083,7 +1083,7 @@ mod tests {
                 Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::expression::Expression::Variable("name = 'test'".to_string()),
             )
-            .unwrap(),
+            .expect("Failed to create filter node"),
         );
         let filter_opt_node = OptGroupNode::new(2, filter_node);
 
@@ -1094,7 +1094,7 @@ mod tests {
         ctx.add_plan_node_and_group_node(1, &index_scan_opt_node);
         ctx.add_plan_node_and_group_node(2, &filter_opt_node);
 
-        let result = rule.apply(&mut ctx, &index_scan_opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &index_scan_opt_node).expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1107,7 +1107,7 @@ mod tests {
         let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1120,7 +1120,7 @@ mod tests {
         let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1133,7 +1133,7 @@ mod tests {
         let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1146,7 +1146,7 @@ mod tests {
         let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1159,7 +1159,7 @@ mod tests {
         let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).unwrap();
+        let result = rule.apply(&mut ctx, &opt_node).expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1257,7 +1257,7 @@ mod tests {
         let mut union_node = OptGroupNode::new(3, Arc::new(IndexScan::new(3, 1, 2, 3, "RANGE")));
         union_node.dependencies = vec![1, 2];
 
-        let result = rule.apply(&mut ctx, &union_node).unwrap();
+        let result = rule.apply(&mut ctx, &union_node).expect("Failed to apply rule");
         assert!(result.is_some());
     }
 }

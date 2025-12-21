@@ -453,7 +453,7 @@ mod tests {
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .await
-            .unwrap();
+            .expect("Failed to get next");
 
         // 验证结果
         match result {

@@ -613,7 +613,7 @@ mod tests {
         // 转换应该成功
         assert!(result.is_ok());
 
-        let subplan = result.unwrap();
+        let subplan = result.expect("Failed to get subplan");
         assert!(subplan.root.is_some());
 
         // 验证根节点类型 - 当前实现使用Argument作为占位符
@@ -635,7 +635,7 @@ mod tests {
         // 转换应该成功
         assert!(result.is_ok());
 
-        let subplan = result.unwrap();
+        let subplan = result.expect("Failed to get subplan");
         assert!(subplan.root.is_some());
 
         // 验证根节点类型 - 当前实现使用Argument作为占位符
@@ -664,7 +664,7 @@ mod tests {
         // 转换应该成功
         assert!(result.is_ok());
 
-        let subplan = result.unwrap();
+        let subplan = result.expect("Failed to get subplan");
         assert!(subplan.root.is_some());
     }
 
@@ -681,7 +681,7 @@ mod tests {
         // 转换应该成功
         assert!(result.is_ok());
 
-        let subplan = result.unwrap();
+        let subplan = result.expect("Failed to get subplan");
         assert!(subplan.root.is_some());
     }
 
@@ -699,7 +699,7 @@ mod tests {
         // 转换应该成功
         assert!(result.is_ok());
 
-        let subplan = result.unwrap();
+        let subplan = result.expect("Failed to get subplan");
         assert!(subplan.root.is_some());
     }
 
@@ -718,7 +718,7 @@ mod tests {
         // 转换应该成功
         assert!(result.is_ok());
 
-        let subplan = result.unwrap();
+        let subplan = result.expect("Failed to get subplan");
         assert!(subplan.root.is_some());
     }
 
@@ -739,7 +739,7 @@ mod tests {
         // 转换应该成功
         assert!(result.is_ok());
 
-        let subplan = result.unwrap();
+        let subplan = result.expect("Failed to get subplan");
         assert!(subplan.root.is_some());
     }
 
@@ -758,7 +758,7 @@ mod tests {
         // 转换应该成功
         assert!(result.is_ok());
 
-        let subplan = result.unwrap();
+        let subplan = result.expect("Failed to get subplan");
         assert!(subplan.root.is_some());
     }
 
@@ -790,7 +790,7 @@ mod tests {
         // 转换应该成功
         assert!(result.is_ok());
 
-        let subplan = result.unwrap();
+        let subplan = result.expect("Failed to get subplan");
         assert!(subplan.root.is_some());
     }
 
@@ -805,7 +805,7 @@ mod tests {
         let result = planner.transform(None, &mut node_aliases_seen);
         assert!(result.is_ok());
 
-        let subplan = result.unwrap();
+        let subplan = result.expect("Failed to get subplan");
 
         // 验证 SubPlan 结构
         assert!(subplan.root().is_some());

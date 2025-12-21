@@ -132,7 +132,7 @@ mod tests {
         let cluster_info = client.get_cluster_info();
         assert!(cluster_info.is_ok());
 
-        let info = cluster_info.unwrap();
+        let info = cluster_info.expect("Failed to get cluster info");
         assert_eq!(info.cluster_id, "local_cluster");
         assert_eq!(info.meta_servers.len(), 1);
         assert_eq!(info.storage_servers.len(), 1);
@@ -155,7 +155,7 @@ mod tests {
 
         let retrieved = client.get_space_info(1);
         assert!(retrieved.is_ok());
-        assert_eq!(retrieved.unwrap().space_name, "test_space");
+        assert_eq!(retrieved.expect("Failed to retrieve space info").space_name, "test_space");
     }
 
     #[test]
@@ -169,10 +169,10 @@ mod tests {
             replica_factor: 3,
         };
 
-        client.add_space(space_info).unwrap();
+        client.add_space(space_info).expect("Failed to add space");
         assert!(client.has_space(1));
 
-        client.remove_space(1).unwrap();
+        client.remove_space(1).expect("Failed to remove space");
         assert!(!client.has_space(1));
     }
 
@@ -194,17 +194,17 @@ mod tests {
             replica_factor: 5,
         };
 
-        client.add_space(space_info1).unwrap();
+        client.add_space(space_info1).expect("Failed to add space");
 
         let retrieved = client.get_space_info(1);
         assert!(retrieved.is_ok());
-        assert_eq!(retrieved.unwrap().space_name, "old_name");
+        assert_eq!(retrieved.expect("Failed to retrieve space info").space_name, "old_name");
 
-        client.update_space(1, space_info2).unwrap();
+        client.update_space(1, space_info2).expect("Failed to update space");
 
         let retrieved = client.get_space_info(1);
         assert!(retrieved.is_ok());
-        assert_eq!(retrieved.unwrap().space_name, "new_name");
+        assert_eq!(retrieved.expect("Failed to retrieve space info").space_name, "new_name");
     }
 
     #[test]
@@ -240,7 +240,7 @@ mod tests {
 
         let retrieved = client.get_cluster_info();
         assert!(retrieved.is_ok());
-        assert_eq!(retrieved.unwrap().cluster_id, "new_cluster");
+        assert_eq!(retrieved.expect("Failed to retrieve cluster info").cluster_id, "new_cluster");
     }
 
     #[test]
@@ -261,8 +261,8 @@ mod tests {
             replica_factor: 5,
         };
 
-        client.add_space(space1).unwrap();
-        client.add_space(space2).unwrap();
+        client.add_space(space1).expect("Failed to add space1");
+        client.add_space(space2).expect("Failed to add space2");
 
         let space_ids = client.list_space_ids();
         assert_eq!(space_ids.len(), 2);

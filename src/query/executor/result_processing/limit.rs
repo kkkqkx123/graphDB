@@ -419,7 +419,7 @@ mod tests {
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .await
-            .unwrap();
+            .expect("Failed to process limit");
 
         // 验证结果
         match result {
@@ -450,7 +450,7 @@ mod tests {
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .await
-            .unwrap();
+            .expect("Failed to process limit");
 
         // 验证结果
         match result {

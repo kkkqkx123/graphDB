@@ -190,7 +190,7 @@ mod tests {
         let start_node_id = start_node.id();
 
         let condition = Expression::Variable("test".to_string());
-        let mut filter_node = FilterNode::new(start_node, condition).unwrap();
+        let mut filter_node = FilterNode::new(start_node, condition).expect("Failed to create filter node");
 
         // 测试依赖管理
         assert_eq!(filter_node.dependency_count(), 1);

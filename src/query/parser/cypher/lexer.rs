@@ -204,7 +204,7 @@ impl CypherLexer {
     /// 读取操作符
     fn read_operator(&mut self) -> Result<String, String> {
         let mut operator = String::new();
-        let first_char = self.peek_char().unwrap();
+        let first_char = self.peek_char().expect("Lexer should have a character to peek at");
         operator.push(first_char);
         self.consume_char();
 
@@ -431,11 +431,11 @@ mod tests {
         assert_eq!(tokens[0].value, "MATCH");
 
         // 检查字符串字面量
-        let string_token = tokens.iter().find(|t| t.value == "Alice").unwrap();
+        let string_token = tokens.iter().find(|t| t.value == "Alice").expect("Should find Alice token");
         assert_eq!(string_token.token_type, TokenType::LiteralString);
 
         // 检查数字字面量
-        let number_token = tokens.iter().find(|t| t.value == "25").unwrap();
+        let number_token = tokens.iter().find(|t| t.value == "25").expect("Should find number token");
         assert_eq!(number_token.token_type, TokenType::LiteralNumber);
     }
 

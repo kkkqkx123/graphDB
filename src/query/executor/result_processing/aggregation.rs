@@ -851,7 +851,7 @@ mod tests {
         let result = executor
             .process(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
             .await
-            .unwrap();
+            .expect("Failed to process aggregation");
 
         // 验证结果
         match result {
