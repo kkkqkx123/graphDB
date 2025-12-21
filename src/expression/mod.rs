@@ -17,6 +17,8 @@ pub mod type_conversion;
 pub mod unary;
 pub mod visitor;
 
+pub use visitor::{ExpressionVisitor, ExpressionAcceptor, DefaultExpressionVisitor};
+
 pub use expression::AggregateFunction;
 pub use expression::BinaryOperator;
 pub use expression::DataType;

@@ -169,8 +169,8 @@ impl PlanNodeClonable for MultiShortestPath {
 
 impl PlanNodeVisitable for MultiShortestPath {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
+        visitor.plan_pre_visit()?;
+        visitor.plan_post_visit()?;
         Ok(())
     }
 }
@@ -320,8 +320,8 @@ impl PlanNodeClonable for BFSShortest {
 
 impl PlanNodeVisitable for BFSShortest {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
+        visitor.plan_pre_visit()?;
+        visitor.plan_post_visit()?;
         Ok(())
     }
 }
@@ -484,8 +484,8 @@ impl PlanNodeClonable for AllPaths {
 
 impl PlanNodeVisitable for AllPaths {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
+        visitor.plan_pre_visit()?;
+        visitor.plan_post_visit()?;
         Ok(())
     }
 }
@@ -639,8 +639,8 @@ impl PlanNodeClonable for ShortestPath {
 
 impl PlanNodeVisitable for ShortestPath {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
+        visitor.plan_pre_visit()?;
+        visitor.plan_post_visit()?;
         Ok(())
     }
 }

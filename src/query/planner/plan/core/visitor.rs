@@ -7,6 +7,7 @@ use super::nodes::{
 };
 use super::plan_node_traits::PlanNode as BasePlanNode;
 use crate::core::error::{DBError, DBResult};
+use std::sync::Arc;
 use crate::core::visitor::{
     VisitorConfig, VisitorContext, VisitorCore, VisitorResult, VisitorState,
 };
@@ -19,7 +20,7 @@ use std::fmt;
 
 /// 统一的计划节点访问者基础trait
 /// 现在继承自VisitorCore，使用统一的基础设施
-pub trait PlanNodeVisitor: VisitorCore<Result = ()> + std::fmt::Debug {
+pub trait PlanNodeVisitor: VisitorCore<Arc<dyn BasePlanNode>, Result = ()> + std::fmt::Debug {
     /// 计划节点特定的预访问钩子
     /// 注意：VisitorCore的pre_visit会在accept方法中自动调用
     fn plan_pre_visit(&mut self) -> Result<(), PlanNodeVisitError> {
@@ -299,8 +300,12 @@ impl UnifiedPlanNodeVisitor {
     }
 }
 
-impl VisitorCore for UnifiedPlanNodeVisitor {
+impl VisitorCore<Arc<dyn BasePlanNode>> for UnifiedPlanNodeVisitor {
     type Result = ();
+
+    fn visit(&mut self, _target: &Arc<dyn BasePlanNode>) -> Self::Result {
+        // 默认实现什么也不做，具体访问逻辑由PlanNodeVisitor trait处理
+    }
 
     fn context(&self) -> &VisitorContext {
         &self.context
@@ -441,8 +446,12 @@ impl Default for DefaultPlanNodeVisitor {
     }
 }
 
-impl VisitorCore for DefaultPlanNodeVisitor {
+impl VisitorCore<Arc<dyn BasePlanNode>> for DefaultPlanNodeVisitor {
     type Result = ();
+
+    fn visit(&mut self, _target: &Arc<dyn BasePlanNode>) -> Self::Result {
+        // 默认实现什么也不做，具体访问逻辑由PlanNodeVisitor trait处理
+    }
 
     fn context(&self) -> &VisitorContext {
         self.base.context()

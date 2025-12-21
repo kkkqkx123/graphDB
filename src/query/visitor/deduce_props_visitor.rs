@@ -1,7 +1,12 @@
 //! DeducePropsVisitor - 用于推导表达式属性的访问器
 //! 对应 NebulaGraph DeducePropsVisitor.h/.cpp 的功能
 
-use crate::expression::Expression;
+use crate::core::visitor::{
+    VisitorConfig, VisitorContext, VisitorCore, VisitorResult, VisitorState,
+};
+use crate::expression::visitor::ExpressionAcceptor;
+use crate::expression::{Expression, ExpressionVisitor, LiteralValue};
+use crate::query::visitor::QueryVisitor;
 use std::collections::{HashMap, HashSet};
 
 /// 属性定义
@@ -200,7 +205,10 @@ impl ExpressionProps {
 
 /// 属性推导访问器
 /// 用于递归遍历表达式树，收集所有涉及的属性信息
+#[derive(Debug)]
 pub struct DeducePropsVisitor {
+    context: VisitorContext,
+    state: Box<dyn VisitorState>,
     /// 推导出的表达式属性集合
     props: ExpressionProps,
     /// 收集的节点信息
@@ -214,8 +222,24 @@ pub struct DeducePropsVisitor {
 }
 
 impl DeducePropsVisitor {
+    /// 创建新的属性推导访问器
     pub fn new() -> Self {
         Self {
+            context: VisitorContext::new(VisitorConfig::new()),
+            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
+            props: ExpressionProps::new(),
+            node_info: Vec::new(),
+            edge_info: Vec::new(),
+            user_defined_vars: HashSet::new(),
+            error: None,
+        }
+    }
+
+    /// 创建带配置的属性推导访问器
+    pub fn with_config(config: VisitorConfig) -> Self {
+        Self {
+            context: VisitorContext::new(config),
+            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
             props: ExpressionProps::new(),
             node_info: Vec::new(),
             edge_info: Vec::new(),
@@ -227,6 +251,8 @@ impl DeducePropsVisitor {
     /// 创建带有用户定义变量列表的访问器
     pub fn with_user_vars(user_defined_vars: HashSet<String>) -> Self {
         Self {
+            context: VisitorContext::new(VisitorConfig::new()),
+            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
             props: ExpressionProps::new(),
             node_info: Vec::new(),
             edge_info: Vec::new(),
@@ -238,214 +264,6 @@ impl DeducePropsVisitor {
     /// 执行属性推导
     pub fn deduce(&mut self, expr: &Expression) -> Result<(), String> {
         self.visit(expr)
-    }
-
-    /// 递归访问表达式树
-    fn visit(&mut self, expr: &Expression) -> Result<(), String> {
-        match expr {
-            Expression::Literal(_) => {
-                // 常量表达式不包含属性
-                Ok(())
-            }
-            Expression::Variable(name) => {
-                // 处理属性表达式 - 作为输入属性
-                self.props.insert_input_prop(name);
-                Ok(())
-            }
-            Expression::Unary { op: _, operand } => {
-                // 一元操作符，递归访问操作数
-                self.visit(operand)
-            }
-            Expression::Binary { left, op: _, right } => {
-                // 二元操作符，递归访问左右操作数
-                self.visit(left)?;
-                self.visit(right)
-            }
-            Expression::Function { name: _, args } => {
-                // 函数调用，递归访问所有参数
-                for arg in args {
-                    self.visit(arg)?;
-                }
-                Ok(())
-            }
-            Expression::TagProperty { tag, prop } => {
-                // 处理标签属性表达式（tagName.prop）
-                self.props.insert_tag_name_id(tag, tag);
-                self.props.insert_tag_prop(tag, prop);
-                Ok(())
-            }
-            Expression::EdgeProperty { edge, prop } => {
-                // 处理边属性表达式（edgeName.prop）
-                self.props.insert_edge_prop(edge, prop);
-                Ok(())
-            }
-            Expression::InputProperty(prop) => {
-                // 处理输入属性表达式（$-.prop）
-                self.props.insert_input_prop(prop);
-                Ok(())
-            }
-            Expression::VariableProperty { var, prop } => {
-                // 处理变量属性表达式（$var.prop）
-                if !var.is_empty() {
-                    self.props.insert_var_prop(var, prop);
-                    self.user_defined_vars.insert(var.clone());
-                }
-                Ok(())
-            }
-            Expression::SourceProperty { tag, prop } => {
-                // 处理源属性表达式（$^.tag.prop）
-                self.props.insert_tag_name_id(tag, tag);
-                self.props.insert_src_tag_prop(tag, prop);
-                Ok(())
-            }
-            Expression::DestinationProperty { tag, prop } => {
-                // 处理目标属性表达式（$$.tag.prop）
-                self.props.insert_tag_name_id(tag, tag);
-                self.props.insert_dst_tag_prop(tag, prop);
-                Ok(())
-            }
-            Expression::UnaryPlus(operand) => self.visit(operand),
-            Expression::UnaryNegate(operand) => self.visit(operand),
-            Expression::UnaryNot(operand) => self.visit(operand),
-            Expression::UnaryIncr(operand) => self.visit(operand),
-            Expression::UnaryDecr(operand) => self.visit(operand),
-            Expression::IsNull(operand) => self.visit(operand),
-            Expression::IsNotNull(operand) => self.visit(operand),
-            Expression::IsEmpty(operand) => self.visit(operand),
-            Expression::IsNotEmpty(operand) => self.visit(operand),
-            Expression::List(items) => {
-                for item in items {
-                    self.visit(item)?;
-                }
-                Ok(())
-            }
-            Expression::Map(items) => {
-                for (_, value) in items {
-                    self.visit(value)?;
-                }
-                Ok(())
-            }
-            Expression::TypeCasting { expr, .. } => self.visit(expr),
-            Expression::Case {
-                conditions,
-                default,
-            } => {
-                for (condition, value) in conditions {
-                    self.visit(condition)?;
-                    self.visit(value)?;
-                }
-                if let Some(default_expr) = default {
-                    self.visit(default_expr)?;
-                }
-                Ok(())
-            }
-            Expression::Aggregate { arg, .. } => {
-                self.visit(arg.as_ref())?;
-                Ok(())
-            }
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                self.visit(generator)?;
-                if let Some(condition_expr) = condition {
-                    self.visit(condition_expr)?;
-                }
-                Ok(())
-            }
-            Expression::Predicate { list, condition } => {
-                self.visit(list)?;
-                self.visit(condition)?;
-                Ok(())
-            }
-            Expression::Reduce {
-                list,
-                initial,
-                expr,
-                ..
-            } => {
-                self.visit(list)?;
-                self.visit(initial)?;
-                self.visit(expr)?;
-                Ok(())
-            }
-            Expression::PathBuild(items) => {
-                for item in items {
-                    self.visit(item)?;
-                }
-                Ok(())
-            }
-            Expression::ESQuery(_) => {
-                // 文本搜索表达式不需要处理属性
-                Ok(())
-            }
-            Expression::UUID => {
-                // UUID表达式不需要处理属性
-                Ok(())
-            }
-            Expression::Subscript { collection, index } => {
-                self.visit(collection)?;
-                self.visit(index)?;
-                Ok(())
-            }
-            Expression::SubscriptRange {
-                collection,
-                start,
-                end,
-            } => {
-                self.visit(collection)?;
-                if let Some(start_expr) = start {
-                    self.visit(start_expr)?;
-                }
-                if let Some(end_expr) = end {
-                    self.visit(end_expr)?;
-                }
-                Ok(())
-            }
-            Expression::Label(name) => {
-                // 标签表达式
-                if !name.is_empty() {
-                    self.user_defined_vars.insert(name.clone());
-                }
-                Ok(())
-            }
-            Expression::MatchPathPattern { patterns, .. } => {
-                for pattern in patterns {
-                    self.visit(pattern)?;
-                }
-                Ok(())
-            }
-            Expression::Property { .. } => {
-                // 属性表达式已在其他地方处理
-                Ok(())
-            }
-            Expression::TypeCast { expr, .. } => {
-                // 类型转换表达式
-                self.visit(expr)
-            }
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => {
-                // 范围访问
-                self.visit(collection)?;
-                if let Some(start_expr) = start {
-                    self.visit(start_expr)?;
-                }
-                if let Some(end_expr) = end {
-                    self.visit(end_expr)?;
-                }
-                Ok(())
-            }
-            Expression::Path(items) => {
-                // 路径表达式
-                for item in items {
-                    self.visit(item)?;
-                }
-                Ok(())
-            }
-        }
     }
 
     /// 获取推导出的表达式属性
@@ -505,9 +323,226 @@ impl Default for DeducePropsVisitor {
     }
 }
 
-impl Default for ExpressionProps {
-    fn default() -> Self {
-        Self::new()
+impl VisitorCore<Expression> for DeducePropsVisitor {
+    type Result = Result<(), String>;
+
+    fn visit(&mut self, target: &Expression) -> Self::Result {
+        // 使用表达式接受器模式进行访问
+        target.accept(self)
+    }
+
+    fn context(&self) -> &VisitorContext {
+        &self.context
+    }
+
+    fn context_mut(&mut self) -> &mut VisitorContext {
+        &mut self.context
+    }
+
+    fn state(&self) -> &dyn VisitorState {
+        self.state.as_ref()
+    }
+
+    fn state_mut(&mut self) -> &mut dyn VisitorState {
+        self.state.as_mut()
+    }
+}
+
+impl ExpressionVisitor for DeducePropsVisitor {
+    fn visit_literal(&mut self, _value: &LiteralValue) -> Self::Result {
+        // 常量表达式不包含属性
+        Ok(())
+    }
+
+    fn visit_variable(&mut self, name: &str) -> Self::Result {
+        // 处理属性表达式 - 作为输入属性
+        self.props.insert_input_prop(name);
+        Ok(())
+    }
+
+    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
+        // 递归访问对象
+        object.accept(self)?;
+        // 属性访问返回Empty类型（实际类型应该查询Schema）
+        Ok(())
+    }
+
+    fn visit_binary(
+        &mut self,
+        left: &Expression,
+        _op: &crate::expression::BinaryOperator,
+        right: &Expression,
+    ) -> Self::Result {
+        // 二元操作符，递归访问左右操作数
+        left.accept(self)?;
+        right.accept(self)?;
+        Ok(())
+    }
+
+    fn visit_unary(
+        &mut self,
+        _op: &crate::expression::UnaryOperator,
+        operand: &Expression,
+    ) -> Self::Result {
+        // 一元操作符，递归访问操作数
+        operand.accept(self)?;
+        Ok(())
+    }
+
+    fn visit_function(&mut self, _name: &str, args: &[Expression]) -> Self::Result {
+        // 函数调用，递归访问所有参数
+        for arg in args {
+            arg.accept(self)?;
+        }
+        Ok(())
+    }
+
+    fn visit_aggregate(
+        &mut self,
+        _func: &crate::expression::AggregateFunction,
+        arg: &Expression,
+        _distinct: bool,
+    ) -> Self::Result {
+        // 聚合函数，递归访问参数
+        arg.accept(self)?;
+        Ok(())
+    }
+
+    fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            item.accept(self)?;
+        }
+        Ok(())
+    }
+
+    fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
+        for (_, value) in pairs {
+            value.accept(self)?;
+        }
+        Ok(())
+    }
+
+    fn visit_case(
+        &mut self,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Expression>,
+    ) -> Self::Result {
+        for (condition, value) in conditions {
+            condition.accept(self)?;
+            value.accept(self)?;
+        }
+        if let Some(default_expr) = default {
+            default_expr.accept(self)?;
+        }
+        Ok(())
+    }
+
+    fn visit_type_cast(
+        &mut self,
+        expr: &Expression,
+        _target_type: &crate::expression::DataType,
+    ) -> Self::Result {
+        expr.accept(self)?;
+        Ok(())
+    }
+
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
+        collection.accept(self)?;
+        index.accept(self)?;
+        Ok(())
+    }
+
+    fn visit_range(
+        &mut self,
+        collection: &Expression,
+        start: &Option<Expression>,
+        end: &Option<Expression>,
+    ) -> Self::Result {
+        collection.accept(self)?;
+        if let Some(start_expr) = start {
+            start_expr.accept(self)?;
+        }
+        if let Some(end_expr) = end {
+            end_expr.accept(self)?;
+        }
+        Ok(())
+    }
+
+    fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            item.accept(self)?;
+        }
+        Ok(())
+    }
+
+    fn visit_label(&mut self, name: &str) -> Self::Result {
+        // 标签表达式
+        if !name.is_empty() {
+            self.user_defined_vars.insert(name.to_string());
+        }
+        Ok(())
+    }
+
+    fn visit_tag_property(&mut self, tag: &str, prop: &str) -> Self::Result {
+        // 处理标签属性表达式（tagName.prop）
+        self.props.insert_tag_name_id(tag, tag);
+        self.props.insert_tag_prop(tag, prop);
+        Ok(())
+    }
+
+    fn visit_edge_property(&mut self, edge: &str, prop: &str) -> Self::Result {
+        // 处理边属性表达式（edgeName.prop）
+        self.props.insert_edge_prop(edge, prop);
+        Ok(())
+    }
+
+    fn visit_input_property(&mut self, prop: &str) -> Self::Result {
+        // 处理输入属性表达式（$-.prop）
+        self.props.insert_input_prop(prop);
+        Ok(())
+    }
+
+    fn visit_variable_property(&mut self, var: &str, prop: &str) -> Self::Result {
+        // 处理变量属性表达式（$var.prop）
+        if !var.is_empty() {
+            self.props.insert_var_prop(var, prop);
+            self.user_defined_vars.insert(var.to_string());
+        }
+        Ok(())
+    }
+
+    fn visit_source_property(&mut self, tag: &str, prop: &str) -> Self::Result {
+        // 处理源属性表达式（$^.tag.prop）
+        self.props.insert_tag_name_id(tag, tag);
+        self.props.insert_src_tag_prop(tag, prop);
+        Ok(())
+    }
+
+    fn visit_destination_property(&mut self, tag: &str, prop: &str) -> Self::Result {
+        // 处理目标属性表达式（$$.tag.prop）
+        self.props.insert_tag_name_id(tag, tag);
+        self.props.insert_dst_tag_prop(tag, prop);
+        Ok(())
+    }
+}
+
+impl QueryVisitor for DeducePropsVisitor {
+    type QueryResult = ExpressionProps;
+
+    fn get_result(&self) -> Self::QueryResult {
+        self.props.clone()
+    }
+
+    fn reset(&mut self) {
+        self.props = ExpressionProps::new();
+        self.node_info.clear();
+        self.edge_info.clear();
+        self.user_defined_vars.clear();
+        self.error = None;
+    }
+
+    fn is_success(&self) -> bool {
+        self.error.is_none()
     }
 }
 

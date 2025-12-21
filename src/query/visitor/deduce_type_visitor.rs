@@ -6,6 +6,7 @@ use crate::core::ValueTypeDef;
 use crate::expression::Expression;
 use crate::expression::{BinaryOperator, UnaryOperator};
 use crate::query::validator::ValidateContext;
+use crate::query::visitor::QueryVisitor;
 use crate::storage::StorageEngine;
 use thiserror::Error;
 
@@ -721,6 +722,23 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             DataType::Path => ValueTypeDef::Path,
             DataType::DateTime => ValueTypeDef::DateTime,
         }
+    }
+}
+
+impl<'a, S: StorageEngine> QueryVisitor for DeduceTypeVisitor<'a, S> {
+    type QueryResult = ValueTypeDef;
+
+    fn get_result(&self) -> Self::QueryResult {
+        self.type_.clone()
+    }
+    
+    fn reset(&mut self) {
+        self.status = None;
+        self.type_ = ValueTypeDef::Empty;
+    }
+    
+    fn is_success(&self) -> bool {
+        self.status.is_none()
     }
 }
 

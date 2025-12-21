@@ -1,6 +1,6 @@
-//! 最小化访问者模式核心定义
-//! 
-//! 这个模块提供了计划节点访问者需要的基础设施，以及对Value类型的访问者支持
+//! 访问者模式核心定义
+//!
+//! 这个模块提供了统一的访问者基础设施，支持零成本抽象
 
 use crate::core::error::DBError;
 use crate::core::value::{
@@ -270,10 +270,55 @@ impl VisitorConfig {
     }
 }
 
-/// Value 访问者 trait - 用于访问Value类型的各个变体
-pub trait ValueVisitor {
+/// 访问者核心trait - 所有访问者的基础
+pub trait VisitorCore<T>: std::fmt::Debug {
+    /// 访问者结果类型
     type Result;
 
+    /// 访问目标对象
+    fn visit(&mut self, target: &T) -> Self::Result;
+
+    /// 预访问钩子 - 在访问开始前调用
+    fn pre_visit(&mut self) -> VisitorResult<()> {
+        Ok(())
+    }
+
+    /// 后访问钩子 - 在访问结束后调用
+    fn post_visit(&mut self) -> VisitorResult<()> {
+        Ok(())
+    }
+
+    /// 获取访问者上下文
+    fn context(&self) -> &VisitorContext;
+
+    /// 获取可变访问者上下文
+    fn context_mut(&mut self) -> &mut VisitorContext;
+
+    /// 获取访问者状态
+    fn state(&self) -> &dyn VisitorState;
+
+    /// 获取可变访问者状态
+    fn state_mut(&mut self) -> &mut dyn VisitorState;
+
+    /// 重置访问者状态
+    fn reset(&mut self) -> VisitorResult<()> {
+        self.state_mut().reset();
+        Ok(())
+    }
+
+    /// 检查是否应该继续访问
+    fn should_continue(&self) -> bool {
+        self.state().should_continue()
+    }
+
+    /// 停止访问
+    fn stop(&mut self) {
+        self.state_mut().stop();
+    }
+}
+
+/// Value 访问者 trait - 用于访问Value类型的各个变体
+pub trait ValueVisitor: VisitorCore<Value> {
     fn visit_bool(&mut self, value: bool) -> Self::Result;
     fn visit_int(&mut self, value: i64) -> Self::Result;
     fn visit_float(&mut self, value: f64) -> Self::Result;
@@ -325,46 +370,257 @@ impl ValueAcceptor for Value {
     }
 }
 
-/// 访问者核心trait - 所有访问者的基础
-pub trait VisitorCore: std::fmt::Debug {
-    /// 访问者结果类型
-    type Result;
+/// 表达式访问者 trait - 用于访问Expression类型的各个变体
+pub trait ExpressionVisitor: VisitorCore<crate::expression::Expression> {
+    fn visit_literal(&mut self, value: &crate::expression::LiteralValue) -> Self::Result;
+    fn visit_variable(&mut self, name: &str) -> Self::Result;
+    fn visit_property(
+        &mut self,
+        object: &crate::expression::Expression,
+        property: &str,
+    ) -> Self::Result;
+    fn visit_binary(
+        &mut self,
+        left: &crate::expression::Expression,
+        op: &crate::expression::BinaryOperator,
+        right: &crate::expression::Expression,
+    ) -> Self::Result;
+    fn visit_unary(
+        &mut self,
+        op: &crate::expression::UnaryOperator,
+        operand: &crate::expression::Expression,
+    ) -> Self::Result;
+    fn visit_function(
+        &mut self,
+        name: &str,
+        args: &[crate::expression::Expression],
+    ) -> Self::Result;
+    fn visit_aggregate(
+        &mut self,
+        func: &crate::expression::AggregateFunction,
+        arg: &crate::expression::Expression,
+        distinct: bool,
+    ) -> Self::Result;
+    fn visit_list(&mut self, items: &[crate::expression::Expression]) -> Self::Result;
+    fn visit_map(&mut self, pairs: &[(String, crate::expression::Expression)]) -> Self::Result;
+    fn visit_case(
+        &mut self,
+        conditions: &[(crate::expression::Expression, crate::expression::Expression)],
+        default: &Option<crate::expression::Expression>,
+    ) -> Self::Result;
+    fn visit_type_cast(
+        &mut self,
+        expr: &crate::expression::Expression,
+        target_type: &crate::expression::DataType,
+    ) -> Self::Result;
+    fn visit_subscript(
+        &mut self,
+        collection: &crate::expression::Expression,
+        index: &crate::expression::Expression,
+    ) -> Self::Result;
+    fn visit_range(
+        &mut self,
+        collection: &crate::expression::Expression,
+        start: &Option<crate::expression::Expression>,
+        end: &Option<crate::expression::Expression>,
+    ) -> Self::Result;
+    fn visit_path(&mut self, items: &[crate::expression::Expression]) -> Self::Result;
+    fn visit_label(&mut self, name: &str) -> Self::Result;
+    fn visit_tag_property(&mut self, tag: &str, prop: &str) -> Self::Result;
+    fn visit_edge_property(&mut self, edge: &str, prop: &str) -> Self::Result;
+    fn visit_input_property(&mut self, prop: &str) -> Self::Result;
+    fn visit_variable_property(&mut self, var: &str, prop: &str) -> Self::Result;
+    fn visit_source_property(&mut self, tag: &str, prop: &str) -> Self::Result;
+    fn visit_destination_property(&mut self, tag: &str, prop: &str) -> Self::Result;
+}
 
-    /// 预访问钩子 - 在访问开始前调用
-    fn pre_visit(&mut self) -> VisitorResult<()> {
-        Ok(())
+/// 表达式访问者接受器 trait - 为Expression类型提供接受访问者的能力
+pub trait ExpressionAcceptor {
+    /// 接受访问者进行访问
+    fn accept<V: ExpressionVisitor>(&self, visitor: &mut V) -> V::Result;
+}
+
+impl ExpressionAcceptor for crate::expression::Expression {
+    fn accept<V: ExpressionVisitor>(&self, visitor: &mut V) -> V::Result {
+        use crate::expression::Expression;
+
+        match self {
+            Expression::Literal(value) => visitor.visit_literal(value),
+            Expression::Variable(name) => visitor.visit_variable(name),
+            Expression::Property { object, property } => visitor.visit_property(object, property),
+            Expression::Binary { left, op, right } => visitor.visit_binary(left, op, right),
+            Expression::Unary { op, operand } => visitor.visit_unary(op, operand),
+            Expression::Function { name, args } => visitor.visit_function(name, args),
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => visitor.visit_aggregate(func, arg, *distinct),
+            Expression::List(items) => visitor.visit_list(items),
+            Expression::Map(pairs) => visitor.visit_map(pairs),
+            Expression::Case {
+                conditions,
+                default,
+            } => {
+                let default_cloned = default.as_ref().map(|b| (**b).clone());
+                visitor.visit_case(conditions, &default_cloned)
+            }
+            Expression::TypeCast { expr, target_type } => {
+                visitor.visit_type_cast(expr, target_type)
+            }
+            Expression::Subscript { collection, index } => {
+                visitor.visit_subscript(collection, index)
+            }
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
+                let start_cloned = start.as_ref().map(|b| (**b).clone());
+                let end_cloned = end.as_ref().map(|b| (**b).clone());
+                visitor.visit_range(collection, &start_cloned, &end_cloned)
+            }
+            Expression::Path(items) => visitor.visit_path(items),
+            Expression::Label(name) => visitor.visit_label(name),
+            Expression::TagProperty { tag, prop } => visitor.visit_tag_property(tag, prop),
+            Expression::EdgeProperty { edge, prop } => visitor.visit_edge_property(edge, prop),
+            Expression::InputProperty(prop) => visitor.visit_input_property(prop),
+            Expression::VariableProperty { var, prop } => {
+                visitor.visit_variable_property(var, prop)
+            }
+            Expression::SourceProperty { tag, prop } => visitor.visit_source_property(tag, prop),
+            Expression::DestinationProperty { tag, prop } => {
+                visitor.visit_destination_property(tag, prop)
+            }
+
+            // 处理新增的表达式类型
+            Expression::UnaryPlus(expr) => {
+                visitor.visit_unary(&crate::expression::UnaryOperator::Plus, expr)
+            }
+            Expression::UnaryNegate(expr) => {
+                visitor.visit_unary(&crate::expression::UnaryOperator::Minus, expr)
+            }
+            Expression::UnaryNot(expr) => {
+                visitor.visit_unary(&crate::expression::UnaryOperator::Not, expr)
+            }
+            Expression::UnaryIncr(expr) => {
+                visitor.visit_unary(&crate::expression::UnaryOperator::Increment, expr)
+            }
+            Expression::UnaryDecr(expr) => {
+                visitor.visit_unary(&crate::expression::UnaryOperator::Decrement, expr)
+            }
+            Expression::IsNull(expr) => {
+                visitor.visit_unary(&crate::expression::UnaryOperator::IsNull, expr)
+            }
+            Expression::IsNotNull(expr) => {
+                visitor.visit_unary(&crate::expression::UnaryOperator::IsNotNull, expr)
+            }
+            Expression::IsEmpty(expr) => {
+                visitor.visit_unary(&crate::expression::UnaryOperator::IsEmpty, expr)
+            }
+            Expression::IsNotEmpty(expr) => {
+                visitor.visit_unary(&crate::expression::UnaryOperator::IsNotEmpty, expr)
+            }
+
+            Expression::TypeCasting { expr, target_type } => {
+                visitor.visit_type_cast(expr, &crate::expression::DataType::String)
+            }
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => {
+                // 简化为函数调用
+                let cond_expr = condition
+                    .as_ref()
+                    .map(|c| (**c).clone())
+                    .unwrap_or(crate::expression::Expression::bool(true));
+                visitor.visit_function("list_comprehension", &[(**generator).clone(), cond_expr])
+            }
+            Expression::Predicate { list, condition } => {
+                visitor.visit_function("predicate", &[(**list).clone(), (**condition).clone()])
+            }
+            Expression::Reduce {
+                list,
+                initial,
+                expr,
+                ..
+            } => visitor.visit_function(
+                "reduce",
+                &[(**list).clone(), (**initial).clone(), (**expr).clone()],
+            ),
+            Expression::PathBuild(items) => visitor.visit_path(items),
+            Expression::ESQuery(query) => {
+                visitor.visit_function("es_query", &[crate::expression::Expression::string(query)])
+            }
+            Expression::UUID => visitor.visit_function("uuid", &[]),
+            Expression::SubscriptRange {
+                collection,
+                start,
+                end,
+            } => {
+                let start_cloned = start.as_ref().map(|b| (**b).clone());
+                let end_cloned = end.as_ref().map(|b| (**b).clone());
+                visitor.visit_range(collection, &start_cloned, &end_cloned)
+            }
+            Expression::MatchPathPattern { patterns, .. } => visitor.visit_list(patterns),
+        }
+    }
+}
+
+/// 默认访问者实现 - 提供基础的访问者功能
+#[derive(Debug)]
+pub struct DefaultVisitor<T: std::fmt::Debug> {
+    context: VisitorContext,
+    state: Box<dyn VisitorState>,
+    _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T: std::fmt::Debug> DefaultVisitor<T> {
+    /// 创建新的默认访问者
+    pub fn new() -> Self {
+        Self {
+            context: VisitorContext::new(VisitorConfig::new()),
+            state: Box::new(DefaultVisitorState::new()),
+            _phantom: std::marker::PhantomData,
+        }
     }
 
-    /// 后访问钩子 - 在访问结束后调用
-    fn post_visit(&mut self) -> VisitorResult<()> {
-        Ok(())
+    /// 创建带配置的默认访问者
+    pub fn with_config(config: VisitorConfig) -> Self {
+        Self {
+            context: VisitorContext::new(config),
+            state: Box::new(DefaultVisitorState::new()),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T: std::fmt::Debug> Default for DefaultVisitor<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: std::fmt::Debug> VisitorCore<T> for DefaultVisitor<T> {
+    type Result = ();
+
+    fn visit(&mut self, _target: &T) -> Self::Result {
+        // 默认实现什么也不做
     }
 
-    /// 获取访问者上下文
-    fn context(&self) -> &VisitorContext;
-
-    /// 获取可变访问者上下文
-    fn context_mut(&mut self) -> &mut VisitorContext;
-
-    /// 获取访问者状态
-    fn state(&self) -> &dyn VisitorState;
-
-    /// 获取可变访问者状态
-    fn state_mut(&mut self) -> &mut dyn VisitorState;
-
-    /// 重置访问者状态
-    fn reset(&mut self) -> VisitorResult<()> {
-        self.state_mut().reset();
-        Ok(())
+    fn context(&self) -> &VisitorContext {
+        &self.context
     }
 
-    /// 检查是否应该继续访问
-    fn should_continue(&self) -> bool {
-        self.state().should_continue()
+    fn context_mut(&mut self) -> &mut VisitorContext {
+        &mut self.context
     }
 
-    /// 停止访问
-    fn stop(&mut self) {
-        self.state_mut().stop();
+    fn state(&self) -> &dyn VisitorState {
+        self.state.as_ref()
+    }
+
+    fn state_mut(&mut self) -> &mut dyn VisitorState {
+        self.state.as_mut()
     }
 }

@@ -154,9 +154,9 @@ impl PlanNodeClonable for IndexScan {
 
 impl PlanNodeVisitable for IndexScan {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
+        visitor.plan_pre_visit()?;
         visitor.visit_index_scan(self)?;
-        visitor.post_visit()?;
+        visitor.plan_post_visit()?;
         Ok(())
     }
 }
@@ -283,9 +283,9 @@ impl PlanNodeClonable for FulltextIndexScan {
 
 impl PlanNodeVisitable for FulltextIndexScan {
     fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
+        visitor.plan_pre_visit()?;
         visitor.visit_fulltext_index_scan(self)?;
-        visitor.post_visit()?;
+        visitor.plan_post_visit()?;
         Ok(())
     }
 }

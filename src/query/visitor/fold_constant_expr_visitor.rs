@@ -3,6 +3,7 @@
 
 use crate::core::Value;
 use crate::query::parser::ast::{BinaryOp, Expr};
+use crate::query::visitor::QueryVisitor;
 use std::collections::HashMap;
 
 pub struct FoldConstantExprVisitor {
@@ -219,5 +220,26 @@ impl FoldConstantExprVisitor {
             crate::core::ValueTypeDef::Null => Ok(Value::Null(crate::core::NullType::Null)),
             crate::core::ValueTypeDef::Empty => Ok(Value::Empty),
         }
+    }
+}
+
+impl QueryVisitor for FoldConstantExprVisitor {
+    type QueryResult = Expr;
+
+    fn get_result(&self) -> Self::QueryResult {
+        // 由于FoldConstantExprVisitor没有存储结果，返回一个默认表达式
+        // 在实际使用中，应该通过fold方法获取结果
+        Expr::Constant(crate::query::parser::ast::ConstantExpr::new(
+            Value::Null(crate::core::NullType::Null),
+            crate::query::parser::ast::Span::default()
+        ))
+    }
+    
+    fn reset(&mut self) {
+        // FoldConstantExprVisitor没有需要重置的状态
+    }
+    
+    fn is_success(&self) -> bool {
+        true // FoldConstantExprVisitor 总是成功
     }
 }
