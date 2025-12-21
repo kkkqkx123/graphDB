@@ -72,9 +72,18 @@ impl FileSystemUtils {
 
         Ok(FileAttributes {
             size: metadata.len(),
-            created: metadata.created().unwrap_or_else(|_| SystemTime::now()),
-            modified: metadata.modified().unwrap_or_else(|_| SystemTime::now()),
-            accessed: metadata.accessed().unwrap_or_else(|_| SystemTime::now()),
+            created: match metadata.created() {
+                Ok(time) => time,
+                Err(_) => SystemTime::now(),
+            },
+            modified: match metadata.modified() {
+                Ok(time) => time,
+                Err(_) => SystemTime::now(),
+            },
+            accessed: match metadata.accessed() {
+                Ok(time) => time,
+                Err(_) => SystemTime::now(),
+            },
             is_directory: metadata.is_dir(),
             is_file: metadata.is_file(),
             is_symlink: metadata.file_type().is_symlink(),
@@ -249,9 +258,18 @@ impl FileHandle {
 
         Ok(FileAttributes {
             size: metadata.len(),
-            created: metadata.created().unwrap_or_else(|_| SystemTime::now()),
-            modified: metadata.modified().unwrap_or_else(|_| SystemTime::now()),
-            accessed: metadata.accessed().unwrap_or_else(|_| SystemTime::now()),
+            created: match metadata.created() {
+                Ok(time) => time,
+                Err(_) => SystemTime::now(),
+            },
+            modified: match metadata.modified() {
+                Ok(time) => time,
+                Err(_) => SystemTime::now(),
+            },
+            accessed: match metadata.accessed() {
+                Ok(time) => time,
+                Err(_) => SystemTime::now(),
+            },
             is_directory: metadata.is_dir(),
             is_file: metadata.is_file(),
             is_symlink: metadata.file_type().is_symlink(),

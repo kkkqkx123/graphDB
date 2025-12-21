@@ -178,7 +178,7 @@ mod tests {
         let result = SignalHandler::init();
         assert!(result.is_ok());
 
-        let handler = result.unwrap();
+        let handler = result.expect("SignalHandler::init() should return Ok value");
         assert!(!handler.shutdown_requested());
 
         // Test getting the global instance

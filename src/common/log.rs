@@ -194,8 +194,14 @@ impl LogWriter for FileWriter {
             entry.level,
             entry.timestamp.format("%Y-%m-%d %H:%M:%S%.3f"),
             entry.target,
-            entry.file.as_deref().unwrap_or("<unnamed>"),
-            entry.line.unwrap_or(0),
+            match &entry.file {
+                Some(f) => f.as_str(),
+                None => "<unnamed>",
+            },
+            match entry.line {
+                Some(l) => l,
+                None => 0,
+            },
             entry.message
         )?;
 
@@ -518,8 +524,14 @@ pub mod log_utils {
                 entry.level,
                 entry.timestamp.format("%Y-%m-%d %H:%M:%S%.3f"),
                 entry.target,
-                entry.file.as_deref().unwrap_or("<unnamed>"),
-                entry.line.unwrap_or(0),
+                match &entry.file {
+                    Some(f) => f.as_str(),
+                    None => "<unnamed>",
+                },
+                match entry.line {
+                    Some(l) => l,
+                    None => 0,
+                },
                 entry.message
             ),
             LogFormat::Json => format!(
@@ -527,8 +539,14 @@ pub mod log_utils {
                 entry.timestamp.to_rfc3339(),
                 entry.level,
                 entry.target,
-                entry.file.as_deref().unwrap_or(""),
-                entry.line.unwrap_or(0),
+                match &entry.file {
+                    Some(f) => f.as_str(),
+                    None => "",
+                },
+                match entry.line {
+                    Some(l) => l,
+                    None => 0,
+                },
                 entry.message.replace('"', "\\\"")
             ),
             LogFormat::Syslog => format!(

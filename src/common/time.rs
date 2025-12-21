@@ -240,9 +240,10 @@ pub mod time_utils {
         let start_time = UNIX_EPOCH + Duration::new(start.secs as u64, start.nsecs);
         let end_time = UNIX_EPOCH + Duration::new(end.secs as u64, end.nsecs);
 
-        end_time
-            .duration_since(start_time)
-            .unwrap_or_else(|_| Duration::new(0, 0))
+        match end_time.duration_since(start_time) {
+            Ok(duration) => duration,
+            Err(_) => Duration::new(0, 0),
+        }
     }
 }
 

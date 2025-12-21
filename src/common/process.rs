@@ -74,11 +74,13 @@ impl ProcessManager {
 
         Ok(ProcessInfo {
             pid,
-            name: env::current_exe()?
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string(),
+            name: {
+                let opt_name = env::current_exe()?.file_name();
+                match opt_name {
+                    Some(name) => name.to_string_lossy().to_string(),
+                    None => String::default(),
+                }
+            },
             cmd: env::args().collect::<Vec<_>>().join(" "),
             cwd: env::current_dir()?.to_string_lossy().to_string(),
             root: "/".to_string(), // Simplified, in real implementation this would be more complex

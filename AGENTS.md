@@ -1,5 +1,14 @@
 # GraphDB Project Context
 
+## Code Standards
+
+**Security Assurance**
+Always avoid the use of unwrap. In testing, substitute with expect.
+Refrain from using unsafe methods except for operations directly involving underlying layers.
+
+**Type Design Standards**
+Minimise the use of dynamic distribution forms such as dyn. Always prioritise the use of deterministic types.
+
 ## Language
 
 Always use **Simplified Chinese** in code, comments and docs

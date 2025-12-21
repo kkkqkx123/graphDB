@@ -484,17 +484,17 @@ mod tests {
         ]);
 
         // 使用新的便捷函数
-        let cloned = deep_clone(&original).unwrap();
+        let cloned = deep_clone(&original).expect("deep_clone should succeed for new API compatibility test");
         assert_eq!(original, cloned);
 
         let value = Value::String("test".to_string());
-        let size = calculate_size(&value).unwrap();
+        let size = calculate_size(&value).expect("calculate_size should succeed for new API compatibility test");
         assert!(size > std::mem::size_of::<String>());
 
         let value1 = Value::Int(42);
         let value2 = Value::Int(42);
-        let hash1 = calculate_hash(&value1).unwrap();
-        let hash2 = calculate_hash(&value2).unwrap();
+        let hash1 = calculate_hash(&value1).expect("calculate_hash should succeed for new API compatibility test");
+        let hash2 = calculate_hash(&value2).expect("calculate_hash should succeed for new API compatibility test");
         assert_eq!(hash1, hash2);
     }
 }

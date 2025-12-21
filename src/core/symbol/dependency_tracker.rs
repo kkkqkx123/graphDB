@@ -397,13 +397,13 @@ mod tests {
 
         tracker
             .add_read_dependency("test_var", node1.clone())
-            .unwrap();
+            .expect("add_read_dependency should succeed in test");
         tracker
             .add_write_dependency("test_var", node2.clone())
-            .unwrap();
+            .expect("add_write_dependency should succeed in test");
 
         // 检查依赖
-        let deps = tracker.get_variable_dependencies("test_var").unwrap();
+        let deps = tracker.get_variable_dependencies("test_var").expect("get_variable_dependencies should return Some in test");
         assert!(deps.is_reader(&node1));
         assert!(deps.is_writer(&node2));
 
@@ -453,10 +453,10 @@ mod tests {
         // 多个节点写入同一变量
         tracker
             .add_write_dependency("conflict_var", node1.clone())
-            .unwrap();
+            .expect("add_write_dependency should succeed in conflict test");
         tracker
             .add_write_dependency("conflict_var", node2.clone())
-            .unwrap();
+            .expect("add_write_dependency should succeed in conflict test");
 
         let conflicts = tracker.detect_write_conflicts();
         assert_eq!(conflicts.len(), 1);
@@ -473,8 +473,8 @@ mod tests {
         let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
         let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
 
-        tracker.add_read_dependency("stats_var", node1).unwrap();
-        tracker.add_write_dependency("stats_var", node2).unwrap();
+        tracker.add_read_dependency("stats_var", node1).expect("add_read_dependency should succeed in stats test");
+        tracker.add_write_dependency("stats_var", node2).expect("add_write_dependency should succeed in stats test");
 
         let stats = tracker.get_all_stats();
         assert_eq!(stats.len(), 1);

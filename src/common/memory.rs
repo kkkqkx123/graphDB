@@ -260,9 +260,18 @@ pub fn get_memory_stats(pool: Option<&MemoryPool>) -> MemoryStats {
         total_deallocated: MEMORY_TRACKER.total_deallocated(),
         current_allocated: MEMORY_TRACKER.current_allocated(),
         peak_usage: MEMORY_TRACKER.peak_usage(),
-        pool_total_size: pool.map(|p| p.total_size()).unwrap_or(0),
-        pool_used_size: pool.map(|p| p.used_size()).unwrap_or(0),
-        pool_available_size: pool.map(|p| p.available_size()).unwrap_or(0),
+        pool_total_size: match pool {
+            Some(p) => p.total_size(),
+            None => 0,
+        },
+        pool_used_size: match pool {
+            Some(p) => p.used_size(),
+            None => 0,
+        },
+        pool_available_size: match pool {
+            Some(p) => p.available_size(),
+            None => 0,
+        },
     }
 }
 
