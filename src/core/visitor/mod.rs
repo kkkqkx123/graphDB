@@ -29,8 +29,10 @@ pub use serialization::{
     JsonSerializationVisitor, SerializationError, SerializationFormat, XmlSerializationVisitor,
 };
 pub use transformation::{
-    DeepCloneVisitor, SizeCalculatorVisitor, TransformationError,
-    TypeConversionVisitor,
+    DeepCloneVisitor, TransformationError,
+};
+pub use size_utils::{
+    ValueSizeCalculator,
 };
 pub use validation::{
     BasicValidationVisitor, TypeValidationVisitor, ValidationConfig, ValidationError,

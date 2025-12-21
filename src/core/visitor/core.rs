@@ -545,88 +545,6 @@ mod tests {
     }
 }
 
-/// 为具有 context 和 state 字段的访问者提供 VisitorCore 支持的便利宏
-///
-/// 此宏适用于那些已经包含 context 和 state 字段的类型，
-/// 自动实现所有必需的方法。这是推荐的实现方式。
-///
-/// # 示例
-/// ```
-/// struct MyVisitor {
-///     count: usize,
-///     context: VisitorContext,
-///     state: DefaultVisitorState,
-/// }
-///
-/// impl_visitor_core!(MyVisitor, ());
-/// ```
-#[macro_export]
-macro_rules! impl_visitor_core {
-    ($visitor_type:ty, $result_type:ty) => {
-        impl $crate::core::visitor::core::VisitorCore for $visitor_type {
-            type Result = $result_type;
-
-            fn context(&self) -> &$crate::core::visitor::core::VisitorContext {
-                &self.context
-            }
-
-            fn context_mut(&mut self) -> &mut $crate::core::visitor::core::VisitorContext {
-                &mut self.context
-            }
-
-            fn state(&self) -> &dyn $crate::core::visitor::core::VisitorState {
-                &self.state
-            }
-
-            fn state_mut(&mut self) -> &mut dyn $crate::core::visitor::core::VisitorState {
-                &mut self.state
-            }
-        }
-    };
-}
-
-/// 为自定义实现的访问者提供 VisitorCore 支持的宏
-///
-/// 此宏适用于那些需要自定义 context 和 state 访问逻辑的类型。
-/// 使用者需要自己实现所有方法。
-///
-/// # 示例
-/// ```
-/// struct MyVisitor {
-///     count: usize,
-///     custom_context: VisitorContext,
-///     custom_state: MyCustomState,
-/// }
-///
-/// impl_visitor_core_custom!(MyVisitor, (), {
-///     fn context(&self) -> &VisitorContext {
-///         &self.custom_context
-///     }
-///
-///     fn context_mut(&mut self) -> &mut VisitorContext {
-///         &mut self.custom_context
-///     }
-///
-///     fn state(&self) -> &dyn VisitorState {
-///         &self.custom_state
-///     }
-///
-///     fn state_mut(&mut self) -> &mut dyn VisitorState {
-///         &mut self.custom_state
-///     }
-/// });
-/// ```
-#[macro_export]
-macro_rules! impl_visitor_core_custom {
-    ($visitor_type:ty, $result_type:ty, { $($method:item)* }) => {
-        impl $crate::core::visitor::core::VisitorCore for $visitor_type {
-            type Result = $result_type;
-            
-            $($method)*
-        }
-    };
-}
-
 #[cfg(test)]
 mod core_tests {
     use super::*;
@@ -702,7 +620,25 @@ mod core_tests {
             }
         }
 
-        impl_visitor_core_with_fields!(TestVisitor, ());
+        impl VisitorCore for TestVisitor {
+            type Result = ();
+            
+            fn context(&self) -> &VisitorContext {
+                &self.context
+            }
+            
+            fn context_mut(&mut self) -> &mut VisitorContext {
+                &mut self.context
+            }
+            
+            fn state(&self) -> &dyn VisitorState {
+                &self.state
+            }
+            
+            fn state_mut(&mut self) -> &mut dyn VisitorState {
+                &mut self.state
+            }
+        }
 
         impl ValueVisitor for TestVisitor {
             type Result = ();
@@ -786,19 +722,5 @@ mod core_tests {
             state: DefaultVisitorState::new(),
         };
         let value = Value::Int(42);
-
-        // 测试VisitorCore方法
-        assert!(visitor.should_continue());
-        assert_eq!(visitor.state().depth(), 0);
-
-        visitor.state_mut().inc_depth();
-        assert_eq!(visitor.state().depth(), 1);
-
-        visitor.reset();
-        assert_eq!(visitor.state().depth(), 0);
-
-        // 测试原始ValueVisitor功能
-        value.accept(&mut visitor);
-        assert_eq!(visitor.count, 1);
     }
 }

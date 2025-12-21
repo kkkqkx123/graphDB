@@ -83,12 +83,46 @@ impl ValueSizeCalculator {
     }
 
     /// 使用配置计算Value的内存大小
-    pub fn calculate_size_with_config(value: &Value, config: SizeConfig) -> Result<usize, SizeError> {
+    pub fn calculate_size_with_config(
+        value: &Value,
+        config: SizeConfig,
+    ) -> Result<usize, SizeError> {
         Self::with_config(config).size_of(value)
     }
 
     /// 计算大小
-    pub fn size_of(mut self, value: &Value) -> Result<usize, SizeError> {
+    pub fn size_of(&mut self, value: &Value) -> Result<usize, SizeError> {
+        if self.depth > self.config.max_depth {
+            return Err(SizeError::MaxDepthExceeded);
+        }
+
+        self.depth += 1;
+        let result = match value {
+            Value::Bool(v) => self.size_of_bool(*v),
+            Value::Int(v) => self.size_of_int(*v),
+            Value::Float(v) => self.size_of_float(*v),
+            Value::String(v) => self.size_of_string(v),
+            Value::Date(v) => self.size_of_date(v),
+            Value::Time(v) => self.size_of_time(v),
+            Value::DateTime(v) => self.size_of_datetime(v),
+            Value::Vertex(v) => self.size_of_vertex(v),
+            Value::Edge(v) => self.size_of_edge(v),
+            Value::Path(v) => self.size_of_path(v),
+            Value::List(v) => self.size_of_list(v),
+            Value::Map(v) => self.size_of_map(v),
+            Value::Set(v) => self.size_of_set(v),
+            Value::Geography(v) => self.size_of_geography(v),
+            Value::Duration(v) => self.size_of_duration(v),
+            Value::DataSet(v) => self.size_of_dataset(v),
+            Value::Null(v) => self.size_of_null(v),
+            Value::Empty => self.size_of_empty(),
+        };
+        self.depth -= 1;
+        result
+    }
+    
+    /// 内部计算大小的方法，用于递归调用
+    fn size_of_internal(&mut self, value: &Value) -> Result<usize, SizeError> {
         if self.depth > self.config.max_depth {
             return Err(SizeError::MaxDepthExceeded);
         }
@@ -150,7 +184,7 @@ impl ValueSizeCalculator {
         Ok(std::mem::size_of::<DateTimeValue>())
     }
 
-    fn size_of_vertex(&self, value: &Vertex) -> Result<usize, SizeError> {
+    fn size_of_vertex(&mut self, value: &Vertex) -> Result<usize, SizeError> {
         let mut size = std::mem::size_of::<Vertex>();
         
         // 计算ID的大小
@@ -162,20 +196,20 @@ impl ValueSizeCalculator {
             size += tag.name.len();
             for (prop_name, prop_value) in &tag.properties {
                 size += prop_name.len();
-                size += self.size_of(prop_value)?;
+                size += self.size_of_internal(prop_value)?;
             }
         }
         
         // 计算顶点属性的大小
         for (prop_name, prop_value) in value.vertex_properties() {
             size += prop_name.len();
-            size += self.size_of(prop_value)?;
+            size += self.size_of_internal(prop_value)?;
         }
         
         Ok(size)
     }
 
-    fn size_of_edge(&self, value: &Edge) -> Result<usize, SizeError> {
+    fn size_of_edge(&mut self, value: &Edge) -> Result<usize, SizeError> {
         let mut size = std::mem::size_of::<Edge>();
         size += std::mem::size_of_val(&value.src);
         size += std::mem::size_of_val(&value.dst);
@@ -183,26 +217,26 @@ impl ValueSizeCalculator {
         
         for (prop_name, prop_value) in value.get_all_properties() {
             size += prop_name.len();
-            size += self.size_of(prop_value)?;
+            size += self.size_of_internal(prop_value)?;
         }
         
         Ok(size)
     }
 
-    fn size_of_path(&self, value: &Path) -> Result<usize, SizeError> {
+    fn size_of_path(&mut self, value: &Path) -> Result<usize, SizeError> {
         let mut size = std::mem::size_of::<Path>();
-        size += self.size_of(&Value::Vertex(Box::new(value.src.as_ref().clone())))?;
+        size += self.size_of_internal(&Value::Vertex(Box::new(value.src.as_ref().clone())))?;
         
         for step in &value.steps {
             size += std::mem::size_of::<Step>();
-            size += self.size_of(&Value::Vertex(Box::new(step.dst.as_ref().clone())))?;
-            size += self.size_of(&Value::Edge(step.edge.as_ref().clone()))?;
+            size += self.size_of_internal(&Value::Vertex(Box::new(step.dst.as_ref().clone())))?;
+            size += self.size_of_internal(&Value::Edge(step.edge.as_ref().clone()))?;
         }
         
         Ok(size)
     }
 
-    fn size_of_list(&self, value: &[Value]) -> Result<usize, SizeError> {
+    fn size_of_list(&mut self, value: &[Value]) -> Result<usize, SizeError> {
         let mut size = if self.config.include_container_overhead {
             std::mem::size_of::<Vec<Value>>()
         } else {
@@ -210,13 +244,13 @@ impl ValueSizeCalculator {
         };
         
         for item in value {
-            size += self.size_of(item)?;
+            size += self.size_of_internal(item)?;
         }
         
         Ok(size)
     }
 
-    fn size_of_map(&self, value: &HashMap<String, Value>) -> Result<usize, SizeError> {
+    fn size_of_map(&mut self, value: &HashMap<String, Value>) -> Result<usize, SizeError> {
         let mut size = if self.config.include_container_overhead {
             std::mem::size_of::<HashMap<String, Value>>()
         } else {
@@ -225,13 +259,13 @@ impl ValueSizeCalculator {
         
         for (key, val) in value {
             size += key.len();
-            size += self.size_of(val)?;
+            size += self.size_of_internal(val)?;
         }
         
         Ok(size)
     }
 
-    fn size_of_set(&self, value: &HashSet<Value>) -> Result<usize, SizeError> {
+    fn size_of_set(&mut self, value: &HashSet<Value>) -> Result<usize, SizeError> {
         let mut size = if self.config.include_container_overhead {
             std::mem::size_of::<HashSet<Value>>()
         } else {
@@ -239,7 +273,7 @@ impl ValueSizeCalculator {
         };
         
         for item in value {
-            size += self.size_of(item)?;
+            size += self.size_of_internal(item)?;
         }
         
         Ok(size)
@@ -247,7 +281,7 @@ impl ValueSizeCalculator {
 
     fn size_of_geography(&self, value: &GeographyValue) -> Result<usize, SizeError> {
         let mut size = std::mem::size_of::<GeographyValue>();
-        
+
         // 计算地理数据的大小
         if let Some(_) = value.point {
             size += std::mem::size_of::<(f64, f64)>();
@@ -257,13 +291,13 @@ impl ValueSizeCalculator {
                 + line.len() * std::mem::size_of::<(f64, f64)>();
         }
         if let Some(ref poly) = value.polygon {
-            size += std::mem::size_of::<Vec<Vec<(f64, f64)>>();
+            size += std::mem::size_of::<Vec<Vec<(f64, f64)>>>();
             for ring in poly {
                 size += std::mem::size_of::<Vec<(f64, f64)>>();
                 size += ring.len() * std::mem::size_of::<(f64, f64)>();
             }
         }
-        
+
         Ok(size)
     }
 
@@ -271,7 +305,7 @@ impl ValueSizeCalculator {
         Ok(std::mem::size_of::<DurationValue>())
     }
 
-    fn size_of_dataset(&self, value: &DataSet) -> Result<usize, SizeError> {
+    fn size_of_dataset(&mut self, value: &DataSet) -> Result<usize, SizeError> {
         let mut size = std::mem::size_of::<DataSet>();
         
         if self.config.include_container_overhead {
@@ -283,7 +317,7 @@ impl ValueSizeCalculator {
                 size += std::mem::size_of::<Vec<Value>>();
             }
             for cell in row {
-                size += self.size_of(cell)?;
+                size += self.size_of_internal(cell)?;
             }
         }
         
@@ -301,12 +335,14 @@ impl ValueSizeCalculator {
 
 /// 便捷函数：计算Value的内存大小
 pub fn calculate_size(value: &Value) -> Result<usize, SizeError> {
-    ValueSizeCalculator::calculate_size(value)
+    let mut calculator = ValueSizeCalculator::new();
+    calculator.size_of(value)
 }
 
 /// 便捷函数：使用配置计算Value的内存大小
 pub fn calculate_size_with_config(value: &Value, config: SizeConfig) -> Result<usize, SizeError> {
-    ValueSizeCalculator::calculate_size_with_config(value, config)
+    let mut calculator = ValueSizeCalculator::with_config(config);
+    calculator.size_of(value)
 }
 
 /// 便捷函数：计算多个Value的总大小
@@ -331,7 +367,6 @@ pub fn estimate_size(value: &Value) -> usize {
 mod tests {
     use super::*;
     use crate::core::value::Value;
-    use std::collections::HashMap;
 
     #[test]
     fn test_basic_size_calculation() {
@@ -349,11 +384,7 @@ mod tests {
 
     #[test]
     fn test_list_size_calculation() {
-        let value = Value::List(vec![
-            Value::Int(1),
-            Value::Int(2),
-            Value::Int(3),
-        ]);
+        let value = Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
         let size = calculate_size(&value).unwrap();
         assert!(size > std::mem::size_of::<i64>() * 3);
     }
@@ -361,13 +392,14 @@ mod tests {
     #[test]
     fn test_config_options() {
         let value = Value::String("test".to_string());
-        
+
         let config_with_content = SizeConfig::new().with_string_content(true);
         let size_with_content = calculate_size_with_config(&value, config_with_content).unwrap();
-        
+
         let config_without_content = SizeConfig::new().with_string_content(false);
-        let size_without_content = calculate_size_with_config(&value, config_without_content).unwrap();
-        
+        let size_without_content =
+            calculate_size_with_config(&value, config_without_content).unwrap();
+
         assert!(size_with_content > size_without_content);
     }
 

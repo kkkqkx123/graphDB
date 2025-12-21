@@ -6,7 +6,10 @@ use crate::core::value::{
     DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
 };
 use crate::core::vertex_edge_path::{Edge, Path, Vertex};
-use crate::core::visitor::core::{ValueVisitor, VisitorCore, VisitorContext, VisitorConfig, DefaultVisitorState, VisitorState, VisitorResult};
+use crate::core::visitor::core::{
+    DefaultVisitorState, ValueVisitor, VisitorConfig, VisitorContext, VisitorCore, VisitorResult,
+    VisitorState,
+};
 use std::collections::HashMap;
 
 /// Value 类型分类
@@ -40,7 +43,7 @@ impl TypeCheckerVisitor {
             state: DefaultVisitorState::new(),
         }
     }
-    
+
     pub fn with_config(config: VisitorConfig) -> Self {
         Self {
             categories: Vec::new(),
@@ -167,33 +170,33 @@ impl ValueVisitor for TypeCheckerVisitor {
 
 impl VisitorCore for TypeCheckerVisitor {
     type Result = ();
-    
+
     fn context(&self) -> &VisitorContext {
         &self.context
     }
-    
+
     fn context_mut(&mut self) -> &mut VisitorContext {
         &mut self.context
     }
-    
+
     fn state(&self) -> &dyn VisitorState {
         &self.state
     }
-    
+
     fn state_mut(&mut self) -> &mut dyn VisitorState {
         &mut self.state
     }
-    
+
     fn pre_visit(&mut self) -> VisitorResult<()> {
         self.state.inc_visit_count();
         if self.state.depth() > self.context.config().max_depth {
             return Err(crate::core::visitor::core::VisitorError::Validation(
-                format!("访问深度超过限制: {}", self.context.config().max_depth)
+                format!("访问深度超过限制: {}", self.context.config().max_depth),
             ));
         }
         Ok(())
     }
-    
+
     fn post_visit(&mut self) -> VisitorResult<()> {
         Ok(())
     }
@@ -223,7 +226,7 @@ impl ComplexityAnalyzerVisitor {
             state: DefaultVisitorState::new(),
         }
     }
-    
+
     pub fn with_config(config: VisitorConfig) -> Self {
         Self {
             depth: 0,
@@ -383,34 +386,34 @@ impl ValueVisitor for ComplexityAnalyzerVisitor {
 
 impl VisitorCore for ComplexityAnalyzerVisitor {
     type Result = ();
-    
+
     fn context(&self) -> &VisitorContext {
         &self.context
     }
-    
+
     fn context_mut(&mut self) -> &mut VisitorContext {
         &mut self.context
     }
-    
+
     fn state(&self) -> &dyn VisitorState {
         &self.state
     }
-    
+
     fn state_mut(&mut self) -> &mut dyn VisitorState {
         &mut self.state
     }
-    
+
     fn pre_visit(&mut self) -> VisitorResult<()> {
         self.state.inc_visit_count();
         self.state.inc_depth();
         if self.state.depth() > self.context.config().max_depth {
             return Err(crate::core::visitor::core::VisitorError::Validation(
-                format!("访问深度超过限制: {}", self.context.config().max_depth)
+                format!("访问深度超过限制: {}", self.context.config().max_depth),
             ));
         }
         Ok(())
     }
-    
+
     fn post_visit(&mut self) -> VisitorResult<()> {
         self.state.dec_depth();
         Ok(())
@@ -502,35 +505,35 @@ mod tests {
         let metrics = visitor.analyze();
         assert!(metrics.is_moderate());
     }
-    
+
     #[test]
     fn test_visitor_core_integration() {
         let config = VisitorConfig::new().with_max_depth(5);
         let mut visitor = TypeCheckerVisitor::with_config(config);
-        
+
         // 测试VisitorCore方法
         assert!(visitor.should_continue());
         assert_eq!(visitor.state().depth(), 0);
-        
+
         visitor.state_mut().inc_depth();
         assert_eq!(visitor.state().depth(), 1);
-        
+
         visitor.reset();
         assert_eq!(visitor.state().depth(), 0);
-        
+
         // 测试原始ValueVisitor功能
         let value = Value::Int(42);
         value.accept(&mut visitor);
         assert!(visitor.has_category(TypeCategory::Numeric));
     }
-    
+
     #[test]
     fn test_complexity_analyzer_with_config() {
         let config = VisitorConfig::new().with_max_depth(3);
         let mut visitor = ComplexityAnalyzerVisitor::with_config(config);
-        
+
         assert_eq!(visitor.context().config().max_depth, 3);
-        
+
         let simple_value = Value::Int(42);
         simple_value.accept(&mut visitor);
         let metrics = visitor.analyze();

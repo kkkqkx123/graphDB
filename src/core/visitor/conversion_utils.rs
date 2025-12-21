@@ -282,6 +282,7 @@ impl ValueConverter {
                 hour: value.hour,
                 minute: value.minute,
                 sec: value.sec,
+                microsec: value.microsec,
             })),
             ValueTypeDef::DateTime => Ok(Value::DateTime(value.clone())),
             _ => Err(ConversionError::UnsupportedConversion {
