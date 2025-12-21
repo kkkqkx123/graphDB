@@ -5,18 +5,31 @@
 
 pub mod analysis;
 pub mod core;
+pub mod conversion_utils;
+pub mod factory;
+pub mod hash_utils;
 pub mod serialization;
+pub mod size_utils;
 pub mod transformation;
 pub mod validation;
 
 // 重新导出主要的类型和特征
 pub use analysis::{ComplexityAnalyzerVisitor, ComplexityLevel, TypeCategory, TypeCheckerVisitor};
-pub use core::{ValueAcceptor, ValueVisitor};
+pub use core::{
+    DefaultVisitorState, ValueAcceptor, ValueVisitor, VisitorConfig, VisitorContext, VisitorCore,
+    VisitorError, VisitorResult, VisitorState,
+};
+pub use factory::{
+    VisitorFactory, VisitorRegistry, VisitorBuilder, simple_factory, create_visitor
+};
+pub use hash_utils::{
+    ValueHasher, HashConfig, HashError
+};
 pub use serialization::{
     JsonSerializationVisitor, SerializationError, SerializationFormat, XmlSerializationVisitor,
 };
 pub use transformation::{
-    DeepCloneVisitor, HashCalculatorVisitor, SizeCalculatorVisitor, TransformationError,
+    DeepCloneVisitor, SizeCalculatorVisitor, TransformationError,
     TypeConversionVisitor,
 };
 pub use validation::{
@@ -39,18 +52,18 @@ pub fn analyze_complexity(value: &crate::core::value::Value) -> analysis::Comple
 }
 
 /// 便捷函数：序列化为 JSON
-pub fn to_json(_value: &crate::core::value::Value) -> Result<String, SerializationError> {
-    Ok("{}".to_string()) // 临时实现
+pub fn to_json(value: &crate::core::value::Value) -> Result<String, SerializationError> {
+    JsonSerializationVisitor::serialize(value)
 }
 
 /// 便捷函数：序列化为格式化的 JSON
-pub fn to_json_pretty(_value: &crate::core::value::Value) -> Result<String, SerializationError> {
-    Ok("{\n}".to_string()) // 临时实现
+pub fn to_json_pretty(value: &crate::core::value::Value) -> Result<String, SerializationError> {
+    JsonSerializationVisitor::serialize_pretty(value)
 }
 
 /// 便捷函数：序列化为 XML
-pub fn to_xml(_value: &crate::core::value::Value) -> Result<String, SerializationError> {
-    Ok("<root/>".to_string()) // 临时实现
+pub fn to_xml(value: &crate::core::value::Value) -> Result<String, SerializationError> {
+    XmlSerializationVisitor::serialize(value)
 }
 
 /// 便捷函数：深度克隆值
@@ -62,12 +75,72 @@ pub fn deep_clone(
 
 /// 便捷函数：计算值的内存大小
 pub fn calculate_size(value: &crate::core::value::Value) -> Result<usize, TransformationError> {
-    SizeCalculatorVisitor::calculate_size(value)
+    size_utils::calculate_size(value).map_err(|e| match e {
+        size_utils::SizeError::MaxDepthExceeded => TransformationError::MaxDepthExceeded,
+        size_utils::SizeError::Calculation(msg) => TransformationError::Transformation(msg),
+    })
+}
+
+/// 便捷函数：使用配置计算值的内存大小
+pub fn calculate_size_with_config(
+    value: &crate::core::value::Value,
+    config: size_utils::SizeConfig,
+) -> Result<usize, TransformationError> {
+    size_utils::calculate_size_with_config(value, config).map_err(|e| match e {
+        size_utils::SizeError::MaxDepthExceeded => TransformationError::MaxDepthExceeded,
+        size_utils::SizeError::Calculation(msg) => TransformationError::Transformation(msg),
+    })
+}
+
+/// 便捷函数：计算多个值的总大小
+pub fn calculate_total_size(values: &[crate::core::value::Value]) -> Result<usize, TransformationError> {
+    size_utils::calculate_total_size(values).map_err(|e| match e {
+        size_utils::SizeError::MaxDepthExceeded => TransformationError::MaxDepthExceeded,
+        size_utils::SizeError::Calculation(msg) => TransformationError::Transformation(msg),
+    })
+}
+
+/// 便捷函数：估算值的内存大小（快速但不精确）
+pub fn estimate_size(value: &crate::core::value::Value) -> usize {
+    size_utils::estimate_size(value)
 }
 
 /// 便捷函数：计算值的哈希
 pub fn calculate_hash(value: &crate::core::value::Value) -> Result<u64, TransformationError> {
-    HashCalculatorVisitor::calculate_hash(value)
+    hash_utils::calculate_hash(value).map_err(|e| match e {
+        hash_utils::HashError::MaxDepthExceeded => TransformationError::MaxDepthExceeded,
+        hash_utils::HashError::Calculation(msg) => TransformationError::Transformation(msg),
+    })
+}
+
+/// 便捷函数：使用配置计算值的哈希
+pub fn calculate_hash_with_config(
+    value: &crate::core::value::Value,
+    config: hash_utils::HashConfig,
+) -> Result<u64, TransformationError> {
+    hash_utils::calculate_hash_with_config(value, config).map_err(|e| match e {
+        hash_utils::HashError::MaxDepthExceeded => TransformationError::MaxDepthExceeded,
+        hash_utils::HashError::Calculation(msg) => TransformationError::Transformation(msg),
+    })
+}
+
+/// 便捷函数：计算多个值的组合哈希
+pub fn calculate_combined_hash(values: &[crate::core::value::Value]) -> Result<u64, TransformationError> {
+    hash_utils::calculate_combined_hash(values).map_err(|e| match e {
+        hash_utils::HashError::MaxDepthExceeded => TransformationError::MaxDepthExceeded,
+        hash_utils::HashError::Calculation(msg) => TransformationError::Transformation(msg),
+    })
+}
+
+/// 便捷函数：检查两个值是否具有相同的哈希值
+pub fn hash_equal(
+    value1: &crate::core::value::Value,
+    value2: &crate::core::value::Value,
+) -> Result<bool, TransformationError> {
+    hash_utils::hash_equal(value1, value2).map_err(|e| match e {
+        hash_utils::HashError::MaxDepthExceeded => TransformationError::MaxDepthExceeded,
+        hash_utils::HashError::Calculation(msg) => TransformationError::Transformation(msg),
+    })
 }
 
 /// 便捷函数：类型转换
@@ -75,36 +148,85 @@ pub fn convert_type(
     value: &crate::core::value::Value,
     target_type: crate::core::value::ValueTypeDef,
 ) -> Result<crate::core::value::Value, TransformationError> {
-    TypeConversionVisitor::convert(value, target_type)
+    conversion_utils::convert(value, target_type).map_err(|e| match e {
+        conversion_utils::ConversionError::Conversion(msg) => TransformationError::Transformation(msg),
+        conversion_utils::ConversionError::UnsupportedConversion { from, to } => {
+            TransformationError::Transformation(format!("不支持的转换: {} -> {}", from, to))
+        }
+        conversion_utils::ConversionError::Failed { reason } => {
+            TransformationError::Transformation(reason)
+        }
+    })
+}
+
+/// 便捷函数：使用配置进行类型转换
+pub fn convert_type_with_config(
+    value: &crate::core::value::Value,
+    target_type: crate::core::value::ValueTypeDef,
+    config: conversion_utils::ConversionConfig,
+) -> Result<crate::core::value::Value, TransformationError> {
+    conversion_utils::convert_with_config(value, target_type, config).map_err(|e| match e {
+        conversion_utils::ConversionError::Conversion(msg) => TransformationError::Transformation(msg),
+        conversion_utils::ConversionError::UnsupportedConversion { from, to } => {
+            TransformationError::Transformation(format!("不支持的转换: {} -> {}", from, to))
+        }
+        conversion_utils::ConversionError::Failed { reason } => {
+            TransformationError::Transformation(reason)
+        }
+    })
+}
+
+/// 便捷函数：尝试转换，失败时返回原值
+pub fn try_convert_type(
+    value: &crate::core::value::Value,
+    target_type: crate::core::value::ValueTypeDef,
+) -> crate::core::value::Value {
+    conversion_utils::try_convert(value, target_type)
+}
+
+/// 便捷函数：批量类型转换
+pub fn convert_type_batch(
+    values: &[crate::core::value::Value],
+    target_type: crate::core::value::ValueTypeDef,
+) -> Result<Vec<crate::core::value::Value>, TransformationError> {
+    conversion_utils::convert_batch(values, target_type).map_err(|e| match e {
+        conversion_utils::ConversionError::Conversion(msg) => TransformationError::Transformation(msg),
+        conversion_utils::ConversionError::UnsupportedConversion { from, to } => {
+            TransformationError::Transformation(format!("不支持的转换: {} -> {}", from, to))
+        }
+        conversion_utils::ConversionError::Failed { reason } => {
+            TransformationError::Transformation(reason)
+        }
+    })
 }
 
 /// 便捷函数：基础验证
-pub fn validate_basic(_value: &crate::core::value::Value) -> Result<(), ValidationError> {
-    Ok(()) // 临时实现
+pub fn validate_basic(value: &crate::core::value::Value) -> Result<(), ValidationError> {
+    BasicValidationVisitor::validate(value)
 }
 
 /// 便捷函数：带配置的验证
 pub fn validate_with_config(
-    _value: &crate::core::value::Value,
-    _config: ValidationConfig,
+    value: &crate::core::value::Value,
+    config: ValidationConfig,
 ) -> Result<(), ValidationError> {
-    Ok(()) // 临时实现
+    BasicValidationVisitor::validate_with_config(value, config)
 }
 
 /// 便捷函数：类型验证
 pub fn validate_type(
-    _value: &crate::core::value::Value,
-    _expected_type: crate::core::value::ValueTypeDef,
+    value: &crate::core::value::Value,
+    expected_type: crate::core::value::ValueTypeDef,
 ) -> Result<(), ValidationError> {
-    Ok(()) // 临时实现
+    TypeValidationVisitor::validate_type(value, expected_type)
 }
 
 /// 便捷函数：严格类型验证
 pub fn validate_type_strict(
-    _value: &crate::core::value::Value,
-    _expected_type: crate::core::value::ValueTypeDef,
+    value: &crate::core::value::Value,
+    expected_type: crate::core::value::ValueTypeDef,
 ) -> Result<(), ValidationError> {
-    Ok(()) // 临时实现
+    TypeValidationVisitor::validate_type_strict(value, expected_type)
 }
 
 #[cfg(test)]
@@ -142,7 +264,8 @@ mod tests {
         assert!(hash > 0);
 
         // 测试类型转换
-        let string_value = convert_type(&value, crate::core::value::ValueTypeDef::String).expect("convert_type should succeed in test");
+        let string_value = convert_type(&value, crate::core::value::ValueTypeDef::String)
+            .expect("convert_type should succeed in test");
         assert_eq!(string_value, Value::String("42".to_string()));
 
         // 测试基础验证

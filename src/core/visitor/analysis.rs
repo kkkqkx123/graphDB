@@ -6,7 +6,7 @@ use crate::core::value::{
     DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
 };
 use crate::core::vertex_edge_path::{Edge, Path, Vertex};
-use crate::core::visitor::core::ValueVisitor;
+use crate::core::visitor::core::{ValueVisitor, VisitorCore, VisitorContext, VisitorConfig, DefaultVisitorState, VisitorState, VisitorResult};
 use std::collections::HashMap;
 
 /// Value 类型分类
@@ -25,14 +25,28 @@ pub enum TypeCategory {
 }
 
 /// 类型检查访问者 - 用于确定 Value 的类型分类
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TypeCheckerVisitor {
     categories: Vec<TypeCategory>,
+    context: VisitorContext,
+    state: DefaultVisitorState,
 }
 
 impl TypeCheckerVisitor {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            categories: Vec::new(),
+            context: VisitorContext::new(VisitorConfig::default()),
+            state: DefaultVisitorState::new(),
+        }
+    }
+    
+    pub fn with_config(config: VisitorConfig) -> Self {
+        Self {
+            categories: Vec::new(),
+            context: VisitorContext::new(config),
+            state: DefaultVisitorState::new(),
+        }
     }
 
     pub fn categories(&self) -> &[TypeCategory] {
@@ -65,6 +79,7 @@ impl TypeCheckerVisitor {
 
     pub fn reset(&mut self) {
         self.categories.clear();
+        self.state.reset();
     }
 
     fn add_category(&mut self, category: TypeCategory) {
@@ -150,19 +165,75 @@ impl ValueVisitor for TypeCheckerVisitor {
     }
 }
 
+impl VisitorCore for TypeCheckerVisitor {
+    type Result = ();
+    
+    fn context(&self) -> &VisitorContext {
+        &self.context
+    }
+    
+    fn context_mut(&mut self) -> &mut VisitorContext {
+        &mut self.context
+    }
+    
+    fn state(&self) -> &dyn VisitorState {
+        &self.state
+    }
+    
+    fn state_mut(&mut self) -> &mut dyn VisitorState {
+        &mut self.state
+    }
+    
+    fn pre_visit(&mut self) -> VisitorResult<()> {
+        self.state.inc_visit_count();
+        if self.state.depth() > self.context.config().max_depth {
+            return Err(crate::core::visitor::core::VisitorError::Validation(
+                format!("访问深度超过限制: {}", self.context.config().max_depth)
+            ));
+        }
+        Ok(())
+    }
+    
+    fn post_visit(&mut self) -> VisitorResult<()> {
+        Ok(())
+    }
+}
+
 /// 复杂度分析访问者 - 分析 Value 的复杂度
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ComplexityAnalyzerVisitor {
     depth: usize,
     max_depth: usize,
     total_nodes: usize,
     container_nodes: usize,
     primitive_nodes: usize,
+    context: VisitorContext,
+    state: DefaultVisitorState,
 }
 
 impl ComplexityAnalyzerVisitor {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            depth: 0,
+            max_depth: 0,
+            total_nodes: 0,
+            container_nodes: 0,
+            primitive_nodes: 0,
+            context: VisitorContext::new(VisitorConfig::default()),
+            state: DefaultVisitorState::new(),
+        }
+    }
+    
+    pub fn with_config(config: VisitorConfig) -> Self {
+        Self {
+            depth: 0,
+            max_depth: 0,
+            total_nodes: 0,
+            container_nodes: 0,
+            primitive_nodes: 0,
+            context: VisitorContext::new(config),
+            state: DefaultVisitorState::new(),
+        }
     }
 
     pub fn analyze(&self) -> ComplexityMetrics {
@@ -185,6 +256,7 @@ impl ComplexityAnalyzerVisitor {
         self.total_nodes = 0;
         self.container_nodes = 0;
         self.primitive_nodes = 0;
+        self.state.reset();
     }
 
     fn update_depth(&mut self, new_depth: usize) {
@@ -309,6 +381,42 @@ impl ValueVisitor for ComplexityAnalyzerVisitor {
     }
 }
 
+impl VisitorCore for ComplexityAnalyzerVisitor {
+    type Result = ();
+    
+    fn context(&self) -> &VisitorContext {
+        &self.context
+    }
+    
+    fn context_mut(&mut self) -> &mut VisitorContext {
+        &mut self.context
+    }
+    
+    fn state(&self) -> &dyn VisitorState {
+        &self.state
+    }
+    
+    fn state_mut(&mut self) -> &mut dyn VisitorState {
+        &mut self.state
+    }
+    
+    fn pre_visit(&mut self) -> VisitorResult<()> {
+        self.state.inc_visit_count();
+        self.state.inc_depth();
+        if self.state.depth() > self.context.config().max_depth {
+            return Err(crate::core::visitor::core::VisitorError::Validation(
+                format!("访问深度超过限制: {}", self.context.config().max_depth)
+            ));
+        }
+        Ok(())
+    }
+    
+    fn post_visit(&mut self) -> VisitorResult<()> {
+        self.state.dec_depth();
+        Ok(())
+    }
+}
+
 /// 复杂度级别
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ComplexityLevel {
@@ -393,5 +501,40 @@ mod tests {
         complex_value.accept(&mut visitor);
         let metrics = visitor.analyze();
         assert!(metrics.is_moderate());
+    }
+    
+    #[test]
+    fn test_visitor_core_integration() {
+        let config = VisitorConfig::new().with_max_depth(5);
+        let mut visitor = TypeCheckerVisitor::with_config(config);
+        
+        // 测试VisitorCore方法
+        assert!(visitor.should_continue());
+        assert_eq!(visitor.state().depth(), 0);
+        
+        visitor.state_mut().inc_depth();
+        assert_eq!(visitor.state().depth(), 1);
+        
+        visitor.reset();
+        assert_eq!(visitor.state().depth(), 0);
+        
+        // 测试原始ValueVisitor功能
+        let value = Value::Int(42);
+        value.accept(&mut visitor);
+        assert!(visitor.has_category(TypeCategory::Numeric));
+    }
+    
+    #[test]
+    fn test_complexity_analyzer_with_config() {
+        let config = VisitorConfig::new().with_max_depth(3);
+        let mut visitor = ComplexityAnalyzerVisitor::with_config(config);
+        
+        assert_eq!(visitor.context().config().max_depth, 3);
+        
+        let simple_value = Value::Int(42);
+        simple_value.accept(&mut visitor);
+        let metrics = visitor.analyze();
+        assert!(metrics.is_simple());
+        assert_eq!(visitor.state().visit_count(), 1);
     }
 }

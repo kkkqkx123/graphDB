@@ -6,7 +6,7 @@ use crate::core::value::{
     DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
 };
 use crate::core::vertex_edge_path::{Edge, Path, Vertex};
-use crate::core::visitor::core::ValueVisitor;
+use crate::core::visitor::core::{ValueVisitor, VisitorCore, VisitorContext, VisitorConfig, DefaultVisitorState, VisitorState, VisitorResult, VisitorError};
 use std::collections::HashMap;
 
 /// 序列化格式
@@ -19,16 +19,24 @@ pub enum SerializationFormat {
 }
 
 /// JSON 序列化访问者 - 将 Value 转换为 JSON 字符串
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct JsonSerializationVisitor {
     result: String,
     indent_level: usize,
     pretty: bool,
+    context: VisitorContext,
+    state: DefaultVisitorState,
 }
 
 impl JsonSerializationVisitor {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            result: String::new(),
+            indent_level: 0,
+            pretty: false,
+            context: VisitorContext::new(VisitorConfig::default()),
+            state: DefaultVisitorState::new(),
+        }
     }
 
     pub fn new_pretty() -> Self {
@@ -36,6 +44,18 @@ impl JsonSerializationVisitor {
             result: String::new(),
             indent_level: 0,
             pretty: true,
+            context: VisitorContext::new(VisitorConfig::default()),
+            state: DefaultVisitorState::new(),
+        }
+    }
+    
+    pub fn with_config(config: VisitorConfig) -> Self {
+        Self {
+            result: String::new(),
+            indent_level: 0,
+            pretty: false,
+            context: VisitorContext::new(config),
+            state: DefaultVisitorState::new(),
         }
     }
 
@@ -338,15 +358,31 @@ impl JsonSerializationVisitor {
 }
 
 /// XML 序列化访问者 - 将 Value 转换为 XML 字符串
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct XmlSerializationVisitor {
     result: String,
     indent_level: usize,
+    context: VisitorContext,
+    state: DefaultVisitorState,
 }
 
 impl XmlSerializationVisitor {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            result: String::new(),
+            indent_level: 0,
+            context: VisitorContext::new(VisitorConfig::default()),
+            state: DefaultVisitorState::new(),
+        }
+    }
+    
+    pub fn with_config(config: VisitorConfig) -> Self {
+        Self {
+            result: String::new(),
+            indent_level: 0,
+            context: VisitorContext::new(config),
+            state: DefaultVisitorState::new(),
+        }
     }
 
     pub fn serialize(value: &Value) -> Result<String, SerializationError> {
@@ -618,5 +654,95 @@ mod tests {
         let string_value = Value::String("test".to_string());
         let xml = XmlSerializationVisitor::serialize(&string_value).expect("XmlSerializationVisitor::serialize should succeed for string value");
         assert!(xml.contains("<test>test</test>"));
+    }
+    
+    #[test]
+    fn test_visitor_core_integration() {
+        let config = VisitorConfig::new().with_max_depth(5);
+        let mut visitor = JsonSerializationVisitor::with_config(config);
+        
+        // 测试VisitorCore方法
+        assert!(visitor.should_continue());
+        assert_eq!(visitor.state().depth(), 0);
+        
+        visitor.state_mut().inc_depth();
+        assert_eq!(visitor.state().depth(), 1);
+        
+        visitor.reset().unwrap();
+        assert_eq!(visitor.state().depth(), 0);
+        
+        // 测试原始ValueVisitor功能
+        let value = crate::core::value::Value::Int(42);
+        let result = value.accept(&mut visitor);
+        assert!(result.is_ok());
+        assert_eq!(visitor.result, "42");
+    }
+}
+
+impl VisitorCore for JsonSerializationVisitor {
+    type Result = Result<(), SerializationError>;
+    
+    fn context(&self) -> &VisitorContext {
+        &self.context
+    }
+    
+    fn context_mut(&mut self) -> &mut VisitorContext {
+        &mut self.context
+    }
+    
+    fn state(&self) -> &dyn VisitorState {
+        &self.state
+    }
+    
+    fn state_mut(&mut self) -> &mut dyn VisitorState {
+        &mut self.state
+    }
+    
+    fn pre_visit(&mut self) -> VisitorResult<()> {
+        self.state.inc_visit_count();
+        if self.state.depth() > self.context.config().max_depth {
+            return Err(VisitorError::Validation(
+                format!("访问深度超过限制: {}", self.context.config().max_depth)
+            ));
+        }
+        Ok(())
+    }
+    
+    fn post_visit(&mut self) -> VisitorResult<()> {
+        Ok(())
+    }
+}
+
+impl VisitorCore for XmlSerializationVisitor {
+    type Result = Result<(), SerializationError>;
+    
+    fn context(&self) -> &VisitorContext {
+        &self.context
+    }
+    
+    fn context_mut(&mut self) -> &mut VisitorContext {
+        &mut self.context
+    }
+    
+    fn state(&self) -> &dyn VisitorState {
+        &self.state
+    }
+    
+    fn state_mut(&mut self) -> &mut dyn VisitorState {
+        &mut self.state
+    }
+    
+    fn pre_visit(&mut self) -> VisitorResult<()> {
+        self.state.inc_visit_count();
+        if self.state.depth() > self.context.config().max_depth {
+            return Err(VisitorError::Validation(
+                format!("访问深度超过限制: {}", self.context.config().max_depth)
+            ));
+        }
+        Ok(())
+    }
+    
+    fn post_visit(&mut self) -> VisitorResult<()> {
+        Ok(())
     }
 }

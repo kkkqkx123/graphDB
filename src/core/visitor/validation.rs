@@ -6,7 +6,7 @@ use crate::core::value::{
     DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
 };
 use crate::core::vertex_edge_path::{Edge, Path, Vertex};
-use crate::core::visitor::core::{utils, ValueVisitor};
+use crate::core::visitor::core::{utils, ValueVisitor, VisitorCore, VisitorContext, VisitorConfig, DefaultVisitorState, VisitorState, VisitorResult, VisitorError};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -101,15 +101,30 @@ impl Default for ValidationConfig {
 pub struct BasicValidationVisitor {
     config: ValidationConfig,
     errors: Vec<ValidationError>,
-    current_depth: usize,
+    context: VisitorContext,
+    state: DefaultVisitorState,
 }
 
 impl BasicValidationVisitor {
     pub fn new(config: ValidationConfig) -> Self {
+        let visitor_config = VisitorConfig::new()
+            .with_max_depth(config.max_depth)
+            .with_strict_mode(config.strict_type_checking);
+        
         Self {
             config,
             errors: Vec::new(),
-            current_depth: 0,
+            context: VisitorContext::new(visitor_config),
+            state: DefaultVisitorState::new(),
+        }
+    }
+    
+    pub fn with_visitor_config(config: ValidationConfig, visitor_config: VisitorConfig) -> Self {
+        Self {
+            config,
+            errors: Vec::new(),
+            context: VisitorContext::new(visitor_config),
+            state: DefaultVisitorState::new(),
         }
     }
 
@@ -162,13 +177,13 @@ impl BasicValidationVisitor {
     }
 
     fn check_depth(&mut self) -> Result<(), ValidationError> {
-        if self.current_depth > self.config.max_depth {
+        if self.state.depth() > self.config.max_depth {
             self.add_error(ValidationError::MaxDepthExceeded {
-                depth: self.current_depth,
+                depth: self.state.depth(),
                 max_depth: self.config.max_depth,
             });
             return Err(ValidationError::MaxDepthExceeded {
-                depth: self.current_depth,
+                depth: self.state.depth(),
                 max_depth: self.config.max_depth,
             });
         }
@@ -465,22 +480,32 @@ impl ValueVisitor for BasicValidationVisitor {
 #[derive(Debug)]
 pub struct TypeValidationVisitor {
     expected_type: Option<crate::core::value::ValueTypeDef>,
-    #[allow(dead_code)]
-    strict_mode: bool,
+    context: VisitorContext,
+    state: DefaultVisitorState,
 }
 
 impl TypeValidationVisitor {
     pub fn new(expected_type: crate::core::value::ValueTypeDef) -> Self {
         Self {
             expected_type: Some(expected_type),
-            strict_mode: false,
+            context: VisitorContext::new(VisitorConfig::default()),
+            state: DefaultVisitorState::new(),
         }
     }
 
     pub fn strict(expected_type: crate::core::value::ValueTypeDef) -> Self {
         Self {
             expected_type: Some(expected_type),
-            strict_mode: true,
+            context: VisitorContext::new(VisitorConfig::new().with_strict_mode(true)),
+            state: DefaultVisitorState::new(),
+        }
+    }
+    
+    pub fn with_config(expected_type: crate::core::value::ValueTypeDef, config: VisitorConfig) -> Self {
+        Self {
+            expected_type: Some(expected_type),
+            context: VisitorContext::new(config),
+            state: DefaultVisitorState::new(),
         }
     }
 
@@ -703,6 +728,86 @@ impl ValueVisitor for TypeValidationVisitor {
     }
 }
 
+// Implement From trait for error conversion
+impl From<utils::RecursionError> for ValidationError {
+    fn from(err: utils::RecursionError) -> Self {
+        match err {
+            utils::RecursionError::MaxDepthExceeded => ValidationError::MaxDepthExceeded {
+                depth: 0,
+                max_depth: 0,
+            },
+        }
+    }
+}
+
+impl VisitorCore for BasicValidationVisitor {
+    type Result = Result<(), ValidationError>;
+    
+    fn context(&self) -> &VisitorContext {
+        &self.context
+    }
+    
+    fn context_mut(&mut self) -> &mut VisitorContext {
+        &mut self.context
+    }
+    
+    fn state(&self) -> &dyn VisitorState {
+        &self.state
+    }
+    
+    fn state_mut(&mut self) -> &mut dyn VisitorState {
+        &mut self.state
+    }
+    
+    fn pre_visit(&mut self) -> VisitorResult<()> {
+        self.state.inc_visit_count();
+        if self.state.depth() > self.context.config().max_depth {
+            return Err(VisitorError::Validation(
+                format!("访问深度超过限制: {}", self.context.config().max_depth)
+            ));
+        }
+        Ok(())
+    }
+    
+    fn post_visit(&mut self) -> VisitorResult<()> {
+        Ok(())
+    }
+}
+
+impl VisitorCore for TypeValidationVisitor {
+    type Result = Result<(), ValidationError>;
+    
+    fn context(&self) -> &VisitorContext {
+        &self.context
+    }
+    
+    fn context_mut(&mut self) -> &mut VisitorContext {
+        &mut self.context
+    }
+    
+    fn state(&self) -> &dyn VisitorState {
+        &self.state
+    }
+    
+    fn state_mut(&mut self) -> &mut dyn VisitorState {
+        &mut self.state
+    }
+    
+    fn pre_visit(&mut self) -> VisitorResult<()> {
+        self.state.inc_visit_count();
+        if self.state.depth() > self.context.config().max_depth {
+            return Err(VisitorError::Validation(
+                format!("访问深度超过限制: {}", self.context.config().max_depth)
+            ));
+        }
+        Ok(())
+    }
+    
+    fn post_visit(&mut self) -> VisitorResult<()> {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -778,16 +883,25 @@ mod tests {
         });
         assert!(BasicValidationVisitor::validate(&invalid_time).is_err());
     }
-}
-
-// Implement From trait for error conversion
-impl From<utils::RecursionError> for ValidationError {
-    fn from(err: utils::RecursionError) -> Self {
-        match err {
-            utils::RecursionError::MaxDepthExceeded => ValidationError::MaxDepthExceeded {
-                depth: 0,
-                max_depth: 0,
-            },
-        }
+    
+    #[test]
+    fn test_visitor_core_integration() {
+        let config = ValidationConfig::default();
+        let mut visitor = BasicValidationVisitor::new(config);
+        
+        // 测试VisitorCore方法
+        assert!(visitor.should_continue());
+        assert_eq!(visitor.state().depth(), 0);
+        
+        visitor.state_mut().inc_depth();
+        assert_eq!(visitor.state().depth(), 1);
+        
+        visitor.reset().unwrap();
+        assert_eq!(visitor.state().depth(), 0);
+        
+        // 测试原始ValueVisitor功能
+        let value = Value::Int(42);
+        let result = value.accept(&mut visitor);
+        assert!(result.is_ok());
     }
 }

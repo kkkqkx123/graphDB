@@ -12,7 +12,6 @@ pub mod type_utils;
 pub mod value;
 pub mod vertex_edge_path;
 pub mod visitor;
-pub mod visitors_legacy;
 
 pub use error::{DBError, DBResult, ExpressionError, QueryError};
 pub use result::*;
@@ -22,4 +21,3 @@ pub use type_utils::TypeUtils;
 pub use value::*;
 pub use vertex_edge_path::*;
 pub use visitor::*;
-pub use visitors_legacy::*;

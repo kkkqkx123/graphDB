@@ -2,6 +2,7 @@
 //!
 //! 这个模块提供了访问者模式的核心 trait 和基础实现
 
+use crate::core::error::DBError;
 use crate::core::value::{
     DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
 };
@@ -92,6 +93,311 @@ impl ValueAcceptor for Value {
             Value::Null(nt) => visitor.visit_null(nt),
             Value::Empty => visitor.visit_empty(),
         }
+    }
+}
+
+/// 统一的访问者错误类型（复用core层的错误系统）
+pub type VisitorError = DBError;
+pub type VisitorResult<T> = Result<T, VisitorError>;
+
+/// 访问者核心trait - 所有访问者的基础
+pub trait VisitorCore: std::fmt::Debug {
+    /// 访问者结果类型
+    type Result;
+
+    /// 预访问钩子 - 在访问开始前调用
+    fn pre_visit(&mut self) -> VisitorResult<()> {
+        Ok(())
+    }
+
+    /// 后访问钩子 - 在访问结束后调用
+    fn post_visit(&mut self) -> VisitorResult<()> {
+        Ok(())
+    }
+
+    /// 获取访问者上下文
+    fn context(&self) -> &VisitorContext;
+
+    /// 获取可变访问者上下文
+    fn context_mut(&mut self) -> &mut VisitorContext;
+
+    /// 获取访问者状态
+    fn state(&self) -> &dyn VisitorState;
+
+    /// 获取可变访问者状态
+    fn state_mut(&mut self) -> &mut dyn VisitorState;
+
+    /// 重置访问者状态
+    fn reset(&mut self) -> VisitorResult<()> {
+        self.state_mut().reset();
+        Ok(())
+    }
+
+    /// 检查是否应该继续访问
+    fn should_continue(&self) -> bool {
+        self.state().should_continue()
+    }
+
+    /// 停止访问
+    fn stop(&mut self) {
+        self.state_mut().stop();
+    }
+}
+
+/// 访问者状态管理trait
+pub trait VisitorState: std::fmt::Debug + Send + Sync {
+    /// 重置状态
+    fn reset(&mut self);
+
+    /// 检查是否应该继续访问
+    fn should_continue(&self) -> bool;
+
+    /// 停止访问
+    fn stop(&mut self);
+
+    /// 获取访问深度
+    fn depth(&self) -> usize;
+
+    /// 设置访问深度
+    fn set_depth(&mut self, depth: usize);
+
+    /// 增加访问深度
+    fn inc_depth(&mut self);
+
+    /// 减少访问深度
+    fn dec_depth(&mut self);
+
+    /// 获取访问计数
+    fn visit_count(&self) -> usize;
+
+    /// 增加访问计数
+    fn inc_visit_count(&mut self);
+
+    /// 获取自定义状态数据
+    fn get_custom_data(&self, key: &str) -> Option<&String>;
+
+    /// 设置自定义状态数据
+    fn set_custom_data(&mut self, key: String, value: String);
+
+    /// 移除自定义状态数据
+    fn remove_custom_data(&mut self, key: &str) -> Option<String>;
+}
+
+/// 默认访问者状态实现
+#[derive(Debug, Clone)]
+pub struct DefaultVisitorState {
+    /// 是否继续访问
+    continue_visiting: bool,
+    /// 访问深度
+    depth: usize,
+    /// 访问计数
+    visit_count: usize,
+    /// 自定义状态数据
+    custom_data: HashMap<String, String>,
+}
+
+impl DefaultVisitorState {
+    /// 创建新的默认状态
+    pub fn new() -> Self {
+        Self {
+            continue_visiting: true,
+            depth: 0,
+            visit_count: 0,
+            custom_data: HashMap::new(),
+        }
+    }
+
+    /// 创建带初始深度的状态
+    pub fn with_depth(depth: usize) -> Self {
+        Self {
+            continue_visiting: true,
+            depth,
+            visit_count: 0,
+            custom_data: HashMap::new(),
+        }
+    }
+}
+
+impl Default for DefaultVisitorState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl VisitorState for DefaultVisitorState {
+    fn reset(&mut self) {
+        self.continue_visiting = true;
+        self.depth = 0;
+        self.visit_count = 0;
+        self.custom_data.clear();
+    }
+
+    fn should_continue(&self) -> bool {
+        self.continue_visiting
+    }
+
+    fn stop(&mut self) {
+        self.continue_visiting = false;
+    }
+
+    fn depth(&self) -> usize {
+        self.depth
+    }
+
+    fn set_depth(&mut self, depth: usize) {
+        self.depth = depth;
+    }
+
+    fn inc_depth(&mut self) {
+        self.depth += 1;
+    }
+
+    fn dec_depth(&mut self) {
+        if self.depth > 0 {
+            self.depth -= 1;
+        }
+    }
+
+    fn visit_count(&self) -> usize {
+        self.visit_count
+    }
+
+    fn inc_visit_count(&mut self) {
+        self.visit_count += 1;
+    }
+
+    fn get_custom_data(&self, key: &str) -> Option<&String> {
+        self.custom_data.get(key)
+    }
+
+    fn set_custom_data(&mut self, key: String, value: String) {
+        self.custom_data.insert(key, value);
+    }
+
+    fn remove_custom_data(&mut self, key: &str) -> Option<String> {
+        self.custom_data.remove(key)
+    }
+}
+
+/// 访问者上下文 - 包含配置、缓存和错误收集器
+#[derive(Debug, Clone)]
+pub struct VisitorContext {
+    /// 访问者配置
+    config: VisitorConfig,
+    /// 自定义数据
+    custom_data: HashMap<String, String>,
+}
+
+impl VisitorContext {
+    /// 创建新的访问者上下文
+    pub fn new(config: VisitorConfig) -> Self {
+        Self {
+            config,
+            custom_data: HashMap::new(),
+        }
+    }
+
+    /// 获取配置
+    pub fn config(&self) -> &VisitorConfig {
+        &self.config
+    }
+
+    /// 获取可变配置
+    pub fn config_mut(&mut self) -> &mut VisitorConfig {
+        &mut self.config
+    }
+
+    /// 获取自定义数据
+    pub fn get_custom_data(&self, key: &str) -> Option<&String> {
+        self.custom_data.get(key)
+    }
+
+    /// 设置自定义数据
+    pub fn set_custom_data(&mut self, key: String, value: String) {
+        self.custom_data.insert(key, value);
+    }
+
+    /// 移除自定义数据
+    pub fn remove_custom_data(&mut self, key: &str) -> Option<String> {
+        self.custom_data.remove(key)
+    }
+}
+
+/// 访问者配置
+#[derive(Debug, Clone)]
+pub struct VisitorConfig {
+    /// 最大访问深度
+    pub max_depth: usize,
+    /// 是否启用缓存
+    pub enable_cache: bool,
+    /// 是否收集错误
+    pub collect_errors: bool,
+    /// 是否启用性能统计
+    pub enable_performance_stats: bool,
+    /// 是否严格模式
+    pub strict_mode: bool,
+    /// 自定义配置
+    pub custom_config: HashMap<String, String>,
+}
+
+impl Default for VisitorConfig {
+    fn default() -> Self {
+        Self {
+            max_depth: 100,
+            enable_cache: true,
+            collect_errors: true,
+            enable_performance_stats: false,
+            strict_mode: false,
+            custom_config: HashMap::new(),
+        }
+    }
+}
+
+impl VisitorConfig {
+    /// 创建新的配置
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 设置最大深度
+    pub fn with_max_depth(mut self, max_depth: usize) -> Self {
+        self.max_depth = max_depth;
+        self
+    }
+
+    /// 设置是否启用缓存
+    pub fn with_cache(mut self, enable_cache: bool) -> Self {
+        self.enable_cache = enable_cache;
+        self
+    }
+
+    /// 设置是否收集错误
+    pub fn with_error_collection(mut self, collect_errors: bool) -> Self {
+        self.collect_errors = collect_errors;
+        self
+    }
+
+    /// 设置是否启用性能统计
+    pub fn with_performance_stats(mut self, enable_performance_stats: bool) -> Self {
+        self.enable_performance_stats = enable_performance_stats;
+        self
+    }
+
+    /// 设置是否严格模式
+    pub fn with_strict_mode(mut self, strict_mode: bool) -> Self {
+        self.strict_mode = strict_mode;
+        self
+    }
+
+    /// 添加自定义配置
+    pub fn with_custom_config(mut self, key: String, value: String) -> Self {
+        self.custom_config.insert(key, value);
+        self
+    }
+
+    /// 获取自定义配置
+    pub fn get_custom_config(&self, key: &str) -> Option<&String> {
+        self.custom_config.get(key)
     }
 }
 
@@ -234,6 +540,264 @@ mod tests {
 
         let value = Value::Int(42);
         let mut visitor = CountVisitor { count: 0 };
+        value.accept(&mut visitor);
+        assert_eq!(visitor.count, 1);
+    }
+}
+
+/// 为具有 context 和 state 字段的访问者提供 VisitorCore 支持的便利宏
+///
+/// 此宏适用于那些已经包含 context 和 state 字段的类型，
+/// 自动实现所有必需的方法。这是推荐的实现方式。
+///
+/// # 示例
+/// ```
+/// struct MyVisitor {
+///     count: usize,
+///     context: VisitorContext,
+///     state: DefaultVisitorState,
+/// }
+///
+/// impl_visitor_core!(MyVisitor, ());
+/// ```
+#[macro_export]
+macro_rules! impl_visitor_core {
+    ($visitor_type:ty, $result_type:ty) => {
+        impl $crate::core::visitor::core::VisitorCore for $visitor_type {
+            type Result = $result_type;
+
+            fn context(&self) -> &$crate::core::visitor::core::VisitorContext {
+                &self.context
+            }
+
+            fn context_mut(&mut self) -> &mut $crate::core::visitor::core::VisitorContext {
+                &mut self.context
+            }
+
+            fn state(&self) -> &dyn $crate::core::visitor::core::VisitorState {
+                &self.state
+            }
+
+            fn state_mut(&mut self) -> &mut dyn $crate::core::visitor::core::VisitorState {
+                &mut self.state
+            }
+        }
+    };
+}
+
+/// 为自定义实现的访问者提供 VisitorCore 支持的宏
+///
+/// 此宏适用于那些需要自定义 context 和 state 访问逻辑的类型。
+/// 使用者需要自己实现所有方法。
+///
+/// # 示例
+/// ```
+/// struct MyVisitor {
+///     count: usize,
+///     custom_context: VisitorContext,
+///     custom_state: MyCustomState,
+/// }
+///
+/// impl_visitor_core_custom!(MyVisitor, (), {
+///     fn context(&self) -> &VisitorContext {
+///         &self.custom_context
+///     }
+///
+///     fn context_mut(&mut self) -> &mut VisitorContext {
+///         &mut self.custom_context
+///     }
+///
+///     fn state(&self) -> &dyn VisitorState {
+///         &self.custom_state
+///     }
+///
+///     fn state_mut(&mut self) -> &mut dyn VisitorState {
+///         &mut self.custom_state
+///     }
+/// });
+/// ```
+#[macro_export]
+macro_rules! impl_visitor_core_custom {
+    ($visitor_type:ty, $result_type:ty, { $($method:item)* }) => {
+        impl $crate::core::visitor::core::VisitorCore for $visitor_type {
+            type Result = $result_type;
+            
+            $($method)*
+        }
+    };
+}
+
+#[cfg(test)]
+mod core_tests {
+    use super::*;
+    use crate::core::value::Value;
+
+    #[test]
+    fn test_visitor_config() {
+        let config = VisitorConfig::new()
+            .with_max_depth(50)
+            .with_cache(false)
+            .with_strict_mode(true)
+            .with_custom_config("test_key".to_string(), "test_value".to_string());
+
+        assert_eq!(config.max_depth, 50);
+        assert!(!config.enable_cache);
+        assert!(config.strict_mode);
+        assert_eq!(
+            config.get_custom_config("test_key"),
+            Some(&"test_value".to_string())
+        );
+    }
+
+    #[test]
+    fn test_default_visitor_state() {
+        let mut state = DefaultVisitorState::new();
+
+        assert!(state.should_continue());
+        assert_eq!(state.depth(), 0);
+        assert_eq!(state.visit_count(), 0);
+
+        state.inc_depth();
+        assert_eq!(state.depth(), 1);
+
+        state.inc_visit_count();
+        assert_eq!(state.visit_count(), 1);
+
+        state.stop();
+        assert!(!state.should_continue());
+
+        state.reset();
+        assert!(state.should_continue());
+        assert_eq!(state.depth(), 0);
+        assert_eq!(state.visit_count(), 0);
+    }
+
+    #[test]
+    fn test_visitor_context() {
+        let config = VisitorConfig::new();
+        let mut context = VisitorContext::new(config);
+
+        context.set_custom_data("test_key".to_string(), "test_value".to_string());
+        assert_eq!(
+            context.get_custom_data("test_key"),
+            Some(&"test_value".to_string())
+        );
+
+        let removed = context.remove_custom_data("test_key");
+        assert_eq!(removed, Some("test_value".to_string()));
+        assert_eq!(context.get_custom_data("test_key"), None);
+    }
+
+    #[test]
+    fn test_value_visitor_with_core() {
+        struct TestVisitor {
+            count: usize,
+            context: VisitorContext,
+            state: DefaultVisitorState,
+        }
+
+        impl std::fmt::Debug for TestVisitor {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "TestVisitor {{ count: {} }}", self.count)
+            }
+        }
+
+        impl_visitor_core_with_fields!(TestVisitor, ());
+
+        impl ValueVisitor for TestVisitor {
+            type Result = ();
+
+            fn visit_int(&mut self, _value: i64) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_string(&mut self, _value: &str) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_bool(&mut self, _value: bool) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_float(&mut self, _value: f64) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_date(&mut self, _value: &DateValue) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_time(&mut self, _value: &TimeValue) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_datetime(&mut self, _value: &DateTimeValue) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_vertex(&mut self, _value: &Vertex) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_edge(&mut self, _value: &Edge) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_path(&mut self, _value: &Path) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_list(&mut self, _value: &[Value]) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_map(&mut self, _value: &HashMap<String, Value>) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_set(&mut self, _value: &std::collections::HashSet<Value>) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_geography(&mut self, _value: &GeographyValue) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_duration(&mut self, _value: &DurationValue) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_dataset(&mut self, _value: &DataSet) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_null(&mut self, _null_type: &NullType) -> Self::Result {
+                self.count += 1;
+            }
+
+            fn visit_empty(&mut self) -> Self::Result {
+                self.count += 1;
+            }
+        }
+
+        let mut visitor = TestVisitor {
+            count: 0,
+            context: VisitorContext::new(VisitorConfig::default()),
+            state: DefaultVisitorState::new(),
+        };
+        let value = Value::Int(42);
+
+        // 测试VisitorCore方法
+        assert!(visitor.should_continue());
+        assert_eq!(visitor.state().depth(), 0);
+
+        visitor.state_mut().inc_depth();
+        assert_eq!(visitor.state().depth(), 1);
+
+        visitor.reset();
+        assert_eq!(visitor.state().depth(), 0);
+
+        // 测试原始ValueVisitor功能
         value.accept(&mut visitor);
         assert_eq!(visitor.count, 1);
     }
