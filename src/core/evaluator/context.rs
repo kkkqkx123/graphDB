@@ -155,7 +155,7 @@ impl EvaluationContext {
                     .map(|s| s.to_string())
                     .collect(),
                 function_names: Vec::new(), // 需要从上下文获取函数名
-                depth: self.expression_context.depth(),
+                depth: self.expression_context.get_depth(),
             }),
         };
 
@@ -196,7 +196,7 @@ impl EvaluationContext {
                     .map(|s| s.to_string())
                     .collect(),
                 function_names: Vec::new(), // 需要从上下文获取函数名
-                depth: self.expression_context.depth(),
+                depth: self.expression_context.get_depth(),
             }),
         };
 

@@ -825,14 +825,6 @@ impl ContextBase for BasicExpressionContext {
         ContextType::Expression
     }
 
-    fn parent(&self) -> Option<&dyn ContextBase> {
-        self.parent.as_ref().map(|p| p.as_ref() as &dyn ContextBase)
-    }
-    
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn created_at(&self) -> std::time::SystemTime {
         std::time::SystemTime::now() // 使用当前时间作为创建时间
     }
@@ -843,31 +835,6 @@ impl ContextBase for BasicExpressionContext {
 
     fn is_valid(&self) -> bool {
         true // 表达式上下文总是有效的
-    }
-
-    fn get_attribute(&self, _key: &str) -> Option<Value> {
-        // 表达式上下文不支持自定义属性
-        None
-    }
-
-    fn set_attribute(&mut self, _key: String, _value: Value) {
-        // 表达式上下文不支持自定义属性
-    }
-
-    fn attribute_keys(&self) -> Vec<String> {
-        Vec::new() // 表达式上下文不支持自定义属性
-    }
-
-    fn remove_attribute(&mut self, _key: &str) -> Option<Value> {
-        None // 表达式上下文不支持自定义属性
-    }
-
-    fn clear_attributes(&mut self) {
-        // 表达式上下文不支持自定义属性
-    }
-
-    fn clone_context(&self) -> Box<dyn ContextBase> {
-        Box::new(self.clone())
     }
 }
 
@@ -882,6 +849,16 @@ impl MutableContext for BasicExpressionContext {
 
     fn revalidate(&mut self) -> bool {
         true // 表达式上下文总是有效的
+    }
+}
+
+impl super::base::HierarchicalContext for BasicExpressionContext {
+    fn parent_id(&self) -> Option<&str> {
+        self.parent.as_ref().map(|_| "parent_expression")
+    }
+
+    fn depth(&self) -> usize {
+        self.depth
     }
 }
 

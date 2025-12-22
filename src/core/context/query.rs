@@ -8,6 +8,7 @@ use crate::core::types::query::{QueryType, QueryResult};
 use crate::core::Value;
 use super::base::{ContextBase, ContextType, MutableContext};
 use super::session::SessionInfo;
+use super::enum_context::UnifiedContext;
 
 /// 查询上下文
 #[derive(Debug, Clone)]
@@ -126,10 +127,6 @@ impl ContextBase for QueryContext {
     fn context_type(&self) -> ContextType {
         ContextType::Query
     }
-    
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
 
     fn created_at(&self) -> std::time::SystemTime {
         std::time::SystemTime::now() // 使用当前时间作为创建时间
@@ -141,31 +138,6 @@ impl ContextBase for QueryContext {
 
     fn is_valid(&self) -> bool {
         !self.is_timeout()
-    }
-
-    fn get_attribute(&self, _key: &str) -> Option<Value> {
-        // 查询上下文不支持自定义属性
-        None
-    }
-
-    fn set_attribute(&mut self, _key: String, _value: Value) {
-        // 查询上下文不支持自定义属性
-    }
-
-    fn attribute_keys(&self) -> Vec<String> {
-        Vec::new() // 查询上下文不支持自定义属性
-    }
-
-    fn remove_attribute(&mut self, _key: &str) -> Option<Value> {
-        None // 查询上下文不支持自定义属性
-    }
-
-    fn clear_attributes(&mut self) {
-        // 查询上下文不支持自定义属性
-    }
-
-    fn clone_context(&self) -> Box<dyn ContextBase> {
-        Box::new(self.clone())
     }
 }
 

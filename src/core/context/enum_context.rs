@@ -16,7 +16,7 @@ use crate::core::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// 统一上下文枚举
+/// 统一上下文枚举，避免动态分发
 #[derive(Debug, Clone)]
 pub enum UnifiedContext {
     /// 会话上下文
@@ -36,6 +36,7 @@ pub enum UnifiedContext {
     /// 存储上下文
     Storage(StorageContext),
 }
+
 
 impl UnifiedContext {
     /// 获取上下文ID
@@ -66,17 +67,33 @@ impl UnifiedContext {
         }
     }
 
-    /// 获取父上下文
-    pub fn parent(&self) -> Option<&dyn ContextBase> {
+    /// 获取父上下文ID
+    pub fn parent_id(&self) -> Option<&str> {
         match self {
-            UnifiedContext::Session(ctx) => ctx.parent(),
-            UnifiedContext::Query(ctx) => ctx.parent(),
-            UnifiedContext::Execution(ctx) => ctx.parent(),
-            UnifiedContext::Expression(ctx) => ctx.parent(),
-            UnifiedContext::Request(ctx) => ctx.parent(),
-            UnifiedContext::Runtime(ctx) => ctx.parent(),
-            UnifiedContext::Validation(ctx) => ctx.parent(),
-            UnifiedContext::Storage(ctx) => ctx.parent(),
+            UnifiedContext::Session(_) => None,
+            UnifiedContext::Query(_) => None,
+            UnifiedContext::Execution(ctx) => Some(&ctx.query_context.query_id),
+            UnifiedContext::Expression(ctx) => {
+                ctx.parent.as_ref().map(|_| "parent_expression")
+            }
+            UnifiedContext::Request(_) => None,
+            UnifiedContext::Runtime(_) => None,
+            UnifiedContext::Validation(_) => None,
+            UnifiedContext::Storage(_) => None,
+        }
+    }
+
+    /// 获取上下文深度
+    pub fn depth(&self) -> usize {
+        match self {
+            UnifiedContext::Session(_) => 0,
+            UnifiedContext::Query(_) => 1,
+            UnifiedContext::Execution(_) => 2,
+            UnifiedContext::Expression(ctx) => ctx.get_depth(),
+            UnifiedContext::Request(_) => 1,
+            UnifiedContext::Runtime(_) => 2,
+            UnifiedContext::Validation(_) => 2,
+            UnifiedContext::Storage(_) => 2,
         }
     }
 
@@ -129,10 +146,16 @@ impl UnifiedContext {
             UnifiedContext::Query(_) => None,
             UnifiedContext::Execution(_) => None,
             UnifiedContext::Expression(_) => None,
-            UnifiedContext::Request(ctx) => ctx.get_attribute(key),
+            UnifiedContext::Request(ctx) => {
+                if let Ok(attributes) = ctx.attributes.read() {
+                    attributes.get(key).cloned()
+                } else {
+                    None
+                }
+            }
             UnifiedContext::Runtime(_) => None,
             UnifiedContext::Validation(_) => None,
-            UnifiedContext::Storage(ctx) => ctx.get_attribute(key),
+            UnifiedContext::Storage(ctx) => ctx.attributes.get(key).cloned(),
         }
     }
 
@@ -143,10 +166,16 @@ impl UnifiedContext {
             UnifiedContext::Query(_) => {}
             UnifiedContext::Execution(_) => {}
             UnifiedContext::Expression(_) => {}
-            UnifiedContext::Request(ctx) => ctx.set_attribute(key, value),
+            UnifiedContext::Request(ctx) => {
+                if let Ok(mut attributes) = ctx.attributes.write() {
+                    attributes.insert(key, value);
+                }
+            }
             UnifiedContext::Runtime(_) => {}
             UnifiedContext::Validation(_) => {}
-            UnifiedContext::Storage(ctx) => ctx.set_attribute(key, value),
+            UnifiedContext::Storage(ctx) => {
+                ctx.attributes.insert(key, value);
+            }
         }
     }
 
@@ -157,38 +186,54 @@ impl UnifiedContext {
             UnifiedContext::Query(_) => Vec::new(),
             UnifiedContext::Execution(_) => Vec::new(),
             UnifiedContext::Expression(_) => Vec::new(),
-            UnifiedContext::Request(ctx) => ctx.attribute_keys(),
+            UnifiedContext::Request(ctx) => {
+                if let Ok(attributes) = ctx.attributes.read() {
+                    attributes.keys().cloned().collect()
+                } else {
+                    Vec::new()
+                }
+            }
             UnifiedContext::Runtime(_) => Vec::new(),
             UnifiedContext::Validation(_) => Vec::new(),
-            UnifiedContext::Storage(ctx) => ctx.attribute_keys(),
+            UnifiedContext::Storage(ctx) => ctx.attributes.keys().cloned().collect(),
         }
     }
 
     /// 移除属性
-    pub fn remove_attribute(&mut self, key: &str) -> Option<Value> {
+    pub fn get_remove_attribute(&mut self, key: &str) -> Option<Value> {
         match self {
             UnifiedContext::Session(_) => None,
             UnifiedContext::Query(_) => None,
             UnifiedContext::Execution(_) => None,
             UnifiedContext::Expression(_) => None,
-            UnifiedContext::Request(ctx) => ctx.remove_attribute(key),
+            UnifiedContext::Request(ctx) => {
+                if let Ok(mut attributes) = ctx.attributes.write() {
+                    attributes.remove(key)
+                } else {
+                    None
+                }
+            }
             UnifiedContext::Runtime(_) => None,
             UnifiedContext::Validation(_) => None,
-            UnifiedContext::Storage(ctx) => ctx.remove_attribute(key),
+            UnifiedContext::Storage(ctx) => ctx.attributes.remove(key),
         }
     }
 
     /// 清空属性
-    pub fn clear_attributes(&mut self) {
+    pub fn get_clear_attributes(&mut self) {
         match self {
             UnifiedContext::Session(_) => {}
             UnifiedContext::Query(_) => {}
             UnifiedContext::Execution(_) => {}
             UnifiedContext::Expression(_) => {}
-            UnifiedContext::Request(ctx) => ctx.clear_attributes(),
+            UnifiedContext::Request(ctx) => {
+                if let Ok(mut attributes) = ctx.attributes.write() {
+                    attributes.clear();
+                }
+            }
             UnifiedContext::Runtime(_) => {}
             UnifiedContext::Validation(_) => {}
-            UnifiedContext::Storage(ctx) => ctx.clear_attributes(),
+            UnifiedContext::Storage(ctx) => ctx.attributes.clear(),
         }
     }
 
@@ -333,19 +378,6 @@ impl ContextBase for UnifiedContext {
         self.context_type()
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        match self {
-            UnifiedContext::Session(ctx) => ctx,
-            UnifiedContext::Query(ctx) => ctx,
-            UnifiedContext::Execution(ctx) => ctx,
-            UnifiedContext::Expression(ctx) => ctx,
-            UnifiedContext::Request(ctx) => ctx,
-            UnifiedContext::Runtime(ctx) => ctx,
-            UnifiedContext::Validation(ctx) => ctx,
-            UnifiedContext::Storage(ctx) => ctx,
-        }
-    }
-
     fn created_at(&self) -> std::time::SystemTime {
         self.created_at()
     }
@@ -357,7 +389,23 @@ impl ContextBase for UnifiedContext {
     fn is_valid(&self) -> bool {
         self.is_valid()
     }
+}
 
+impl MutableContext for UnifiedContext {
+    fn touch(&mut self) {
+        self.touch();
+    }
+
+    fn invalidate(&mut self) {
+        self.invalidate();
+    }
+
+    fn revalidate(&mut self) -> bool {
+        self.revalidate()
+    }
+}
+
+impl super::base::AttributeSupport for UnifiedContext {
     fn get_attribute(&self, key: &str) -> Option<Value> {
         self.get_attribute(key)
     }
@@ -377,22 +425,14 @@ impl ContextBase for UnifiedContext {
     fn clear_attributes(&mut self) {
         self.clear_attributes();
     }
-
-    fn clone_context(&self) -> Box<dyn ContextBase> {
-        Box::new(self.clone())
-    }
 }
 
-impl MutableContext for UnifiedContext {
-    fn touch(&mut self) {
-        self.touch();
+impl super::base::HierarchicalContext for UnifiedContext {
+    fn parent_id(&self) -> Option<&str> {
+        self.parent_id()
     }
 
-    fn invalidate(&mut self) {
-        self.invalidate();
-    }
-
-    fn revalidate(&mut self) -> bool {
-        self.revalidate()
+    fn depth(&self) -> usize {
+        self.get_depth()
     }
 }

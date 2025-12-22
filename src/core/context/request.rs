@@ -450,10 +450,6 @@ impl ContextBase for RequestContext {
         ContextType::Request
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn created_at(&self) -> std::time::SystemTime {
         self.start_time
     }
@@ -465,7 +461,27 @@ impl ContextBase for RequestContext {
     fn is_valid(&self) -> bool {
         self.valid
     }
+}
 
+impl MutableContext for RequestContext {
+    fn touch(&mut self) {
+        self.updated_at = std::time::SystemTime::now();
+    }
+
+    fn invalidate(&mut self) {
+        self.valid = false;
+        self.touch();
+    }
+
+    fn revalidate(&mut self) -> bool {
+        // 简单的重新验证逻辑
+        self.valid = true;
+        self.touch();
+        true
+    }
+}
+
+impl super::base::AttributeSupport for RequestContext {
     fn get_attribute(&self, key: &str) -> Option<Value> {
         if let Ok(attributes) = self.attributes.read() {
             attributes.get(key).cloned()
@@ -507,61 +523,15 @@ impl ContextBase for RequestContext {
         }
         self.touch();
     }
-
-    fn clone_context(&self) -> Box<dyn ContextBase> {
-        Box::new(self.clone())
-    }
 }
 
-impl MutableContext for RequestContext {
-    fn touch(&mut self) {
-        self.updated_at = std::time::SystemTime::now();
+impl super::base::HierarchicalContext for RequestContext {
+    fn parent_id(&self) -> Option<&str> {
+        None // 请求上下文通常是根上下文
     }
 
-    fn invalidate(&mut self) {
-        self.valid = false;
-        self.touch();
-    }
-
-    fn revalidate(&mut self) -> bool {
-        // 简单的重新验证逻辑
-        self.valid = true;
-        self.touch();
-        true
-    }
-}
-
-impl HierarchicalContext for RequestContext {
-    fn create_child(&self, context_type: ContextType) -> Box<dyn ContextBase> {
-        use crate::core::types::query::QueryType;
-        match context_type {
-            ContextType::Query => {
-                // 创建查询上下文作为子上下文
-                Box::new(super::query::QueryContext::new(
-                    format!("{}_query", self.id),
-                    QueryType::DataQuery,
-                    self.query().to_string(),
-                    super::session::SessionInfo::new(
-                        self.session_id().unwrap_or("unknown").to_string(),
-                        self.user_name().unwrap_or("unknown").to_string(),
-                        vec!["user".to_string()],
-                    ),
-                ))
-            }
-            _ => {
-                // 对于其他类型，创建一个基础上下文
-                Box::new(super::query::QueryContext::new(
-                    format!("{}_child", self.id),
-                    QueryType::DataQuery,
-                    "".to_string(),
-                    super::session::SessionInfo::new(
-                        self.session_id().unwrap_or("unknown").to_string(),
-                        self.user_name().unwrap_or("unknown").to_string(),
-                        vec!["user".to_string()],
-                    ),
-                ))
-            }
-        }
+    fn depth(&self) -> usize {
+        1 // 请求上下文深度为1
     }
 }
 

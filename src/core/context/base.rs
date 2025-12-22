@@ -1,60 +1,8 @@
-//! 统一上下文基础接口
+//! 上下文基础定义
 //!
-//! 定义所有上下文类型的基础接口和共同功能
+//! 定义上下文系统的核心类型和最小化接口
 
 use crate::core::Value;
-use std::collections::HashMap;
-
-/// 上下文基础特征
-///
-/// 所有上下文类型都必须实现此基础特征，提供通用的上下文操作
-pub trait ContextBase: std::any::Any + std::fmt::Debug {
-    /// 获取上下文ID
-    fn id(&self) -> &str;
-
-    /// 获取上下文类型
-    fn context_type(&self) -> ContextType;
-
-    /// 获取父上下文（如果存在）
-    fn parent(&self) -> Option<&dyn ContextBase> {
-        None
-    }
-
-    /// 获取上下文深度（默认为0）
-    fn depth(&self) -> usize {
-        0
-    }
-
-    /// 获取Any引用，用于类型转换
-    fn as_any(&self) -> &dyn std::any::Any;
-
-    /// 获取创建时间
-    fn created_at(&self) -> std::time::SystemTime;
-
-    /// 获取最后更新时间
-    fn updated_at(&self) -> std::time::SystemTime;
-
-    /// 检查上下文是否有效
-    fn is_valid(&self) -> bool;
-
-    /// 获取自定义属性（返回克隆值）
-    fn get_attribute(&self, key: &str) -> Option<Value>;
-
-    /// 设置自定义属性
-    fn set_attribute(&mut self, key: String, value: Value);
-
-    /// 获取所有属性键
-    fn attribute_keys(&self) -> Vec<String>;
-
-    /// 移除属性
-    fn remove_attribute(&mut self, key: &str) -> Option<Value>;
-
-    /// 清空所有属性
-    fn clear_attributes(&mut self);
-
-    /// 克隆上下文（深拷贝）
-    fn clone_context(&self) -> Box<dyn ContextBase>;
-}
 
 /// 上下文类型枚举
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -77,6 +25,26 @@ pub enum ContextType {
     Storage,
 }
 
+/// 上下文基础特征 - 最小化接口
+///
+/// 只包含所有上下文类型真正需要的基础方法
+pub trait ContextBase: std::fmt::Debug {
+    /// 获取上下文ID
+    fn id(&self) -> &str;
+
+    /// 获取上下文类型
+    fn context_type(&self) -> ContextType;
+
+    /// 获取创建时间
+    fn created_at(&self) -> std::time::SystemTime;
+
+    /// 获取最后更新时间
+    fn updated_at(&self) -> std::time::SystemTime;
+
+    /// 检查上下文是否有效
+    fn is_valid(&self) -> bool;
+}
+
 /// 可变上下文特征
 ///
 /// 提供可变操作的上下文特征
@@ -95,46 +63,31 @@ pub trait MutableContext: ContextBase {
 ///
 /// 支持层次化结构的上下文特征，用于具有父子关系的上下文
 pub trait HierarchicalContext: ContextBase {
-    /// 创建子上下文
-    fn create_child(&self, context_type: ContextType) -> Box<dyn ContextBase>;
+    /// 获取父上下文ID（如果存在）
+    fn parent_id(&self) -> Option<&str>;
+
+    /// 获取上下文深度
+    fn depth(&self) -> usize;
 }
 
-/// 上下文容器特征
+/// 属性支持特征
 ///
-/// 支持存储键值对的上下文特征
-pub trait ContextContainer: ContextBase {
-    /// 获取值
-    fn get(&self, key: &str) -> Option<&Value>;
+/// 为需要属性的上下文提供支持
+pub trait AttributeSupport {
+    /// 获取自定义属性
+    fn get_attribute(&self, key: &str) -> Option<Value>;
 
-    /// 设置值
-    fn set(&mut self, key: String, value: Value);
+    /// 设置自定义属性
+    fn set_attribute(&mut self, key: String, value: Value);
 
-    /// 检查键是否存在
-    fn contains_key(&self, key: &str) -> bool;
+    /// 获取所有属性键
+    fn attribute_keys(&self) -> Vec<String>;
 
-    /// 移除键值对
-    fn remove(&mut self, key: &str) -> Option<Value>;
+    /// 移除属性
+    fn remove_attribute(&mut self, key: &str) -> Option<Value>;
 
-    /// 获取所有键
-    fn keys(&self) -> Vec<&str>;
-
-    /// 获取所有值
-    fn values(&self) -> Vec<&Value>;
-
-    /// 获取所有键值对
-    fn iter(&self) -> std::collections::hash_map::Iter<'_, String, Value>;
-
-    /// 获取键值对数量
-    fn len(&self) -> usize;
-
-    /// 检查是否为空
-    fn is_empty(&self) -> bool;
-
-    /// 清空所有键值对
-    fn clear(&mut self);
-
-    /// 批量设置键值对
-    fn extend(&mut self, other: HashMap<String, Value>);
+    /// 清空所有属性
+    fn clear_attributes(&mut self);
 }
 
 /// 上下文管理器特征
@@ -142,16 +95,16 @@ pub trait ContextContainer: ContextBase {
 /// 管理上下文生命周期的特征
 pub trait ContextManager {
     /// 创建上下文
-    fn create_context(&mut self, context_type: ContextType) -> Box<dyn ContextBase>;
+    fn create_context(&mut self, context_type: ContextType) -> super::enum_context::UnifiedContext;
 
     /// 获取上下文
-    fn get_context(&self, id: &str) -> Option<&dyn ContextBase>;
+    fn get_context(&self, id: &str) -> Option<&super::enum_context::UnifiedContext>;
 
     /// 获取可变上下文
-    fn get_context_mut(&mut self, id: &str) -> Option<Box<dyn ContextBase>>;
+    fn get_context_mut(&mut self, id: &str) -> Option<&mut super::enum_context::UnifiedContext>;
 
     /// 移除上下文
-    fn remove_context(&mut self, id: &str) -> Option<Box<dyn ContextBase>>;
+    fn remove_context(&mut self, id: &str) -> Option<super::enum_context::UnifiedContext>;
 
     /// 清理过期上下文
     fn cleanup_expired_contexts(&mut self);
@@ -198,6 +151,55 @@ pub trait ContextEventListener: std::fmt::Debug {
     fn on_event(&self, event: &ContextEvent);
 }
 
+/// 简单的事件监听器
+#[derive(Debug, Clone)]
+pub struct SimpleEventListener {
+    /// 事件历史
+    events: Vec<ContextEvent>,
+}
+
+impl SimpleEventListener {
+    /// 创建新的简单事件监听器
+    pub fn new() -> Self {
+        Self {
+            events: Vec::new(),
+        }
+    }
+
+    /// 获取事件历史
+    pub fn get_events(&self) -> &[ContextEvent] {
+        &self.events
+    }
+
+    /// 清空事件历史
+    pub fn clear_events(&mut self) {
+        self.events.clear();
+    }
+
+    /// 获取事件数量
+    pub fn event_count(&self) -> usize {
+        self.events.len()
+    }
+
+    /// 添加事件
+    pub fn add_event(&mut self, event: ContextEvent) {
+        self.events.push(event);
+    }
+}
+
+impl Default for SimpleEventListener {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ContextEventListener for SimpleEventListener {
+    fn on_event(&self, event: &ContextEvent) {
+        // 简单监听器只记录事件，实际处理由外部调用者决定
+        // 这里可以改为使用内部可变性或者返回事件供外部处理
+    }
+}
+
 /// 上下文统计信息
 #[derive(Debug, Clone, Default)]
 pub struct ContextStatistics {
@@ -208,7 +210,7 @@ pub struct ContextStatistics {
     /// 当前活跃的上下文数量
     pub active_contexts: usize,
     /// 按类型分组的上下文数量
-    pub contexts_by_type: HashMap<ContextType, usize>,
+    pub contexts_by_type: std::collections::HashMap<ContextType, usize>,
     /// 平均上下文生命周期（毫秒）
     pub average_lifetime_ms: f64,
     /// 最大上下文深度

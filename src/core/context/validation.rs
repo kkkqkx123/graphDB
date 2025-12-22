@@ -339,10 +339,6 @@ impl ContextBase for ValidationContext {
         ContextType::Validation
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn created_at(&self) -> std::time::SystemTime {
         self.created_at
     }
@@ -354,7 +350,27 @@ impl ContextBase for ValidationContext {
     fn is_valid(&self) -> bool {
         self.valid
     }
+}
 
+impl MutableContext for ValidationContext {
+    fn touch(&mut self) {
+        self.updated_at = std::time::SystemTime::now();
+    }
+
+    fn invalidate(&mut self) {
+        self.valid = false;
+        self.touch();
+    }
+
+    fn revalidate(&mut self) -> bool {
+        // 重新验证逻辑
+        self.valid = !self.has_errors();
+        self.touch();
+        self.valid
+    }
+}
+
+impl super::base::AttributeSupport for ValidationContext {
     fn get_attribute(&self, key: &str) -> Option<Value> {
         self.attributes.get(key).cloned()
     }
@@ -378,54 +394,15 @@ impl ContextBase for ValidationContext {
         self.attributes.clear();
         self.touch();
     }
-
-    fn clone_context(&self) -> Box<dyn ContextBase> {
-        Box::new(self.clone())
-    }
 }
 
-impl MutableContext for ValidationContext {
-    fn touch(&mut self) {
-        self.updated_at = std::time::SystemTime::now();
+impl super::base::HierarchicalContext for ValidationContext {
+    fn parent_id(&self) -> Option<&str> {
+        None // 验证上下文通常是独立的
     }
 
-    fn invalidate(&mut self) {
-        self.valid = false;
-        self.touch();
-    }
-
-    fn revalidate(&mut self) -> bool {
-        // 重新验证逻辑
-        self.valid = !self.has_errors();
-        self.touch();
-        self.valid
-    }
-}
-
-impl HierarchicalContext for ValidationContext {
-    fn create_child(&self, context_type: ContextType) -> Box<dyn ContextBase> {
-        match context_type {
-            ContextType::Validation => {
-                // 创建子验证上下文
-                let mut child = ValidationContext::new(format!("{}_child", self.id));
-                child.options = self.options.clone();
-                Box::new(child)
-            }
-            _ => {
-                // 对于其他类型，创建一个基础上下文
-                use crate::core::types::query::QueryType;
-                Box::new(super::query::QueryContext::new(
-                    format!("{}_child", self.id),
-                    QueryType::DataQuery,
-                    "".to_string(),
-                    super::session::SessionInfo::new(
-                        "validation_session".to_string(),
-                        "validator".to_string(),
-                        vec!["validator".to_string()],
-                    ),
-                ))
-            }
-        }
+    fn depth(&self) -> usize {
+        2 // 验证上下文深度为2
     }
 }
 

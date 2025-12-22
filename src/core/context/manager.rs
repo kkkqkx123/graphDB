@@ -8,15 +8,19 @@ use std::sync::{Arc, RwLock};
 
 use super::base::{
     ContextBase, ContextConfig, ContextEvent, ContextEventListener, ContextManager,
-    ContextStatistics, ContextType,
+    ContextStatistics, ContextType, SimpleEventListener,
 };
+use super::enum_context::UnifiedContext;
 use crate::core::Value;
+
+/// 事件监听器类型别名
+pub type EventListenerType = SimpleEventListener;
 
 /// 默认上下文管理器实现
 #[derive(Debug)]
 pub struct DefaultContextManager {
     /// 上下文存储
-    contexts: Arc<RwLock<HashMap<String, Box<dyn ContextBase>>>>,
+    contexts: Arc<RwLock<HashMap<String, UnifiedContext>>>,
 
     /// 配置
     config: ContextConfig,
@@ -25,7 +29,7 @@ pub struct DefaultContextManager {
     statistics: Arc<RwLock<ContextStatistics>>,
 
     /// 事件监听器列表
-    event_listeners: Arc<RwLock<Vec<Box<dyn ContextEventListener>>>>,
+    event_listeners: Arc<RwLock<Vec<EventListenerType>>>,
 
     /// 创建时间
     created_at: std::time::SystemTime,
@@ -49,7 +53,7 @@ impl DefaultContextManager {
     }
 
     /// 添加事件监听器
-    pub fn add_event_listener(&self, listener: Box<dyn ContextEventListener>) {
+    pub fn add_event_listener(&self, listener: EventListenerType) {
         if let Ok(mut listeners) = self.event_listeners.write() {
             listeners.push(listener);
         }
@@ -94,7 +98,7 @@ impl DefaultContextManager {
     }
 
     /// 检查上下文是否过期
-    fn is_context_expired(&self, context: &dyn ContextBase) -> bool {
+    fn is_context_expired(&self, context: &UnifiedContext) -> bool {
         if let Some(timeout_ms) = self.config.timeout_ms {
             if let Ok(elapsed) = context.created_at().elapsed() {
                 elapsed.as_millis() as u64 > timeout_ms
@@ -157,7 +161,7 @@ impl DefaultContextManager {
 }
 
 impl ContextManager for DefaultContextManager {
-    fn create_context(&mut self, context_type: ContextType) -> Box<dyn ContextBase> {
+    fn create_context(&mut self, context_type: ContextType) -> UnifiedContext {
         // 检查是否超过最大活跃上下文数量
         if self.is_max_contexts_exceeded() {
             // 如果启用自动清理，先尝试清理过期上下文
@@ -184,7 +188,7 @@ impl ContextManager for DefaultContextManager {
 
         let id = self.generate_context_id(context_type.clone());
         let context = match context_type {
-            ContextType::Session => Box::new(super::session::SessionContext::new(
+            ContextType::Session => UnifiedContext::Session(super::session::SessionContext::new(
                 id.clone(),
                 super::session::UserInfo::new(
                     "default_user".to_string(),
@@ -193,8 +197,8 @@ impl ContextManager for DefaultContextManager {
                     vec!["read".to_string()],
                 ),
                 super::session::SessionConfig::default(),
-            )) as Box<dyn ContextBase>,
-            ContextType::Query => Box::new(super::query::QueryContext::new(
+            )),
+            ContextType::Query => UnifiedContext::Query(super::query::QueryContext::new(
                 id.clone(),
                 crate::core::types::query::QueryType::DataQuery,
                 "SELECT 1".to_string(),
@@ -203,8 +207,8 @@ impl ContextManager for DefaultContextManager {
                     "default_user".to_string(),
                     vec!["user".to_string()],
                 ),
-            )) as Box<dyn ContextBase>,
-            ContextType::Execution => Box::new(super::execution::ExecutionContext::new(
+            )),
+            ContextType::Execution => UnifiedContext::Execution(super::execution::ExecutionContext::new(
                 super::query::QueryContext::new(
                     "default_query".to_string(),
                     crate::core::types::query::QueryType::DataQuery,
@@ -215,18 +219,18 @@ impl ContextManager for DefaultContextManager {
                         vec!["user".to_string()],
                     ),
                 ),
-            )) as Box<dyn ContextBase>,
+            )),
             ContextType::Expression => {
-                Box::new(super::expression::BasicExpressionContext::new()) as Box<dyn ContextBase>
+                UnifiedContext::Expression(super::expression::BasicExpressionContext::new())
             }
-            ContextType::Request => Box::new(super::request::RequestContext::with_session(
+            ContextType::Request => UnifiedContext::Request(super::request::RequestContext::with_session(
                 id.clone(),
                 "SELECT 1".to_string(),
                 "default_session",
                 "default_user",
                 "localhost",
                 0,
-            )) as Box<dyn ContextBase>,
+            )),
             ContextType::Runtime => {
                 // 运行时上下文需要计划上下文，这里创建一个默认的
                 let storage_env = Arc::new(super::runtime::StorageEnv {
@@ -245,17 +249,15 @@ impl ContextManager for DefaultContextManager {
                     default_edge_ver: 0,
                     is_killed: false,
                 });
-                Box::new(super::runtime::RuntimeContext::new(
+                UnifiedContext::Runtime(super::runtime::RuntimeContext::new(
                     id.clone(),
                     plan_context,
-                )) as Box<dyn ContextBase>
+                ))
             }
             ContextType::Validation => {
-                Box::new(super::validation::ValidationContext::new(id.clone()))
-                    as Box<dyn ContextBase>
+                UnifiedContext::Validation(super::validation::ValidationContext::new(id.clone()))
             }
-            ContextType::Storage => Box::new(super::storage::StorageContext::new(id.clone(), 0, 0))
-                as Box<dyn ContextBase>,
+            ContextType::Storage => UnifiedContext::Storage(super::storage::StorageContext::new(id.clone(), 0, 0)),
         };
 
         // 更新统计信息
@@ -279,7 +281,7 @@ impl ContextManager for DefaultContextManager {
         context
     }
 
-    fn get_context(&self, id: &str) -> Option<&dyn ContextBase> {
+    fn get_context(&self, id: &str) -> Option<&UnifiedContext> {
         // 注意：这个实现有生命周期限制，实际返回需要从缓存的引用获取
         // 由于RwLock的限制，这个trait需要调整或使用内部缓存
         let contexts = self.contexts.read().ok()?;
@@ -292,13 +294,13 @@ impl ContextManager for DefaultContextManager {
         }
     }
 
-    fn get_context_mut(&mut self, id: &str) -> Option<Box<dyn ContextBase>> {
+    fn get_context_mut(&mut self, id: &str) -> Option<&mut UnifiedContext> {
         let mut contexts = self.contexts.write().ok()?;
         // 由于RwLock的限制，无法返回引用，返回克隆的Box
-        contexts.get(id).map(|c| c.clone_context())
+        contexts.get_mut(id)
     }
 
-    fn remove_context(&mut self, id: &str) -> Option<Box<dyn ContextBase>> {
+    fn remove_context(&mut self, id: &str) -> Option<UnifiedContext> {
         let mut contexts = self.contexts.write().ok()?;
         if let Some(context) = contexts.remove(id) {
             // 更新统计信息
@@ -346,54 +348,6 @@ impl ContextManager for DefaultContextManager {
     }
 }
 
-/// 简单的事件监听器实现
-#[derive(Debug)]
-pub struct SimpleContextEventListener {
-    /// 事件历史
-    events: Arc<RwLock<Vec<ContextEvent>>>,
-}
-
-impl SimpleContextEventListener {
-    /// 创建新的简单事件监听器
-    pub fn new() -> Self {
-        Self {
-            events: Arc::new(RwLock::new(Vec::new())),
-        }
-    }
-
-    /// 获取事件历史
-    pub fn get_events(&self) -> Vec<ContextEvent> {
-        if let Ok(events) = self.events.read() {
-            events.clone()
-        } else {
-            Vec::new()
-        }
-    }
-
-    /// 清空事件历史
-    pub fn clear_events(&self) {
-        if let Ok(mut events) = self.events.write() {
-            events.clear();
-        }
-    }
-
-    /// 获取事件数量
-    pub fn event_count(&self) -> usize {
-        if let Ok(events) = self.events.read() {
-            events.len()
-        } else {
-            0
-        }
-    }
-}
-
-impl ContextEventListener for SimpleContextEventListener {
-    fn on_event(&self, event: &ContextEvent) {
-        if let Ok(mut events) = self.events.write() {
-            events.push(event.clone());
-        }
-    }
-}
 
 // Mock实现，用于RuntimeContext的创建
 #[derive(Debug)]
@@ -498,8 +452,3 @@ impl Default for DefaultContextManager {
     }
 }
 
-impl Default for SimpleContextEventListener {
-    fn default() -> Self {
-        Self::new()
-    }
-}

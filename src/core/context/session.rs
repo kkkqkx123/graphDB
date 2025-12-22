@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, Duration};
 use crate::core::Value;
 use super::base::{ContextBase, ContextType, MutableContext};
+use super::enum_context::UnifiedContext;
 
 /// 会话上下文
 #[derive(Debug, Clone)]
@@ -223,10 +224,6 @@ impl ContextBase for SessionContext {
     fn context_type(&self) -> ContextType {
         ContextType::Session
     }
-    
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
 
     fn created_at(&self) -> std::time::SystemTime {
         self.created_at
@@ -238,31 +235,6 @@ impl ContextBase for SessionContext {
 
     fn is_valid(&self) -> bool {
         !self.is_expired() && self.session_state != SessionState::Terminated
-    }
-
-    fn get_attribute(&self, _key: &str) -> Option<Value> {
-        // 会话上下文不支持自定义属性
-        None
-    }
-
-    fn set_attribute(&mut self, _key: String, _value: Value) {
-        // 会话上下文不支持自定义属性
-    }
-
-    fn attribute_keys(&self) -> Vec<String> {
-        Vec::new() // 会话上下文不支持自定义属性
-    }
-
-    fn remove_attribute(&mut self, _key: &str) -> Option<Value> {
-        None // 会话上下文不支持自定义属性
-    }
-
-    fn clear_attributes(&mut self) {
-        // 会话上下文不支持自定义属性
-    }
-
-    fn clone_context(&self) -> Box<dyn ContextBase> {
-        Box::new(self.clone())
     }
 }
 

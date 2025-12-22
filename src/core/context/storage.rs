@@ -316,10 +316,6 @@ impl ContextBase for StorageContext {
         ContextType::Storage
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn created_at(&self) -> std::time::SystemTime {
         self.created_at
     }
@@ -331,7 +327,27 @@ impl ContextBase for StorageContext {
     fn is_valid(&self) -> bool {
         self.valid
     }
+}
 
+impl MutableContext for StorageContext {
+    fn touch(&mut self) {
+        self.updated_at = std::time::SystemTime::now();
+    }
+
+    fn invalidate(&mut self) {
+        self.valid = false;
+        self.touch();
+    }
+
+    fn revalidate(&mut self) -> bool {
+        // 简单的重新验证逻辑
+        self.valid = true;
+        self.touch();
+        true
+    }
+}
+
+impl super::base::AttributeSupport for StorageContext {
     fn get_attribute(&self, key: &str) -> Option<Value> {
         self.attributes.get(key).cloned()
     }
@@ -354,28 +370,6 @@ impl ContextBase for StorageContext {
     fn clear_attributes(&mut self) {
         self.attributes.clear();
         self.touch();
-    }
-
-    fn clone_context(&self) -> Box<dyn ContextBase> {
-        Box::new(self.clone())
-    }
-}
-
-impl MutableContext for StorageContext {
-    fn touch(&mut self) {
-        self.updated_at = std::time::SystemTime::now();
-    }
-
-    fn invalidate(&mut self) {
-        self.valid = false;
-        self.touch();
-    }
-
-    fn revalidate(&mut self) -> bool {
-        // 简单的重新验证逻辑
-        self.valid = true;
-        self.touch();
-        true
     }
 }
 

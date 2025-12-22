@@ -218,15 +218,6 @@ impl ContextBase for ExecutionContext {
         ContextType::Execution
     }
 
-    fn parent(&self) -> Option<&dyn ContextBase> {
-        // 执行上下文的父上下文是查询上下文
-        Some(&self.query_context as &dyn ContextBase)
-    }
-    
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn created_at(&self) -> std::time::SystemTime {
         std::time::SystemTime::now() // 使用当前时间作为创建时间
     }
@@ -237,31 +228,6 @@ impl ContextBase for ExecutionContext {
 
     fn is_valid(&self) -> bool {
         !self.should_cancel() && !self.has_error()
-    }
-
-    fn get_attribute(&self, _key: &str) -> Option<Value> {
-        // 执行上下文不支持自定义属性
-        None
-    }
-
-    fn set_attribute(&mut self, _key: String, _value: Value) {
-        // 执行上下文不支持自定义属性
-    }
-
-    fn attribute_keys(&self) -> Vec<String> {
-        Vec::new() // 执行上下文不支持自定义属性
-    }
-
-    fn remove_attribute(&mut self, _key: &str) -> Option<Value> {
-        None // 执行上下文不支持自定义属性
-    }
-
-    fn clear_attributes(&mut self) {
-        // 执行上下文不支持自定义属性
-    }
-
-    fn clone_context(&self) -> Box<dyn ContextBase> {
-        Box::new(self.clone())
     }
 }
 
@@ -287,6 +253,16 @@ impl MutableContext for ExecutionContext {
             }
             true
         }
+    }
+}
+
+impl super::base::HierarchicalContext for ExecutionContext {
+    fn parent_id(&self) -> Option<&str> {
+        Some(&self.query_context.query_id)
+    }
+
+    fn depth(&self) -> usize {
+        2 // 执行上下文深度为2
     }
 }
 

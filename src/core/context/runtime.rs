@@ -289,10 +289,6 @@ impl ContextBase for RuntimeContext {
         ContextType::Runtime
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn created_at(&self) -> std::time::SystemTime {
         self.created_at
     }
@@ -303,31 +299,6 @@ impl ContextBase for RuntimeContext {
 
     fn is_valid(&self) -> bool {
         self.valid
-    }
-
-    fn get_attribute(&self, _key: &str) -> Option<Value> {
-        // 运行时上下文不支持自定义属性
-        None
-    }
-
-    fn set_attribute(&mut self, _key: String, _value: Value) {
-        // 运行时上下文不支持自定义属性
-    }
-
-    fn attribute_keys(&self) -> Vec<String> {
-        Vec::new() // 运行时上下文不支持自定义属性
-    }
-
-    fn remove_attribute(&mut self, _key: &str) -> Option<Value> {
-        None // 运行时上下文不支持自定义属性
-    }
-
-    fn clear_attributes(&mut self) {
-        // 运行时上下文不支持自定义属性
-    }
-
-    fn clone_context(&self) -> Box<dyn ContextBase> {
-        Box::new(self.clone())
     }
 }
 
@@ -346,6 +317,16 @@ impl MutableContext for RuntimeContext {
         self.valid = true;
         self.touch();
         true
+    }
+}
+
+impl super::base::HierarchicalContext for RuntimeContext {
+    fn parent_id(&self) -> Option<&str> {
+        None // 运行时上下文通常是独立的
+    }
+
+    fn depth(&self) -> usize {
+        2 // 运行时上下文深度为2
     }
 }
 
