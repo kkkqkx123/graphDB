@@ -67,53 +67,11 @@ where
     }
 }
 
-impl<K, V> Cache<K, V> for TtlCache<K, V>
-where
-    K: Eq + Hash + Clone,
-    V: Clone,
-{
-    fn get(&self, key: &K) -> Option<V> {
-        if let Some(entry) = self.cache.get(key) {
-            if !entry.is_expired() {
-                Some(entry.value().clone())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-    
-    fn put(&self, key: K, value: V) {
-        unimplemented!("TTL缓存需要内部可变性支持")
-    }
-    
-    fn contains(&self, key: &K) -> bool {
-        if let Some(entry) = self.cache.get(key) {
-            !entry.is_expired()
-        } else {
-            false
-        }
-    }
-    
-    fn remove(&self, key: &K) -> Option<V> {
-        unimplemented!("TTL缓存需要内部可变性支持")
-    }
-    
-    fn clear(&self) {
-        unimplemented!("TTL缓存需要内部可变性支持")
-    }
-    
-    fn len(&self) -> usize {
-        self.cache.len()
-    }
-    
-    fn is_empty(&self) -> bool {
-        self.cache.is_empty()
-    }
-}
-
 /// 线程安全的TTL缓存
+/// 
+/// TtlCache 作为内部实现，不直接实现 Cache trait（因为 &self 方法无法
+/// 提供内部可变性来执行过期清理）。仅通过 ConcurrentTtlCache 的 Mutex 包装
+/// 来提供正确实现。
 #[derive(Debug)]
 pub struct ConcurrentTtlCache<K, V> {
     inner: Arc<Mutex<TtlCache<K, V>>>,

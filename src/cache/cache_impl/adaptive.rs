@@ -1,10 +1,9 @@
 //! 自适应缓存实现
 
-use std::hash::Hash;
-use std::sync::{Arc, RwLock};
 use super::super::traits::*;
-use crate::cache::cache_impl::lru::ConcurrentLruCache;
 use crate::cache::cache_impl::lfu::ConcurrentLfuCache;
+use crate::cache::cache_impl::lru::ConcurrentLruCache;
+use std::hash::Hash;
 
 #[derive(Debug, Clone)]
 enum AdaptiveStrategy {
@@ -14,11 +13,13 @@ enum AdaptiveStrategy {
 }
 
 /// 自适应缓存
+///
+/// 包含LRU和LFU两种并发缓存实现，通过strategy字段动态切换
 #[derive(Debug)]
 pub struct AdaptiveCache<K, V> {
     lru_cache: ConcurrentLruCache<K, V>,
     lfu_cache: ConcurrentLfuCache<K, V>,
-    strategy: Arc<RwLock<AdaptiveStrategy>>,
+    strategy: AdaptiveStrategy,
 }
 
 impl<K, V> AdaptiveCache<K, V>
@@ -30,7 +31,7 @@ where
         Self {
             lru_cache: ConcurrentLruCache::new(capacity),
             lfu_cache: ConcurrentLfuCache::new(capacity),
-            strategy: Arc::new(RwLock::new(AdaptiveStrategy::LRU)),
+            strategy: AdaptiveStrategy::LRU,
         }
     }
 }
@@ -41,9 +42,7 @@ where
     V: Clone + Send + Sync,
 {
     fn get(&self, key: &K) -> Option<V> {
-        let strategy = self.strategy.read()
-            .expect("AdaptiveCache strategy lock should not be poisoned");
-        match *strategy {
+        match self.strategy {
             AdaptiveStrategy::LRU => self.lru_cache.get(key),
             AdaptiveStrategy::LFU => self.lfu_cache.get(key),
             AdaptiveStrategy::Hybrid => {
@@ -52,11 +51,9 @@ where
             }
         }
     }
-    
+
     fn put(&self, key: K, value: V) {
-        let strategy = self.strategy.read()
-            .expect("AdaptiveCache strategy lock should not be poisoned");
-        match *strategy {
+        match self.strategy {
             AdaptiveStrategy::LRU => self.lru_cache.put(key, value),
             AdaptiveStrategy::LFU => self.lfu_cache.put(key, value),
             AdaptiveStrategy::Hybrid => {
@@ -66,23 +63,17 @@ where
             }
         }
     }
-    
+
     fn contains(&self, key: &K) -> bool {
-        let strategy = self.strategy.read()
-            .expect("AdaptiveCache strategy lock should not be poisoned");
-        match *strategy {
+        match self.strategy {
             AdaptiveStrategy::LRU => self.lru_cache.contains(key),
             AdaptiveStrategy::LFU => self.lfu_cache.contains(key),
-            AdaptiveStrategy::Hybrid => {
-                self.lru_cache.contains(key) || self.lfu_cache.contains(key)
-            }
+            AdaptiveStrategy::Hybrid => self.lru_cache.contains(key) || self.lfu_cache.contains(key),
         }
     }
-    
+
     fn remove(&self, key: &K) -> Option<V> {
-        let strategy = self.strategy.read()
-            .expect("AdaptiveCache strategy lock should not be poisoned");
-        match *strategy {
+        match self.strategy {
             AdaptiveStrategy::LRU => self.lru_cache.remove(key),
             AdaptiveStrategy::LFU => self.lfu_cache.remove(key),
             AdaptiveStrategy::Hybrid => {
@@ -90,16 +81,14 @@ where
             }
         }
     }
-    
+
     fn clear(&self) {
         self.lru_cache.clear();
         self.lfu_cache.clear();
     }
-    
+
     fn len(&self) -> usize {
-        let strategy = self.strategy.read()
-            .expect("AdaptiveCache strategy lock should not be poisoned");
-        match *strategy {
+        match self.strategy {
             AdaptiveStrategy::LRU => self.lru_cache.len(),
             AdaptiveStrategy::LFU => self.lfu_cache.len(),
             AdaptiveStrategy::Hybrid => {
@@ -108,16 +97,12 @@ where
             }
         }
     }
-    
+
     fn is_empty(&self) -> bool {
-        let strategy = self.strategy.read()
-            .expect("AdaptiveCache strategy lock should not be poisoned");
-        match *strategy {
+        match self.strategy {
             AdaptiveStrategy::LRU => self.lru_cache.is_empty(),
             AdaptiveStrategy::LFU => self.lfu_cache.is_empty(),
-            AdaptiveStrategy::Hybrid => {
-                self.lru_cache.is_empty() && self.lfu_cache.is_empty()
-            }
+            AdaptiveStrategy::Hybrid => self.lru_cache.is_empty() && self.lfu_cache.is_empty(),
         }
     }
 }

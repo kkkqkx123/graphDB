@@ -351,7 +351,8 @@ impl ValidationStrategy for AggregateValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::operators::{UnaryOperator, BinaryOperator};
+    use crate::core::types::operators::{UnaryOperator, BinaryOperator, AggregateFunction};
+    use crate::core::types::expression::DataType;
     use crate::core::Expression;
 
     #[test]
@@ -421,7 +422,7 @@ mod tests {
     fn test_validate_invalid_aggregate_function() {
         let strategy = AggregateValidationStrategy::new();
         let expr = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Count,
+            func: AggregateFunction::Count,
             arg: Box::new(Expression::Literal(
                 crate::core::types::expression::LiteralValue::Int(1),
             )),
@@ -438,14 +439,14 @@ mod tests {
     fn test_validate_nested_aggregates() {
         let strategy = AggregateValidationStrategy::new();
         let inner_agg = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Count,
+            func: AggregateFunction::Count,
             arg: Box::new(Expression::Literal(
                 crate::core::types::expression::LiteralValue::Int(1),
             )),
             distinct: false,
         };
         let outer_agg = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Sum,
+            func: AggregateFunction::Sum,
             arg: Box::new(inner_agg),
             distinct: false,
         };
@@ -460,7 +461,7 @@ mod tests {
     fn test_validate_count_with_wildcard() {
         let strategy = AggregateValidationStrategy::new();
         let expr = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Count,
+            func: AggregateFunction::Count,
             arg: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "*".to_string(),
@@ -476,7 +477,7 @@ mod tests {
     fn test_validate_sum_with_wildcard() {
         let strategy = AggregateValidationStrategy::new();
         let expr = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Sum,
+            func: AggregateFunction::Sum,
             arg: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "*".to_string(),
@@ -510,12 +511,12 @@ mod tests {
 
         // 测试各种聚合函数
         let valid_functions = vec![
-            crate::core::types::expression::AggregateFunction::Count,
-            crate::core::types::expression::AggregateFunction::Sum,
-            crate::core::types::expression::AggregateFunction::Avg,
-            crate::core::types::expression::AggregateFunction::Max,
-            crate::core::types::expression::AggregateFunction::Min,
-            crate::core::types::expression::AggregateFunction::Collect,
+            AggregateFunction::Count,
+            AggregateFunction::Sum,
+            AggregateFunction::Avg,
+            AggregateFunction::Max,
+            AggregateFunction::Min,
+            AggregateFunction::Collect,
         ];
 
         for func in valid_functions {
@@ -538,7 +539,7 @@ mod tests {
     fn test_validate_distinct_aggregate() {
         let strategy = AggregateValidationStrategy::new();
         let expr = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Count,
+            func: AggregateFunction::Count,
             arg: Box::new(Expression::Literal(
                 crate::core::types::expression::LiteralValue::Int(1),
             )),
@@ -674,7 +675,7 @@ mod tests {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "value".to_string(),
             }),
-            target_type: crate::core::types::expression::DataType::Int,
+            target_type: DataType::Int,
         };
 
         // 应该通过验证
@@ -687,7 +688,7 @@ mod tests {
 
         // 测试有效的SUM聚合
         let expr = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Sum,
+            func: AggregateFunction::Sum,
             arg: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "amount".to_string(),
@@ -704,7 +705,7 @@ mod tests {
 
         // 测试有效的COUNT聚合
         let expr = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Count,
+            func: AggregateFunction::Count,
             arg: Box::new(Expression::Literal(
                 crate::core::types::expression::LiteralValue::Int(1),
             )),
@@ -719,7 +720,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         let min_expr = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Min,
+            func: AggregateFunction::Min,
             arg: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "value".to_string(),
@@ -727,7 +728,7 @@ mod tests {
             distinct: false,
         };
         let max_expr = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Max,
+            func: AggregateFunction::Max,
             arg: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "value".to_string(),

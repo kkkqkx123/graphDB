@@ -1,6 +1,7 @@
 //! Cypher表达式系统
 
 use std::collections::HashMap;
+use crate::core::types::operators::{BinaryOperator as CoreBinaryOperator, UnaryOperator as CoreUnaryOperator};
 
 /// 表达式
 #[derive(Debug, Clone)]
@@ -45,48 +46,15 @@ pub struct FunctionCall {
 #[derive(Debug, Clone)]
 pub struct BinaryExpression {
     pub left: Box<Expression>,
-    pub operator: BinaryOperator,
+    pub operator: CoreBinaryOperator,
     pub right: Box<Expression>,
-}
-
-/// 二元操作符
-#[derive(Debug, Clone, PartialEq)]
-pub enum BinaryOperator {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
-    Exponent,
-    And,
-    Or,
-    Xor,
-    Equal,
-    NotEqual,
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-    In,
-    StartsWith,
-    EndsWith,
-    Contains,
-    RegexMatch,
 }
 
 /// 一元表达式
 #[derive(Debug, Clone)]
 pub struct UnaryExpression {
-    pub operator: UnaryOperator,
+    pub operator: CoreUnaryOperator,
     pub expression: Box<Expression>,
-}
-
-/// 一元操作符
-#[derive(Debug, Clone)]
-pub enum UnaryOperator {
-    Not,
-    Positive, // +
-    Negative, // -
 }
 
 /// CASE表达式
@@ -158,7 +126,7 @@ mod tests {
     fn test_binary_expression() {
         let expr = Expression::Binary(BinaryExpression {
             left: Box::new(Expression::Literal(Literal::Integer(5))),
-            operator: BinaryOperator::Add,
+            operator: CoreBinaryOperator::Add,
             right: Box::new(Expression::Literal(Literal::Integer(3))),
         });
 
@@ -172,7 +140,7 @@ mod tests {
                     *bin.right,
                     Expression::Literal(Literal::Integer(3))
                 ));
-                assert_eq!(bin.operator, BinaryOperator::Add);
+                assert_eq!(bin.operator, CoreBinaryOperator::Add);
             }
             _ => panic!("Expected binary expression"),
         }

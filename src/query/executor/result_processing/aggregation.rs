@@ -9,8 +9,9 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::core::Value;
 use crate::core::expressions::{DefaultExpressionContext, ExpressionContextCore};
+use crate::core::types::operators::AggregateFunction;
+use crate::core::Value;
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{
@@ -21,15 +22,60 @@ use crate::query::executor::traits::{
 };
 use crate::storage::StorageEngine;
 
-/// 聚合函数类型
+/// 聚合函数规范
+/// 包含聚合函数类型和可选的字段名参数
 #[derive(Debug, Clone)]
-pub enum AggregateFunction {
-    Count,
-    CountDistinct(String), // 字段名
-    Sum(String),           // 字段名
-    Avg(String),           // 字段名
-    Max(String),           // 字段名
-    Min(String),           // 字段名
+pub struct AggregateFunctionSpec {
+    pub function: AggregateFunction,
+    pub field: Option<String>,
+    pub distinct: bool,
+}
+
+impl AggregateFunctionSpec {
+    pub fn new(function: AggregateFunction) -> Self {
+        Self {
+            function,
+            field: None,
+            distinct: false,
+        }
+    }
+
+    pub fn with_field(mut self, field: String) -> Self {
+        self.field = Some(field);
+        self
+    }
+
+    pub fn with_distinct(mut self) -> Self {
+        self.distinct = true;
+        self
+    }
+
+    // 便捷构造函数
+    pub fn count() -> Self {
+        Self::new(AggregateFunction::Count)
+    }
+
+    pub fn count_distinct(field: String) -> Self {
+        Self::new(AggregateFunction::Count)
+            .with_field(field)
+            .with_distinct()
+    }
+
+    pub fn sum(field: String) -> Self {
+        Self::new(AggregateFunction::Sum).with_field(field)
+    }
+
+    pub fn avg(field: String) -> Self {
+        Self::new(AggregateFunction::Avg).with_field(field)
+    }
+
+    pub fn max(field: String) -> Self {
+        Self::new(AggregateFunction::Max).with_field(field)
+    }
+
+    pub fn min(field: String) -> Self {
+        Self::new(AggregateFunction::Min).with_field(field)
+    }
 }
 
 /// 聚合状态
@@ -161,7 +207,7 @@ pub struct AggregateExecutor<S: StorageEngine> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// 聚合函数列表
-    aggregate_functions: Vec<AggregateFunction>,
+    aggregate_functions: Vec<AggregateFunctionSpec>,
     /// 分组键列表
     group_keys: Vec<Expression>,
     /// 输入执行器
@@ -172,7 +218,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
     pub fn new(
         id: usize,
         storage: Arc<Mutex<S>>,
-        aggregate_functions: Vec<AggregateFunction>,
+        aggregate_functions: Vec<AggregateFunctionSpec>,
         group_keys: Vec<Expression>,
     ) -> Self {
         let base = BaseResultProcessor::new(
@@ -221,13 +267,13 @@ impl<S: StorageEngine> AggregateExecutor<S> {
         let mut group_state = GroupAggregateState::new();
 
         // 处理每一行数据
-         for row in &dataset.rows {
-             // 构建表达式上下文
-             let mut context = DefaultExpressionContext::new();
-             for (i, col_name) in dataset.col_names.iter().enumerate() {
-                 // Note: row[i] is Value, but context expects to be built differently
-                 // For now, skipping variable assignment to avoid type mismatch
-             }
+        for row in &dataset.rows {
+            // 构建表达式上下文
+            let mut context = DefaultExpressionContext::new();
+            for (i, col_name) in dataset.col_names.iter().enumerate() {
+                // Note: row[i] is Value, but context expects to be built differently
+                // For now, skipping variable assignment to avoid type mismatch
+            }
 
             // 计算分组键
             let mut group_key = Vec::new();
@@ -245,33 +291,54 @@ impl<S: StorageEngine> AggregateExecutor<S> {
 
             // 更新聚合状态
             for agg_func in &self.aggregate_functions {
-                match agg_func {
+                match &agg_func.function {
                     AggregateFunction::Count => {
-                        // COUNT(*) 或 COUNT(1)
-                        group_state.update(group_key.clone(), &Value::Int(1))?;
+                        if agg_func.distinct {
+                            // COUNT(DISTINCT field)
+                            if let Some(field) = &agg_func.field {
+                                if let Some(col_index) =
+                                    dataset.col_names.iter().position(|name| name == field)
+                                {
+                                    if col_index < row.len() {
+                                        group_state.update(group_key.clone(), &row[col_index])?;
+                                    }
+                                }
+                            } else {
+                                // COUNT(DISTINCT *) - 使用整行作为键
+                                group_state.update(group_key.clone(), &Value::Int(1))?;
+                            }
+                        } else if let Some(field) = &agg_func.field {
+                            // COUNT(field)
+                            if let Some(col_index) =
+                                dataset.col_names.iter().position(|name| name == field)
+                            {
+                                if col_index < row.len() {
+                                    group_state.update(group_key.clone(), &row[col_index])?;
+                                }
+                            }
+                        } else {
+                            // COUNT(*) 或 COUNT(1)
+                            group_state.update(group_key.clone(), &Value::Int(1))?;
+                        }
                     }
-                    AggregateFunction::CountDistinct(field) => {
-                        // COUNT(DISTINCT field)
-                        if let Some(col_index) =
-                            dataset.col_names.iter().position(|name| name == field)
-                        {
-                            if col_index < row.len() {
-                                group_state.update(group_key.clone(), &row[col_index])?;
+                    AggregateFunction::Sum
+                    | AggregateFunction::Avg
+                    | AggregateFunction::Max
+                    | AggregateFunction::Min => {
+                        // 需要字段名的聚合函数
+                        if let Some(field) = &agg_func.field {
+                            if let Some(col_index) =
+                                dataset.col_names.iter().position(|name| name == field)
+                            {
+                                if col_index < row.len() {
+                                    group_state.update(group_key.clone(), &row[col_index])?;
+                                }
                             }
                         }
                     }
-                    AggregateFunction::Sum(field)
-                    | AggregateFunction::Avg(field)
-                    | AggregateFunction::Max(field)
-                    | AggregateFunction::Min(field) => {
-                        // 其他聚合函数
-                        if let Some(col_index) =
-                            dataset.col_names.iter().position(|name| name == field)
-                        {
-                            if col_index < row.len() {
-                                group_state.update(group_key.clone(), &row[col_index])?;
-                            }
-                        }
+                    AggregateFunction::Collect | AggregateFunction::Distinct => {
+                        // 这些函数暂时不实现
+                        continue;
                     }
                 }
             }
@@ -288,13 +355,50 @@ impl<S: StorageEngine> AggregateExecutor<S> {
         }
 
         for agg_func in &self.aggregate_functions {
-            let col_name = match agg_func {
-                AggregateFunction::Count => "count".to_string(),
-                AggregateFunction::CountDistinct(field) => format!("count_distinct_{}", field),
-                AggregateFunction::Sum(field) => format!("sum_{}", field),
-                AggregateFunction::Avg(field) => format!("avg_{}", field),
-                AggregateFunction::Max(field) => format!("max_{}", field),
-                AggregateFunction::Min(field) => format!("min_{}", field),
+            let col_name = match &agg_func.function {
+                AggregateFunction::Count => {
+                    if agg_func.distinct {
+                        if let Some(field) = &agg_func.field {
+                            format!("count_distinct_{}", field)
+                        } else {
+                            "count_distinct".to_string()
+                        }
+                    } else if let Some(field) = &agg_func.field {
+                        format!("count_{}", field)
+                    } else {
+                        "count".to_string()
+                    }
+                }
+                AggregateFunction::Sum => {
+                    if let Some(field) = &agg_func.field {
+                        format!("sum_{}", field)
+                    } else {
+                        "sum".to_string()
+                    }
+                }
+                AggregateFunction::Avg => {
+                    if let Some(field) = &agg_func.field {
+                        format!("avg_{}", field)
+                    } else {
+                        "avg".to_string()
+                    }
+                }
+                AggregateFunction::Max => {
+                    if let Some(field) = &agg_func.field {
+                        format!("max_{}", field)
+                    } else {
+                        "max".to_string()
+                    }
+                }
+                AggregateFunction::Min => {
+                    if let Some(field) = &agg_func.field {
+                        format!("min_{}", field)
+                    } else {
+                        "min".to_string()
+                    }
+                }
+                AggregateFunction::Collect => "collect".to_string(),
+                AggregateFunction::Distinct => "distinct".to_string(),
             };
             result_dataset.col_names.push(col_name);
         }
@@ -308,25 +412,28 @@ impl<S: StorageEngine> AggregateExecutor<S> {
 
             // 添加聚合结果
             for agg_func in &self.aggregate_functions {
-                let agg_value = match agg_func {
+                let agg_value = match &agg_func.function {
                     AggregateFunction::Count => Value::Int(agg_state.count as i64),
-                    AggregateFunction::CountDistinct(_) => Value::Int(agg_state.count as i64),
-                    AggregateFunction::Sum(_) => agg_state
+                    AggregateFunction::Sum => agg_state
                         .sum
                         .clone()
                         .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Avg(_) => agg_state
+                    AggregateFunction::Avg => agg_state
                         .avg
                         .clone()
                         .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Max(_) => agg_state
+                    AggregateFunction::Max => agg_state
                         .max
                         .clone()
                         .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Min(_) => agg_state
+                    AggregateFunction::Min => agg_state
                         .min
                         .clone()
                         .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
+                    AggregateFunction::Collect | AggregateFunction::Distinct => {
+                        // 这些函数暂时返回空值
+                        Value::Null(crate::core::value::NullType::NaN)
+                    }
                 };
                 result_row.push(agg_value);
             }
@@ -452,7 +559,7 @@ impl<S: StorageEngine> GroupByExecutor<S> {
     pub fn new(
         id: usize,
         storage: Arc<Mutex<S>>,
-        aggregate_functions: Vec<AggregateFunction>,
+        aggregate_functions: Vec<AggregateFunctionSpec>,
         group_keys: Vec<Expression>,
     ) -> Self {
         Self {
@@ -834,7 +941,7 @@ mod tests {
             .push(vec![Value::String("HR".to_string()), Value::Int(48000)]);
 
         // 创建聚合执行器 (按部门分组，计算平均薪资)
-        let aggregate_functions = vec![AggregateFunction::Avg("salary".to_string())];
+        let aggregate_functions = vec![AggregateFunctionSpec::avg("salary".to_string())];
         let group_keys = vec![Expression::Property {
             object: Box::new(Expression::Variable("row".to_string())),
             property: "department".to_string(),

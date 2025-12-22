@@ -3,7 +3,7 @@
 //! 使用枚举变体减少装箱，优化内存使用和性能
 
 use serde::{Deserialize, Serialize};
-use crate::core::types::operators::{BinaryOperator, UnaryOperator};
+use crate::core::types::operators::{BinaryOperator, UnaryOperator, AggregateFunction};
 
 /// 优化后的表达式类型
 ///
@@ -176,20 +176,8 @@ pub enum LiteralValue {
     Null,
 }
 
-// 二元操作符和一元操作符现在从 crate::core::types::operators 导入
+// 二元操作符、一元操作符和聚合函数现在从 crate::core::types::operators 导入
 // 以避免重复定义，参见 operators.rs
-
-/// 聚合函数
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum AggregateFunction {
-    Count,
-    Sum,
-    Avg,
-    Min,
-    Max,
-    Collect,
-    Distinct,
-}
 
 /// 数据类型
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

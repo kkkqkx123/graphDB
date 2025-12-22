@@ -4,6 +4,7 @@
 
 use crate::core::{ExpressionError};
 use crate::core::types::query::FieldValue;
+use crate::core::types::operators::AggregateFunction;
 
 /// 函数引用枚举，避免动态分发
 #[derive(Debug, Clone)]
@@ -78,17 +79,8 @@ pub enum StringFunction {
     EndsWith,
 }
 
-/// 聚合函数
-#[derive(Debug, Clone, PartialEq)]
-pub enum AggregateFunction {
-    Count,
-    Sum,
-    Avg,
-    Min,
-    Max,
-    Collect,
-    Distinct,
-}
+// 聚合函数现在从 crate::core::types::operators 导入
+// 以避免重复定义，参见 operators.rs
 
 /// 类型转换函数
 #[derive(Debug, Clone, PartialEq)]

@@ -8,57 +8,40 @@ use std::time::Duration;
 pub trait Cache<K, V> {
     /// 获取缓存值
     fn get(&self, key: &K) -> Option<V>;
-    
+
     /// 设置缓存值
     fn put(&self, key: K, value: V);
-    
+
     /// 检查是否包含键
     fn contains(&self, key: &K) -> bool;
-    
+
     /// 移除缓存项
     fn remove(&self, key: &K) -> Option<V>;
-    
+
     /// 清空缓存
     fn clear(&self);
-    
+
     /// 获取缓存大小
     fn len(&self) -> usize;
-    
+
     /// 检查是否为空
     fn is_empty(&self) -> bool;
-}
-
-/// 高级缓存特征
-pub trait AdvancedCache<K, V>: Cache<K, V> {
-    /// 带TTL的设置
-    fn put_with_ttl(&self, key: K, value: V, ttl: Duration);
-    
-    /// 批量获取
-    fn get_batch(&self, keys: &[K]) -> Vec<Option<V>>;
-    
-    /// 批量设置
-    fn put_batch(&self, items: Vec<(K, V)>);
-    
-    /// 获取或计算
-    fn get_or_compute<F>(&self, key: &K, compute: F) -> V
-    where
-        F: FnOnce() -> V;
 }
 
 /// 统计缓存特征
 pub trait StatsCache<K, V>: Cache<K, V> {
     /// 获取命中次数
     fn hits(&self) -> u64;
-    
+
     /// 获取未命中次数
     fn misses(&self) -> u64;
-    
+
     /// 获取命中率
     fn hit_rate(&self) -> f64;
-    
+
     /// 获取驱逐次数
     fn evictions(&self) -> u64;
-    
+
     /// 重置统计信息
     fn reset_stats(&self);
 }
@@ -67,33 +50,18 @@ pub trait StatsCache<K, V>: Cache<K, V> {
 pub trait CacheEntry<V> {
     /// 获取值
     fn value(&self) -> &V;
-    
+
     /// 获取创建时间
     fn created_at(&self) -> std::time::Instant;
-    
+
     /// 获取最后访问时间
     fn last_accessed(&self) -> std::time::Instant;
-    
+
     /// 获取访问次数
     fn access_count(&self) -> u64;
-    
+
     /// 检查是否过期
     fn is_expired(&self) -> bool;
-}
-
-/// 缓存策略特征
-pub trait CachePolicy<K, V, E: CacheEntry<V>> {
-    /// 决定是否驱逐条目
-    fn should_evict(&self, key: &K, entry: &E) -> bool;
-    
-    /// 当条目被访问时调用
-    fn on_access(&self, key: &K, entry: &mut E);
-    
-    /// 当条目被插入时调用
-    fn on_insert(&self, key: &K, entry: &mut E);
-    
-    /// 当条目被驱逐时调用
-    fn on_evict(&self, key: &K, entry: &E);
 }
 
 /// 默认的缓存条目实现
@@ -117,7 +85,7 @@ impl<V> DefaultCacheEntry<V> {
             ttl,
         }
     }
-    
+
     pub fn touch(&mut self) {
         self.last_accessed = std::time::Instant::now();
         self.access_count += 1;
@@ -128,19 +96,19 @@ impl<V> CacheEntry<V> for DefaultCacheEntry<V> {
     fn value(&self) -> &V {
         &self.value
     }
-    
+
     fn created_at(&self) -> std::time::Instant {
         self.created_at
     }
-    
+
     fn last_accessed(&self) -> std::time::Instant {
         self.last_accessed
     }
-    
+
     fn access_count(&self) -> u64 {
         self.access_count
     }
-    
+
     fn is_expired(&self) -> bool {
         if let Some(ttl) = self.ttl {
             self.created_at.elapsed() > ttl
@@ -178,19 +146,32 @@ mod tests {
         V: Clone,
     {
         fn get(&self, key: &K) -> Option<V> {
-            self.data.lock().expect("Data lock was poisoned").get(key).cloned()
+            self.data
+                .lock()
+                .expect("Data lock was poisoned")
+                .get(key)
+                .cloned()
         }
 
         fn put(&self, key: K, value: V) {
-            self.data.lock().expect("Data lock was poisoned").insert(key, value);
+            self.data
+                .lock()
+                .expect("Data lock was poisoned")
+                .insert(key, value);
         }
 
         fn contains(&self, key: &K) -> bool {
-            self.data.lock().expect("Data lock was poisoned").contains_key(key)
+            self.data
+                .lock()
+                .expect("Data lock was poisoned")
+                .contains_key(key)
         }
 
         fn remove(&self, key: &K) -> Option<V> {
-            self.data.lock().expect("Data lock was poisoned").remove(key)
+            self.data
+                .lock()
+                .expect("Data lock was poisoned")
+                .remove(key)
         }
 
         fn clear(&self) {
@@ -209,17 +190,17 @@ mod tests {
     #[test]
     fn test_cache_basic_operations() {
         let cache = TestCache::new();
-        
+
         assert!(cache.is_empty());
         assert_eq!(cache.len(), 0);
-        
+
         cache.put("key1".to_string(), "value1".to_string());
         assert_eq!(cache.len(), 1);
         assert!(cache.contains(&"key1".to_string()));
-        
+
         let value = cache.get(&"key1".to_string());
         assert_eq!(value, Some("value1".to_string()));
-        
+
         cache.remove(&"key1".to_string());
         assert!(cache.is_empty());
     }
@@ -227,11 +208,11 @@ mod tests {
     #[test]
     fn test_default_cache_entry() {
         let mut entry = DefaultCacheEntry::new("test".to_string(), Some(Duration::from_secs(1)));
-        
+
         assert_eq!(entry.value(), &"test".to_string());
         assert_eq!(entry.access_count(), 0);
         assert!(!entry.is_expired());
-        
+
         entry.touch();
         assert_eq!(entry.access_count(), 1);
     }

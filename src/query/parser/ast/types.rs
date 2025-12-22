@@ -1,5 +1,7 @@
 //! 基础类型定义
 
+use crate::core::types::operators::AggregateFunction as CoreAggregateFunction;
+
 /// 位置信息
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Span {
@@ -109,50 +111,9 @@ pub enum TokenKind {
     Unknown,
 }
 
-/// 二元操作符
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BinaryOp {
-    // 算术操作符
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-    Exp,
-
-    // 逻辑操作符
-    And,
-    Or,
-    Xor,
-
-    // 关系操作符
-    Eq,
-    Ne,
-    Lt,
-    Le,
-    Gt,
-    Ge,
-
-    // 字符串操作符
-    Regex,
-    In,
-    NotIn,
-    Contains,
-    StartsWith,
-    EndsWith,
-}
-
-/// 一元操作符
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UnaryOp {
-    Not,
-    Plus,
-    Minus,
-    IsNull,
-    IsNotNull,
-    IsEmpty,
-    IsNotEmpty,
-}
+// 使用核心操作符类型
+pub type BinaryOp = crate::core::types::operators::BinaryOperator;
+pub type UnaryOp = crate::core::types::operators::UnaryOperator;
 
 /// 谓词类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -172,23 +133,8 @@ pub enum EdgeDirection {
     Both,
 }
 
-/// 数据类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DataType {
-    Int,
-    Float,
-    String,
-    Bool,
-    Date,
-    DateTime,
-    Time,
-    Duration,
-    List,
-    Map,
-    Node,
-    Edge,
-    Path,
-}
+// 使用核心数据类型
+pub type DataType = crate::core::types::expression::DataType;
 
 /// 标签
 #[derive(Debug, Clone, PartialEq)]
@@ -209,16 +155,8 @@ pub enum OrderDirection {
     Desc,
 }
 
-/// 聚合函数
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AggregateFunction {
-    Count,
-    Sum,
-    Avg,
-    Min,
-    Max,
-    Collect,
-}
+// 聚合函数使用核心定义，但为了兼容性提供别名
+pub type AggregateFunction = CoreAggregateFunction;
 
 /// 错误类型
 #[derive(Debug, Clone, PartialEq)]

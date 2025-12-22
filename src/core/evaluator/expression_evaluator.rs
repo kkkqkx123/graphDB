@@ -4,7 +4,7 @@
 
 use crate::core::expressions::default_context::ExpressionContextCore;
 use crate::core::types::expression::{Expression, LiteralValue};
-use crate::core::types::operators::{BinaryOperator, UnaryOperator};
+use crate::core::types::operators::{BinaryOperator, UnaryOperator, AggregateFunction};
 use crate::core::ExpressionError;
 use crate::core::Value;
 
@@ -769,11 +769,10 @@ impl ExpressionEvaluator {
     /// 求值聚合函数（单个参数）
     fn eval_aggregate_function_single(
         &self,
-        func: &crate::core::types::expression::AggregateFunction,
+        func: &AggregateFunction,
         arg: &Value,
         distinct: bool,
     ) -> Result<Value, ExpressionError> {
-        use crate::core::types::expression::AggregateFunction;
 
         match func {
             AggregateFunction::Count => {
@@ -819,11 +818,10 @@ impl ExpressionEvaluator {
     /// 求值聚合函数
     fn eval_aggregate_function(
         &self,
-        func: &crate::core::types::expression::AggregateFunction,
+        func: &AggregateFunction,
         args: &[Value],
         distinct: bool,
     ) -> Result<Value, ExpressionError> {
-        use crate::core::types::expression::AggregateFunction;
 
         if args.is_empty() {
             return Err(ExpressionError::argument_count_error(1, 0));

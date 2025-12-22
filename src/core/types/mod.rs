@@ -8,4 +8,5 @@ pub mod query;
 
 // 重新导出常用类型
 pub use expression::{Expression, LiteralValue, DataType, ExpressionType};
-pub use operators::{OperatorRegistry, OperatorInstance, OperatorCategory, Operator};
+pub use operators::{OperatorRegistry, OperatorInstance, OperatorCategory, Operator,
+                   BinaryOperator, UnaryOperator, AggregateFunction};

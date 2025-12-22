@@ -5,7 +5,8 @@
 use crate::core::expressions::default_context::ExpressionContextCore;
 use crate::core::expressions::BasicExpressionContext;
 use crate::core::evaluator::ExpressionEvaluator;
-use crate::core::types::expression::{Expression, LiteralValue, BinaryOperator, UnaryOperator, DataType};
+use crate::core::types::expression::{Expression, LiteralValue, DataType};
+use crate::core::types::operators::{BinaryOperator, UnaryOperator, AggregateFunction};
 use crate::core::Value;
 
 #[cfg(test)]
@@ -172,7 +173,7 @@ mod tests {
         
         // 测试count函数
         let expr = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Count,
+            func: AggregateFunction::Count,
             arg: Box::new(Expression::Literal(LiteralValue::Int(42))),
             distinct: false,
         };
@@ -181,7 +182,7 @@ mod tests {
         
         // 测试sum函数
         let expr = Expression::Aggregate {
-            func: crate::core::types::expression::AggregateFunction::Sum,
+            func: AggregateFunction::Sum,
             arg: Box::new(Expression::Literal(LiteralValue::Int(42))),
             distinct: false,
         };
