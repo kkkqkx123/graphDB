@@ -4,6 +4,7 @@
 
 use crate::core::context::expression::default_context::ExpressionContextCore;
 use crate::core::types::expression::{Expression, LiteralValue};
+use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::core::ExpressionError;
 use crate::core::Value;
 
@@ -161,31 +162,19 @@ impl ExpressionEvaluator {
             Expression::UnaryPlus(expr) => self.evaluate(expr, context),
             Expression::UnaryNegate(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(
-                    &crate::core::types::expression::UnaryOperator::Minus,
-                    &value,
-                )
+                self.eval_unary_operation(&UnaryOperator::Minus, &value)
             }
             Expression::UnaryNot(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(
-                    &crate::core::types::expression::UnaryOperator::Not,
-                    &value,
-                )
+                self.eval_unary_operation(&UnaryOperator::Not, &value)
             }
             Expression::UnaryIncr(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(
-                    &crate::core::types::expression::UnaryOperator::Increment,
-                    &value,
-                )
+                self.eval_unary_operation(&UnaryOperator::Increment, &value)
             }
             Expression::UnaryDecr(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(
-                    &crate::core::types::expression::UnaryOperator::Decrement,
-                    &value,
-                )
+                self.eval_unary_operation(&UnaryOperator::Decrement, &value)
             }
             Expression::IsNull(expr) => {
                 let value = self.evaluate(expr, context)?;
@@ -197,17 +186,11 @@ impl ExpressionEvaluator {
             }
             Expression::IsEmpty(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(
-                    &crate::core::types::expression::UnaryOperator::IsEmpty,
-                    &value,
-                )
+                self.eval_unary_operation(&UnaryOperator::IsEmpty, &value)
             }
             Expression::IsNotEmpty(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(
-                    &crate::core::types::expression::UnaryOperator::IsNotEmpty,
-                    &value,
-                )
+                self.eval_unary_operation(&UnaryOperator::IsNotEmpty, &value)
             }
             // 类型转换
             Expression::TypeCasting {
@@ -346,11 +329,9 @@ impl ExpressionEvaluator {
     pub fn eval_binary_operation(
         &self,
         left: &Value,
-        op: &crate::core::types::expression::BinaryOperator,
+        op: &BinaryOperator,
         right: &Value,
     ) -> Result<Value, ExpressionError> {
-        use crate::core::types::expression::BinaryOperator;
-
         match op {
             // 算术运算
             BinaryOperator::Add => left
@@ -467,11 +448,9 @@ impl ExpressionEvaluator {
     /// 求值一元运算
     pub fn eval_unary_operation(
         &self,
-        op: &crate::core::types::expression::UnaryOperator,
+        op: &UnaryOperator,
         value: &Value,
     ) -> Result<Value, ExpressionError> {
-        use crate::core::types::expression::UnaryOperator;
-
         match op {
             // 算术运算
             UnaryOperator::Plus => Ok(value.clone()),

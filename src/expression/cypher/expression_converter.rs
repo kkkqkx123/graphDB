@@ -1,8 +1,8 @@
 use crate::core::ExpressionError;
 use crate::expression::operator_conversion;
 use crate::core::{Expression, LiteralValue};
-use crate::expression::operators_ext::ExtendedBinaryOperator;
-use crate::expression::operators_ext::ExtendedUnaryOperator;
+use crate::core::types::operators::BinaryOperator;
+use crate::core::types::operators::UnaryOperator;
 use crate::query::parser::cypher::ast::expressions::{
     BinaryExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
@@ -56,40 +56,7 @@ impl ExpressionConverter {
             CypherExpression::Binary(bin_expr) => {
                 let left = Self::convert_cypher_to_unified(&bin_expr.left)?;
                 let right = Self::convert_cypher_to_unified(&bin_expr.right)?;
-                let extended_op = operator_conversion::convert_cypher_binary_operator(&bin_expr.operator);
-                // 转换为core::types::expression::BinaryOperator
-                let core_op = match extended_op {
-                    ExtendedBinaryOperator::Core(core_op) => {
-                        match core_op {
-                            crate::core::types::operators::BinaryOperator::Add => crate::core::types::expression::BinaryOperator::Add,
-                            crate::core::types::operators::BinaryOperator::Subtract => crate::core::types::expression::BinaryOperator::Subtract,
-                            crate::core::types::operators::BinaryOperator::Multiply => crate::core::types::expression::BinaryOperator::Multiply,
-                            crate::core::types::operators::BinaryOperator::Divide => crate::core::types::expression::BinaryOperator::Divide,
-                            crate::core::types::operators::BinaryOperator::Modulo => crate::core::types::expression::BinaryOperator::Modulo,
-                            crate::core::types::operators::BinaryOperator::Equal => crate::core::types::expression::BinaryOperator::Equal,
-                            crate::core::types::operators::BinaryOperator::NotEqual => crate::core::types::expression::BinaryOperator::NotEqual,
-                            crate::core::types::operators::BinaryOperator::LessThan => crate::core::types::expression::BinaryOperator::LessThan,
-                            crate::core::types::operators::BinaryOperator::LessThanOrEqual => crate::core::types::expression::BinaryOperator::LessThanOrEqual,
-                            crate::core::types::operators::BinaryOperator::GreaterThan => crate::core::types::expression::BinaryOperator::GreaterThan,
-                            crate::core::types::operators::BinaryOperator::GreaterThanOrEqual => crate::core::types::expression::BinaryOperator::GreaterThanOrEqual,
-                            crate::core::types::operators::BinaryOperator::And => crate::core::types::expression::BinaryOperator::And,
-                            crate::core::types::operators::BinaryOperator::Or => crate::core::types::expression::BinaryOperator::Or,
-                            crate::core::types::operators::BinaryOperator::StringConcat => crate::core::types::expression::BinaryOperator::StringConcat,
-                            crate::core::types::operators::BinaryOperator::Like => crate::core::types::expression::BinaryOperator::Like,
-                            crate::core::types::operators::BinaryOperator::In => crate::core::types::expression::BinaryOperator::In,
-                            crate::core::types::operators::BinaryOperator::Union => crate::core::types::expression::BinaryOperator::Union,
-                            crate::core::types::operators::BinaryOperator::Intersect => crate::core::types::expression::BinaryOperator::Intersect,
-                            crate::core::types::operators::BinaryOperator::Except => crate::core::types::expression::BinaryOperator::Except,
-                        }
-                    },
-                    ExtendedBinaryOperator::Xor => crate::core::types::expression::BinaryOperator::And, // 临时映射
-                    ExtendedBinaryOperator::NotIn => crate::core::types::expression::BinaryOperator::In, // 临时映射
-                    ExtendedBinaryOperator::Subscript => crate::core::types::expression::BinaryOperator::Equal, // 临时映射
-                    ExtendedBinaryOperator::Attribute => crate::core::types::expression::BinaryOperator::Equal, // 临时映射
-                    ExtendedBinaryOperator::Contains => crate::core::types::expression::BinaryOperator::Like, // 临时映射
-                    ExtendedBinaryOperator::StartsWith => crate::core::types::expression::BinaryOperator::Like, // 临时映射
-                    ExtendedBinaryOperator::EndsWith => crate::core::types::expression::BinaryOperator::Like, // 临时映射
-                };
+                let core_op = operator_conversion::convert_cypher_binary_operator(&bin_expr.operator);
                 Ok(Expression::Binary {
                     left: Box::new(left),
                     op: core_op,
@@ -98,23 +65,7 @@ impl ExpressionConverter {
             }
             CypherExpression::Unary(unary_expr) => {
                 let operand = Self::convert_cypher_to_unified(&unary_expr.expression)?;
-                let extended_op = operator_conversion::convert_cypher_unary_operator(&unary_expr.operator);
-                // 转换为core::types::expression::UnaryOperator
-                let core_op = match extended_op {
-                    ExtendedUnaryOperator::Core(core_op) => {
-                        match core_op {
-                            crate::core::types::operators::UnaryOperator::Plus => crate::core::types::expression::UnaryOperator::Plus,
-                            crate::core::types::operators::UnaryOperator::Minus => crate::core::types::expression::UnaryOperator::Minus,
-                            crate::core::types::operators::UnaryOperator::Not => crate::core::types::expression::UnaryOperator::Not,
-                            crate::core::types::operators::UnaryOperator::IsNull => crate::core::types::expression::UnaryOperator::IsNull,
-                            crate::core::types::operators::UnaryOperator::IsNotNull => crate::core::types::expression::UnaryOperator::IsNotNull,
-                            crate::core::types::operators::UnaryOperator::IsEmpty => crate::core::types::expression::UnaryOperator::IsEmpty,
-                            crate::core::types::operators::UnaryOperator::IsNotEmpty => crate::core::types::expression::UnaryOperator::IsNotEmpty,
-                            crate::core::types::operators::UnaryOperator::Increment => crate::core::types::expression::UnaryOperator::Increment,
-                            crate::core::types::operators::UnaryOperator::Decrement => crate::core::types::expression::UnaryOperator::Decrement,
-                        }
-                    },
-                };
+                let core_op = operator_conversion::convert_cypher_unary_operator(&unary_expr.operator);
                 Ok(Expression::Unary {
                     op: core_op,
                     operand: Box::new(operand),
@@ -216,29 +167,8 @@ impl ExpressionConverter {
             Expression::Binary { left, op, right } => {
                 let left_expr = Self::convert_unified_to_cypher(left)?;
                 let right_expr = Self::convert_unified_to_cypher(right)?;
-                // 转换操作符类型
-                let extended_op = match op {
-                    crate::core::types::expression::BinaryOperator::Add => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::Add),
-                    crate::core::types::expression::BinaryOperator::Subtract => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::Subtract),
-                    crate::core::types::expression::BinaryOperator::Multiply => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::Multiply),
-                    crate::core::types::expression::BinaryOperator::Divide => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::Divide),
-                    crate::core::types::expression::BinaryOperator::Modulo => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::Modulo),
-                    crate::core::types::expression::BinaryOperator::Equal => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::Equal),
-                    crate::core::types::expression::BinaryOperator::NotEqual => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::NotEqual),
-                    crate::core::types::expression::BinaryOperator::LessThan => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::LessThan),
-                    crate::core::types::expression::BinaryOperator::LessThanOrEqual => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::LessThanOrEqual),
-                    crate::core::types::expression::BinaryOperator::GreaterThan => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::GreaterThan),
-                    crate::core::types::expression::BinaryOperator::GreaterThanOrEqual => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::GreaterThanOrEqual),
-                    crate::core::types::expression::BinaryOperator::And => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::And),
-                    crate::core::types::expression::BinaryOperator::Or => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::Or),
-                    crate::core::types::expression::BinaryOperator::StringConcat => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::StringConcat),
-                    crate::core::types::expression::BinaryOperator::Like => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::Like),
-                    crate::core::types::expression::BinaryOperator::In => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::In),
-                    crate::core::types::expression::BinaryOperator::Union => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::Union),
-                    crate::core::types::expression::BinaryOperator::Intersect => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::Intersect),
-                    crate::core::types::expression::BinaryOperator::Except => ExtendedBinaryOperator::Core(crate::core::types::operators::BinaryOperator::Except),
-                };
-                let binary_op = operator_conversion::convert_extended_to_cypher_binary_operator(&extended_op)
+                // 直接转换操作符，因为BinaryOperator现在统一使用operators模块
+                let binary_op = operator_conversion::convert_core_to_cypher_binary_operator(op)
                     .map_err(|e| ExpressionError::invalid_operation(e))?;
                 Ok(CypherExpression::Binary(BinaryExpression {
                     left: Box::new(left_expr),
@@ -248,19 +178,8 @@ impl ExpressionConverter {
             }
             Expression::Unary { op, operand } => {
                 let operand_expr = Self::convert_unified_to_cypher(operand)?;
-                // 转换操作符类型
-                let extended_op = match op {
-                    crate::core::types::expression::UnaryOperator::Plus => ExtendedUnaryOperator::Core(crate::core::types::operators::UnaryOperator::Plus),
-                    crate::core::types::expression::UnaryOperator::Minus => ExtendedUnaryOperator::Core(crate::core::types::operators::UnaryOperator::Minus),
-                    crate::core::types::expression::UnaryOperator::Not => ExtendedUnaryOperator::Core(crate::core::types::operators::UnaryOperator::Not),
-                    crate::core::types::expression::UnaryOperator::IsNull => ExtendedUnaryOperator::Core(crate::core::types::operators::UnaryOperator::IsNull),
-                    crate::core::types::expression::UnaryOperator::IsNotNull => ExtendedUnaryOperator::Core(crate::core::types::operators::UnaryOperator::IsNotNull),
-                    crate::core::types::expression::UnaryOperator::IsEmpty => ExtendedUnaryOperator::Core(crate::core::types::operators::UnaryOperator::IsEmpty),
-                    crate::core::types::expression::UnaryOperator::IsNotEmpty => ExtendedUnaryOperator::Core(crate::core::types::operators::UnaryOperator::IsNotEmpty),
-                    crate::core::types::expression::UnaryOperator::Increment => ExtendedUnaryOperator::Core(crate::core::types::operators::UnaryOperator::Increment),
-                    crate::core::types::expression::UnaryOperator::Decrement => ExtendedUnaryOperator::Core(crate::core::types::operators::UnaryOperator::Decrement),
-                };
-                let unary_op = operator_conversion::convert_extended_to_cypher_unary_operator(&extended_op)
+                // 直接转换操作符，因为UnaryOperator现在统一使用operators模块
+                let unary_op = operator_conversion::convert_core_to_cypher_unary_operator(op)
                     .map_err(|e| ExpressionError::invalid_operation(e))?;
                 Ok(CypherExpression::Unary(UnaryExpression {
                     operator: unary_op,

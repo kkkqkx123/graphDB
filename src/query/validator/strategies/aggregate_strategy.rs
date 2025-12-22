@@ -351,8 +351,7 @@ impl ValidationStrategy for AggregateValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::UnaryOperator;
-    use crate::core::BinaryOperator;
+    use crate::core::types::operators::{UnaryOperator, BinaryOperator};
     use crate::core::Expression;
 
     #[test]
@@ -404,12 +403,12 @@ mod tests {
         // 测试嵌套表达式
         let nested_expr = Expression::Binary {
             left: Box::new(Expression::Unary {
-                op: crate::core::types::expression::UnaryOperator::Minus,
+                op: crate::core::types::operators::UnaryOperator::Minus,
                 operand: Box::new(Expression::Literal(
                     crate::core::types::expression::LiteralValue::Int(5),
                 )),
             }),
-            op: crate::core::types::expression::BinaryOperator::Add,
+            op: crate::core::types::operators::BinaryOperator::Add,
             right: Box::new(Expression::Literal(
                 crate::core::types::expression::LiteralValue::Int(10),
             )),

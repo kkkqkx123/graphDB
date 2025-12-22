@@ -1,7 +1,7 @@
 use crate::core::{NullType, Value};
 use crate::core::{Expression, ExpressionError};
 use crate::core::context::expression::default_context::ExpressionContextCore;
-use crate::expression::operators_ext::BinaryOperator;
+use crate::core::types::operators::BinaryOperator;
 use serde::{Deserialize, Serialize};
 
 /// 评估二元操作表达式

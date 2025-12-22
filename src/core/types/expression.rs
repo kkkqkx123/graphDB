@@ -3,6 +3,7 @@
 //! 使用枚举变体减少装箱，优化内存使用和性能
 
 use serde::{Deserialize, Serialize};
+use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 
 /// 优化后的表达式类型
 ///
@@ -175,59 +176,8 @@ pub enum LiteralValue {
     Null,
 }
 
-/// 二元操作符
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum BinaryOperator {
-    // 算术操作
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
-
-    // 比较操作
-    Equal,
-    NotEqual,
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-
-    // 逻辑操作
-    And,
-    Or,
-
-    // 字符串操作
-    StringConcat,
-    Like,
-    In,
-
-    // 集合操作
-    Union,
-    Intersect,
-    Except,
-}
-
-/// 一元操作符
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum UnaryOperator {
-    // 算术操作
-    Plus,
-    Minus,
-
-    // 逻辑操作
-    Not,
-
-    // 存在性检查
-    IsNull,
-    IsNotNull,
-    IsEmpty,
-    IsNotEmpty,
-
-    // 增减操作
-    Increment,
-    Decrement,
-}
+// 二元操作符和一元操作符现在从 crate::core::types::operators 导入
+// 以避免重复定义，参见 operators.rs
 
 /// 聚合函数
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
