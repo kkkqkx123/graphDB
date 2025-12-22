@@ -21,9 +21,11 @@ pub use cache::{ExpressionCacheManager, ExpressionCacheStats};
 
 // 重新导出函数相关类型
 pub use functions::{
-    AggregateFunction, BuiltinFunction, ConversionFunction, CustomFunction, DateTimeFunction,
+    BuiltinFunction, ConversionFunction, CustomFunction, DateTimeFunction,
     ExpressionFunction, FunctionRef, MathFunction, StringFunction,
 };
+// 聚合函数从operators模块导出，避免重复定义
+pub use crate::core::types::operators::AggregateFunction;
 
 // 重新导出错误相关类型（现在从核心错误模块导出）
 pub use crate::core::{ExpressionError, ExpressionErrorType, ExpressionPosition};

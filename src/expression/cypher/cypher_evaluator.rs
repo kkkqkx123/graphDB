@@ -2,10 +2,11 @@ use crate::core::{Value, ExpressionError};
 use crate::core::expressions::ExpressionContextCore;
 use crate::core::types::expression::Expression;
 use crate::query::parser::cypher::ast::expressions::{
-    BinaryExpression, BinaryOperator, CaseExpression,
+    BinaryExpression, CaseExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
-    MapExpression, PatternExpression, PropertyExpression, UnaryExpression, UnaryOperator,
+    MapExpression, PatternExpression, PropertyExpression, UnaryExpression,
 };
+use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 
 /// Cypher表达式评估器
 ///
@@ -147,8 +148,8 @@ impl CypherEvaluator {
                     Ok(Value::Bool(false))
                 }
             }
-            UnaryOperator::Positive => Ok(value),
-            UnaryOperator::Negative => match value {
+            UnaryOperator::Plus => Ok(value),
+            UnaryOperator::Minus => match value {
                 Value::Int(i) => Ok(Value::Int(-i)),
                 Value::Float(f) => Ok(Value::Float(-f)),
                 _ => Ok(Value::Null(crate::core::NullType::Null)),

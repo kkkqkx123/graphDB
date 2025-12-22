@@ -18,10 +18,10 @@ pub use clauses::{
 };
 pub use converters::{CypherConverter, ExpressionEvaluator};
 pub use expressions::{
-    BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression, Expression, FunctionCall,
+    BinaryExpression, CaseAlternative, CaseExpression, Expression, FunctionCall,
     ListExpression, Literal, MapExpression, PatternExpression, PropertyExpression, UnaryExpression,
-    UnaryOperator,
 };
+pub use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 pub use patterns::{Direction, NodePattern, Pattern, PatternPart, Range, RelationshipPattern};
 pub use query_types::{Condition, Query};
 pub use statements::{CypherStatement, QueryClause};

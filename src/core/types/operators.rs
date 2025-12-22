@@ -158,18 +158,19 @@ impl Clone for OperatorRegistry {
 pub enum BinaryOperator {
     // 算术操作
     Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
+    Subtract,  // Sub
+    Multiply,  // Mul
+    Divide,    // Div
+    Modulo,    // Mod
+    Exponent,  // Exp
 
     // 比较操作
-    Equal,
-    NotEqual,
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
+    Equal,     // Eq
+    NotEqual,  // Ne
+    LessThan,  // Lt
+    LessThanOrEqual,  // Le
+    GreaterThan,      // Gt
+    GreaterThanOrEqual, // Ge
 
     // 逻辑操作
     And,
@@ -178,7 +179,7 @@ pub enum BinaryOperator {
 
     // 字符串操作
     StringConcat,
-    Like,
+    Like,      // Regex
     In,
     NotIn,                  // 不在集合中
     Contains,               // 包含检查
@@ -203,6 +204,7 @@ impl Operator for BinaryOperator {
             BinaryOperator::Multiply => "*",
             BinaryOperator::Divide => "/",
             BinaryOperator::Modulo => "%",
+            BinaryOperator::Exponent => "**",
             BinaryOperator::Equal => "==",
             BinaryOperator::NotEqual => "!=",
             BinaryOperator::LessThan => "<",
@@ -213,7 +215,7 @@ impl Operator for BinaryOperator {
             BinaryOperator::Or => "OR",
             BinaryOperator::Xor => "XOR",
             BinaryOperator::StringConcat => "||",
-            BinaryOperator::Like => "LIKE",
+            BinaryOperator::Like => "=~",  // Regex
             BinaryOperator::In => "IN",
             BinaryOperator::NotIn => "NOT IN",
             BinaryOperator::Contains => "CONTAINS",
@@ -231,33 +233,34 @@ impl Operator for BinaryOperator {
         match self {
             // 优先级 1: 逻辑或
             BinaryOperator::Or => 1,
-            
+
             // 优先级 2: 逻辑与和异或
             BinaryOperator::And | BinaryOperator::Xor => 2,
-            
+
             // 优先级 3: 比较操作
             BinaryOperator::Equal | BinaryOperator::NotEqual |
             BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual |
             BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual => 3,
-            
+
             // 优先级 4: 包含和匹配
             BinaryOperator::In | BinaryOperator::NotIn | BinaryOperator::Like |
             BinaryOperator::Contains | BinaryOperator::StartsWith | BinaryOperator::EndsWith => 4,
-            
+
             // 优先级 5: 集合操作
             BinaryOperator::Union | BinaryOperator::Intersect | BinaryOperator::Except => 5,
-            
+
             // 优先级 6: 加减法
             BinaryOperator::Add | BinaryOperator::Subtract => 6,
-            
-            // 优先级 7: 乘除法和取模
+
+            // 优先级 7: 乘除法、取模和指数
             BinaryOperator::Multiply | BinaryOperator::Divide | BinaryOperator::Modulo => 7,
-            
-            // 优先级 8: 字符串连接
-            BinaryOperator::StringConcat => 8,
-            
-            // 优先级 9: 访问操作
-            BinaryOperator::Subscript | BinaryOperator::Attribute => 9,
+            BinaryOperator::Exponent => 8,  // 指数运算优先级更高
+
+            // 优先级 8: 字符串连接 (调整为优先级9)
+            BinaryOperator::StringConcat => 9,
+
+            // 优先级 9: 访问操作 (调整为优先级10)
+            BinaryOperator::Subscript | BinaryOperator::Attribute => 10,
         }
     }
     
@@ -266,6 +269,7 @@ impl Operator for BinaryOperator {
             // 大多数二元操作符都是左结合的
             BinaryOperator::Add | BinaryOperator::Subtract |
             BinaryOperator::Multiply | BinaryOperator::Divide | BinaryOperator::Modulo |
+            BinaryOperator::Exponent |  // 指数运算通常是右结合的，但这里按左结合处理
             BinaryOperator::Equal | BinaryOperator::NotEqual |
             BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual |
             BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual |
@@ -413,7 +417,8 @@ impl BinaryOperator {
     pub fn category(&self) -> OperatorCategory {
         match self {
             BinaryOperator::Add | BinaryOperator::Subtract |
-            BinaryOperator::Multiply | BinaryOperator::Divide | BinaryOperator::Modulo => {
+            BinaryOperator::Multiply | BinaryOperator::Divide | BinaryOperator::Modulo |
+            BinaryOperator::Exponent => {
                 OperatorCategory::Arithmetic
             }
             BinaryOperator::Equal | BinaryOperator::NotEqual |

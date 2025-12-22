@@ -1,9 +1,10 @@
 use crate::core::ExpressionError;
 use crate::query::parser::cypher::ast::expressions::{
-    BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
+    BinaryExpression, CaseAlternative, CaseExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
-    MapExpression, PatternExpression, PropertyExpression, UnaryExpression, UnaryOperator,
+    MapExpression, PatternExpression, PropertyExpression, UnaryExpression,
 };
+use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 
 /// Cypher表达式优化器
 ///
@@ -169,13 +170,13 @@ impl CypherExpressionOptimizer {
             (UnaryOperator::Not, CypherExpression::Literal(CypherLiteral::Boolean(b))) => {
                 Some(CypherExpression::Literal(CypherLiteral::Boolean(!b)))
             }
-            (UnaryOperator::Positive, CypherExpression::Literal(lit)) => {
+            (UnaryOperator::Plus, CypherExpression::Literal(lit)) => {
                 Some(CypherExpression::Literal(lit.clone()))
             }
-            (UnaryOperator::Negative, CypherExpression::Literal(CypherLiteral::Integer(i))) => {
+            (UnaryOperator::Minus, CypherExpression::Literal(CypherLiteral::Integer(i))) => {
                 Some(CypherExpression::Literal(CypherLiteral::Integer(-i)))
             }
-            (UnaryOperator::Negative, CypherExpression::Literal(CypherLiteral::Float(f))) => {
+            (UnaryOperator::Minus, CypherExpression::Literal(CypherLiteral::Float(f))) => {
                 Some(CypherExpression::Literal(CypherLiteral::Float(-f)))
             }
             _ => None,
@@ -359,7 +360,7 @@ mod tests {
     #[test]
     fn test_optimize_negative_constant() {
         let expr = CypherExpression::Unary(UnaryExpression {
-            operator: UnaryOperator::Negative,
+            operator: UnaryOperator::Minus,
             expression: Box::new(CypherExpression::Literal(CypherLiteral::Integer(5))),
         });
 

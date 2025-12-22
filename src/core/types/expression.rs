@@ -192,6 +192,9 @@ pub enum DataType {
     Edge,
     Path,
     DateTime,
+    Date,      // 日期类型
+    Time,      // 时间类型
+    Duration,  // 期间类型
     // 可以根据需要添加更多类型
 }
 

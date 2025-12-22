@@ -8,9 +8,9 @@ use crate::core::types::operators::{
 
 /// 转换Cypher二元操作符为Core二元操作符
 pub fn convert_cypher_binary_operator(
-    cypher_op: &crate::query::parser::cypher::ast::expressions::BinaryOperator,
+    cypher_op: &crate::query::parser::cypher::ast::expressions::CoreBinaryOperator,
 ) -> BinaryOperator {
-    use crate::query::parser::cypher::ast::expressions::BinaryOperator as CypherOp;
+    use crate::query::parser::cypher::ast::expressions::CoreBinaryOperator as CypherOp;
 
     match cypher_op {
         CypherOp::Add => BinaryOperator::Add,
@@ -38,22 +38,22 @@ pub fn convert_cypher_binary_operator(
 
 /// 转换Cypher一元操作符为Core一元操作符
 pub fn convert_cypher_unary_operator(
-    cypher_op: &crate::query::parser::cypher::ast::expressions::UnaryOperator,
+    cypher_op: &crate::query::parser::cypher::ast::expressions::CoreUnaryOperator,
 ) -> UnaryOperator {
-    use crate::query::parser::cypher::ast::expressions::UnaryOperator as CypherOp;
+    use crate::query::parser::cypher::ast::expressions::CoreUnaryOperator as CypherOp;
 
     match cypher_op {
         CypherOp::Not => UnaryOperator::Not,
-        CypherOp::Positive => UnaryOperator::Plus,
-        CypherOp::Negative => UnaryOperator::Minus,
+        CypherOp::Plus => UnaryOperator::Plus,
+        CypherOp::Minus => UnaryOperator::Minus,
     }
 }
 
 /// 将Core二元操作符转换为Cypher二元操作符
 pub fn convert_core_to_cypher_binary_operator(
     op: &BinaryOperator,
-) -> Result<crate::query::parser::cypher::ast::expressions::BinaryOperator, String> {
-    use crate::query::parser::cypher::ast::expressions::BinaryOperator as CypherOp;
+) -> Result<crate::query::parser::cypher::ast::expressions::CoreBinaryOperator, String> {
+    use crate::query::parser::cypher::ast::expressions::CoreBinaryOperator as CypherOp;
 
     match op {
         BinaryOperator::Add => Ok(CypherOp::Add),
@@ -88,19 +88,19 @@ pub fn convert_core_to_cypher_binary_operator(
 /// 将Core一元操作符转换为Cypher一元操作符
 pub fn convert_core_to_cypher_unary_operator(
     op: &UnaryOperator,
-) -> Result<crate::query::parser::cypher::ast::expressions::UnaryOperator, String> {
-    use crate::query::parser::cypher::ast::expressions::UnaryOperator as CypherOp;
+) -> Result<crate::query::parser::cypher::ast::expressions::CoreUnaryOperator, String> {
+    use crate::query::parser::cypher::ast::expressions::CoreUnaryOperator as CypherOp;
 
     match op {
-        UnaryOperator::Plus => Ok(CypherOp::Positive),
-        UnaryOperator::Minus => Ok(CypherOp::Negative),
+        UnaryOperator::Plus => Ok(CypherOp::Plus),
+        UnaryOperator::Minus => Ok(CypherOp::Minus),
         UnaryOperator::Not => Ok(CypherOp::Not),
-        UnaryOperator::IsNull => Ok(CypherOp::Positive), // 临时映射
-        UnaryOperator::IsNotNull => Ok(CypherOp::Positive), // 临时映射
-        UnaryOperator::IsEmpty => Ok(CypherOp::Positive), // 临时映射
-        UnaryOperator::IsNotEmpty => Ok(CypherOp::Positive), // 临时映射
-        UnaryOperator::Increment => Ok(CypherOp::Positive), // 临时映射
-        UnaryOperator::Decrement => Ok(CypherOp::Positive), // 临时映射
+        UnaryOperator::IsNull => Ok(CypherOp::Plus), // 临时映射
+        UnaryOperator::IsNotNull => Ok(CypherOp::Plus), // 临时映射
+        UnaryOperator::IsEmpty => Ok(CypherOp::Plus), // 临时映射
+        UnaryOperator::IsNotEmpty => Ok(CypherOp::Plus), // 临时映射
+        UnaryOperator::Increment => Ok(CypherOp::Plus), // 临时映射
+        UnaryOperator::Decrement => Ok(CypherOp::Plus), // 临时映射
     }
 }
 
@@ -111,18 +111,18 @@ mod tests {
 
     #[test]
     fn test_cypher_binary_operator_conversion() {
-        use crate::query::parser::cypher::ast::expressions::BinaryOperator as CypherOp;
-        
+        use crate::query::parser::cypher::ast::expressions::CoreBinaryOperator as CypherOp;
+
         // 测试Cypher到Core的转换
         let cypher_op = CypherOp::Add;
         let core_op = convert_cypher_binary_operator(&cypher_op);
         assert_eq!(core_op, BinaryOperator::Add);
-        
+
         // 测试Core到Cypher的转换
         let back_to_cypher = convert_core_to_cypher_binary_operator(&core_op);
         assert!(back_to_cypher.is_ok());
         assert_eq!(back_to_cypher.unwrap(), CypherOp::Add);
-        
+
         // 测试扩展操作符
         let xor_op = BinaryOperator::Xor;
         let xor_to_cypher = convert_core_to_cypher_binary_operator(&xor_op);

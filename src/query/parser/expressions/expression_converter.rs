@@ -214,7 +214,7 @@ fn convert_binary_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
         BinaryOp::Mul => Ok(BinaryOperator::Multiply),
         BinaryOp::Div => Ok(BinaryOperator::Divide),
         BinaryOp::Mod => Ok(BinaryOperator::Modulo),
-        BinaryOp::Exp => Err("指数操作符在graph表达式中不支持".to_string()),
+        BinaryOp::Exp => Ok(BinaryOperator::Exponent),
 
         // 逻辑操作符
         BinaryOp::And => Ok(BinaryOperator::And),
@@ -230,12 +230,12 @@ fn convert_binary_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
         BinaryOp::Ge => Ok(BinaryOperator::GreaterThanOrEqual),
 
         // 字符串操作符
-        BinaryOp::Regex => Err("正则表达式操作符在graph表达式中不支持".to_string()),
+        BinaryOp::Regex => Ok(BinaryOperator::Like),  // Regex映射到Like
         BinaryOp::In => Ok(BinaryOperator::In),
-        BinaryOp::NotIn => Err("NOT IN操作符在graph表达式中不支持".to_string()),
-        BinaryOp::Contains => Err("CONTAINS操作符在graph表达式中不支持".to_string()),
-        BinaryOp::StartsWith => Err("STARTS WITH操作符在graph表达式中不支持".to_string()),
-        BinaryOp::EndsWith => Err("ENDS WITH操作符在graph表达式中不支持".to_string()),
+        BinaryOp::NotIn => Ok(BinaryOperator::NotIn),
+        BinaryOp::Contains => Ok(BinaryOperator::Contains),
+        BinaryOp::StartsWith => Ok(BinaryOperator::StartsWith),
+        BinaryOp::EndsWith => Ok(BinaryOperator::EndsWith),
     }
 }
 
@@ -249,6 +249,8 @@ fn convert_unary_op(op: &UnaryOp) -> Result<UnaryOperator, String> {
         UnaryOp::IsNotNull => Ok(UnaryOperator::IsNotNull),
         UnaryOp::IsEmpty => Ok(UnaryOperator::IsEmpty),
         UnaryOp::IsNotEmpty => Ok(UnaryOperator::IsNotEmpty),
+        UnaryOp::Increment => Ok(UnaryOperator::Increment),
+        UnaryOp::Decrement => Ok(UnaryOperator::Decrement),
     }
 }
 

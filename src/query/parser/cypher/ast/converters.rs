@@ -3,7 +3,8 @@
 use crate::core::error::QueryError;
 use crate::core::value::Value;
 use crate::core::vertex_edge_path::Tag;
-use crate::query::parser::cypher::ast::expressions::{BinaryOperator, Expression};
+use crate::query::parser::cypher::ast::expressions::Expression;
+use crate::core::types::operators::BinaryOperator;
 use crate::query::parser::cypher::ast::statements::CypherStatement;
 use crate::query::parser::cypher::ast::{Condition, Query};
 use std::collections::HashMap;
@@ -662,14 +663,14 @@ impl ExpressionEvaluator {
         let expr = self.evaluate(&unary.expression)?;
 
         match unary.operator {
-            crate::query::parser::cypher::ast::expressions::UnaryOperator::Not => match expr {
+            crate::core::types::operators::UnaryOperator::Not => match expr {
                 Value::Bool(b) => Ok(Value::Bool(!b)),
                 _ => Err("NOT操作符只能应用于布尔值".to_string()),
             },
-            crate::query::parser::cypher::ast::expressions::UnaryOperator::Negative => {
+            crate::core::types::operators::UnaryOperator::Minus => {
                 expr.negate()
             }
-            crate::query::parser::cypher::ast::expressions::UnaryOperator::Positive => Ok(expr),
+            crate::core::types::operators::UnaryOperator::Plus => Ok(expr),
         }
     }
 

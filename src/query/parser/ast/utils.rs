@@ -421,12 +421,12 @@ impl ExprOptimizer {
     pub fn constant_folding(expr: Expr) -> Expr {
         match expr {
             Expr::Binary(mut e) => {
-                e.left = Box::new(Self::constant_folding(*e.left));
-                e.right = Box::new(Self::constant_folding(*e.right));
+                let optimized_left = Self::constant_folding(*e.left);
+                let optimized_right = Self::constant_folding(*e.right);
 
                 // 如果左右操作数都是常量，尝试计算结果
-                if e.left.is_constant() && e.right.is_constant() {
-                    if let (Expr::Constant(left), Expr::Constant(right)) = (&*e.left, &*e.right) {
+                if optimized_left.is_constant() && optimized_right.is_constant() {
+                    if let (Expr::Constant(ref left), Expr::Constant(ref right)) = (&optimized_left, &optimized_right) {
                         if let Some(result) =
                             Self::evaluate_binary_op(&left.value, e.op, &right.value)
                         {
@@ -435,20 +435,23 @@ impl ExprOptimizer {
                     }
                 }
 
+                e.left = Box::new(optimized_left);
+                e.right = Box::new(optimized_right);
                 Expr::Binary(e)
             }
             Expr::Unary(mut e) => {
-                e.operand = Box::new(Self::constant_folding(*e.operand));
+                let optimized_operand = Self::constant_folding(*e.operand);
 
                 // 如果操作数是常量，尝试计算结果
-                if e.operand.is_constant() {
-                    if let Expr::Constant(operand) = &*e.operand {
+                if optimized_operand.is_constant() {
+                    if let Expr::Constant(ref operand) = optimized_operand {
                         if let Some(result) = Self::evaluate_unary_op(e.op, &operand.value) {
                             return Expr::Constant(ConstantExpr::new(result, e.span));
                         }
                     }
                 }
 
+                e.operand = Box::new(optimized_operand);
                 Expr::Unary(e)
             }
             Expr::List(mut e) => {
@@ -465,34 +468,37 @@ impl ExprOptimizer {
             }
             Expr::Case(mut e) => {
                 if let Some(ref mut match_expr) = e.match_expr {
-                    *match_expr = Box::new(Self::constant_folding(*match_expr.clone()));
+                    let cloned_match_expr = (*match_expr).clone();
+                    *match_expr = Box::new(Self::constant_folding(cloned_match_expr));
                 }
 
                 e.when_then_pairs = e
                     .when_then_pairs
                     .into_iter()
                     .map(|(when, then)| {
-                        (
-                            Box::new(Self::constant_folding(*when)),
-                            Box::new(Self::constant_folding(*then)),
-                        )
+                        (Box::new(Self::constant_folding(when)), Box::new(Self::constant_folding(then)))
                     })
                     .collect();
 
                 if let Some(ref mut default) = e.default {
-                    *default = Box::new(Self::constant_folding(*default.clone()));
+                    let cloned_default = (*default).clone();
+                    *default = Box::new(Self::constant_folding(cloned_default));
                 }
 
                 Expr::Case(e)
             }
             Expr::Subscript(mut e) => {
-                e.collection = Box::new(Self::constant_folding(*e.collection));
-                e.index = Box::new(Self::constant_folding(*e.index));
+                let optimized_collection = Self::constant_folding(*e.collection);
+                let optimized_index = Self::constant_folding(*e.index);
+                e.collection = Box::new(optimized_collection);
+                e.index = Box::new(optimized_index);
                 Expr::Subscript(e)
             }
             Expr::Predicate(mut e) => {
-                e.list = Box::new(Self::constant_folding(*e.list));
-                e.condition = Box::new(Self::constant_folding(*e.condition));
+                let optimized_list = Self::constant_folding(*e.list);
+                let optimized_condition = Self::constant_folding(*e.condition);
+                e.list = Box::new(optimized_list);
+                e.condition = Box::new(optimized_condition);
                 Expr::Predicate(e)
             }
             _ => expr,
