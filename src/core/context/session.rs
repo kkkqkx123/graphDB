@@ -5,6 +5,8 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, Duration};
+use crate::core::Value;
+use super::base::{ContextBase, ContextType, MutableContext};
 
 /// 会话上下文
 #[derive(Debug, Clone)]
@@ -213,6 +215,77 @@ impl SessionContext {
     }
 }
 
+impl ContextBase for SessionContext {
+    fn id(&self) -> &str {
+        &self.session_id
+    }
+
+    fn context_type(&self) -> ContextType {
+        ContextType::Session
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn created_at(&self) -> std::time::SystemTime {
+        self.created_at
+    }
+
+    fn updated_at(&self) -> std::time::SystemTime {
+        self.last_activity
+    }
+
+    fn is_valid(&self) -> bool {
+        !self.is_expired() && self.session_state != SessionState::Terminated
+    }
+
+    fn get_attribute(&self, _key: &str) -> Option<Value> {
+        // 会话上下文不支持自定义属性
+        None
+    }
+
+    fn set_attribute(&mut self, _key: String, _value: Value) {
+        // 会话上下文不支持自定义属性
+    }
+
+    fn attribute_keys(&self) -> Vec<String> {
+        Vec::new() // 会话上下文不支持自定义属性
+    }
+
+    fn remove_attribute(&mut self, _key: &str) -> Option<Value> {
+        None // 会话上下文不支持自定义属性
+    }
+
+    fn clear_attributes(&mut self) {
+        // 会话上下文不支持自定义属性
+    }
+
+    fn clone_context(&self) -> Box<dyn ContextBase> {
+        Box::new(self.clone())
+    }
+}
+
+impl MutableContext for SessionContext {
+    fn touch(&mut self) {
+        self.update_activity();
+    }
+
+    fn invalidate(&mut self) {
+        self.session_state = SessionState::Terminated;
+    }
+
+    fn revalidate(&mut self) -> bool {
+        if self.is_expired() {
+            self.session_state = SessionState::Expired;
+            false
+        } else {
+            self.session_state = SessionState::Active;
+            true
+        }
+    }
+}
+
 impl UserInfo {
     /// 创建新的用户信息
     pub fn new(
@@ -287,6 +360,34 @@ impl Default for SessionConfig {
             memory_limit_bytes: Some(1024 * 1024 * 1024), // 1GB
             auto_commit: true,
             isolation_level: IsolationLevel::ReadCommitted,
+        }
+    }
+}
+
+// 重新导出类型以供其他模块使用
+
+/// 会话信息（简化版本，用于兼容性）
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SessionInfo {
+    /// 会话ID
+    pub session_id: String,
+    /// 用户名
+    pub username: String,
+    /// 用户角色
+    pub roles: Vec<String>,
+}
+
+impl SessionInfo {
+    /// 创建新的会话信息
+    pub fn new(
+        session_id: impl Into<String>,
+        username: impl Into<String>,
+        roles: Vec<String>,
+    ) -> Self {
+        Self {
+            session_id: session_id.into(),
+            username: username.into(),
+            roles,
         }
     }
 }

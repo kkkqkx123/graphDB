@@ -19,17 +19,31 @@ pub mod types;
 pub mod context;
 pub mod evaluator;
 
+// 错误和结果类型
 pub use error::{DBError, DBResult, ExpressionError, QueryError};
 pub use result::*;
-pub use schema::*;
+
+// 核心数据类型
+pub use vertex_edge_path::{Vertex, Edge, Path, Step, Tag, Direction};
+pub use value::*;
+
+// 表达式系统类型
+pub use types::expression::{
+    Expression, LiteralValue, DataType, ExpressionType,
+    BinaryOperator, UnaryOperator, AggregateFunction
+};
+
+// 操作符系统类型
+pub use types::operators::{
+    OperatorRegistry, OperatorInstance, OperatorCategory, Operator
+};
+
+// 其他核心类型
 pub use symbol::*;
 pub use type_utils::TypeUtils;
-pub use value::*;
-pub use vertex_edge_path::*;
 pub use visitor::*;
 pub use visitor_state_enum::*;
 
-// 重新导出新模块的类型
-pub use types::*;
+// 上下文和求值器
 pub use context::*;
 pub use evaluator::*;

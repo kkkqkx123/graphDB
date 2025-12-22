@@ -5,6 +5,9 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use crate::core::types::query::{QueryType, QueryResult};
+use crate::core::Value;
+use super::base::{ContextBase, ContextType, MutableContext};
+use super::session::SessionInfo;
 
 /// 查询上下文
 #[derive(Debug, Clone)]
@@ -50,20 +53,9 @@ pub struct QueryOptions {
     pub read_only: bool,
 }
 
-/// 会话信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SessionInfo {
-    /// 会话ID
-    pub session_id: String,
-    /// 用户名
-    pub username: String,
-    /// 用户角色
-    pub roles: Vec<String>,
-    /// 会话变量
-    pub variables: HashMap<String, SessionVariable>,
-}
+// SessionInfo 现在从 session 模块导入
 
-/// 会话变量
+// 会话变量（简化版本）
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SessionVariable {
     String(String),
@@ -124,15 +116,70 @@ impl QueryContext {
     pub fn has_role(&self, role: &str) -> bool {
         self.session_info.roles.contains(&role.to_string())
     }
-    
-    /// 获取会话变量
-    pub fn get_session_variable(&self, name: &str) -> Option<&SessionVariable> {
-        self.session_info.variables.get(name)
+}
+
+impl ContextBase for QueryContext {
+    fn id(&self) -> &str {
+        &self.query_id
+    }
+
+    fn context_type(&self) -> ContextType {
+        ContextType::Query
     }
     
-    /// 设置会话变量
-    pub fn set_session_variable(&mut self, name: impl Into<String>, value: SessionVariable) {
-        self.session_info.variables.insert(name.into(), value);
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn created_at(&self) -> std::time::SystemTime {
+        std::time::SystemTime::now() // 使用当前时间作为创建时间
+    }
+
+    fn updated_at(&self) -> std::time::SystemTime {
+        std::time::SystemTime::now() // 使用当前时间作为更新时间
+    }
+
+    fn is_valid(&self) -> bool {
+        !self.is_timeout()
+    }
+
+    fn get_attribute(&self, _key: &str) -> Option<Value> {
+        // 查询上下文不支持自定义属性
+        None
+    }
+
+    fn set_attribute(&mut self, _key: String, _value: Value) {
+        // 查询上下文不支持自定义属性
+    }
+
+    fn attribute_keys(&self) -> Vec<String> {
+        Vec::new() // 查询上下文不支持自定义属性
+    }
+
+    fn remove_attribute(&mut self, _key: &str) -> Option<Value> {
+        None // 查询上下文不支持自定义属性
+    }
+
+    fn clear_attributes(&mut self) {
+        // 查询上下文不支持自定义属性
+    }
+
+    fn clone_context(&self) -> Box<dyn ContextBase> {
+        Box::new(self.clone())
+    }
+}
+
+impl MutableContext for QueryContext {
+    fn touch(&mut self) {
+        // 更新时间戳
+    }
+
+    fn invalidate(&mut self) {
+        // 标记为无效
+    }
+
+    fn revalidate(&mut self) -> bool {
+        !self.is_timeout()
     }
 }
 
@@ -148,36 +195,6 @@ impl Default for QueryOptions {
     }
 }
 
-impl SessionInfo {
-    /// 创建新的会话信息
-    pub fn new(
-        session_id: impl Into<String>,
-        username: impl Into<String>,
-        roles: Vec<String>,
-    ) -> Self {
-        Self {
-            session_id: session_id.into(),
-            username: username.into(),
-            roles,
-            variables: HashMap::new(),
-        }
-    }
-    
-    /// 添加角色
-    pub fn add_role(&mut self, role: impl Into<String>) {
-        self.roles.push(role.into());
-    }
-    
-    /// 检查是否有管理员权限
-    pub fn is_admin(&self) -> bool {
-        self.has_role("admin") || self.has_role("administrator")
-    }
-    
-    /// 检查是否有指定角色
-    pub fn has_role(&self, role: &str) -> bool {
-        self.roles.contains(&role.to_string())
-    }
-}
 
 /// 查询状态
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use crate::core::types::query::{Record, FieldValue};
 use crate::core::context::query::QueryContext;
+use crate::core::Value;
+use super::base::{ContextBase, ContextType, MutableContext};
 
 /// 执行上下文
 #[derive(Debug, Clone)]
@@ -204,6 +206,87 @@ impl ExecutionContext {
     pub fn is_completed(&self) -> bool {
         matches!(self.execution_state, ExecutionState::Completed | 
                 ExecutionState::Cancelled | ExecutionState::Error)
+    }
+}
+
+impl ContextBase for ExecutionContext {
+    fn id(&self) -> &str {
+        &self.query_context.query_id
+    }
+
+    fn context_type(&self) -> ContextType {
+        ContextType::Execution
+    }
+
+    fn parent(&self) -> Option<&dyn ContextBase> {
+        // 执行上下文的父上下文是查询上下文
+        Some(&self.query_context as &dyn ContextBase)
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn created_at(&self) -> std::time::SystemTime {
+        std::time::SystemTime::now() // 使用当前时间作为创建时间
+    }
+
+    fn updated_at(&self) -> std::time::SystemTime {
+        std::time::SystemTime::now() // 使用当前时间作为更新时间
+    }
+
+    fn is_valid(&self) -> bool {
+        !self.should_cancel() && !self.has_error()
+    }
+
+    fn get_attribute(&self, _key: &str) -> Option<Value> {
+        // 执行上下文不支持自定义属性
+        None
+    }
+
+    fn set_attribute(&mut self, _key: String, _value: Value) {
+        // 执行上下文不支持自定义属性
+    }
+
+    fn attribute_keys(&self) -> Vec<String> {
+        Vec::new() // 执行上下文不支持自定义属性
+    }
+
+    fn remove_attribute(&mut self, _key: &str) -> Option<Value> {
+        None // 执行上下文不支持自定义属性
+    }
+
+    fn clear_attributes(&mut self) {
+        // 执行上下文不支持自定义属性
+    }
+
+    fn clone_context(&self) -> Box<dyn ContextBase> {
+        Box::new(self.clone())
+    }
+}
+
+impl MutableContext for ExecutionContext {
+    fn touch(&mut self) {
+        // 更新执行统计
+        self.update_execution_stats();
+    }
+
+    fn invalidate(&mut self) {
+        self.execution_state = ExecutionState::Error;
+    }
+
+    fn revalidate(&mut self) -> bool {
+        if self.should_cancel() {
+            self.execution_state = ExecutionState::Cancelled;
+            false
+        } else if self.has_error() {
+            false
+        } else {
+            if self.execution_state == ExecutionState::Error {
+                self.execution_state = ExecutionState::Running;
+            }
+            true
+        }
     }
 }
 

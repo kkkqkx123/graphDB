@@ -4,8 +4,10 @@
 
 use crate::core::types::expression::Expression;
 use crate::core::types::query::{FieldValue, ScalarValue};
+use crate::core::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use super::base::{ContextBase, ContextType, MutableContext};
 
 /// 函数引用枚举，避免动态分发
 #[derive(Debug, Clone)]
@@ -38,7 +40,7 @@ pub trait ExpressionContext {
     fn get_variable_names(&self) -> Vec<&str>;
 
     /// 获取上下文深度
-    fn depth(&self) -> usize;
+    fn get_depth(&self) -> usize;
 
     /// 创建子上下文
     fn create_child_context(&self) -> ExpressionContextType;
@@ -623,7 +625,7 @@ impl ExpressionContext for BasicExpressionContext {
         names
     }
 
-    fn depth(&self) -> usize {
+    fn get_depth(&self) -> usize {
         self.depth
     }
 
@@ -633,7 +635,7 @@ impl ExpressionContext for BasicExpressionContext {
             functions: HashMap::new(),
             custom_functions: HashMap::new(),
             parent: Some(Box::new(self.clone())),
-            depth: self.depth + 1,
+            depth: self.get_depth() + 1,
         })
     }
 }
@@ -705,7 +707,7 @@ impl ExpressionContext for ExpressionContextType {
         }
     }
 
-    fn depth(&self) -> usize {
+    fn get_depth(&self) -> usize {
         match self {
             ExpressionContextType::Basic(ctx) => ctx.depth(),
         }
@@ -732,7 +734,7 @@ impl BasicExpressionContext {
 
     /// 创建带父上下文的基础表达式上下文
     pub fn with_parent(parent: BasicExpressionContext) -> Self {
-        let parent_depth = parent.depth;
+        let parent_depth = parent.get_depth();
         Self {
             variables: HashMap::new(),
             functions: HashMap::new(),
@@ -807,8 +809,79 @@ impl Clone for BasicExpressionContext {
             functions: self.functions.clone(),
             custom_functions: self.custom_functions.clone(),
             parent: self.parent.as_ref().map(|p| Box::new(p.as_ref().clone())),
-            depth: self.depth,
+            depth: self.get_depth(),
         }
+    }
+}
+
+impl ContextBase for BasicExpressionContext {
+    fn id(&self) -> &str {
+        // 使用深度作为ID的一部分，但需要返回一个引用
+        // 这里使用一个静态字符串作为ID
+        "expression_context"
+    }
+
+    fn context_type(&self) -> ContextType {
+        ContextType::Expression
+    }
+
+    fn parent(&self) -> Option<&dyn ContextBase> {
+        self.parent.as_ref().map(|p| p.as_ref() as &dyn ContextBase)
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn created_at(&self) -> std::time::SystemTime {
+        std::time::SystemTime::now() // 使用当前时间作为创建时间
+    }
+
+    fn updated_at(&self) -> std::time::SystemTime {
+        std::time::SystemTime::now() // 使用当前时间作为更新时间
+    }
+
+    fn is_valid(&self) -> bool {
+        true // 表达式上下文总是有效的
+    }
+
+    fn get_attribute(&self, _key: &str) -> Option<Value> {
+        // 表达式上下文不支持自定义属性
+        None
+    }
+
+    fn set_attribute(&mut self, _key: String, _value: Value) {
+        // 表达式上下文不支持自定义属性
+    }
+
+    fn attribute_keys(&self) -> Vec<String> {
+        Vec::new() // 表达式上下文不支持自定义属性
+    }
+
+    fn remove_attribute(&mut self, _key: &str) -> Option<Value> {
+        None // 表达式上下文不支持自定义属性
+    }
+
+    fn clear_attributes(&mut self) {
+        // 表达式上下文不支持自定义属性
+    }
+
+    fn clone_context(&self) -> Box<dyn ContextBase> {
+        Box::new(self.clone())
+    }
+}
+
+impl MutableContext for BasicExpressionContext {
+    fn touch(&mut self) {
+        // 更新时间戳
+    }
+
+    fn invalidate(&mut self) {
+        // 表达式上下文不支持无效化
+    }
+
+    fn revalidate(&mut self) -> bool {
+        true // 表达式上下文总是有效的
     }
 }
 

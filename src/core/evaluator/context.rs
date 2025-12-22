@@ -2,6 +2,7 @@
 //!
 //! 提供表达式求值过程中的上下文管理
 
+use crate::core::context::base::ContextBase;
 use crate::core::context::expression::{
     BasicExpressionContext, EvaluationOptions, EvaluationStatistics, ExpressionContext,
     ExpressionError,
