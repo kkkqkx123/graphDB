@@ -3,8 +3,8 @@
 
 use crate::core::TypeUtils;
 use crate::core::ValueTypeDef;
-use crate::expression::Expression;
-use crate::expression::{BinaryOperator, UnaryOperator};
+use crate::core::Expression;
+use crate::core::{BinaryOperator, UnaryOperator};
 use crate::query::validator::ValidateContext;
 use crate::query::visitor::QueryVisitor;
 use crate::storage::StorageEngine;

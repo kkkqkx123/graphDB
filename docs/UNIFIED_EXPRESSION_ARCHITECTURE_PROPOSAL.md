@@ -28,7 +28,7 @@ src/expression/
 ├── context/                  # 上下文模块
 │   ├── mod.rs               # 上下文模块导出
 │   ├── core.rs              # 核心trait定义
-│   ├── simple.rs            # 简单上下文实现
+│   ├── default.rs            # 简单上下文实现
 │   ├── query.rs             # 查询上下文适配器
 │   ├── storage.rs           # 存储上下文实现
 │   └── adapter.rs           # 通用适配器

@@ -19,12 +19,10 @@ pub mod visitor;
 
 pub use visitor::{ExpressionVisitor, ExpressionAcceptor, DefaultExpressionVisitor};
 
-pub use expression::AggregateFunction;
-pub use expression::BinaryOperator;
-pub use expression::DataType;
-pub use expression::Expression;
-pub use expression::LiteralValue;
-pub use expression::UnaryOperator;
+// 从Core模块重新导出表达式类型
+pub use crate::core::types::expression::{
+    AggregateFunction, BinaryOperator, DataType, Expression, LiteralValue, UnaryOperator,
+};
 
 pub use context::{
     DefaultExpressionContext, ExpressionContext, ExpressionContextCore, StorageExpressionContext,
