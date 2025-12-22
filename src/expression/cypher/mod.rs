@@ -34,7 +34,7 @@ impl CypherProcessor {
         let unified_expr = ExpressionConverter::convert_cypher_to_unified(cypher_expr)?;
 
         // 2. 评估统一表达式
-        super::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
+        crate::core::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
     }
 
     /// 处理Cypher表达式的优化流程：优化 -> 转换 -> 评估
@@ -49,7 +49,7 @@ impl CypherProcessor {
         let unified_expr = ExpressionConverter::convert_cypher_to_unified(&optimized_expr)?;
 
         // 3. 评估统一表达式
-        super::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
+        crate::core::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
     }
 
     /// 直接评估Cypher表达式（不进行转换）

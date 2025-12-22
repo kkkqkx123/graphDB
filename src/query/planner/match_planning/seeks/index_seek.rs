@@ -504,7 +504,7 @@ mod tests {
         assert!(seeker.match_node());
 
         let invalid_exprs = vec![Expression::Literal(
-            crate::expression::expression::LiteralValue::String("test".to_string()),
+            crate::core::types::expression::LiteralValue::String("test".to_string()),
         )];
         let invalid_seeker = IndexSeek::new_variable_property(node_info, invalid_exprs);
         assert!(!invalid_seeker.match_node());
@@ -669,7 +669,7 @@ mod tests {
 
         // 无效表达式列表
         let invalid_exprs = vec![Expression::Literal(
-            crate::expression::expression::LiteralValue::String("test".to_string()),
+            crate::core::types::expression::LiteralValue::String("test".to_string()),
         )];
         let result = seeker.create_variable_property_filter_expression(&invalid_exprs);
         assert!(result.is_err());
@@ -703,7 +703,7 @@ mod tests {
             left: Box::new(Expression::Variable("x".to_string())),
             op: crate::core::BinaryOperator::Equal,
             right: Box::new(Expression::Literal(
-                crate::expression::expression::LiteralValue::String("test".to_string()),
+                crate::core::types::expression::LiteralValue::String("test".to_string()),
             )),
         }];
         let result = seeker.validate_property_expressions(&valid_exprs);
@@ -714,7 +714,7 @@ mod tests {
             left: Box::new(Expression::Variable("x".to_string())),
             op: crate::core::BinaryOperator::Add,
             right: Box::new(Expression::Literal(
-                crate::expression::expression::LiteralValue::Int(1),
+                crate::core::types::expression::LiteralValue::Int(1),
             )),
         }];
         let result = seeker.validate_property_expressions(&invalid_exprs);
@@ -740,7 +740,7 @@ mod tests {
             left: Box::new(Expression::Variable("x".to_string())),
             op: crate::core::BinaryOperator::Equal,
             right: Box::new(Expression::Literal(
-                crate::expression::expression::LiteralValue::String("test".to_string()),
+                crate::core::types::expression::LiteralValue::String("test".to_string()),
             )),
         }];
         let seeker = IndexSeek::new_property(node_info, prop_exprs);

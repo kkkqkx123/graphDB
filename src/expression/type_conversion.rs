@@ -7,9 +7,9 @@ use crate::core::Value;
 /// 将值转换为指定的数据类型
 pub fn cast_value_to_datatype(
     value: Value,
-    target_type: &crate::expression::expression::DataType,
+    target_type: &crate::core::types::expression::DataType,
 ) -> Result<Value, ExpressionError> {
-    use crate::expression::expression::DataType;
+    use crate::core::types::expression::DataType;
     match target_type {
         DataType::Bool => cast_to_bool(value),
         DataType::Int => cast_to_int(value),

@@ -22,14 +22,14 @@ pub use crate::core::{
     DateTimeValue, DateValue, Direction, DurationValue, Edge, GeographyValue, NullType, Path, Step,
     Tag, TimeValue, Value, Vertex,
 };
-pub use crate::core::{ExecutionResult, ExecutorFactory, QueryError, QueryPipelineManager};
+pub use crate::core::{ExecutorFactory, QueryError, QueryPipelineManager};
 pub use crate::storage::{NativeStorage, StorageEngine, StorageError};
 
 // Re-export commonly used types from submodules
 pub use crate::common::{
     base::id::*, charset::*, fs::*, log::*, memory::*, network::*, process::*, thread::*, time::*,
 };
-pub use crate::expression::*;
+// Expression模块类型已迁移到Core模块，请直接使用 crate::core::types::expression::*
 pub use crate::graph::{
     index::*,
     transaction::*,

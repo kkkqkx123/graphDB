@@ -70,7 +70,7 @@ impl QueryVisitorBuilder {
     pub fn build_deduce_type<'a, S: crate::storage::StorageEngine>(
         self,
         storage: &'a S,
-        validate_context: &'a crate::query::validator::ValidateContext,
+        validate_context: &'a crate::query::validator::ValidationContext,
         inputs: Vec<(String, crate::core::ValueTypeDef)>,
         space: String,
     ) -> DeduceTypeVisitor<'a, S> {

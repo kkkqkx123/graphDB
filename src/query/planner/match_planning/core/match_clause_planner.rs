@@ -125,7 +125,7 @@ impl CypherClausePlanner for MatchClausePlanner {
                 plan = path_plan;
             } else {
                 // 使用新的统一连接器连接多个路径
-                let temp_ast_context = crate::core::context::ast::base::AstContext::new(
+                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
                     &context.query_info.statement_type,
                     &context.query_info.query_id,
                 );
@@ -137,7 +137,7 @@ impl CypherClausePlanner for MatchClausePlanner {
         if let Some(skip) = &match_clause_ctx.skip {
             // 检查 skip 是否大于 0，需要将 Expression 转换为数值
             let skip_value = match skip {
-                Expression::Literal(crate::expression::expression::LiteralValue::Int(v)) => *v,
+                Expression::Literal(crate::core::types::expression::LiteralValue::Int(v)) => *v,
                 _ => 0, // 默认值为 0
             };
 
@@ -150,7 +150,7 @@ impl CypherClausePlanner for MatchClausePlanner {
         if let Some(limit) = &match_clause_ctx.limit {
             // 检查 limit 是否不是最大值，需要将 Expression 转换为数值
             let limit_value = match limit {
-                Expression::Literal(crate::expression::expression::LiteralValue::Int(v)) => *v,
+                Expression::Literal(crate::core::types::expression::LiteralValue::Int(v)) => *v,
                 _ => i64::MAX, // 默认值为最大值
             };
 

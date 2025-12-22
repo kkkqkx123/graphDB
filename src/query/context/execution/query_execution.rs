@@ -3,10 +3,10 @@
 
 use crate::core::{SymbolTable, Value};
 use crate::graph::utils::IdGenerator;
-use crate::core::context::managers::{
+use crate::query::context::managers::{
     CharsetInfo, IndexManager, MetaClient, SchemaManager, StorageClient,
 };
-use crate::core::context::{QueryExecutionContext, RequestContext, ValidateContext};
+use crate::core::context::{QueryExecutionContext, RequestContext, ValidationContext};
 use crate::utils::ObjectPool;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -99,7 +99,7 @@ pub struct QueryContext {
     rctx: Option<Arc<RequestContext>>,
 
     // 验证上下文
-    vctx: ValidateContext,
+    vctx: ValidationContext,
 
     // 查询执行上下文
     ectx: QueryExecutionContext,
@@ -140,7 +140,7 @@ impl QueryContext {
     pub fn new() -> Self {
         Self {
             rctx: None,
-            vctx: ValidateContext::new(),
+            vctx: ValidationContext::new(),
             ectx: QueryExecutionContext::new(),
             plan: None,
             schema_manager: None,
@@ -206,12 +206,12 @@ impl QueryContext {
     }
 
     /// 获取验证上下文
-    pub fn vctx(&self) -> &ValidateContext {
+    pub fn vctx(&self) -> &ValidationContext {
         &self.vctx
     }
 
     /// 获取可变验证上下文
-    pub fn vctx_mut(&mut self) -> &mut ValidateContext {
+    pub fn vctx_mut(&mut self) -> &mut ValidationContext {
         &mut self.vctx
     }
 
@@ -427,7 +427,7 @@ impl Default for QueryContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::context::managers::{Index, Schema};
+    use crate::query::context::managers::{Index, Schema};
     use std::collections::HashMap;
 
     // Mock实现用于测试
@@ -506,9 +506,9 @@ mod tests {
     impl StorageClient for MockStorageClient {
         fn execute(
             &self,
-            _operation: crate::core::context::managers::StorageOperation,
-        ) -> Result<crate::core::context::managers::StorageResponse, String> {
-            Ok(crate::core::context::managers::StorageResponse {
+            _operation: crate::query::context::managers::StorageOperation,
+        ) -> Result<crate::query::context::managers::StorageResponse, String> {
+            Ok(crate::query::context::managers::StorageResponse {
                 success: true,
                 data: None,
                 error_message: None,
@@ -524,8 +524,8 @@ mod tests {
     struct MockMetaClient;
 
     impl MetaClient for MockMetaClient {
-        fn get_cluster_info(&self) -> Result<crate::core::context::managers::ClusterInfo, String> {
-            Ok(crate::core::context::managers::ClusterInfo {
+        fn get_cluster_info(&self) -> Result<crate::query::context::managers::ClusterInfo, String> {
+            Ok(crate::query::context::managers::ClusterInfo {
                 cluster_id: "test_cluster".to_string(),
                 meta_servers: vec!["127.0.0.1:9559".to_string()],
                 storage_servers: vec!["127.0.0.1:9779".to_string()],
@@ -535,8 +535,8 @@ mod tests {
         fn get_space_info(
             &self,
             space_id: i32,
-        ) -> Result<crate::core::context::managers::SpaceInfo, String> {
-            Ok(crate::core::context::managers::SpaceInfo {
+        ) -> Result<crate::query::context::managers::SpaceInfo, String> {
+            Ok(crate::query::context::managers::SpaceInfo {
                 space_id,
                 space_name: "test_space".to_string(),
                 partition_num: 10,
@@ -560,7 +560,7 @@ mod tests {
 
         // 测试验证上下文
         ctx.vctx_mut()
-            .switch_to_space(crate::core::context::validate::types::SpaceInfo {
+            .switch_to_space(crate::query::context::validate::types::SpaceInfo {
                 id: 1,
                 name: "test_space".to_string(),
                 vid_type: "INT".to_string(),
@@ -644,7 +644,7 @@ mod tests {
         let mut ctx = QueryContext::new();
 
         // 设置字符集信息
-        let charset_info = crate::core::context::managers::CharsetInfo {
+        let charset_info = crate::query::context::managers::CharsetInfo {
             charset: "utf8mb4".to_string(),
             collation: "utf8mb4_general_ci".to_string(),
         };

@@ -1,6 +1,6 @@
 /// Subgraph planner implementation for handling SUBGRAPH queries in NebulaGraph
 use super::planner::{Planner, PlannerError};
-use crate::core::context::ast::AstContext;
+use crate::query::context::ast::AstContext;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 

@@ -1,7 +1,7 @@
 //! 增强验证上下文模块
 //! 集成Schema管理和生成器功能的验证上下文
 
-use super::basic_context::BasicValidateContext;
+use super::basic_context::BasicValidationContext;
 use super::generators::{AnonColGenerator, AnonVarGenerator, GeneratorFactory};
 use super::schema::{self, SchemaInfo, SchemaProvider};
 use super::types::{ColsDef, SpaceInfo, Variable};
@@ -25,9 +25,9 @@ use std::sync::Arc;
 /// 3. 匿名变量和列生成
 /// 4. 增强版符号表集成
 #[derive(Clone)]
-pub struct ValidateContext {
+pub struct ValidationContext {
     // 基本验证上下文
-    basic_context: BasicValidateContext,
+    basic_context: BasicValidationContext,
 
     // Schema管理器
     schema_manager: Option<Arc<dyn SchemaProvider>>,
@@ -54,11 +54,11 @@ pub struct ValidateContext {
     validation_errors: Vec<ValidationError>,
 }
 
-impl ValidateContext {
+impl ValidationContext {
     /// 创建新的增强版验证上下文
     pub fn new() -> Self {
         Self {
-            basic_context: BasicValidateContext::new(),
+            basic_context: BasicValidationContext::new(),
             schema_manager: None,
             anon_var_gen: GeneratorFactory::create_anon_var_generator(),
             anon_col_gen: GeneratorFactory::create_anon_col_generator(),
@@ -71,7 +71,7 @@ impl ValidateContext {
     }
 
     /// 从基本验证上下文创建
-    pub fn from_basic(basic_context: BasicValidateContext) -> Self {
+    pub fn from_basic(basic_context: BasicValidationContext) -> Self {
         Self {
             basic_context,
             schema_manager: None,
@@ -326,12 +326,12 @@ impl ValidateContext {
     // ==================== 基本上下文委托 ====================
 
     /// 获取基本验证上下文的引用
-    pub fn basic_context(&self) -> &BasicValidateContext {
+    pub fn basic_context(&self) -> &BasicValidationContext {
         &self.basic_context
     }
 
     /// 获取基本验证上下文的可变引用
-    pub fn basic_context_mut(&mut self) -> &mut BasicValidateContext {
+    pub fn basic_context_mut(&mut self) -> &mut BasicValidationContext {
         &mut self.basic_context
     }
 
@@ -502,7 +502,7 @@ impl ValidateContext {
     /// 生成验证上下文的字符串表示
     pub fn to_string(&self) -> String {
         let mut result = String::new();
-        result.push_str("ValidateContext {\n");
+        result.push_str("ValidationContext {\n");
         result.push_str(&format!(
             "  spaces: {:?},\n",
             self.basic_context.current_space().map(|s| s.name.as_str())
@@ -549,9 +549,9 @@ impl ValidateContext {
     }
 }
 
-impl std::fmt::Debug for ValidateContext {
+impl std::fmt::Debug for ValidationContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ValidateContext")
+        f.debug_struct("ValidationContext")
             .field("basic_context", &self.basic_context)
             .field("schema_manager", &"<SchemaProvider>")
             .field("anon_var_gen", &self.anon_var_gen)
@@ -566,7 +566,7 @@ impl std::fmt::Debug for ValidateContext {
 }
 
 // 实现ValidationContext trait
-impl ValidationContextTrait for ValidateContext {
+impl ValidationContextTrait for ValidationContext {
     fn get_query_parts(&self) -> &[QueryPart] {
         &self.query_parts
     }
@@ -588,7 +588,7 @@ impl ValidationContextTrait for ValidateContext {
     }
 }
 
-impl Default for ValidateContext {
+impl Default for ValidationContext {
     fn default() -> Self {
         Self::new()
     }
@@ -625,7 +625,7 @@ mod tests {
 
     #[test]
     fn test_validate_context_creation() {
-        let ctx = ValidateContext::new();
+        let ctx = ValidationContext::new();
 
         // 测试基本功能
         assert!(!ctx.space_chosen());
@@ -641,7 +641,7 @@ mod tests {
 
     #[test]
     fn test_schema_integration() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = ValidationContext::new();
 
         // 测试Schema管理器
         let schema_manager = Arc::new(MockSchemaProvider);
@@ -668,7 +668,7 @@ mod tests {
 
     #[test]
     fn test_variable_with_symbol_table() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = ValidationContext::new();
 
         // 注册变量
         let cols = vec![
@@ -692,7 +692,7 @@ mod tests {
 
     #[test]
     fn test_schema_validation() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = ValidationContext::new();
 
         // 添加Schema
         let mut fields = HashMap::new();
@@ -753,7 +753,7 @@ mod tests {
 
     #[test]
     fn test_schema_validation_type_mismatch() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = ValidationContext::new();
 
         // 添加Schema
         let mut fields = HashMap::new();
@@ -803,7 +803,7 @@ mod tests {
 
     #[test]
     fn test_schema_validation_missing_fields() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = ValidationContext::new();
 
         // 添加Schema
         let mut fields = HashMap::new();
@@ -864,7 +864,7 @@ mod tests {
 
     #[test]
     fn test_schema_validation_extra_fields() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = ValidationContext::new();
 
         // 添加Schema
         let mut fields = HashMap::new();
@@ -916,7 +916,7 @@ mod tests {
 
     #[test]
     fn test_schema_validation_required_only() {
-        let mut ctx = ValidateContext::new();
+        let mut ctx = ValidationContext::new();
 
         // 添加Schema
         let mut fields = HashMap::new();
@@ -976,7 +976,7 @@ mod tests {
 
     #[test]
     fn test_generators() {
-        let ctx = ValidateContext::new();
+        let ctx = ValidationContext::new();
 
         // 测试生成器
         let var1 = ctx.generate_anon_var();
@@ -995,14 +995,14 @@ mod tests {
 
     #[test]
     fn test_from_basic_context() {
-        let mut basic = BasicValidateContext::new();
+        let mut basic = BasicValidationContext::new();
         basic.switch_to_space(SpaceInfo {
             id: 1,
             name: "test_space".to_string(),
             vid_type: "INT".to_string(),
         });
 
-        let ctx = ValidateContext::from_basic(basic);
+        let ctx = ValidationContext::from_basic(basic);
         assert!(ctx.space_chosen());
         assert_eq!(ctx.which_space().name, "test_space");
     }

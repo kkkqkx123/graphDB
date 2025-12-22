@@ -40,7 +40,7 @@ pub fn evaluate_binary_op(
     right: &Expression,
     context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
-    let evaluator = super::evaluator::ExpressionEvaluator;
+    let evaluator = crate::core::evaluator::ExpressionEvaluator;
     let left_val = evaluator.evaluate(left, context)?;
     let right_val = evaluator.evaluate(right, context)?;
 

@@ -2,14 +2,14 @@
 //! 对应 NebulaGraph Validator.h/.cpp 的功能
 //! 所有验证器的基类
 
-use crate::query::validator::ValidateContext;
+use crate::query::validator::ValidationContext;
 
 pub struct Validator {
-    context: ValidateContext,
+    context: ValidationContext,
 }
 
 impl Validator {
-    pub fn new(context: ValidateContext) -> Self {
+    pub fn new(context: ValidationContext) -> Self {
         Self { context }
     }
 
@@ -25,12 +25,12 @@ impl Validator {
     }
 
     /// 获取验证上下文的可变引用
-    pub fn context_mut(&mut self) -> &mut ValidateContext {
+    pub fn context_mut(&mut self) -> &mut ValidationContext {
         &mut self.context
     }
 
     /// 获取验证上下文的引用
-    pub fn context(&self) -> &ValidateContext {
+    pub fn context(&self) -> &ValidationContext {
         &self.context
     }
 

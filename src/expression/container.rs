@@ -11,7 +11,7 @@ pub fn evaluate_container(
         Expression::List(items) => {
             let mut result = Vec::new();
             for item in items {
-                let evaluator = super::evaluator::ExpressionEvaluator;
+                let evaluator = crate::core::evaluator::ExpressionEvaluator;
                 result.push(evaluator.evaluate(item, context)?);
             }
             Ok(Value::List(result))
@@ -19,7 +19,7 @@ pub fn evaluate_container(
         Expression::Map(items) => {
             let mut result = std::collections::HashMap::new();
             for (key, value) in items {
-                let evaluator = super::evaluator::ExpressionEvaluator;
+                let evaluator = crate::core::evaluator::ExpressionEvaluator;
                 let evaluated_value = evaluator.evaluate(value, context)?;
                 result.insert(key.clone(), evaluated_value);
             }

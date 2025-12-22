@@ -52,7 +52,7 @@ pub trait ExpressionContextCore {
 /// 存储层表达式上下文trait
 ///
 /// 为存储层特定的表达式上下文提供额外接口
-pub trait StorageExpressionContextTrait: ExpressionContextCore {
+pub trait StorageExpressionContextCore: ExpressionContextCore {
     /// 获取变量值（最新版本）
     fn get_var(&self, name: &str) -> Result<Value, String>;
 

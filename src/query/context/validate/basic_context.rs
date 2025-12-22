@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 /// 5. 管理创建的空间和索引
 /// 6. 收集验证错误信息
 #[derive(Debug, Clone)]
-pub struct BasicValidateContext {
+pub struct BasicValidationContext {
     // 图空间栈 - 追踪空间切换的历史
     spaces: Vec<SpaceInfo>,
 
@@ -41,7 +41,7 @@ pub struct BasicValidateContext {
     errors: Vec<String>,
 }
 
-impl BasicValidateContext {
+impl BasicValidationContext {
     /// 创建新的验证上下文
     pub fn new() -> Self {
         Self {
@@ -112,7 +112,7 @@ impl BasicValidateContext {
     ///
     /// # 示例
     /// ```ignore
-    /// let mut ctx = BasicValidateContext::new();
+    /// let mut ctx = BasicValidationContext::new();
     /// assert!(!ctx.exists_var("n"));
     ///
     /// ctx.register_variable("n".to_string(), vec![
@@ -252,7 +252,7 @@ impl BasicValidateContext {
     }
 }
 
-impl Default for BasicValidateContext {
+impl Default for BasicValidationContext {
     fn default() -> Self {
         Self::new()
     }
@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_basic_validate_context_new() {
-        let ctx = BasicValidateContext::new();
+        let ctx = BasicValidationContext::new();
         assert!(!ctx.space_chosen());
         assert!(ctx.get_all_variables().is_empty());
         assert!(!ctx.has_errors());
@@ -273,7 +273,7 @@ mod tests {
 
     #[test]
     fn test_exists_var_basic() {
-        let mut ctx = BasicValidateContext::new();
+        let mut ctx = BasicValidationContext::new();
 
         // 变量不存在
         assert!(!ctx.exists_var("n"));
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn test_space_management() {
-        let mut ctx = BasicValidateContext::new();
+        let mut ctx = BasicValidationContext::new();
 
         assert!(!ctx.space_chosen());
 
@@ -321,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_parameter_management() {
-        let mut ctx = BasicValidateContext::new();
+        let mut ctx = BasicValidationContext::new();
 
         ctx.set_parameter("param1".to_string(), Value::Int(42));
 
@@ -332,7 +332,7 @@ mod tests {
 
     #[test]
     fn test_alias_management() {
-        let mut ctx = BasicValidateContext::new();
+        let mut ctx = BasicValidationContext::new();
 
         ctx.add_alias("my_alias".to_string(), "STRING".to_string());
 
@@ -343,7 +343,7 @@ mod tests {
 
     #[test]
     fn test_error_management() {
-        let mut ctx = BasicValidateContext::new();
+        let mut ctx = BasicValidationContext::new();
 
         assert!(!ctx.has_errors());
         assert_eq!(ctx.error_count(), 0);

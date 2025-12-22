@@ -1,7 +1,7 @@
 //! 搜索算法相关的计划节点
 //! 包含索引扫描、全文索引扫描等搜索相关操作
 
-use crate::core::context::validate::types::Variable;
+use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
         PlanNode, PlanNodeClonable, PlanNodeDependencies,

@@ -130,7 +130,7 @@ impl TagFilterProcessor {
         for tag in tags {
             let tag_expr = Expression::binary(
                 Expression::variable("tags".to_string()),
-                crate::expression::expression::BinaryOperator::In,
+                crate::core::types::expression::BinaryOperator::In,
                 Expression::list(vec![Expression::literal(tag)]),
             );
 
@@ -138,7 +138,7 @@ impl TagFilterProcessor {
                 None => Some(tag_expr),
                 Some(existing) => Some(Expression::binary(
                     existing,
-                    crate::expression::expression::BinaryOperator::Or,
+                    crate::core::types::expression::BinaryOperator::Or,
                     tag_expr,
                 )),
             };
@@ -158,7 +158,7 @@ impl Default for TagFilterProcessor {
 mod tests {
     use super::*;
     use crate::core::vertex_edge_path::{Tag, Vertex};
-    use crate::expression::expression::BinaryOperator;
+    use crate::core::types::expression::BinaryOperator;
 
     #[test]
     fn test_process_tag_filter_with_contains() {

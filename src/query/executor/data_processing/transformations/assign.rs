@@ -59,7 +59,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
 
     /// 执行赋值操作
     fn execute_assign(&mut self) -> DBResult<()> {
-        let mut expr_context = BasicBasicExpressionContext::default();
+        let mut expr_context = BasicExpressionContext::default();
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {

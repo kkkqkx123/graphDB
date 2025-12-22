@@ -136,7 +136,7 @@ impl ExpressionEvaluator {
     }
 
     /// 检查表达式是否可以求值
-    pub fn can_evaluate(&self, expr: &Expression, context: &dyn ExpressionContext) -> bool {
+    pub fn can_evaluate(&self, expr: &Expression, context: &dyn ExpressionContextCore) -> bool {
         // 基础实现：所有表达式都可以求值
         true
     }

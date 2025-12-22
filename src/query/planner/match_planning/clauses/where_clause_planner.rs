@@ -113,7 +113,7 @@ impl WhereClausePlanner {
 
                 if path.is_pred {
                     // 构建模式谓词的计划
-                    let temp_ast_context = crate::core::context::ast::base::AstContext::new(
+                    let temp_ast_context = crate::query::context::ast::base::AstContext::new(
                         &context.query_info.statement_type,
                         &context.query_info.query_id,
                     );
@@ -125,7 +125,7 @@ impl WhereClausePlanner {
                     )?;
                 } else {
                     // 构建路径收集的计划
-                    let temp_ast_context = crate::core::context::ast::base::AstContext::new(
+                    let temp_ast_context = crate::query::context::ast::base::AstContext::new(
                         &context.query_info.statement_type,
                         &context.query_info.query_id,
                     );
@@ -158,7 +158,7 @@ impl WhereClausePlanner {
                 return Ok(where_plan);
             }
 
-            let temp_ast_context = crate::core::context::ast::base::AstContext::new(
+            let temp_ast_context = crate::query::context::ast::base::AstContext::new(
                 &context.query_info.statement_type,
                 &context.query_info.query_id,
             );
@@ -240,11 +240,11 @@ fn convert_expression_to_expr(expr: &crate::core::Expression) -> Expr {
         crate::core::Expression::Literal(val) => {
             use crate::core::Value;
             let const_val = match val {
-                crate::expression::expression::LiteralValue::String(s) => Value::String(s.clone()),
-                crate::expression::expression::LiteralValue::Int(i) => Value::Int(*i),
-                crate::expression::expression::LiteralValue::Float(f) => Value::Float(*f),
-                crate::expression::expression::LiteralValue::Bool(b) => Value::Bool(*b),
-                crate::expression::expression::LiteralValue::Null => {
+                crate::core::types::expression::LiteralValue::String(s) => Value::String(s.clone()),
+                crate::core::types::expression::LiteralValue::Int(i) => Value::Int(*i),
+                crate::core::types::expression::LiteralValue::Float(f) => Value::Float(*f),
+                crate::core::types::expression::LiteralValue::Bool(b) => Value::Bool(*b),
+                crate::core::types::expression::LiteralValue::Null => {
                     Value::Null(crate::core::NullType::Null)
                 }
             };

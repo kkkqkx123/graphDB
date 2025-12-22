@@ -6,10 +6,10 @@ use super::structs::{
     AliasType, MatchStepRange, PaginationContext, Path, QueryPart, ReturnClauseContext,
     UnwindClauseContext, WhereClauseContext, WithClauseContext, YieldClauseContext, YieldColumn,
 };
-// 使用context版本的ValidateContext
+// 使用context版本的ValidationContext
 use super::validation_factory::ValidationFactory;
 use super::validation_interface::{ValidationError, ValidationErrorType, ValidationStrategy};
-use super::ValidateContext;
+use super::ValidationContext;
 use crate::core::Expression;
 use std::collections::HashMap;
 
@@ -20,7 +20,7 @@ pub struct MatchValidator {
 }
 
 impl MatchValidator {
-    pub fn new(context: ValidateContext) -> Self {
+    pub fn new(context: ValidationContext) -> Self {
         Self {
             base: Validator::new(context),
             validation_strategies: ValidationFactory::create_all_strategies(),
@@ -30,7 +30,7 @@ impl MatchValidator {
     pub fn validate(&mut self) -> Result<(), ValidationError> {
         // 执行所有验证策略
         for strategy in &self.validation_strategies {
-            // 现在ValidateContext已经实现了ValidationContext trait
+            // 现在ValidationContext已经实现了ValidationContext trait
             if let Err(error) = strategy.validate(self.base.context()) {
                 self.base.context_mut().add_validation_error(error);
             }
@@ -50,7 +50,7 @@ impl MatchValidator {
     pub fn validate_unified(&mut self) -> Result<(), crate::core::error::DBError> {
         // 执行所有验证策略
         for strategy in &self.validation_strategies {
-            // 现在ValidateContext已经实现了ValidationContext trait
+            // 现在ValidationContext已经实现了ValidationContext trait
             if let Err(error) = strategy.validate(self.base.context()) {
                 self.base.context_mut().add_validation_error(error);
             }
@@ -68,12 +68,12 @@ impl MatchValidator {
     }
 
     /// 获取验证上下文的可变引用
-    pub fn context_mut(&mut self) -> &mut ValidateContext {
+    pub fn context_mut(&mut self) -> &mut ValidationContext {
         self.base.context_mut()
     }
 
     /// 获取验证上下文的引用
-    pub fn context(&self) -> &ValidateContext {
+    pub fn context(&self) -> &ValidationContext {
         self.base.context()
     }
 
@@ -215,7 +215,7 @@ mod tests {
 
     #[test]
     fn test_match_validator_creation() {
-        let context = ValidateContext::new();
+        let context = ValidationContext::new();
         let validator = MatchValidator::new(context);
 
         assert_eq!(validator.validation_strategies.len(), 5); // 应该有5个策略
@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn test_basic_validation() {
-        let context = ValidateContext::new();
+        let context = ValidationContext::new();
         let mut validator = MatchValidator::new(context);
 
         // 简单验证应该成功
@@ -232,12 +232,12 @@ mod tests {
 
     #[test]
     fn test_validate_pagination() {
-        let context = ValidateContext::new();
+        let context = ValidationContext::new();
         let mut validator = MatchValidator::new(context);
 
         // 测试有效的分页表达式
-        let skip_expr = Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
-        let limit_expr = Expression::Literal(crate::expression::expression::LiteralValue::Int(10));
+        let skip_expr = Expression::Literal(crate::core::types::expression::LiteralValue::Int(1));
+        let limit_expr = Expression::Literal(crate::core::types::expression::LiteralValue::Int(10));
         let pagination_ctx = PaginationContext { skip: 0, limit: 10 };
 
         assert!(validator
@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn test_validate_aliases() {
-        let context = ValidateContext::new();
+        let context = ValidationContext::new();
         let mut validator = MatchValidator::new(context);
 
         // 创建一个别名映射
@@ -268,17 +268,17 @@ mod tests {
 
     #[test]
     fn test_has_aggregate_expr() {
-        let context = ValidateContext::new();
+        let context = ValidationContext::new();
         let validator = MatchValidator::new(context);
 
         // 测试没有聚合函数的表达式
-        let non_agg_expr = Expression::Literal(crate::expression::expression::LiteralValue::Int(1));
+        let non_agg_expr = Expression::Literal(crate::core::types::expression::LiteralValue::Int(1));
         assert_eq!(validator.has_aggregate_expr(&non_agg_expr), false);
     }
 
     #[test]
     fn test_combine_aliases() {
-        let context = ValidateContext::new();
+        let context = ValidationContext::new();
         let mut validator = MatchValidator::new(context);
 
         let mut cur_aliases = HashMap::new();
@@ -300,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_validate_step_range() {
-        let context = ValidateContext::new();
+        let context = ValidationContext::new();
         let validator = MatchValidator::new(context);
 
         // 测试有效的范围（min <= max）

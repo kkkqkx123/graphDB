@@ -229,7 +229,7 @@ mod tests {
         assert!(seeker.match_node());
 
         let invalid_expr = Expression::Literal(
-            crate::expression::expression::LiteralValue::String("test".to_string()),
+            crate::core::types::expression::LiteralValue::String("test".to_string()),
         );
         let invalid_seeker = VertexSeek::new_variable(node_info.clone(), invalid_expr);
         assert!(!invalid_seeker.match_node());
@@ -308,7 +308,7 @@ mod tests {
         let node_info = create_test_node_info();
         let seeker = VertexSeek::new_variable(
             node_info,
-            Expression::Literal(crate::expression::expression::LiteralValue::String(
+            Expression::Literal(crate::core::types::expression::LiteralValue::String(
                 "test".to_string(),
             )),
         );

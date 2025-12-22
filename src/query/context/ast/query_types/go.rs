@@ -1,6 +1,6 @@
 //! GO查询上下文
 
-use crate::core::context::ast::{AstContext, ExpressionProps, Over, Starts, StepClause};
+use crate::query::context::ast::{AstContext, ExpressionProps, Over, Starts, StepClause};
 
 // GO查询上下文
 #[derive(Debug, Clone)]

@@ -4,7 +4,7 @@
 use crate::core::visitor::{
     VisitorConfig, VisitorContext, VisitorCore, VisitorResult,
 };
-use crate::expression::visitor::ExpressionAcceptor;
+use crate::core::visitor::ExpressionAcceptor;
 use crate::core::{Expression, ExpressionVisitor, LiteralValue};
 use crate::query::visitor::QueryVisitor;
 use std::collections::{HashMap, HashSet};

@@ -1,7 +1,7 @@
 //! LOOKUP语句规划器
 //! 处理Nebula LOOKUP查询的规划
 
-use crate::core::context::ast::{AstContext, LookupContext};
+use crate::query::context::ast::{AstContext, LookupContext};
 use crate::query::planner::plan::core::{
     DedupNode, FilterNode, GetEdgesNode, GetVerticesNode, ProjectNode,
 };

@@ -18,7 +18,7 @@ use super::base::{ContextBase, ContextType, MutableContext};
 // 重新导出默认上下文类型
 pub use default_context::{
     DefaultExpressionContext, ExpressionContext, QueryContextAdapter, ExpressionContextBuilder,
-    ExpressionContextCore, StorageExpressionContextTrait, with_variables, with_vertex, with_edge,
+    ExpressionContextCore, StorageExpressionContextCore, with_variables, with_vertex, with_edge,
 };
 
 /// 函数引用枚举，避免动态分发
@@ -178,7 +178,7 @@ pub enum ExpressionContextType {
 }
 
 /// 表达式上下文特征
-pub trait ExpressionContextTrait {
+pub trait ExpressionContextCore {
     /// 获取变量值
     fn get_variable(&self, name: &str) -> Option<&FieldValue>;
 
@@ -725,7 +725,7 @@ pub struct EvaluationOptions {
     pub cache_config: CacheConfig,
 }
 
-impl ExpressionContextTrait for BasicExpressionContext {
+impl ExpressionContextCore for BasicExpressionContext {
     fn get_variable(&self, name: &str) -> Option<&FieldValue> {
         // 在当前上下文中查找
         if let Some(value) = self.variables.get(name) {
@@ -842,7 +842,7 @@ impl FunctionRef<'_> {
     }
 }
 
-impl ExpressionContextTrait for ExpressionContextType {
+impl ExpressionContextCore for ExpressionContextType {
     fn get_variable(&self, name: &str) -> Option<&FieldValue> {
         match self {
             ExpressionContextType::Basic(ctx) => ctx.get_variable(name),
@@ -1332,4 +1332,4 @@ impl Default for EvaluationStatistics {
     }
 }
 
-// ExpressionContextCore和StorageExpressionContextTrait已移动到default_context模块
+// ExpressionContextCore和StorageExpressionContextCore已移动到default_context模块

@@ -2,7 +2,7 @@
 //! 包括创建/删除标签等操作
 
 use super::space_ops::Schema;
-use crate::core::context::validate::types::Variable;
+use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
         PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,

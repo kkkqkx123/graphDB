@@ -5,7 +5,7 @@ use crate::core::TypeUtils;
 use crate::core::ValueTypeDef;
 use crate::core::Expression;
 use crate::core::{BinaryOperator, UnaryOperator};
-use crate::query::validator::ValidateContext;
+use crate::query::validator::ValidationContext;
 use crate::query::visitor::QueryVisitor;
 use crate::storage::StorageEngine;
 use thiserror::Error;
@@ -31,7 +31,7 @@ pub struct DeduceTypeVisitor<'a, S: StorageEngine> {
     /// 存储引擎
     _storage: &'a S,
     /// 验证上下文
-    validate_context: &'a ValidateContext,
+    validate_context: &'a ValidationContext,
     /// 输入列定义：列名 -> 列类型
     inputs: Vec<(String, ValueTypeDef)>,
     /// 图空间ID
@@ -47,7 +47,7 @@ pub struct DeduceTypeVisitor<'a, S: StorageEngine> {
 impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     pub fn new(
         storage: &'a S,
-        validate_context: &'a ValidateContext,
+        validate_context: &'a ValidationContext,
         inputs: Vec<(String, ValueTypeDef)>,
         space: String,
     ) -> Self {
@@ -69,8 +69,8 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     pub fn new_for_test(
         _inputs: Vec<(String, ValueTypeDef)>,
         _space: String,
-    ) -> (Self, ValidateContext) {
-        let _vctx = ValidateContext::new();
+    ) -> (Self, ValidationContext) {
+        let _vctx = ValidationContext::new();
         let _vid_type = ValueTypeDef::String;
 
         // 返回值类型无法直接满足要求，这里需要特殊处理
@@ -819,7 +819,7 @@ mod tests {
 
     #[test]
     fn test_is_superior_type() {
-        let validate_context = ValidateContext::new();
+        let validate_context = ValidationContext::new();
         let visitor = DeduceTypeVisitor::new(
             &MockStorageEngine,
             &validate_context,
@@ -835,7 +835,7 @@ mod tests {
 
     #[test]
     fn test_are_types_compatible() {
-        let validate_context = ValidateContext::new();
+        let validate_context = ValidationContext::new();
         let visitor = DeduceTypeVisitor::new(
             &MockStorageEngine,
             &validate_context,

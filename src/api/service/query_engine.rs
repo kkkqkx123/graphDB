@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::api::session::ClientSession;
-use crate::query::QueryPipelineManager;
+use crate::core::QueryPipelineManager;
 use crate::storage::NativeStorage;
 
 #[derive(Debug)]

@@ -4,7 +4,7 @@
 
 use super::super::plan_node_kind::PlanNodeKind;
 use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
-use crate::core::context::validate::types::Variable;
+use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
 /// 基础标识 trait - 提供节点的基本标识信息

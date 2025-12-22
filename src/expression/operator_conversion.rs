@@ -3,10 +3,10 @@
 
 /// 将 expression::BinaryOperator 转换为 binary::BinaryOperator
 pub fn convert_binary_operator(
-    op: &crate::expression::expression::BinaryOperator,
+    op: &crate::core::types::expression::BinaryOperator,
 ) -> super::binary::BinaryOperator {
     use super::binary::BinaryOperator as BinOp;
-    use crate::expression::expression::BinaryOperator as ExprBinOp;
+    use crate::core::types::expression::BinaryOperator as ExprBinOp;
 
     match op {
         ExprBinOp::Add => BinOp::Add,
@@ -33,10 +33,10 @@ pub fn convert_binary_operator(
 
 /// 将 expression::UnaryOperator 转换为 unary::UnaryOperator
 pub fn convert_unary_operator(
-    op: &crate::expression::expression::UnaryOperator,
+    op: &crate::core::types::expression::UnaryOperator,
 ) -> super::unary::UnaryOperator {
     use super::unary::UnaryOperator as UnaryOp;
-    use crate::expression::expression::UnaryOperator as ExprUnaryOp;
+    use crate::core::types::expression::UnaryOperator as ExprUnaryOp;
 
     match op {
         ExprUnaryOp::Plus => UnaryOp::Plus,
@@ -54,8 +54,8 @@ pub fn convert_unary_operator(
 /// 转换Cypher二元操作符
 pub fn convert_cypher_binary_operator(
     cypher_op: &crate::query::parser::cypher::ast::expressions::BinaryOperator,
-) -> crate::expression::expression::BinaryOperator {
-    use crate::expression::expression::BinaryOperator as GraphOp;
+) -> crate::core::types::expression::BinaryOperator {
+    use crate::core::types::expression::BinaryOperator as GraphOp;
     use crate::query::parser::cypher::ast::expressions::BinaryOperator as CypherOp;
 
     match cypher_op {
@@ -85,8 +85,8 @@ pub fn convert_cypher_binary_operator(
 /// 转换Cypher一元操作符
 pub fn convert_cypher_unary_operator(
     cypher_op: &crate::query::parser::cypher::ast::expressions::UnaryOperator,
-) -> crate::expression::expression::UnaryOperator {
-    use crate::expression::expression::UnaryOperator as GraphOp;
+) -> crate::core::types::expression::UnaryOperator {
+    use crate::core::types::expression::UnaryOperator as GraphOp;
     use crate::query::parser::cypher::ast::expressions::UnaryOperator as CypherOp;
 
     match cypher_op {
@@ -98,9 +98,9 @@ pub fn convert_cypher_unary_operator(
 
 /// 将统一表达式二元操作符转换为Cypher二元操作符
 pub fn convert_unified_to_cypher_binary_operator(
-    op: &crate::expression::expression::BinaryOperator,
+    op: &crate::core::types::expression::BinaryOperator,
 ) -> Result<crate::query::parser::cypher::ast::expressions::BinaryOperator, String> {
-    use crate::expression::expression::BinaryOperator as GraphOp;
+    use crate::core::types::expression::BinaryOperator as GraphOp;
     use crate::query::parser::cypher::ast::expressions::BinaryOperator as CypherOp;
 
     match op {
@@ -128,9 +128,9 @@ pub fn convert_unified_to_cypher_binary_operator(
 
 /// 将统一表达式一元操作符转换为Cypher一元操作符
 pub fn convert_unified_to_cypher_unary_operator(
-    op: &crate::expression::expression::UnaryOperator,
+    op: &crate::core::types::expression::UnaryOperator,
 ) -> Result<crate::query::parser::cypher::ast::expressions::UnaryOperator, String> {
-    use crate::expression::expression::UnaryOperator as GraphOp;
+    use crate::core::types::expression::UnaryOperator as GraphOp;
     use crate::query::parser::cypher::ast::expressions::UnaryOperator as CypherOp;
 
     match op {

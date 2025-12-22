@@ -120,7 +120,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut HashMap<List, List>,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut ExpressionContextCore,
     ) -> DBResult<()> {
         for value in iter {
             // 设置当前值到表达式上下文
@@ -163,7 +163,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut HashMap<Value, List>,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut ExpressionContextCore,
     ) -> DBResult<()> {
         for value in iter {
             // 设置当前值到表达式上下文
@@ -201,7 +201,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut List,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut ExpressionContextCore,
     ) -> DBResult<()> {
         hash_table.values.reserve(iter.len());
 
@@ -228,7 +228,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         &self,
         probe_iter: &[Value],
         hash_table: &List,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut ExpressionContextCore,
     ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
@@ -262,7 +262,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         probe_key: &Expression,
         probe_iter: &[Value],
         hash_table: &HashMap<Value, List>,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut ExpressionContextCore,
     ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
@@ -310,7 +310,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         probe_keys: &[Expression],
         probe_iter: &[Value],
         hash_table: &HashMap<List, List>,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut ExpressionContextCore,
     ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),

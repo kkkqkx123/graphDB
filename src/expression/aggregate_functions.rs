@@ -69,7 +69,7 @@ impl AggregateExpression {
         state: &mut AggregateState,
     ) -> Result<Value, ExpressionError> {
         // 计算参数值
-        let evaluator = super::evaluator::ExpressionEvaluator;
+        let evaluator = crate::core::evaluator::ExpressionEvaluator;
         let arg_value = evaluator
             .evaluate(&self.argument, context)
             .map_err(|e| ExpressionError::FunctionError(e.to_string()))?;

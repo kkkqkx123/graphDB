@@ -1,7 +1,7 @@
 //! 新的规划器注册机制
 //! 使用类型安全的枚举替代字符串匹配
 
-use crate::core::context::ast::AstContext;
+use crate::query::context::ast::AstContext;
 use crate::query::planner::plan::SubPlan;
 use std::collections::HashMap;
 

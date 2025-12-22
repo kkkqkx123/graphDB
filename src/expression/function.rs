@@ -61,7 +61,7 @@ fn evaluate_abs(
         return Err(ExpressionError::InvalidArgumentCount("abs".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     match value {
         Value::Int(i) => Ok(Value::Int(i.abs())),
         Value::Float(f) => Ok(Value::Float(f.abs())),
@@ -79,7 +79,7 @@ fn evaluate_ceil(
         return Err(ExpressionError::InvalidArgumentCount("ceil".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     match value {
         Value::Float(f) => Ok(Value::Int(f.ceil() as i64)),
         Value::Int(i) => Ok(Value::Int(i)),
@@ -97,7 +97,7 @@ fn evaluate_floor(
         return Err(ExpressionError::InvalidArgumentCount("floor".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     match value {
         Value::Float(f) => Ok(Value::Int(f.floor() as i64)),
         Value::Int(i) => Ok(Value::Int(i)),
@@ -115,7 +115,7 @@ fn evaluate_round(
         return Err(ExpressionError::InvalidArgumentCount("round".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     match value {
         Value::Float(f) => Ok(Value::Int(f.round() as i64)),
         Value::Int(i) => Ok(Value::Int(i)),
@@ -133,7 +133,7 @@ fn evaluate_sqrt(
         return Err(ExpressionError::InvalidArgumentCount("sqrt".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     match value {
         Value::Float(f) if f >= 0.0 => Ok(Value::Float(f.sqrt())),
         Value::Int(i) if i >= 0 => Ok(Value::Float((i as f64).sqrt())),
@@ -151,8 +151,8 @@ fn evaluate_pow(
         return Err(ExpressionError::InvalidArgumentCount("pow".to_string()));
     }
 
-    let base = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
-    let exp = super::evaluator::ExpressionEvaluator::new().evaluate(&args[1], context)?;
+    let base = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let exp = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[1], context)?;
 
     match (base, exp) {
         (Value::Float(base_f), Value::Float(exp_f)) => Ok(Value::Float(base_f.powf(exp_f))),
@@ -174,7 +174,7 @@ fn evaluate_length(
         return Err(ExpressionError::InvalidArgumentCount("length".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     match value {
         Value::String(s) => Ok(Value::Int(s.len() as i64)),
         Value::List(list) => Ok(Value::Int(list.len() as i64)),
@@ -194,9 +194,9 @@ fn evaluate_substring(
         ));
     }
 
-    let string_val = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
-    let start_val = super::evaluator::ExpressionEvaluator::new().evaluate(&args[1], context)?;
-    let length_val = super::evaluator::ExpressionEvaluator::new().evaluate(&args[2], context)?;
+    let string_val = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let start_val = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[1], context)?;
+    let length_val = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[2], context)?;
 
     match (string_val, start_val, length_val) {
         (Value::String(s), Value::Int(start), Value::Int(length)) => {
@@ -218,7 +218,7 @@ fn evaluate_trim(
         return Err(ExpressionError::InvalidArgumentCount("trim".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     match value {
         Value::String(s) => Ok(Value::String(s.trim().to_string())),
         _ => Err(ExpressionError::TypeError(
@@ -235,7 +235,7 @@ fn evaluate_upper(
         return Err(ExpressionError::InvalidArgumentCount("upper".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     match value {
         Value::String(s) => Ok(Value::String(s.to_uppercase())),
         _ => Err(ExpressionError::TypeError(
@@ -252,7 +252,7 @@ fn evaluate_lower(
         return Err(ExpressionError::InvalidArgumentCount("lower".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     match value {
         Value::String(s) => Ok(Value::String(s.to_lowercase())),
         _ => Err(ExpressionError::TypeError(
@@ -270,7 +270,7 @@ fn evaluate_type(
         return Err(ExpressionError::InvalidArgumentCount("type".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     let type_name = match value {
         Value::Null(_) => "NULL",
         Value::Bool(_) => "BOOLEAN",
@@ -303,17 +303,17 @@ fn evaluate_exists(
         return Err(ExpressionError::InvalidArgumentCount("exists".to_string()));
     }
 
-    let result = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context);
+    let result = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context);
     Ok(Value::Bool(result.is_ok()))
 }
 
 // 图数据库特定函数
-fn evaluate_id(args: &[Expression], context: &dyn ExpressionContext) -> Result<Value, ExpressionError> {
+fn evaluate_id(args: &[Expression], context: &dyn ExpressionContextCore) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::InvalidArgumentCount("id".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     match value {
         Value::Vertex(vertex) => Ok(vertex.id().clone()),
         Value::Edge(edge) => Ok(edge.src().clone()),
@@ -331,7 +331,7 @@ fn evaluate_labels(
         return Err(ExpressionError::InvalidArgumentCount("labels".to_string()));
     }
 
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(&args[0], context)?;
     match value {
         Value::Vertex(vertex) => {
             let labels: Vec<Value> = vertex
@@ -353,7 +353,7 @@ fn evaluate_count(
     _distinct: bool,
     context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
     match value {
         Value::List(list) => Ok(Value::Int(list.len() as i64)),
         _ => Ok(Value::Int(1)), // 非列表值计数为1
@@ -365,7 +365,7 @@ fn evaluate_sum(
     _distinct: bool,
     context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
     match value {
         Value::List(list) => {
             let mut sum = 0.0;
@@ -395,7 +395,7 @@ fn evaluate_avg(
     _distinct: bool,
     context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
     match value {
         Value::List(list) => {
             if list.is_empty() {
@@ -417,7 +417,7 @@ fn evaluate_min(
     _distinct: bool,
     context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
     match value {
         Value::List(list) => {
             if list.is_empty() {
@@ -455,7 +455,7 @@ fn evaluate_max(
     _distinct: bool,
     context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
-    let value = super::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
+    let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
     match value {
         Value::List(list) => {
             if list.is_empty() {

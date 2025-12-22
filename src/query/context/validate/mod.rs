@@ -16,8 +16,8 @@ pub mod schema;
 pub mod types;
 
 // 重新导出主要类型，方便外部使用
-pub use basic_context::BasicValidateContext;
-pub use context::ValidateContext;
+pub use basic_context::BasicValidationContext;
+pub use context::ValidationContext;
 pub use generators::{AnonColGenerator, AnonVarGenerator, GeneratorFactory};
 pub use schema::{
     SchemaInfo, SchemaManager, SchemaProvider, SchemaValidationError, SchemaValidationResult,
@@ -29,9 +29,9 @@ pub use types::{ColsDef, Column, SpaceInfo, Variable};
 pub const VALIDATE_CONTEXT_VERSION: &str = "1.0.0";
 
 /// 验证上下文功能特性
-pub struct ValidateContextFeatures;
+pub struct ValidationContextFeatures;
 
-impl ValidateContextFeatures {
+impl ValidationContextFeatures {
     /// 检查是否支持Schema管理
     pub fn supports_schema_management() -> bool {
         true
@@ -78,12 +78,12 @@ mod tests {
 
     #[test]
     fn test_features() {
-        assert!(ValidateContextFeatures::supports_schema_management());
-        assert!(ValidateContextFeatures::supports_anon_generators());
-        assert!(ValidateContextFeatures::supports_symbol_table());
-        assert!(ValidateContextFeatures::supports_error_collection());
+        assert!(ValidationContextFeatures::supports_schema_management());
+        assert!(ValidationContextFeatures::supports_anon_generators());
+        assert!(ValidationContextFeatures::supports_symbol_table());
+        assert!(ValidationContextFeatures::supports_error_collection());
 
-        let features = ValidateContextFeatures::get_supported_features();
+        let features = ValidationContextFeatures::get_supported_features();
         assert!(features.contains(&"schema_management"));
         assert!(features.contains(&"anon_generators"));
         assert!(features.contains(&"symbol_table"));

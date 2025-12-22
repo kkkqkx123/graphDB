@@ -14,7 +14,7 @@ use crate::common::base::id::{EdgeType, TagId};
 use crate::core::Value;
 
 // 导入实际实现类型，用于默认类型别名
-use crate::core::context::managers::{MemorySchemaManager, MemoryIndexManager};
+use crate::query::context::managers::{MemorySchemaManager, MemoryIndexManager};
 use crate::storage::native_storage::NativeStorage;
 
 /// 结果状态枚举
@@ -390,22 +390,22 @@ pub type Direction = crate::core::vertex_edge_path::Direction;
 // 默认存储环境类型别名，使用项目中实际的实现类型
 pub type DefaultStorageEnv = StorageEnv<
     crate::storage::native_storage::NativeStorage,
-    crate::core::context::managers::MemorySchemaManager,
-    crate::core::context::managers::MemoryIndexManager,
+    crate::query::context::managers::MemorySchemaManager,
+    crate::query::context::managers::MemoryIndexManager,
 >;
 
 // 默认计划上下文类型别名
 pub type DefaultPlanContext = PlanContext<
     crate::storage::native_storage::NativeStorage,
-    crate::core::context::managers::MemorySchemaManager,
-    crate::core::context::managers::MemoryIndexManager,
+    crate::query::context::managers::MemorySchemaManager,
+    crate::query::context::managers::MemoryIndexManager,
 >;
 
 // 默认运行时上下文类型别名
 pub type DefaultRuntimeContext = RuntimeContext<
     crate::storage::native_storage::NativeStorage,
-    crate::core::context::managers::MemorySchemaManager,
-    crate::core::context::managers::MemoryIndexManager,
+    crate::query::context::managers::MemorySchemaManager,
+    crate::query::context::managers::MemoryIndexManager,
 >;
 
 // 测试运行时上下文类型别名

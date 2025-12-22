@@ -1,7 +1,7 @@
 //! 数据删除操作相关的计划节点
 //! 包括删除顶点和边的操作
 
-use crate::core::context::validate::types::Variable;
+use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
         PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,

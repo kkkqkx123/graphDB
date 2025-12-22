@@ -845,7 +845,7 @@ mod tests {
 /// 创建具有指定输出变量的PlanNode副本
 fn create_plan_node_with_output_var(
     plan_node: &Arc<dyn PlanNode>,
-    output_var: crate::core::context::validate::types::Variable,
+    output_var: crate::query::context::validate::types::Variable,
 ) -> Arc<dyn PlanNode> {
     use crate::query::planner::plan::core::nodes::*;
     use crate::query::planner::plan::*;

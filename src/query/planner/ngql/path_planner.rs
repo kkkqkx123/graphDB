@@ -1,7 +1,7 @@
 //! PATH查询规划器
 //! 处理Nebula PATH查询的规划
 
-use crate::core::context::ast::{AstContext, PathContext};
+use crate::query::context::ast::{AstContext, PathContext};
 use crate::query::planner::plan::core::{
     ArgumentNode, DedupNode, ExpandAllNode, ExpandNode, FilterNode, GetVerticesNode, ProjectNode,
 };

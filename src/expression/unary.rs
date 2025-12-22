@@ -24,7 +24,7 @@ pub fn evaluate_unary_op(
     operand: &Expression,
     context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
-    let evaluator = super::evaluator::ExpressionEvaluator;
+    let evaluator = crate::core::evaluator::ExpressionEvaluator;
     let operand_val = evaluator.evaluate(operand, context)?;
 
     match op {
@@ -68,21 +68,21 @@ pub fn evaluate_extended_unary_op(
 ) -> Result<Value, ExpressionError> {
     match expr {
         Expression::UnaryPlus(operand) => {
-            let evaluator = super::evaluator::ExpressionEvaluator;
+            let evaluator = crate::core::evaluator::ExpressionEvaluator;
             evaluator.evaluate(operand, context)
         }
         Expression::UnaryNegate(operand) => {
-            let evaluator = super::evaluator::ExpressionEvaluator;
+            let evaluator = crate::core::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             neg_value(value)
         }
         Expression::UnaryNot(operand) => {
-            let evaluator = super::evaluator::ExpressionEvaluator;
+            let evaluator = crate::core::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             Ok(Value::Bool(!value_to_bool(&value)))
         }
         Expression::UnaryIncr(operand) => {
-            let evaluator = super::evaluator::ExpressionEvaluator;
+            let evaluator = crate::core::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             match value {
                 Value::Int(n) => Ok(Value::Int(n + 1)),
@@ -93,7 +93,7 @@ pub fn evaluate_extended_unary_op(
             }
         }
         Expression::UnaryDecr(operand) => {
-            let evaluator = super::evaluator::ExpressionEvaluator;
+            let evaluator = crate::core::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             match value {
                 Value::Int(n) => Ok(Value::Int(n - 1)),
@@ -104,17 +104,17 @@ pub fn evaluate_extended_unary_op(
             }
         }
         Expression::IsNull(operand) => {
-            let evaluator = super::evaluator::ExpressionEvaluator;
+            let evaluator = crate::core::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             Ok(Value::Bool(matches!(value, Value::Null(_))))
         }
         Expression::IsNotNull(operand) => {
-            let evaluator = super::evaluator::ExpressionEvaluator;
+            let evaluator = crate::core::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             Ok(Value::Bool(!matches!(value, Value::Null(_))))
         }
         Expression::IsEmpty(operand) => {
-            let evaluator = super::evaluator::ExpressionEvaluator;
+            let evaluator = crate::core::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             let is_empty = match value {
                 Value::String(s) => s.is_empty(),
@@ -126,7 +126,7 @@ pub fn evaluate_extended_unary_op(
             Ok(Value::Bool(is_empty))
         }
         Expression::IsNotEmpty(operand) => {
-            let evaluator = super::evaluator::ExpressionEvaluator;
+            let evaluator = crate::core::evaluator::ExpressionEvaluator;
             let value = evaluator.evaluate(operand, context)?;
             let is_not_empty = match value {
                 Value::String(s) => !s.is_empty(),

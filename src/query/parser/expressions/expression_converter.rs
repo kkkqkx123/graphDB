@@ -2,7 +2,7 @@
 //! 将AST表达式转换为graph表达式
 
 use crate::core::Value;
-use crate::expression::expression::{BinaryOperator, Expression, LiteralValue, UnaryOperator};
+use crate::core::types::expression::{BinaryOperator, Expression, LiteralValue, UnaryOperator};
 use crate::query::parser::ast::{
     BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, Expr, FunctionCallExpr, ListExpr, MapExpr,
     PredicateExpr, PropertyAccessExpr, SubscriptExpr, UnaryExpr, UnaryOp, VariableExpr,
@@ -254,15 +254,15 @@ fn convert_unary_op(op: &UnaryOp) -> Result<UnaryOperator, String> {
 /// 转换聚合函数
 fn convert_aggregate_function(
     func_name: &str,
-) -> Result<crate::expression::expression::AggregateFunction, String> {
+) -> Result<crate::core::types::expression::AggregateFunction, String> {
     match func_name {
-        "COUNT" => Ok(crate::expression::expression::AggregateFunction::Count),
-        "SUM" => Ok(crate::expression::expression::AggregateFunction::Sum),
-        "AVG" => Ok(crate::expression::expression::AggregateFunction::Avg),
-        "MIN" => Ok(crate::expression::expression::AggregateFunction::Min),
-        "MAX" => Ok(crate::expression::expression::AggregateFunction::Max),
-        "COLLECT" => Ok(crate::expression::expression::AggregateFunction::Collect),
-        "DISTINCT" => Ok(crate::expression::expression::AggregateFunction::Distinct),
+        "COUNT" => Ok(crate::core::types::expression::AggregateFunction::Count),
+        "SUM" => Ok(crate::core::types::expression::AggregateFunction::Sum),
+        "AVG" => Ok(crate::core::types::expression::AggregateFunction::Avg),
+        "MIN" => Ok(crate::core::types::expression::AggregateFunction::Min),
+        "MAX" => Ok(crate::core::types::expression::AggregateFunction::Max),
+        "COLLECT" => Ok(crate::core::types::expression::AggregateFunction::Collect),
+        "DISTINCT" => Ok(crate::core::types::expression::AggregateFunction::Distinct),
         _ => Err(format!("不支持的聚合函数: {}", func_name)),
     }
 }

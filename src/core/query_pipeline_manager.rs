@@ -33,7 +33,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         Self {
             storage,
             parser: Parser::new(""),
-            validator: Validator::new(crate::query::validator::ValidateContext::new()),
+            validator: Validator::new(crate::query::validator::ValidationContext::new()),
             planner: Box::new(crate::query::planner::SequentialPlanner::new()),
             optimizer: Optimizer::default(),
             executor_factory,
@@ -89,11 +89,11 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         &mut self,
         _query_context: &mut QueryContext,
         query_text: &str,
-    ) -> DBResult<crate::core::context::ast::QueryAstContext> {
+    ) -> DBResult<crate::query::context::ast::QueryAstContext> {
         let _parser = Parser::new(query_text);
         // 临时实现：返回一个空的AST上下文
         // 在实际实现中，这里应该调用parser.parse()并处理结果
-        let ast = crate::core::context::ast::QueryAstContext::new(query_text);
+        let ast = crate::query::context::ast::QueryAstContext::new(query_text);
 
         Ok(ast)
     }
@@ -102,7 +102,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
     fn validate_query(
         &mut self,
         _query_context: &mut QueryContext,
-        _ast: &crate::core::context::ast::QueryAstContext,
+        _ast: &crate::query::context::ast::QueryAstContext,
     ) -> DBResult<()> {
         self.validator.validate_unified().map_err(|e| {
             DBError::Query(crate::core::error::QueryError::InvalidQuery(format!(
@@ -116,7 +116,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
     fn generate_execution_plan(
         &mut self,
         query_context: &mut QueryContext,
-        _ast: &crate::core::context::ast::QueryAstContext,
+        _ast: &crate::query::context::ast::QueryAstContext,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
         // 临时实现：创建一个空的执行计划
         // 在实际实现中，这里应该调用planner.transform(ast)

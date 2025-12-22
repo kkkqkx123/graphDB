@@ -70,7 +70,7 @@ pub fn evaluate_aggregate_expr(
     distinct: bool,
     context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
-    let evaluator = super::evaluator::ExpressionEvaluator;
+    let evaluator = crate::core::evaluator::ExpressionEvaluator;
     let arg_val = evaluator.evaluate(arg, context)?;
 
     // 在实际实现中，聚合函数通常需要跨多个数据行进行计算
