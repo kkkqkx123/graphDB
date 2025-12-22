@@ -14,6 +14,11 @@ pub mod vertex_edge_path;
 pub mod visitor;
 pub mod visitor_state_enum;
 
+// 新增的子模块
+pub mod types;
+pub mod context;
+pub mod evaluator;
+
 pub use error::{DBError, DBResult, ExpressionError, QueryError};
 pub use result::*;
 pub use schema::*;
@@ -23,3 +28,8 @@ pub use value::*;
 pub use vertex_edge_path::*;
 pub use visitor::*;
 pub use visitor_state_enum::*;
+
+// 重新导出新模块的类型
+pub use types::*;
+pub use context::*;
+pub use evaluator::*;
