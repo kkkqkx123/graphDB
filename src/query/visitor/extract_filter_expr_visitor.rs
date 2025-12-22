@@ -1,7 +1,7 @@
 //! ExtractFilterExprVisitor - 用于提取过滤表达式的访问器
 //! 对应 NebulaGraph ExtractFilterExprVisitor.h/.cpp 的功能
 
-use crate::core::visitor::{VisitorCore, VisitorContext, VisitorState, VisitorResult};
+use crate::core::visitor::{VisitorCore, VisitorContext, VisitorResult};
 use crate::expression::{Expression, ExpressionVisitor, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction, DataType};
 use crate::query::visitor::QueryVisitor;
 
@@ -16,7 +16,7 @@ pub struct ExtractFilterExprVisitor {
     /// 访问器上下文
     context: VisitorContext,
     /// 访问器状态
-    state: Box<dyn VisitorState>,
+    state: crate::core::visitor::visitor_state_enum::VisitorStateEnum,
 }
 
 impl Clone for ExtractFilterExprVisitor {
@@ -26,7 +26,7 @@ impl Clone for ExtractFilterExprVisitor {
             top_level_only: self.top_level_only,
             is_top_level: self.is_top_level,
             context: self.context.clone(),
-            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
         }
     }
 }
@@ -38,7 +38,44 @@ impl ExtractFilterExprVisitor {
             top_level_only: top_level_only,
             is_top_level: true,
             context: VisitorContext::new(crate::core::visitor::VisitorConfig::new()),
-            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
+        }
+    }
+
+    /// 创建带初始深度的 ExtractFilterExprVisitor
+    pub fn with_depth(top_level_only: bool, depth: usize) -> Self {
+        Self {
+            filter_exprs: Vec::new(),
+            top_level_only: top_level_only,
+            is_top_level: true,
+            context: VisitorContext::new(crate::core::visitor::VisitorConfig::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
+        }
+    }
+
+    /// 创建带配置的 ExtractFilterExprVisitor
+    pub fn with_config(top_level_only: bool, config: crate::core::visitor::VisitorConfig) -> Self {
+        Self {
+            filter_exprs: Vec::new(),
+            top_level_only: top_level_only,
+            is_top_level: true,
+            context: VisitorContext::new(config),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
+        }
+    }
+
+    /// 创建带配置和初始深度的 ExtractFilterExprVisitor
+    pub fn with_config_and_depth(
+        top_level_only: bool,
+        config: crate::core::visitor::VisitorConfig,
+        depth: usize
+    ) -> Self {
+        Self {
+            filter_exprs: Vec::new(),
+            top_level_only: top_level_only,
+            is_top_level: true,
+            context: VisitorContext::new(config),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
         }
     }
 
@@ -219,12 +256,12 @@ impl VisitorCore<Expression> for ExtractFilterExprVisitor {
         &mut self.context
     }
 
-    fn state(&self) -> &dyn VisitorState {
-        self.state.as_ref()
+    fn state(&self) -> &crate::core::visitor::visitor_state_enum::VisitorStateEnum {
+        &self.state
     }
 
-    fn state_mut(&mut self) -> &mut dyn VisitorState {
-        self.state.as_mut()
+    fn state_mut(&mut self) -> &mut crate::core::visitor::visitor_state_enum::VisitorStateEnum {
+        &mut self.state
     }
 }
 

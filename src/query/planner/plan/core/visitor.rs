@@ -9,7 +9,7 @@ use super::plan_node_traits::PlanNode as BasePlanNode;
 use crate::core::error::{DBError, DBResult};
 use std::sync::Arc;
 use crate::core::visitor::{
-    VisitorConfig, VisitorContext, VisitorCore, VisitorResult, VisitorState,
+    VisitorConfig, VisitorContext, VisitorCore, VisitorResult,
 };
 use crate::query::planner::plan::algorithms::{FulltextIndexScan, IndexScan};
 use crate::query::planner::plan::management::dml::{
@@ -244,7 +244,7 @@ pub trait PlanNodeVisitor: VisitorCore<Arc<dyn BasePlanNode>, Result = ()> + std
 #[derive(Debug)]
 pub struct UnifiedPlanNodeVisitor {
     context: VisitorContext,
-    state: Box<dyn VisitorState>,
+    state: crate::core::visitor::visitor_state_enum::VisitorStateEnum,
     // 计划节点特定的状态可以在这里添加
     visit_count: usize,
     node_stack: Vec<String>,
@@ -254,7 +254,7 @@ impl UnifiedPlanNodeVisitor {
     pub fn new() -> Self {
         Self {
             context: VisitorContext::new(VisitorConfig::default()),
-            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
             visit_count: 0,
             node_stack: Vec::new(),
         }
@@ -263,7 +263,27 @@ impl UnifiedPlanNodeVisitor {
     pub fn with_config(config: VisitorConfig) -> Self {
         Self {
             context: VisitorContext::new(config),
-            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
+            visit_count: 0,
+            node_stack: Vec::new(),
+        }
+    }
+
+    /// 创建带初始深度的 UnifiedPlanNodeVisitor
+    pub fn with_depth(depth: usize) -> Self {
+        Self {
+            context: VisitorContext::new(VisitorConfig::default()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
+            visit_count: 0,
+            node_stack: Vec::new(),
+        }
+    }
+
+    /// 创建带配置和初始深度的 UnifiedPlanNodeVisitor
+    pub fn with_config_and_depth(config: VisitorConfig, depth: usize) -> Self {
+        Self {
+            context: VisitorContext::new(config),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
             visit_count: 0,
             node_stack: Vec::new(),
         }
@@ -315,12 +335,12 @@ impl VisitorCore<Arc<dyn BasePlanNode>> for UnifiedPlanNodeVisitor {
         &mut self.context
     }
 
-    fn state(&self) -> &dyn VisitorState {
-        self.state.as_ref()
+    fn state(&self) -> &crate::core::visitor::visitor_state_enum::VisitorStateEnum {
+        &self.state
     }
 
-    fn state_mut(&mut self) -> &mut dyn VisitorState {
-        self.state.as_mut()
+    fn state_mut(&mut self) -> &mut crate::core::visitor::visitor_state_enum::VisitorStateEnum {
+        &mut self.state
     }
 
     fn pre_visit(&mut self) -> VisitorResult<()> {
@@ -461,11 +481,11 @@ impl VisitorCore<Arc<dyn BasePlanNode>> for DefaultPlanNodeVisitor {
         self.base.context_mut()
     }
 
-    fn state(&self) -> &dyn VisitorState {
+    fn state(&self) -> &crate::core::visitor::visitor_state_enum::VisitorStateEnum {
         self.base.state()
     }
 
-    fn state_mut(&mut self) -> &mut dyn VisitorState {
+    fn state_mut(&mut self) -> &mut crate::core::visitor::visitor_state_enum::VisitorStateEnum {
         self.base.state_mut()
     }
 

@@ -9,144 +9,12 @@ use crate::core::value::{
 use crate::core::vertex_edge_path::{Edge, Path, Vertex};
 use std::collections::HashMap;
 
+// 导入 visitor_state_enum 模块
+pub use crate::core::visitor_state_enum;
+
 /// 统一的访问者错误类型
 pub type VisitorError = DBError;
 pub type VisitorResult<T> = Result<T, VisitorError>;
-
-/// 访问者状态管理trait
-pub trait VisitorState: std::fmt::Debug + Send + Sync {
-    /// 重置状态
-    fn reset(&mut self);
-
-    /// 检查是否应该继续访问
-    fn should_continue(&self) -> bool;
-
-    /// 停止访问
-    fn stop(&mut self);
-
-    /// 获取访问深度
-    fn depth(&self) -> usize;
-
-    /// 设置访问深度
-    fn set_depth(&mut self, depth: usize);
-
-    /// 增加访问深度
-    fn inc_depth(&mut self);
-
-    /// 减少访问深度
-    fn dec_depth(&mut self);
-
-    /// 获取访问计数
-    fn visit_count(&self) -> usize;
-
-    /// 增加访问计数
-    fn inc_visit_count(&mut self);
-
-    /// 获取自定义状态数据
-    fn get_custom_data(&self, key: &str) -> Option<&String>;
-
-    /// 设置自定义状态数据
-    fn set_custom_data(&mut self, key: String, value: String);
-
-    /// 移除自定义状态数据
-    fn remove_custom_data(&mut self, key: &str) -> Option<String>;
-}
-
-/// 默认访问者状态实现
-#[derive(Debug, Clone)]
-pub struct DefaultVisitorState {
-    /// 是否继续访问
-    continue_visiting: bool,
-    /// 访问深度
-    depth: usize,
-    /// 访问计数
-    visit_count: usize,
-    /// 自定义状态数据
-    custom_data: HashMap<String, String>,
-}
-
-impl DefaultVisitorState {
-    /// 创建新的默认状态
-    pub fn new() -> Self {
-        Self {
-            continue_visiting: true,
-            depth: 0,
-            visit_count: 0,
-            custom_data: HashMap::new(),
-        }
-    }
-
-    /// 创建带初始深度的状态
-    pub fn with_depth(depth: usize) -> Self {
-        Self {
-            continue_visiting: true,
-            depth,
-            visit_count: 0,
-            custom_data: HashMap::new(),
-        }
-    }
-}
-
-impl Default for DefaultVisitorState {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl VisitorState for DefaultVisitorState {
-    fn reset(&mut self) {
-        self.continue_visiting = true;
-        self.depth = 0;
-        self.visit_count = 0;
-        self.custom_data.clear();
-    }
-
-    fn should_continue(&self) -> bool {
-        self.continue_visiting
-    }
-
-    fn stop(&mut self) {
-        self.continue_visiting = false;
-    }
-
-    fn depth(&self) -> usize {
-        self.depth
-    }
-
-    fn set_depth(&mut self, depth: usize) {
-        self.depth = depth;
-    }
-
-    fn inc_depth(&mut self) {
-        self.depth += 1;
-    }
-
-    fn dec_depth(&mut self) {
-        if self.depth > 0 {
-            self.depth -= 1;
-        }
-    }
-
-    fn visit_count(&self) -> usize {
-        self.visit_count
-    }
-
-    fn inc_visit_count(&mut self) {
-        self.visit_count += 1;
-    }
-
-    fn get_custom_data(&self, key: &str) -> Option<&String> {
-        self.custom_data.get(key)
-    }
-
-    fn set_custom_data(&mut self, key: String, value: String) {
-        self.custom_data.insert(key, value);
-    }
-
-    fn remove_custom_data(&mut self, key: &str) -> Option<String> {
-        self.custom_data.remove(key)
-    }
-}
 
 /// 访问者上下文 - 包含配置、缓存和错误收集器
 #[derive(Debug, Clone)]
@@ -295,10 +163,10 @@ pub trait VisitorCore<T>: std::fmt::Debug {
     fn context_mut(&mut self) -> &mut VisitorContext;
 
     /// 获取访问者状态
-    fn state(&self) -> &dyn VisitorState;
+    fn state(&self) -> &visitor_state_enum::VisitorStateEnum;
 
     /// 获取可变访问者状态
-    fn state_mut(&mut self) -> &mut dyn VisitorState;
+    fn state_mut(&mut self) -> &mut visitor_state_enum::VisitorStateEnum;
 
     /// 重置访问者状态
     fn reset(&mut self) -> VisitorResult<()> {
@@ -571,7 +439,7 @@ impl ExpressionAcceptor for crate::expression::Expression {
 #[derive(Debug)]
 pub struct DefaultVisitor<T: std::fmt::Debug> {
     context: VisitorContext,
-    state: Box<dyn VisitorState>,
+    state: visitor_state_enum::VisitorStateEnum,
     _phantom: std::marker::PhantomData<T>,
 }
 
@@ -580,7 +448,7 @@ impl<T: std::fmt::Debug> DefaultVisitor<T> {
     pub fn new() -> Self {
         Self {
             context: VisitorContext::new(VisitorConfig::new()),
-            state: Box::new(DefaultVisitorState::new()),
+            state: visitor_state_enum::VisitorStateEnum::new(),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -589,7 +457,25 @@ impl<T: std::fmt::Debug> DefaultVisitor<T> {
     pub fn with_config(config: VisitorConfig) -> Self {
         Self {
             context: VisitorContext::new(config),
-            state: Box::new(DefaultVisitorState::new()),
+            state: visitor_state_enum::VisitorStateEnum::new(),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// 创建带初始深度的默认访问者
+    pub fn with_depth(depth: usize) -> Self {
+        Self {
+            context: VisitorContext::new(VisitorConfig::new()),
+            state: visitor_state_enum::VisitorStateEnum::with_depth(depth),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// 创建带配置和初始深度的默认访问者
+    pub fn with_config_and_depth(config: VisitorConfig, depth: usize) -> Self {
+        Self {
+            context: VisitorContext::new(config),
+            state: visitor_state_enum::VisitorStateEnum::with_depth(depth),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -616,11 +502,11 @@ impl<T: std::fmt::Debug> VisitorCore<T> for DefaultVisitor<T> {
         &mut self.context
     }
 
-    fn state(&self) -> &dyn VisitorState {
-        self.state.as_ref()
+    fn state(&self) -> &visitor_state_enum::VisitorStateEnum {
+        &self.state
     }
 
-    fn state_mut(&mut self) -> &mut dyn VisitorState {
-        self.state.as_mut()
+    fn state_mut(&mut self) -> &mut visitor_state_enum::VisitorStateEnum {
+        &mut self.state
     }
 }

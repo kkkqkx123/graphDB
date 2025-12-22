@@ -2,7 +2,7 @@
 //! 
 //! 这个模块提供了统一的表达式访问者基础设施，支持零成本抽象
 
-use crate::core::visitor::{VisitorCore, VisitorContext, VisitorState, VisitorResult};
+use crate::core::visitor::{VisitorCore, VisitorContext, VisitorResult};
 use crate::expression::{Expression, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction, DataType};
 
 /// 表达式访问者 trait - 用于访问Expression类型的各个变体
@@ -116,7 +116,7 @@ impl ExpressionAcceptor for Expression {
 #[derive(Debug)]
 pub struct DefaultExpressionVisitor {
     context: VisitorContext,
-    state: Box<dyn VisitorState>,
+    state: crate::core::visitor::visitor_state_enum::VisitorStateEnum,
 }
 
 impl DefaultExpressionVisitor {
@@ -124,7 +124,7 @@ impl DefaultExpressionVisitor {
     pub fn new() -> Self {
         Self {
             context: VisitorContext::new(crate::core::visitor::VisitorConfig::new()),
-            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
         }
     }
 
@@ -132,7 +132,23 @@ impl DefaultExpressionVisitor {
     pub fn with_config(config: crate::core::visitor::VisitorConfig) -> Self {
         Self {
             context: VisitorContext::new(config),
-            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
+        }
+    }
+
+    /// 创建带初始深度的默认表达式访问者
+    pub fn with_depth(depth: usize) -> Self {
+        Self {
+            context: VisitorContext::new(crate::core::visitor::VisitorConfig::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
+        }
+    }
+
+    /// 创建带配置和初始深度的默认表达式访问者
+    pub fn with_config_and_depth(config: crate::core::visitor::VisitorConfig, depth: usize) -> Self {
+        Self {
+            context: VisitorContext::new(config),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
         }
     }
 }
@@ -158,12 +174,12 @@ impl VisitorCore<Expression> for DefaultExpressionVisitor {
         &mut self.context
     }
 
-    fn state(&self) -> &dyn VisitorState {
-        self.state.as_ref()
+    fn state(&self) -> &crate::core::visitor::visitor_state_enum::VisitorStateEnum {
+        &self.state
     }
 
-    fn state_mut(&mut self) -> &mut dyn VisitorState {
-        self.state.as_mut()
+    fn state_mut(&mut self) -> &mut crate::core::visitor::visitor_state_enum::VisitorStateEnum {
+        &mut self.state
     }
 }
 

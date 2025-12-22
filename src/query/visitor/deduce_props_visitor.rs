@@ -2,7 +2,7 @@
 //! 对应 NebulaGraph DeducePropsVisitor.h/.cpp 的功能
 
 use crate::core::visitor::{
-    VisitorConfig, VisitorContext, VisitorCore, VisitorResult, VisitorState,
+    VisitorConfig, VisitorContext, VisitorCore, VisitorResult,
 };
 use crate::expression::visitor::ExpressionAcceptor;
 use crate::expression::{Expression, ExpressionVisitor, LiteralValue};
@@ -208,7 +208,7 @@ impl ExpressionProps {
 #[derive(Debug)]
 pub struct DeducePropsVisitor {
     context: VisitorContext,
-    state: Box<dyn VisitorState>,
+    state: crate::core::visitor::visitor_state_enum::VisitorStateEnum,
     /// 推导出的表达式属性集合
     props: ExpressionProps,
     /// 收集的节点信息
@@ -226,7 +226,20 @@ impl DeducePropsVisitor {
     pub fn new() -> Self {
         Self {
             context: VisitorContext::new(VisitorConfig::new()),
-            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
+            props: ExpressionProps::new(),
+            node_info: Vec::new(),
+            edge_info: Vec::new(),
+            user_defined_vars: HashSet::new(),
+            error: None,
+        }
+    }
+
+    /// 创建带初始深度的属性推导访问器
+    pub fn with_depth(depth: usize) -> Self {
+        Self {
+            context: VisitorContext::new(VisitorConfig::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
             props: ExpressionProps::new(),
             node_info: Vec::new(),
             edge_info: Vec::new(),
@@ -239,7 +252,20 @@ impl DeducePropsVisitor {
     pub fn with_config(config: VisitorConfig) -> Self {
         Self {
             context: VisitorContext::new(config),
-            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
+            props: ExpressionProps::new(),
+            node_info: Vec::new(),
+            edge_info: Vec::new(),
+            user_defined_vars: HashSet::new(),
+            error: None,
+        }
+    }
+
+    /// 创建带配置和初始深度的属性推导访问器
+    pub fn with_config_and_depth(config: VisitorConfig, depth: usize) -> Self {
+        Self {
+            context: VisitorContext::new(config),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
             props: ExpressionProps::new(),
             node_info: Vec::new(),
             edge_info: Vec::new(),
@@ -252,7 +278,20 @@ impl DeducePropsVisitor {
     pub fn with_user_vars(user_defined_vars: HashSet<String>) -> Self {
         Self {
             context: VisitorContext::new(VisitorConfig::new()),
-            state: Box::new(crate::core::visitor::DefaultVisitorState::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
+            props: ExpressionProps::new(),
+            node_info: Vec::new(),
+            edge_info: Vec::new(),
+            user_defined_vars,
+            error: None,
+        }
+    }
+
+    /// 创建带有用户定义变量列表和初始深度的访问器
+    pub fn with_user_vars_and_depth(user_defined_vars: HashSet<String>, depth: usize) -> Self {
+        Self {
+            context: VisitorContext::new(VisitorConfig::new()),
+            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
             props: ExpressionProps::new(),
             node_info: Vec::new(),
             edge_info: Vec::new(),
@@ -339,12 +378,12 @@ impl VisitorCore<Expression> for DeducePropsVisitor {
         &mut self.context
     }
 
-    fn state(&self) -> &dyn VisitorState {
-        self.state.as_ref()
+    fn state(&self) -> &crate::core::visitor::visitor_state_enum::VisitorStateEnum {
+        &self.state
     }
 
-    fn state_mut(&mut self) -> &mut dyn VisitorState {
-        self.state.as_mut()
+    fn state_mut(&mut self) -> &mut crate::core::visitor::visitor_state_enum::VisitorStateEnum {
+        &mut self.state
     }
 }
 
