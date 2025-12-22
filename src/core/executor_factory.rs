@@ -1,6 +1,6 @@
 use crate::core::error::QueryError;
 use crate::core::context::query::QueryContext;
-use crate::query::executor::factory::BaseExecutorFactory;
+use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::executor::Executor;
 use crate::query::planner::plan::{ExecutionPlan, PlanNode};
@@ -13,17 +13,17 @@ use std::sync::{Arc, Mutex};
 /// 1. 根据执行计划创建对应的执行器
 /// 2. 协调执行器间的数据流
 /// 3. 执行完整的执行计划
-pub struct ExecutorFactory<S: StorageEngine + 'static> {
+pub struct ExecutorFactoryWrapper<S: StorageEngine + 'static> {
     storage: Arc<Mutex<S>>,
-    base_factory: BaseExecutorFactory<S>,
+    base_factory: ExecutorFactory<S>,
 }
 
-impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
+impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactoryWrapper<S> {
     /// 创建新的执行器工厂
     pub fn new(storage: Arc<Mutex<S>>) -> Self {
         Self {
             storage: storage.clone(),
-            base_factory: BaseExecutorFactory::new(),
+            base_factory: ExecutorFactory::new(),
         }
     }
 

@@ -7,6 +7,7 @@ use crate::core::types::expression::{Expression, LiteralValue};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::ExpressionError;
 use crate::core::Value;
+use super::traits::Evaluator;
 
 /// 表达式求值器实现
 #[derive(Debug)]
@@ -22,7 +23,7 @@ impl ExpressionEvaluator {
     pub fn evaluate(
         &self,
         expr: &Expression,
-        context: &dyn ExpressionContext,
+        context: &mut dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         self.eval_expression(expr, context)
     }
@@ -31,7 +32,7 @@ impl ExpressionEvaluator {
     pub fn eval_expression(
         &self,
         expr: &Expression,
-        context: &dyn ExpressionContext,
+        context: &mut dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         match expr {
             Expression::Literal(literal_value) => {
@@ -295,7 +296,7 @@ impl ExpressionEvaluator {
     pub fn evaluate_batch(
         &self,
         expressions: &[Expression],
-        context: &dyn ExpressionContext,
+        context: &mut dyn ExpressionContext,
     ) -> Result<Vec<Value>, ExpressionError> {
         let mut results = Vec::with_capacity(expressions.len());
         for expr in expressions {
@@ -952,7 +953,7 @@ impl ExpressionEvaluator {
         &self,
         cases: &[(Expression, Expression)],
         default: Option<&Expression>,
-        context: &dyn crate::core::expressions::ExpressionContext,
+        context: &mut dyn crate::core::expressions::ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         for (condition, value) in cases {
             let condition_result = self.evaluate(condition, context)?;
@@ -973,7 +974,7 @@ impl ExpressionEvaluator {
     pub fn evaluate_cypher(
         &self,
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-        context: &dyn crate::core::expressions::ExpressionContext,
+        context: &mut dyn crate::core::expressions::ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         // 将Cypher表达式转换为统一表达式，然后评估
         let unified_expr = crate::expression::cypher::expression_converter::ExpressionConverter::convert_cypher_to_unified(cypher_expr)?;
@@ -984,7 +985,7 @@ impl ExpressionEvaluator {
     pub fn evaluate_cypher_batch(
         &self,
         cypher_exprs: &[crate::query::parser::cypher::ast::expressions::Expression],
-        context: &dyn crate::core::expressions::ExpressionContext,
+        context: &mut dyn crate::core::expressions::ExpressionContext,
     ) -> Result<Vec<Value>, ExpressionError> {
         let mut results = Vec::new();
         for expr in cypher_exprs {
@@ -1041,5 +1042,50 @@ impl ExpressionEvaluator {
 impl Default for ExpressionEvaluator {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<C: ExpressionContext> Evaluator<C> for ExpressionEvaluator {
+    /// 求值表达式
+    fn evaluate(
+        &self,
+        expr: &Expression,
+        context: &mut C,
+    ) -> Result<Value, ExpressionError> {
+        self.eval_expression(expr, context)
+    }
+
+    /// 批量求值表达式
+    fn evaluate_batch(
+        &self,
+        expressions: &[Expression],
+        context: &mut C,
+    ) -> Result<Vec<Value>, ExpressionError> {
+        let mut results = Vec::with_capacity(expressions.len());
+        for expr in expressions {
+            results.push(self.evaluate(expr, context)?);
+        }
+        Ok(results)
+    }
+
+    /// 检查表达式是否可以求值
+    fn can_evaluate(&self, expr: &Expression, context: &C) -> bool {
+        // 基础实现：所有表达式都可以求值
+        true
+    }
+
+    /// 获取求值器名称
+    fn name(&self) -> &str {
+        "ExpressionEvaluator"
+    }
+
+    /// 获取求值器描述
+    fn description(&self) -> &str {
+        "标准表达式求值器"
+    }
+
+    /// 获取求值器版本
+    fn version(&self) -> &str {
+        "1.0.0"
     }
 }

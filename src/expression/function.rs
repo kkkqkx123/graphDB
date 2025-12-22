@@ -2,10 +2,10 @@ use crate::core::{Expression, Value, ExpressionError};
 use crate::core::expressions::ExpressionContext;
 
 /// 评估函数调用
-pub fn evaluate_function(
+pub fn evaluate_function<C: ExpressionContext>(
     name: &str,
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     match name {
         // 数学函数
@@ -36,11 +36,11 @@ pub fn evaluate_function(
 }
 
 /// 评估聚合函数
-pub fn evaluate_aggregate(
+pub fn evaluate_aggregate<C: ExpressionContext>(
     name: &str,
     arg: &Expression,
     distinct: bool,
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     match name {
         "count" => evaluate_count(arg, distinct, context),
@@ -53,9 +53,9 @@ pub fn evaluate_aggregate(
 }
 
 // 数学函数实现
-fn evaluate_abs(
+fn evaluate_abs<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("abs".to_string()));
@@ -71,9 +71,9 @@ fn evaluate_abs(
     }
 }
 
-fn evaluate_ceil(
+fn evaluate_ceil<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("ceil".to_string()));
@@ -89,9 +89,9 @@ fn evaluate_ceil(
     }
 }
 
-fn evaluate_floor(
+fn evaluate_floor<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("floor".to_string()));
@@ -107,9 +107,9 @@ fn evaluate_floor(
     }
 }
 
-fn evaluate_round(
+fn evaluate_round<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("round".to_string()));
@@ -125,9 +125,9 @@ fn evaluate_round(
     }
 }
 
-fn evaluate_sqrt(
+fn evaluate_sqrt<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("sqrt".to_string()));
@@ -143,9 +143,9 @@ fn evaluate_sqrt(
     }
 }
 
-fn evaluate_pow(
+fn evaluate_pow<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 2 {
         return Err(ExpressionError::invalid_argument_count("pow".to_string()));
@@ -166,9 +166,9 @@ fn evaluate_pow(
 }
 
 // 字符串函数实现
-fn evaluate_length(
+fn evaluate_length<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("length".to_string()));
@@ -184,9 +184,9 @@ fn evaluate_length(
     }
 }
 
-fn evaluate_substring(
+fn evaluate_substring<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 3 {
         return Err(ExpressionError::invalid_argument_count(
@@ -213,9 +213,9 @@ fn evaluate_substring(
     }
 }
 
-fn evaluate_trim(
+fn evaluate_trim<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("trim".to_string()));
@@ -230,9 +230,9 @@ fn evaluate_trim(
     }
 }
 
-fn evaluate_upper(
+fn evaluate_upper<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("upper".to_string()));
@@ -247,9 +247,9 @@ fn evaluate_upper(
     }
 }
 
-fn evaluate_lower(
+fn evaluate_lower<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("lower".to_string()));
@@ -265,9 +265,9 @@ fn evaluate_lower(
 }
 
 // 类型检查函数
-fn evaluate_type(
+fn evaluate_type<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("type".to_string()));
@@ -298,9 +298,9 @@ fn evaluate_type(
     Ok(Value::String(type_name.to_string()))
 }
 
-fn evaluate_exists(
+fn evaluate_exists<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("exists".to_string()));
@@ -311,9 +311,9 @@ fn evaluate_exists(
 }
 
 // 图数据库特定函数
-fn evaluate_id(
+fn evaluate_id<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("id".to_string()));
@@ -329,9 +329,9 @@ fn evaluate_id(
     }
 }
 
-fn evaluate_labels(
+fn evaluate_labels<C: ExpressionContext>(
     args: &[Expression],
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     if args.len() != 1 {
         return Err(ExpressionError::invalid_argument_count("labels".to_string()));
@@ -354,10 +354,10 @@ fn evaluate_labels(
 }
 
 // 聚合函数实现
-fn evaluate_count(
+fn evaluate_count<C: ExpressionContext>(
     arg: &Expression,
     _distinct: bool,
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
     match value {
@@ -366,10 +366,10 @@ fn evaluate_count(
     }
 }
 
-fn evaluate_sum(
+fn evaluate_sum<C: ExpressionContext>(
     arg: &Expression,
     _distinct: bool,
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
     match value {
@@ -396,10 +396,10 @@ fn evaluate_sum(
     }
 }
 
-fn evaluate_avg(
+fn evaluate_avg<C: ExpressionContext>(
     arg: &Expression,
     _distinct: bool,
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
     match value {
@@ -418,10 +418,10 @@ fn evaluate_avg(
     }
 }
 
-fn evaluate_min(
+fn evaluate_min<C: ExpressionContext>(
     arg: &Expression,
     _distinct: bool,
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
     match value {
@@ -460,10 +460,10 @@ fn evaluate_min(
     }
 }
 
-fn evaluate_max(
+fn evaluate_max<C: ExpressionContext>(
     arg: &Expression,
     _distinct: bool,
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     let value = crate::core::evaluator::ExpressionEvaluator::new().evaluate(arg, context)?;
     match value {

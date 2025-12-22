@@ -6,10 +6,10 @@ use crate::core::types::operators::UnaryOperator;
 /// 评估一元操作表达式
 ///
 /// 现在直接使用Core层的操作符和求值器
-pub fn evaluate_unary_op(
+pub fn evaluate_unary_op<C: ExpressionContext>(
     op: &UnaryOperator,
     operand: &Expression,
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     let evaluator = crate::core::evaluator::ExpressionEvaluator;
     let operand_val = evaluator.evaluate(operand, context)?;

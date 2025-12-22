@@ -3,8 +3,8 @@
 //! 直接使用graph/expression模块，消除重复代码
 //! 提供完整的Cypher表达式评估功能
 
-use crate::core::expressions::ExpressionContextCore;
 use crate::core::error::DBError;
+use crate::core::expressions::ExpressionContext;
 use crate::core::ExpressionEvaluator as GraphExpressionEvaluator;
 use crate::core::Value;
 use crate::query::executor::cypher::context::CypherExecutionContext;
@@ -65,7 +65,10 @@ impl ExpressionEvaluator {
     }
 
     /// 转换上下文类型
-    fn convert_context(&self, context: &CypherExecutionContext) -> crate::core::expressions::ExpressionContext {
+    fn convert_context(
+        &self,
+        context: &CypherExecutionContext,
+    ) -> crate::core::expressions::BasicExpressionContext {
         // 创建新的求值上下文
         let mut eval_context = crate::core::expressions::BasicExpressionContext::default();
 
@@ -106,7 +109,7 @@ impl ExpressionEvaluator {
             eval_context.set_variable(name.clone(), path_field_value);
         }
 
-        crate::core::expressions::ExpressionContext::Basic(eval_context)
+        eval_context
     }
 
     /// 检查表达式是否为常量
@@ -147,7 +150,10 @@ impl Default for ExpressionEvaluator {
 mod tests {
     use super::*;
     use crate::query::parser::cypher::ast::expressions::{
-        BinaryExpression, BinaryOperator, Literal, UnaryExpression, UnaryOperator,
+        BinaryExpression, Literal, UnaryExpression,
+    };
+    use crate::query::parser::cypher::ast::{
+        BinaryOperator, UnaryOperator,
     };
 
     #[test]

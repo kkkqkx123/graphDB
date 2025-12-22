@@ -3,9 +3,9 @@ use crate::core::{Expression, ExpressionError};
 use crate::core::expressions::ExpressionContext;
 
 /// 评估容器表达式
-pub fn evaluate_container(
+pub fn evaluate_container<C: ExpressionContext>(
     expr: &Expression,
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     match expr {
         Expression::List(items) => {

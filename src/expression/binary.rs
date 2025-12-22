@@ -6,11 +6,11 @@ use crate::core::types::operators::BinaryOperator;
 /// 评估二元操作表达式
 ///
 /// 现在直接使用Core层的操作符和求值器
-pub fn evaluate_binary_op(
+pub fn evaluate_binary_op<C: ExpressionContext>(
     left: &Expression,
     op: &BinaryOperator,
     right: &Expression,
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     let evaluator = crate::core::evaluator::ExpressionEvaluator;
     let left_val = evaluator.evaluate(left, context)?;

@@ -630,6 +630,10 @@ impl ExpressionEvaluator {
                 Value::List(list) => Ok(Value::Bool(list.contains(&left))),
                 _ => Err("IN操作符的右侧必须是列表".to_string()),
             },
+            BinaryOperator::NotIn => match right {
+                Value::List(list) => Ok(Value::Bool(!list.contains(&left))),
+                _ => Err("NOT IN操作符的右侧必须是列表".to_string()),
+            },
             BinaryOperator::StartsWith => match (&left, &right) {
                 (Value::String(s), Value::String(prefix)) => Ok(Value::Bool(s.starts_with(prefix))),
                 _ => Err("STARTS WITH操作符只能应用于字符串".to_string()),
@@ -652,6 +656,59 @@ impl ExpressionEvaluator {
                      _ => Err("正则匹配操作符只能应用于字符串".to_string()),
                  }
              }
+            BinaryOperator::StringConcat => match (&left, &right) {
+                (Value::String(s1), Value::String(s2)) => Ok(Value::String(format!("{}{}", s1, s2))),
+                _ => Err("字符串连接操作符只能应用于字符串".to_string()),
+            },
+            BinaryOperator::Subscript => match (&left, &right) {
+                (Value::List(list), Value::Int(index)) => {
+                    if *index >= 0 && (*index as usize) < list.len() {
+                        Ok(list[*index as usize].clone())
+                    } else {
+                        Err("下标越界".to_string())
+                    }
+                }
+                (Value::Map(map), Value::String(key)) => {
+                    if let Some(value) = map.get(key) {
+                        Ok(value.clone())
+                    } else {
+                        Err("键不存在".to_string())
+                    }
+                }
+                _ => Err("下标操作符只能应用于列表或映射".to_string()),
+            },
+            BinaryOperator::Attribute => match (&left, &right) {
+                (Value::Map(map), Value::String(key)) => {
+                    if let Some(value) = map.get(key) {
+                        Ok(value.clone())
+                    } else {
+                        Err("属性不存在".to_string())
+                    }
+                }
+                _ => Err("属性访问操作符只能应用于映射".to_string()),
+            },
+            BinaryOperator::Union => match (&left, &right) {
+                (Value::List(l1), Value::List(l2)) => {
+                    let mut result = l1.clone();
+                    result.extend(l2.clone());
+                    Ok(Value::List(result))
+                }
+                _ => Err("并集操作符只能应用于列表".to_string()),
+            },
+            BinaryOperator::Intersect => match (&left, &right) {
+                (Value::List(l1), Value::List(l2)) => {
+                    let result: Vec<_> = l1.iter().filter(|item| l2.contains(item)).cloned().collect();
+                    Ok(Value::List(result))
+                }
+                _ => Err("交集操作符只能应用于列表".to_string()),
+            },
+            BinaryOperator::Except => match (&left, &right) {
+                (Value::List(l1), Value::List(l2)) => {
+                    let result: Vec<_> = l1.iter().filter(|item| !l2.contains(item)).cloned().collect();
+                    Ok(Value::List(result))
+                }
+                _ => Err("差集操作符只能应用于列表".to_string()),
+            },
         }
     }
 

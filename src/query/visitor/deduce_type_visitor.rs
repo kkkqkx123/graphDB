@@ -721,6 +721,9 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             DataType::Edge => ValueTypeDef::Edge,
             DataType::Path => ValueTypeDef::Path,
             DataType::DateTime => ValueTypeDef::DateTime,
+            DataType::Date => ValueTypeDef::Date,
+            DataType::Time => ValueTypeDef::Time,
+            DataType::Duration => ValueTypeDef::Duration,
         }
     }
 }

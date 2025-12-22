@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::core::expressions::ExpressionContextCore;
 use crate::core::expressions::{DefaultExpressionContext, ExpressionContext};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Edge, Path, Value, Vertex};
@@ -122,7 +121,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
         &self,
         vertex: &Vertex,
         pattern: &PatternType,
-        expr_context: &dyn ExpressionContextCore,
+        expr_context: &dyn ExpressionContext,
     ) -> DBResult<bool> {
         if let PatternType::Node {
             labels, properties, ..
@@ -187,7 +186,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
         &self,
         edge: &Edge,
         pattern: &PatternType,
-        expr_context: &dyn ExpressionContextCore,
+        expr_context: &dyn ExpressionContext,
     ) -> DBResult<bool> {
         if let PatternType::Edge {
             edge_type,
@@ -255,7 +254,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
         &self,
         path: &Path,
         pattern: &PatternType,
-        _expr_context: &dyn ExpressionContextCore,
+        _expr_context: &dyn ExpressionContext,
     ) -> DBResult<bool> {
         if let PatternType::Path { length_range, .. } = pattern {
             // 检查路径长度

@@ -467,6 +467,26 @@ impl Value {
         }
     }
 
+    pub fn pow(&self, other: &Value) -> Result<Value, String> {
+        use Value::*;
+        match (self, other) {
+            (Int(a), Int(b)) => {
+                if *b < 0 {
+                    Ok(Float((*a as f64).powf(*b as f64)))
+                } else {
+                    match (*a).checked_pow(*b as u32) {
+                        Some(result) => Ok(Int(result)),
+                        None => Ok(Float((*a as f64).powf(*b as f64))),
+                    }
+                }
+            }
+            (Float(a), Float(b)) => Ok(Float(a.powf(*b))),
+            (Int(a), Float(b)) => Ok(Float((*a as f64).powf(*b))),
+            (Float(a), Int(b)) => Ok(Float(a.powf(*b as f64))),
+            _ => Err("Cannot take power of these values".to_string()),
+        }
+    }
+
     // Unary operations
     pub fn negate(&self) -> Result<Value, String> {
         use Value::*;

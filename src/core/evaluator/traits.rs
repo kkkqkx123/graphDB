@@ -7,19 +7,17 @@ use crate::core::ExpressionError;
 use crate::core::Value;
 
 /// 表达式求值器核心特征
-pub trait Evaluator {
+///
+/// 使用泛型约束避免动态分发，提高性能
+pub trait Evaluator<C: ExpressionContext> {
     /// 求值表达式
-    fn evaluate(
-        &self,
-        expr: &Expression,
-        context: &dyn ExpressionContext,
-    ) -> Result<Value, ExpressionError>;
+    fn evaluate(&self, expr: &Expression, context: &mut C) -> Result<Value, ExpressionError>;
 
     /// 批量求值表达式
     fn evaluate_batch(
         &self,
         expressions: &[Expression],
-        context: &dyn ExpressionContext,
+        context: &mut C,
     ) -> Result<Vec<Value>, ExpressionError> {
         let mut results = Vec::with_capacity(expressions.len());
         for expr in expressions {
@@ -29,7 +27,7 @@ pub trait Evaluator {
     }
 
     /// 检查表达式是否可以求值
-    fn can_evaluate(&self, expr: &Expression, context: &dyn ExpressionContext) -> bool {
+    fn can_evaluate(&self, expr: &Expression, context: &C) -> bool {
         true // 默认实现：所有表达式都可以求值
     }
 

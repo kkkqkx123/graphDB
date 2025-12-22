@@ -64,11 +64,11 @@ impl AggData {
 }
 
 /// 评估聚合表达式
-pub fn evaluate_aggregate_expr(
+pub fn evaluate_aggregate_expr<C: ExpressionContext>(
     func: &str,
     arg: &Expression,
     distinct: bool,
-    context: &dyn ExpressionContext,
+    context: &mut C,
 ) -> Result<Value, ExpressionError> {
     let evaluator = crate::core::evaluator::ExpressionEvaluator;
     let arg_val = evaluator.evaluate(arg, context)?;

@@ -2,10 +2,11 @@
 //!
 //! 提供对顶点标签的高级过滤功能，支持复杂的表达式求值
 
+use crate::core::expressions::{
+    DefaultExpressionContext, ExpressionContext, ExpressionContextEnum,
+};
 use crate::core::vertex_edge_path::Vertex;
 use crate::core::Value;
-use crate::core::expressions::ExpressionContextCore;
-use crate::core::expressions::{ExpressionContext, DefaultExpressionContext};
 use crate::core::{Expression, ExpressionEvaluator};
 
 /// 标签过滤器处理器
@@ -32,10 +33,10 @@ impl TagFilterProcessor {
     /// 处理标签过滤表达式
     pub fn process_tag_filter(&self, filter_expr: &Expression, vertex: &Vertex) -> bool {
         // 创建包含顶点标签的上下文
-        let context = self.create_tag_context(vertex);
+        let mut context = self.create_tag_context(vertex);
 
         // 评估表达式
-        match self.evaluator.evaluate(filter_expr, &context) {
+        match self.evaluator.evaluate(filter_expr, &mut context) {
             Ok(value) => self.value_to_bool(&value),
             Err(e) => {
                 eprintln!("标签过滤表达式评估失败: {}", e);
@@ -45,7 +46,7 @@ impl TagFilterProcessor {
     }
 
     /// 创建包含标签信息的评估上下文
-    fn create_tag_context(&self, vertex: &Vertex) -> ExpressionContext {
+    fn create_tag_context(&self, vertex: &Vertex) -> ExpressionContextEnum {
         let mut context = DefaultExpressionContext::new();
 
         // 将顶点作为变量添加
@@ -82,7 +83,7 @@ impl TagFilterProcessor {
             }
         }
 
-        ExpressionContext::Default(context)
+        ExpressionContextEnum::Default(context)
     }
 
     /// 将值转换为布尔值
@@ -157,8 +158,8 @@ impl Default for TagFilterProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::vertex_edge_path::{Tag, Vertex};
     use crate::core::types::operators::BinaryOperator;
+    use crate::core::vertex_edge_path::{Tag, Vertex};
 
     #[test]
     fn test_process_tag_filter_with_contains() {
