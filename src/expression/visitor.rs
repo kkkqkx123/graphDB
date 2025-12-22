@@ -3,7 +3,9 @@
 //! 这个模块提供了统一的表达式访问者基础设施，支持零成本抽象
 
 use crate::core::visitor::{VisitorCore, VisitorContext, VisitorResult};
-use crate::core::{Expression, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction, DataType};
+use crate::core::{Expression, LiteralValue, DataType};
+use crate::core::types::operators::{BinaryOperator, UnaryOperator, AggregateFunction};
+use crate::core::types::expression::{BinaryOperator as ExprBinaryOperator, UnaryOperator as ExprUnaryOperator, AggregateFunction as ExprAggregateFunction};
 
 /// 表达式访问者 trait - 用于访问Expression类型的各个变体
 pub trait ExpressionVisitor: VisitorCore<Expression> {
@@ -44,10 +46,60 @@ impl ExpressionAcceptor for Expression {
             Literal(value) => visitor.visit_literal(value),
             Variable(name) => visitor.visit_variable(name),
             Property { object, property } => visitor.visit_property(object, property),
-            Binary { left, op, right } => visitor.visit_binary(left, op, right),
-            Unary { op, operand } => visitor.visit_unary(op, operand),
+            Binary { left, op, right } => {
+                // 转换操作符类型
+                let converted_op = match op {
+                    ExprBinaryOperator::Add => BinaryOperator::Add,
+                    ExprBinaryOperator::Subtract => BinaryOperator::Subtract,
+                    ExprBinaryOperator::Multiply => BinaryOperator::Multiply,
+                    ExprBinaryOperator::Divide => BinaryOperator::Divide,
+                    ExprBinaryOperator::Modulo => BinaryOperator::Modulo,
+                    ExprBinaryOperator::Equal => BinaryOperator::Equal,
+                    ExprBinaryOperator::NotEqual => BinaryOperator::NotEqual,
+                    ExprBinaryOperator::LessThan => BinaryOperator::LessThan,
+                    ExprBinaryOperator::LessThanOrEqual => BinaryOperator::LessThanOrEqual,
+                    ExprBinaryOperator::GreaterThan => BinaryOperator::GreaterThan,
+                    ExprBinaryOperator::GreaterThanOrEqual => BinaryOperator::GreaterThanOrEqual,
+                    ExprBinaryOperator::And => BinaryOperator::And,
+                    ExprBinaryOperator::Or => BinaryOperator::Or,
+                    ExprBinaryOperator::StringConcat => BinaryOperator::StringConcat,
+                    ExprBinaryOperator::Like => BinaryOperator::Like,
+                    ExprBinaryOperator::In => BinaryOperator::In,
+                    ExprBinaryOperator::Union => BinaryOperator::Union,
+                    ExprBinaryOperator::Intersect => BinaryOperator::Intersect,
+                    ExprBinaryOperator::Except => BinaryOperator::Except,
+                };
+                visitor.visit_binary(left, &converted_op, right)
+            },
+            Unary { op, operand } => {
+                // 转换操作符类型
+                let converted_op = match op {
+                    ExprUnaryOperator::Plus => UnaryOperator::Plus,
+                    ExprUnaryOperator::Minus => UnaryOperator::Minus,
+                    ExprUnaryOperator::Not => UnaryOperator::Not,
+                    ExprUnaryOperator::IsNull => UnaryOperator::IsNull,
+                    ExprUnaryOperator::IsNotNull => UnaryOperator::IsNotNull,
+                    ExprUnaryOperator::IsEmpty => UnaryOperator::IsEmpty,
+                    ExprUnaryOperator::IsNotEmpty => UnaryOperator::IsNotEmpty,
+                    ExprUnaryOperator::Increment => UnaryOperator::Increment,
+                    ExprUnaryOperator::Decrement => UnaryOperator::Decrement,
+                };
+                visitor.visit_unary(&converted_op, operand)
+            },
             Function { name, args } => visitor.visit_function(name, args),
-            Aggregate { func, arg, distinct } => visitor.visit_aggregate(func, arg, *distinct),
+            Aggregate { func, arg, distinct } => {
+                // 转换聚合函数类型
+                let converted_func = match func {
+                    ExprAggregateFunction::Count => AggregateFunction::Count,
+                    ExprAggregateFunction::Sum => AggregateFunction::Sum,
+                    ExprAggregateFunction::Avg => AggregateFunction::Avg,
+                    ExprAggregateFunction::Min => AggregateFunction::Min,
+                    ExprAggregateFunction::Max => AggregateFunction::Max,
+                    ExprAggregateFunction::Collect => AggregateFunction::Collect,
+                    ExprAggregateFunction::Distinct => AggregateFunction::Distinct,
+                };
+                visitor.visit_aggregate(&converted_func, arg, *distinct)
+            },
             List(items) => visitor.visit_list(items),
             Map(pairs) => visitor.visit_map(pairs),
             Case { conditions, default } => {
@@ -272,14 +324,15 @@ impl ExpressionVisitor for DefaultExpressionVisitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{BinaryOperator, LiteralValue};
+    use crate::core::{LiteralValue};
+    use crate::core::types::operators::BinaryOperator;
 
     #[test]
     fn test_default_expression_visitor() {
         let mut visitor = DefaultExpressionVisitor::new();
         let expr = Expression::binary(
             Expression::literal(LiteralValue::Int(1)),
-            BinaryOperator::Add,
+            ExprBinaryOperator::Add,
             Expression::literal(LiteralValue::Int(2)),
         );
 

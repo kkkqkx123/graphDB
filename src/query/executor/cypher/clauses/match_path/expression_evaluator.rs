@@ -3,10 +3,10 @@
 //! 直接使用graph/expression模块，消除重复代码
 //! 提供完整的Cypher表达式评估功能
 
-use crate::core::error::DBError;
-use crate::core::Value;
 use crate::core::context::expression::ExpressionContextCore;
+use crate::core::error::DBError;
 use crate::core::ExpressionEvaluator as GraphExpressionEvaluator;
+use crate::core::Value;
 use crate::query::executor::cypher::context::CypherExecutionContext;
 use crate::query::parser::cypher::ast::expressions::Expression;
 
@@ -65,45 +65,44 @@ impl ExpressionEvaluator {
     }
 
     /// 转换上下文类型
-    fn convert_context(
-        &self,
-        context: &CypherExecutionContext,
-    ) -> crate::core::ExpressionContext {
+    fn convert_context(&self, context: &CypherExecutionContext) -> crate::core::ExpressionContext {
         // 创建新的求值上下文
         let mut eval_context = crate::core::BasicExpressionContext::default();
 
         // 复制变量
         for (name, cypher_var) in context.variables() {
             if let Some(value) = &cypher_var.value {
-                // 已经是 FieldValue，直接设置
-                eval_context.set_variable(name.clone(), value.clone());
+                // 将 Value 转换为 FieldValue
+                let field_value = convert_value_to_field_value(value.clone());
+                eval_context.set_variable(name.clone(), field_value);
             }
         }
 
         // 复制基础上下文中的变量
         for (name, value) in &context.base_context().variables {
             if eval_context.get_variable(name).is_none() {
-                // 已经是 FieldValue，直接设置
-                eval_context.set_variable(name.clone(), value.clone());
+                // 将 Value 转换为 FieldValue
+                let field_value = convert_value_to_field_value(value.clone());
+                eval_context.set_variable(name.clone(), field_value);
             }
         }
 
         // 复制参数作为变量
         for (name, value) in context.parameters() {
             if eval_context.get_variable(&format!("${}", name)).is_none() {
-                // 已经是 FieldValue，直接设置
-                eval_context.set_variable(format!("${}", name), value.clone());
+                // 将 Value 转换为 FieldValue
+                let field_value = convert_value_to_field_value(value.clone());
+                eval_context.set_variable(format!("${}", name), field_value);
             }
         }
 
         // 复制路径信息
         for (name, path) in context.paths() {
             // 将 Path 转换为 FieldValue
-            let path_field_value = crate::core::types::query::FieldValue::Path(
-                crate::core::types::query::Path {
+            let path_field_value =
+                crate::core::types::query::FieldValue::Path(crate::core::types::query::Path {
                     segments: Vec::new(), // 简化实现，实际需要完整转换
-                },
-            );
+                });
             eval_context.set_variable(name.clone(), path_field_value);
         }
 
@@ -157,15 +156,21 @@ mod tests {
         let context = CypherExecutionContext::new();
 
         let string_expr = Expression::Literal(Literal::String("test".to_string()));
-        let result = evaluator.evaluate(&string_expr, &context).expect("Failed to evaluate string expression");
+        let result = evaluator
+            .evaluate(&string_expr, &context)
+            .expect("Failed to evaluate string expression");
         assert_eq!(result, Value::String("test".to_string()));
 
         let int_expr = Expression::Literal(Literal::Integer(42));
-        let result = evaluator.evaluate(&int_expr, &context).expect("Failed to evaluate int expression");
+        let result = evaluator
+            .evaluate(&int_expr, &context)
+            .expect("Failed to evaluate int expression");
         assert_eq!(result, Value::Int(42));
 
         let bool_expr = Expression::Literal(Literal::Boolean(true));
-        let result = evaluator.evaluate(&bool_expr, &context).expect("Failed to evaluate bool expression");
+        let result = evaluator
+            .evaluate(&bool_expr, &context)
+            .expect("Failed to evaluate bool expression");
         assert_eq!(result, Value::Bool(true));
     }
 
@@ -180,7 +185,9 @@ mod tests {
             operator: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(Literal::Integer(42))),
         });
-        let result = evaluator.evaluate(&equal_expr, &context).expect("Failed to evaluate equal expression");
+        let result = evaluator
+            .evaluate(&equal_expr, &context)
+            .expect("Failed to evaluate equal expression");
         assert_eq!(result, Value::Bool(true));
 
         // 测试不相等比较
@@ -189,7 +196,9 @@ mod tests {
             operator: BinaryOperator::NotEqual,
             right: Box::new(Expression::Literal(Literal::Integer(43))),
         });
-        let result = evaluator.evaluate(&not_equal_expr, &context).expect("Failed to evaluate not equal expression");
+        let result = evaluator
+            .evaluate(&not_equal_expr, &context)
+            .expect("Failed to evaluate not equal expression");
         assert_eq!(result, Value::Bool(true));
 
         // 测试AND操作
@@ -198,7 +207,9 @@ mod tests {
             operator: BinaryOperator::And,
             right: Box::new(Expression::Literal(Literal::Boolean(true))),
         });
-        let result = evaluator.evaluate(&and_expr, &context).expect("Failed to evaluate and expression");
+        let result = evaluator
+            .evaluate(&and_expr, &context)
+            .expect("Failed to evaluate and expression");
         assert_eq!(result, Value::Bool(true));
     }
 
@@ -212,7 +223,9 @@ mod tests {
             operator: UnaryOperator::Not,
             expression: Box::new(Expression::Literal(Literal::Boolean(true))),
         });
-        let result = evaluator.evaluate(&not_expr, &context).expect("Failed to evaluate not expression");
+        let result = evaluator
+            .evaluate(&not_expr, &context)
+            .expect("Failed to evaluate not expression");
         assert_eq!(result, Value::Bool(false));
 
         // 测试负号
@@ -220,7 +233,9 @@ mod tests {
             operator: UnaryOperator::Negative,
             expression: Box::new(Expression::Literal(Literal::Integer(42))),
         });
-        let result = evaluator.evaluate(&neg_expr, &context).expect("Failed to evaluate neg expression");
+        let result = evaluator
+            .evaluate(&neg_expr, &context)
+            .expect("Failed to evaluate neg expression");
         assert_eq!(result, Value::Int(-42));
     }
 
@@ -235,7 +250,9 @@ mod tests {
             operator: BinaryOperator::Add,
             right: Box::new(Expression::Literal(Literal::Integer(5))),
         });
-        let result = evaluator.evaluate(&add_expr, &context).expect("Failed to evaluate add expression");
+        let result = evaluator
+            .evaluate(&add_expr, &context)
+            .expect("Failed to evaluate add expression");
         assert_eq!(result, Value::Int(15));
 
         // 测试字符串连接
@@ -244,7 +261,9 @@ mod tests {
             operator: BinaryOperator::Add,
             right: Box::new(Expression::Literal(Literal::String(" World".to_string()))),
         });
-        let result = evaluator.evaluate(&concat_expr, &context).expect("Failed to evaluate concat expression");
+        let result = evaluator
+            .evaluate(&concat_expr, &context)
+            .expect("Failed to evaluate concat expression");
         assert_eq!(result, Value::String("Hello World".to_string()));
     }
 
@@ -307,10 +326,39 @@ mod tests {
             Expression::Literal(Literal::Integer(3)),
         ];
 
-        let results = evaluator.evaluate_batch(&exprs, &context).expect("Failed to evaluate batch expressions");
+        let results = evaluator
+            .evaluate_batch(&exprs, &context)
+            .expect("Failed to evaluate batch expressions");
         assert_eq!(results.len(), 3);
         assert_eq!(results[0], Value::Int(1));
         assert_eq!(results[1], Value::Int(2));
         assert_eq!(results[2], Value::Int(3));
+    }
+}
+
+/// 将 Value 转换为 FieldValue
+fn convert_value_to_field_value(value: Value) -> crate::core::types::query::FieldValue {
+    match value {
+        Value::Bool(b) => crate::core::types::query::FieldValue::Scalar(
+            crate::core::types::query::ScalarValue::Bool(b),
+        ),
+        Value::Int(i) => crate::core::types::query::FieldValue::Scalar(
+            crate::core::types::query::ScalarValue::Int(i),
+        ),
+        Value::Float(f) => crate::core::types::query::FieldValue::Scalar(
+            crate::core::types::query::ScalarValue::Float(f),
+        ),
+        Value::String(s) => crate::core::types::query::FieldValue::Scalar(
+            crate::core::types::query::ScalarValue::String(s),
+        ),
+        Value::Null(_) => crate::core::types::query::FieldValue::Scalar(
+            crate::core::types::query::ScalarValue::Null,
+        ),
+        _ => {
+            // 对于复杂类型，暂时返回空值
+            crate::core::types::query::FieldValue::Scalar(
+                crate::core::types::query::ScalarValue::Null,
+            )
+        }
     }
 }

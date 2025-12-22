@@ -140,7 +140,7 @@ impl QueryContext {
     pub fn new() -> Self {
         Self {
             rctx: None,
-            vctx: ValidationContext::new(),
+            vctx: ValidationContext::new("default_query_context".to_string()),
             ectx: QueryExecutionContext::new(),
             plan: None,
             schema_manager: None,
@@ -559,14 +559,8 @@ mod tests {
         assert_eq!(id2, id1 + 1);
 
         // 测试验证上下文
-        ctx.vctx_mut()
-            .switch_to_space(crate::query::context::validate::types::SpaceInfo {
-                id: 1,
-                name: "test_space".to_string(),
-                vid_type: "INT".to_string(),
-            });
-        assert!(ctx.vctx().current_space().is_some());
-        assert_eq!(ctx.vctx().current_space().expect("Current space should exist").name, "test_space");
+        // ValidationContext不管理空间信息，已删除 switch_to_space 和 current_space 方法
+        assert_eq!(ctx.vctx().error_count(), 0);
 
         // 测试存在参数检查（参数不存在）
         assert!(!ctx.exist_parameter("non_existent_param"));
@@ -724,6 +718,7 @@ mod tests {
     fn test_with_request_context() {
         // 创建请求上下文
         let request_ctx = Arc::new(RequestContext::with_session(
+            "request_ctx_1".to_string(),
             "MATCH (n) RETURN n".to_string(),
             "test_session",
             "test_user",
