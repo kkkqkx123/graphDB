@@ -174,11 +174,20 @@ pub enum BinaryOperator {
     // 逻辑操作
     And,
     Or,
+    Xor,                    // 异或操作
 
     // 字符串操作
     StringConcat,
     Like,
     In,
+    NotIn,                  // 不在集合中
+    Contains,               // 包含检查
+    StartsWith,             // 前缀匹配
+    EndsWith,               // 后缀匹配
+
+    // 访问操作
+    Subscript,              // 下标访问
+    Attribute,              // 属性访问
 
     // 集合操作
     Union,
@@ -202,9 +211,16 @@ impl Operator for BinaryOperator {
             BinaryOperator::GreaterThanOrEqual => ">=",
             BinaryOperator::And => "AND",
             BinaryOperator::Or => "OR",
+            BinaryOperator::Xor => "XOR",
             BinaryOperator::StringConcat => "||",
             BinaryOperator::Like => "LIKE",
             BinaryOperator::In => "IN",
+            BinaryOperator::NotIn => "NOT IN",
+            BinaryOperator::Contains => "CONTAINS",
+            BinaryOperator::StartsWith => "STARTS WITH",
+            BinaryOperator::EndsWith => "ENDS WITH",
+            BinaryOperator::Subscript => "[]",
+            BinaryOperator::Attribute => ".",
             BinaryOperator::Union => "UNION",
             BinaryOperator::Intersect => "INTERSECT",
             BinaryOperator::Except => "EXCEPT",
@@ -216,8 +232,8 @@ impl Operator for BinaryOperator {
             // 优先级 1: 逻辑或
             BinaryOperator::Or => 1,
             
-            // 优先级 2: 逻辑与
-            BinaryOperator::And => 2,
+            // 优先级 2: 逻辑与和异或
+            BinaryOperator::And | BinaryOperator::Xor => 2,
             
             // 优先级 3: 比较操作
             BinaryOperator::Equal | BinaryOperator::NotEqual |
@@ -225,7 +241,8 @@ impl Operator for BinaryOperator {
             BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual => 3,
             
             // 优先级 4: 包含和匹配
-            BinaryOperator::In | BinaryOperator::Like => 4,
+            BinaryOperator::In | BinaryOperator::NotIn | BinaryOperator::Like |
+            BinaryOperator::Contains | BinaryOperator::StartsWith | BinaryOperator::EndsWith => 4,
             
             // 优先级 5: 集合操作
             BinaryOperator::Union | BinaryOperator::Intersect | BinaryOperator::Except => 5,
@@ -238,6 +255,9 @@ impl Operator for BinaryOperator {
             
             // 优先级 8: 字符串连接
             BinaryOperator::StringConcat => 8,
+            
+            // 优先级 9: 访问操作
+            BinaryOperator::Subscript | BinaryOperator::Attribute => 9,
         }
     }
     
@@ -249,8 +269,11 @@ impl Operator for BinaryOperator {
             BinaryOperator::Equal | BinaryOperator::NotEqual |
             BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual |
             BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual |
-            BinaryOperator::And | BinaryOperator::Or |
+            BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Xor |
             BinaryOperator::StringConcat | BinaryOperator::Like | BinaryOperator::In |
+            BinaryOperator::NotIn | BinaryOperator::Contains |
+            BinaryOperator::StartsWith | BinaryOperator::EndsWith |
+            BinaryOperator::Subscript | BinaryOperator::Attribute |
             BinaryOperator::Union | BinaryOperator::Intersect | BinaryOperator::Except => true,
         }
     }
@@ -398,9 +421,13 @@ impl BinaryOperator {
             BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual => {
                 OperatorCategory::Comparison
             }
-            BinaryOperator::And | BinaryOperator::Or => OperatorCategory::Logical,
-            BinaryOperator::StringConcat | BinaryOperator::Like => OperatorCategory::String,
-            BinaryOperator::In => OperatorCategory::Collection,
+            BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Xor => OperatorCategory::Logical,
+            BinaryOperator::StringConcat | BinaryOperator::Like |
+            BinaryOperator::Contains | BinaryOperator::StartsWith | BinaryOperator::EndsWith => {
+                OperatorCategory::String
+            }
+            BinaryOperator::In | BinaryOperator::NotIn => OperatorCategory::Collection,
+            BinaryOperator::Subscript | BinaryOperator::Attribute => OperatorCategory::Unary, // 访问操作符
             BinaryOperator::Union | BinaryOperator::Intersect | BinaryOperator::Except => {
                 OperatorCategory::Collection
             }

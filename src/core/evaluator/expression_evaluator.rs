@@ -343,7 +343,7 @@ impl ExpressionEvaluator {
     }
 
     /// 求值二元运算
-    fn eval_binary_operation(
+    pub fn eval_binary_operation(
         &self,
         left: &Value,
         op: &crate::core::types::expression::BinaryOperator,
@@ -391,6 +391,10 @@ impl ExpressionEvaluator {
                 (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(*l || *r)),
                 _ => Err(ExpressionError::type_error("逻辑运算需要布尔值")),
             },
+            BinaryOperator::Xor => match (left, right) {
+                (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(*l ^ *r)),
+                _ => Err(ExpressionError::type_error("XOR运算需要布尔值")),
+            },
 
             // 字符串运算
             BinaryOperator::StringConcat => match (left, right) {
@@ -410,6 +414,27 @@ impl ExpressionEvaluator {
                 Value::List(items) => Ok(Value::Bool(items.contains(left))),
                 _ => Err(ExpressionError::type_error("IN操作右侧必须是列表")),
             },
+            BinaryOperator::NotIn => match right {
+                Value::List(items) => Ok(Value::Bool(!items.contains(left))),
+                _ => Err(ExpressionError::type_error("NOT IN操作右侧必须是列表")),
+            },
+            BinaryOperator::Contains => match (&left, &right) {
+                (Value::String(s), Value::String(sub)) => Ok(Value::Bool(s.contains(sub))),
+                (Value::List(items), item) => Ok(Value::Bool(items.contains(item))),
+                _ => Err(ExpressionError::type_error("CONTAINS操作需要字符串或列表")),
+            },
+            BinaryOperator::StartsWith => match (&left, &right) {
+                (Value::String(s), Value::String(prefix)) => Ok(Value::Bool(s.starts_with(prefix))),
+                _ => Err(ExpressionError::type_error("STARTS WITH操作需要字符串值")),
+            },
+            BinaryOperator::EndsWith => match (&left, &right) {
+                (Value::String(s), Value::String(suffix)) => Ok(Value::Bool(s.ends_with(suffix))),
+                _ => Err(ExpressionError::type_error("ENDS WITH操作需要字符串值")),
+            },
+
+            // 访问运算
+            BinaryOperator::Subscript => self.eval_subscript_access(left, right),
+            BinaryOperator::Attribute => self.eval_property_access(left, &right.to_string()),
 
             // 集合运算
             BinaryOperator::Union => match (left, right) {
@@ -440,7 +465,7 @@ impl ExpressionEvaluator {
     }
 
     /// 求值一元运算
-    fn eval_unary_operation(
+    pub fn eval_unary_operation(
         &self,
         op: &crate::core::types::expression::UnaryOperator,
         value: &Value,

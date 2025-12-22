@@ -1,192 +1,207 @@
-//! 扩展操作符定义
-//!
-//! 提供对Core操作符的扩展，支持图数据库特有的操作符
+//! 操作符扩展模块
+//! 
+//! 直接重新导出Core操作符，提供便利函数
 
 use serde::{Deserialize, Serialize};
-use crate::core::types::operators::BinaryOperator as CoreBinaryOperator;
-use crate::core::types::operators::UnaryOperator as CoreUnaryOperator;
-use crate::core::types::operators::AggregateFunction as CoreAggregateFunction;
 
-/// 扩展二元操作符
-/// 
-/// 包含Core操作符和Expression模块特有的操作符
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ExtendedBinaryOperator {
-    /// Core基础操作符
-    Core(CoreBinaryOperator),
-    
-    /// Expression模块扩展操作符
-    Xor,                    // 异或操作
-    NotIn,                  // 不在集合中
-    Subscript,              // 下标访问
-    Attribute,              // 属性访问
-    Contains,               // 包含检查
-    StartsWith,             // 前缀匹配
-    EndsWith,               // 后缀匹配
-}
+// 直接重新导出Core操作符
+pub use crate::core::types::operators::{
+    BinaryOperator, UnaryOperator, AggregateFunction
+};
 
-/// 扩展一元操作符
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ExtendedUnaryOperator {
-    /// Core基础操作符
-    Core(CoreUnaryOperator),
-}
-
-/// 扩展聚合函数
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ExtendedAggregateFunction {
-    /// Core基础聚合函数
-    Core(CoreAggregateFunction),
-}
-
-impl ExtendedBinaryOperator {
-    /// 获取操作符名称
-    pub fn name(&self) -> &str {
-        match self {
-            ExtendedBinaryOperator::Core(core_op) => {
-                use crate::core::types::operators::Operator;
-                core_op.name()
-            },
-            ExtendedBinaryOperator::Xor => "XOR",
-            ExtendedBinaryOperator::NotIn => "NOT IN",
-            ExtendedBinaryOperator::Subscript => "[]",
-            ExtendedBinaryOperator::Attribute => ".",
-            ExtendedBinaryOperator::Contains => "CONTAINS",
-            ExtendedBinaryOperator::StartsWith => "STARTS WITH",
-            ExtendedBinaryOperator::EndsWith => "ENDS WITH",
-        }
+// 便利函数用于创建操作符
+impl BinaryOperator {
+    /// 创建加法操作符
+    pub fn add() -> Self {
+        BinaryOperator::Add
     }
     
-    /// 获取操作符优先级
-    pub fn precedence(&self) -> u8 {
-        match self {
-            ExtendedBinaryOperator::Core(core_op) => {
-                use crate::core::types::operators::Operator;
-                core_op.precedence()
-            },
-            ExtendedBinaryOperator::Xor => 2,        // 逻辑异或，与AND同级
-            ExtendedBinaryOperator::NotIn => 4,      // 包含操作，与IN同级
-            ExtendedBinaryOperator::Subscript => 9,  // 下标访问，高优先级
-            ExtendedBinaryOperator::Attribute => 9,  // 属性访问，高优先级
-            ExtendedBinaryOperator::Contains => 4,   // 包含检查
-            ExtendedBinaryOperator::StartsWith => 4, // 前缀匹配
-            ExtendedBinaryOperator::EndsWith => 4,   // 后缀匹配
-        }
+    /// 创建减法操作符
+    pub fn subtract() -> Self {
+        BinaryOperator::Subtract
     }
     
-    /// 检查是否是左结合的
-    pub fn is_left_associative(&self) -> bool {
-        match self {
-            ExtendedBinaryOperator::Core(core_op) => {
-                use crate::core::types::operators::Operator;
-                core_op.is_left_associative()
-            },
-            ExtendedBinaryOperator::Xor => true,
-            ExtendedBinaryOperator::NotIn => true,
-            ExtendedBinaryOperator::Subscript => true,
-            ExtendedBinaryOperator::Attribute => true,
-            ExtendedBinaryOperator::Contains => true,
-            ExtendedBinaryOperator::StartsWith => true,
-            ExtendedBinaryOperator::EndsWith => true,
-        }
+    /// 创建乘法操作符
+    pub fn multiply() -> Self {
+        BinaryOperator::Multiply
     }
     
-    /// 检查是否是算术操作符
-    pub fn is_arithmetic(&self) -> bool {
-        match self {
-            ExtendedBinaryOperator::Core(core_op) => core_op.is_arithmetic(),
-            _ => false,
-        }
+    /// 创建除法操作符
+    pub fn divide() -> Self {
+        BinaryOperator::Divide
     }
     
-    /// 检查是否是比较操作符
-    pub fn is_comparison(&self) -> bool {
-        match self {
-            ExtendedBinaryOperator::Core(core_op) => core_op.is_comparison(),
-            ExtendedBinaryOperator::NotIn => true,
-            ExtendedBinaryOperator::Contains => true,
-            ExtendedBinaryOperator::StartsWith => true,
-            ExtendedBinaryOperator::EndsWith => true,
-            _ => false,
-        }
+    /// 创建等于操作符
+    pub fn equal() -> Self {
+        BinaryOperator::Equal
     }
     
-    /// 检查是否是逻辑操作符
-    pub fn is_logical(&self) -> bool {
-        match self {
-            ExtendedBinaryOperator::Core(core_op) => core_op.is_logical(),
-            ExtendedBinaryOperator::Xor => true,
-            _ => false,
-        }
+    /// 创建不等于操作符
+    pub fn not_equal() -> Self {
+        BinaryOperator::NotEqual
     }
-}
-
-impl From<CoreBinaryOperator> for ExtendedBinaryOperator {
-    fn from(core_op: CoreBinaryOperator) -> Self {
-        ExtendedBinaryOperator::Core(core_op)
+    
+    /// 创建小于操作符
+    pub fn less_than() -> Self {
+        BinaryOperator::LessThan
+    }
+    
+    /// 创建小于等于操作符
+    pub fn less_than_or_equal() -> Self {
+        BinaryOperator::LessThanOrEqual
+    }
+    
+    /// 创建大于操作符
+    pub fn greater_than() -> Self {
+        BinaryOperator::GreaterThan
+    }
+    
+    /// 创建大于等于操作符
+    pub fn greater_than_or_equal() -> Self {
+        BinaryOperator::GreaterThanOrEqual
+    }
+    
+    /// 创建逻辑与操作符
+    pub fn and() -> Self {
+        BinaryOperator::And
+    }
+    
+    /// 创建逻辑或操作符
+    pub fn or() -> Self {
+        BinaryOperator::Or
+    }
+    
+    /// 创建字符串连接操作符
+    pub fn string_concat() -> Self {
+        BinaryOperator::StringConcat
+    }
+    
+    /// 创建Like操作符
+    pub fn like() -> Self {
+        BinaryOperator::Like
+    }
+    
+    /// 创建In操作符
+    pub fn in_op() -> Self {
+        BinaryOperator::In
+    }
+    
+    /// 创建Xor操作符
+    pub fn xor() -> Self {
+        BinaryOperator::Xor
+    }
+    
+    /// 创建NotIn操作符
+    pub fn not_in() -> Self {
+        BinaryOperator::NotIn
+    }
+    
+    /// 创建Contains操作符
+    pub fn contains() -> Self {
+        BinaryOperator::Contains
+    }
+    
+    /// 创建StartsWith操作符
+    pub fn starts_with() -> Self {
+        BinaryOperator::StartsWith
+    }
+    
+    /// 创建EndsWith操作符
+    pub fn ends_with() -> Self {
+        BinaryOperator::EndsWith
+    }
+    
+    /// 创建下标操作符
+    pub fn subscript() -> Self {
+        BinaryOperator::Subscript
+    }
+    
+    /// 创建属性操作符
+    pub fn attribute() -> Self {
+        BinaryOperator::Attribute
     }
 }
 
-impl From<CoreUnaryOperator> for ExtendedUnaryOperator {
-    fn from(core_op: CoreUnaryOperator) -> Self {
-        ExtendedUnaryOperator::Core(core_op)
+impl UnaryOperator {
+    /// 创建正号操作符
+    pub fn plus() -> Self {
+        UnaryOperator::Plus
+    }
+    
+    /// 创建负号操作符
+    pub fn minus() -> Self {
+        UnaryOperator::Minus
+    }
+    
+    /// 创建逻辑非操作符
+    pub fn not() -> Self {
+        UnaryOperator::Not
+    }
+    
+    /// 创建IsNull操作符
+    pub fn is_null() -> Self {
+        UnaryOperator::IsNull
+    }
+    
+    /// 创建IsNotNull操作符
+    pub fn is_not_null() -> Self {
+        UnaryOperator::IsNotNull
+    }
+    
+    /// 创建IsEmpty操作符
+    pub fn is_empty() -> Self {
+        UnaryOperator::IsEmpty
+    }
+    
+    /// 创建IsNotEmpty操作符
+    pub fn is_not_empty() -> Self {
+        UnaryOperator::IsNotEmpty
+    }
+    
+    /// 创建自增操作符
+    pub fn increment() -> Self {
+        UnaryOperator::Increment
+    }
+    
+    /// 创建自减操作符
+    pub fn decrement() -> Self {
+        UnaryOperator::Decrement
     }
 }
 
-impl From<CoreAggregateFunction> for ExtendedAggregateFunction {
-    fn from(core_op: CoreAggregateFunction) -> Self {
-        ExtendedAggregateFunction::Core(core_op)
-    }
-}
-
-/// 为了向后兼容，提供类型别名
-pub type BinaryOperator = ExtendedBinaryOperator;
-pub type UnaryOperator = ExtendedUnaryOperator;
-pub type AggregateFunction = ExtendedAggregateFunction;
-
-/// 操作符转换工具
-pub mod conversion {
-    use super::*;
-    use crate::core::types::operators::BinaryOperator as CoreBinOp;
-    
-    /// 从旧的expression::binary::BinaryOperator转换
-    pub fn from_legacy_binary_operator(
-        legacy_op: &crate::expression::binary::LegacyBinaryOperator,
-    ) -> ExtendedBinaryOperator {
-        use crate::expression::binary::LegacyBinaryOperator as Legacy;
-        
-        match legacy_op {
-            Legacy::Add => ExtendedBinaryOperator::Core(CoreBinOp::Add),
-            Legacy::Sub => ExtendedBinaryOperator::Core(CoreBinOp::Subtract),
-            Legacy::Mul => ExtendedBinaryOperator::Core(CoreBinOp::Multiply),
-            Legacy::Div => ExtendedBinaryOperator::Core(CoreBinOp::Divide),
-            Legacy::Mod => ExtendedBinaryOperator::Core(CoreBinOp::Modulo),
-            Legacy::Eq => ExtendedBinaryOperator::Core(CoreBinOp::Equal),
-            Legacy::Ne => ExtendedBinaryOperator::Core(CoreBinOp::NotEqual),
-            Legacy::Lt => ExtendedBinaryOperator::Core(CoreBinOp::LessThan),
-            Legacy::Le => ExtendedBinaryOperator::Core(CoreBinOp::LessThanOrEqual),
-            Legacy::Gt => ExtendedBinaryOperator::Core(CoreBinOp::GreaterThan),
-            Legacy::Ge => ExtendedBinaryOperator::Core(CoreBinOp::GreaterThanOrEqual),
-            Legacy::And => ExtendedBinaryOperator::Core(CoreBinOp::And),
-            Legacy::Or => ExtendedBinaryOperator::Core(CoreBinOp::Or),
-            Legacy::In => ExtendedBinaryOperator::Core(CoreBinOp::In),
-            Legacy::Xor => ExtendedBinaryOperator::Xor,
-            Legacy::NotIn => ExtendedBinaryOperator::NotIn,
-            Legacy::Subscript => ExtendedBinaryOperator::Subscript,
-            Legacy::Attribute => ExtendedBinaryOperator::Attribute,
-            Legacy::Contains => ExtendedBinaryOperator::Contains,
-            Legacy::StartsWith => ExtendedBinaryOperator::StartsWith,
-            Legacy::EndsWith => ExtendedBinaryOperator::EndsWith,
-        }
+impl AggregateFunction {
+    /// 创建Count聚合函数
+    pub fn count() -> Self {
+        AggregateFunction::Count
     }
     
-    /// 转换为Core操作符（如果可能）
-    pub fn to_core_binary_operator(
-        extended_op: &ExtendedBinaryOperator,
-    ) -> Option<CoreBinaryOperator> {
-        match extended_op {
-            ExtendedBinaryOperator::Core(core_op) => Some(core_op.clone()),
-            _ => None,
-        }
+    /// 创建Sum聚合函数
+    pub fn sum() -> Self {
+        AggregateFunction::Sum
+    }
+    
+    /// 创建Avg聚合函数
+    pub fn avg() -> Self {
+        AggregateFunction::Avg
+    }
+    
+    /// 创建Min聚合函数
+    pub fn min() -> Self {
+        AggregateFunction::Min
+    }
+    
+    /// 创建Max聚合函数
+    pub fn max() -> Self {
+        AggregateFunction::Max
+    }
+    
+    /// 创建Collect聚合函数
+    pub fn collect() -> Self {
+        AggregateFunction::Collect
+    }
+    
+    /// 创建Distinct聚合函数
+    pub fn distinct() -> Self {
+        AggregateFunction::Distinct
     }
 }
