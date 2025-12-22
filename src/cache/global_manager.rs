@@ -168,11 +168,11 @@ mod tests {
     #[test]
     fn test_global_cache_manager_registry() {
         let manager = GlobalCacheManager::new(CacheConfig::default());
-        
+
         let registry = manager.registry();
         assert_eq!(registry.cache_count(), 0);
-        
-        registry.register_cache("test", "LRU", 100, CacheStrategy::LRU).unwrap();
+
+        registry.register_cache("test", "LRU", 100, CacheStrategy::LRU).expect("Registration should succeed");
         assert_eq!(manager.cache_count(), 1);
         assert!(!manager.is_empty());
     }
@@ -201,23 +201,23 @@ mod tests {
     #[test]
     fn test_global_cache_manager_update_config() {
         let mut manager = GlobalCacheManager::new(CacheConfig::default());
-        
+
         let new_config = CacheConfig::production();
-        manager.update_config(new_config.clone()).unwrap();
-        
+        manager.update_config(new_config.clone()).expect("Config update should succeed");
+
         assert_eq!(manager.config().default_capacity, new_config.default_capacity);
     }
 
     #[test]
     fn test_global_cache_manager_clear_all() {
         let manager = GlobalCacheManager::new(CacheConfig::default());
-        
+
         let registry = manager.registry();
-        registry.register_cache("test1", "LRU", 100, CacheStrategy::LRU).unwrap();
-        registry.register_cache("test2", "LFU", 200, CacheStrategy::LFU).unwrap();
-        
+        registry.register_cache("test1", "LRU", 100, CacheStrategy::LRU).expect("Registration should succeed");
+        registry.register_cache("test2", "LFU", 200, CacheStrategy::LFU).expect("Registration should succeed");
+
         assert_eq!(manager.cache_count(), 2);
-        
+
         manager.clear_all();
         assert_eq!(manager.cache_count(), 0);
         assert!(manager.is_empty());
@@ -237,22 +237,22 @@ mod tests {
     fn test_global_cache_manager_functions() {
         // 重置全局状态
         reset_global_cache_manager();
-        
+
         assert!(!is_global_cache_manager_initialized());
-        
+
         // 初始化全局缓存管理器
         let config = CacheConfig::development();
-        init_global_cache_manager(config).unwrap();
+        init_global_cache_manager(config).expect("Global cache manager initialization should succeed");
         assert!(is_global_cache_manager_initialized());
-        
+
         // 获取全局管理器
         let manager = global_cache_manager();
         assert_eq!(manager.config().default_capacity, 500);
-        
+
         // 获取全局注册表
         let registry = global_cache_registry();
         assert_eq!(registry.cache_count(), 0);
-        
+
         // 获取全局统计收集器
         let stats_collector = global_stats_collector();
         assert!(stats_collector.is_empty());

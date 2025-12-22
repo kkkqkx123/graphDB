@@ -358,7 +358,7 @@ mod tests {
         manager.register_lru_cache::<String, String>("test", 100);
         assert!(manager.has_cache("test"));
 
-        let info = manager.get_cache_info("test").unwrap();
+        let info = manager.get_cache_info("test").expect("Cache info should exist");
         assert_eq!(info.name, "test");
         assert_eq!(info.cache_type, "LRU");
         assert_eq!(info.capacity, 100);
@@ -380,15 +380,15 @@ mod tests {
         assert_eq!(manager.cache_names().len(), 6);
 
         // 验证缓存信息
-        let lru_info = manager.get_cache_info("lru_cache").unwrap();
+        let lru_info = manager.get_cache_info("lru_cache").expect("LRU cache info should exist");
         assert_eq!(lru_info.cache_type, "LRU");
         assert_eq!(lru_info.capacity, 100);
 
-        let lfu_info = manager.get_cache_info("lfu_cache").unwrap();
+        let lfu_info = manager.get_cache_info("lfu_cache").expect("LFU cache info should exist");
         assert_eq!(lfu_info.cache_type, "LFU");
         assert_eq!(lfu_info.capacity, 200);
 
-        let unbounded_info = manager.get_cache_info("unbounded_cache").unwrap();
+        let unbounded_info = manager.get_cache_info("unbounded_cache").expect("Unbounded cache info should exist");
         assert_eq!(unbounded_info.cache_type, "Unbounded");
         assert_eq!(unbounded_info.capacity, usize::MAX);
 
@@ -408,7 +408,7 @@ mod tests {
 
         // 初始状态
         let stats_arc = manager.stats();
-        let stats = stats_arc.read().unwrap();
+        let stats = stats_arc.read().expect("Stats lock should be acquired");
         assert_eq!(stats.cache_count, 0);
         drop(stats);
 
@@ -418,7 +418,7 @@ mod tests {
 
         // 验证统计信息更新
         let stats_arc = manager.stats();
-        let stats = stats_arc.read().unwrap();
+        let stats = stats_arc.read().expect("Stats lock should be acquired");
         assert_eq!(stats.cache_count, 2);
         drop(stats);
 
@@ -427,7 +427,7 @@ mod tests {
 
         // 验证统计信息更新
         let stats_arc = manager.stats();
-        let stats = stats_arc.read().unwrap();
+        let stats = stats_arc.read().expect("Stats lock should be acquired");
         assert_eq!(stats.cache_count, 1);
         drop(stats);
 
@@ -436,7 +436,7 @@ mod tests {
 
         // 验证统计信息更新
         let stats_arc = manager.stats();
-        let stats = stats_arc.read().unwrap();
+        let stats = stats_arc.read().expect("Stats lock should be acquired");
         assert_eq!(stats.cache_count, 0);
     }
 }

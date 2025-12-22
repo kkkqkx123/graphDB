@@ -12,9 +12,7 @@ use super::session::{SessionContext, SessionInfo};
 use super::storage::StorageContext;
 use super::validation::ValidationContext;
 use crate::core::types::query::QueryType;
-use crate::core::Value;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use crate::Value;
 
 /// 统一上下文枚举，避免动态分发
 #[derive(Debug, Clone)]
@@ -36,7 +34,6 @@ pub enum UnifiedContext {
     /// 存储上下文
     Storage(StorageContext),
 }
-
 
 impl UnifiedContext {
     /// 获取上下文ID
@@ -73,9 +70,7 @@ impl UnifiedContext {
             UnifiedContext::Session(_) => None,
             UnifiedContext::Query(_) => None,
             UnifiedContext::Execution(ctx) => Some(&ctx.query_context.query_id),
-            UnifiedContext::Expression(ctx) => {
-                ctx.parent.as_ref().map(|_| "parent_expression")
-            }
+            UnifiedContext::Expression(ctx) => ctx.parent.as_ref().map(|_| "parent_expression"),
             UnifiedContext::Request(_) => None,
             UnifiedContext::Runtime(_) => None,
             UnifiedContext::Validation(_) => None,
@@ -279,19 +274,6 @@ impl UnifiedContext {
         }
     }
 
-    /// 获取深度
-    pub fn depth(&self) -> usize {
-        match self {
-            UnifiedContext::Session(_) => 0,
-            UnifiedContext::Query(_) => 1,
-            UnifiedContext::Execution(_) => 2,
-            UnifiedContext::Expression(ctx) => ctx.get_depth(),
-            UnifiedContext::Request(_) => 1,
-            UnifiedContext::Runtime(_) => 2,
-            UnifiedContext::Validation(_) => 2,
-            UnifiedContext::Storage(_) => 2,
-        }
-    }
 
     /// 创建测试上下文
     pub fn create_test_context(context_type: ContextType) -> Self {
@@ -418,12 +400,12 @@ impl super::base::AttributeSupport for UnifiedContext {
         self.attribute_keys()
     }
 
-    fn remove_attribute(&mut self, key: &str) -> Option<Value> {
-        self.remove_attribute(key)
+    fn remove_attribute(&mut self, key: &str) -> Option<crate::core::Value> {
+        self.get_remove_attribute(key)
     }
 
     fn clear_attributes(&mut self) {
-        self.clear_attributes();
+        self.get_clear_attributes();
     }
 }
 
@@ -433,6 +415,6 @@ impl super::base::HierarchicalContext for UnifiedContext {
     }
 
     fn depth(&self) -> usize {
-        self.get_depth()
+        self.depth()
     }
 }

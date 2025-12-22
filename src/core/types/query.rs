@@ -2,8 +2,8 @@
 //!
 //! 定义图数据库查询系统中的核心类型
 
-use serde::{Deserialize, Serialize};
 use crate::core::error::{DBError, QueryError as CoreQueryError};
+use serde::{Deserialize, Serialize};
 
 /// 查询类型枚举
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -21,7 +21,7 @@ pub enum QueryType {
 }
 
 /// 查询结果类型
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub enum QueryResult {
     /// 成功结果
     Success {
@@ -42,7 +42,7 @@ pub enum QueryResult {
 }
 
 /// 查询数据
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub enum QueryData {
     /// 标量值
     Scalar(ScalarValue),
@@ -66,15 +66,51 @@ pub enum ScalarValue {
     Null,
 }
 
+/// f64 类型不实现 Hash trait(浮点数有 NaN 值)
+///
+/// 实现说明：
+/// 1. 使用类型标识符确保不同类型不会产生相同的哈希值
+/// 2. 对于浮点数，使用 to_bits() 获取位模式表示，确保相同位模式的浮点数产生相同哈希
+/// 3. NaN 值的位模式会被保留，但不同的 NaN 位模式会产生不同的哈希值
+/// 4. 这种实现保证了哈希一致性，但需要注意 NaN 的特殊性质
+impl std::hash::Hash for ScalarValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            ScalarValue::Bool(b) => {
+                0u8.hash(state);
+                b.hash(state);
+            }
+            ScalarValue::Int(i) => {
+                1u8.hash(state);
+                i.hash(state);
+            }
+            ScalarValue::Float(f) => {
+                2u8.hash(state);
+                // 将 f64 转换为 u64 的位表示进行哈希
+                // 这种方法保留了 NaN 的位模式，确保相同位模式的值产生相同哈希
+                // 注意：不同的 NaN 位模式会产生不同的哈希值，这是符合 IEEE 754 标准的行为
+                f.to_bits().hash(state);
+            }
+            ScalarValue::String(s) => {
+                3u8.hash(state);
+                s.hash(state);
+            }
+            ScalarValue::Null => {
+                4u8.hash(state);
+            }
+        }
+    }
+}
+
 /// 记录
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Record {
     /// 记录的字段
     pub fields: Vec<(String, FieldValue)>,
 }
 
 /// 字段值
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub enum FieldValue {
     Scalar(ScalarValue),
     List(Vec<FieldValue>),
@@ -85,7 +121,7 @@ pub enum FieldValue {
 }
 
 /// 顶点
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Vertex {
     /// 顶点ID
     pub id: String,
@@ -96,7 +132,7 @@ pub struct Vertex {
 }
 
 /// 边
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Edge {
     /// 边ID
     pub id: String,
@@ -113,21 +149,21 @@ pub struct Edge {
 }
 
 /// 路径
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Path {
     /// 路径中的顶点和边
     pub segments: Vec<PathSegment>,
 }
 
 /// 路径段
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub enum PathSegment {
     Vertex(Vertex),
     Edge(Edge),
 }
 
 /// 图数据
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct GraphData {
     /// 顶点集合
     pub vertices: Vec<Vertex>,
@@ -136,7 +172,7 @@ pub struct GraphData {
 }
 
 /// 统计信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Statistics {
     /// 顶点数量
     pub vertex_count: usize,
@@ -147,7 +183,7 @@ pub struct Statistics {
 }
 
 /// 查询错误
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct QueryError {
     /// 错误代码
     pub code: String,
@@ -160,7 +196,7 @@ pub struct QueryError {
 }
 
 /// 错误位置
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ErrorPosition {
     /// 行号
     pub line: usize,
@@ -179,7 +215,7 @@ impl QueryResult {
             execution_time_ms,
         }
     }
-    
+
     /// 创建错误结果
     pub fn error(error: QueryError, execution_time_ms: u64) -> Self {
         QueryResult::Error {
@@ -187,17 +223,17 @@ impl QueryResult {
             execution_time_ms,
         }
     }
-    
+
     /// 检查是否成功
     pub fn is_success(&self) -> bool {
         matches!(self, QueryResult::Success { .. })
     }
-    
+
     /// 检查是否失败
     pub fn is_error(&self) -> bool {
         matches!(self, QueryResult::Error { .. })
     }
-    
+
     /// 获取成功数据
     pub fn get_success_data(&self) -> Option<&QueryData> {
         match self {
@@ -205,7 +241,7 @@ impl QueryResult {
             _ => None,
         }
     }
-    
+
     /// 获取错误信息
     pub fn get_error(&self) -> Option<&QueryError> {
         match self {
@@ -213,12 +249,16 @@ impl QueryResult {
             _ => None,
         }
     }
-    
+
     /// 获取执行时间
     pub fn execution_time(&self) -> u64 {
         match self {
-            QueryResult::Success { execution_time_ms, .. } => *execution_time_ms,
-            QueryResult::Error { execution_time_ms, .. } => *execution_time_ms,
+            QueryResult::Success {
+                execution_time_ms, ..
+            } => *execution_time_ms,
+            QueryResult::Error {
+                execution_time_ms, ..
+            } => *execution_time_ms,
         }
     }
 }
@@ -233,13 +273,13 @@ impl QueryError {
             position: None,
         }
     }
-    
+
     /// 设置错误详情
     pub fn with_details(mut self, details: impl Into<String>) -> Self {
         self.details = Some(details.into());
         self
     }
-    
+
     /// 设置错误位置
     pub fn with_position(mut self, line: usize, column: usize, offset: usize) -> Self {
         self.position = Some(ErrorPosition {
@@ -266,21 +306,19 @@ impl From<DBError> for QueryError {
 impl Record {
     /// 创建新记录
     pub fn new() -> Self {
-        Self {
-            fields: Vec::new(),
-        }
+        Self { fields: Vec::new() }
     }
-    
+
     /// 添加字段
     pub fn add_field(&mut self, name: impl Into<String>, value: FieldValue) {
         self.fields.push((name.into(), value));
     }
-    
+
     /// 获取字段值
     pub fn get_field(&self, name: &str) -> Option<&FieldValue> {
         self.fields.iter().find(|(n, _)| n == name).map(|(_, v)| v)
     }
-    
+
     /// 获取字段数量
     pub fn field_count(&self) -> usize {
         self.fields.len()
@@ -296,26 +334,34 @@ impl Vertex {
             properties: Vec::new(),
         }
     }
-    
+
     /// 添加标签
     pub fn add_tag(&mut self, tag: impl Into<String>) {
         self.tags.push(tag.into());
     }
-    
+
     /// 添加属性
     pub fn add_property(&mut self, name: impl Into<String>, value: ScalarValue) {
         self.properties.push((name.into(), value));
     }
-    
+
     /// 获取属性值
     pub fn get_property(&self, name: &str) -> Option<&ScalarValue> {
-        self.properties.iter().find(|(n, _)| n == name).map(|(_, v)| v)
+        self.properties
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, v)| v)
     }
 }
 
 impl Edge {
     /// 创建新边
-    pub fn new(id: impl Into<String>, edge_type: impl Into<String>, src: impl Into<String>, dst: impl Into<String>) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        edge_type: impl Into<String>,
+        src: impl Into<String>,
+        dst: impl Into<String>,
+    ) -> Self {
         Self {
             id: id.into(),
             edge_type: edge_type.into(),
@@ -325,20 +371,23 @@ impl Edge {
             ranking: None,
         }
     }
-    
+
     /// 添加属性
     pub fn add_property(&mut self, name: impl Into<String>, value: ScalarValue) {
         self.properties.push((name.into(), value));
     }
-    
+
     /// 设置排名
     pub fn set_ranking(&mut self, ranking: i64) {
         self.ranking = Some(ranking);
     }
-    
+
     /// 获取属性值
     pub fn get_property(&self, name: &str) -> Option<&ScalarValue> {
-        self.properties.iter().find(|(n, _)| n == name).map(|(_, v)| v)
+        self.properties
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, v)| v)
     }
 }
 
@@ -349,40 +398,45 @@ impl Path {
             segments: Vec::new(),
         }
     }
-    
+
     /// 添加顶点
     pub fn add_vertex(&mut self, vertex: Vertex) {
         self.segments.push(PathSegment::Vertex(vertex));
     }
-    
+
     /// 添加边
     pub fn add_edge(&mut self, edge: Edge) {
         self.segments.push(PathSegment::Edge(edge));
     }
-    
+
     /// 获取路径中的所有顶点
     pub fn get_vertices(&self) -> Vec<&Vertex> {
-        self.segments.iter().filter_map(|seg| {
-            match seg {
+        self.segments
+            .iter()
+            .filter_map(|seg| match seg {
                 PathSegment::Vertex(v) => Some(v),
                 _ => None,
-            }
-        }).collect()
+            })
+            .collect()
     }
-    
+
     /// 获取路径中的所有边
     pub fn get_edges(&self) -> Vec<&Edge> {
-        self.segments.iter().filter_map(|seg| {
-            match seg {
+        self.segments
+            .iter()
+            .filter_map(|seg| match seg {
                 PathSegment::Edge(e) => Some(e),
                 _ => None,
-            }
-        }).collect()
+            })
+            .collect()
     }
-    
+
     /// 获取路径长度（边的数量）
     pub fn length(&self) -> usize {
-        self.segments.iter().filter(|seg| matches!(seg, PathSegment::Edge(_))).count()
+        self.segments
+            .iter()
+            .filter(|seg| matches!(seg, PathSegment::Edge(_)))
+            .count()
     }
 }
 
@@ -394,22 +448,22 @@ impl GraphData {
             edges: Vec::new(),
         }
     }
-    
+
     /// 添加顶点
     pub fn add_vertex(&mut self, vertex: Vertex) {
         self.vertices.push(vertex);
     }
-    
+
     /// 添加边
     pub fn add_edge(&mut self, edge: Edge) {
         self.edges.push(edge);
     }
-    
+
     /// 获取顶点数量
     pub fn vertex_count(&self) -> usize {
         self.vertices.len()
     }
-    
+
     /// 获取边数量
     pub fn edge_count(&self) -> usize {
         self.edges.len()

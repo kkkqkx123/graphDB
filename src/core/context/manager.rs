@@ -2,12 +2,11 @@
 //!
 //! 提供统一的上下文生命周期管理
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use super::base::{
-    ContextBase, ContextConfig, ContextEvent, ContextEventListener, ContextManager,
+    ContextConfig, ContextEvent, ContextEventListener, ContextManager,
     ContextStatistics, ContextType, SimpleEventListener,
 };
 use super::enum_context::UnifiedContext;
@@ -120,7 +119,7 @@ impl DefaultContextManager {
         let mut expired_ids = Vec::new();
 
         for (id, context) in contexts.iter() {
-            if self.is_context_expired(context.as_ref()) {
+            if self.is_context_expired(context) {
                 expired_ids.push(id.clone());
             }
         }
@@ -172,8 +171,8 @@ impl ContextManager for DefaultContextManager {
             // 如果仍然超过限制，返回一个无效的上下文
             if self.is_max_contexts_exceeded() {
                 // 创建一个无效的上下文
-                let id = self.generate_context_id(context_type);
-                return Box::new(super::query::QueryContext::new(
+                let id = self.generate_context_id(context_type.clone());
+                return UnifiedContext::Query(super::query::QueryContext::new(
                     id,
                     crate::core::types::query::QueryType::DataQuery,
                     "".to_string(),
@@ -268,7 +267,7 @@ impl ContextManager for DefaultContextManager {
 
         // 存储上下文
         if let Ok(mut contexts) = self.contexts.write() {
-            contexts.insert(id.clone(), context.clone_context());
+            contexts.insert(id.clone(), context.clone());
         }
 
         // 触发创建事件
@@ -281,23 +280,16 @@ impl ContextManager for DefaultContextManager {
         context
     }
 
-    fn get_context(&self, id: &str) -> Option<&UnifiedContext> {
+    fn get_context(&self, _id: &str) -> Option<&UnifiedContext> {
         // 注意：这个实现有生命周期限制，实际返回需要从缓存的引用获取
         // 由于RwLock的限制，这个trait需要调整或使用内部缓存
-        let contexts = self.contexts.read().ok()?;
-        if contexts.contains_key(id) {
-            // 无法安全地返回引用，因为guard会被drop
-            // 此处是设计问题，应该在trait定义中修改
-            None // 暂时返回None作为解决方案
-        } else {
-            None
-        }
+        // 此处是设计问题，应该在trait定义中修改
+        None // 暂时返回None作为解决方案
     }
 
-    fn get_context_mut(&mut self, id: &str) -> Option<&mut UnifiedContext> {
-        let mut contexts = self.contexts.write().ok()?;
-        // 由于RwLock的限制，无法返回引用，返回克隆的Box
-        contexts.get_mut(id)
+    fn get_context_mut(&mut self, _id: &str) -> Option<&mut UnifiedContext> {
+        // 由于RwLock的限制，无法返回引用
+        None // 暂时返回None作为解决方案
     }
 
     fn remove_context(&mut self, id: &str) -> Option<UnifiedContext> {

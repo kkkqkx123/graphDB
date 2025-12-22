@@ -2,16 +2,14 @@
 //!
 //! 提供表达式求值过程中的上下文管理
 
-use crate::core::context::base::ContextBase;
+use crate::cache::{Cache, CacheConfig, ConcurrentLruCache, StatsCache, StatsCacheWrapper};
 use crate::core::context::expression::{
     BasicExpressionContext, EvaluationOptions, EvaluationStatistics, ExpressionContext,
     ExpressionError,
 };
 use crate::core::types::expression::Expression;
 use crate::core::types::query::FieldValue;
-use crate::cache::{Cache, StatsCache, ConcurrentLruCache, StatsCacheWrapper, CacheConfig};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 /// 求值器上下文
@@ -67,7 +65,7 @@ impl EvaluationContext {
         let cache_config = CacheConfig::default();
         let lru_cache = Arc::new(ConcurrentLruCache::new(cache_config.default_capacity));
         let stats_cache = Arc::new(StatsCacheWrapper::new(lru_cache));
-        
+
         Self {
             expression_context,
             options: EvaluationOptions::default(),
@@ -87,7 +85,7 @@ impl EvaluationContext {
         let cache_config = CacheConfig::default();
         let lru_cache = Arc::new(ConcurrentLruCache::new(cache_config.default_capacity));
         let stats_cache = Arc::new(StatsCacheWrapper::new(lru_cache));
-        
+
         Self {
             expression_context,
             options,
@@ -115,7 +113,7 @@ impl EvaluationContext {
 
     /// 检查缓存
     pub fn check_cache(&self, expression: &Expression) -> Option<FieldValue> {
-        if !self.options.enable_cache {
+        if !self.options.cache_config.enabled {
             return None;
         }
 
@@ -125,7 +123,7 @@ impl EvaluationContext {
 
     /// 添加到缓存
     pub fn add_to_cache(&self, expression: &Expression, value: &FieldValue) {
-        if !self.options.enable_cache {
+        if !self.options.cache_config.enabled {
             return;
         }
 
@@ -314,7 +312,6 @@ impl EvaluationContext {
         }
     }
 }
-
 
 /// 缓存统计信息
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

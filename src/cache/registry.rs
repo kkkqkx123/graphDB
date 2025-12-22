@@ -143,23 +143,23 @@ mod tests {
     #[test]
     fn test_cache_registry_basic_operations() {
         let registry = CacheRegistry::new();
-        
+
         // 初始状态
         assert_eq!(registry.cache_count(), 0);
         assert!(!registry.has_cache("test"));
-        
+
         // 注册缓存
-        registry.register_cache("test", "LRU", 100, CacheStrategy::LRU).unwrap();
+        registry.register_cache("test", "LRU", 100, CacheStrategy::LRU).expect("Registration should succeed");
         assert_eq!(registry.cache_count(), 1);
         assert!(registry.has_cache("test"));
-        
+
         // 获取缓存信息
-        let info = registry.get_cache_info("test").unwrap();
+        let info = registry.get_cache_info("test").expect("Cache info should exist");
         assert_eq!(info.name, "test");
         assert_eq!(info.cache_type, "LRU");
         assert_eq!(info.capacity, 100);
         assert_eq!(info.policy, CacheStrategy::LRU);
-        
+
         // 移除缓存
         assert!(registry.remove_cache("test"));
         assert!(!registry.has_cache("test"));
@@ -169,30 +169,30 @@ mod tests {
     #[test]
     fn test_cache_registry_multiple_caches() {
         let registry = CacheRegistry::new();
-        
+
         // 注册多个缓存
-        registry.register_cache("lru_cache", "LRU", 100, CacheStrategy::LRU).unwrap();
-        registry.register_cache("lfu_cache", "LFU", 200, CacheStrategy::LFU).unwrap();
-        registry.register_cache("fifo_cache", "FIFO", 300, CacheStrategy::FIFO).unwrap();
-        
+        registry.register_cache("lru_cache", "LRU", 100, CacheStrategy::LRU).expect("LRU registration should succeed");
+        registry.register_cache("lfu_cache", "LFU", 200, CacheStrategy::LFU).expect("LFU registration should succeed");
+        registry.register_cache("fifo_cache", "FIFO", 300, CacheStrategy::FIFO).expect("FIFO registration should succeed");
+
         assert_eq!(registry.cache_count(), 3);
-        
+
         // 获取所有缓存名称
         let names = registry.cache_names();
         assert_eq!(names.len(), 3);
         assert!(names.contains(&"lru_cache".to_string()));
         assert!(names.contains(&"lfu_cache".to_string()));
         assert!(names.contains(&"fifo_cache".to_string()));
-        
+
         // 获取所有缓存信息
         let all_info = registry.get_all_cache_info();
         assert_eq!(all_info.len(), 3);
-        
+
         // 按策略筛选
         let lru_caches = registry.get_caches_by_policy(CacheStrategy::LRU);
         assert_eq!(lru_caches.len(), 1);
         assert_eq!(lru_caches[0].name, "lru_cache");
-        
+
         // 清空所有缓存
         registry.clear_all();
         assert_eq!(registry.cache_count(), 0);
@@ -201,30 +201,30 @@ mod tests {
     #[test]
     fn test_cache_registry_validation() {
         let registry = CacheRegistry::new();
-        
+
         // 空名称应该失败
         let result = registry.register_cache("", "LRU", 100, CacheStrategy::LRU);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "缓存名称不能为空");
+        assert_eq!(result.expect_err("Should return an error"), "缓存名称不能为空");
     }
 
     #[test]
     fn test_cache_registry_created_after() {
         let registry = CacheRegistry::new();
         let now = std::time::Instant::now();
-        
+
         // 注册缓存
-        registry.register_cache("cache1", "LRU", 100, CacheStrategy::LRU).unwrap();
-        
+        registry.register_cache("cache1", "LRU", 100, CacheStrategy::LRU).expect("Cache1 registration should succeed");
+
         // 稍等一下再注册第二个缓存
         std::thread::sleep(std::time::Duration::from_millis(1));
         let later = std::time::Instant::now();
-        registry.register_cache("cache2", "LFU", 200, CacheStrategy::LFU).unwrap();
-        
+        registry.register_cache("cache2", "LFU", 200, CacheStrategy::LFU).expect("Cache2 registration should succeed");
+
         // 获取在指定时间后创建的缓存
         let caches_after = registry.get_caches_created_after(now);
         assert_eq!(caches_after.len(), 2);
-        
+
         let caches_after_later = registry.get_caches_created_after(later);
         assert_eq!(caches_after_later.len(), 1);
         assert_eq!(caches_after_later[0].name, "cache2");

@@ -3,9 +3,10 @@
 //! 提供缓存系统的配置选项和默认值
 
 use std::time::Duration;
+use serde::{Deserialize, Serialize};
 
 /// 全局缓存配置
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CacheConfig {
     /// 是否启用缓存
     pub enabled: bool,
@@ -36,7 +37,7 @@ pub struct CacheConfig {
 }
 
 /// 解析器缓存配置
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ParserCacheConfig {
     /// 关键字缓存容量
     pub keyword_cache_capacity: usize,
@@ -67,7 +68,7 @@ pub struct ParserCacheConfig {
 }
 
 /// 预取配置
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrefetchConfig {
     /// 是否启用预取
     pub enabled: bool,
@@ -83,7 +84,7 @@ pub struct PrefetchConfig {
 }
 
 /// 预取策略
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PrefetchStrategy {
     /// 固定窗口预取
     Fixed,
@@ -94,7 +95,7 @@ pub enum PrefetchStrategy {
 }
 
 /// 缓存策略
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CachePolicy {
     /// LRU (Least Recently Used)
     LRU,
@@ -111,7 +112,7 @@ pub enum CachePolicy {
 }
 
 /// 缓存统计配置
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StatsConfig {
     /// 是否启用统计
     pub enabled: bool,

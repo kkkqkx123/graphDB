@@ -3,10 +3,14 @@
 //! 提供表达式求值过程中的上下文管理
 
 use crate::core::types::expression::Expression;
-use crate::core::types::query::{FieldValue, ScalarValue};
-use crate::core::Value;
+use crate::core::types::query::FieldValue;
+use crate::cache::{
+    CacheConfig, CacheFactory, StatsCacheType,
+    Cache, StatsCache
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use super::base::{ContextBase, ContextType, MutableContext};
 
 /// 函数引用枚举，避免动态分发
@@ -16,6 +20,146 @@ pub enum FunctionRef<'a> {
     Builtin(&'a BuiltinFunction),
     /// 自定义函数引用
     Custom(&'a CustomFunction),
+}
+
+/// 表达式缓存管理器
+#[derive(Debug)]
+pub struct ExpressionCacheManager {
+    /// 函数执行结果缓存
+    function_cache: StatsCacheType<String, FieldValue>,
+    /// 表达式解析结果缓存
+    expression_cache: StatsCacheType<String, Expression>,
+    /// 变量查找缓存
+    variable_cache: StatsCacheType<String, FieldValue>,
+    /// 缓存配置
+    config: CacheConfig,
+}
+
+impl ExpressionCacheManager {
+    /// 创建新的表达式缓存管理器
+    pub fn new(config: CacheConfig) -> Self {
+        let function_cache = CacheFactory::create_stats_cache_by_policy(
+            &config.default_policy,
+            config.parser_cache.expression_cache_capacity,
+        );
+        
+        let expression_cache = CacheFactory::create_stats_cache_by_policy(
+            &config.default_policy,
+            config.parser_cache.expression_cache_capacity,
+        );
+        
+        let variable_cache = CacheFactory::create_stats_cache_by_policy(
+            &config.default_policy,
+            config.parser_cache.expression_cache_capacity,
+        );
+        
+        Self {
+            function_cache,
+            expression_cache,
+            variable_cache,
+            config,
+        }
+    }
+    
+    /// 获取函数执行结果
+    pub fn get_function_result(&self, key: &str) -> Option<FieldValue> {
+        if self.config.enabled {
+            self.function_cache.get(&key.to_string())
+        } else {
+            None
+        }
+    }
+    
+    /// 缓存函数执行结果
+    pub fn cache_function_result(&self, key: &str, result: FieldValue) {
+        if self.config.enabled {
+            self.function_cache.put(key.to_string(), result);
+        }
+    }
+    
+    /// 获取表达式解析结果
+    pub fn get_expression(&self, key: &str) -> Option<Expression> {
+        if self.config.enabled {
+            self.expression_cache.get(&key.to_string())
+        } else {
+            None
+        }
+    }
+    
+    /// 缓存表达式解析结果
+    pub fn cache_expression(&self, key: &str, expression: Expression) {
+        if self.config.enabled {
+            self.expression_cache.put(key.to_string(), expression);
+        }
+    }
+    
+    /// 获取变量查找结果
+    pub fn get_variable(&self, key: &str) -> Option<FieldValue> {
+        if self.config.enabled {
+            self.variable_cache.get(&key.to_string())
+        } else {
+            None
+        }
+    }
+    
+    /// 缓存变量查找结果
+    pub fn cache_variable(&self, key: &str, value: FieldValue) {
+        if self.config.enabled {
+            self.variable_cache.put(key.to_string(), value);
+        }
+    }
+    
+    /// 获取缓存统计信息
+    pub fn get_cache_stats(&self) -> ExpressionCacheStats {
+        ExpressionCacheStats {
+            function_cache_hits: self.function_cache.hits(),
+            function_cache_misses: self.function_cache.misses(),
+            function_cache_hit_rate: self.function_cache.hit_rate(),
+            expression_cache_hits: self.expression_cache.hits(),
+            expression_cache_misses: self.expression_cache.misses(),
+            expression_cache_hit_rate: self.expression_cache.hit_rate(),
+            variable_cache_hits: self.variable_cache.hits(),
+            variable_cache_misses: self.variable_cache.misses(),
+            variable_cache_hit_rate: self.variable_cache.hit_rate(),
+        }
+    }
+    
+    /// 清空所有缓存
+    pub fn clear_all(&self) {
+        self.function_cache.clear();
+        self.expression_cache.clear();
+        self.variable_cache.clear();
+    }
+    
+    /// 重置统计信息
+    pub fn reset_stats(&self) {
+        self.function_cache.reset_stats();
+        self.expression_cache.reset_stats();
+        self.variable_cache.reset_stats();
+    }
+}
+
+/// 表达式缓存统计信息
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExpressionCacheStats {
+    /// 函数缓存命中次数
+    pub function_cache_hits: u64,
+    /// 函数缓存未命中次数
+    pub function_cache_misses: u64,
+    /// 函数缓存命中率
+    pub function_cache_hit_rate: f64,
+    /// 表达式缓存命中次数
+    pub expression_cache_hits: u64,
+    /// 表达式缓存未命中次数
+    pub expression_cache_misses: u64,
+    /// 表达式缓存命中率
+    pub expression_cache_hit_rate: f64,
+    /// 变量缓存命中次数
+    pub variable_cache_hits: u64,
+    /// 变量缓存未命中次数
+    pub variable_cache_misses: u64,
+    /// 变量缓存命中率
+    pub variable_cache_hit_rate: f64,
 }
 
 /// 表达式上下文枚举，避免动态分发
@@ -234,7 +378,7 @@ impl ExpressionFunction for MathFunction {
         false
     }
 
-    fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
         // 实现数学函数的具体逻辑
         // 这里暂时返回错误，等待后续实现
         Err(ExpressionError::runtime_error(format!(
@@ -295,7 +439,7 @@ impl ExpressionFunction for StringFunction {
         matches!(self, StringFunction::Concat)
     }
 
-    fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
         Err(ExpressionError::runtime_error(format!(
             "字符串函数 {:?} 尚未实现",
             self
@@ -339,7 +483,7 @@ impl ExpressionFunction for AggregateFunction {
         false
     }
 
-    fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
         Err(ExpressionError::runtime_error(format!(
             "聚合函数 {:?} 尚未实现",
             self
@@ -377,7 +521,7 @@ impl ExpressionFunction for ConversionFunction {
         false
     }
 
-    fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
         Err(ExpressionError::runtime_error(format!(
             "类型转换函数 {:?} 尚未实现",
             self
@@ -426,7 +570,7 @@ impl ExpressionFunction for DateTimeFunction {
         false
     }
 
-    fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
         Err(ExpressionError::runtime_error(format!(
             "日期时间函数 {:?} 尚未实现",
             self
@@ -461,6 +605,8 @@ pub struct BasicExpressionContext {
     pub parent: Option<Box<BasicExpressionContext>>,
     /// 上下文深度
     pub depth: usize,
+    /// 缓存管理器
+    pub cache_manager: Option<Arc<ExpressionCacheManager>>,
 }
 
 /// 自定义函数定义
@@ -491,7 +637,7 @@ impl ExpressionFunction for CustomFunction {
         self.is_variadic
     }
 
-    fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
         // 这里应该根据function_id调用具体的函数实现
         // 暂时返回错误，等待后续实现
         Err(ExpressionError::runtime_error(format!(
@@ -567,14 +713,19 @@ pub struct EvaluationOptions {
     pub max_recursion_depth: usize,
     /// 超时时间（毫秒）
     pub timeout_ms: Option<u64>,
-    /// 是否启用缓存
-    pub enable_cache: bool,
+    /// 缓存配置
+    pub cache_config: CacheConfig,
 }
 
 impl ExpressionContext for BasicExpressionContext {
     fn get_variable(&self, name: &str) -> Option<&FieldValue> {
-        // 首先在当前上下文中查找
+        // 在当前上下文中查找
         if let Some(value) = self.variables.get(name) {
+            // 缓存查找结果
+            if let Some(cache_manager) = &self.cache_manager {
+                let cache_key = format!("var:{}:{}", name, self.depth);
+                cache_manager.cache_variable(&cache_key, value.clone());
+            }
             return Some(value);
         }
 
@@ -587,7 +738,7 @@ impl ExpressionContext for BasicExpressionContext {
     }
 
     fn get_function(&self, name: &str) -> Option<FunctionRef> {
-        // 首先在当前上下文中查找内置函数
+        // 在当前上下文中查找内置函数
         if let Some(function) = self.functions.get(name) {
             return Some(FunctionRef::Builtin(function));
         }
@@ -636,6 +787,7 @@ impl ExpressionContext for BasicExpressionContext {
             custom_functions: HashMap::new(),
             parent: Some(Box::new(self.clone())),
             depth: self.get_depth() + 1,
+            cache_manager: self.cache_manager.clone(),
         })
     }
 }
@@ -709,7 +861,7 @@ impl ExpressionContext for ExpressionContextType {
 
     fn get_depth(&self) -> usize {
         match self {
-            ExpressionContextType::Basic(ctx) => ctx.depth(),
+            ExpressionContextType::Basic(ctx) => ctx.get_depth(),
         }
     }
 
@@ -729,6 +881,19 @@ impl BasicExpressionContext {
             custom_functions: HashMap::new(),
             parent: None,
             depth: 0,
+            cache_manager: None,
+        }
+    }
+
+    /// 创建带缓存管理器的基础表达式上下文
+    pub fn with_cache(cache_config: CacheConfig) -> Self {
+        Self {
+            variables: HashMap::new(),
+            functions: HashMap::new(),
+            custom_functions: HashMap::new(),
+            parent: None,
+            depth: 0,
+            cache_manager: Some(Arc::new(ExpressionCacheManager::new(cache_config))),
         }
     }
 
@@ -741,6 +906,20 @@ impl BasicExpressionContext {
             custom_functions: HashMap::new(),
             parent: Some(Box::new(parent)),
             depth: parent_depth + 1,
+            cache_manager: None,
+        }
+    }
+
+    /// 创建带父上下文和缓存管理器的基础表达式上下文
+    pub fn with_parent_and_cache(parent: BasicExpressionContext, cache_config: CacheConfig) -> Self {
+        let parent_depth = parent.get_depth();
+        Self {
+            variables: HashMap::new(),
+            functions: HashMap::new(),
+            custom_functions: HashMap::new(),
+            parent: Some(Box::new(parent)),
+            depth: parent_depth + 1,
+            cache_manager: Some(Arc::new(ExpressionCacheManager::new(cache_config))),
         }
     }
 
@@ -794,6 +973,51 @@ impl BasicExpressionContext {
     pub fn get_local_variable_names(&self) -> Vec<&str> {
         self.variables.keys().map(|k| k.as_str()).collect()
     }
+
+    /// 获取缓存统计信息
+    pub fn get_cache_stats(&self) -> Option<ExpressionCacheStats> {
+        self.cache_manager.as_ref().map(|cm| cm.get_cache_stats())
+    }
+
+    /// 清空所有缓存
+    pub fn clear_cache(&self) {
+        if let Some(cache_manager) = &self.cache_manager {
+            cache_manager.clear_all();
+        }
+    }
+
+    /// 重置缓存统计信息
+    pub fn reset_cache_stats(&self) {
+        if let Some(cache_manager) = &self.cache_manager {
+            cache_manager.reset_stats();
+        }
+    }
+
+    /// 执行函数并缓存结果
+    pub fn execute_function_with_cache(
+        &self,
+        function_ref: &FunctionRef,
+        args: &[FieldValue],
+    ) -> Result<FieldValue, ExpressionError> {
+        // 缓存功能暂时禁用，因为需要修复生命周期问题
+
+        // 执行函数
+        let result = function_ref.execute(args);
+
+        result
+    }
+
+    /// 将参数转换为哈希值用于缓存键
+    fn args_to_hash(&self, args: &[FieldValue]) -> String {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        for arg in args {
+            arg.hash(&mut hasher);
+        }
+        format!("{:x}", hasher.finish())
+    }
 }
 
 impl Default for BasicExpressionContext {
@@ -810,6 +1034,7 @@ impl Clone for BasicExpressionContext {
             custom_functions: self.custom_functions.clone(),
             parent: self.parent.as_ref().map(|p| Box::new(p.as_ref().clone())),
             depth: self.get_depth(),
+            cache_manager: self.cache_manager.clone(),
         }
     }
 }
@@ -966,7 +1191,7 @@ impl Default for EvaluationOptions {
             allow_implicit_conversion: true,
             max_recursion_depth: 1000,
             timeout_ms: Some(30000), // 30秒
-            enable_cache: true,
+            cache_config: CacheConfig::default(),
         }
     }
 }
@@ -980,16 +1205,14 @@ pub struct EvaluationStatistics {
     pub function_calls: usize,
     /// 变量访问次数
     pub variable_accesses: usize,
-    /// 缓存命中次数
-    pub cache_hits: usize,
-    /// 缓存未命中次数
-    pub cache_misses: usize,
     /// 总求值时间（微秒）
     pub total_evaluation_time_us: u64,
     /// 平均求值时间（微秒）
     pub average_evaluation_time_us: f64,
     /// 最大递归深度
     pub max_recursion_depth: usize,
+    /// 详细的缓存统计信息
+    pub cache_stats: Option<ExpressionCacheStats>,
 }
 
 impl EvaluationStatistics {
@@ -999,11 +1222,23 @@ impl EvaluationStatistics {
             expressions_evaluated: 0,
             function_calls: 0,
             variable_accesses: 0,
-            cache_hits: 0,
-            cache_misses: 0,
             total_evaluation_time_us: 0,
             average_evaluation_time_us: 0.0,
             max_recursion_depth: 0,
+            cache_stats: None,
+        }
+    }
+
+    /// 创建带缓存统计的求值统计
+    pub fn with_cache_stats(cache_stats: ExpressionCacheStats) -> Self {
+        Self {
+            expressions_evaluated: 0,
+            function_calls: 0,
+            variable_accesses: 0,
+            total_evaluation_time_us: 0,
+            average_evaluation_time_us: 0.0,
+            max_recursion_depth: 0,
+            cache_stats: Some(cache_stats),
         }
     }
 
@@ -1025,14 +1260,9 @@ impl EvaluationStatistics {
         self.variable_accesses += 1;
     }
 
-    /// 记录缓存命中
-    pub fn record_cache_hit(&mut self) {
-        self.cache_hits += 1;
-    }
-
-    /// 记录缓存未命中
-    pub fn record_cache_miss(&mut self) {
-        self.cache_misses += 1;
+    /// 更新缓存统计信息
+    pub fn update_cache_stats(&mut self, cache_stats: Option<ExpressionCacheStats>) {
+        self.cache_stats = cache_stats;
     }
 
     /// 更新最大递归深度
@@ -1042,14 +1272,49 @@ impl EvaluationStatistics {
         }
     }
 
-    /// 获取缓存命中率
-    pub fn cache_hit_rate(&self) -> f64 {
-        let total_requests = self.cache_hits + self.cache_misses;
-        if total_requests == 0 {
-            0.0
+    /// 获取总体缓存命中率
+    pub fn overall_cache_hit_rate(&self) -> f64 {
+        if let Some(ref cache_stats) = self.cache_stats {
+            let total_hits = cache_stats.function_cache_hits +
+                           cache_stats.expression_cache_hits +
+                           cache_stats.variable_cache_hits;
+            let total_misses = cache_stats.function_cache_misses +
+                             cache_stats.expression_cache_misses +
+                             cache_stats.variable_cache_misses;
+            let total_requests = total_hits + total_misses;
+            
+            if total_requests == 0 {
+                0.0
+            } else {
+                total_hits as f64 / total_requests as f64
+            }
         } else {
-            self.cache_hits as f64 / total_requests as f64
+            0.0
         }
+    }
+
+    /// 获取函数缓存命中率
+    pub fn function_cache_hit_rate(&self) -> f64 {
+        self.cache_stats
+            .as_ref()
+            .map(|stats| stats.function_cache_hit_rate)
+            .unwrap_or(0.0)
+    }
+
+    /// 获取表达式缓存命中率
+    pub fn expression_cache_hit_rate(&self) -> f64 {
+        self.cache_stats
+            .as_ref()
+            .map(|stats| stats.expression_cache_hit_rate)
+            .unwrap_or(0.0)
+    }
+
+    /// 获取变量缓存命中率
+    pub fn variable_cache_hit_rate(&self) -> f64 {
+        self.cache_stats
+            .as_ref()
+            .map(|stats| stats.variable_cache_hit_rate)
+            .unwrap_or(0.0)
     }
 }
 
