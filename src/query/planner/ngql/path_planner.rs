@@ -96,7 +96,7 @@ impl Planner for PathPlanner {
         // 6. 创建过滤节点（如果有过滤条件）
         let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
             if let Some(ref condition) = path_ctx.filter {
-                use crate::expression::Expression;
+                use crate::core::Expression;
                 let expr = Expression::Variable(condition.clone());
                 let filter = Arc::new(
                     FilterNode::new(expand_all_node.clone(), expr)
@@ -108,7 +108,7 @@ impl Planner for PathPlanner {
             };
 
         // 7. 创建投影节点
-        use crate::expression::Expression;
+        use crate::core::Expression;
         use crate::query::validator::YieldColumn;
         let yield_columns = vec![YieldColumn {
             expr: Expression::Variable("DEFAULT".to_string()),

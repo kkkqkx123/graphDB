@@ -1,6 +1,6 @@
 use crate::core::ExpressionError;
 use crate::core::{NullType, Value};
-use crate::expression::{Expression, ExpressionContext};
+use crate::core::{Expression, ExpressionContext};
 use serde::{Deserialize, Serialize};
 
 /// Binary operators for expressions
@@ -38,7 +38,7 @@ pub fn evaluate_binary_op(
     left: &Expression,
     op: &BinaryOperator,
     right: &Expression,
-    context: &ExpressionContext,
+    context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
     let evaluator = super::evaluator::ExpressionEvaluator;
     let left_val = evaluator.evaluate(left, context)?;

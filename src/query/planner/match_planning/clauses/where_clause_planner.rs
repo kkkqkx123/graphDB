@@ -229,15 +229,15 @@ impl DataFlowNode for WhereClausePlanner {
 
 /// 将 Expression 转换为 Expr
 /// 辅助函数，用于在不同表达式类型之间转换
-fn convert_expression_to_expr(expr: &crate::expression::Expression) -> Expr {
+fn convert_expression_to_expr(expr: &crate::core::Expression) -> Expr {
     use crate::query::parser::ast::expr::*;
     use crate::query::parser::ast::types::Span;
 
     match expr {
-        crate::expression::Expression::Variable(name) => {
+        crate::core::Expression::Variable(name) => {
             Expr::Variable(VariableExpr::new(name.clone(), Span::default()))
         }
-        crate::expression::Expression::Literal(val) => {
+        crate::core::Expression::Literal(val) => {
             use crate::core::Value;
             let const_val = match val {
                 crate::expression::expression::LiteralValue::String(s) => Value::String(s.clone()),

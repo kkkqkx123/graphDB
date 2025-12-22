@@ -4,6 +4,7 @@
 
 pub mod base;
 pub mod query;
+pub mod query_execution;
 pub mod execution;
 pub mod session;
 pub mod expression;
@@ -17,6 +18,7 @@ pub mod enum_context;
 // 重新导出常用类型
 pub use base::*;
 pub use query::*;
+pub use query_execution::*;
 pub use execution::*;
 pub use session::*;
 pub use expression::*;

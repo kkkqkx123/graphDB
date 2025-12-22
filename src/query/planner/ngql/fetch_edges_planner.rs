@@ -63,7 +63,7 @@ impl Planner for FetchEdgesPlanner {
         // 3. 创建过滤空边的节点
         let filter_node = match FilterNode::new(
             get_edges_node.clone(),
-            crate::expression::Expression::Variable(format!(
+            crate::core::Expression::Variable(format!(
                 "{} IS NOT EMPTY",
                 fetch_ctx.edge_name
             )),

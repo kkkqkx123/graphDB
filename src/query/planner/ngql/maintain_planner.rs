@@ -58,7 +58,7 @@ impl Planner for MaintainPlanner {
         let arg_node = Arc::new(ArgumentNode::new(1, "maintain_args"));
 
         // 2. 根据不同类型创建相应的计划节点
-        use crate::expression::Expression;
+        use crate::core::Expression;
         use crate::query::validator::YieldColumn;
         let yield_columns = vec![YieldColumn {
             expr: Expression::Variable(format!("MAINTAIN_{}", stmt_type)),

@@ -6,7 +6,7 @@ use super::super::validation_interface::{
     ValidationContext as ValidationContextTrait, ValidationError, ValidationErrorType,
     ValidationStrategy, ValidationStrategyType,
 };
-use crate::expression::Expression;
+use crate::core::Expression;
 
 /// 聚合验证策略
 pub struct AggregateValidationStrategy;
@@ -352,8 +352,8 @@ impl ValidationStrategy for AggregateValidationStrategy {
 mod tests {
     use super::*;
     use crate::expression::unary::UnaryOperator;
-    use crate::expression::BinaryOperator;
-    use crate::expression::Expression;
+    use crate::core::BinaryOperator;
+    use crate::core::Expression;
 
     #[test]
     fn test_aggregate_validation_strategy_creation() {

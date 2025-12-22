@@ -1,6 +1,6 @@
 use crate::core::ExpressionError;
 use crate::expression::operator_conversion;
-use crate::expression::{Expression, LiteralValue};
+use crate::core::{Expression, LiteralValue};
 use crate::query::parser::cypher::ast::expressions::{
     BinaryExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
@@ -237,7 +237,7 @@ impl ExpressionConverter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::{Expression, LiteralValue};
+    use crate::core::{Expression, LiteralValue};
     use crate::query::parser::cypher::ast::expressions::{
         BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
         Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,

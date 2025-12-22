@@ -9,7 +9,7 @@ use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
     PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
 };
-use crate::expression::Expression;
+use crate::core::Expression;
 use crate::query::context::validate::types::Variable;
 use crate::utils::safe_lock;
 use std::sync::{Arc, Mutex};

@@ -58,7 +58,7 @@ impl OptRule for CombineFilterRule {
                             .clone();
                         let combined_filter_node = match FilterPlanNode::new(
                             input,
-                            crate::expression::Expression::Variable(combined_condition_str),
+                            crate::core::Expression::Variable(combined_condition_str),
                         ) {
                             Ok(node) => node,
                             Err(_) => top_filter.clone(),
@@ -126,7 +126,7 @@ impl MergeRule for CombineFilterRule {
                 .clone();
             let combined_filter_node = match FilterPlanNode::new(
                 input,
-                crate::expression::Expression::Variable(combined_condition_str),
+                crate::core::Expression::Variable(combined_condition_str),
             ) {
                 Ok(node) => node,
                 Err(_) => top_filter.clone(),
@@ -492,7 +492,7 @@ mod tests {
             std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new());
         let filter_node = match Filter::new(
             start_node,
-            crate::expression::Expression::Variable("col1 > 100".to_string()),
+            crate::core::Expression::Variable("col1 > 100".to_string()),
         ) {
             Ok(node) => std::sync::Arc::new(node),
             Err(_) => return,

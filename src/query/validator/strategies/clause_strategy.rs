@@ -4,7 +4,7 @@
 
 use super::super::structs::*;
 use super::super::validation_interface::*;
-use crate::expression::Expression;
+use crate::core::Expression;
 
 /// 子句验证策略
 pub struct ClauseValidationStrategy;
@@ -285,7 +285,7 @@ impl ValidationStrategy for ClauseValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::Expression;
+    use crate::core::Expression;
     use std::collections::HashMap;
 
     #[test]

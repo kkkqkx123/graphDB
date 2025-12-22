@@ -7,9 +7,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
-use crate::expression::context::ExpressionContextCore;
-use crate::expression::ExpressionContext;
-use crate::expression::{Expression, ExpressionEvaluator};
+use crate::core::context::expression::ExpressionContextCore;
+use crate::core::context::expression::{BasicExpressionContext, ExpressionContext};
+use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -59,7 +59,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
 
     /// 执行赋值操作
     fn execute_assign(&mut self) -> DBResult<()> {
-        let mut expr_context = ExpressionContext::default();
+        let mut expr_context = BasicBasicExpressionContext::default();
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {
@@ -158,7 +158,7 @@ mod tests {
     use super::*;
     use crate::config::test_config::test_config;
     use crate::core::Value;
-    use crate::expression::Expression;
+    use crate::core::Expression;
     use crate::storage::NativeStorage;
     use std::sync::{Arc, Mutex};
 

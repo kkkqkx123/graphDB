@@ -247,13 +247,13 @@ fn create_unwind_node(
 /// # 返回
 /// * `String` - 序列化后的字符串
 #[allow(dead_code)]
-fn serialize_expression(expr: &crate::expression::Expression) -> String {
+fn serialize_expression(expr: &crate::core::Expression) -> String {
     // 这里应该实现完整的表达式序列化逻辑
     // 目前使用简化的实现，实际项目中可能需要更复杂的序列化
     match expr {
-        crate::expression::Expression::Variable(name) => format!("${}", name),
-        crate::expression::Expression::Literal(_) => "literal".to_string(),
-        crate::expression::Expression::List(_) => "list".to_string(),
+        crate::core::Expression::Variable(name) => format!("${}", name),
+        crate::core::Expression::Literal(_) => "literal".to_string(),
+        crate::core::Expression::List(_) => "list".to_string(),
         _ => "expression".to_string(),
     }
 }
@@ -319,7 +319,7 @@ pub fn connect_unwind_to_input(
 /// # 重要提示
 /// UNWIND 表达式必须求值为列表类型，否则会在执行时出错。
 pub fn validate_unwind_expression_type(
-    _expr: &crate::expression::Expression,
+    _expr: &crate::core::Expression,
 ) -> Result<(), PlannerError> {
     // TODO: 实现完整的类型检查逻辑
     // 需要访问符号表或类型推断系统来验证表达式类型

@@ -176,7 +176,7 @@ impl PlanNode for ProjectNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::Expression;
+    use crate::core::Expression;
 
     #[test]
     fn test_project_node_creation() {

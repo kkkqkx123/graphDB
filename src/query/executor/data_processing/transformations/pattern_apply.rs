@@ -8,9 +8,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Edge, Path, Value, Vertex};
-use crate::expression::context::ExpressionContextCore;
-use crate::expression::ExpressionContext;
-use crate::expression::{Expression, ExpressionEvaluator};
+use crate::core::context::expression::ExpressionContextCore;
+use crate::core::context::expression::{BasicExpressionContext, ExpressionContext};
+use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -122,7 +122,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
         &self,
         vertex: &Vertex,
         pattern: &PatternType,
-        expr_context: &ExpressionContext,
+        expr_context: &dyn ExpressionContext,
     ) -> DBResult<bool> {
         if let PatternType::Node {
             labels, properties, ..
@@ -152,7 +152,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                         .unwrap_or(Value::Null(crate::core::NullType::UnknownProp));
 
                     // 创建临时表达式上下文
-                    let mut temp_context = ExpressionContext::default();
+                    let mut temp_context = BasicExpressionContext::default();
                     // 复制变量 - 使用新的变量访问方法
                     if let Some(variables) = expr_context.get_all_variables() {
                         for (name, value) in variables {
@@ -187,7 +187,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
         &self,
         edge: &Edge,
         pattern: &PatternType,
-        expr_context: &ExpressionContext,
+        expr_context: &dyn ExpressionContext,
     ) -> DBResult<bool> {
         if let PatternType::Edge {
             edge_type,
@@ -220,7 +220,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                         .unwrap_or(Value::Null(crate::core::NullType::UnknownProp));
 
                     // 创建临时表达式上下文
-                    let mut temp_context = ExpressionContext::default();
+                    let mut temp_context = BasicExpressionContext::default();
                     // 复制变量 - 使用新的变量访问方法
                     if let Some(variables) = expr_context.get_all_variables() {
                         for (name, value) in variables {
@@ -255,7 +255,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
         &self,
         path: &Path,
         pattern: &PatternType,
-        _expr_context: &ExpressionContext,
+        _expr_context: &dyn ExpressionContext,
     ) -> DBResult<bool> {
         if let PatternType::Path { length_range, .. } = pattern {
             // 检查路径长度
@@ -294,7 +294,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
             })?;
 
         // 创建表达式上下文
-        let mut expr_context = ExpressionContext::default();
+        let mut expr_context = BasicExpressionContext::default();
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {

@@ -5,7 +5,7 @@ use crate::core::visitor::{
     VisitorConfig, VisitorContext, VisitorCore, VisitorResult,
 };
 use crate::expression::visitor::ExpressionAcceptor;
-use crate::expression::{Expression, ExpressionVisitor, LiteralValue};
+use crate::core::{Expression, ExpressionVisitor, LiteralValue};
 use crate::query::visitor::QueryVisitor;
 use std::collections::{HashMap, HashSet};
 
@@ -409,7 +409,7 @@ impl ExpressionVisitor for DeducePropsVisitor {
     fn visit_binary(
         &mut self,
         left: &Expression,
-        _op: &crate::expression::BinaryOperator,
+        _op: &crate::core::BinaryOperator,
         right: &Expression,
     ) -> Self::Result {
         // 二元操作符，递归访问左右操作数
@@ -420,7 +420,7 @@ impl ExpressionVisitor for DeducePropsVisitor {
 
     fn visit_unary(
         &mut self,
-        _op: &crate::expression::UnaryOperator,
+        _op: &crate::core::UnaryOperator,
         operand: &Expression,
     ) -> Self::Result {
         // 一元操作符，递归访问操作数
@@ -438,7 +438,7 @@ impl ExpressionVisitor for DeducePropsVisitor {
 
     fn visit_aggregate(
         &mut self,
-        _func: &crate::expression::AggregateFunction,
+        _func: &crate::core::AggregateFunction,
         arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
@@ -479,7 +479,7 @@ impl ExpressionVisitor for DeducePropsVisitor {
     fn visit_type_cast(
         &mut self,
         expr: &Expression,
-        _target_type: &crate::expression::DataType,
+        _target_type: &crate::core::DataType,
     ) -> Self::Result {
         expr.accept(self)?;
         Ok(())
@@ -638,7 +638,7 @@ mod tests {
     #[test]
     fn test_deduce_visitor_constant() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expression::Literal(crate::expression::LiteralValue::Int(42));
+        let expr = Expression::Literal(crate::core::LiteralValue::Int(42));
 
         assert!(visitor.deduce(&expr).is_ok());
         assert!(visitor.get_props().is_all_props_empty());
@@ -706,7 +706,7 @@ mod tests {
         let mut visitor = DeducePropsVisitor::new();
         let expr = Expression::Binary {
             left: Box::new(Expression::Variable("age".to_string())),
-            op: crate::expression::BinaryOperator::Add,
+            op: crate::core::BinaryOperator::Add,
             right: Box::new(Expression::Variable("bonus".to_string())),
         };
 

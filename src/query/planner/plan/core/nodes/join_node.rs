@@ -8,7 +8,7 @@ use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
     PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
 };
-use crate::expression::Expression;
+use crate::core::Expression;
 use crate::query::context::validate::types::Variable;
 use std::sync::Arc;
 
@@ -506,7 +506,7 @@ impl PlanNode for CrossJoinNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::Expression;
+    use crate::core::Expression;
 
     #[test]
     fn test_inner_join_node_creation() {

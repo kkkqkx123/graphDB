@@ -3,7 +3,7 @@
 //! 用于表达式分析和转换访问器
 
 use crate::core::visitor::{VisitorCore, VisitorContext, VisitorResult};
-use crate::expression::{Expression, ExpressionVisitor};
+use crate::core::{Expression, ExpressionVisitor};
 
 mod deduce_props_visitor;
 mod deduce_type_visitor;

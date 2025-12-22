@@ -402,7 +402,7 @@ impl MatchPathPlanner {
     fn create_prop_index_scan(
         &self,
         node_info: &crate::query::validator::structs::path_structs::NodeInfo,
-        _props: &crate::expression::Expression,
+        _props: &crate::core::Expression,
         _space_id: i32,
     ) -> Result<Option<SubPlan>, PlannerError> {
         // 创建属性索引扫描节点
@@ -650,7 +650,7 @@ mod tests {
         let path = create_test_path("p", false, vec!["n"]);
 
         let where_clause = crate::query::validator::structs::WhereClauseContext {
-            filter: Some(crate::expression::Expression::Variable("x".to_string())),
+            filter: Some(crate::core::Expression::Variable("x".to_string())),
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),
             paths: vec![],
@@ -727,7 +727,7 @@ mod tests {
         let match_clause_ctx = create_test_match_clause_context();
 
         let mut path = create_test_path("p", false, vec!["n"]);
-        path.node_infos[0].props = Some(crate::expression::Expression::Literal(
+        path.node_infos[0].props = Some(crate::core::Expression::Literal(
             crate::expression::expression::LiteralValue::String("test".to_string()),
         ));
 
@@ -748,7 +748,7 @@ mod tests {
         let match_clause_ctx = create_test_match_clause_context();
 
         let mut path = create_test_path("p", false, vec!["n"]);
-        path.node_infos[0].filter = Some(crate::expression::Expression::Variable("x".to_string()));
+        path.node_infos[0].filter = Some(crate::core::Expression::Variable("x".to_string()));
 
         let mut planner = MatchPathPlanner::new(match_clause_ctx, path);
         let mut node_aliases_seen = std::collections::HashSet::new();

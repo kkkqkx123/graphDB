@@ -239,60 +239,60 @@ impl ValueAcceptor for Value {
 }
 
 /// 表达式访问者 trait - 用于访问Expression类型的各个变体
-pub trait ExpressionVisitor: VisitorCore<crate::expression::Expression> {
-    fn visit_literal(&mut self, value: &crate::expression::LiteralValue) -> Self::Result;
+pub trait ExpressionVisitor: VisitorCore<crate::core::Expression> {
+    fn visit_literal(&mut self, value: &crate::core::LiteralValue) -> Self::Result;
     fn visit_variable(&mut self, name: &str) -> Self::Result;
     fn visit_property(
         &mut self,
-        object: &crate::expression::Expression,
+        object: &crate::core::Expression,
         property: &str,
     ) -> Self::Result;
     fn visit_binary(
         &mut self,
-        left: &crate::expression::Expression,
-        op: &crate::expression::BinaryOperator,
-        right: &crate::expression::Expression,
+        left: &crate::core::Expression,
+        op: &crate::core::BinaryOperator,
+        right: &crate::core::Expression,
     ) -> Self::Result;
     fn visit_unary(
         &mut self,
-        op: &crate::expression::UnaryOperator,
-        operand: &crate::expression::Expression,
+        op: &crate::core::UnaryOperator,
+        operand: &crate::core::Expression,
     ) -> Self::Result;
     fn visit_function(
         &mut self,
         name: &str,
-        args: &[crate::expression::Expression],
+        args: &[crate::core::Expression],
     ) -> Self::Result;
     fn visit_aggregate(
         &mut self,
-        func: &crate::expression::AggregateFunction,
-        arg: &crate::expression::Expression,
+        func: &crate::core::AggregateFunction,
+        arg: &crate::core::Expression,
         distinct: bool,
     ) -> Self::Result;
-    fn visit_list(&mut self, items: &[crate::expression::Expression]) -> Self::Result;
-    fn visit_map(&mut self, pairs: &[(String, crate::expression::Expression)]) -> Self::Result;
+    fn visit_list(&mut self, items: &[crate::core::Expression]) -> Self::Result;
+    fn visit_map(&mut self, pairs: &[(String, crate::core::Expression)]) -> Self::Result;
     fn visit_case(
         &mut self,
-        conditions: &[(crate::expression::Expression, crate::expression::Expression)],
-        default: &Option<crate::expression::Expression>,
+        conditions: &[(crate::core::Expression, crate::core::Expression)],
+        default: &Option<crate::core::Expression>,
     ) -> Self::Result;
     fn visit_type_cast(
         &mut self,
-        expr: &crate::expression::Expression,
-        target_type: &crate::expression::DataType,
+        expr: &crate::core::Expression,
+        target_type: &crate::core::DataType,
     ) -> Self::Result;
     fn visit_subscript(
         &mut self,
-        collection: &crate::expression::Expression,
-        index: &crate::expression::Expression,
+        collection: &crate::core::Expression,
+        index: &crate::core::Expression,
     ) -> Self::Result;
     fn visit_range(
         &mut self,
-        collection: &crate::expression::Expression,
-        start: &Option<crate::expression::Expression>,
-        end: &Option<crate::expression::Expression>,
+        collection: &crate::core::Expression,
+        start: &Option<crate::core::Expression>,
+        end: &Option<crate::core::Expression>,
     ) -> Self::Result;
-    fn visit_path(&mut self, items: &[crate::expression::Expression]) -> Self::Result;
+    fn visit_path(&mut self, items: &[crate::core::Expression]) -> Self::Result;
     fn visit_label(&mut self, name: &str) -> Self::Result;
     fn visit_tag_property(&mut self, tag: &str, prop: &str) -> Self::Result;
     fn visit_edge_property(&mut self, edge: &str, prop: &str) -> Self::Result;
@@ -308,9 +308,9 @@ pub trait ExpressionAcceptor {
     fn accept<V: ExpressionVisitor>(&self, visitor: &mut V) -> V::Result;
 }
 
-impl ExpressionAcceptor for crate::expression::Expression {
+impl ExpressionAcceptor for crate::core::Expression {
     fn accept<V: ExpressionVisitor>(&self, visitor: &mut V) -> V::Result {
-        use crate::expression::Expression;
+        use crate::core::Expression;
 
         match self {
             Expression::Literal(value) => visitor.visit_literal(value),
@@ -363,35 +363,35 @@ impl ExpressionAcceptor for crate::expression::Expression {
 
             // 处理新增的表达式类型
             Expression::UnaryPlus(expr) => {
-                visitor.visit_unary(&crate::expression::UnaryOperator::Plus, expr)
+                visitor.visit_unary(&crate::core::UnaryOperator::Plus, expr)
             }
             Expression::UnaryNegate(expr) => {
-                visitor.visit_unary(&crate::expression::UnaryOperator::Minus, expr)
+                visitor.visit_unary(&crate::core::UnaryOperator::Minus, expr)
             }
             Expression::UnaryNot(expr) => {
-                visitor.visit_unary(&crate::expression::UnaryOperator::Not, expr)
+                visitor.visit_unary(&crate::core::UnaryOperator::Not, expr)
             }
             Expression::UnaryIncr(expr) => {
-                visitor.visit_unary(&crate::expression::UnaryOperator::Increment, expr)
+                visitor.visit_unary(&crate::core::UnaryOperator::Increment, expr)
             }
             Expression::UnaryDecr(expr) => {
-                visitor.visit_unary(&crate::expression::UnaryOperator::Decrement, expr)
+                visitor.visit_unary(&crate::core::UnaryOperator::Decrement, expr)
             }
             Expression::IsNull(expr) => {
-                visitor.visit_unary(&crate::expression::UnaryOperator::IsNull, expr)
+                visitor.visit_unary(&crate::core::UnaryOperator::IsNull, expr)
             }
             Expression::IsNotNull(expr) => {
-                visitor.visit_unary(&crate::expression::UnaryOperator::IsNotNull, expr)
+                visitor.visit_unary(&crate::core::UnaryOperator::IsNotNull, expr)
             }
             Expression::IsEmpty(expr) => {
-                visitor.visit_unary(&crate::expression::UnaryOperator::IsEmpty, expr)
+                visitor.visit_unary(&crate::core::UnaryOperator::IsEmpty, expr)
             }
             Expression::IsNotEmpty(expr) => {
-                visitor.visit_unary(&crate::expression::UnaryOperator::IsNotEmpty, expr)
+                visitor.visit_unary(&crate::core::UnaryOperator::IsNotEmpty, expr)
             }
 
             Expression::TypeCasting { expr, target_type } => {
-                visitor.visit_type_cast(expr, &crate::expression::DataType::String)
+                visitor.visit_type_cast(expr, &crate::core::DataType::String)
             }
             Expression::ListComprehension {
                 generator,
@@ -401,7 +401,7 @@ impl ExpressionAcceptor for crate::expression::Expression {
                 let cond_expr = condition
                     .as_ref()
                     .map(|c| (**c).clone())
-                    .unwrap_or_else(|| crate::expression::Expression::bool(true));
+                    .unwrap_or_else(|| crate::core::Expression::bool(true));
                 visitor.visit_function("list_comprehension", &[(**generator).clone(), cond_expr])
             }
             Expression::Predicate { list, condition } => {
@@ -418,7 +418,7 @@ impl ExpressionAcceptor for crate::expression::Expression {
             ),
             Expression::PathBuild(items) => visitor.visit_path(items),
             Expression::ESQuery(query) => {
-                visitor.visit_function("es_query", &[crate::expression::Expression::string(query)])
+                visitor.visit_function("es_query", &[crate::core::Expression::string(query)])
             }
             Expression::UUID => visitor.visit_function("uuid", &[]),
             Expression::SubscriptRange {

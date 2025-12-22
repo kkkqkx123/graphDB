@@ -6,7 +6,7 @@ use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{
     combine_conditions, combine_expression_list, BaseOptRule, FilterSplitResult, PushDownRule,
 };
-use crate::expression::Expression;
+use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::algorithms::IndexScan;
 use crate::query::planner::plan::core::nodes::ExpandNode as Expand;
@@ -1050,7 +1050,7 @@ fn can_push_down_to_traverse(condition: &Expression) -> FilterSplitResult {
 
 // 尝试解析过滤条件为表达式
 #[allow(unused_variables)]
-fn parse_filter_condition(condition: &Expression) -> Result<crate::expression::Expression, String> {
+fn parse_filter_condition(condition: &Expression) -> Result<crate::core::Expression, String> {
     // 这里应该使用表达式解析器，但为了简化，我们使用一个简单的实现
     // 在实际实现中，应该使用完整的表达式解析器
     Ok(condition.clone())
@@ -1058,16 +1058,16 @@ fn parse_filter_condition(condition: &Expression) -> Result<crate::expression::E
 
 // 分析表达式，确定哪些部分可以下推到扫描操作
 fn analyze_expression_for_scan(
-    expr: &crate::expression::Expression,
+    expr: &crate::core::Expression,
     pushable_conditions: &mut Vec<String>,
     remaining_conditions: &mut Vec<String>,
 ) {
     // 分析表达式
     // 通常，只涉及顶点属性的条件可以下推到ScanVertices
     match expr {
-        crate::expression::Expression::Binary { left, op, right } => {
+        crate::core::Expression::Binary { left, op, right } => {
             // 检查是否是AND操作
-            if matches!(op, crate::expression::BinaryOperator::And) {
+            if matches!(op, crate::core::BinaryOperator::And) {
                 // 递归分析左右子表达式
                 analyze_expression_for_scan(left, pushable_conditions, remaining_conditions);
                 analyze_expression_for_scan(right, pushable_conditions, remaining_conditions);
@@ -1093,16 +1093,16 @@ fn analyze_expression_for_scan(
 
 // 分析表达式，确定哪些部分可以下推到遍历操作
 fn analyze_expression_for_traverse(
-    expr: &crate::expression::Expression,
+    expr: &crate::core::Expression,
     pushable_conditions: &mut Vec<String>,
     remaining_conditions: &mut Vec<String>,
 ) {
     // 分析表达式
     // 通常，涉及源顶点属性的条件可以下推到Traverse
     match expr {
-        crate::expression::Expression::Binary { left, op, right } => {
+        crate::core::Expression::Binary { left, op, right } => {
             // 检查是否是AND操作
-            if matches!(op, crate::expression::BinaryOperator::And) {
+            if matches!(op, crate::core::BinaryOperator::And) {
                 // 递归分析左右子表达式
                 analyze_expression_for_traverse(left, pushable_conditions, remaining_conditions);
                 analyze_expression_for_traverse(right, pushable_conditions, remaining_conditions);
@@ -1127,18 +1127,18 @@ fn analyze_expression_for_traverse(
 }
 
 // 检查表达式是否可以下推到扫描操作
-fn can_push_down_expression_to_scan(expr: &crate::expression::Expression) -> bool {
+fn can_push_down_expression_to_scan(expr: &crate::core::Expression) -> bool {
     // 检查表达式是否可以下推到扫描操作
     match expr {
-        crate::expression::Expression::TagProperty { .. } => true,
-        crate::expression::Expression::Property { .. } => true,
-        crate::expression::Expression::Binary { left, right, .. } => {
+        crate::core::Expression::TagProperty { .. } => true,
+        crate::core::Expression::Property { .. } => true,
+        crate::core::Expression::Binary { left, right, .. } => {
             can_push_down_expression_to_scan(left) && can_push_down_expression_to_scan(right)
         }
-        crate::expression::Expression::Unary { operand, .. } => {
+        crate::core::Expression::Unary { operand, .. } => {
             can_push_down_expression_to_scan(operand)
         }
-        crate::expression::Expression::Function { name, .. } => {
+        crate::core::Expression::Function { name, .. } => {
             // 某些函数可以下推，如id(), properties()等
             matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
         }
@@ -1147,19 +1147,19 @@ fn can_push_down_expression_to_scan(expr: &crate::expression::Expression) -> boo
 }
 
 // 检查表达式是否可以下推到遍历操作
-fn can_push_down_expression_to_traverse(expr: &crate::expression::Expression) -> bool {
+fn can_push_down_expression_to_traverse(expr: &crate::core::Expression) -> bool {
     // 检查表达式是否可以下推到遍历操作
     match expr {
-        crate::expression::Expression::SourceProperty { .. } => true,
-        crate::expression::Expression::EdgeProperty { .. } => true,
-        crate::expression::Expression::Binary { left, right, .. } => {
+        crate::core::Expression::SourceProperty { .. } => true,
+        crate::core::Expression::EdgeProperty { .. } => true,
+        crate::core::Expression::Binary { left, right, .. } => {
             can_push_down_expression_to_traverse(left)
                 && can_push_down_expression_to_traverse(right)
         }
-        crate::expression::Expression::Unary { operand, .. } => {
+        crate::core::Expression::Unary { operand, .. } => {
             can_push_down_expression_to_traverse(operand)
         }
-        crate::expression::Expression::Function { name, .. } => {
+        crate::core::Expression::Function { name, .. } => {
             // 某些函数可以下推，如id(), properties()等
             matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
         }
@@ -1190,7 +1190,7 @@ mod tests {
         let filter_node = std::sync::Arc::new(
             FilterNode::new(
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::expression::Expression::Variable("col1 > 100".to_string()),
+                crate::core::Expression::Variable("col1 > 100".to_string()),
             )
             .expect("Filter node should be created successfully"),
         );
@@ -1210,7 +1210,7 @@ mod tests {
         let filter_node = std::sync::Arc::new(
             FilterNode::new(
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::expression::Expression::Variable("col1 > 100".to_string()),
+                crate::core::Expression::Variable("col1 > 100".to_string()),
             )
             .expect("Filter node should be created successfully"),
         );
@@ -1230,7 +1230,7 @@ mod tests {
         let filter_node = std::sync::Arc::new(
             FilterNode::new(
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::expression::Expression::Variable("col1 > 100".to_string()),
+                crate::core::Expression::Variable("col1 > 100".to_string()),
             )
             .expect("Filter node should be created successfully"),
         );
@@ -1250,7 +1250,7 @@ mod tests {
         let filter_node = std::sync::Arc::new(
             FilterNode::new(
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::expression::Expression::Variable("col1 > 100".to_string()),
+                crate::core::Expression::Variable("col1 > 100".to_string()),
             )
             .expect("Filter node should be created successfully"),
         );
@@ -1270,7 +1270,7 @@ mod tests {
         let filter_node = std::sync::Arc::new(
             FilterNode::new(
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::expression::Expression::Variable("col1 > 100".to_string()),
+                crate::core::Expression::Variable("col1 > 100".to_string()),
             )
             .expect("Filter node should be created successfully"),
         );
@@ -1290,7 +1290,7 @@ mod tests {
         let filter_node = std::sync::Arc::new(
             FilterNode::new(
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::expression::Expression::Variable("col1 > 100".to_string()),
+                crate::core::Expression::Variable("col1 > 100".to_string()),
             )
             .expect("Filter node should be created successfully"),
         );
@@ -1310,7 +1310,7 @@ mod tests {
         let filter_node = std::sync::Arc::new(
             FilterNode::new(
                 std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::expression::Expression::Variable("col1 > 100".to_string()),
+                crate::core::Expression::Variable("col1 > 100".to_string()),
             )
             .expect("Filter node should be created successfully"),
         );
@@ -1324,7 +1324,7 @@ mod tests {
     #[test]
     fn test_can_push_down_to_scan() {
         // 测试辅助函数
-        let result = can_push_down_to_scan(&crate::expression::Expression::Variable(
+        let result = can_push_down_to_scan(&crate::core::Expression::Variable(
             "age > 18".to_string(),
         ));
         // 应该返回带有可下推条件的结果
@@ -1334,7 +1334,7 @@ mod tests {
     #[test]
     fn test_can_push_down_to_traverse() {
         // 测试辅助函数
-        let result = can_push_down_to_traverse(&crate::expression::Expression::Variable(
+        let result = can_push_down_to_traverse(&crate::core::Expression::Variable(
             "age > 18".to_string(),
         ));
         // 应该返回带有可下推条件的结果

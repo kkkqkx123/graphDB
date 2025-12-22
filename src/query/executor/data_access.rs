@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use super::base::BaseExecutor;
 use crate::core::Value;
-use crate::expression::context::ExpressionContextCore;
+use crate::core::context::expression::ExpressionContextCore;
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
 };
@@ -15,8 +15,8 @@ use crate::utils::safe_lock;
 pub struct GetVerticesExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
-    tag_filter: Option<crate::expression::Expression>,
-    vertex_filter: Option<crate::expression::Expression>,
+    tag_filter: Option<crate::core::Expression>,
+    vertex_filter: Option<crate::core::Expression>,
     limit: Option<usize>,
     tag_processor: crate::query::executor::tag_filter::TagFilterProcessor,
 }
@@ -26,8 +26,8 @@ impl<S: StorageEngine> GetVerticesExecutor<S> {
         id: usize,
         storage: Arc<Mutex<S>>,
         vertex_ids: Option<Vec<Value>>,
-        tag_filter: Option<crate::expression::Expression>,
-        vertex_filter: Option<crate::expression::Expression>,
+        tag_filter: Option<crate::core::Expression>,
+        vertex_filter: Option<crate::core::Expression>,
         limit: Option<usize>,
     ) -> Self {
         Self {
@@ -96,12 +96,12 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
 
                 // 应用顶点过滤表达式
                 if let Some(ref filter_expr) = self.vertex_filter {
-                    let evaluator = crate::expression::ExpressionEvaluator::new();
+                    let evaluator = crate::core::ExpressionEvaluator::new();
                     all_vertices = all_vertices
                         .into_iter()
                         .filter(|vertex| {
                             // 创建评估上下文
-                            let mut context = crate::expression::ExpressionContext::default();
+                            let mut context = crate::core::BasicExpressionContext::default();
                             context.set_variable(
                                 "vertex".to_string(),
                                 crate::core::Value::Vertex(Box::new(vertex.clone())),

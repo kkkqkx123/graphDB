@@ -5,8 +5,8 @@
 
 use crate::core::error::DBError;
 use crate::core::Value;
-use crate::expression::context::ExpressionContextCore;
-use crate::expression::ExpressionEvaluator as GraphExpressionEvaluator;
+use crate::core::context::expression::ExpressionContextCore;
+use crate::core::ExpressionEvaluator as GraphExpressionEvaluator;
 use crate::query::executor::cypher::context::CypherExecutionContext;
 use crate::query::parser::cypher::ast::expressions::Expression;
 
@@ -68,9 +68,9 @@ impl ExpressionEvaluator {
     fn convert_context(
         &self,
         context: &CypherExecutionContext,
-    ) -> crate::expression::ExpressionContext {
+    ) -> crate::core::ExpressionContext {
         // 创建新的求值上下文
-        let mut eval_context = crate::expression::ExpressionContext::default();
+        let mut eval_context = crate::core::BasicExpressionContext::default();
 
         // 复制变量
         for (name, cypher_var) in context.variables() {

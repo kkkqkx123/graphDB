@@ -1,6 +1,6 @@
 use crate::core::ExpressionError;
 use crate::core::Value;
-use crate::expression::{Expression, ExpressionContext};
+use crate::core::{Expression, ExpressionContext};
 use serde::{Deserialize, Serialize};
 
 /// Unary operators for expressions
@@ -22,7 +22,7 @@ pub enum UnaryOperator {
 pub fn evaluate_unary_op(
     op: &UnaryOperator,
     operand: &Expression,
-    context: &ExpressionContext,
+    context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
     let evaluator = super::evaluator::ExpressionEvaluator;
     let operand_val = evaluator.evaluate(operand, context)?;
@@ -64,7 +64,7 @@ pub fn evaluate_unary_op(
 // 评估扩展的一元操作表达式
 pub fn evaluate_extended_unary_op(
     expr: &Expression,
-    context: &ExpressionContext,
+    context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
     match expr {
         Expression::UnaryPlus(operand) => {

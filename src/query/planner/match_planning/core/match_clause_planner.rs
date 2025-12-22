@@ -14,7 +14,7 @@
 /// ### 简化实现逻辑
 /// - 移除复杂的验证逻辑，内聚到接口中
 /// - 专注于核心的路径处理和变量管理
-use crate::expression::Expression;
+use crate::core::Expression;
 use crate::query::planner::match_planning::core::{
     ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext, VariableInfo,
 };

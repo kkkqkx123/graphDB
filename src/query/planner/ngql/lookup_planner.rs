@@ -64,7 +64,7 @@ impl Planner for LookupPlanner {
         if let Some(ref condition) = lookup_ctx.filter {
             // 这里需要将condition转换为Expression类型
             // 暂时使用空表达式作为占位符
-            use crate::expression::Expression;
+            use crate::core::Expression;
             let expr = Expression::Variable(condition.clone());
 
             let filter_node = Arc::new(
@@ -85,7 +85,7 @@ impl Planner for LookupPlanner {
         // 3. 创建投影节点
         use crate::query::validator::YieldColumn;
         let yield_columns = vec![YieldColumn {
-            expr: crate::expression::Expression::Variable(
+            expr: crate::core::Expression::Variable(
                 lookup_ctx.yield_expr.clone().unwrap_or("*".to_string()),
             ),
             alias: "result".to_string(),

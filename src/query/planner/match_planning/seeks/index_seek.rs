@@ -1,7 +1,7 @@
 /// 索引查找规划器
 /// 根据标签索引和属性索引进行查找
 /// 负责规划基于索引的查找操作，包括标签索引、属性索引和可变属性索引
-use crate::expression::Expression;
+use crate::core::Expression;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
@@ -261,7 +261,7 @@ impl IndexSeek {
         for expr in &prop_exprs[1..] {
             filter_expr = Expression::Binary {
                 left: Box::new(filter_expr),
-                op: crate::expression::BinaryOperator::And,
+                op: crate::core::BinaryOperator::And,
                 right: Box::new(expr.clone()),
             };
         }
@@ -295,7 +295,7 @@ impl IndexSeek {
         for expr in &valid_exprs[1..] {
             filter_expr = Expression::Binary {
                 left: Box::new(filter_expr),
-                op: crate::expression::BinaryOperator::And,
+                op: crate::core::BinaryOperator::And,
                 right: Box::new((*expr).clone()),
             };
         }
@@ -349,12 +349,12 @@ impl IndexSeek {
                 Expression::Binary { op, .. } => {
                     // 只允许比较操作符
                     match op {
-                        crate::expression::BinaryOperator::Equal
-                        | crate::expression::BinaryOperator::NotEqual
-                        | crate::expression::BinaryOperator::LessThan
-                        | crate::expression::BinaryOperator::LessThanOrEqual
-                        | crate::expression::BinaryOperator::GreaterThan
-                        | crate::expression::BinaryOperator::GreaterThanOrEqual => {
+                        crate::core::BinaryOperator::Equal
+                        | crate::core::BinaryOperator::NotEqual
+                        | crate::core::BinaryOperator::LessThan
+                        | crate::core::BinaryOperator::LessThanOrEqual
+                        | crate::core::BinaryOperator::GreaterThan
+                        | crate::core::BinaryOperator::GreaterThanOrEqual => {
                             // 这些是有效的比较操作符
                         }
                         _ => {
@@ -419,7 +419,7 @@ impl SeekStrategy for IndexSeek {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::Expression;
+    use crate::core::Expression;
 
     fn create_test_node_info(labels: Vec<&str>, tids: Vec<i32>) -> NodeInfo {
         NodeInfo {
@@ -652,7 +652,7 @@ mod tests {
         let expr = result.expect("Failed to create property filter expression");
         match expr {
             Expression::Binary { op, .. } => {
-                assert_eq!(op, crate::expression::BinaryOperator::And);
+                assert_eq!(op, crate::core::BinaryOperator::And);
             }
             _ => panic!("Expected Binary expression with AND operator"),
         }
@@ -701,7 +701,7 @@ mod tests {
         // 有效的表达式
         let valid_exprs = vec![Expression::Binary {
             left: Box::new(Expression::Variable("x".to_string())),
-            op: crate::expression::BinaryOperator::Equal,
+            op: crate::core::BinaryOperator::Equal,
             right: Box::new(Expression::Literal(
                 crate::expression::expression::LiteralValue::String("test".to_string()),
             )),
@@ -712,7 +712,7 @@ mod tests {
         // 无效的二元操作符
         let invalid_exprs = vec![Expression::Binary {
             left: Box::new(Expression::Variable("x".to_string())),
-            op: crate::expression::BinaryOperator::Add,
+            op: crate::core::BinaryOperator::Add,
             right: Box::new(Expression::Literal(
                 crate::expression::expression::LiteralValue::Int(1),
             )),
@@ -738,7 +738,7 @@ mod tests {
         let node_info = create_test_node_info(vec!["Person"], vec![1]);
         let prop_exprs = vec![Expression::Binary {
             left: Box::new(Expression::Variable("x".to_string())),
-            op: crate::expression::BinaryOperator::Equal,
+            op: crate::core::BinaryOperator::Equal,
             right: Box::new(Expression::Literal(
                 crate::expression::expression::LiteralValue::String("test".to_string()),
             )),

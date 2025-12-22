@@ -8,9 +8,9 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
 use crate::core::Value;
-use crate::expression::context::ExpressionContextCore;
-use crate::expression::ExpressionContext;
-use crate::expression::{Expression, ExpressionEvaluator};
+use crate::core::context::expression::ExpressionContextCore;
+use crate::core::context::expression::{BasicExpressionContext, ExpressionContext};
+use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
@@ -88,7 +88,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for row in &dataset.rows {
             // 构建表达式上下文
-            let mut context = ExpressionContext::default();
+            let mut context = BasicExpressionContext::default();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
                     context.set_variable(col_name.clone(), row[i].clone());
@@ -120,7 +120,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for value in values {
             // 构建表达式上下文
-            let mut context = ExpressionContext::default();
+            let mut context = BasicExpressionContext::default();
             context.set_variable("value".to_string(), value.clone());
 
             // 评估过滤条件
@@ -150,7 +150,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for vertex in vertices {
             // 构建表达式上下文
-            let mut context = ExpressionContext::default();
+            let mut context = BasicExpressionContext::default();
             // 设置顶点信息
             context.set_variable(
                 "_vertex".to_string(),
@@ -181,7 +181,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for edge in edges {
             // 构建表达式上下文
-            let mut context = ExpressionContext::default();
+            let mut context = BasicExpressionContext::default();
             // 设置边信息
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
@@ -435,8 +435,8 @@ mod tests {
                 object: Box::new(Expression::Variable("row".to_string())),
                 property: "age".to_string(),
             }),
-            op: crate::expression::BinaryOperator::GreaterThan,
-            right: Box::new(Expression::Literal(crate::expression::LiteralValue::Int(
+            op: crate::core::BinaryOperator::GreaterThan,
+            right: Box::new(Expression::Literal(crate::core::LiteralValue::Int(
                 25,
             ))),
         };

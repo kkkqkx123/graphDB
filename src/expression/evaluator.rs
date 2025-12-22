@@ -2,8 +2,8 @@ use super::evaluator_trait::ExpressionEvaluator as ExpressionEvaluatorTrait;
 use super::operator_conversion;
 use super::type_conversion;
 use crate::core::{ExpressionError, Value};
-use crate::expression::context::ExpressionContextCore;
-use crate::expression::{Expression, ExpressionContext, LiteralValue};
+use crate::core::context::expression::ExpressionContextCore;
+use crate::core::{Expression, ExpressionContext, LiteralValue};
 use crate::query::parser::cypher::ast::expressions::Expression as CypherExpression;
 
 /// Expression evaluator implementation
@@ -20,7 +20,7 @@ impl ExpressionEvaluator {
     pub fn evaluate(
         &self,
         expr: &Expression,
-        context: &ExpressionContext,
+        context: &dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         self.eval_expression(expr, context)
     }
@@ -29,7 +29,7 @@ impl ExpressionEvaluator {
     pub fn eval_expression(
         &self,
         expr: &Expression,
-        context: &ExpressionContext,
+        context: &dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         match expr {
             Expression::Literal(literal_value) => {
@@ -157,7 +157,7 @@ impl ExpressionEvaluator {
                     Value::List(items) => {
                         for item in items {
                             // 创建一个临时上下文，将当前元素作为变量
-                            let mut temp_context = crate::expression::ExpressionContext::default();
+                            let mut temp_context = crate::core::BasicExpressionContext::default();
                             temp_context.set_variable("__item".to_string(), item);
 
                             let cond_result = self.evaluate(&condition_clone, &temp_context)?;
@@ -186,7 +186,7 @@ impl ExpressionEvaluator {
                     Value::List(items) => {
                         let mut accumulator = initial_value;
                         for item in items {
-                            let mut temp_context = crate::expression::ExpressionContext::default();
+                            let mut temp_context = crate::core::BasicExpressionContext::default();
                             temp_context.set_variable(var.clone(), item);
 
                             // 这里需要使用当前累加器值，但在简化实现中，我们只计算一次
@@ -447,7 +447,7 @@ impl ExpressionEvaluator {
     pub fn evaluate_cypher(
         &self,
         cypher_expr: &CypherExpression,
-        context: &ExpressionContext,
+        context: &dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         super::cypher::CypherEvaluator::evaluate_cypher(cypher_expr, context)
     }
@@ -456,7 +456,7 @@ impl ExpressionEvaluator {
     pub fn evaluate_cypher_batch(
         &self,
         cypher_exprs: &[CypherExpression],
-        context: &ExpressionContext,
+        context: &dyn ExpressionContext,
     ) -> Result<Vec<Value>, ExpressionError> {
         super::cypher::CypherEvaluator::evaluate_cypher_batch(cypher_exprs, context)
     }
@@ -487,7 +487,7 @@ impl ExpressionEvaluatorTrait for ExpressionEvaluator {
     fn evaluate(
         &self,
         expr: &Expression,
-        context: &ExpressionContext,
+        context: &dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         self.eval_expression(expr, context)
     }
@@ -495,7 +495,7 @@ impl ExpressionEvaluatorTrait for ExpressionEvaluator {
     fn evaluate_batch(
         &self,
         exprs: &[Expression],
-        context: &ExpressionContext,
+        context: &dyn ExpressionContext,
     ) -> Result<Vec<Value>, ExpressionError> {
         let mut results = Vec::with_capacity(exprs.len());
         for expr in exprs {
@@ -695,7 +695,7 @@ pub fn evaluator() -> ExpressionEvaluator {
 /// 便捷函数：使用表达式求值器求值表达式
 pub fn evaluate_expression(
     expr: &Expression,
-    context: &ExpressionContext,
+    context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
     evaluator().evaluate(expr, context)
 }
@@ -703,7 +703,7 @@ pub fn evaluate_expression(
 /// 便捷函数：使用表达式求值器批量求值表达式
 pub fn evaluate_expressions(
     exprs: &[Expression],
-    context: &ExpressionContext,
+    context: &dyn ExpressionContext,
 ) -> Result<Vec<Value>, ExpressionError> {
     evaluator().evaluate_batch(exprs, context)
 }
@@ -712,14 +712,14 @@ pub fn evaluate_expressions(
 mod tests {
     use super::super::evaluator_trait::ExpressionEvaluator as ExpressionEvaluatorTrait;
     use super::*;
-    use crate::expression::{
+    use crate::core::{
         AggregateFunction, BinaryOperator, Expression, LiteralValue, UnaryOperator,
     };
 
     #[test]
     fn test_evaluator_trait_implementation() {
         let evaluator = ExpressionEvaluator::new();
-        let context = ExpressionContext::default();
+        let context = BasicExpressionContext::default();
 
         // 测试字面量求值
         let expr = Expression::Literal(LiteralValue::Int(42));
@@ -727,7 +727,7 @@ mod tests {
         assert_eq!(result, Value::Int(42));
 
         // 测试变量求值
-        let mut ctx = ExpressionContext::default();
+        let mut ctx = BasicExpressionContext::default();
         ctx.set_variable("x".to_string(), Value::Int(100));
 
         let expr = Expression::Variable("x".to_string());
@@ -738,7 +738,7 @@ mod tests {
     #[test]
     fn test_batch_evaluation() {
         let evaluator = ExpressionEvaluator::new();
-        let context = ExpressionContext::default();
+        let context = BasicExpressionContext::default();
 
         let exprs = vec![
             Expression::Literal(LiteralValue::Int(1)),

@@ -247,7 +247,7 @@ impl ShortestPathPlanner {
     fn create_prop_index_scan(
         &self,
         node_info: &crate::query::validator::structs::path_structs::NodeInfo,
-        _props: &crate::expression::Expression,
+        _props: &crate::core::Expression,
     ) -> Result<Option<SubPlan>, PlannerError> {
         // 创建属性索引扫描节点
         let index_scan_node = PlanNodeFactory::create_placeholder_node()?;

@@ -3,7 +3,7 @@
 //! 这个模块提供了统一的表达式访问者基础设施，支持零成本抽象
 
 use crate::core::visitor::{VisitorCore, VisitorContext, VisitorResult};
-use crate::expression::{Expression, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction, DataType};
+use crate::core::{Expression, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction, DataType};
 
 /// 表达式访问者 trait - 用于访问Expression类型的各个变体
 pub trait ExpressionVisitor: VisitorCore<Expression> {
@@ -272,7 +272,7 @@ impl ExpressionVisitor for DefaultExpressionVisitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::{BinaryOperator, LiteralValue};
+    use crate::core::{BinaryOperator, LiteralValue};
 
     #[test]
     fn test_default_expression_visitor() {

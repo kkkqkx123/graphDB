@@ -268,7 +268,7 @@ impl ResultProcessorFactory {
         aggregate_functions: Vec<
             crate::query::executor::result_processing::aggregation::AggregateFunction,
         >,
-        group_keys: Vec<crate::expression::Expression>,
+        group_keys: Vec<crate::core::Expression>,
     ) -> crate::query::executor::result_processing::aggregation::AggregateExecutor<S> {
         crate::query::executor::result_processing::aggregation::AggregateExecutor::new(
             id,
@@ -297,7 +297,7 @@ impl ResultProcessorFactory {
     pub fn create_filter<S: StorageEngine>(
         id: usize,
         storage: Arc<Mutex<S>>,
-        condition: crate::expression::Expression,
+        condition: crate::core::Expression,
     ) -> crate::query::executor::result_processing::filter::FilterExecutor<S> {
         crate::query::executor::result_processing::filter::FilterExecutor::new(
             id, storage, condition,

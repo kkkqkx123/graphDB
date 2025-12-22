@@ -288,7 +288,7 @@ impl Default for Finder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::Expression;
+    use crate::core::Expression;
     use crate::query::validator::structs::{
         AliasType, CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
         ReturnClauseContext, UnwindClauseContext, WhereClauseContext, WithClauseContext,

@@ -87,7 +87,7 @@ impl Planner for GoPlanner {
         // 4. 如果有JOIN操作，创建JOIN节点
         let join_node = if go_ctx.join_dst {
             // 使用InnerJoinNode替代HashLeftJoin
-            use crate::expression::Expression;
+            use crate::core::Expression;
             let join_key = Expression::Variable("_expandall_vid".to_string());
             let join = Arc::new(
                 InnerJoinNode::new(
@@ -105,7 +105,7 @@ impl Planner for GoPlanner {
 
         // 5. 创建过滤节点（如果有过滤条件）
         let filter_node = if let Some(ref condition) = go_ctx.filter {
-            use crate::expression::Expression;
+            use crate::core::Expression;
             let expr = Expression::Variable(condition.clone());
             let dependency_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
                 if let Some(ref join_ref) = join_node {
@@ -123,7 +123,7 @@ impl Planner for GoPlanner {
         };
 
         // 6. 创建投影节点
-        use crate::expression::Expression;
+        use crate::core::Expression;
         use crate::query::validator::YieldColumn;
         let yield_columns = vec![YieldColumn {
             expr: Expression::Variable(go_ctx.yield_expr.clone().unwrap_or("DEFAULT".to_string())),

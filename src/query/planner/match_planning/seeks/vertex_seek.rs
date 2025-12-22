@@ -1,7 +1,7 @@
 /// 顶点查找规划器
 /// 根据顶点ID进行查找
 /// 负责规划基于顶点ID的查找操作，包括固定ID和可变ID
-use crate::expression::Expression;
+use crate::core::Expression;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
@@ -169,7 +169,7 @@ impl SeekStrategy for VertexSeek {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::Expression;
+    use crate::core::Expression;
 
     fn create_test_node_info() -> NodeInfo {
         NodeInfo {

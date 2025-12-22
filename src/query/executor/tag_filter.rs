@@ -4,9 +4,9 @@
 
 use crate::core::vertex_edge_path::Vertex;
 use crate::core::Value;
-use crate::expression::context::ExpressionContextCore;
-use crate::expression::ExpressionContext;
-use crate::expression::{Expression, ExpressionEvaluator};
+use crate::core::context::expression::ExpressionContextCore;
+use crate::core::context::expression::{BasicExpressionContext, ExpressionContext};
+use crate::core::{Expression, ExpressionEvaluator};
 
 /// 标签过滤器处理器
 pub struct TagFilterProcessor {
@@ -46,7 +46,7 @@ impl TagFilterProcessor {
 
     /// 创建包含标签信息的评估上下文
     fn create_tag_context(&self, vertex: &Vertex) -> ExpressionContext {
-        let mut context = ExpressionContext::default();
+        let mut context = BasicExpressionContext::default();
 
         // 将顶点作为变量添加
         context.set_variable(

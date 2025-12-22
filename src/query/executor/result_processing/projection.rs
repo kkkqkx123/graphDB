@@ -7,9 +7,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
-use crate::expression::context::ExpressionContextCore;
-use crate::expression::ExpressionContext;
-use crate::expression::{Expression, ExpressionEvaluator};
+use crate::core::context::expression::ExpressionContextCore;
+use crate::core::context::expression::{BasicExpressionContext, ExpressionContext};
+use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -53,7 +53,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
         let evaluator = ExpressionEvaluator;
 
         // 为当前行创建评估上下文
-        let mut context = ExpressionContext::default();
+        let mut context = BasicExpressionContext::default();
 
         // 将当前行的值设置为上下文变量
         for (i, col_name) in col_names.iter().enumerate() {
@@ -113,7 +113,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
         // 对每个顶点进行投影
         for vertex in vertices {
-            let mut context = ExpressionContext::default();
+            let mut context = BasicExpressionContext::default();
             // 设置顶点信息
             context.set_variable(
                 "_vertex".to_string(),
@@ -162,7 +162,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
         // 对每个边进行投影
         for edge in edges {
-            let mut context = ExpressionContext::default();
+            let mut context = BasicExpressionContext::default();
             // 设置边信息
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
@@ -250,7 +250,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                 let evaluator = ExpressionEvaluator;
 
                 for path in paths {
-                    let mut context = ExpressionContext::default();
+                    let mut context = BasicExpressionContext::default();
                     // 设置路径相关信息作为变量
                     context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
                     context
@@ -339,7 +339,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
 mod tests {
     use super::*;
     use crate::core::value::{DataSet, Value};
-    use crate::expression::{BinaryOperator, Expression};
+    use crate::core::{BinaryOperator, Expression};
     use crate::query::executor::traits::{ExecutionResult, Executor, ExecutorCore};
     use crate::storage::StorageEngine;
 

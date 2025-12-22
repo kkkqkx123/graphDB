@@ -10,7 +10,7 @@ use super::structs::{
 use super::validation_factory::ValidationFactory;
 use super::validation_interface::{ValidationError, ValidationErrorType, ValidationStrategy};
 use super::ValidateContext;
-use crate::expression::Expression;
+use crate::core::Expression;
 use std::collections::HashMap;
 
 /// Match语句验证器
@@ -211,7 +211,7 @@ impl MatchValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::Expression;
+    use crate::core::Expression;
 
     #[test]
     fn test_match_validator_creation() {

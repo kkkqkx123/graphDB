@@ -17,17 +17,13 @@ pub mod type_conversion;
 pub mod unary;
 pub mod visitor;
 
-pub use visitor::{ExpressionVisitor, ExpressionAcceptor, DefaultExpressionVisitor};
+pub use visitor::{DefaultExpressionVisitor, ExpressionAcceptor, ExpressionVisitor};
 
 // 从Core模块重新导出表达式类型
 pub use crate::core::types::expression::{
     AggregateFunction, BinaryOperator, DataType, Expression, LiteralValue, UnaryOperator,
 };
 
-pub use context::{
-    DefaultExpressionContext, ExpressionContext, ExpressionContextCore, StorageExpressionContext,
-};
-pub use evaluator::ExpressionEvaluator;
 pub use evaluator_trait::{
     default_evaluator, evaluate_expression, evaluate_expressions, DefaultExpressionEvaluator,
     ExpressionEvaluator as ExpressionEvaluatorTrait,

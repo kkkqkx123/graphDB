@@ -2,7 +2,7 @@
 //! 对应 NebulaGraph FindVisitor.h/.cpp 的功能
 
 use crate::core::visitor::{VisitorContext, VisitorCore, VisitorResult};
-use crate::expression::{
+use crate::core::{
     AggregateFunction, BinaryOperator, DataType, Expression, ExpressionVisitor, LiteralValue,
     UnaryOperator,
 };
@@ -856,7 +856,7 @@ impl QueryVisitor for FindVisitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::{BinaryOperator, LiteralValue};
+    use crate::core::{BinaryOperator, LiteralValue};
 
     #[test]
     fn test_find_literals() {

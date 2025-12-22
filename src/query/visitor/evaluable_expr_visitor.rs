@@ -2,7 +2,7 @@
 //! 对应 NebulaGraph EvaluableExprVisitor.h/.cpp 的功能
 
 use crate::core::visitor::{VisitorCore, VisitorContext, VisitorResult};
-use crate::expression::{Expression, ExpressionVisitor, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction, DataType};
+use crate::core::{Expression, ExpressionVisitor, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction, DataType};
 use crate::query::visitor::QueryVisitor;
 
 #[derive(Debug)]

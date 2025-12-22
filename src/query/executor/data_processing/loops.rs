@@ -7,9 +7,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
-use crate::expression::context::ExpressionContextCore;
-use crate::expression::ExpressionContext;
-use crate::expression::{Expression, ExpressionEvaluator};
+use crate::core::context::expression::ExpressionContextCore;
+use crate::core::context::expression::{BasicExpressionContext, ExpressionContext};
+use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -59,7 +59,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
             loop_state: LoopState::NotStarted,
             evaluator: ExpressionEvaluator,
             results: Vec::new(),
-            loop_context: ExpressionContext::default(),
+            loop_context: BasicExpressionContext::default(),
         }
     }
 }
@@ -292,7 +292,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
         self.loop_state = LoopState::NotStarted;
         self.current_iteration = 0;
         self.results.clear();
-        self.loop_context = ExpressionContext::default();
+        self.loop_context = BasicExpressionContext::default();
 
         // 打开循环体执行器
         self.body_executor.open()?;
@@ -305,7 +305,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
 
         // 清理资源
         self.results.clear();
-        self.loop_context = ExpressionContext::default();
+        self.loop_context = BasicExpressionContext::default();
 
         Ok(())
     }
@@ -512,7 +512,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
 mod tests {
     use super::*;
     use crate::core::value::NullType;
-    use crate::expression::BinaryOperator;
+    use crate::core::BinaryOperator;
     use std::sync::{Arc, Mutex};
 
     // 模拟存储引擎

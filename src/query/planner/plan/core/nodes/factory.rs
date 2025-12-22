@@ -309,7 +309,7 @@ impl PlanNodeFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::Expression;
+    use crate::core::Expression;
     use crate::query::parser::ast::expr::{Expr, VariableExpr};
     use crate::query::parser::ast::types::Span;
     use crate::query::planner::PlanNodeKind;

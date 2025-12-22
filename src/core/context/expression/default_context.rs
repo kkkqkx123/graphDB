@@ -3,7 +3,7 @@
 //! 包含默认上下文和查询上下文适配器的实现
 
 use crate::core::{Edge, Value, Vertex};
-use crate::core::context::expression::ExpressionContextCore;
+use crate::core::context::expression::{ExpressionContextCore, StorageExpressionContextTrait};
 use std::collections::HashMap;
 
 /// 表达式求值上下文枚举
@@ -127,7 +127,7 @@ impl QueryContextAdapter {
     }
 }
 
-impl super::core::ExpressionContextCore for ExpressionContext {
+impl ExpressionContextCore for ExpressionContext {
     fn get_variable(&self, name: &str) -> Option<Value> {
         match self {
             ExpressionContext::Default(ctx) => ctx.vars.get(name).cloned(),
@@ -241,7 +241,7 @@ impl super::core::ExpressionContextCore for ExpressionContext {
     }
 }
 
-impl super::core::ExpressionContextCore for DefaultExpressionContext {
+impl ExpressionContextCore for DefaultExpressionContext {
     fn get_variable(&self, name: &str) -> Option<Value> {
         self.vars.get(name).cloned()
     }
@@ -295,7 +295,7 @@ impl super::core::ExpressionContextCore for DefaultExpressionContext {
     }
 }
 
-impl super::core::ExpressionContextCore for QueryContextAdapter {
+impl ExpressionContextCore for QueryContextAdapter {
     fn get_variable(&self, name: &str) -> Option<Value> {
         self.vars.get(name).cloned()
     }
@@ -382,7 +382,7 @@ impl ExpressionContext {
     }
 
     /// 转换为可变简单上下文（如果可能）
-    pub fn as_fault_mut(&mut self) -> Option<&mut DefaultExpressionContext> {
+    pub fn as_default_mut(&mut self) -> Option<&mut DefaultExpressionContext> {
         match self {
             ExpressionContext::Default(ctx) => Some(ctx),
             ExpressionContext::Query(_) => None,
@@ -432,7 +432,7 @@ pub struct ExpressionContextBuilder {
 impl ExpressionContextBuilder {
     pub fn new() -> Self {
         Self {
-            context: BasicExpressionContext::default(),
+            context: ExpressionContext::default(),
         }
     }
 
@@ -461,7 +461,9 @@ impl ExpressionContextBuilder {
     where
         I: IntoIterator<Item = (String, Value)>,
     {
-        self.context.set_variables(variables);
+        for (name, value) in variables {
+            self.context.set_variable(name, value);
+        }
         self
     }
 

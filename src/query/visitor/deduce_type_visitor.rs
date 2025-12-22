@@ -387,9 +387,9 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     /// 推导字面量表达式的类型
     fn visit_literal(
         &mut self,
-        value: &crate::expression::LiteralValue,
+        value: &crate::core::LiteralValue,
     ) -> Result<(), TypeDeductionError> {
-        use crate::expression::LiteralValue;
+        use crate::core::LiteralValue;
         self.type_ = match value {
             LiteralValue::Bool(_) => ValueTypeDef::Bool,
             LiteralValue::Int(_) => ValueTypeDef::Int,
@@ -557,9 +557,9 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     /// 推导聚合表达式的类型
     fn visit_aggregate_func(
         &mut self,
-        func: &crate::expression::AggregateFunction,
+        func: &crate::core::AggregateFunction,
     ) -> Result<(), TypeDeductionError> {
-        use crate::expression::AggregateFunction;
+        use crate::core::AggregateFunction;
         self.type_ = match func {
             AggregateFunction::Count => ValueTypeDef::Int,
             AggregateFunction::Sum => ValueTypeDef::Float,
@@ -708,8 +708,8 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 将DataType解析为ValueTypeDef
-    fn parse_data_type(&self, data_type: &crate::expression::DataType) -> ValueTypeDef {
-        use crate::expression::DataType;
+    fn parse_data_type(&self, data_type: &crate::core::DataType) -> ValueTypeDef {
+        use crate::core::DataType;
         match data_type {
             DataType::Bool => ValueTypeDef::Bool,
             DataType::Int => ValueTypeDef::Int,

@@ -1,4 +1,4 @@
-use crate::expression::{Expression, LiteralValue};
+use crate::core::{Expression, LiteralValue};
 /// 扫描查找规划器
 /// 进行全表扫描操作的规划
 /// 负责规划全表扫描操作
@@ -65,7 +65,7 @@ impl ScanSeek {
             let label_filter = self.create_single_label_filter(label_name)?;
             filter_expr = Expression::Binary {
                 left: Box::new(filter_expr),
-                op: crate::expression::BinaryOperator::Or,
+                op: crate::core::BinaryOperator::Or,
                 right: Box::new(label_filter),
             };
         }
@@ -140,7 +140,7 @@ impl SeekStrategy for ScanSeek {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::Expression;
+    use crate::core::Expression;
 
     fn create_test_node_info(labels: Vec<&str>, has_props: bool, has_filter: bool) -> NodeInfo {
         NodeInfo {
@@ -221,7 +221,7 @@ mod tests {
 
         match filter_expr {
             Expression::Binary { op, .. } => {
-                assert_eq!(op, crate::expression::BinaryOperator::Or);
+                assert_eq!(op, crate::core::BinaryOperator::Or);
             }
             _ => panic!("Expected Binary expression with OR operator"),
         }

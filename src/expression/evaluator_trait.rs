@@ -4,8 +4,8 @@
 
 use crate::core::ExpressionError;
 use crate::core::Value;
-use crate::expression::context::ExpressionContextCore;
-use crate::expression::{Expression, ExpressionContext};
+use crate::core::context::expression::ExpressionContextCore;
+use crate::core::{Expression, ExpressionContext};
 
 /// 表达式求值器统一接口
 ///
@@ -24,7 +24,7 @@ pub trait ExpressionEvaluator {
     fn evaluate(
         &self,
         expr: &Expression,
-        context: &ExpressionContext,
+        context: &dyn ExpressionContext,
     ) -> Result<Value, ExpressionError>;
 
     /// 批量求值表达式
@@ -39,7 +39,7 @@ pub trait ExpressionEvaluator {
     fn evaluate_batch(
         &self,
         exprs: &[Expression],
-        context: &ExpressionContext,
+        context: &dyn ExpressionContext,
     ) -> Result<Vec<Value>, ExpressionError> {
         let mut results = Vec::with_capacity(exprs.len());
         for expr in exprs {
@@ -124,7 +124,7 @@ impl ExpressionEvaluator for DefaultExpressionEvaluator {
     fn evaluate(
         &self,
         expr: &Expression,
-        context: &ExpressionContext,
+        context: &dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         // 委托给具体的求值实现
         self.eval_expression(expr, context)
@@ -133,7 +133,7 @@ impl ExpressionEvaluator for DefaultExpressionEvaluator {
     fn evaluate_batch(
         &self,
         exprs: &[Expression],
-        context: &ExpressionContext,
+        context: &dyn ExpressionContext,
     ) -> Result<Vec<Value>, ExpressionError> {
         let mut results = Vec::with_capacity(exprs.len());
         for expr in exprs {
@@ -190,17 +190,17 @@ impl DefaultExpressionEvaluator {
     fn eval_expression(
         &self,
         expr: &Expression,
-        context: &ExpressionContext,
+        context: &dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         match expr {
             Expression::Literal(literal_value) => {
                 // 将 LiteralValue 转换为 Value
                 match literal_value {
-                    crate::expression::LiteralValue::Bool(b) => Ok(Value::Bool(*b)),
-                    crate::expression::LiteralValue::Int(i) => Ok(Value::Int(*i)),
-                    crate::expression::LiteralValue::Float(f) => Ok(Value::Float(*f)),
-                    crate::expression::LiteralValue::String(s) => Ok(Value::String(s.clone())),
-                    crate::expression::LiteralValue::Null => {
+                    crate::core::LiteralValue::Bool(b) => Ok(Value::Bool(*b)),
+                    crate::core::LiteralValue::Int(i) => Ok(Value::Int(*i)),
+                    crate::core::LiteralValue::Float(f) => Ok(Value::Float(*f)),
+                    crate::core::LiteralValue::String(s) => Ok(Value::String(s.clone())),
+                    crate::core::LiteralValue::Null => {
                         Ok(Value::Null(crate::core::NullType::Null))
                     }
                 }
@@ -346,10 +346,10 @@ impl DefaultExpressionEvaluator {
     fn eval_binary_operation(
         &self,
         left: &Value,
-        op: &crate::expression::BinaryOperator,
+        op: &crate::core::BinaryOperator,
         right: &Value,
     ) -> Result<Value, ExpressionError> {
-        use crate::expression::BinaryOperator;
+        use crate::core::BinaryOperator;
 
         match op {
             BinaryOperator::Add => self.add_values(left, right),
@@ -388,10 +388,10 @@ impl DefaultExpressionEvaluator {
     /// 执行一元操作
     fn eval_unary_operation(
         &self,
-        op: &crate::expression::UnaryOperator,
+        op: &crate::core::UnaryOperator,
         operand: &Value,
     ) -> Result<Value, ExpressionError> {
-        use crate::expression::UnaryOperator;
+        use crate::core::UnaryOperator;
 
         match op {
             UnaryOperator::Plus => Ok(operand.clone()),
@@ -421,11 +421,11 @@ impl DefaultExpressionEvaluator {
     /// 执行聚合函数
     fn eval_aggregate(
         &self,
-        func: &crate::expression::AggregateFunction,
+        func: &crate::core::AggregateFunction,
         arg: &Value,
         distinct: bool,
     ) -> Result<Value, ExpressionError> {
-        use crate::expression::AggregateFunction;
+        use crate::core::AggregateFunction;
 
         match func {
             AggregateFunction::Count => {
@@ -682,9 +682,9 @@ impl DefaultExpressionEvaluator {
     fn cast_value(
         &self,
         value: &Value,
-        target_type: &crate::expression::DataType,
+        target_type: &crate::core::DataType,
     ) -> Result<Value, ExpressionError> {
-        use crate::expression::DataType;
+        use crate::core::DataType;
 
         match (value, target_type) {
             (_, DataType::Bool) => match value {
@@ -790,7 +790,7 @@ pub fn default_evaluator() -> DefaultExpressionEvaluator {
 /// 便捷函数：使用默认求值器求值表达式
 pub fn evaluate_expression(
     expr: &Expression,
-    context: &ExpressionContext,
+    context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
     default_evaluator().evaluate(expr, context)
 }
@@ -798,7 +798,7 @@ pub fn evaluate_expression(
 /// 便捷函数：使用默认求值器批量求值表达式
 pub fn evaluate_expressions(
     exprs: &[Expression],
-    context: &ExpressionContext,
+    context: &dyn ExpressionContext,
 ) -> Result<Vec<Value>, ExpressionError> {
     default_evaluator().evaluate_batch(exprs, context)
 }
@@ -806,14 +806,14 @@ pub fn evaluate_expressions(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::{
+    use crate::core::{
         AggregateFunction, BinaryOperator, Expression, LiteralValue, UnaryOperator,
     };
 
     #[test]
     fn test_default_evaluator() {
         let evaluator = DefaultExpressionEvaluator::new();
-        let context = ExpressionContext::default();
+        let context = BasicExpressionContext::default();
 
         // 测试字面量求值
         let expr = Expression::Literal(LiteralValue::Int(42));
@@ -821,7 +821,7 @@ mod tests {
         assert_eq!(result, Value::Int(42));
 
         // 测试变量求值
-        let mut ctx = ExpressionContext::default();
+        let mut ctx = BasicExpressionContext::default();
         ctx.set_variable("x".to_string(), Value::Int(100));
 
         let expr = Expression::Variable("x".to_string());
@@ -832,7 +832,7 @@ mod tests {
     #[test]
     fn test_binary_operations() {
         let evaluator = DefaultExpressionEvaluator::new();
-        let context = ExpressionContext::default();
+        let context = BasicExpressionContext::default();
 
         // 测试加法
         let left = Expression::Literal(LiteralValue::Int(10));
