@@ -2,7 +2,6 @@
 //!
 //! 提供统一的缓存接口，支持不同类型的缓存实现
 
-use std::hash::Hash;
 use std::time::Duration;
 
 /// 基础缓存特征

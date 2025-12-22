@@ -1,0 +1,276 @@
+//! 全局缓存管理器
+//!
+//! 负责管理全局缓存管理器实例，提供安全的全局访问接口
+
+use crate::cache::{CacheConfig, CacheStrategy};
+use super::registry::CacheRegistry;
+use super::stats_collector::CacheStatsCollector;
+use std::sync::{Arc, Once};
+
+/// 全局缓存管理器
+pub struct GlobalCacheManager {
+    registry: CacheRegistry,
+    stats_collector: CacheStatsCollector,
+    config: CacheConfig,
+}
+
+impl GlobalCacheManager {
+    /// 创建新的全局缓存管理器
+    pub fn new(config: CacheConfig) -> Self {
+        Self {
+            registry: CacheRegistry::new(),
+            stats_collector: CacheStatsCollector::new(),
+            config,
+        }
+    }
+
+    /// 获取缓存注册表
+    pub fn registry(&self) -> &CacheRegistry {
+        &self.registry
+    }
+
+    /// 获取统计收集器
+    pub fn stats_collector(&self) -> &CacheStatsCollector {
+        &self.stats_collector
+    }
+
+    /// 获取配置
+    pub fn config(&self) -> &CacheConfig {
+        &self.config
+    }
+
+    /// 更新配置
+    pub fn update_config(&mut self, config: CacheConfig) -> Result<(), String> {
+        config.validate()?;
+        self.config = config;
+        Ok(())
+    }
+
+    /// 获取缓存数量
+    pub fn cache_count(&self) -> usize {
+        self.registry.cache_count()
+    }
+
+    /// 检查是否为空
+    pub fn is_empty(&self) -> bool {
+        self.registry.cache_count() == 0
+    }
+
+    /// 清空所有缓存注册信息
+    pub fn clear_all(&self) {
+        self.registry.clear_all();
+        self.stats_collector.record_cache_count(0);
+    }
+
+    /// 获取统计信息快照
+    pub fn stats_snapshot(&self) -> super::stats_collector::CacheStats {
+        self.stats_collector.snapshot()
+    }
+
+    /// 获取命中率
+    pub fn hit_rate(&self) -> f64 {
+        self.stats_collector.hit_rate()
+    }
+
+    /// 获取命中率百分比
+    pub fn hit_rate_percentage(&self) -> f64 {
+        self.stats_collector.hit_rate_percentage()
+    }
+}
+
+impl std::fmt::Debug for GlobalCacheManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GlobalCacheManager")
+            .field("cache_count", &self.cache_count())
+            .field("config", &self.config)
+            .field("hit_rate", &self.hit_rate())
+            .finish()
+    }
+}
+
+/// 全局缓存管理器实例
+static GLOBAL_CACHE_MANAGER: once_cell::sync::Lazy<Arc<GlobalCacheManager>> =
+    once_cell::sync::Lazy::new(|| Arc::new(GlobalCacheManager::new(CacheConfig::default())));
+
+/// 全局缓存管理器实例（可变版本）
+static mut GLOBAL_CACHE_MANAGER_MUT: Option<Arc<GlobalCacheManager>> = None;
+static GLOBAL_CACHE_MANAGER_INIT: Once = Once::new();
+
+/// 获取全局缓存管理器
+pub fn global_cache_manager() -> Arc<GlobalCacheManager> {
+    // 优先使用可变版本（如果已初始化）
+    unsafe {
+        if let Some(ref manager) = GLOBAL_CACHE_MANAGER_MUT {
+            return manager.clone();
+        }
+    }
+    
+    // 否则使用默认版本
+    GLOBAL_CACHE_MANAGER.clone()
+}
+
+/// 初始化全局缓存管理器
+pub fn init_global_cache_manager(config: CacheConfig) -> Result<(), String> {
+    config.validate()?;
+    
+    // 使用 Once 确保只初始化一次
+    GLOBAL_CACHE_MANAGER_INIT.call_once(|| {
+        let manager = Arc::new(GlobalCacheManager::new(config));
+        unsafe {
+            GLOBAL_CACHE_MANAGER_MUT = Some(manager);
+        }
+    });
+    
+    Ok(())
+}
+
+/// 重新初始化全局缓存管理器（仅在测试中使用）
+#[cfg(test)]
+pub fn reset_global_cache_manager() {
+    unsafe {
+        GLOBAL_CACHE_MANAGER_MUT = None;
+    }
+}
+
+/// 检查全局缓存管理器是否已初始化
+pub fn is_global_cache_manager_initialized() -> bool {
+    unsafe {
+        GLOBAL_CACHE_MANAGER_MUT.is_some()
+    }
+}
+
+/// 获取全局缓存注册表
+pub fn global_cache_registry() -> CacheRegistry {
+    let manager = global_cache_manager();
+    manager.registry().clone()
+}
+
+/// 获取全局统计收集器
+pub fn global_stats_collector() -> CacheStatsCollector {
+    let manager = global_cache_manager();
+    manager.stats_collector().clone()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_global_cache_manager_creation() {
+        let config = CacheConfig::default();
+        let manager = GlobalCacheManager::new(config);
+        
+        assert!(manager.is_empty());
+        assert_eq!(manager.cache_count(), 0);
+        assert_eq!(manager.hit_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_global_cache_manager_registry() {
+        let manager = GlobalCacheManager::new(CacheConfig::default());
+        
+        let registry = manager.registry();
+        assert_eq!(registry.cache_count(), 0);
+        
+        registry.register_cache("test", "LRU", 100, CacheStrategy::LRU).unwrap();
+        assert_eq!(manager.cache_count(), 1);
+        assert!(!manager.is_empty());
+    }
+
+    #[test]
+    fn test_global_cache_manager_stats() {
+        let manager = GlobalCacheManager::new(CacheConfig::default());
+        
+        let stats_collector = manager.stats_collector();
+        stats_collector.record_hit();
+        stats_collector.record_miss();
+        
+        assert_eq!(manager.hit_rate(), 0.5);
+        assert_eq!(manager.hit_rate_percentage(), 50.0);
+    }
+
+    #[test]
+    fn test_global_cache_manager_config() {
+        let config = CacheConfig::development();
+        let manager = GlobalCacheManager::new(config.clone());
+        
+        assert_eq!(manager.config().default_capacity, config.default_capacity);
+        assert_eq!(manager.config().default_policy, config.default_policy);
+    }
+
+    #[test]
+    fn test_global_cache_manager_update_config() {
+        let mut manager = GlobalCacheManager::new(CacheConfig::default());
+        
+        let new_config = CacheConfig::production();
+        manager.update_config(new_config.clone()).unwrap();
+        
+        assert_eq!(manager.config().default_capacity, new_config.default_capacity);
+    }
+
+    #[test]
+    fn test_global_cache_manager_clear_all() {
+        let manager = GlobalCacheManager::new(CacheConfig::default());
+        
+        let registry = manager.registry();
+        registry.register_cache("test1", "LRU", 100, CacheStrategy::LRU).unwrap();
+        registry.register_cache("test2", "LFU", 200, CacheStrategy::LFU).unwrap();
+        
+        assert_eq!(manager.cache_count(), 2);
+        
+        manager.clear_all();
+        assert_eq!(manager.cache_count(), 0);
+        assert!(manager.is_empty());
+    }
+
+    #[test]
+    fn test_global_cache_manager_debug() {
+        let manager = GlobalCacheManager::new(CacheConfig::default());
+        
+        let debug_output = format!("{:?}", manager);
+        assert!(debug_output.contains("GlobalCacheManager"));
+        assert!(debug_output.contains("cache_count"));
+        assert!(debug_output.contains("hit_rate"));
+    }
+
+    #[test]
+    fn test_global_cache_manager_functions() {
+        // 重置全局状态
+        reset_global_cache_manager();
+        
+        assert!(!is_global_cache_manager_initialized());
+        
+        // 初始化全局缓存管理器
+        let config = CacheConfig::development();
+        init_global_cache_manager(config).unwrap();
+        assert!(is_global_cache_manager_initialized());
+        
+        // 获取全局管理器
+        let manager = global_cache_manager();
+        assert_eq!(manager.config().default_capacity, 500);
+        
+        // 获取全局注册表
+        let registry = global_cache_registry();
+        assert_eq!(registry.cache_count(), 0);
+        
+        // 获取全局统计收集器
+        let stats_collector = global_stats_collector();
+        assert!(stats_collector.is_empty());
+    }
+
+    #[test]
+    fn test_global_cache_manager_stats_snapshot() {
+        let manager = GlobalCacheManager::new(CacheConfig::default());
+        
+        let stats_collector = manager.stats_collector();
+        stats_collector.record_hit();
+        stats_collector.record_miss();
+        stats_collector.record_eviction();
+        
+        let snapshot = manager.stats_snapshot();
+        assert_eq!(snapshot.total_hits, 1);
+        assert_eq!(snapshot.total_misses, 1);
+        assert_eq!(snapshot.total_evictions, 1);
+        assert_eq!(snapshot.hit_rate(), 0.5);
+    }
+}

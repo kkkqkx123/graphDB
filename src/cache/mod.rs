@@ -2,18 +2,32 @@
 //!
 //! 提供统一的缓存架构和实现，支持多种缓存策略和解析器特化优化
 
-pub mod config;
 pub mod cache_impl;
+pub mod config;
+pub mod factory;
+pub mod global_manager;
 pub mod manager;
 pub mod parser_cache;
+pub mod registry;
+pub mod stats_collector;
 pub mod traits;
 
 // 重新导出主要类型
 pub use cache_impl::*;
 pub use config::*;
-pub use manager::{CacheManager, CachePolicy, CacheStrategy, CacheStats, CacheBuilder, global_cache_manager, init_global_cache_manager};
+pub use factory::{CacheFactory, CacheType, StatsCacheType};
+pub use global_manager::{
+    global_cache_manager, global_cache_registry, global_stats_collector, init_global_cache_manager,
+    is_global_cache_manager_initialized, GlobalCacheManager,
+};
+pub use manager::{CacheBuilder, CacheManager, CachePolicy, CacheStrategy};
 pub use parser_cache::*;
+pub use registry::{CacheRegistry, CacheRegistryInfo};
+pub use stats_collector::{CacheStats, CacheStatsCollector};
 pub use traits::*;
+
+#[cfg(test)]
+pub use global_manager::reset_global_cache_manager;
 
 /// 缓存模块版本
 pub const CACHE_VERSION: &str = "1.0.0";
@@ -84,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_integration_factory() {
-        let cache = CacheIntegrationFactory::create_testing_integration();
+        let cache = create_testing_parser_cache();
         assert_eq!(cache.config().keyword_cache_capacity, 100);
     }
 }

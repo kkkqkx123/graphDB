@@ -1,6 +1,6 @@
 //! 统计缓存包装器实现
 
-use crate::cache::manager::CacheStats;
+use crate::cache::stats_collector::CacheStats;
 use crate::cache::traits::*;
 use std::sync::{Arc, RwLock};
 
