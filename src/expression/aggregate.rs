@@ -1,5 +1,5 @@
 use crate::core::{Expression, ExpressionError};
-use crate::core::expressions::default_context::ExpressionContextCore;
+use crate::core::expressions::ExpressionContext;
 use crate::core::Value;
 use serde::{Deserialize, Serialize};
 
@@ -68,7 +68,7 @@ pub fn evaluate_aggregate_expr(
     func: &str,
     arg: &Expression,
     distinct: bool,
-    context: &dyn ExpressionContextCore,
+    context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
     let evaluator = crate::core::evaluator::ExpressionEvaluator;
     let arg_val = evaluator.evaluate(arg, context)?;

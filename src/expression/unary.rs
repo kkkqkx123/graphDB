@@ -1,8 +1,7 @@
 use crate::core::{ExpressionError, Value};
-use crate::core::expressions::default_context::ExpressionContextCore;
+use crate::core::expressions::ExpressionContext;
 use crate::core::Expression;
 use crate::core::types::operators::UnaryOperator;
-use serde::{Deserialize, Serialize};
 
 /// 评估一元操作表达式
 ///
@@ -10,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub fn evaluate_unary_op(
     op: &UnaryOperator,
     operand: &Expression,
-    context: &dyn ExpressionContextCore,
+    context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
     let evaluator = crate::core::evaluator::ExpressionEvaluator;
     let operand_val = evaluator.evaluate(operand, context)?;

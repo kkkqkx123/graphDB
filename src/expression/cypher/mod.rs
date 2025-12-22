@@ -28,7 +28,7 @@ impl CypherProcessor {
     /// 处理Cypher表达式的完整流程：转换 -> 优化 -> 评估
     pub fn process(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-        context: &dyn crate::core::expressions::ExpressionContextCore,
+        context: &dyn crate::core::expressions::ExpressionContext,
     ) -> Result<crate::core::Value, crate::core::expressions::ExpressionError> {
         // 1. 转换为统一表达式
         let unified_expr = ExpressionConverter::convert_cypher_to_unified(cypher_expr)?;
@@ -40,7 +40,7 @@ impl CypherProcessor {
     /// 处理Cypher表达式的优化流程：优化 -> 转换 -> 评估
     pub fn process_with_optimization(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-        context: &dyn crate::core::expressions::ExpressionContextCore,
+        context: &dyn crate::core::expressions::ExpressionContext,
     ) -> Result<crate::core::Value, crate::core::expressions::ExpressionError> {
         // 1. 优化Cypher表达式
         let optimized_expr = CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr);
@@ -55,7 +55,7 @@ impl CypherProcessor {
     /// 直接评估Cypher表达式（不进行转换）
     pub fn evaluate_direct(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-        context: &dyn crate::core::expressions::ExpressionContextCore,
+        context: &dyn crate::core::expressions::ExpressionContext,
     ) -> Result<crate::core::Value, crate::core::expressions::ExpressionError> {
         CypherEvaluator::evaluate_cypher(cypher_expr, context)
     }
@@ -65,8 +65,9 @@ impl CypherProcessor {
 mod tests {
     use super::*;
     use crate::core::expressions::BasicExpressionContext;
+    use crate::query::parser::cypher::ast::{UnaryOperator};
     use crate::query::parser::cypher::ast::expressions::{
-        Expression as CypherExpression, Literal as CypherLiteral, UnaryExpression, UnaryOperator,
+        Expression as CypherExpression, Literal as CypherLiteral, UnaryExpression,
     };
 
     #[test]

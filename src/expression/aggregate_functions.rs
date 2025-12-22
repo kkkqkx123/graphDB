@@ -186,8 +186,6 @@ impl AggregateState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::Expression;
-    use crate::core::expressions::default_context::DefaultExpressionContext;
 
     #[test]
     fn test_unified_aggregate_function() {

@@ -148,12 +148,12 @@ mod expr_tests {
     #[test]
     fn test_predicate_expr() {
         let list = Expr::Variable(VariableExpr::new("numbers".to_string(), Span::default()));
-        let condition = Expr::Binary(BinaryExpr::new(
-            Expr::Variable(VariableExpr::new("x".to_string(), Span::default())),
-            BinaryOp::Gt,
-            Expr::Constant(ConstantExpr::new(Value::Int(10), Span::default())),
-            Span::default(),
-        ));
+         let condition = Expr::Binary(BinaryExpr::new(
+             Expr::Variable(VariableExpr::new("x".to_string(), Span::default())),
+             BinaryOp::GreaterThan,
+             Expr::Constant(ConstantExpr::new(Value::Int(10), Span::default())),
+             Span::default(),
+         ));
         let expr = Expr::Predicate(PredicateExpr::new(
             PredicateType::Any,
             list,
@@ -441,7 +441,7 @@ mod utils_tests {
         // 测试 x * 1 -> x
         let x = ExprFactory::variable("x".to_string(), span);
         let one = ExprFactory::constant(Value::Int(1), span);
-        let expr = ExprFactory::binary(x.clone(), BinaryOp::Mul, one, span);
+        let expr = ExprFactory::binary(x.clone(), BinaryOp::Multiply, one, span);
 
         let simplified = ExprOptimizer::simplify(expr);
         assert_eq!(simplified, x);

@@ -36,10 +36,10 @@ impl FoldConstantExprVisitor {
     ) -> Result<Value, String> {
         match op {
             BinaryOp::Add => left.add(right),
-            BinaryOp::Sub => left.sub(right),
-            BinaryOp::Mul => left.mul(right),
-            BinaryOp::Div => left.div(right),
-            BinaryOp::Mod => left.modulo(right),
+            BinaryOp::Subtract => left.sub(right),
+            BinaryOp::Multiply => left.mul(right),
+            BinaryOp::Divide => left.div(right),
+            BinaryOp::Modulo => left.modulo(right),
             _ => Err(format!("Unknown arithmetic operation: {:?}", op)),
         }
     }

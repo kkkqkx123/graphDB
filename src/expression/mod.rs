@@ -6,7 +6,6 @@ pub mod comparison;
 pub mod container;
 pub mod cypher;
 pub mod function;
-pub mod operator_conversion;
 pub mod operators_ext;
 pub mod property;
 pub mod storage;
@@ -14,30 +13,16 @@ pub mod type_conversion;
 pub mod unary;
 
 // 重新导出Core访问器
-pub use crate::core::visitor::{ExpressionVisitor, ExpressionAcceptor};
+pub use crate::core::visitor::{ExpressionAcceptor, ExpressionVisitor};
 
 // Re-export Core operators directly - no more wrapper types
-pub use crate::core::types::operators::{
-    BinaryOperator, UnaryOperator, AggregateFunction
-};
+pub use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
 // Re-export Core expression types
-pub use crate::core::types::expression::{
-    Expression, LiteralValue, DataType, ExpressionType
-};
+pub use crate::core::types::expression::{DataType, Expression, ExpressionType, LiteralValue};
 
 // Re-export Core evaluator
 pub use crate::core::evaluator::ExpressionEvaluator;
-
-// Legacy aliases for backward compatibility (deprecated)
-#[deprecated(note = "使用 BinaryOperator 替代")]
-pub type ExtendedBinaryOperator = BinaryOperator;
-
-#[deprecated(note = "使用 UnaryOperator 替代")]
-pub type ExtendedUnaryOperator = UnaryOperator;
-
-#[deprecated(note = "使用 AggregateFunction 替代")]
-pub type ExtendedAggregateFunction = AggregateFunction;
 
 // Re-export cypher module types for convenience
 pub use cypher::{

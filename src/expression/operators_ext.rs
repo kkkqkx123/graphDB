@@ -2,8 +2,6 @@
 //! 
 //! 直接重新导出Core操作符，提供便利函数
 
-use serde::{Deserialize, Serialize};
-
 // 直接重新导出Core操作符
 pub use crate::core::types::operators::{
     BinaryOperator, UnaryOperator, AggregateFunction

@@ -2,9 +2,9 @@ use crate::core::ExpressionError;
 use crate::query::parser::cypher::ast::expressions::{
     BinaryExpression, CaseAlternative, CaseExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
-    MapExpression, PatternExpression, PropertyExpression, UnaryExpression,
+    MapExpression, UnaryExpression,
 };
-use crate::core::types::operators::{BinaryOperator, UnaryOperator};
+use crate::core::types::operators::UnaryOperator;
 
 /// Cypher表达式优化器
 ///
@@ -340,7 +340,6 @@ impl CypherExpressionOptimizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     #[test]
     fn test_optimize_unary_constant() {

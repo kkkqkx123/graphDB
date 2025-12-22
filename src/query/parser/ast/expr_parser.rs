@@ -393,28 +393,28 @@ impl ExprParser {
     }
 
     fn parse_comparison_op(&mut self) -> Option<BinaryOp> {
-        if self.match_token(LexerToken::Eq) {
-            Some(BinaryOp::Eq)
-        } else if self.match_token(LexerToken::Ne) {
-            Some(BinaryOp::Ne)
-        } else if self.match_token(LexerToken::Lt) {
-            Some(BinaryOp::Lt)
-        } else if self.match_token(LexerToken::Le) {
-            Some(BinaryOp::Le)
-        } else if self.match_token(LexerToken::Gt) {
-            Some(BinaryOp::Gt)
-        } else if self.match_token(LexerToken::Ge) {
-            Some(BinaryOp::Ge)
-        } else {
-            None
-        }
-    }
+         if self.match_token(LexerToken::Eq) {
+             Some(BinaryOp::Equal)
+         } else if self.match_token(LexerToken::Ne) {
+             Some(BinaryOp::NotEqual)
+         } else if self.match_token(LexerToken::Lt) {
+             Some(BinaryOp::LessThan)
+         } else if self.match_token(LexerToken::Le) {
+             Some(BinaryOp::LessThanOrEqual)
+         } else if self.match_token(LexerToken::Gt) {
+             Some(BinaryOp::GreaterThan)
+         } else if self.match_token(LexerToken::Ge) {
+             Some(BinaryOp::GreaterThanOrEqual)
+         } else {
+             None
+         }
+     }
 
     fn parse_additive_op(&mut self) -> Option<BinaryOp> {
         if self.match_token(LexerToken::Plus) {
             Some(BinaryOp::Add)
         } else if self.match_token(LexerToken::Minus) {
-            Some(BinaryOp::Sub)
+            Some(BinaryOp::Subtract)
         } else {
             None
         }
@@ -422,11 +422,11 @@ impl ExprParser {
 
     fn parse_multiplicative_op(&mut self) -> Option<BinaryOp> {
         if self.match_token(LexerToken::Star) {
-            Some(BinaryOp::Mul)
+            Some(BinaryOp::Multiply)
         } else if self.match_token(LexerToken::Div) {
-            Some(BinaryOp::Div)
+            Some(BinaryOp::Divide)
         } else if self.match_token(LexerToken::Mod) {
-            Some(BinaryOp::Mod)
+            Some(BinaryOp::Modulo)
         } else {
             None
         }

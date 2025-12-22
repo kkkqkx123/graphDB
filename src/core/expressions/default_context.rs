@@ -5,54 +5,13 @@
 use crate::core::{Edge, Value, Vertex};
 use std::collections::HashMap;
 
-/// 表达式上下文核心trait
-///
-/// 所有表达式上下文实现都必须实现此trait
-pub trait ExpressionContextCore {
-    /// 获取变量值
-    fn get_variable(&self, name: &str) -> Option<Value>;
-
-    /// 设置变量值
-    fn set_variable(&mut self, name: String, value: Value);
-
-    /// 获取顶点引用
-    fn get_vertex(&self) -> Option<&Vertex>;
-
-    /// 获取边引用
-    fn get_edge(&self) -> Option<&Edge>;
-
-    /// 获取路径
-    fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path>;
-
-    /// 设置顶点
-    fn set_vertex(&mut self, vertex: Vertex);
-
-    /// 设置边
-    fn set_edge(&mut self, edge: Edge);
-
-    /// 添加路径
-    fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path);
-
-    /// 检查是否为空上下文
-    fn is_empty(&self) -> bool;
-
-    /// 获取变量数量
-    fn variable_count(&self) -> usize;
-
-    /// 获取所有变量名
-    fn variable_names(&self) -> Vec<String>;
-
-    /// 获取所有变量
-    fn get_all_variables(&self) -> Option<std::collections::HashMap<String, Value>>;
-
-    /// 清空所有数据
-    fn clear(&mut self);
-}
+// 重新导出统一的ExpressionContext trait
+pub use crate::core::evaluator::traits::ExpressionContext;
 
 /// 存储层表达式上下文trait
 ///
 /// 为存储层特定的表达式上下文提供额外接口
-pub trait StorageExpressionContextCore: ExpressionContextCore {
+pub trait StorageExpressionContext: ExpressionContext {
     /// 获取变量值（最新版本）
     fn get_var(&self, name: &str) -> Result<Value, String>;
 
@@ -104,7 +63,7 @@ pub trait StorageExpressionContextCore: ExpressionContextCore {
 /// 使用枚举实现零成本抽象，避免动态分发的性能开销
 /// 同时提供更好的类型安全性和扩展性
 #[derive(Clone, Debug)]
-pub enum ExpressionContext {
+pub enum ExpressionContextEnum {
     /// 默认上下文实现
     Default(DefaultExpressionContext),
     /// 查询上下文适配器
@@ -222,24 +181,24 @@ impl QueryContextAdapter {
     }
 }
 
-impl ExpressionContextCore for ExpressionContext {
+impl ExpressionContext for ExpressionContextEnum {
     fn get_variable(&self, name: &str) -> Option<Value> {
         match self {
-            ExpressionContext::Default(ctx) => ctx.vars.get(name).cloned(),
-            ExpressionContext::Query(ctx) => ctx.vars.get(name).cloned(),
-            ExpressionContext::Basic(ctx) => ctx.get_variable(name),
+            ExpressionContextEnum::Default(ctx) => ctx.vars.get(name).cloned(),
+            ExpressionContextEnum::Query(ctx) => ctx.vars.get(name).cloned(),
+            ExpressionContextEnum::Basic(ctx) => ctx.get_variable(name),
         }
     }
 
     fn set_variable(&mut self, name: String, value: Value) {
         match self {
-            ExpressionContext::Default(ctx) => {
+            ExpressionContextEnum::Default(ctx) => {
                 ctx.vars.insert(name, value);
             }
-            ExpressionContext::Query(ctx) => {
+            ExpressionContextEnum::Query(ctx) => {
                 ctx.vars.insert(name, value);
             }
-            ExpressionContext::Basic(ctx) => {
+            ExpressionContextEnum::Basic(ctx) => {
                 // 将 Value 转换为 FieldValue
                 let field_value = match value {
                     Value::Bool(b) => crate::core::types::query::FieldValue::Scalar(
@@ -271,37 +230,37 @@ impl ExpressionContextCore for ExpressionContext {
 
     fn get_vertex(&self) -> Option<&Vertex> {
         match self {
-            ExpressionContext::Default(ctx) => ctx.vertex.as_ref(),
-            ExpressionContext::Query(ctx) => ctx.vertex.as_ref(),
-            ExpressionContext::Basic(ctx) => ctx.get_vertex(),
+            ExpressionContextEnum::Default(ctx) => ctx.vertex.as_ref(),
+            ExpressionContextEnum::Query(ctx) => ctx.vertex.as_ref(),
+            ExpressionContextEnum::Basic(ctx) => ctx.get_vertex(),
         }
     }
 
     fn get_edge(&self) -> Option<&Edge> {
         match self {
-            ExpressionContext::Default(ctx) => ctx.edge.as_ref(),
-            ExpressionContext::Query(ctx) => ctx.edge.as_ref(),
-            ExpressionContext::Basic(ctx) => ctx.get_edge(),
+            ExpressionContextEnum::Default(ctx) => ctx.edge.as_ref(),
+            ExpressionContextEnum::Query(ctx) => ctx.edge.as_ref(),
+            ExpressionContextEnum::Basic(ctx) => ctx.get_edge(),
         }
     }
 
     fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
         match self {
-            ExpressionContext::Default(ctx) => ctx.paths.get(name),
-            ExpressionContext::Query(ctx) => ctx.paths.get(name),
-            ExpressionContext::Basic(ctx) => ctx.get_path(name),
+            ExpressionContextEnum::Default(ctx) => ctx.paths.get(name),
+            ExpressionContextEnum::Query(ctx) => ctx.paths.get(name),
+            ExpressionContextEnum::Basic(ctx) => ctx.get_path(name),
         }
     }
 
     fn set_vertex(&mut self, vertex: Vertex) {
         match self {
-            ExpressionContext::Default(ctx) => {
+            ExpressionContextEnum::Default(ctx) => {
                 ctx.vertex = Some(vertex);
             }
-            ExpressionContext::Query(ctx) => {
+            ExpressionContextEnum::Query(ctx) => {
                 ctx.vertex = Some(vertex);
             }
-            ExpressionContext::Basic(ctx) => {
+            ExpressionContextEnum::Basic(ctx) => {
                 ctx.set_vertex(vertex);
             }
         }
@@ -309,13 +268,13 @@ impl ExpressionContextCore for ExpressionContext {
 
     fn set_edge(&mut self, edge: Edge) {
         match self {
-            ExpressionContext::Default(ctx) => {
+            ExpressionContextEnum::Default(ctx) => {
                 ctx.edge = Some(edge);
             }
-            ExpressionContext::Query(ctx) => {
+            ExpressionContextEnum::Query(ctx) => {
                 ctx.edge = Some(edge);
             }
-            ExpressionContext::Basic(ctx) => {
+            ExpressionContextEnum::Basic(ctx) => {
                 ctx.set_edge(edge);
             }
         }
@@ -323,13 +282,13 @@ impl ExpressionContextCore for ExpressionContext {
 
     fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path) {
         match self {
-            ExpressionContext::Default(ctx) => {
+            ExpressionContextEnum::Default(ctx) => {
                 ctx.paths.insert(name, path);
             }
-            ExpressionContext::Query(ctx) => {
+            ExpressionContextEnum::Query(ctx) => {
                 ctx.paths.insert(name, path);
             }
-            ExpressionContext::Basic(ctx) => {
+            ExpressionContextEnum::Basic(ctx) => {
                 ctx.add_path(name, path);
             }
         }
@@ -337,51 +296,59 @@ impl ExpressionContextCore for ExpressionContext {
 
     fn is_empty(&self) -> bool {
         match self {
-            ExpressionContext::Default(ctx) => ctx.is_empty(),
-            ExpressionContext::Query(ctx) => ctx.is_empty(),
-            ExpressionContext::Basic(ctx) => ctx.is_empty(),
+            ExpressionContextEnum::Default(ctx) => ctx.is_empty(),
+            ExpressionContextEnum::Query(ctx) => ctx.is_empty(),
+            ExpressionContextEnum::Basic(ctx) => ctx.is_empty(),
         }
     }
 
     fn variable_count(&self) -> usize {
         match self {
-            ExpressionContext::Default(ctx) => ctx.variable_count(),
-            ExpressionContext::Query(ctx) => ctx.vars.len(),
-            ExpressionContext::Basic(ctx) => ctx.variable_count(),
+            ExpressionContextEnum::Default(ctx) => ctx.variable_count(),
+            ExpressionContextEnum::Query(ctx) => ctx.vars.len(),
+            ExpressionContextEnum::Basic(ctx) => ctx.variable_count(),
         }
     }
 
     fn variable_names(&self) -> Vec<String> {
         match self {
-            ExpressionContext::Default(ctx) => ctx.variable_names(),
-            ExpressionContext::Query(ctx) => ctx.vars.keys().cloned().collect(),
-            ExpressionContext::Basic(ctx) => ctx.variable_names(),
+            ExpressionContextEnum::Default(ctx) => ctx.variable_names(),
+            ExpressionContextEnum::Query(ctx) => ctx.vars.keys().cloned().collect(),
+            ExpressionContextEnum::Basic(ctx) => ctx.variable_names(),
         }
     }
 
     fn get_all_variables(&self) -> Option<HashMap<String, Value>> {
         match self {
-            ExpressionContext::Default(ctx) => Some(ctx.vars.clone()),
-            ExpressionContext::Query(ctx) => Some(ctx.vars.clone()),
-            ExpressionContext::Basic(ctx) => ctx.get_all_variables(),
+            ExpressionContextEnum::Default(ctx) => Some(ctx.vars.clone()),
+            ExpressionContextEnum::Query(ctx) => Some(ctx.vars.clone()),
+            ExpressionContextEnum::Basic(ctx) => ctx.get_all_variables(),
         }
     }
 
     fn clear(&mut self) {
         match self {
-            ExpressionContext::Default(ctx) => ctx.clear(),
-            ExpressionContext::Query(ctx) => {
+            ExpressionContextEnum::Default(ctx) => ctx.clear(),
+            ExpressionContextEnum::Query(ctx) => {
                 ctx.vertex = None;
                 ctx.edge = None;
                 ctx.vars.clear();
                 ctx.paths.clear();
             }
-            ExpressionContext::Basic(ctx) => ctx.clear(),
+            ExpressionContextEnum::Basic(ctx) => ctx.clear(),
+        }
+    }
+    
+    fn get_variable_names(&self) -> Vec<&str> {
+        match self {
+            ExpressionContextEnum::Default(ctx) => ctx.vars.keys().map(|k| k.as_str()).collect(),
+            ExpressionContextEnum::Query(ctx) => ctx.vars.keys().map(|k| k.as_str()).collect(),
+            ExpressionContextEnum::Basic(ctx) => ctx.get_variable_names(),
         }
     }
 }
 
-impl ExpressionContextCore for DefaultExpressionContext {
+impl ExpressionContext for DefaultExpressionContext {
     fn get_variable(&self, name: &str) -> Option<Value> {
         self.vars.get(name).cloned()
     }
@@ -433,9 +400,13 @@ impl ExpressionContextCore for DefaultExpressionContext {
     fn clear(&mut self) {
         self.clear();
     }
+    
+    fn get_variable_names(&self) -> Vec<&str> {
+        self.vars.keys().map(|k| k.as_str()).collect()
+    }
 }
 
-impl ExpressionContextCore for QueryContextAdapter {
+impl ExpressionContext for QueryContextAdapter {
     fn get_variable(&self, name: &str) -> Option<Value> {
         self.vars.get(name).cloned()
     }
@@ -490,95 +461,99 @@ impl ExpressionContextCore for QueryContextAdapter {
         self.vars.clear();
         self.paths.clear();
     }
+    
+    fn get_variable_names(&self) -> Vec<&str> {
+        self.vars.keys().map(|k| k.as_str()).collect()
+    }
 }
 
-impl ExpressionContext {
+impl ExpressionContextEnum {
     /// 创建简单上下文
     pub fn default() -> Self {
-        ExpressionContext::Default(DefaultExpressionContext::new())
+        ExpressionContextEnum::Default(DefaultExpressionContext::new())
     }
 
     /// 创建查询上下文适配器
     pub fn query() -> Self {
-        ExpressionContext::Query(QueryContextAdapter::new())
+        ExpressionContextEnum::Query(QueryContextAdapter::new())
     }
 
     /// 创建基础表达式上下文
     pub fn basic() -> Self {
-        ExpressionContext::Basic(crate::core::expressions::BasicExpressionContext::new())
+        ExpressionContextEnum::Basic(crate::core::expressions::BasicExpressionContext::new())
     }
 
     /// 从简单上下文创建
     pub fn from_default(default: DefaultExpressionContext) -> Self {
-        ExpressionContext::Default(default)
+        ExpressionContextEnum::Default(default)
     }
 
     /// 从查询上下文适配器创建
     pub fn from_query(query: QueryContextAdapter) -> Self {
-        ExpressionContext::Query(query)
+        ExpressionContextEnum::Query(query)
     }
 
     /// 从基础表达式上下文创建
     pub fn from_basic(basic: crate::core::expressions::BasicExpressionContext) -> Self {
-        ExpressionContext::Basic(basic)
+        ExpressionContextEnum::Basic(basic)
     }
 
     /// 转换为简单上下文（如果可能）
     pub fn as_default(&self) -> Option<&DefaultExpressionContext> {
         match self {
-            ExpressionContext::Default(ctx) => Some(ctx),
-            ExpressionContext::Query(_) => None,
-            ExpressionContext::Basic(_) => None,
+            ExpressionContextEnum::Default(ctx) => Some(ctx),
+            ExpressionContextEnum::Query(_) => None,
+            ExpressionContextEnum::Basic(_) => None,
         }
     }
 
     /// 转换为可变简单上下文（如果可能）
     pub fn as_default_mut(&mut self) -> Option<&mut DefaultExpressionContext> {
         match self {
-            ExpressionContext::Default(ctx) => Some(ctx),
-            ExpressionContext::Query(_) => None,
-            ExpressionContext::Basic(_) => None,
+            ExpressionContextEnum::Default(ctx) => Some(ctx),
+            ExpressionContextEnum::Query(_) => None,
+            ExpressionContextEnum::Basic(_) => None,
         }
     }
 
     /// 转换为查询上下文适配器（如果可能）
     pub fn as_query(&self) -> Option<&QueryContextAdapter> {
         match self {
-            ExpressionContext::Query(ctx) => Some(ctx),
-            ExpressionContext::Default(_) => None,
-            ExpressionContext::Basic(_) => None,
+            ExpressionContextEnum::Query(ctx) => Some(ctx),
+            ExpressionContextEnum::Default(_) => None,
+            ExpressionContextEnum::Basic(_) => None,
         }
     }
 
     /// 转换为可变查询上下文适配器（如果可能）
     pub fn as_query_mut(&mut self) -> Option<&mut QueryContextAdapter> {
         match self {
-            ExpressionContext::Query(ctx) => Some(ctx),
-            ExpressionContext::Default(_) => None,
-            ExpressionContext::Basic(_) => None,
+            ExpressionContextEnum::Query(ctx) => Some(ctx),
+            ExpressionContextEnum::Default(_) => None,
+            ExpressionContextEnum::Basic(_) => None,
         }
     }
 
     /// 转换为基础表达式上下文（如果可能）
     pub fn as_basic(&self) -> Option<&crate::core::expressions::BasicExpressionContext> {
         match self {
-            ExpressionContext::Basic(ctx) => Some(ctx),
-            ExpressionContext::Default(_) => None,
-            ExpressionContext::Query(_) => None,
+            ExpressionContextEnum::Basic(ctx) => Some(ctx),
+            ExpressionContextEnum::Default(_) => None,
+            ExpressionContextEnum::Query(_) => None,
         }
     }
 
     /// 转换为可变基础表达式上下文（如果可能）
     pub fn as_basic_mut(&mut self) -> Option<&mut crate::core::expressions::BasicExpressionContext> {
         match self {
-            ExpressionContext::Basic(ctx) => Some(ctx),
-            ExpressionContext::Default(_) => None,
-            ExpressionContext::Query(_) => None,
+            ExpressionContextEnum::Basic(ctx) => Some(ctx),
+            ExpressionContextEnum::Default(_) => None,
+            ExpressionContextEnum::Query(_) => None,
         }
     }
 }
 
-impl Default for ExpressionContext {
+impl Default for ExpressionContextEnum {
     fn default() -> Self {
         Self::default()
     }
@@ -598,19 +573,19 @@ impl Default for QueryContextAdapter {
 
 /// 便捷的构建器
 pub struct ExpressionContextBuilder {
-    context: ExpressionContext,
+    context: ExpressionContextEnum,
 }
 
 impl ExpressionContextBuilder {
     pub fn new() -> Self {
         Self {
-            context: ExpressionContext::default(),
+            context: ExpressionContextEnum::default(),
         }
     }
 
     pub fn query() -> Self {
         Self {
-            context: ExpressionContext::query(),
+            context: ExpressionContextEnum::query(),
         }
     }
 
@@ -644,7 +619,7 @@ impl ExpressionContextBuilder {
         self
     }
 
-    pub fn build(self) -> ExpressionContext {
+    pub fn build(self) -> ExpressionContextEnum {
         self.context
     }
 }
@@ -656,7 +631,7 @@ impl Default for ExpressionContextBuilder {
 }
 
 /// 便捷函数：创建带有初始数据的上下文
-pub fn with_variables<I>(variables: I) -> ExpressionContext
+pub fn with_variables<I>(variables: I) -> ExpressionContextEnum
 where
     I: IntoIterator<Item = (String, Value)>,
 {
@@ -666,17 +641,17 @@ where
 }
 
 /// 便捷函数：创建带有顶点的上下文
-pub fn with_vertex(vertex: Vertex) -> ExpressionContext {
+pub fn with_vertex(vertex: Vertex) -> ExpressionContextEnum {
     ExpressionContextBuilder::new().with_vertex(vertex).build()
 }
 
 /// 便捷函数：创建带有边的上下文
-pub fn with_edge(edge: Edge) -> ExpressionContext {
+pub fn with_edge(edge: Edge) -> ExpressionContextEnum {
     ExpressionContextBuilder::new().with_edge(edge).build()
 }
 
 // 为ExpressionContext添加批量设置变量的方法
-impl ExpressionContext {
+impl ExpressionContextEnum {
     /// 批量设置变量
     pub fn set_variables<I>(&mut self, variables: I)
     where

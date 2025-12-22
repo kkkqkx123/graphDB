@@ -270,10 +270,15 @@ impl ResultProcessorFactory {
         >,
         group_keys: Vec<crate::core::Expression>,
     ) -> crate::query::executor::result_processing::aggregation::AggregateExecutor<S> {
+        let agg_specs = aggregate_functions
+            .into_iter()
+            .map(|func| crate::query::executor::result_processing::aggregation::AggregateFunctionSpec::from_agg_function(func))
+            .collect();
+
         crate::query::executor::result_processing::aggregation::AggregateExecutor::new(
             id,
             storage,
-            aggregate_functions,
+            agg_specs,
             group_keys,
         )
     }

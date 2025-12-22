@@ -210,11 +210,11 @@ fn convert_binary_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
     match op {
         // 算术操作符
         BinaryOp::Add => Ok(BinaryOperator::Add),
-        BinaryOp::Sub => Ok(BinaryOperator::Subtract),
-        BinaryOp::Mul => Ok(BinaryOperator::Multiply),
-        BinaryOp::Div => Ok(BinaryOperator::Divide),
-        BinaryOp::Mod => Ok(BinaryOperator::Modulo),
-        BinaryOp::Exp => Ok(BinaryOperator::Exponent),
+        BinaryOp::Subtract => Ok(BinaryOperator::Subtract),
+        BinaryOp::Multiply => Ok(BinaryOperator::Multiply),
+        BinaryOp::Divide => Ok(BinaryOperator::Divide),
+        BinaryOp::Modulo => Ok(BinaryOperator::Modulo),
+        BinaryOp::Exponent => Ok(BinaryOperator::Exponent),
 
         // 逻辑操作符
         BinaryOp::And => Ok(BinaryOperator::And),
@@ -222,20 +222,28 @@ fn convert_binary_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
         BinaryOp::Xor => Err("XOR操作符在graph表达式中不支持".to_string()),
 
         // 关系操作符
-        BinaryOp::Eq => Ok(BinaryOperator::Equal),
-        BinaryOp::Ne => Ok(BinaryOperator::NotEqual),
-        BinaryOp::Lt => Ok(BinaryOperator::LessThan),
-        BinaryOp::Le => Ok(BinaryOperator::LessThanOrEqual),
-        BinaryOp::Gt => Ok(BinaryOperator::GreaterThan),
-        BinaryOp::Ge => Ok(BinaryOperator::GreaterThanOrEqual),
+        BinaryOp::Equal => Ok(BinaryOperator::Equal),
+        BinaryOp::NotEqual => Ok(BinaryOperator::NotEqual),
+        BinaryOp::LessThan => Ok(BinaryOperator::LessThan),
+        BinaryOp::LessThanOrEqual => Ok(BinaryOperator::LessThanOrEqual),
+        BinaryOp::GreaterThan => Ok(BinaryOperator::GreaterThan),
+        BinaryOp::GreaterThanOrEqual => Ok(BinaryOperator::GreaterThanOrEqual),
 
         // 字符串操作符
-        BinaryOp::Regex => Ok(BinaryOperator::Like),  // Regex映射到Like
+        BinaryOp::Like => Ok(BinaryOperator::Like),  // Like 
         BinaryOp::In => Ok(BinaryOperator::In),
         BinaryOp::NotIn => Ok(BinaryOperator::NotIn),
         BinaryOp::Contains => Ok(BinaryOperator::Contains),
         BinaryOp::StartsWith => Ok(BinaryOperator::StartsWith),
         BinaryOp::EndsWith => Ok(BinaryOperator::EndsWith),
+        
+        // 其他操作符
+        BinaryOp::StringConcat => Ok(BinaryOperator::StringConcat),
+        BinaryOp::Subscript => Ok(BinaryOperator::Subscript),
+        BinaryOp::Attribute => Ok(BinaryOperator::Attribute),
+        BinaryOp::Union => Ok(BinaryOperator::Union),
+        BinaryOp::Intersect => Ok(BinaryOperator::Intersect),
+        BinaryOp::Except => Ok(BinaryOperator::Except),
     }
 }
 
@@ -394,7 +402,7 @@ mod tests {
         ));
         let ast_expr = Expr::Binary(BinaryExpr::new(
             left,
-            BinaryOp::Exp,
+            BinaryOp::Xor,
             right,
             crate::query::parser::ast::Span::default(),
         ));
@@ -403,7 +411,7 @@ mod tests {
         assert!(result.is_err());
         assert!(result
             .expect_err("Expected error for unsupported operator")
-            .contains("指数操作符在graph表达式中不支持"));
+            .contains("XOR操作符在graph表达式中不支持"));
     }
 
     #[test]

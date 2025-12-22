@@ -426,7 +426,9 @@ impl ExprOptimizer {
 
                 // 如果左右操作数都是常量，尝试计算结果
                 if optimized_left.is_constant() && optimized_right.is_constant() {
-                    if let (Expr::Constant(ref left), Expr::Constant(ref right)) = (&optimized_left, &optimized_right) {
+                    if let (Expr::Constant(ref left), Expr::Constant(ref right)) =
+                        (&optimized_left, &optimized_right)
+                    {
                         if let Some(result) =
                             Self::evaluate_binary_op(&left.value, e.op, &right.value)
                         {
@@ -476,7 +478,10 @@ impl ExprOptimizer {
                     .when_then_pairs
                     .into_iter()
                     .map(|(when, then)| {
-                        (Box::new(Self::constant_folding(when)), Box::new(Self::constant_folding(then)))
+                        (
+                            Box::new(Self::constant_folding(when)),
+                            Box::new(Self::constant_folding(then)),
+                        )
                     })
                     .collect();
 
@@ -511,16 +516,16 @@ impl ExprOptimizer {
 
         match (left, op, right) {
             (Value::Int(l), BinaryOp::Add, Value::Int(r)) => Some(Value::Int(l + r)),
-            (Value::Int(l), BinaryOp::Sub, Value::Int(r)) => Some(Value::Int(l - r)),
-            (Value::Int(l), BinaryOp::Mul, Value::Int(r)) => Some(Value::Int(l * r)),
-            (Value::Int(l), BinaryOp::Div, Value::Int(r)) => {
+            (Value::Int(l), BinaryOp::Subtract, Value::Int(r)) => Some(Value::Int(l - r)),
+            (Value::Int(l), BinaryOp::Multiply, Value::Int(r)) => Some(Value::Int(l * r)),
+            (Value::Int(l), BinaryOp::Divide, Value::Int(r)) => {
                 if *r != 0 {
                     Some(Value::Int(l / r))
                 } else {
                     None
                 }
             }
-            (Value::Int(l), BinaryOp::Mod, Value::Int(r)) => {
+            (Value::Int(l), BinaryOp::Modulo, Value::Int(r)) => {
                 if *r != 0 {
                     Some(Value::Int(l % r))
                 } else {
@@ -528,9 +533,9 @@ impl ExprOptimizer {
                 }
             }
             (Value::Float(l), BinaryOp::Add, Value::Float(r)) => Some(Value::Float(l + r)),
-            (Value::Float(l), BinaryOp::Sub, Value::Float(r)) => Some(Value::Float(l - r)),
-            (Value::Float(l), BinaryOp::Mul, Value::Float(r)) => Some(Value::Float(l * r)),
-            (Value::Float(l), BinaryOp::Div, Value::Float(r)) => {
+            (Value::Float(l), BinaryOp::Subtract, Value::Float(r)) => Some(Value::Float(l - r)),
+            (Value::Float(l), BinaryOp::Multiply, Value::Float(r)) => Some(Value::Float(l * r)),
+            (Value::Float(l), BinaryOp::Divide, Value::Float(r)) => {
                 if *r != 0.0 {
                     Some(Value::Float(l / r))
                 } else {
@@ -625,7 +630,7 @@ impl ExprOptimizer {
                 if e.op == UnaryOp::Not {
                     if let Expr::Unary(inner) = &operand {
                         if inner.op == UnaryOp::Not {
-                            return *inner.operand.clone();
+                            return (*inner.operand).clone();
                         }
                     }
                 }

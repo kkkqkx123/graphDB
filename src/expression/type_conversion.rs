@@ -20,6 +20,9 @@ pub fn cast_value_to_datatype(
         DataType::Edge => cast_to_edge(value),
         DataType::Path => cast_to_path(value),
         DataType::DateTime => cast_to_datetime(value),
+        DataType::Date => cast_to_string(value), // 日期作为字符串处理
+        DataType::Time => cast_to_string(value), // 时间作为字符串处理
+        DataType::Duration => cast_to_string(value), // 期间作为字符串处理
     }
 }
 

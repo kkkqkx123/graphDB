@@ -1,10 +1,10 @@
 use crate::core::{ExpressionError, Value, Expression};
-use crate::core::expressions::{ExpressionContextCore, ExpressionContext};
+use crate::core::expressions::ExpressionContext;
 
 /// 评估属性表达式
 pub fn evaluate_property_expression(
     expr: &Expression,
-    context: &dyn ExpressionContextCore,
+    context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
     match expr {
         Expression::TagProperty { tag, prop } => {

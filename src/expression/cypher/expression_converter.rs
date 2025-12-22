@@ -1,8 +1,6 @@
 use crate::core::ExpressionError;
-use crate::expression::operator_conversion;
 use crate::core::{Expression, LiteralValue};
-use crate::core::types::operators::BinaryOperator;
-use crate::core::types::operators::UnaryOperator;
+use crate::query::parser::cypher::ast::{BinaryOperator, UnaryOperator};
 use crate::query::parser::cypher::ast::expressions::{
     BinaryExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
@@ -56,18 +54,18 @@ impl ExpressionConverter {
             CypherExpression::Binary(bin_expr) => {
                 let left = Self::convert_cypher_to_unified(&bin_expr.left)?;
                 let right = Self::convert_cypher_to_unified(&bin_expr.right)?;
-                let core_op = operator_conversion::convert_cypher_binary_operator(&bin_expr.operator);
+                // BinaryOperator已统一，直接使用
                 Ok(Expression::Binary {
                     left: Box::new(left),
-                    op: core_op,
+                    op: bin_expr.operator,
                     right: Box::new(right),
                 })
             }
             CypherExpression::Unary(unary_expr) => {
                 let operand = Self::convert_cypher_to_unified(&unary_expr.expression)?;
-                let core_op = operator_conversion::convert_cypher_unary_operator(&unary_expr.operator);
+                // UnaryOperator已统一，直接使用
                 Ok(Expression::Unary {
-                    op: core_op,
+                    op: unary_expr.operator,
                     operand: Box::new(operand),
                 })
             }
@@ -167,22 +165,18 @@ impl ExpressionConverter {
             Expression::Binary { left, op, right } => {
                 let left_expr = Self::convert_unified_to_cypher(left)?;
                 let right_expr = Self::convert_unified_to_cypher(right)?;
-                // 直接转换操作符，因为BinaryOperator现在统一使用operators模块
-                let binary_op = operator_conversion::convert_core_to_cypher_binary_operator(op)
-                    .map_err(|e| ExpressionError::invalid_operation(e))?;
+                // BinaryOperator已统一，直接使用
                 Ok(CypherExpression::Binary(BinaryExpression {
                     left: Box::new(left_expr),
-                    operator: binary_op,
+                    operator: *op,
                     right: Box::new(right_expr),
                 }))
             }
             Expression::Unary { op, operand } => {
                 let operand_expr = Self::convert_unified_to_cypher(operand)?;
-                // 直接转换操作符，因为UnaryOperator现在统一使用operators模块
-                let unary_op = operator_conversion::convert_core_to_cypher_unary_operator(op)
-                    .map_err(|e| ExpressionError::invalid_operation(e))?;
+                // UnaryOperator已统一，直接使用
                 Ok(CypherExpression::Unary(UnaryExpression {
-                    operator: unary_op,
+                    operator: *op,
                     expression: Box::new(operand_expr),
                 }))
             }
@@ -242,10 +236,11 @@ impl ExpressionConverter {
 mod tests {
     use super::*;
     use crate::core::{Expression, LiteralValue};
+    use crate::query::parser::cypher::ast::{BinaryOperator, UnaryOperator};
     use crate::query::parser::cypher::ast::expressions::{
-        BinaryExpression, BinaryOperator, CaseAlternative, CaseExpression,
+        BinaryExpression, CaseAlternative, CaseExpression,
         Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
-        MapExpression, PatternExpression, PropertyExpression, UnaryExpression, UnaryOperator,
+        MapExpression, PropertyExpression, UnaryExpression,
     };
 
     #[test]

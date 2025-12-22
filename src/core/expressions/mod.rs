@@ -11,10 +11,12 @@ pub mod functions;
 
 // 重新导出默认上下文类型
 pub use default_context::{
-    with_edge, with_variables, with_vertex, DefaultExpressionContext, ExpressionContext,
-    ExpressionContextBuilder, ExpressionContextCore, QueryContextAdapter,
-    StorageExpressionContextCore,
+    with_edge, with_variables, with_vertex, DefaultExpressionContext, ExpressionContextEnum,
+    ExpressionContextBuilder, QueryContextAdapter, StorageExpressionContext,
 };
+
+// 重新导出统一的ExpressionContext trait
+pub use crate::core::evaluator::traits::ExpressionContext;
 
 // 重新导出缓存相关类型
 pub use cache::{ExpressionCacheManager, ExpressionCacheStats};

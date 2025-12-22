@@ -154,7 +154,7 @@ impl Clone for OperatorRegistry {
 }
 
 /// 二元操作符实现
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BinaryOperator {
     // 算术操作
     Add,
@@ -288,7 +288,7 @@ impl Operator for BinaryOperator {
 }
 
 /// 一元操作符实现
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UnaryOperator {
     // 算术操作
     Plus,

@@ -1,11 +1,11 @@
 use crate::core::Value;
 use crate::core::{Expression, ExpressionError};
-use crate::core::expressions::default_context::ExpressionContextCore;
+use crate::core::expressions::ExpressionContext;
 
 /// 评估容器表达式
 pub fn evaluate_container(
     expr: &Expression,
-    context: &dyn ExpressionContextCore,
+    context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
     match expr {
         Expression::List(items) => {

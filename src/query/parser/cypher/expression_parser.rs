@@ -160,14 +160,14 @@ impl CypherParserCore {
             self.consume_token(); // 消费 '+'
             let expression = self.parse_unary_expression()?;
             Ok(Expression::Unary(UnaryExpression {
-                operator: UnaryOperator::Positive,
+                operator: UnaryOperator::Plus,
                 expression: Box::new(expression),
             }))
-        } else if self.is_current_token_value("-") {
+            } else if self.is_current_token_value("-") {
             self.consume_token(); // 消费 '-'
             let expression = self.parse_unary_expression()?;
             Ok(Expression::Unary(UnaryExpression {
-                operator: UnaryOperator::Negative,
+                operator: UnaryOperator::Minus,
                 expression: Box::new(expression),
             }))
         } else {

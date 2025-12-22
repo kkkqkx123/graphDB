@@ -642,16 +642,16 @@ impl ExpressionEvaluator {
                 (Value::String(s), Value::String(substr)) => Ok(Value::Bool(s.contains(substr))),
                 _ => Err("CONTAINS操作符只能应用于字符串".to_string()),
             },
-            BinaryOperator::RegexMatch => {
-                match (&left, &right) {
-                    (Value::String(s), Value::String(pattern)) => {
-                        // 简化处理：使用基本的字符串包含来模拟正则匹配
-                        // 实际应该使用regex crate
-                        Ok(Value::Bool(s.contains(pattern)))
-                    }
-                    _ => Err("正则匹配操作符只能应用于字符串".to_string()),
-                }
-            }
+            BinaryOperator::Like => {
+                 match (&left, &right) {
+                     (Value::String(s), Value::String(pattern)) => {
+                         // 简化处理：使用基本的字符串包含来模拟正则匹配
+                         // 实际应该使用regex crate
+                         Ok(Value::Bool(s.contains(pattern)))
+                     }
+                     _ => Err("正则匹配操作符只能应用于字符串".to_string()),
+                 }
+             }
         }
     }
 
@@ -671,6 +671,24 @@ impl ExpressionEvaluator {
                 expr.negate()
             }
             crate::core::types::operators::UnaryOperator::Plus => Ok(expr),
+            crate::core::types::operators::UnaryOperator::IsNull => {
+                Ok(Value::Bool(matches!(expr, Value::Null(_))))
+            }
+            crate::core::types::operators::UnaryOperator::IsNotNull => {
+                Ok(Value::Bool(!matches!(expr, Value::Null(_))))
+            }
+            crate::core::types::operators::UnaryOperator::IsEmpty => {
+                Err("IsEmpty操作符还未实现".to_string())
+            }
+            crate::core::types::operators::UnaryOperator::IsNotEmpty => {
+                Err("IsNotEmpty操作符还未实现".to_string())
+            }
+            crate::core::types::operators::UnaryOperator::Increment => {
+                Err("Increment操作符在此上下文中不支持".to_string())
+            }
+            crate::core::types::operators::UnaryOperator::Decrement => {
+                Err("Decrement操作符在此上下文中不支持".to_string())
+            }
         }
     }
 

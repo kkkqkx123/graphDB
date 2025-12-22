@@ -1,8 +1,7 @@
-use crate::core::{NullType, Value};
+use crate::core::{Value};
 use crate::core::{Expression, ExpressionError};
-use crate::core::expressions::default_context::ExpressionContextCore;
+use crate::core::expressions::ExpressionContext;
 use crate::core::types::operators::BinaryOperator;
-use serde::{Deserialize, Serialize};
 
 /// 评估二元操作表达式
 ///
@@ -11,7 +10,7 @@ pub fn evaluate_binary_op(
     left: &Expression,
     op: &BinaryOperator,
     right: &Expression,
-    context: &dyn ExpressionContextCore,
+    context: &dyn ExpressionContext,
 ) -> Result<Value, ExpressionError> {
     let evaluator = crate::core::evaluator::ExpressionEvaluator;
     let left_val = evaluator.evaluate(left, context)?;

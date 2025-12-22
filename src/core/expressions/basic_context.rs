@@ -388,8 +388,8 @@ impl HierarchicalContext for BasicExpressionContext {
     }
 }
 
-// 为BasicExpressionContext实现default_context::ExpressionContextCore trait
-impl super::default_context::ExpressionContextCore for BasicExpressionContext {
+// 为BasicExpressionContext实现统一的ExpressionContext trait
+impl super::default_context::ExpressionContext for BasicExpressionContext {
     fn get_variable(&self, name: &str) -> Option<crate::core::Value> {
         // 将FieldValue转换为Value
         ExpressionContextCoreExtended::get_variable(self, name).map(|fv| {
@@ -604,5 +604,9 @@ impl super::default_context::ExpressionContextCore for BasicExpressionContext {
 
     fn clear(&mut self) {
         self.variables.clear();
+    }
+    
+    fn get_variable_names(&self) -> Vec<&str> {
+        self.variables.keys().map(|k| k.as_str()).collect()
     }
 }

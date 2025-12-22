@@ -76,6 +76,15 @@ impl AggregateFunctionSpec {
     pub fn min(field: String) -> Self {
         Self::new(AggregateFunction::Min).with_field(field)
     }
+
+    /// 从AggregateFunction创建AggregateFunctionSpec
+    pub fn from_agg_function(function: AggregateFunction) -> Self {
+        Self {
+            function,
+            field: None,
+            distinct: false,
+        }
+    }
 }
 
 /// 聚合状态

@@ -127,7 +127,7 @@ impl super::Parser {
             // 例如 a^b^c 应该被解释为 a^(b^c)，而不是 (a^b)^c
             for operand in right_operands.into_iter().rev() {
                 let span = Span::new(expr.span().start, operand.span().end);
-                expr = Expr::Binary(BinaryExpr::new(expr, BinaryOp::Exp, operand, span));
+                expr = Expr::Binary(BinaryExpr::new(expr, BinaryOp::Exponent, operand, span));
             }
         }
 
@@ -305,17 +305,17 @@ impl super::Parser {
     /// 解析比较操作符
     fn parse_comparison_op(&mut self) -> Option<BinaryOp> {
         if self.match_token(LexerToken::Eq) {
-            Some(BinaryOp::Eq)
+            Some(BinaryOp::Equal)
         } else if self.match_token(LexerToken::Ne) {
-            Some(BinaryOp::Ne)
+            Some(BinaryOp::NotEqual)
         } else if self.match_token(LexerToken::Lt) {
-            Some(BinaryOp::Lt)
+            Some(BinaryOp::LessThan)
         } else if self.match_token(LexerToken::Le) {
-            Some(BinaryOp::Le)
+            Some(BinaryOp::LessThanOrEqual)
         } else if self.match_token(LexerToken::Gt) {
-            Some(BinaryOp::Gt)
+            Some(BinaryOp::GreaterThan)
         } else if self.match_token(LexerToken::Ge) {
-            Some(BinaryOp::Ge)
+            Some(BinaryOp::GreaterThanOrEqual)
         } else {
             None
         }
@@ -326,7 +326,7 @@ impl super::Parser {
         if self.match_token(LexerToken::Plus) {
             Some(BinaryOp::Add)
         } else if self.match_token(LexerToken::Minus) {
-            Some(BinaryOp::Sub)
+            Some(BinaryOp::Subtract)
         } else {
             None
         }
@@ -335,11 +335,11 @@ impl super::Parser {
     /// 解析乘法操作符
     fn parse_multiplicative_op(&mut self) -> Option<BinaryOp> {
         if self.match_token(LexerToken::Star) {
-            Some(BinaryOp::Mul)
+            Some(BinaryOp::Multiply)
         } else if self.match_token(LexerToken::Div) {
-            Some(BinaryOp::Div)
+            Some(BinaryOp::Divide)
         } else if self.match_token(LexerToken::Mod) {
-            Some(BinaryOp::Mod)
+            Some(BinaryOp::Modulo)
         } else {
             None
         }
