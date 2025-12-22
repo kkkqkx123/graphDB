@@ -58,7 +58,7 @@ impl AggregateExpression {
     /// 计算聚合表达式的值
     pub fn evaluate(
         &self,
-        context: &crate::core::ExpressionContext,
+        context: &crate::core::expressions::ExpressionContext,
         state: &mut AggregateState,
     ) -> Result<Value, ExpressionError> {
         // 计算参数值
@@ -187,7 +187,7 @@ impl AggregateState {
 mod tests {
     use super::*;
     use crate::core::types::expression::Expression;
-    use crate::core::context::expression::default_context::DefaultExpressionContext;
+    use crate::core::expressions::default_context::DefaultExpressionContext;
 
     #[test]
     fn test_unified_aggregate_function() {

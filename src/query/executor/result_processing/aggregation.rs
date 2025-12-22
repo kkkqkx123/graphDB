@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::Value;
-use crate::core::context::expression::{DefaultExpressionContext, ExpressionContextCore};
+use crate::core::expressions::{DefaultExpressionContext, ExpressionContextCore};
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{

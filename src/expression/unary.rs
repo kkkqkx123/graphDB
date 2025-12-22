@@ -1,5 +1,5 @@
 use crate::core::{ExpressionError, Value};
-use crate::core::context::expression::default_context::ExpressionContextCore;
+use crate::core::expressions::default_context::ExpressionContextCore;
 use crate::core::Expression;
 use crate::core::types::operators::UnaryOperator;
 use serde::{Deserialize, Serialize};
@@ -88,7 +88,7 @@ pub fn is_not_empty(operand: Expression) -> Expression {
 mod tests {
     use super::*;
     use crate::core::types::expression::Expression;
-    use crate::core::context::expression::default_context::DefaultExpressionContext;
+    use crate::core::expressions::default_context::DefaultExpressionContext;
 
     #[test]
     fn test_unified_unary_operator() {

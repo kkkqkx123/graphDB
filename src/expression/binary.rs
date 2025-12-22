@@ -1,6 +1,6 @@
 use crate::core::{NullType, Value};
 use crate::core::{Expression, ExpressionError};
-use crate::core::context::expression::default_context::ExpressionContextCore;
+use crate::core::expressions::default_context::ExpressionContextCore;
 use crate::core::types::operators::BinaryOperator;
 use serde::{Deserialize, Serialize};
 
@@ -116,7 +116,7 @@ pub fn ends_with(left: Expression, right: Expression) -> Expression {
 mod tests {
     use super::*;
     use crate::core::types::expression::Expression;
-    use crate::core::context::expression::default_context::DefaultExpressionContext;
+    use crate::core::expressions::default_context::DefaultExpressionContext;
 
     #[test]
     fn test_unified_binary_operator() {

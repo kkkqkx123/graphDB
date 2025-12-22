@@ -2,20 +2,18 @@
 //!
 //! 定义表达式求值器的核心接口和特征
 
-use crate::core::context::expression::{
-    BasicExpressionContext, EvaluationOptions, EvaluationStatistics, ExpressionContext,
-};
-use crate::core::ExpressionError;
+use crate::core::expressions::{BasicExpressionContext, EvaluationOptions, EvaluationStatistics};
 use crate::core::types::expression::Expression;
 use crate::core::types::query::FieldValue;
+use crate::core::ExpressionError;
 
 // 为具体的求值器类型实现相应的方法
 impl BasicEvaluator {
     /// 求值表达式
     pub fn evaluate(
         &self,
-        expression: &Expression,
-        context: &BasicExpressionContext,
+        _expression: &Expression,
+        _context: &BasicExpressionContext,
     ) -> Result<FieldValue, ExpressionError> {
         // 基础求值逻辑
         Err(ExpressionError::runtime_error("基础求值器尚未实现"))
@@ -35,7 +33,7 @@ impl BasicEvaluator {
     }
 
     /// 检查表达式是否可以求值
-    pub fn can_evaluate(&self, expression: &Expression, context: &BasicExpressionContext) -> bool {
+    pub fn can_evaluate(&self, _expression: &Expression, _context: &BasicExpressionContext) -> bool {
         true // 基础求值器可以求值所有表达式
     }
 
@@ -80,7 +78,7 @@ impl OptimizedEvaluator {
     pub fn optimize(
         &mut self,
         expression: &Expression,
-        context: &BasicExpressionContext,
+        _context: &BasicExpressionContext,
     ) -> Result<Expression, ExpressionError> {
         // 优化逻辑
         Ok(expression.clone())
@@ -89,7 +87,7 @@ impl OptimizedEvaluator {
     /// 预编译表达式
     pub fn precompile(
         &mut self,
-        expression: &Expression,
+        _expression: &Expression,
     ) -> Result<CompiledExpression, ExpressionError> {
         // 预编译逻辑
         Ok(CompiledExpression {
@@ -105,8 +103,8 @@ impl OptimizedEvaluator {
     /// 执行预编译的表达式
     pub fn execute_compiled(
         &self,
-        compiled: &CompiledExpression,
-        context: &BasicExpressionContext,
+        _compiled: &CompiledExpression,
+        _context: &BasicExpressionContext,
     ) -> Result<FieldValue, ExpressionError> {
         // 执行编译后的表达式
         Err(ExpressionError::runtime_error("预编译表达式执行尚未实现"))
@@ -137,7 +135,7 @@ impl CachedEvaluator {
     }
 
     /// 设置缓存大小限制
-    pub fn set_cache_limit(&mut self, limit: usize) {
+    pub fn set_cache_limit(&mut self, _limit: usize) {
         // 设置缓存限制逻辑
     }
 }

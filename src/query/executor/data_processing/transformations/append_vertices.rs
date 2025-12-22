@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value, Vertex};
-use crate::core::context::expression::{DefaultExpressionContext, ExpressionContextCore};
+use crate::core::expressions::{DefaultExpressionContext, ExpressionContextCore};
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{

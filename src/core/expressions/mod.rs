@@ -2,12 +2,12 @@
 //!
 //! 提供表达式求值过程中的上下文管理，包括缓存、函数、错误处理等功能
 
-pub mod default_context;
-pub mod cache;
-pub mod functions;
-pub mod error;
 pub mod basic_context;
+pub mod cache;
+pub mod default_context;
+pub mod error;
 pub mod evaluation;
+pub mod functions;
 
 // 重新导出默认上下文类型
 pub use default_context::{

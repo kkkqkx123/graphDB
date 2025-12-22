@@ -5,7 +5,7 @@
 use super::cache::ExpressionCacheManager;
 use super::functions::{BuiltinFunction, CustomFunction, ExpressionFunction, FunctionRef};
 use crate::cache::CacheConfig;
-use crate::core::context::base::{ContextBase, ContextType, HierarchicalContext, MutableContext};
+use crate::core::context_traits::{ContextBase, ContextType, HierarchicalContext, MutableContext};
 use crate::core::types::query::FieldValue;
 use std::collections::HashMap;
 use std::sync::Arc;

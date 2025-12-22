@@ -1,5 +1,5 @@
 use crate::core::{Value, ExpressionError};
-use crate::core::context::expression::ExpressionContextCore;
+use crate::core::expressions::ExpressionContextCore;
 use crate::core::types::expression::Expression;
 use crate::query::parser::cypher::ast::expressions::{
     BinaryExpression, BinaryOperator, CaseExpression,
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_literal() {
-        let context = crate::core::context::expression::default_context::ExpressionContext::default();
+        let context = crate::core::expressions::default_context::ExpressionContext::default();
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
         let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &context).expect("Cypher evaluation should succeed for literal values");
 
@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_variable() {
-        let mut context = crate::core::context::expression::default_context::ExpressionContext::default();
+        let mut context = crate::core::expressions::default_context::ExpressionContext::default();
         context.set_variable("x".to_string(), Value::Int(100));
 
         let cypher_expr = CypherExpression::Variable("x".to_string());
@@ -360,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_binary_add() {
-        let context = crate::core::context::expression::default_context::ExpressionContext::default();
+        let context = crate::core::expressions::default_context::ExpressionContext::default();
         let left = Box::new(CypherExpression::Literal(CypherLiteral::Integer(1)));
         let right = Box::new(CypherExpression::Literal(CypherLiteral::Integer(2)));
         let cypher_expr = CypherExpression::Binary(BinaryExpression {

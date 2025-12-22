@@ -3,7 +3,7 @@
 //! 直接使用graph/expression模块，消除重复代码
 //! 提供完整的Cypher表达式评估功能
 
-use crate::core::context::expression::ExpressionContextCore;
+use crate::core::expressions::ExpressionContextCore;
 use crate::core::error::DBError;
 use crate::core::ExpressionEvaluator as GraphExpressionEvaluator;
 use crate::core::Value;
@@ -65,9 +65,9 @@ impl ExpressionEvaluator {
     }
 
     /// 转换上下文类型
-    fn convert_context(&self, context: &CypherExecutionContext) -> crate::core::ExpressionContext {
+    fn convert_context(&self, context: &CypherExecutionContext) -> crate::core::expressions::ExpressionContext {
         // 创建新的求值上下文
-        let mut eval_context = crate::core::BasicExpressionContext::default();
+        let mut eval_context = crate::core::expressions::BasicExpressionContext::default();
 
         // 复制变量
         for (name, cypher_var) in context.variables() {
@@ -106,7 +106,7 @@ impl ExpressionEvaluator {
             eval_context.set_variable(name.clone(), path_field_value);
         }
 
-        crate::core::context::expression::ExpressionContext::Basic(eval_context)
+        crate::core::expressions::ExpressionContext::Basic(eval_context)
     }
 
     /// 检查表达式是否为常量

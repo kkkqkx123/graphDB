@@ -221,7 +221,7 @@ impl ContextManager for DefaultContextManager {
                 ),
             )),
             ContextType::Expression => {
-                UnifiedContext::Expression(super::expression::BasicExpressionContext::new())
+                UnifiedContext::Expression(crate::core::expressions::BasicExpressionContext::new())
             }
             ContextType::Request => UnifiedContext::Request(super::request::RequestContext::with_session(
                 id.clone(),

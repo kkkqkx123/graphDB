@@ -110,7 +110,7 @@ pub enum ExpressionContext {
     /// 查询上下文适配器
     Query(QueryContextAdapter),
     /// 基础表达式上下文
-    Basic(crate::core::context::expression::BasicExpressionContext),
+    Basic(crate::core::expressions::BasicExpressionContext),
 }
 
 /// 简单的表达式上下文实现
@@ -505,7 +505,7 @@ impl ExpressionContext {
 
     /// 创建基础表达式上下文
     pub fn basic() -> Self {
-        ExpressionContext::Basic(crate::core::context::expression::BasicExpressionContext::new())
+        ExpressionContext::Basic(crate::core::expressions::BasicExpressionContext::new())
     }
 
     /// 从简单上下文创建
@@ -519,7 +519,7 @@ impl ExpressionContext {
     }
 
     /// 从基础表达式上下文创建
-    pub fn from_basic(basic: crate::core::context::expression::BasicExpressionContext) -> Self {
+    pub fn from_basic(basic: crate::core::expressions::BasicExpressionContext) -> Self {
         ExpressionContext::Basic(basic)
     }
 
@@ -560,7 +560,7 @@ impl ExpressionContext {
     }
 
     /// 转换为基础表达式上下文（如果可能）
-    pub fn as_basic(&self) -> Option<&crate::core::context::expression::BasicExpressionContext> {
+    pub fn as_basic(&self) -> Option<&crate::core::expressions::BasicExpressionContext> {
         match self {
             ExpressionContext::Basic(ctx) => Some(ctx),
             ExpressionContext::Default(_) => None,
@@ -569,7 +569,7 @@ impl ExpressionContext {
     }
 
     /// 转换为可变基础表达式上下文（如果可能）
-    pub fn as_basic_mut(&mut self) -> Option<&mut crate::core::context::expression::BasicExpressionContext> {
+    pub fn as_basic_mut(&mut self) -> Option<&mut crate::core::expressions::BasicExpressionContext> {
         match self {
             ExpressionContext::Basic(ctx) => Some(ctx),
             ExpressionContext::Default(_) => None,

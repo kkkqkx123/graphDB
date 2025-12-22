@@ -1,6 +1,5 @@
-use crate::core::{ExpressionError, Value};
-use crate::core::context::expression::ExpressionContextCore;
-use crate::core::{Expression, ExpressionContext};
+use crate::core::{ExpressionError, Value, Expression};
+use crate::core::expressions::{ExpressionContextCore, ExpressionContext};
 
 /// 评估属性表达式
 pub fn evaluate_property_expression(

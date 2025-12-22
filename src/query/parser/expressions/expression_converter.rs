@@ -2,7 +2,8 @@
 //! 将AST表达式转换为graph表达式
 
 use crate::core::Value;
-use crate::core::types::expression::{BinaryOperator, Expression, LiteralValue, UnaryOperator};
+use crate::core::types::expression::{Expression, LiteralValue};
+use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::query::parser::ast::{
     BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, Expr, FunctionCallExpr, ListExpr, MapExpr,
     PredicateExpr, PropertyAccessExpr, SubscriptExpr, UnaryExpr, UnaryOp, VariableExpr,

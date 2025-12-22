@@ -3,13 +3,12 @@
 //! 提供表达式求值过程中的上下文管理
 
 use crate::cache::{Cache, CacheConfig, ConcurrentLruCache, StatsCache, StatsCacheWrapper};
-use crate::core::context::expression::{
-    BasicExpressionContext, EvaluationOptions, EvaluationStatistics, ExpressionContext,
-    ExpressionContextCoreExtended,
+use crate::core::expressions::{
+    BasicExpressionContext, EvaluationOptions, EvaluationStatistics, ExpressionContextCoreExtended,
 };
-use crate::core::ExpressionError;
 use crate::core::types::expression::Expression;
 use crate::core::types::query::FieldValue;
+use crate::core::ExpressionError;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 

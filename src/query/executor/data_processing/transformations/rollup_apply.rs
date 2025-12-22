@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, List, Value};
-use crate::core::context::expression::default_context::ExpressionContextCore;
-use crate::core::context::expression::{DefaultExpressionContext, ExpressionContext};
+use crate::core::expressions::default_context::ExpressionContextCore;
+use crate::core::expressions::{DefaultExpressionContext, ExpressionContext};
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{

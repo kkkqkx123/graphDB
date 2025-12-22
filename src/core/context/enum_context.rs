@@ -4,13 +4,15 @@
 
 use super::base::{ContextBase, ContextType, MutableContext};
 use super::execution::ExecutionContext;
-use super::expression::{BasicExpressionContext, ExpressionContext, ExpressionContextCoreExtended};
 use super::query::QueryContext;
 use super::request::RequestContext;
 use super::runtime::{DefaultRuntimeContext, RuntimeContext, TestRuntimeContext};
 use super::session::{SessionContext, SessionInfo};
 use super::storage::StorageContext;
 use super::validation::ValidationContext;
+use crate::core::expressions::{
+    BasicExpressionContext, ExpressionContext, ExpressionContextCoreExtended,
+};
 use crate::core::types::query::QueryType;
 use crate::Value;
 

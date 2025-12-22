@@ -138,7 +138,7 @@ impl CypherExpressionOptimizer {
     /// 尝试对二元表达式进行常量折叠
     fn try_fold_constants(bin_expr: &BinaryExpression) -> Option<CypherExpression> {
         // 创建临时的空上下文用于常量计算
-        let context = crate::core::BasicExpressionContext::default();
+        let context = crate::core::expressions::BasicExpressionContext::default();
         
         // 使用 CypherEvaluator 评估表达式
         match super::cypher_evaluator::CypherEvaluator::evaluate_cypher(

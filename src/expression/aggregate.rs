@@ -1,5 +1,5 @@
 use crate::core::{Expression, ExpressionError};
-use crate::core::context::expression::default_context::ExpressionContextCore;
+use crate::core::expressions::default_context::ExpressionContextCore;
 use crate::core::Value;
 use serde::{Deserialize, Serialize};
 
