@@ -4,10 +4,7 @@ pub mod arithmetic;
 pub mod binary;
 pub mod comparison;
 pub mod container;
-pub mod context;
 pub mod cypher;
-pub mod evaluator;
-pub mod evaluator_trait;
 pub mod expression;
 pub mod function;
 pub mod operator_conversion;
@@ -24,10 +21,9 @@ pub use crate::core::types::expression::{
     AggregateFunction, BinaryOperator, DataType, Expression, LiteralValue, UnaryOperator,
 };
 
-pub use evaluator_trait::{
-    default_evaluator, evaluate_expression, evaluate_expressions, DefaultExpressionEvaluator,
-    ExpressionEvaluator as ExpressionEvaluatorTrait,
-};
+// ExpressionContext相关功能已迁移到Core模块
+// ExpressionEvaluator已迁移到Core模块
+// evaluator_trait已迁移到Core模块
 
 // Re-export cypher module types for convenience
 pub use cypher::{

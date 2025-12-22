@@ -1,7 +1,7 @@
 use crate::core::error::{DBError, DBResult};
-use crate::query::context::{QueryContext, RequestContext};
+use crate::core::context::{query::QueryContext, request::RequestContext};
 use crate::query::executor::traits::ExecutionResult;
-use crate::query::executor_factory::ExecutorFactory;
+use crate::core::executor_factory::ExecutorFactory;
 use crate::query::optimizer::Optimizer;
 use crate::query::parser::parser::Parser;
 use crate::query::planner::Planner;
@@ -70,14 +70,14 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
 
     /// 创建查询上下文
     fn create_query_context(&self, query_text: &str) -> DBResult<QueryContext> {
-        let session_info = crate::query::context::request_context::SessionInfo::new(
+        let session_info = crate::core::context::request::SessionInfo::new(
             "default_session".to_string(),
             "default_user".to_string(),
             "localhost".to_string(),
             0,
         );
         let request_params =
-            crate::query::context::request_context::RequestParams::new(query_text.to_string());
+            crate::core::context::request::RequestParams::new(query_text.to_string());
         let request_context = RequestContext::new(session_info, request_params);
         Ok(QueryContext::with_request_context(std::sync::Arc::new(
             request_context,
@@ -89,11 +89,11 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         &mut self,
         _query_context: &mut QueryContext,
         query_text: &str,
-    ) -> DBResult<crate::query::context::ast::QueryAstContext> {
+    ) -> DBResult<crate::core::context::ast::QueryAstContext> {
         let _parser = Parser::new(query_text);
         // 临时实现：返回一个空的AST上下文
         // 在实际实现中，这里应该调用parser.parse()并处理结果
-        let ast = crate::query::context::ast::QueryAstContext::new(query_text);
+        let ast = crate::core::context::ast::QueryAstContext::new(query_text);
 
         Ok(ast)
     }
@@ -102,7 +102,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
     fn validate_query(
         &mut self,
         _query_context: &mut QueryContext,
-        _ast: &crate::query::context::ast::QueryAstContext,
+        _ast: &crate::core::context::ast::QueryAstContext,
     ) -> DBResult<()> {
         self.validator.validate_unified().map_err(|e| {
             DBError::Query(crate::core::error::QueryError::InvalidQuery(format!(
@@ -116,7 +116,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
     fn generate_execution_plan(
         &mut self,
         query_context: &mut QueryContext,
-        _ast: &crate::query::context::ast::QueryAstContext,
+        _ast: &crate::core::context::ast::QueryAstContext,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
         // 临时实现：创建一个空的执行计划
         // 在实际实现中，这里应该调用planner.transform(ast)

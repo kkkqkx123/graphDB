@@ -14,7 +14,7 @@
 //! ### 简化规划流程
 //! - 移除复杂的验证步骤
 /// - 专注于核心的规划逻辑
-use crate::query::context::ast::AstContext;
+use crate::core::context::ast::AstContext;
 use crate::query::planner::match_planning::clauses::{
     ReturnClausePlanner, WhereClausePlanner, WithClausePlanner,
 };
@@ -152,7 +152,7 @@ impl Planner for MatchPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::ast::AstContext;
+    use crate::core::context::ast::AstContext;
 
     #[test]
     fn test_match_planner_creation() {

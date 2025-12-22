@@ -1,5 +1,5 @@
 use crate::core::error::QueryError;
-use crate::query::context::QueryContext;
+use crate::core::context::query::QueryContext;
 use crate::query::executor::factory::BaseExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::executor::Executor;

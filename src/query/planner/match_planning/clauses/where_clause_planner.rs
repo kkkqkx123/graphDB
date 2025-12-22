@@ -113,7 +113,7 @@ impl WhereClausePlanner {
 
                 if path.is_pred {
                     // 构建模式谓词的计划
-                    let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                    let temp_ast_context = crate::core::context::ast::base::AstContext::new(
                         &context.query_info.statement_type,
                         &context.query_info.query_id,
                     );
@@ -125,7 +125,7 @@ impl WhereClausePlanner {
                     )?;
                 } else {
                     // 构建路径收集的计划
-                    let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                    let temp_ast_context = crate::core::context::ast::base::AstContext::new(
                         &context.query_info.statement_type,
                         &context.query_info.query_id,
                     );
@@ -158,7 +158,7 @@ impl WhereClausePlanner {
                 return Ok(where_plan);
             }
 
-            let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+            let temp_ast_context = crate::core::context::ast::base::AstContext::new(
                 &context.query_info.statement_type,
                 &context.query_info.query_id,
             );

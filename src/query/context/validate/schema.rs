@@ -442,15 +442,15 @@ mod tests {
 
         // 测试完全匹配的情况
         let cols = vec![
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "id".to_string(),
                 "INT".to_string(),
             ),
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "name".to_string(),
                 "STRING".to_string(),
             ),
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "age".to_string(),
                 "INT".to_string(),
             ),
@@ -462,11 +462,11 @@ mod tests {
 
         // 测试类型不匹配
         let wrong_type_cols = vec![
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "id".to_string(),
                 "STRING".to_string(),
             ), // 错误类型
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "name".to_string(),
                 "STRING".to_string(),
             ),
@@ -486,11 +486,11 @@ mod tests {
 
         // 测试缺少字段
         let missing_cols = vec![
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "id".to_string(),
                 "INT".to_string(),
             ),
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "name".to_string(),
                 "STRING".to_string(),
             ),
@@ -509,15 +509,15 @@ mod tests {
 
         // 测试额外字段
         let extra_cols = vec![
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "id".to_string(),
                 "INT".to_string(),
             ),
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "name".to_string(),
                 "STRING".to_string(),
             ),
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "email".to_string(),
                 "STRING".to_string(),
             ), // 额外字段
@@ -550,11 +550,11 @@ mod tests {
         schema.add_field("name".to_string(), "STRING".to_string());
 
         let cols = vec![
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "id".to_string(),
                 "INT".to_string(),
             ),
-            crate::query::context::validate::types::Column::new(
+            crate::core::context::validate::types::Column::new(
                 "email".to_string(),
                 "STRING".to_string(),
             ), // 额外字段

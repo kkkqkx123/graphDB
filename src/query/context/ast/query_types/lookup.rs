@@ -1,6 +1,6 @@
 //! Lookup查询上下文
 
-use crate::query::context::ast::AstContext;
+use crate::core::context::ast::AstContext;
 
 // Lookup查询上下文
 #[derive(Debug, Clone)]

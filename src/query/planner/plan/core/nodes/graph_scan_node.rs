@@ -10,7 +10,7 @@ use super::traits::{
     PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
 };
 use crate::core::Expression;
-use crate::query::context::validate::types::Variable;
+use crate::core::context::validate::types::Variable;
 use crate::utils::safe_lock;
 use std::sync::{Arc, Mutex};
 

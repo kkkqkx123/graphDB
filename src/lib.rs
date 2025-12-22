@@ -22,7 +22,7 @@ pub use crate::core::{
     DateTimeValue, DateValue, Direction, DurationValue, Edge, GeographyValue, NullType, Path, Step,
     Tag, TimeValue, Value, Vertex,
 };
-pub use crate::query::{ExecutionResult, ExecutorFactory, QueryError, QueryPipelineManager};
+pub use crate::core::{ExecutionResult, ExecutorFactory, QueryError, QueryPipelineManager};
 pub use crate::storage::{NativeStorage, StorageEngine, StorageError};
 
 // Re-export commonly used types from submodules

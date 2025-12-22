@@ -8,7 +8,7 @@ use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
     PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
 };
-use crate::query::context::validate::types::Variable;
+use crate::core::context::validate::types::Variable;
 use std::sync::{Arc, Mutex};
 
 /// Argument节点 - 用于从另一个已执行的操作中获取命名别名

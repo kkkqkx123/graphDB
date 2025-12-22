@@ -1,7 +1,7 @@
 //! 系统管理操作相关的计划节点
 //! 包括提交任务、创建快照等维护操作
 
-use crate::query::context::validate::types::Variable;
+use crate::core::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
         PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,

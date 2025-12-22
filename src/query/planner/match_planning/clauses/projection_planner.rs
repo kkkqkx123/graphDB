@@ -74,7 +74,7 @@ impl ProjectionPlanner {
 
             // 使用新的统一连接器
             plan = UnifiedConnector::add_input(
-                &crate::query::context::ast::AstContext::new("PROJECTION", "test"),
+                &crate::core::context::ast::AstContext::new("PROJECTION", "test"),
                 &order_plan,
                 &plan,
                 true,
@@ -102,7 +102,7 @@ impl ProjectionPlanner {
 
                 // 使用新的统一连接器
                 plan = UnifiedConnector::add_input(
-                    &crate::query::context::ast::AstContext::new("PROJECTION", "test"),
+                    &crate::core::context::ast::AstContext::new("PROJECTION", "test"),
                     &pagination_plan,
                     &plan,
                     true,
@@ -127,7 +127,7 @@ impl ProjectionPlanner {
 
             // 使用新的统一连接器
             plan = UnifiedConnector::add_input(
-                &crate::query::context::ast::AstContext::new("PROJECTION", "test"),
+                &crate::core::context::ast::AstContext::new("PROJECTION", "test"),
                 &where_plan,
                 &plan,
                 true,
@@ -144,7 +144,7 @@ impl ProjectionPlanner {
             let dedup_plan = SubPlan::new(Some(dedup_node.clone_plan_node()), Some(dedup_node));
             // 使用新的统一连接器
             plan = UnifiedConnector::add_input(
-                &crate::query::context::ast::AstContext::new("PROJECTION", "test"),
+                &crate::core::context::ast::AstContext::new("PROJECTION", "test"),
                 &dedup_plan,
                 &plan,
                 true,

@@ -658,7 +658,7 @@ mod tests {
 
     #[test]
     fn test_dependency_functions() {
-        use crate::query::context::QueryContext;
+        use crate::core::context::QueryContext;
 
         // 创建测试上下文
         let query_ctx = QueryContext::default();

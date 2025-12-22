@@ -5,7 +5,7 @@
 
 use crate::core::vertex_edge_path::{Edge, Vertex};
 use crate::core::Value;
-use crate::query::context::ast::CypherAstContext;
+use crate::core::context::ast::CypherAstContext;
 use crate::query::executor::ExecutionContext;
 use std::collections::HashMap;
 

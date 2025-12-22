@@ -91,7 +91,7 @@ impl BaseOptRule for TopNRule {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::QueryContext;
+    use crate::core::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::SortNode;
 

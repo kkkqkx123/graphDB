@@ -1,5 +1,5 @@
 //! Optimizer implementation for optimizing execution plans
-use crate::query::context::{validate, QueryContext};
+use crate::core::context::{validate, QueryContext};
 use crate::query::planner::plan::core::{PlanNodeVisitError, PlanNodeVisitor};
 use crate::query::planner::plan::{ExecutionPlan, PlanNode, PlanNodeKind};
 
@@ -179,7 +179,7 @@ pub struct OptGroupNode {
     pub group_id: usize,             // ID of the group this node belongs to
 }
 
-use crate::query::context::validate::types::Variable;
+use crate::core::context::validate::types::Variable;
 
 // A dummy plan node for default implementation
 #[derive(Debug, Default)]

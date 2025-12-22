@@ -1,7 +1,7 @@
 //! GO语句规划器
 //! 处理Nebula GO查询的规划
 
-use crate::query::context::ast::{AstContext, GoContext};
+use crate::core::context::ast::{AstContext, GoContext};
 use crate::query::planner::plan::core::{
     ArgumentNode, DedupNode, ExpandAllNode, ExpandNode, FilterNode, InnerJoinNode, ProjectNode,
 };

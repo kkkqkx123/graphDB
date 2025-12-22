@@ -3,10 +3,10 @@
 
 use crate::core::{SymbolTable, Value};
 use crate::graph::utils::IdGenerator;
-use crate::query::context::managers::{
+use crate::core::context::managers::{
     CharsetInfo, IndexManager, MetaClient, SchemaManager, StorageClient,
 };
-use crate::query::context::{QueryExecutionContext, RequestContext, ValidateContext};
+use crate::core::context::{QueryExecutionContext, RequestContext, ValidateContext};
 use crate::utils::ObjectPool;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -427,7 +427,7 @@ impl Default for QueryContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::managers::{Index, Schema};
+    use crate::core::context::managers::{Index, Schema};
     use std::collections::HashMap;
 
     // Mock实现用于测试
@@ -506,9 +506,9 @@ mod tests {
     impl StorageClient for MockStorageClient {
         fn execute(
             &self,
-            _operation: crate::query::context::managers::StorageOperation,
-        ) -> Result<crate::query::context::managers::StorageResponse, String> {
-            Ok(crate::query::context::managers::StorageResponse {
+            _operation: crate::core::context::managers::StorageOperation,
+        ) -> Result<crate::core::context::managers::StorageResponse, String> {
+            Ok(crate::core::context::managers::StorageResponse {
                 success: true,
                 data: None,
                 error_message: None,
@@ -524,8 +524,8 @@ mod tests {
     struct MockMetaClient;
 
     impl MetaClient for MockMetaClient {
-        fn get_cluster_info(&self) -> Result<crate::query::context::managers::ClusterInfo, String> {
-            Ok(crate::query::context::managers::ClusterInfo {
+        fn get_cluster_info(&self) -> Result<crate::core::context::managers::ClusterInfo, String> {
+            Ok(crate::core::context::managers::ClusterInfo {
                 cluster_id: "test_cluster".to_string(),
                 meta_servers: vec!["127.0.0.1:9559".to_string()],
                 storage_servers: vec!["127.0.0.1:9779".to_string()],
@@ -535,8 +535,8 @@ mod tests {
         fn get_space_info(
             &self,
             space_id: i32,
-        ) -> Result<crate::query::context::managers::SpaceInfo, String> {
-            Ok(crate::query::context::managers::SpaceInfo {
+        ) -> Result<crate::core::context::managers::SpaceInfo, String> {
+            Ok(crate::core::context::managers::SpaceInfo {
                 space_id,
                 space_name: "test_space".to_string(),
                 partition_num: 10,
@@ -560,7 +560,7 @@ mod tests {
 
         // 测试验证上下文
         ctx.vctx_mut()
-            .switch_to_space(crate::query::context::validate::types::SpaceInfo {
+            .switch_to_space(crate::core::context::validate::types::SpaceInfo {
                 id: 1,
                 name: "test_space".to_string(),
                 vid_type: "INT".to_string(),
@@ -644,7 +644,7 @@ mod tests {
         let mut ctx = QueryContext::new();
 
         // 设置字符集信息
-        let charset_info = crate::query::context::managers::CharsetInfo {
+        let charset_info = crate::core::context::managers::CharsetInfo {
             charset: "utf8mb4".to_string(),
             collation: "utf8mb4_general_ci".to_string(),
         };

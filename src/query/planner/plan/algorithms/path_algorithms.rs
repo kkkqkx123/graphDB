@@ -1,7 +1,7 @@
 //! 路径查找算法相关的计划节点
 //! 包含最短路径、所有路径等算法相关的计划节点
 
-use crate::query::context::validate::types::Variable;
+use crate::core::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
     plan_node_traits::{
         PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
