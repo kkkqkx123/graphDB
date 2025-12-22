@@ -83,7 +83,10 @@ impl Cord {
 
     /// Convert the Cord to a String
     pub fn to_string(&self) -> String {
-        String::from_utf8(self.flatten()).unwrap_or_default()
+        match String::from_utf8(self.flatten()) {
+            Ok(s) => s,
+            Err(_) => String::new(),
+        }
     }
 
     /// Convert the Cord to Vec<u8>

@@ -375,7 +375,7 @@ impl RequestContext {
     pub fn duration(&self) -> std::time::Duration {
         std::time::SystemTime::now()
             .duration_since(self.start_time)
-            .unwrap_or(std::time::Duration::from_secs(0))
+            .unwrap_or_else(|_| std::time::Duration::from_secs(0))
     }
 
     /// 获取请求状态

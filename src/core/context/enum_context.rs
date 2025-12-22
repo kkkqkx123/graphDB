@@ -7,7 +7,7 @@ use super::execution::ExecutionContext;
 use super::expression::{BasicExpressionContext, ExpressionContext};
 use super::query::QueryContext;
 use super::request::RequestContext;
-use super::runtime::RuntimeContext;
+use super::runtime::{DefaultRuntimeContext, RuntimeContext, TestRuntimeContext};
 use super::session::{SessionContext, SessionInfo};
 use super::storage::StorageContext;
 use super::validation::ValidationContext;
@@ -28,7 +28,7 @@ pub enum UnifiedContext {
     /// 请求上下文
     Request(RequestContext),
     /// 运行时上下文
-    Runtime(RuntimeContext),
+    Runtime(TestRuntimeContext),
     /// 验证上下文
     Validation(ValidationContext),
     /// 存储上下文
@@ -320,12 +320,20 @@ impl UnifiedContext {
                 0,
             )),
             ContextType::Runtime => {
-                let storage_env = std::sync::Arc::new(super::runtime::StorageEnv {
+                let storage_env = std::sync::Arc::new(super::runtime::StorageEnv::<
+                    super::manager::MockStorageEngine,
+                    super::manager::MockSchemaManager,
+                    super::manager::MockIndexManager,
+                > {
                     storage_engine: std::sync::Arc::new(super::manager::MockStorageEngine),
                     schema_manager: std::sync::Arc::new(super::manager::MockSchemaManager),
                     index_manager: std::sync::Arc::new(super::manager::MockIndexManager),
                 });
-                let plan_context = std::sync::Arc::new(super::runtime::PlanContext {
+                let plan_context = std::sync::Arc::new(super::runtime::PlanContext::<
+                    super::manager::MockStorageEngine,
+                    super::manager::MockSchemaManager,
+                    super::manager::MockIndexManager,
+                > {
                     storage_env,
                     space_id: 0,
                     session_id: 0,
@@ -336,7 +344,7 @@ impl UnifiedContext {
                     default_edge_ver: 0,
                     is_killed: false,
                 });
-                UnifiedContext::Runtime(RuntimeContext::new(
+                UnifiedContext::Runtime(TestRuntimeContext::new(
                     "test_runtime".to_string(),
                     plan_context,
                 ))

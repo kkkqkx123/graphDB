@@ -10,6 +10,7 @@ use super::base::{
     ContextStatistics, ContextType, SimpleEventListener,
 };
 use super::enum_context::UnifiedContext;
+use super::runtime::{TestRuntimeContext, StorageEnv, PlanContext};
 use crate::core::Value;
 
 /// 事件监听器类型别名
@@ -131,7 +132,7 @@ impl DefaultContextManager {
                     let lifetime_ms = context
                         .created_at()
                         .elapsed()
-                        .unwrap_or_default()
+                        .unwrap_or_else(|_| std::time::Duration::from_millis(0))
                         .as_millis() as u64;
                     stats.record_destroyed(context.context_type(), lifetime_ms);
                 }
@@ -232,12 +233,20 @@ impl ContextManager for DefaultContextManager {
             )),
             ContextType::Runtime => {
                 // 运行时上下文需要计划上下文，这里创建一个默认的
-                let storage_env = Arc::new(super::runtime::StorageEnv {
+                let storage_env = Arc::new(StorageEnv::<
+                    MockStorageEngine,
+                    MockSchemaManager,
+                    MockIndexManager,
+                > {
                     storage_engine: Arc::new(MockStorageEngine),
                     schema_manager: Arc::new(MockSchemaManager),
                     index_manager: Arc::new(MockIndexManager),
                 });
-                let plan_context = Arc::new(super::runtime::PlanContext {
+                let plan_context = Arc::new(PlanContext::<
+                    MockStorageEngine,
+                    MockSchemaManager,
+                    MockIndexManager,
+                > {
                     storage_env,
                     space_id: 0,
                     session_id: 0,
@@ -248,7 +257,7 @@ impl ContextManager for DefaultContextManager {
                     default_edge_ver: 0,
                     is_killed: false,
                 });
-                UnifiedContext::Runtime(super::runtime::RuntimeContext::new(
+                UnifiedContext::Runtime(TestRuntimeContext::new(
                     id.clone(),
                     plan_context,
                 ))
@@ -300,7 +309,7 @@ impl ContextManager for DefaultContextManager {
                 let lifetime_ms = context
                     .created_at()
                     .elapsed()
-                    .unwrap_or_default()
+                    .unwrap_or_else(|_| std::time::Duration::from_millis(0))
                     .as_millis() as u64;
                 stats.record_destroyed(context.context_type(), lifetime_ms);
             }
@@ -342,7 +351,7 @@ impl ContextManager for DefaultContextManager {
 
 
 // Mock实现，用于RuntimeContext的创建
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct MockStorageEngine;
 
 impl super::runtime::StorageEngine for MockStorageEngine {
@@ -396,7 +405,7 @@ impl super::runtime::StorageEngine for MockStorageEngine {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct MockSchemaManager;
 
 impl super::runtime::SchemaManager for MockSchemaManager {
@@ -417,7 +426,7 @@ impl super::runtime::SchemaManager for MockSchemaManager {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct MockIndexManager;
 
 impl super::runtime::IndexManager for MockIndexManager {

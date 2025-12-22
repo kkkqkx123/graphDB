@@ -261,10 +261,9 @@ mod tests {
     fn test_sequential_result_iterator_invalid_data() {
         let data = Arc::new(Value::Int(42));
         let result = SequentialResultIterator::new(data);
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            "SequentialResultIterator 只支持 DataSet"
-        );
+        match result {
+            Err(e) => assert_eq!(e, "SequentialResultIterator 只支持 DataSet"),
+            Ok(_) => panic!("Expected error but got Ok"),
+        }
     }
 }

@@ -96,7 +96,10 @@ impl ResultBuilder {
 
     /// 构建结果
     pub fn build(self) -> Result {
-        let value = self.value.unwrap_or(Value::Null(NullType::Null));
+        let value = match self.value {
+            Some(v) => v,
+            None => Value::Null(NullType::Null),
+        };
 
         // 使用完整构造方法创建结果
         let result = Result::with_components(

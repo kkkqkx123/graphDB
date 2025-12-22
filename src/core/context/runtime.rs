@@ -1,6 +1,10 @@
 //! 运行时上下文模块
 //!
 //! 存储层运行时上下文，整合自query/context/runtime_context.rs
+//!
+//! ## 动态分发优化说明
+//! - 存储环境使用泛型参数替代动态分发以获得更好的性能
+//! - 运行时上下文中的tag_schema和edge_schema保留动态分发以支持多种schema管理策略
 
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -8,6 +12,10 @@ use std::sync::Arc;
 use super::base::{ContextBase, ContextType, MutableContext};
 use crate::common::base::id::{EdgeType, TagId};
 use crate::core::Value;
+
+// 导入实际实现类型，用于默认类型别名
+use crate::query::context::managers::{MemorySchemaManager, MemoryIndexManager};
+use crate::storage::native_storage::NativeStorage;
 
 /// 结果状态枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -33,9 +41,14 @@ pub struct PropContext {
 /// 计划上下文（存储层）
 /// 存储处理过程中不变的信息
 #[derive(Debug, Clone)]
-pub struct PlanContext {
+pub struct PlanContext<S, M, I>
+where
+    S: StorageEngine,
+    M: SchemaManager,
+    I: IndexManager,
+{
     /// 存储环境引用
-    pub storage_env: Arc<StorageEnv>,
+    pub storage_env: Arc<StorageEnv<S, M, I>>,
     /// 空间ID
     pub space_id: i32,
     /// 会话ID
@@ -55,14 +68,20 @@ pub struct PlanContext {
 }
 
 /// 存储环境（简化版本）
+/// 使用泛型参数替代动态分发以获得更好的性能
 #[derive(Debug, Clone)]
-pub struct StorageEnv {
+pub struct StorageEnv<S, M, I>
+where
+    S: StorageEngine,
+    M: SchemaManager,
+    I: IndexManager,
+{
     /// 存储引擎
-    pub storage_engine: Arc<dyn StorageEngine>,
+    pub storage_engine: Arc<S>,
     /// Schema管理器
-    pub schema_manager: Arc<dyn SchemaManager>,
+    pub schema_manager: Arc<M>,
     /// 索引管理器
-    pub index_manager: Arc<dyn IndexManager>,
+    pub index_manager: Arc<I>,
 }
 
 /// 存储引擎trait
@@ -115,13 +134,22 @@ pub trait IndexManager: Send + Sync + std::fmt::Debug {
 
 /// 运行时上下文
 /// 存储处理过程中可能变化的信息
+///
+/// ## 动态分发说明
+/// - tag_schema和edge_schema保留动态分发以支持多种schema管理策略
+/// - 这是必要的设计选择，因为运行时需要支持不同的schema管理实现
 #[derive(Debug, Clone)]
-pub struct RuntimeContext {
+pub struct RuntimeContext<S, M, I>
+where
+    S: StorageEngine,
+    M: SchemaManager,
+    I: IndexManager,
+{
     /// 上下文ID
     pub id: String,
 
     /// 计划上下文引用
-    pub plan_context: Arc<PlanContext>,
+    pub plan_context: Arc<PlanContext<S, M, I>>,
 
     /// 标签ID
     pub tag_id: TagId,
@@ -159,9 +187,14 @@ pub struct RuntimeContext {
     pub valid: bool,
 }
 
-impl RuntimeContext {
+impl<S, M, I> RuntimeContext<S, M, I>
+where
+    S: StorageEngine,
+    M: SchemaManager,
+    I: IndexManager,
+{
     /// 创建新的运行时上下文
-    pub fn new(id: String, plan_context: Arc<PlanContext>) -> Self {
+    pub fn new(id: String, plan_context: Arc<PlanContext<S, M, I>>) -> Self {
         let now = std::time::SystemTime::now();
         Self {
             id,
@@ -184,7 +217,7 @@ impl RuntimeContext {
     }
 
     /// 获取存储环境
-    pub fn env(&self) -> &Arc<StorageEnv> {
+    pub fn env(&self) -> &Arc<StorageEnv<S, M, I>> {
         &self.plan_context.storage_env
     }
 
@@ -280,7 +313,12 @@ impl RuntimeContext {
     }
 }
 
-impl ContextBase for RuntimeContext {
+impl<S, M, I> ContextBase for RuntimeContext<S, M, I>
+where
+    S: StorageEngine,
+    M: SchemaManager,
+    I: IndexManager,
+{
     fn id(&self) -> &str {
         &self.id
     }
@@ -302,7 +340,12 @@ impl ContextBase for RuntimeContext {
     }
 }
 
-impl MutableContext for RuntimeContext {
+impl<S, M, I> MutableContext for RuntimeContext<S, M, I>
+where
+    S: StorageEngine,
+    M: SchemaManager,
+    I: IndexManager,
+{
     fn touch(&mut self) {
         self.updated_at = std::time::SystemTime::now();
     }
@@ -320,7 +363,12 @@ impl MutableContext for RuntimeContext {
     }
 }
 
-impl super::base::HierarchicalContext for RuntimeContext {
+impl<S, M, I> super::base::HierarchicalContext for RuntimeContext<S, M, I>
+where
+    S: StorageEngine,
+    M: SchemaManager,
+    I: IndexManager,
+{
     fn parent_id(&self) -> Option<&str> {
         None // 运行时上下文通常是独立的
     }
@@ -338,3 +386,31 @@ pub type Index = crate::core::schema::Schema;
 pub type Vertex = crate::core::vertex_edge_path::Vertex;
 pub type Edge = crate::core::vertex_edge_path::Edge;
 pub type Direction = crate::core::vertex_edge_path::Direction;
+
+// 默认存储环境类型别名，使用项目中实际的实现类型
+pub type DefaultStorageEnv = StorageEnv<
+    crate::storage::native_storage::NativeStorage,
+    crate::query::context::managers::MemorySchemaManager,
+    crate::query::context::managers::MemoryIndexManager,
+>;
+
+// 默认计划上下文类型别名
+pub type DefaultPlanContext = PlanContext<
+    crate::storage::native_storage::NativeStorage,
+    crate::query::context::managers::MemorySchemaManager,
+    crate::query::context::managers::MemoryIndexManager,
+>;
+
+// 默认运行时上下文类型别名
+pub type DefaultRuntimeContext = RuntimeContext<
+    crate::storage::native_storage::NativeStorage,
+    crate::query::context::managers::MemorySchemaManager,
+    crate::query::context::managers::MemoryIndexManager,
+>;
+
+// 测试运行时上下文类型别名
+pub type TestRuntimeContext = RuntimeContext<
+    crate::core::context::manager::MockStorageEngine,
+    crate::core::context::manager::MockSchemaManager,
+    crate::core::context::manager::MockIndexManager,
+>;

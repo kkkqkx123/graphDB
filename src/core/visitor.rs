@@ -401,7 +401,7 @@ impl ExpressionAcceptor for crate::expression::Expression {
                 let cond_expr = condition
                     .as_ref()
                     .map(|c| (**c).clone())
-                    .unwrap_or(crate::expression::Expression::bool(true));
+                    .unwrap_or_else(|| crate::expression::Expression::bool(true));
                 visitor.visit_function("list_comprehension", &[(**generator).clone(), cond_expr])
             }
             Expression::Predicate { list, condition } => {

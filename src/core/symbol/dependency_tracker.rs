@@ -318,7 +318,7 @@ impl DependencyTracker {
         self.dependencies
             .get(variable_name)
             .map(|deps| deps.get_readers().iter().collect())
-            .unwrap_or_default()
+            .unwrap_or_else(Vec::new)
     }
 
     /// 查找写入指定变量的所有节点
@@ -326,7 +326,7 @@ impl DependencyTracker {
         self.dependencies
             .get(variable_name)
             .map(|deps| deps.get_writers().iter().collect())
-            .unwrap_or_default()
+            .unwrap_or_else(Vec::new)
     }
 
     /// 查找指定节点读取的所有变量
