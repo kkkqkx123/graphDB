@@ -5,10 +5,10 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
+use crate::core::context::expression::ExpressionContextCore;
+use crate::core::context::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
-use crate::core::context::expression::ExpressionContextCore;
-use crate::core::context::expression::{BasicExpressionContext, ExpressionContext};
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
@@ -59,7 +59,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
             loop_state: LoopState::NotStarted,
             evaluator: ExpressionEvaluator,
             results: Vec::new(),
-            loop_context: BasicExpressionContext::default(),
+            loop_context: ExpressionContext::Default(DefaultExpressionContext::new()),
         }
     }
 }
@@ -73,7 +73,7 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
                     .evaluator
                     .evaluate(expr, &self.loop_context)
                     .map_err(|e| {
-                        DBError::Expression(crate::core::error::ExpressionError::FunctionError(
+                        DBError::Expression(crate::core::error::ExpressionError::function_error(
                             e.to_string(),
                         ))
                     })?;
@@ -192,10 +192,20 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
         {
             // 合并数据集
             if all_datasets.len() == 1 {
-                ExecutionResult::DataSet(all_datasets.into_iter().next().expect("Failed to get next dataset"))
+                ExecutionResult::DataSet(
+                    all_datasets
+                        .into_iter()
+                        .next()
+                        .expect("Failed to get next dataset"),
+                )
             } else {
                 // 简化处理：返回第一个数据集
-                ExecutionResult::DataSet(all_datasets.into_iter().next().expect("Failed to get next dataset"))
+                ExecutionResult::DataSet(
+                    all_datasets
+                        .into_iter()
+                        .next()
+                        .expect("Failed to get next dataset"),
+                )
             }
         } else {
             // 混合类型，返回值列表
@@ -292,7 +302,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
         self.loop_state = LoopState::NotStarted;
         self.current_iteration = 0;
         self.results.clear();
-        self.loop_context = BasicExpressionContext::default();
+        self.loop_context = ExpressionContext::Default(DefaultExpressionContext::new());
 
         // 打开循环体执行器
         self.body_executor.open()?;
@@ -305,7 +315,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
 
         // 清理资源
         self.results.clear();
-        self.loop_context = BasicExpressionContext::default();
+        self.loop_context = ExpressionContext::Default(DefaultExpressionContext::new());
 
         Ok(())
     }

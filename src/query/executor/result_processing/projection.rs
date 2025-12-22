@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
 use crate::core::context::expression::ExpressionContextCore;
-use crate::core::context::expression::{BasicExpressionContext, ExpressionContext};
+use crate::core::context::expression::{ExpressionContext, DefaultExpressionContext};
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
@@ -53,7 +53,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
         let evaluator = ExpressionEvaluator;
 
         // 为当前行创建评估上下文
-        let mut context = BasicExpressionContext::default();
+        let mut context = DefaultExpressionContext::new();
 
         // 将当前行的值设置为上下文变量
         for (i, col_name) in col_names.iter().enumerate() {
@@ -68,7 +68,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
                 Ok(value) => projected_row.push(value),
                 Err(e) => {
                     return Err(DBError::Expression(
-                        crate::core::error::ExpressionError::FunctionError(format!(
+                        crate::core::error::ExpressionError::function_error(format!(
                             "Failed to evaluate projection expression '{}': {}",
                             column.name, e
                         )),
@@ -113,7 +113,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
         // 对每个顶点进行投影
         for vertex in vertices {
-            let mut context = BasicExpressionContext::default();
+            let mut context = DefaultExpressionContext::new();
             // 设置顶点信息
             context.set_variable(
                 "_vertex".to_string(),
@@ -134,7 +134,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
                         return Err(DBError::Expression(
-                            crate::core::error::ExpressionError::FunctionError(format!(
+                            crate::core::error::ExpressionError::function_error(format!(
                                 "Failed to evaluate projection expression '{}': {}",
                                 column.name, e
                             )),
@@ -162,7 +162,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
         // 对每个边进行投影
         for edge in edges {
-            let mut context = BasicExpressionContext::default();
+            let mut context = DefaultExpressionContext::new();
             // 设置边信息
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
@@ -181,7 +181,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
                         return Err(DBError::Expression(
-                            crate::core::error::ExpressionError::FunctionError(format!(
+                            crate::core::error::ExpressionError::function_error(format!(
                                 "Failed to evaluate projection expression '{}': {}",
                                 column.name, e
                             )),
@@ -250,11 +250,16 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                 let evaluator = ExpressionEvaluator;
 
                 for path in paths {
-                    let mut context = BasicExpressionContext::default();
+                    let mut context = DefaultExpressionContext::new();
                     // 设置路径相关信息作为变量
-                    context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
-                    context
-                        .set_variable("src".to_string(), Value::String(path.src.vid.to_string()));
+                    context.set_variable(
+                        "path_length".to_string(),
+                        Value::Int(path.len() as i64),
+                    );
+                    context.set_variable(
+                        "src".to_string(),
+                        Value::String(path.src.vid.to_string()),
+                    );
 
                     let mut projected_row = Vec::new();
                     for column in &self.columns {
@@ -262,7 +267,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                             Ok(value) => projected_row.push(value),
                             Err(e) => {
                                 return Err(DBError::Expression(
-                                    crate::core::error::ExpressionError::FunctionError(format!(
+                                    crate::core::error::ExpressionError::function_error(format!(
                                         "Failed to evaluate projection expression '{}': {}",
                                         column.name, e
                                     )),

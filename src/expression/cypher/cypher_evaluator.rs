@@ -1,6 +1,6 @@
-use crate::core::{ExpressionError, Value};
+use crate::core::{Value, ExpressionError};
 use crate::core::context::expression::ExpressionContextCore;
-use crate::core::{Expression, ExpressionContext};
+use crate::core::types::expression::Expression;
 use crate::query::parser::cypher::ast::expressions::{
     BinaryExpression, BinaryOperator, CaseExpression,
     Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
@@ -17,7 +17,7 @@ impl CypherEvaluator {
     /// 直接评估Cypher表达式
     pub fn evaluate_cypher(
         cypher_expr: &CypherExpression,
-        context: &dyn ExpressionContext,
+        context: &dyn ExpressionContextCore,
     ) -> Result<Value, ExpressionError> {
         match cypher_expr {
             CypherExpression::Literal(literal) => Self::evaluate_cypher_literal(literal),
@@ -59,17 +59,17 @@ impl CypherEvaluator {
     /// 评估Cypher变量
     fn evaluate_cypher_variable(
         name: &str,
-        context: &dyn ExpressionContext,
+        context: &dyn ExpressionContextCore,
     ) -> Result<Value, ExpressionError> {
         context
             .get_variable(name)
-            .ok_or_else(|| ExpressionError::PropertyNotFound(format!("Variable ${}", name)))
+            .ok_or_else(|| ExpressionError::property_not_found(format!("Variable ${}", name)))
     }
 
     /// 评估Cypher属性表达式
     fn evaluate_cypher_property(
         prop_expr: &PropertyExpression,
-        context: &dyn ExpressionContext,
+        context: &dyn ExpressionContextCore,
     ) -> Result<Value, ExpressionError> {
         let object_value = Self::evaluate_cypher(&prop_expr.expression, context)?;
 
@@ -77,7 +77,7 @@ impl CypherEvaluator {
             Value::Map(map) => map
                 .get(&prop_expr.property_name)
                 .cloned()
-                .ok_or_else(|| ExpressionError::PropertyNotFound(prop_expr.property_name.clone())),
+                .ok_or_else(|| ExpressionError::property_not_found(prop_expr.property_name.clone())),
             Value::Vertex(vertex) => {
                 if let Some(value) = vertex.get_property_any(&prop_expr.property_name) {
                     Ok(value.clone())
@@ -99,7 +99,7 @@ impl CypherEvaluator {
     /// 评估Cypher函数调用
     fn evaluate_cypher_function_call(
         func_call: &FunctionCall,
-        context: &dyn ExpressionContext,
+        context: &dyn ExpressionContextCore,
     ) -> Result<Value, ExpressionError> {
         // 将Cypher函数调用转换为统一的函数调用
         let args: Result<Vec<Expression>, ExpressionError> = func_call
@@ -116,26 +116,26 @@ impl CypherEvaluator {
         };
 
         // 使用ExpressionEvaluator评估统一函数
-        crate::expression::evaluator::ExpressionEvaluator::new().evaluate(&unified_func, context)
+        crate::core::ExpressionEvaluator::new().evaluate(&unified_func, context)
     }
 
     /// 评估Cypher二元表达式
     fn evaluate_cypher_binary(
         bin_expr: &BinaryExpression,
-        context: &dyn ExpressionContext,
+        context: &dyn ExpressionContextCore,
     ) -> Result<Value, ExpressionError> {
         // 转换为统一表达式并使用现有的评估逻辑
         let unified_expr = super::expression_converter::ExpressionConverter::convert_cypher_to_unified(
             &CypherExpression::Binary(bin_expr.clone())
         )?;
         
-        crate::expression::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
+        crate::core::ExpressionEvaluator::new().evaluate(&unified_expr, context)
     }
 
     /// 评估Cypher一元表达式
     fn evaluate_cypher_unary(
         unary_expr: &UnaryExpression,
-        context: &dyn ExpressionContext,
+        context: &dyn ExpressionContextCore,
     ) -> Result<Value, ExpressionError> {
         let value = Self::evaluate_cypher(&unary_expr.expression, context)?;
 
@@ -159,7 +159,7 @@ impl CypherEvaluator {
     /// 评估Cypher CASE表达式
     fn evaluate_cypher_case(
         case_expr: &CaseExpression,
-        context: &dyn ExpressionContext,
+        context: &dyn ExpressionContextCore,
     ) -> Result<Value, ExpressionError> {
         for alternative in &case_expr.alternatives {
             let cond_result = Self::evaluate_cypher(&alternative.when_expression, context)?;
@@ -178,7 +178,7 @@ impl CypherEvaluator {
     /// 评估Cypher列表表达式
     fn evaluate_cypher_list(
         list_expr: &ListExpression,
-        context: &dyn ExpressionContext,
+        context: &dyn ExpressionContextCore,
     ) -> Result<Value, ExpressionError> {
         let mut elements = Vec::new();
         for element in &list_expr.elements {
@@ -190,7 +190,7 @@ impl CypherEvaluator {
     /// 评估Cypher映射表达式
     fn evaluate_cypher_map(
         map_expr: &MapExpression,
-        context: &dyn ExpressionContext,
+        context: &dyn ExpressionContextCore,
     ) -> Result<Value, ExpressionError> {
         let mut properties = std::collections::HashMap::new();
         for (key, value) in &map_expr.properties {
@@ -202,7 +202,7 @@ impl CypherEvaluator {
     /// 评估Cypher模式表达式
     fn evaluate_cypher_pattern(
         pattern_expr: &PatternExpression,
-        _context: &dyn ExpressionContext,
+        _context: &dyn ExpressionContextCore,
     ) -> Result<Value, ExpressionError> {
         // 将模式表达式转换为路径表达式并评估
         // 这里需要更复杂的实现来处理图模式匹配
@@ -214,7 +214,7 @@ impl CypherEvaluator {
     /// 批量评估Cypher表达式
     pub fn evaluate_cypher_batch(
         cypher_exprs: &[CypherExpression],
-        context: &dyn ExpressionContext,
+        context: &dyn ExpressionContextCore,
     ) -> Result<Vec<Value>, ExpressionError> {
         let mut results = Vec::new();
         for expr in cypher_exprs {
@@ -239,7 +239,7 @@ impl CypherEvaluator {
     }
 
     /// 递归收集Cypher表达式中的变量
-    fn collect_cypher_variables(cypher_expr: &CypherExpression, variables: &mut Vec<String>) {
+    pub fn collect_cypher_variables(cypher_expr: &CypherExpression, variables: &mut Vec<String>) {
         match cypher_expr {
             CypherExpression::Variable(name) => {
                 if !variables.contains(name) {
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_literal() {
-        let context = BasicExpressionContext::default();
+        let context = crate::core::context::expression::default_context::ExpressionContext::default();
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
         let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &context).expect("Cypher evaluation should succeed for literal values");
 
@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_variable() {
-        let mut context = BasicExpressionContext::default();
+        let mut context = crate::core::context::expression::default_context::ExpressionContext::default();
         context.set_variable("x".to_string(), Value::Int(100));
 
         let cypher_expr = CypherExpression::Variable("x".to_string());
@@ -360,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_binary_add() {
-        let context = BasicExpressionContext::default();
+        let context = crate::core::context::expression::default_context::ExpressionContext::default();
         let left = Box::new(CypherExpression::Literal(CypherLiteral::Integer(1)));
         let right = Box::new(CypherExpression::Literal(CypherLiteral::Integer(2)));
         let cypher_expr = CypherExpression::Binary(BinaryExpression {

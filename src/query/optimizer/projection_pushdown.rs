@@ -118,7 +118,18 @@ mod tests {
     use crate::query::planner::plan::core::nodes::ProjectNode;
 
     fn create_test_context() -> OptContext {
-        OptContext::new(QueryContext::default())
+        let session_info = crate::core::context::session::SessionInfo::new(
+            "test_session",
+            "test_user",
+            vec!["user".to_string()]
+        );
+        let query_context = QueryContext::new(
+            "test_query",
+            crate::core::types::query::QueryType::DataQuery,
+            "TEST QUERY",
+            session_info
+        );
+        OptContext::new(query_context)
     }
 
     #[test]
@@ -137,7 +148,9 @@ mod tests {
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, project_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配投影节点并尝试下推
         assert!(result.is_some());
     }
@@ -158,7 +171,9 @@ mod tests {
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, project_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配投影节点并尝试下推到数据源
         assert!(result.is_some());
     }

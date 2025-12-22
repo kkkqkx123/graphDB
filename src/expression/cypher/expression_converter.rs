@@ -28,7 +28,7 @@ impl ExpressionConverter {
                     crate::core::Value::Float(f) => LiteralValue::Float(f),
                     crate::core::Value::Bool(b) => LiteralValue::Bool(b),
                     crate::core::Value::Null(_) => LiteralValue::Null,
-                    _ => return Err(ExpressionError::InvalidOperation("Unsupported literal type".to_string())),
+                    _ => return Err(ExpressionError::invalid_operation("Unsupported literal type".to_string())),
                 };
                 Ok(Expression::Literal(unified_literal))
             }
@@ -140,7 +140,7 @@ impl ExpressionConverter {
                     crate::core::Value::Float(f) => CypherLiteral::Float(f),
                     crate::core::Value::Bool(b) => CypherLiteral::Boolean(b),
                     crate::core::Value::Null(_) => CypherLiteral::Null,
-                    _ => return Err(ExpressionError::InvalidOperation("Unsupported value type".to_string())),
+                    _ => return Err(ExpressionError::invalid_operation("Unsupported value type".to_string())),
                 };
                 Ok(CypherExpression::Literal(cypher_literal))
             }
@@ -166,7 +166,7 @@ impl ExpressionConverter {
                 let left_expr = Self::convert_unified_to_cypher(left)?;
                 let right_expr = Self::convert_unified_to_cypher(right)?;
                 let binary_op = operator_conversion::convert_unified_to_cypher_binary_operator(op)
-                    .map_err(|e| ExpressionError::InvalidOperation(e))?;
+                    .map_err(|e| ExpressionError::invalid_operation(e))?;
                 Ok(CypherExpression::Binary(BinaryExpression {
                     left: Box::new(left_expr),
                     operator: binary_op,
@@ -176,7 +176,7 @@ impl ExpressionConverter {
             Expression::Unary { op, operand } => {
                 let operand_expr = Self::convert_unified_to_cypher(operand)?;
                 let unary_op = operator_conversion::convert_unified_to_cypher_unary_operator(op)
-                    .map_err(|e| ExpressionError::InvalidOperation(e))?;
+                    .map_err(|e| ExpressionError::invalid_operation(e))?;
                 Ok(CypherExpression::Unary(UnaryExpression {
                     operator: unary_op,
                     expression: Box::new(operand_expr),
@@ -203,7 +203,7 @@ impl ExpressionConverter {
             // 如果需要处理字符串，应该使用Expression::Literal(LiteralValue::String)
             _ => {
                 // 对于其他未处理的情况，返回错误
-                Err(ExpressionError::InvalidOperation(format!(
+                Err(ExpressionError::invalid_operation(format!(
                     "Unsupported expression type: {:?}",
                     expr
                 )))

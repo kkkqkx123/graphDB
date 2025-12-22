@@ -23,7 +23,7 @@ pub mod executor_factory;
 pub mod query_pipeline_manager;
 
 // 错误和结果类型
-pub use error::{DBError, DBResult, ExpressionError, QueryError};
+pub use error::{DBError, DBResult, ExpressionError, ExpressionErrorType, ExpressionPosition, QueryError};
 pub use result::*;
 
 // 核心数据类型

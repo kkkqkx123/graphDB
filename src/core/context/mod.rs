@@ -21,10 +21,12 @@ pub use query::*;
 pub use query_execution::*;
 pub use execution::*;
 pub use session::*;
-pub use expression::*;
 pub use request::*;
 pub use runtime::*;
 pub use validation::*;
 pub use storage::*;
 pub use manager::*;
 pub use enum_context::*;
+
+// 重新导出expression模块的所有内容
+pub use expression::*;

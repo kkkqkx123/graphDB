@@ -329,6 +329,11 @@ impl CypherExpressionOptimizer {
             "abs" | "length" | "size" | "tostring" | "tointeger" | "tofloat" | "toboolean"
         )
     }
+
+    /// 优化Cypher表达式（公开方法，与expression_evaluator兼容）
+    pub fn optimize_cypher(cypher_expr: &CypherExpression) -> Result<CypherExpression, ExpressionError> {
+        Ok(Self::optimize_cypher_expression(cypher_expr))
+    }
 }
 
 #[cfg(test)]

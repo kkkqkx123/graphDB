@@ -101,7 +101,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                         .into_iter()
                         .filter(|vertex| {
                             // 创建评估上下文
-                            let mut context = crate::core::BasicExpressionContext::default();
+                            let mut context = crate::core::DefaultExpressionContext::new();
                             context.set_variable(
                                 "vertex".to_string(),
                                 crate::core::Value::Vertex(Box::new(vertex.clone())),

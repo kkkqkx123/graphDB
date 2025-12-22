@@ -1,5 +1,4 @@
-use crate::core::ExpressionError;
-use crate::core::Value;
+use crate::core::{ExpressionError, Value};
 use crate::core::Expression;
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +36,7 @@ impl AggregateFunction {
             "MIN" => Ok(AggregateFunction::Min),
             "MAX" => Ok(AggregateFunction::Max),
             "COLLECT" => Ok(AggregateFunction::Collect),
-            _ => Err(ExpressionError::FunctionError(format!(
+            _ => Err(ExpressionError::function_error(format!(
                 "Unknown aggregate function: {}",
                 func_name
             ))),
@@ -72,7 +71,7 @@ impl AggregateExpression {
         let evaluator = crate::core::evaluator::ExpressionEvaluator;
         let arg_value = evaluator
             .evaluate(&self.argument, context)
-            .map_err(|e| ExpressionError::FunctionError(e.to_string()))?;
+            .map_err(|e| ExpressionError::function_error(e.to_string()))?;
 
         // 更新聚合状态
         state.update(&self.function, &arg_value);

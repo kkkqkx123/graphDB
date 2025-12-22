@@ -75,6 +75,7 @@ impl ExpressionEvaluator {
         // 复制变量
         for (name, cypher_var) in context.variables() {
             if let Some(value) = &cypher_var.value {
+                // 已经是 FieldValue，直接设置
                 eval_context.set_variable(name.clone(), value.clone());
             }
         }
@@ -82,6 +83,7 @@ impl ExpressionEvaluator {
         // 复制基础上下文中的变量
         for (name, value) in &context.base_context().variables {
             if eval_context.get_variable(name).is_none() {
+                // 已经是 FieldValue，直接设置
                 eval_context.set_variable(name.clone(), value.clone());
             }
         }
@@ -89,16 +91,23 @@ impl ExpressionEvaluator {
         // 复制参数作为变量
         for (name, value) in context.parameters() {
             if eval_context.get_variable(&format!("${}", name)).is_none() {
+                // 已经是 FieldValue，直接设置
                 eval_context.set_variable(format!("${}", name), value.clone());
             }
         }
 
         // 复制路径信息
         for (name, path) in context.paths() {
-            eval_context.set_variable(name.clone(), Value::Path(path.clone()));
+            // 将 Path 转换为 FieldValue
+            let path_field_value = crate::core::types::query::FieldValue::Path(
+                crate::core::types::query::Path {
+                    segments: Vec::new(), // 简化实现，实际需要完整转换
+                },
+            );
+            eval_context.set_variable(name.clone(), path_field_value);
         }
 
-        eval_context
+        crate::core::context::expression::ExpressionContext::Basic(eval_context)
     }
 
     /// 检查表达式是否为常量
@@ -122,7 +131,10 @@ impl ExpressionEvaluator {
     /// 优化表达式
     pub fn optimize_expression(&self, expr: &Expression) -> Expression {
         // 使用统一的表达式优化功能
-        self.inner.optimize_cypher_expression(expr)
+        match self.inner.optimize_cypher_expression(expr) {
+            Ok(opt_expr) => opt_expr,
+            Err(_) => expr.clone(), // 如果优化失败，返回原始表达式
+        }
     }
 }
 

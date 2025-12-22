@@ -661,7 +661,17 @@ mod tests {
         use crate::core::context::QueryContext;
 
         // 创建测试上下文
-        let query_ctx = QueryContext::default();
+        let session_info = crate::core::context::session::SessionInfo::new(
+            "test_session",
+            "test_user",
+            vec!["user".to_string()]
+        );
+        let query_ctx = QueryContext::new(
+            "test_query",
+            crate::core::types::query::QueryType::DataQuery,
+            "TEST QUERY",
+            session_info
+        );
         let mut opt_ctx = OptContext::new(query_ctx);
 
         // 创建测试节点 - 使用 OptGroupNode::default() 创建默认节点

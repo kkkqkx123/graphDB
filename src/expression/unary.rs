@@ -1,6 +1,6 @@
-use crate::core::ExpressionError;
-use crate::core::Value;
-use crate::core::{Expression, ExpressionContext};
+use crate::core::{ExpressionError, Value};
+use crate::core::context::expression::default_context::ExpressionContextCore;
+use crate::core::Expression;
 use serde::{Deserialize, Serialize};
 
 /// Unary operators for expressions
@@ -22,7 +22,7 @@ pub enum UnaryOperator {
 pub fn evaluate_unary_op(
     op: &UnaryOperator,
     operand: &Expression,
-    context: &dyn ExpressionContext,
+    context: &dyn ExpressionContextCore,
 ) -> Result<Value, ExpressionError> {
     let evaluator = crate::core::evaluator::ExpressionEvaluator;
     let operand_val = evaluator.evaluate(operand, context)?;
@@ -52,10 +52,10 @@ pub fn evaluate_unary_op(
             };
             Ok(Value::Bool(is_not_empty))
         }
-        UnaryOperator::Increment => Err(ExpressionError::InvalidOperation(
+        UnaryOperator::Increment => Err(ExpressionError::invalid_operation(
             "Increment operation not supported".to_string(),
         )),
-        UnaryOperator::Decrement => Err(ExpressionError::InvalidOperation(
+        UnaryOperator::Decrement => Err(ExpressionError::invalid_operation(
             "Decrement operation not supported".to_string(),
         )),
     }
@@ -64,7 +64,7 @@ pub fn evaluate_unary_op(
 // 评估扩展的一元操作表达式
 pub fn evaluate_extended_unary_op(
     expr: &Expression,
-    context: &dyn ExpressionContext,
+    context: &dyn ExpressionContextCore,
 ) -> Result<Value, ExpressionError> {
     match expr {
         Expression::UnaryPlus(operand) => {
@@ -87,7 +87,7 @@ pub fn evaluate_extended_unary_op(
             match value {
                 Value::Int(n) => Ok(Value::Int(n + 1)),
                 Value::Float(n) => Ok(Value::Float(n + 1.0)),
-                _ => Err(ExpressionError::TypeError(
+                _ => Err(ExpressionError::type_error(
                     "Cannot increment non-numeric value".to_string(),
                 )),
             }
@@ -98,7 +98,7 @@ pub fn evaluate_extended_unary_op(
             match value {
                 Value::Int(n) => Ok(Value::Int(n - 1)),
                 Value::Float(n) => Ok(Value::Float(n - 1.0)),
-                _ => Err(ExpressionError::TypeError(
+                _ => Err(ExpressionError::type_error(
                     "Cannot decrement non-numeric value".to_string(),
                 )),
             }
@@ -137,7 +137,7 @@ pub fn evaluate_extended_unary_op(
             };
             Ok(Value::Bool(is_not_empty))
         }
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Expression is not an extended unary operation".to_string(),
         )),
     }
@@ -147,7 +147,7 @@ fn neg_value(value: Value) -> Result<Value, ExpressionError> {
     match value {
         Value::Int(n) => Ok(Value::Int(-n)),
         Value::Float(n) => Ok(Value::Float(-n)),
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot negate this value type".to_string(),
         )),
     }

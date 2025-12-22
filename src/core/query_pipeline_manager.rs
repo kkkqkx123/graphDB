@@ -1,7 +1,7 @@
+use crate::core::context::query::QueryContext;
 use crate::core::error::{DBError, DBResult};
-use crate::core::context::{query::QueryContext, request::RequestContext};
-use crate::query::executor::traits::ExecutionResult;
 use crate::core::executor_factory::ExecutorFactory;
+use crate::query::executor::traits::ExecutionResult;
 use crate::query::optimizer::Optimizer;
 use crate::query::parser::parser::Parser;
 use crate::query::planner::Planner;
@@ -70,18 +70,17 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
 
     /// 创建查询上下文
     fn create_query_context(&self, query_text: &str) -> DBResult<QueryContext> {
-        let session_info = crate::core::context::request::SessionInfo::new(
+        let session_info = crate::core::context::session::SessionInfo::new(
             "default_session".to_string(),
             "default_user".to_string(),
-            "localhost".to_string(),
-            0,
+            vec![],
         );
-        let request_params =
-            crate::core::context::request::RequestParams::new(query_text.to_string());
-        let request_context = RequestContext::new(session_info, request_params);
-        Ok(QueryContext::with_request_context(std::sync::Arc::new(
-            request_context,
-        )))
+        Ok(QueryContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            crate::core::types::query::QueryType::DataQuery,
+            query_text,
+            session_info,
+        ))
     }
 
     /// 解析查询文本为AST
@@ -121,7 +120,11 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         // 临时实现：创建一个空的执行计划
         // 在实际实现中，这里应该调用planner.transform(ast)
         let mut plan = crate::query::planner::plan::ExecutionPlan::new(None);
-        plan.set_id(query_context.gen_id());
+        let uuid = uuid::Uuid::new_v4();
+        let uuid_bytes = uuid.as_bytes();
+        let id = i64::from_ne_bytes([uuid_bytes[0], uuid_bytes[1], uuid_bytes[2], uuid_bytes[3],
+                                      uuid_bytes[4], uuid_bytes[5], uuid_bytes[6], uuid_bytes[7]]);
+        plan.set_id(id);
 
         Ok(plan)
     }

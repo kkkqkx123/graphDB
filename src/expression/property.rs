@@ -1,12 +1,11 @@
-use crate::core::ExpressionError;
-use crate::core::Value;
+use crate::core::{ExpressionError, Value};
 use crate::core::context::expression::ExpressionContextCore;
 use crate::core::{Expression, ExpressionContext};
 
 /// 评估属性表达式
 pub fn evaluate_property_expression(
     expr: &Expression,
-    context: &dyn ExpressionContext,
+    context: &dyn ExpressionContextCore,
 ) -> Result<Value, ExpressionError> {
     match expr {
         Expression::TagProperty { tag, prop } => {
@@ -20,7 +19,7 @@ pub fn evaluate_property_expression(
                     }
                 }
             }
-            Err(ExpressionError::PropertyNotFound(format!(
+            Err(ExpressionError::property_not_found(format!(
                 "{}.{}",
                 tag, prop
             )))
@@ -36,7 +35,7 @@ pub fn evaluate_property_expression(
                     }
                 }
             }
-            Err(ExpressionError::PropertyNotFound(format!(
+            Err(ExpressionError::property_not_found(format!(
                 "{}.{}",
                 edge, prop
             )))
@@ -62,7 +61,7 @@ pub fn evaluate_property_expression(
                 return Ok(value);
             }
 
-            Err(ExpressionError::PropertyNotFound(format!("$-.{}", prop)))
+            Err(ExpressionError::property_not_found(format!("$-.{}", prop)))
         }
 
         Expression::VariableProperty { var, prop } => {
@@ -71,18 +70,18 @@ pub fn evaluate_property_expression(
                 match value {
                     Value::Map(map) => match map.get(prop) {
                         Some(prop_value) => Ok(prop_value.clone()),
-                        None => Err(ExpressionError::PropertyNotFound(format!(
+                        None => Err(ExpressionError::property_not_found(format!(
                             "{}.{}",
                             var, prop
                         ))),
                     },
-                    _ => Err(ExpressionError::TypeError(format!(
+                    _ => Err(ExpressionError::type_error(format!(
                         "Variable '{}' is not a map type, cannot access property '{}'",
                         var, prop
                     ))),
                 }
             } else {
-                Err(ExpressionError::PropertyNotFound(format!(
+                Err(ExpressionError::property_not_found(format!(
                     "${}.{}",
                     var, prop
                 )))
@@ -103,7 +102,7 @@ pub fn evaluate_property_expression(
                     }
                 }
             }
-            Err(ExpressionError::PropertyNotFound(format!(
+            Err(ExpressionError::property_not_found(format!(
                 "$^.{}.{}",
                 tag, prop
             )))
@@ -123,13 +122,13 @@ pub fn evaluate_property_expression(
                     }
                 }
             }
-            Err(ExpressionError::PropertyNotFound(format!(
+            Err(ExpressionError::property_not_found(format!(
                 "$$.{}.{}",
                 tag, prop
             )))
         }
 
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Expression is not a property expression".to_string(),
         )),
     }

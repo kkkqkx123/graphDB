@@ -1,5 +1,4 @@
-use crate::core::ExpressionError;
-use crate::core::Value;
+use crate::core::{ExpressionError, Value};
 
 /// 比较和字符串操作模块
 /// 提供值比较和字符串操作功能

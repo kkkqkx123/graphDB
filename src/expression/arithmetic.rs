@@ -1,5 +1,4 @@
-use crate::core::ExpressionError;
-use crate::core::Value;
+use crate::core::{ExpressionError, Value};
 
 /// 算术运算模块
 /// 提供各种算术运算功能

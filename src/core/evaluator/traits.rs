@@ -4,8 +4,8 @@
 
 use crate::core::context::expression::{
     BasicExpressionContext, EvaluationOptions, EvaluationStatistics, ExpressionContext,
-    ExpressionError,
 };
+use crate::core::ExpressionError;
 use crate::core::types::expression::Expression;
 use crate::core::types::query::FieldValue;
 

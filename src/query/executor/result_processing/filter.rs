@@ -9,7 +9,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
 use crate::core::Value;
 use crate::core::context::expression::ExpressionContextCore;
-use crate::core::context::expression::{BasicExpressionContext, ExpressionContext};
+use crate::core::context::expression::{ExpressionContext, DefaultExpressionContext};
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{
@@ -88,7 +88,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for row in &dataset.rows {
             // 构建表达式上下文
-            let mut context = BasicExpressionContext::default();
+            let mut context = DefaultExpressionContext::new();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
                     context.set_variable(col_name.clone(), row[i].clone());
@@ -97,7 +97,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
             // 评估过滤条件
             let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
-                DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
+                DBError::Expression(crate::core::error::ExpressionError::function_error(format!(
                     "Failed to evaluate filter condition: {}",
                     e
                 )))
@@ -120,12 +120,12 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for value in values {
             // 构建表达式上下文
-            let mut context = BasicExpressionContext::default();
+            let mut context = DefaultExpressionContext::new();
             context.set_variable("value".to_string(), value.clone());
 
             // 评估过滤条件
             let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
-                DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
+                DBError::Expression(crate::core::error::ExpressionError::function_error(format!(
                     "Failed to evaluate filter condition: {}",
                     e
                 )))
@@ -150,7 +150,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for vertex in vertices {
             // 构建表达式上下文
-            let mut context = BasicExpressionContext::default();
+            let mut context = DefaultExpressionContext::new();
             // 设置顶点信息
             context.set_variable(
                 "_vertex".to_string(),
@@ -159,7 +159,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
             // 评估过滤条件
             let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
-                DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
+                DBError::Expression(crate::core::error::ExpressionError::function_error(format!(
                     "Failed to evaluate filter condition: {}",
                     e
                 )))
@@ -181,13 +181,13 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for edge in edges {
             // 构建表达式上下文
-            let mut context = BasicExpressionContext::default();
+            let mut context = DefaultExpressionContext::new();
             // 设置边信息
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
             // 评估过滤条件
             let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
-                DBError::Expression(crate::core::error::ExpressionError::FunctionError(format!(
+                DBError::Expression(crate::core::error::ExpressionError::function_error(format!(
                     "Failed to evaluate filter condition: {}",
                     e
                 )))

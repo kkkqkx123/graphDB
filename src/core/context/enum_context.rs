@@ -4,7 +4,7 @@
 
 use super::base::{ContextBase, ContextType, MutableContext};
 use super::execution::ExecutionContext;
-use super::expression::{BasicExpressionContext, ExpressionContext};
+use super::expression::{BasicExpressionContext, ExpressionContext, ExpressionContextCoreExtended};
 use super::query::QueryContext;
 use super::request::RequestContext;
 use super::runtime::{DefaultRuntimeContext, RuntimeContext, TestRuntimeContext};
@@ -84,7 +84,7 @@ impl UnifiedContext {
             UnifiedContext::Session(_) => 0,
             UnifiedContext::Query(_) => 1,
             UnifiedContext::Execution(_) => 2,
-            UnifiedContext::Expression(ctx) => ctx.get_depth(),
+            UnifiedContext::Expression(ctx) => ExpressionContextCoreExtended::get_depth(ctx),
             UnifiedContext::Request(_) => 1,
             UnifiedContext::Runtime(_) => 2,
             UnifiedContext::Validation(_) => 2,
@@ -273,7 +273,6 @@ impl UnifiedContext {
             UnifiedContext::Storage(ctx) => ctx.revalidate(),
         }
     }
-
 
     /// 创建测试上下文
     pub fn create_test_context(context_type: ContextType) -> Self {

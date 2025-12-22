@@ -1,5 +1,4 @@
-use crate::core::ExpressionError;
-use crate::core::Value;
+use crate::core::{ExpressionError, Value};
 
 /// 类型转换模块
 /// 提供各种类型之间的转换功能
@@ -33,7 +32,7 @@ pub fn cast_value(value: Value, target_type: &str) -> Result<Value, ExpressionEr
         "bool" | "boolean" => cast_to_bool(value),
         "list" => cast_to_list(value),
         "map" => cast_to_map(value),
-        _ => Err(ExpressionError::TypeError(format!(
+        _ => Err(ExpressionError::type_error(format!(
             "Unknown target type: {}",
             target_type
         ))),
@@ -51,14 +50,14 @@ pub fn cast_to_int(value: Value) -> Result<Value, ExpressionError> {
             } else if let Ok(f) = s.parse::<f64>() {
                 Ok(Value::Int(f as i64))
             } else {
-                Err(ExpressionError::TypeError(
+                Err(ExpressionError::type_error(
                     "Cannot convert string to int".to_string(),
                 ))
             }
         }
         Value::Bool(b) => Ok(Value::Int(if b { 1 } else { 0 })),
         Value::Null(_) => Ok(Value::Null(crate::core::NullType::Null)),
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot convert to int".to_string(),
         )),
     }
@@ -72,10 +71,10 @@ pub fn cast_to_float(value: Value) -> Result<Value, ExpressionError> {
         Value::String(s) => s
             .parse::<f64>()
             .map(Value::Float)
-            .map_err(|_| ExpressionError::TypeError("Cannot convert string to float".to_string())),
+            .map_err(|_| ExpressionError::type_error("Cannot convert string to float".to_string())),
         Value::Bool(b) => Ok(Value::Float(if b { 1.0 } else { 0.0 })),
         Value::Null(_) => Ok(Value::Null(crate::core::NullType::Null)),
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot convert to float".to_string(),
         )),
     }
@@ -96,7 +95,7 @@ pub fn cast_to_string(value: Value) -> Result<Value, ExpressionError> {
                     if let Ok(Value::String(s)) = cast_to_string(item) {
                         Ok(s)
                     } else {
-                        Err(ExpressionError::TypeError(
+                        Err(ExpressionError::type_error(
                             "Cannot convert list item to string".to_string(),
                         ))
                     }
@@ -111,7 +110,7 @@ pub fn cast_to_string(value: Value) -> Result<Value, ExpressionError> {
                     if let Ok(Value::String(s)) = cast_to_string(v) {
                         Ok(format!("{}: {}", k, s))
                     } else {
-                        Err(ExpressionError::TypeError(
+                        Err(ExpressionError::type_error(
                             "Cannot convert map value to string".to_string(),
                         ))
                     }
@@ -119,7 +118,7 @@ pub fn cast_to_string(value: Value) -> Result<Value, ExpressionError> {
                 .collect();
             Ok(Value::String(format!("{{{}}}", pairs?.join(", "))))
         }
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot convert to string".to_string(),
         )),
     }
@@ -134,7 +133,7 @@ pub fn cast_to_bool(value: Value) -> Result<Value, ExpressionError> {
         Value::String(s) => match s.to_lowercase().as_str() {
             "true" | "t" | "yes" | "y" | "1" => Ok(Value::Bool(true)),
             "false" | "f" | "no" | "n" | "0" | "" => Ok(Value::Bool(false)),
-            _ => Err(ExpressionError::TypeError(
+            _ => Err(ExpressionError::type_error(
                 "Cannot convert string to bool".to_string(),
             )),
         },
@@ -170,7 +169,7 @@ pub fn cast_to_map(value: Value) -> Result<Value, ExpressionError> {
             }
             Ok(Value::Map(map))
         }
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot convert to map".to_string(),
         )),
     }
@@ -235,7 +234,7 @@ pub fn cast_to_vertex(value: Value) -> Result<Value, ExpressionError> {
                 properties,
             })))
         }
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot convert to vertex".to_string(),
         )),
     }
@@ -286,7 +285,7 @@ pub fn cast_to_edge(value: Value) -> Result<Value, ExpressionError> {
                 props,
             }))
         }
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot convert to edge".to_string(),
         )),
     }
@@ -307,7 +306,7 @@ pub fn cast_to_path(value: Value) -> Result<Value, ExpressionError> {
             let src_vertex = match &items[0] {
                 Value::Vertex(v) => (**v).clone(),
                 _ => {
-                    return Err(ExpressionError::TypeError(
+                    return Err(ExpressionError::type_error(
                         "Path list must start with a vertex".to_string(),
                     ))
                 }
@@ -319,7 +318,7 @@ pub fn cast_to_path(value: Value) -> Result<Value, ExpressionError> {
                 steps: vec![],
             }))
         }
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot convert to path".to_string(),
         )),
     }
@@ -331,12 +330,12 @@ pub fn cast_to_datetime(value: Value) -> Result<Value, ExpressionError> {
         Value::String(s) => {
             // 简化实现：将字符串解析为时间戳
             s.parse::<i64>().map(|ts| Value::Int(ts)).map_err(|_| {
-                ExpressionError::TypeError("Cannot convert string to datetime".to_string())
+                ExpressionError::type_error("Cannot convert string to datetime".to_string())
             })
         }
         Value::Int(i) => Ok(Value::Int(i)),
         Value::Float(f) => Ok(Value::Int(f as i64)),
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot convert to datetime".to_string(),
         )),
     }

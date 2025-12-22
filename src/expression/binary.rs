@@ -1,6 +1,6 @@
-use crate::core::ExpressionError;
 use crate::core::{NullType, Value};
-use crate::core::{Expression, ExpressionContext};
+use crate::core::{Expression, ExpressionError};
+use crate::core::context::expression::default_context::ExpressionContextCore;
 use serde::{Deserialize, Serialize};
 
 /// Binary operators for expressions
@@ -38,7 +38,7 @@ pub fn evaluate_binary_op(
     left: &Expression,
     op: &BinaryOperator,
     right: &Expression,
-    context: &dyn ExpressionContext,
+    context: &dyn ExpressionContextCore,
 ) -> Result<Value, ExpressionError> {
     let evaluator = crate::core::evaluator::ExpressionEvaluator;
     let left_val = evaluator.evaluate(left, context)?;
@@ -79,7 +79,7 @@ pub fn add_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
         (Value::String(a), Value::Int(b)) => Ok(Value::String(format!("{}{}", a, b))),
         (Value::Int(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
         // Add more combinations as needed
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot add these value types".to_string(),
         )),
     }
@@ -91,7 +91,7 @@ pub fn sub_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
         (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a - b)),
         (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a - b as f64)),
         (Value::Int(a), Value::Float(b)) => Ok(Value::Float(a as f64 - b)),
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot subtract these value types".to_string(),
         )),
     }
@@ -103,7 +103,7 @@ pub fn mul_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
         (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a * b)),
         (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a * b as f64)),
         (Value::Int(a), Value::Float(b)) => Ok(Value::Float(a as f64 * b)),
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot multiply these value types".to_string(),
         )),
     }
@@ -115,7 +115,7 @@ pub fn div_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
         (Value::Float(a), Value::Float(b)) if b != 0.0 => Ok(Value::Float(a / b)),
         (Value::Float(a), Value::Int(b)) if b != 0 => Ok(Value::Float(a / b as f64)),
         (Value::Int(a), Value::Float(b)) if b != 0.0 => Ok(Value::Float(a as f64 / b)),
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot divide these value types or division by zero".to_string(),
         )),
     }
@@ -144,7 +144,7 @@ pub fn mod_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
     match (left, right) {
         (Value::Int(a), Value::Int(b)) => {
             if b == 0 {
-                return Err(ExpressionError::InvalidOperation(
+                return Err(ExpressionError::invalid_operation(
                     "Division by zero".to_string(),
                 ));
             }
@@ -152,7 +152,7 @@ pub fn mod_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
         }
         (Value::Float(a), Value::Float(b)) => {
             if b == 0.0 {
-                return Err(ExpressionError::InvalidOperation(
+                return Err(ExpressionError::invalid_operation(
                     "Division by zero".to_string(),
                 ));
             }
@@ -160,7 +160,7 @@ pub fn mod_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
         }
         (Value::Int(a), Value::Float(b)) => {
             if b == 0.0 {
-                return Err(ExpressionError::InvalidOperation(
+                return Err(ExpressionError::invalid_operation(
                     "Division by zero".to_string(),
                 ));
             }
@@ -168,13 +168,13 @@ pub fn mod_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
         }
         (Value::Float(a), Value::Int(b)) => {
             if b == 0 {
-                return Err(ExpressionError::InvalidOperation(
+                return Err(ExpressionError::invalid_operation(
                     "Division by zero".to_string(),
                 ));
             }
             Ok(Value::Float(a % (b as f64)))
         }
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Cannot perform mod operation on these value types".to_string(),
         )),
     }
@@ -197,12 +197,12 @@ pub fn in_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
             if let Value::String(key) = &left {
                 Ok(Value::Bool(items.contains_key(key)))
             } else {
-                Err(ExpressionError::TypeError(
+                Err(ExpressionError::type_error(
                     "Key for 'in' operation on map must be a string".to_string(),
                 ))
             }
         }
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Right operand of 'in' must be a list, set, or map".to_string(),
         )),
     }
@@ -211,7 +211,7 @@ pub fn in_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
 pub fn not_in_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
     match in_values(left, right) {
         Ok(Value::Bool(b)) => Ok(Value::Bool(!b)),
-        Ok(_) => Err(ExpressionError::TypeError(
+        Ok(_) => Err(ExpressionError::type_error(
             "in_values should return boolean".to_string(),
         )),
         Err(e) => Err(e),
@@ -225,12 +225,12 @@ pub fn subscript_values(collection: Value, index: Value) -> Result<Value, Expres
                 if i >= 0 && (i as usize) < items.len() {
                     Ok(items[i as usize].clone())
                 } else {
-                    Err(ExpressionError::InvalidOperation(
+                    Err(ExpressionError::invalid_operation(
                         "List index out of bounds".to_string(),
                     ))
                 }
             } else {
-                Err(ExpressionError::TypeError(
+                Err(ExpressionError::type_error(
                     "List index must be an integer".to_string(),
                 ))
             }
@@ -242,12 +242,12 @@ pub fn subscript_values(collection: Value, index: Value) -> Result<Value, Expres
                     None => Ok(Value::Null(NullType::Null)),
                 }
             } else {
-                Err(ExpressionError::TypeError(
+                Err(ExpressionError::type_error(
                     "Map key must be a string".to_string(),
                 ))
             }
         }
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Subscript operation requires a list or map".to_string(),
         )),
     }
@@ -261,7 +261,7 @@ pub fn attribute_values(left: Value, right: Value) -> Result<Value, ExpressionEr
             Some(value) => Ok(value.clone()),
             None => Ok(Value::Null(NullType::Null)),
         },
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Attribute access requires a map and string key".to_string(),
         )),
     }
@@ -273,7 +273,7 @@ pub fn contains_values(left: Value, right: Value) -> Result<Value, ExpressionErr
         (Value::List(items), item) => Ok(Value::Bool(items.contains(item))),
         (Value::Set(items), item) => Ok(Value::Bool(items.contains(item))),
         (Value::String(s), Value::String(substring)) => Ok(Value::Bool(s.contains(substring))),
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Contains operation not supported for these types".to_string(),
         )),
     }
@@ -282,7 +282,7 @@ pub fn contains_values(left: Value, right: Value) -> Result<Value, ExpressionErr
 pub fn starts_with_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
     match (&left, &right) {
         (Value::String(s), Value::String(prefix)) => Ok(Value::Bool(s.starts_with(prefix))),
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Starts with operation requires string operands".to_string(),
         )),
     }
@@ -291,7 +291,7 @@ pub fn starts_with_values(left: Value, right: Value) -> Result<Value, Expression
 pub fn ends_with_values(left: Value, right: Value) -> Result<Value, ExpressionError> {
     match (&left, &right) {
         (Value::String(s), Value::String(suffix)) => Ok(Value::Bool(s.ends_with(suffix))),
-        _ => Err(ExpressionError::TypeError(
+        _ => Err(ExpressionError::type_error(
             "Ends with operation requires string operands".to_string(),
         )),
     }

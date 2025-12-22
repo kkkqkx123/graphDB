@@ -109,6 +109,8 @@ pub enum ExpressionContext {
     Default(DefaultExpressionContext),
     /// 查询上下文适配器
     Query(QueryContextAdapter),
+    /// 基础表达式上下文
+    Basic(crate::core::context::expression::BasicExpressionContext),
 }
 
 /// 简单的表达式上下文实现
@@ -225,6 +227,7 @@ impl ExpressionContextCore for ExpressionContext {
         match self {
             ExpressionContext::Default(ctx) => ctx.vars.get(name).cloned(),
             ExpressionContext::Query(ctx) => ctx.vars.get(name).cloned(),
+            ExpressionContext::Basic(ctx) => ctx.get_variable(name),
         }
     }
 
@@ -236,6 +239,33 @@ impl ExpressionContextCore for ExpressionContext {
             ExpressionContext::Query(ctx) => {
                 ctx.vars.insert(name, value);
             }
+            ExpressionContext::Basic(ctx) => {
+                // 将 Value 转换为 FieldValue
+                let field_value = match value {
+                    Value::Bool(b) => crate::core::types::query::FieldValue::Scalar(
+                        crate::core::types::query::ScalarValue::Bool(b),
+                    ),
+                    Value::Int(i) => crate::core::types::query::FieldValue::Scalar(
+                        crate::core::types::query::ScalarValue::Int(i),
+                    ),
+                    Value::Float(f) => crate::core::types::query::FieldValue::Scalar(
+                        crate::core::types::query::ScalarValue::Float(f),
+                    ),
+                    Value::String(s) => crate::core::types::query::FieldValue::Scalar(
+                        crate::core::types::query::ScalarValue::String(s),
+                    ),
+                    Value::Null(_) => crate::core::types::query::FieldValue::Scalar(
+                        crate::core::types::query::ScalarValue::Null,
+                    ),
+                    _ => {
+                        // 对于复杂类型，暂时返回空值
+                        crate::core::types::query::FieldValue::Scalar(
+                            crate::core::types::query::ScalarValue::Null,
+                        )
+                    }
+                };
+                ctx.set_variable(name, field_value);
+            }
         }
     }
 
@@ -243,6 +273,7 @@ impl ExpressionContextCore for ExpressionContext {
         match self {
             ExpressionContext::Default(ctx) => ctx.vertex.as_ref(),
             ExpressionContext::Query(ctx) => ctx.vertex.as_ref(),
+            ExpressionContext::Basic(ctx) => ctx.get_vertex(),
         }
     }
 
@@ -250,6 +281,7 @@ impl ExpressionContextCore for ExpressionContext {
         match self {
             ExpressionContext::Default(ctx) => ctx.edge.as_ref(),
             ExpressionContext::Query(ctx) => ctx.edge.as_ref(),
+            ExpressionContext::Basic(ctx) => ctx.get_edge(),
         }
     }
 
@@ -257,6 +289,7 @@ impl ExpressionContextCore for ExpressionContext {
         match self {
             ExpressionContext::Default(ctx) => ctx.paths.get(name),
             ExpressionContext::Query(ctx) => ctx.paths.get(name),
+            ExpressionContext::Basic(ctx) => ctx.get_path(name),
         }
     }
 
@@ -267,6 +300,9 @@ impl ExpressionContextCore for ExpressionContext {
             }
             ExpressionContext::Query(ctx) => {
                 ctx.vertex = Some(vertex);
+            }
+            ExpressionContext::Basic(ctx) => {
+                ctx.set_vertex(vertex);
             }
         }
     }
@@ -279,6 +315,9 @@ impl ExpressionContextCore for ExpressionContext {
             ExpressionContext::Query(ctx) => {
                 ctx.edge = Some(edge);
             }
+            ExpressionContext::Basic(ctx) => {
+                ctx.set_edge(edge);
+            }
         }
     }
 
@@ -290,6 +329,9 @@ impl ExpressionContextCore for ExpressionContext {
             ExpressionContext::Query(ctx) => {
                 ctx.paths.insert(name, path);
             }
+            ExpressionContext::Basic(ctx) => {
+                ctx.add_path(name, path);
+            }
         }
     }
 
@@ -297,6 +339,7 @@ impl ExpressionContextCore for ExpressionContext {
         match self {
             ExpressionContext::Default(ctx) => ctx.is_empty(),
             ExpressionContext::Query(ctx) => ctx.is_empty(),
+            ExpressionContext::Basic(ctx) => ctx.is_empty(),
         }
     }
 
@@ -304,6 +347,7 @@ impl ExpressionContextCore for ExpressionContext {
         match self {
             ExpressionContext::Default(ctx) => ctx.variable_count(),
             ExpressionContext::Query(ctx) => ctx.vars.len(),
+            ExpressionContext::Basic(ctx) => ctx.variable_count(),
         }
     }
 
@@ -311,6 +355,7 @@ impl ExpressionContextCore for ExpressionContext {
         match self {
             ExpressionContext::Default(ctx) => ctx.variable_names(),
             ExpressionContext::Query(ctx) => ctx.vars.keys().cloned().collect(),
+            ExpressionContext::Basic(ctx) => ctx.variable_names(),
         }
     }
 
@@ -318,6 +363,7 @@ impl ExpressionContextCore for ExpressionContext {
         match self {
             ExpressionContext::Default(ctx) => Some(ctx.vars.clone()),
             ExpressionContext::Query(ctx) => Some(ctx.vars.clone()),
+            ExpressionContext::Basic(ctx) => ctx.get_all_variables(),
         }
     }
 
@@ -330,6 +376,7 @@ impl ExpressionContextCore for ExpressionContext {
                 ctx.vars.clear();
                 ctx.paths.clear();
             }
+            ExpressionContext::Basic(ctx) => ctx.clear(),
         }
     }
 }
@@ -456,6 +503,11 @@ impl ExpressionContext {
         ExpressionContext::Query(QueryContextAdapter::new())
     }
 
+    /// 创建基础表达式上下文
+    pub fn basic() -> Self {
+        ExpressionContext::Basic(crate::core::context::expression::BasicExpressionContext::new())
+    }
+
     /// 从简单上下文创建
     pub fn from_default(default: DefaultExpressionContext) -> Self {
         ExpressionContext::Default(default)
@@ -466,11 +518,17 @@ impl ExpressionContext {
         ExpressionContext::Query(query)
     }
 
+    /// 从基础表达式上下文创建
+    pub fn from_basic(basic: crate::core::context::expression::BasicExpressionContext) -> Self {
+        ExpressionContext::Basic(basic)
+    }
+
     /// 转换为简单上下文（如果可能）
     pub fn as_default(&self) -> Option<&DefaultExpressionContext> {
         match self {
             ExpressionContext::Default(ctx) => Some(ctx),
             ExpressionContext::Query(_) => None,
+            ExpressionContext::Basic(_) => None,
         }
     }
 
@@ -479,6 +537,7 @@ impl ExpressionContext {
         match self {
             ExpressionContext::Default(ctx) => Some(ctx),
             ExpressionContext::Query(_) => None,
+            ExpressionContext::Basic(_) => None,
         }
     }
 
@@ -487,6 +546,7 @@ impl ExpressionContext {
         match self {
             ExpressionContext::Query(ctx) => Some(ctx),
             ExpressionContext::Default(_) => None,
+            ExpressionContext::Basic(_) => None,
         }
     }
 
@@ -495,6 +555,25 @@ impl ExpressionContext {
         match self {
             ExpressionContext::Query(ctx) => Some(ctx),
             ExpressionContext::Default(_) => None,
+            ExpressionContext::Basic(_) => None,
+        }
+    }
+
+    /// 转换为基础表达式上下文（如果可能）
+    pub fn as_basic(&self) -> Option<&crate::core::context::expression::BasicExpressionContext> {
+        match self {
+            ExpressionContext::Basic(ctx) => Some(ctx),
+            ExpressionContext::Default(_) => None,
+            ExpressionContext::Query(_) => None,
+        }
+    }
+
+    /// 转换为可变基础表达式上下文（如果可能）
+    pub fn as_basic_mut(&mut self) -> Option<&mut crate::core::context::expression::BasicExpressionContext> {
+        match self {
+            ExpressionContext::Basic(ctx) => Some(ctx),
+            ExpressionContext::Default(_) => None,
+            ExpressionContext::Query(_) => None,
         }
     }
 }

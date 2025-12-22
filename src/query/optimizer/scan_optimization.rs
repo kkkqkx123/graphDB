@@ -103,7 +103,18 @@ mod tests {
     use crate::query::planner::plan::core::nodes::ScanVerticesNode;
 
     fn create_test_context() -> OptContext {
-        OptContext::new(QueryContext::default())
+        let session_info = crate::core::context::session::SessionInfo::new(
+            "test_session",
+            "test_user",
+            vec!["user".to_string()],
+        );
+        let query_context = QueryContext::new(
+            "test_query",
+            crate::core::types::query::QueryType::DataQuery,
+            "TEST QUERY",
+            session_info,
+        );
+        OptContext::new(query_context)
     }
 
     #[test]
@@ -116,7 +127,9 @@ mod tests {
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配扫描节点并尝试优化
         assert!(result.is_some());
     }
@@ -131,7 +144,9 @@ mod tests {
             as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
         let opt_node = OptGroupNode::new(1, scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配扫描节点并尝试优化带过滤条件的扫描
         assert!(result.is_some());
     }

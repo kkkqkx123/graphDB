@@ -5,8 +5,9 @@
 use crate::cache::{Cache, CacheConfig, ConcurrentLruCache, StatsCache, StatsCacheWrapper};
 use crate::core::context::expression::{
     BasicExpressionContext, EvaluationOptions, EvaluationStatistics, ExpressionContext,
-    ExpressionError,
+    ExpressionContextCoreExtended,
 };
+use crate::core::ExpressionError;
 use crate::core::types::expression::Expression;
 use crate::core::types::query::FieldValue;
 use serde::{Deserialize, Serialize};
@@ -146,14 +147,13 @@ impl EvaluationContext {
             depth: self.depth,
             timestamp: std::time::SystemTime::now(),
             context_snapshot: Some(ContextSnapshot {
-                variable_names: self
-                    .expression_context
+                variable_names: (*self.expression_context)
                     .get_variable_names()
                     .into_iter()
                     .map(|s| s.to_string())
                     .collect(),
                 function_names: Vec::new(), // 需要从上下文获取函数名
-                depth: self.expression_context.get_depth(),
+                depth: (*self.expression_context).get_depth(),
             }),
         };
 
@@ -187,14 +187,13 @@ impl EvaluationContext {
             depth: self.depth,
             timestamp: std::time::SystemTime::now(),
             context_snapshot: Some(ContextSnapshot {
-                variable_names: self
-                    .expression_context
+                variable_names: (*self.expression_context)
                     .get_variable_names()
                     .into_iter()
                     .map(|s| s.to_string())
                     .collect(),
                 function_names: Vec::new(), // 需要从上下文获取函数名
-                depth: self.expression_context.get_depth(),
+                depth: (*self.expression_context).get_depth(),
             }),
         };
 
