@@ -121,9 +121,9 @@ where
     fn get(&self, key: &K) -> Option<V> {
         let mut cache = self.inner.lock()
             .expect("ConcurrentLfuCache lock should not be poisoned");
-        if let Some((value, _)) = cache.cache.get(key) {
+        if let Some((value, _)) = cache.cache.get(key).cloned() {
             cache.update_frequency(key);
-            Some(value.clone())
+            Some(value)
         } else {
             None
         }

@@ -6,9 +6,22 @@ use std::sync::Arc;
 use std::time::Duration;
 use super::traits::*;
 use super::config::*;
-use super::implementations::*;
+use super::cache_impl::*;
+use super::manager::CacheManager;
 use crate::query::parser::cypher::lexer::{Token, TokenType};
 use crate::query::parser::ast::expr::Expr;
+
+// 定义具体的缓存类型别名
+type KeywordCacheType = Arc<ConcurrentLruCache<String, TokenType>>;
+type TokenCacheType = Arc<ConcurrentLruCache<usize, Token>>;
+type ExpressionCacheType = Arc<ConcurrentTtlCache<String, Expr>>;
+type PatternCacheType = Arc<ConcurrentTtlCache<String, Pattern>>;
+
+// 定义统计缓存类型
+type KeywordStatsType = Arc<StatsCacheWrapper<String, TokenType, ConcurrentLruCache<String, TokenType>>>;
+type TokenStatsType = Arc<StatsCacheWrapper<usize, Token, ConcurrentLruCache<usize, Token>>>;
+type ExpressionStatsType = Arc<StatsCacheWrapper<String, Expr, ConcurrentTtlCache<String, Expr>>>;
+type PatternStatsType = Arc<StatsCacheWrapper<String, Pattern, ConcurrentTtlCache<String, Pattern>>>;
 
 #[derive(Debug, Clone)]
 pub struct Pattern {
@@ -26,17 +39,17 @@ impl Pattern {
 pub struct ParserCache {
     manager: Arc<CacheManager>,
     
-    // 特化缓存实例
-    keyword_cache: Arc<dyn Cache<String, TokenType>>,
-    token_cache: Arc<dyn Cache<usize, Token>>,
-    expression_cache: Arc<dyn Cache<String, Expr>>,
-    pattern_cache: Arc<dyn Cache<String, Pattern>>,
+    // 特化缓存实例 - 使用具体类型
+    keyword_cache: KeywordCacheType,
+    token_cache: TokenCacheType,
+    expression_cache: ExpressionCacheType,
+    pattern_cache: PatternCacheType,
     
-    // 统计缓存
-    keyword_stats: Option<Arc<dyn StatsCache<String, TokenType>>>,
-    token_stats: Option<Arc<dyn StatsCache<usize, Token>>>,
-    expression_stats: Option<Arc<dyn StatsCache<String, Expr>>>,
-    pattern_stats: Option<Arc<dyn StatsCache<String, Pattern>>>,
+    // 统计缓存 - 使用具体类型
+    keyword_stats: Option<KeywordStatsType>,
+    token_stats: Option<TokenStatsType>,
+    expression_stats: Option<ExpressionStatsType>,
+    pattern_stats: Option<PatternStatsType>,
     
     config: ParserCacheConfig,
 }
@@ -336,15 +349,14 @@ impl ParserCacheStats {
 
 /// 关键字缓存助手
 pub struct KeywordCache {
-    cache: Arc<dyn Cache<String, TokenType>>,
-    stats: Option<Arc<dyn StatsCache<String, TokenType>>>,
+    cache: KeywordCacheType,
+    stats: Option<KeywordStatsType>,
 }
 
 impl KeywordCache {
-    pub fn new(cache: Arc<dyn Cache<String, TokenType>>, collect_stats: bool) -> Self {
+    pub fn new(cache: KeywordCacheType, collect_stats: bool) -> Self {
         let stats = if collect_stats {
-            // 这里需要创建统计包装器
-            None // 暂时简化
+            Some(Arc::new(StatsCacheWrapper::new(cache.clone())))
         } else {
             None
         };
@@ -377,14 +389,14 @@ impl KeywordCache {
 
 /// 表达式缓存助手
 pub struct ExpressionCache {
-    cache: Arc<dyn Cache<String, Expr>>,
-    stats: Option<Arc<dyn StatsCache<String, Expr>>>,
+    cache: ExpressionCacheType,
+    stats: Option<ExpressionStatsType>,
 }
 
 impl ExpressionCache {
-    pub fn new(cache: Arc<dyn Cache<String, Expr>>, collect_stats: bool) -> Self {
+    pub fn new(cache: ExpressionCacheType, collect_stats: bool) -> Self {
         let stats = if collect_stats {
-            None // 暂时简化
+            Some(Arc::new(StatsCacheWrapper::new(cache.clone())))
         } else {
             None
         };
@@ -426,14 +438,14 @@ impl ExpressionCache {
 
 /// 模式缓存助手
 pub struct PatternCache {
-    cache: Arc<dyn Cache<String, Pattern>>,
-    stats: Option<Arc<dyn StatsCache<String, Pattern>>>,
+    cache: PatternCacheType,
+    stats: Option<PatternStatsType>,
 }
 
 impl PatternCache {
-    pub fn new(cache: Arc<dyn Cache<String, Pattern>>, collect_stats: bool) -> Self {
+    pub fn new(cache: PatternCacheType, collect_stats: bool) -> Self {
         let stats = if collect_stats {
-            None // 暂时简化
+            Some(Arc::new(StatsCacheWrapper::new(cache.clone())))
         } else {
             None
         };
@@ -533,7 +545,7 @@ mod tests {
 
     #[test]
     fn test_keyword_cache_helper() {
-        let cache = Arc::new(ConcurrentLruCache::new(100));
+        let cache: KeywordCacheType = Arc::new(ConcurrentLruCache::new(100));
         let keyword_cache = KeywordCache::new(cache, true);
         
         assert!(!keyword_cache.is_keyword("UNKNOWN"));
@@ -545,7 +557,7 @@ mod tests {
 
     #[test]
     fn test_expression_cache_helper() {
-        let cache = Arc::new(ConcurrentLruCache::new(100));
+        let cache: ExpressionCacheType = Arc::new(ConcurrentTtlCache::new(100, Duration::from_secs(60)));
         let expression_cache = ExpressionCache::new(cache, true);
         
         // 测试 get_or_compute

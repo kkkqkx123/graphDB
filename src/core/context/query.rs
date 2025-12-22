@@ -239,7 +239,7 @@ impl QueryStatistics {
     
     /// 设置状态
     pub fn set_status(&mut self, status: QueryStatus) {
-        self.status = status;
+        self.status = status.clone();
         if matches!(status, QueryStatus::Completed | QueryStatus::Cancelled | QueryStatus::Error) {
             self.end_time = Some(std::time::SystemTime::now());
         }

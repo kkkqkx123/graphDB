@@ -60,8 +60,8 @@ where
     fn evict_if_needed(&mut self) {
         if self.cache.len() >= self.capacity {
             // 简单的FIFO驱逐策略
-            if let Some(key) = self.cache.keys().next() {
-                self.cache.remove(key);
+            if let Some(key) = self.cache.keys().next().cloned() {
+                self.cache.remove(&key);
             }
         }
     }
@@ -140,16 +140,15 @@ where
         let mut cache = self.inner.lock()
             .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
-
-        if let Some(entry) = cache.cache.get(key) {
+    
+        let result = cache.cache.get(key).and_then(|entry| {
             if !entry.is_expired() {
                 Some(entry.value().clone())
             } else {
                 None
             }
-        } else {
-            None
-        }
+        });
+        result
     }
 
     fn put(&self, key: K, value: V) {

@@ -27,8 +27,9 @@ where
     
     fn move_to_back(&mut self, key: &K) {
         if let Some(pos) = self.access_order.iter().position(|k| k == key) {
-            let key = self.access_order.remove(pos);
-            self.access_order.push_back(key);
+            if let Some(found_key) = self.access_order.remove(pos) {
+                self.access_order.push_back(found_key);
+            }
         }
     }
     
@@ -50,7 +51,7 @@ where
         self.cache.get(key).cloned()
     }
     
-    fn put(&self, key: K, value: V) {
+    fn put(&self, _key: K, _value: V) {
         // LRU缓存需要可变引用，这里使用内部可变性
         // 实际实现中应该使用Mutex或RwLock包装
         unimplemented!("LRU缓存需要内部可变性支持")
@@ -61,7 +62,7 @@ where
     }
     
     fn remove(&self, key: &K) -> Option<V> {
-        self.cache.remove(key).cloned()
+        unimplemented!("LRU缓存需要内部可变性支持")
     }
     
     fn clear(&self) {
@@ -103,12 +104,11 @@ where
 {
     fn get(&self, key: &K) -> Option<V> {
         let mut cache = self.inner.lock().expect("LRU cache inner mutex was poisoned");
-        if let Some(value) = cache.cache.get(key) {
+        let value = cache.cache.get(key).cloned();
+        if value.is_some() {
             cache.move_to_back(key);
-            Some(value.clone())
-        } else {
-            None
         }
+        value
     }
 
     fn put(&self, key: K, value: V) {

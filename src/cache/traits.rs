@@ -83,32 +83,18 @@ pub trait CacheEntry<V> {
 }
 
 /// 缓存策略特征
-pub trait CachePolicy<K, V> {
+pub trait CachePolicy<K, V, E: CacheEntry<V>> {
     /// 决定是否驱逐条目
-    fn should_evict(&self, key: &K, entry: &dyn CacheEntry<V>) -> bool;
+    fn should_evict(&self, key: &K, entry: &E) -> bool;
     
     /// 当条目被访问时调用
-    fn on_access(&self, key: &K, entry: &mut dyn CacheEntry<V>);
+    fn on_access(&self, key: &K, entry: &mut E);
     
     /// 当条目被插入时调用
-    fn on_insert(&self, key: &K, entry: &mut dyn CacheEntry<V>);
+    fn on_insert(&self, key: &K, entry: &mut E);
     
     /// 当条目被驱逐时调用
-    fn on_evict(&self, key: &K, entry: &dyn CacheEntry<V>);
-}
-
-/// 类型擦除的缓存特征
-pub trait CacheEraser: Send + Sync {
-    fn as_any(&self) -> &dyn std::any::Any;
-}
-
-impl<K, V, C> CacheEraser for C
-where
-    C: Cache<K, V> + Send + Sync + 'static,
-{
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+    fn on_evict(&self, key: &K, entry: &E);
 }
 
 /// 默认的缓存条目实现

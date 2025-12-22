@@ -2,46 +2,62 @@
 //!
 //! 提供表达式求值过程中的上下文管理
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 use crate::core::types::expression::Expression;
 use crate::core::types::query::{FieldValue, ScalarValue};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// 函数引用枚举，避免动态分发
+#[derive(Debug, Clone)]
+pub enum FunctionRef<'a> {
+    /// 内置函数引用
+    Builtin(&'a BuiltinFunction),
+    /// 自定义函数引用
+    Custom(&'a CustomFunction),
+}
+
+/// 表达式上下文枚举，避免动态分发
+#[derive(Debug, Clone)]
+pub enum ExpressionContextType {
+    /// 基础表达式上下文
+    Basic(BasicExpressionContext),
+}
 
 /// 表达式上下文特征
 pub trait ExpressionContext {
     /// 获取变量值
     fn get_variable(&self, name: &str) -> Option<&FieldValue>;
-    
+
     /// 获取函数
-    fn get_function(&self, name: &str) -> Option<&dyn ExpressionFunction>;
-    
+    fn get_function(&self, name: &str) -> Option<FunctionRef>;
+
     /// 检查变量是否存在
     fn has_variable(&self, name: &str) -> bool;
-    
+
     /// 获取所有变量名
     fn get_variable_names(&self) -> Vec<&str>;
-    
+
     /// 获取上下文深度
     fn depth(&self) -> usize;
-    
+
     /// 创建子上下文
-    fn create_child_context(&self) -> Box<dyn ExpressionContext>;
+    fn create_child_context(&self) -> ExpressionContextType;
 }
 
 /// 表达式函数特征
 pub trait ExpressionFunction: Send + Sync {
     /// 获取函数名称
     fn name(&self) -> &str;
-    
+
     /// 获取参数数量
     fn arity(&self) -> usize;
-    
+
     /// 检查是否接受可变参数
     fn is_variadic(&self) -> bool;
-    
+
     /// 执行函数
     fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError>;
-    
+
     /// 获取函数描述
     fn description(&self) -> &str;
 }
@@ -137,7 +153,7 @@ impl ExpressionFunction for BuiltinFunction {
             BuiltinFunction::DateTime(f) => f.name(),
         }
     }
-    
+
     fn arity(&self) -> usize {
         match self {
             BuiltinFunction::Math(f) => f.arity(),
@@ -147,7 +163,7 @@ impl ExpressionFunction for BuiltinFunction {
             BuiltinFunction::DateTime(f) => f.arity(),
         }
     }
-    
+
     fn is_variadic(&self) -> bool {
         match self {
             BuiltinFunction::Math(f) => f.is_variadic(),
@@ -157,7 +173,7 @@ impl ExpressionFunction for BuiltinFunction {
             BuiltinFunction::DateTime(f) => f.is_variadic(),
         }
     }
-    
+
     fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
         match self {
             BuiltinFunction::Math(f) => f.execute(args),
@@ -167,7 +183,7 @@ impl ExpressionFunction for BuiltinFunction {
             BuiltinFunction::DateTime(f) => f.execute(args),
         }
     }
-    
+
     fn description(&self) -> &str {
         match self {
             BuiltinFunction::Math(f) => f.description(),
@@ -196,26 +212,35 @@ impl ExpressionFunction for MathFunction {
             MathFunction::Floor => "floor",
         }
     }
-    
+
     fn arity(&self) -> usize {
         match self {
-            MathFunction::Abs | MathFunction::Sqrt | MathFunction::Log10 |
-            MathFunction::Sin | MathFunction::Cos | MathFunction::Tan |
-            MathFunction::Round | MathFunction::Ceil | MathFunction::Floor => 1,
+            MathFunction::Abs
+            | MathFunction::Sqrt
+            | MathFunction::Log10
+            | MathFunction::Sin
+            | MathFunction::Cos
+            | MathFunction::Tan
+            | MathFunction::Round
+            | MathFunction::Ceil
+            | MathFunction::Floor => 1,
             MathFunction::Pow | MathFunction::Log => 2,
         }
     }
-    
+
     fn is_variadic(&self) -> bool {
         false
     }
-    
+
     fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
         // 实现数学函数的具体逻辑
         // 这里暂时返回错误，等待后续实现
-        Err(ExpressionError::runtime_error(format!("数学函数 {:?} 尚未实现", self)))
+        Err(ExpressionError::runtime_error(format!(
+            "数学函数 {:?} 尚未实现",
+            self
+        )))
     }
-    
+
     fn description(&self) -> &str {
         match self {
             MathFunction::Abs => "计算绝对值",
@@ -248,24 +273,33 @@ impl ExpressionFunction for StringFunction {
             StringFunction::EndsWith => "ends_with",
         }
     }
-    
+
     fn arity(&self) -> usize {
         match self {
-            StringFunction::Length | StringFunction::Upper | StringFunction::Lower | StringFunction::Trim => 1,
+            StringFunction::Length
+            | StringFunction::Upper
+            | StringFunction::Lower
+            | StringFunction::Trim => 1,
             StringFunction::Substring => 3,
-            StringFunction::Concat | StringFunction::Replace | StringFunction::Contains |
-            StringFunction::StartsWith | StringFunction::EndsWith => 2,
+            StringFunction::Concat
+            | StringFunction::Replace
+            | StringFunction::Contains
+            | StringFunction::StartsWith
+            | StringFunction::EndsWith => 2,
         }
     }
-    
+
     fn is_variadic(&self) -> bool {
         matches!(self, StringFunction::Concat)
     }
-    
+
     fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
-        Err(ExpressionError::runtime_error(format!("字符串函数 {:?} 尚未实现", self)))
+        Err(ExpressionError::runtime_error(format!(
+            "字符串函数 {:?} 尚未实现",
+            self
+        )))
     }
-    
+
     fn description(&self) -> &str {
         match self {
             StringFunction::Length => "计算字符串长度",
@@ -294,19 +328,22 @@ impl ExpressionFunction for AggregateFunction {
             AggregateFunction::Distinct => "distinct",
         }
     }
-    
+
     fn arity(&self) -> usize {
         1
     }
-    
+
     fn is_variadic(&self) -> bool {
         false
     }
-    
+
     fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
-        Err(ExpressionError::runtime_error(format!("聚合函数 {:?} 尚未实现", self)))
+        Err(ExpressionError::runtime_error(format!(
+            "聚合函数 {:?} 尚未实现",
+            self
+        )))
     }
-    
+
     fn description(&self) -> &str {
         match self {
             AggregateFunction::Count => "计数",
@@ -329,19 +366,22 @@ impl ExpressionFunction for ConversionFunction {
             ConversionFunction::ToBool => "to_bool",
         }
     }
-    
+
     fn arity(&self) -> usize {
         1
     }
-    
+
     fn is_variadic(&self) -> bool {
         false
     }
-    
+
     fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
-        Err(ExpressionError::runtime_error(format!("类型转换函数 {:?} 尚未实现", self)))
+        Err(ExpressionError::runtime_error(format!(
+            "类型转换函数 {:?} 尚未实现",
+            self
+        )))
     }
-    
+
     fn description(&self) -> &str {
         match self {
             ConversionFunction::ToString => "转换为字符串",
@@ -366,24 +406,31 @@ impl ExpressionFunction for DateTimeFunction {
             DateTimeFunction::Second => "second",
         }
     }
-    
+
     fn arity(&self) -> usize {
         match self {
             DateTimeFunction::Now => 0,
             DateTimeFunction::Date | DateTimeFunction::Time => 1,
-            DateTimeFunction::Year | DateTimeFunction::Month | DateTimeFunction::Day |
-            DateTimeFunction::Hour | DateTimeFunction::Minute | DateTimeFunction::Second => 1,
+            DateTimeFunction::Year
+            | DateTimeFunction::Month
+            | DateTimeFunction::Day
+            | DateTimeFunction::Hour
+            | DateTimeFunction::Minute
+            | DateTimeFunction::Second => 1,
         }
     }
-    
+
     fn is_variadic(&self) -> bool {
         false
     }
-    
+
     fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
-        Err(ExpressionError::runtime_error(format!("日期时间函数 {:?} 尚未实现", self)))
+        Err(ExpressionError::runtime_error(format!(
+            "日期时间函数 {:?} 尚未实现",
+            self
+        )))
     }
-    
+
     fn description(&self) -> &str {
         match self {
             DateTimeFunction::Now => "当前时间",
@@ -433,21 +480,24 @@ impl ExpressionFunction for CustomFunction {
     fn name(&self) -> &str {
         &self.name
     }
-    
+
     fn arity(&self) -> usize {
         self.arity
     }
-    
+
     fn is_variadic(&self) -> bool {
         self.is_variadic
     }
-    
+
     fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
         // 这里应该根据function_id调用具体的函数实现
         // 暂时返回错误，等待后续实现
-        Err(ExpressionError::runtime_error(format!("自定义函数 {} 尚未实现", self.name)))
+        Err(ExpressionError::runtime_error(format!(
+            "自定义函数 {} 尚未实现",
+            self.name
+        )))
     }
-    
+
     fn description(&self) -> &str {
         &self.description
     }
@@ -525,7 +575,7 @@ impl ExpressionContext for BasicExpressionContext {
         if let Some(value) = self.variables.get(name) {
             return Some(value);
         }
-        
+
         // 如果在当前上下文中找不到，则在父上下文中查找
         if let Some(parent) = &self.parent {
             parent.get_variable(name)
@@ -533,18 +583,18 @@ impl ExpressionContext for BasicExpressionContext {
             None
         }
     }
-    
-    fn get_function(&self, name: &str) -> Option<&dyn ExpressionFunction> {
+
+    fn get_function(&self, name: &str) -> Option<FunctionRef> {
         // 首先在当前上下文中查找内置函数
         if let Some(function) = self.functions.get(name) {
-            return Some(function);
+            return Some(FunctionRef::Builtin(function));
         }
-        
+
         // 然后查找自定义函数
         if let Some(function) = self.custom_functions.get(name) {
-            return Some(function);
+            return Some(FunctionRef::Custom(function));
         }
-        
+
         // 如果在当前上下文中找不到，则在父上下文中查找
         if let Some(parent) = &self.parent {
             parent.get_function(name)
@@ -552,14 +602,14 @@ impl ExpressionContext for BasicExpressionContext {
             None
         }
     }
-    
+
     fn has_variable(&self, name: &str) -> bool {
         self.get_variable(name).is_some()
     }
-    
+
     fn get_variable_names(&self) -> Vec<&str> {
         let mut names: Vec<&str> = self.variables.keys().map(|k| k.as_str()).collect();
-        
+
         // 添加父上下文中的变量名（去重）
         if let Some(parent) = &self.parent {
             let parent_names = parent.get_variable_names();
@@ -569,21 +619,102 @@ impl ExpressionContext for BasicExpressionContext {
                 }
             }
         }
-        
+
         names
     }
-    
+
     fn depth(&self) -> usize {
         self.depth
     }
-    
-    fn create_child_context(&self) -> Box<dyn ExpressionContext> {
-        Box::new(BasicExpressionContext {
+
+    fn create_child_context(&self) -> ExpressionContextType {
+        ExpressionContextType::Basic(BasicExpressionContext {
             variables: HashMap::new(),
             functions: HashMap::new(),
+            custom_functions: HashMap::new(),
             parent: Some(Box::new(self.clone())),
             depth: self.depth + 1,
         })
+    }
+}
+
+impl FunctionRef<'_> {
+    /// 获取函数名称
+    pub fn name(&self) -> &str {
+        match self {
+            FunctionRef::Builtin(f) => f.name(),
+            FunctionRef::Custom(f) => f.name(),
+        }
+    }
+
+    /// 获取参数数量
+    pub fn arity(&self) -> usize {
+        match self {
+            FunctionRef::Builtin(f) => f.arity(),
+            FunctionRef::Custom(f) => f.arity(),
+        }
+    }
+
+    /// 检查是否接受可变参数
+    pub fn is_variadic(&self) -> bool {
+        match self {
+            FunctionRef::Builtin(f) => f.is_variadic(),
+            FunctionRef::Custom(f) => f.is_variadic(),
+        }
+    }
+
+    /// 执行函数
+    pub fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+        match self {
+            FunctionRef::Builtin(f) => f.execute(args),
+            FunctionRef::Custom(f) => f.execute(args),
+        }
+    }
+
+    /// 获取函数描述
+    pub fn description(&self) -> &str {
+        match self {
+            FunctionRef::Builtin(f) => f.description(),
+            FunctionRef::Custom(f) => f.description(),
+        }
+    }
+}
+
+impl ExpressionContext for ExpressionContextType {
+    fn get_variable(&self, name: &str) -> Option<&FieldValue> {
+        match self {
+            ExpressionContextType::Basic(ctx) => ctx.get_variable(name),
+        }
+    }
+
+    fn get_function(&self, name: &str) -> Option<FunctionRef> {
+        match self {
+            ExpressionContextType::Basic(ctx) => ctx.get_function(name),
+        }
+    }
+
+    fn has_variable(&self, name: &str) -> bool {
+        match self {
+            ExpressionContextType::Basic(ctx) => ctx.has_variable(name),
+        }
+    }
+
+    fn get_variable_names(&self) -> Vec<&str> {
+        match self {
+            ExpressionContextType::Basic(ctx) => ctx.get_variable_names(),
+        }
+    }
+
+    fn depth(&self) -> usize {
+        match self {
+            ExpressionContextType::Basic(ctx) => ctx.depth(),
+        }
+    }
+
+    fn create_child_context(&self) -> ExpressionContextType {
+        match self {
+            ExpressionContextType::Basic(ctx) => ctx.create_child_context(),
+        }
     }
 }
 
@@ -598,63 +729,65 @@ impl BasicExpressionContext {
             depth: 0,
         }
     }
-    
+
     /// 创建带父上下文的基础表达式上下文
     pub fn with_parent(parent: BasicExpressionContext) -> Self {
+        let parent_depth = parent.depth;
         Self {
             variables: HashMap::new(),
             functions: HashMap::new(),
             custom_functions: HashMap::new(),
             parent: Some(Box::new(parent)),
-            depth: parent.depth + 1,
+            depth: parent_depth + 1,
         }
     }
-    
+
     /// 设置变量
     pub fn set_variable(&mut self, name: impl Into<String>, value: FieldValue) {
         self.variables.insert(name.into(), value);
     }
-    
+
     /// 批量设置变量
     pub fn set_variables(&mut self, variables: HashMap<String, FieldValue>) {
         self.variables = variables;
     }
-    
+
     /// 注册内置函数
     pub fn register_builtin_function(&mut self, function: BuiltinFunction) {
         self.functions.insert(function.name().to_string(), function);
     }
-    
+
     /// 注册自定义函数
     pub fn register_custom_function(&mut self, function: CustomFunction) {
-        self.custom_functions.insert(function.name.clone(), function);
+        self.custom_functions
+            .insert(function.name.clone(), function);
     }
-    
+
     /// 获取内置函数
     pub fn get_builtin_function(&self, name: &str) -> Option<&BuiltinFunction> {
         self.functions.get(name)
     }
-    
+
     /// 获取自定义函数
     pub fn get_custom_function(&self, name: &str) -> Option<&CustomFunction> {
         self.custom_functions.get(name)
     }
-    
+
     /// 移除变量
     pub fn remove_variable(&mut self, name: &str) -> Option<FieldValue> {
         self.variables.remove(name)
     }
-    
+
     /// 清空所有变量
     pub fn clear_variables(&mut self) {
         self.variables.clear();
     }
-    
+
     /// 检查变量是否在当前上下文中定义
     pub fn is_local_variable(&self, name: &str) -> bool {
         self.variables.contains_key(name)
     }
-    
+
     /// 获取当前上下文中的变量名
     pub fn get_local_variable_names(&self) -> Vec<&str> {
         self.variables.keys().map(|k| k.as_str()).collect()
@@ -689,9 +822,15 @@ impl ExpressionError {
             expression: None,
         }
     }
-    
+
     /// 设置错误位置
-    pub fn with_position(mut self, line: usize, column: usize, offset: usize, length: usize) -> Self {
+    pub fn with_position(
+        mut self,
+        line: usize,
+        column: usize,
+        offset: usize,
+        length: usize,
+    ) -> Self {
         self.position = Some(ExpressionPosition {
             line,
             column,
@@ -700,62 +839,70 @@ impl ExpressionError {
         });
         self
     }
-    
+
     /// 设置相关表达式
     pub fn with_expression(mut self, expression: Expression) -> Self {
         self.expression = Some(expression);
         self
     }
-    
+
     /// 创建类型错误
     pub fn type_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::TypeError, message)
     }
-    
+
     /// 创建未定义变量错误
     pub fn undefined_variable(name: impl Into<String>) -> Self {
-        Self::new(ExpressionErrorType::UndefinedVariable, 
-                  format!("未定义的变量: {}", name.into()))
+        Self::new(
+            ExpressionErrorType::UndefinedVariable,
+            format!("未定义的变量: {}", name.into()),
+        )
     }
-    
+
     /// 创建未定义函数错误
     pub fn undefined_function(name: impl Into<String>) -> Self {
-        Self::new(ExpressionErrorType::UndefinedFunction, 
-                  format!("未定义的函数: {}", name.into()))
+        Self::new(
+            ExpressionErrorType::UndefinedFunction,
+            format!("未定义的函数: {}", name.into()),
+        )
     }
-    
+
     /// 创建参数数量错误
     pub fn argument_count_error(expected: usize, actual: usize) -> Self {
-        Self::new(ExpressionErrorType::ArgumentCountError, 
-                  format!("参数数量错误: 期望 {}, 实际 {}", expected, actual))
+        Self::new(
+            ExpressionErrorType::ArgumentCountError,
+            format!("参数数量错误: 期望 {}, 实际 {}", expected, actual),
+        )
     }
-    
+
     /// 创建除零错误
     pub fn division_by_zero() -> Self {
         Self::new(ExpressionErrorType::DivisionByZero, "除零错误".to_string())
     }
-    
+
     /// 创建溢出错误
     pub fn overflow(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::Overflow, message)
     }
-    
+
     /// 创建索引越界错误
     pub fn index_out_of_bounds(index: isize, size: usize) -> Self {
-        Self::new(ExpressionErrorType::IndexOutOfBounds, 
-                  format!("索引越界: 索引 {}, 大小 {}", index, size))
+        Self::new(
+            ExpressionErrorType::IndexOutOfBounds,
+            format!("索引越界: 索引 {}, 大小 {}", index, size),
+        )
     }
-    
+
     /// 创建空值错误
     pub fn null_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::NullError, message)
     }
-    
+
     /// 创建语法错误
     pub fn syntax_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::SyntaxError, message)
     }
-    
+
     /// 创建运行时错误
     pub fn runtime_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::RuntimeError, message)
@@ -809,42 +956,42 @@ impl EvaluationStatistics {
             max_recursion_depth: 0,
         }
     }
-    
+
     /// 记录表达式求值
     pub fn record_expression_evaluation(&mut self, evaluation_time_us: u64) {
         self.expressions_evaluated += 1;
         self.total_evaluation_time_us += evaluation_time_us;
-        self.average_evaluation_time_us = self.total_evaluation_time_us as f64 / 
-                                          self.expressions_evaluated as f64;
+        self.average_evaluation_time_us =
+            self.total_evaluation_time_us as f64 / self.expressions_evaluated as f64;
     }
-    
+
     /// 记录函数调用
     pub fn record_function_call(&mut self) {
         self.function_calls += 1;
     }
-    
+
     /// 记录变量访问
     pub fn record_variable_access(&mut self) {
         self.variable_accesses += 1;
     }
-    
+
     /// 记录缓存命中
     pub fn record_cache_hit(&mut self) {
         self.cache_hits += 1;
     }
-    
+
     /// 记录缓存未命中
     pub fn record_cache_miss(&mut self) {
         self.cache_misses += 1;
     }
-    
+
     /// 更新最大递归深度
     pub fn update_max_recursion_depth(&mut self, depth: usize) {
         if depth > self.max_recursion_depth {
             self.max_recursion_depth = depth;
         }
     }
-    
+
     /// 获取缓存命中率
     pub fn cache_hit_rate(&self) -> f64 {
         let total_requests = self.cache_hits + self.cache_misses;

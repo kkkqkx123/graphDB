@@ -11,7 +11,7 @@ pub mod traits;
 // 重新导出主要类型
 pub use cache_impl::*;
 pub use config::*;
-pub use manager::*;
+pub use manager::{CacheManager, CachePolicy, CacheStrategy, CacheStats, CacheBuilder, global_cache_manager, init_global_cache_manager};
 pub use parser_cache::*;
 pub use traits::*;
 
