@@ -14,10 +14,13 @@ use super::sort_node::{SortNode, LimitNode, TopNNode};
 use super::join_node::{InnerJoinNode, LeftJoinNode, CrossJoinNode};
 use super::graph_scan_node::{GetVerticesNode, GetEdgesNode, GetNeighborsNode, ScanVerticesNode, ScanEdgesNode};
 use super::traversal_node::{ExpandNode, ExpandAllNode, TraverseNode, AppendVerticesNode};
-use super::placeholder_node::PlaceholderNode;
+use super::filter_node::FilterNode;
+use super::aggregate_node::AggregateNode;
+use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
+use super::data_processing_node::{DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode};
 
 /// PlanNode 枚举，包含所有可能的节点类型
-/// 
+///
 /// 这个枚举替代了 `PlanNodeEnum`，避免了动态分发的性能开销
 #[derive(Debug, Clone)]
 pub enum PlanNodeEnum {
@@ -55,8 +58,30 @@ pub enum PlanNodeEnum {
     Traverse(TraverseNode),
     /// 追加顶点节点
     AppendVertices(AppendVerticesNode),
-    /// 占位符节点
-    Placeholder(PlaceholderNode),
+    /// 过滤节点
+    Filter(FilterNode),
+    /// 聚合节点
+    Aggregate(AggregateNode),
+    /// 参数节点
+    Argument(ArgumentNode),
+    /// 循环节点
+    Loop(LoopNode),
+    /// 透传节点
+    PassThrough(PassThroughNode),
+    /// 选择节点
+    Select(SelectNode),
+    /// 数据收集节点
+    DataCollect(DataCollectNode),
+    /// 去重节点
+    Dedup(DedupNode),
+    /// 模式应用节点
+    PatternApply(PatternApplyNode),
+    /// 滚动应用节点
+    RollUpApply(RollUpApplyNode),
+    /// 并集节点
+    Union(UnionNode),
+    /// 展开节点
+    Unwind(UnwindNode),
 }
 
 impl PlanNodeEnum {
@@ -80,7 +105,18 @@ impl PlanNodeEnum {
             PlanNodeEnum::ExpandAll(node) => node.id(),
             PlanNodeEnum::Traverse(node) => node.id(),
             PlanNodeEnum::AppendVertices(node) => node.id(),
-            PlanNodeEnum::Placeholder(node) => node.id(),
+            PlanNodeEnum::Filter(node) => node.id(),
+            PlanNodeEnum::Aggregate(node) => node.id(),
+            PlanNodeEnum::Argument(node) => node.id(),
+            PlanNodeEnum::Loop(node) => node.id(),
+            PlanNodeEnum::PassThrough(node) => node.id(),
+            PlanNodeEnum::Select(node) => node.id(),
+            PlanNodeEnum::DataCollect(node) => node.id(),
+            PlanNodeEnum::Dedup(node) => node.id(),
+            PlanNodeEnum::PatternApply(node) => node.id(),
+            PlanNodeEnum::RollUpApply(node) => node.id(),
+            PlanNodeEnum::Union(node) => node.id(),
+            PlanNodeEnum::Unwind(node) => node.id(),
         }
     }
 
@@ -104,7 +140,18 @@ impl PlanNodeEnum {
             PlanNodeEnum::ExpandAll(node) => node.kind(),
             PlanNodeEnum::Traverse(node) => node.kind(),
             PlanNodeEnum::AppendVertices(node) => node.kind(),
-            PlanNodeEnum::Placeholder(node) => node.kind(),
+            PlanNodeEnum::Filter(node) => node.kind(),
+            PlanNodeEnum::Aggregate(node) => node.kind(),
+            PlanNodeEnum::Argument(node) => node.kind(),
+            PlanNodeEnum::Loop(node) => node.kind(),
+            PlanNodeEnum::PassThrough(node) => node.kind(),
+            PlanNodeEnum::Select(node) => node.kind(),
+            PlanNodeEnum::DataCollect(node) => node.kind(),
+            PlanNodeEnum::Dedup(node) => node.kind(),
+            PlanNodeEnum::PatternApply(node) => node.kind(),
+            PlanNodeEnum::RollUpApply(node) => node.kind(),
+            PlanNodeEnum::Union(node) => node.kind(),
+            PlanNodeEnum::Unwind(node) => node.kind(),
         }
     }
 
@@ -128,7 +175,18 @@ impl PlanNodeEnum {
             PlanNodeEnum::ExpandAll(node) => node.output_var(),
             PlanNodeEnum::Traverse(node) => node.output_var(),
             PlanNodeEnum::AppendVertices(node) => node.output_var(),
-            PlanNodeEnum::Placeholder(node) => node.output_var(),
+            PlanNodeEnum::Filter(node) => node.output_var(),
+            PlanNodeEnum::Aggregate(node) => node.output_var(),
+            PlanNodeEnum::Argument(node) => node.output_var(),
+            PlanNodeEnum::Loop(node) => node.output_var(),
+            PlanNodeEnum::PassThrough(node) => node.output_var(),
+            PlanNodeEnum::Select(node) => node.output_var(),
+            PlanNodeEnum::DataCollect(node) => node.output_var(),
+            PlanNodeEnum::Dedup(node) => node.output_var(),
+            PlanNodeEnum::PatternApply(node) => node.output_var(),
+            PlanNodeEnum::RollUpApply(node) => node.output_var(),
+            PlanNodeEnum::Union(node) => node.output_var(),
+            PlanNodeEnum::Unwind(node) => node.output_var(),
         }
     }
 
@@ -152,7 +210,18 @@ impl PlanNodeEnum {
             PlanNodeEnum::ExpandAll(node) => node.col_names(),
             PlanNodeEnum::Traverse(node) => node.col_names(),
             PlanNodeEnum::AppendVertices(node) => node.col_names(),
-            PlanNodeEnum::Placeholder(node) => node.col_names(),
+            PlanNodeEnum::Filter(node) => node.col_names(),
+            PlanNodeEnum::Aggregate(node) => node.col_names(),
+            PlanNodeEnum::Argument(node) => node.col_names(),
+            PlanNodeEnum::Loop(node) => node.col_names(),
+            PlanNodeEnum::PassThrough(node) => node.col_names(),
+            PlanNodeEnum::Select(node) => node.col_names(),
+            PlanNodeEnum::DataCollect(node) => node.col_names(),
+            PlanNodeEnum::Dedup(node) => node.col_names(),
+            PlanNodeEnum::PatternApply(node) => node.col_names(),
+            PlanNodeEnum::RollUpApply(node) => node.col_names(),
+            PlanNodeEnum::Union(node) => node.col_names(),
+            PlanNodeEnum::Unwind(node) => node.col_names(),
         }
     }
 
@@ -176,7 +245,18 @@ impl PlanNodeEnum {
             PlanNodeEnum::ExpandAll(node) => node.cost(),
             PlanNodeEnum::Traverse(node) => node.cost(),
             PlanNodeEnum::AppendVertices(node) => node.cost(),
-            PlanNodeEnum::Placeholder(node) => node.cost(),
+            PlanNodeEnum::Filter(node) => node.cost(),
+            PlanNodeEnum::Aggregate(node) => node.cost(),
+            PlanNodeEnum::Argument(node) => node.cost(),
+            PlanNodeEnum::Loop(node) => node.cost(),
+            PlanNodeEnum::PassThrough(node) => node.cost(),
+            PlanNodeEnum::Select(node) => node.cost(),
+            PlanNodeEnum::DataCollect(node) => node.cost(),
+            PlanNodeEnum::Dedup(node) => node.cost(),
+            PlanNodeEnum::PatternApply(node) => node.cost(),
+            PlanNodeEnum::RollUpApply(node) => node.cost(),
+            PlanNodeEnum::Union(node) => node.cost(),
+            PlanNodeEnum::Unwind(node) => node.cost(),
         }
     }
 
@@ -236,7 +316,40 @@ impl PlanNodeEnum {
             PlanNodeEnum::AppendVertices(node) => {
                 vec![]
             }
-            PlanNodeEnum::Placeholder(node) => {
+            PlanNodeEnum::Filter(node) => {
+                vec![]
+            }
+            PlanNodeEnum::Aggregate(node) => {
+                vec![]
+            }
+            PlanNodeEnum::Argument(node) => {
+                vec![]
+            }
+            PlanNodeEnum::Loop(node) => {
+                vec![]
+            }
+            PlanNodeEnum::PassThrough(node) => {
+                vec![]
+            }
+            PlanNodeEnum::Select(node) => {
+                vec![]
+            }
+            PlanNodeEnum::DataCollect(node) => {
+                vec![]
+            }
+            PlanNodeEnum::Dedup(node) => {
+                vec![]
+            }
+            PlanNodeEnum::PatternApply(node) => {
+                vec![]
+            }
+            PlanNodeEnum::RollUpApply(node) => {
+                vec![]
+            }
+            PlanNodeEnum::Union(node) => {
+                vec![]
+            }
+            PlanNodeEnum::Unwind(node) => {
                 vec![]
             }
         }
@@ -262,7 +375,18 @@ impl PlanNodeEnum {
             PlanNodeEnum::ExpandAll(node) => node.set_output_var(var),
             PlanNodeEnum::Traverse(node) => node.set_output_var(var),
             PlanNodeEnum::AppendVertices(node) => node.set_output_var(var),
-            PlanNodeEnum::Placeholder(node) => node.set_output_var(var),
+            PlanNodeEnum::Filter(node) => node.set_output_var(var),
+            PlanNodeEnum::Aggregate(node) => node.set_output_var(var),
+            PlanNodeEnum::Argument(node) => node.set_output_var(var),
+            PlanNodeEnum::Loop(node) => node.set_output_var(var),
+            PlanNodeEnum::PassThrough(node) => node.set_output_var(var),
+            PlanNodeEnum::Select(node) => node.set_output_var(var),
+            PlanNodeEnum::DataCollect(node) => node.set_output_var(var),
+            PlanNodeEnum::Dedup(node) => node.set_output_var(var),
+            PlanNodeEnum::PatternApply(node) => node.set_output_var(var),
+            PlanNodeEnum::RollUpApply(node) => node.set_output_var(var),
+            PlanNodeEnum::Union(node) => node.set_output_var(var),
+            PlanNodeEnum::Unwind(node) => node.set_output_var(var),
         }
     }
 
@@ -286,7 +410,18 @@ impl PlanNodeEnum {
             PlanNodeEnum::ExpandAll(node) => node.set_col_names(names),
             PlanNodeEnum::Traverse(node) => node.set_col_names(names),
             PlanNodeEnum::AppendVertices(node) => node.set_col_names(names),
-            PlanNodeEnum::Placeholder(node) => node.set_col_names(names),
+            PlanNodeEnum::Filter(node) => node.set_col_names(names),
+            PlanNodeEnum::Aggregate(node) => node.set_col_names(names),
+            PlanNodeEnum::Argument(node) => node.set_col_names(names),
+            PlanNodeEnum::Loop(node) => node.set_col_names(names),
+            PlanNodeEnum::PassThrough(node) => node.set_col_names(names),
+            PlanNodeEnum::Select(node) => node.set_col_names(names),
+            PlanNodeEnum::DataCollect(node) => node.set_col_names(names),
+            PlanNodeEnum::Dedup(node) => node.set_col_names(names),
+            PlanNodeEnum::PatternApply(node) => node.set_col_names(names),
+            PlanNodeEnum::RollUpApply(node) => node.set_col_names(names),
+            PlanNodeEnum::Union(node) => node.set_col_names(names),
+            PlanNodeEnum::Unwind(node) => node.set_col_names(names),
         }
     }
 
@@ -310,7 +445,18 @@ impl PlanNodeEnum {
             PlanNodeEnum::ExpandAll(node) => node.accept(visitor),
             PlanNodeEnum::Traverse(node) => node.accept(visitor),
             PlanNodeEnum::AppendVertices(node) => node.accept(visitor),
-            PlanNodeEnum::Placeholder(node) => node.accept(visitor),
+            PlanNodeEnum::Filter(node) => node.accept(visitor),
+            PlanNodeEnum::Aggregate(node) => node.accept(visitor),
+            PlanNodeEnum::Argument(node) => node.accept(visitor),
+            PlanNodeEnum::Loop(node) => node.accept(visitor),
+            PlanNodeEnum::PassThrough(node) => node.accept(visitor),
+            PlanNodeEnum::Select(node) => node.accept(visitor),
+            PlanNodeEnum::DataCollect(node) => node.accept(visitor),
+            PlanNodeEnum::Dedup(node) => node.accept(visitor),
+            PlanNodeEnum::PatternApply(node) => node.accept(visitor),
+            PlanNodeEnum::RollUpApply(node) => node.accept(visitor),
+            PlanNodeEnum::Union(node) => node.accept(visitor),
+            PlanNodeEnum::Unwind(node) => node.accept(visitor),
         }
     }
 
@@ -392,9 +538,53 @@ impl PlanNodeEnum {
                 let mut cloned = node.clone();
                 PlanNodeEnum::AppendVertices(cloned)
             }
-            PlanNodeEnum::Placeholder(node) => {
+            PlanNodeEnum::Filter(node) => {
                 let mut cloned = node.clone();
-                PlanNodeEnum::Placeholder(cloned)
+                PlanNodeEnum::Filter(cloned)
+            }
+            PlanNodeEnum::Aggregate(node) => {
+                let mut cloned = node.clone();
+                PlanNodeEnum::Aggregate(cloned)
+            }
+            PlanNodeEnum::Argument(node) => {
+                let mut cloned = node.clone();
+                PlanNodeEnum::Argument(cloned)
+            }
+            PlanNodeEnum::Loop(node) => {
+                let mut cloned = node.clone();
+                PlanNodeEnum::Loop(cloned)
+            }
+            PlanNodeEnum::PassThrough(node) => {
+                let mut cloned = node.clone();
+                PlanNodeEnum::PassThrough(cloned)
+            }
+            PlanNodeEnum::Select(node) => {
+                let mut cloned = node.clone();
+                PlanNodeEnum::Select(cloned)
+            }
+            PlanNodeEnum::DataCollect(node) => {
+                let mut cloned = node.clone();
+                PlanNodeEnum::DataCollect(cloned)
+            }
+            PlanNodeEnum::Dedup(node) => {
+                let mut cloned = node.clone();
+                PlanNodeEnum::Dedup(cloned)
+            }
+            PlanNodeEnum::PatternApply(node) => {
+                let mut cloned = node.clone();
+                PlanNodeEnum::PatternApply(cloned)
+            }
+            PlanNodeEnum::RollUpApply(node) => {
+                let mut cloned = node.clone();
+                PlanNodeEnum::RollUpApply(cloned)
+            }
+            PlanNodeEnum::Union(node) => {
+                let mut cloned = node.clone();
+                PlanNodeEnum::Union(cloned)
+            }
+            PlanNodeEnum::Unwind(node) => {
+                let mut cloned = node.clone();
+                PlanNodeEnum::Unwind(cloned)
             }
         }
     }

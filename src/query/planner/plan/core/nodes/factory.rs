@@ -12,7 +12,6 @@ use super::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
 use super::join_node::InnerJoinNode;
-use super::placeholder_node::PlaceholderNode;
 
 use super::project_node::ProjectNode;
 use super::sort_node::{LimitNode, SortNode};
@@ -40,8 +39,8 @@ impl PlanNodeFactory {
         })?;
         
         // 这里需要重构 FilterNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "filter_placeholder")))
     }
 
     /// 创建投影节点
@@ -50,8 +49,8 @@ impl PlanNodeFactory {
         columns: Vec<YieldColumn>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 ProjectNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "project_placeholder")))
     }
 
     /// 创建内连接节点
@@ -79,8 +78,8 @@ impl PlanNodeFactory {
         })?;
 
         // 这里需要重构 InnerJoinNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "inner_join_placeholder")))
     }
 
     /// 创建起始节点
@@ -89,10 +88,10 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Start(StartNode::new()))
     }
 
-    /// 创建占位符节点
+    /// 创建占位符节点（使用ArgumentNode作为占位符）
     pub fn create_placeholder_node(
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "placeholder")))
     }
 
     /// 创建聚合节点
@@ -102,8 +101,8 @@ impl PlanNodeFactory {
         agg_exprs: Vec<String>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 AggregateNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "aggregate_placeholder")))
     }
 
     /// 创建排序节点
@@ -112,8 +111,8 @@ impl PlanNodeFactory {
         sort_items: Vec<String>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 SortNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "sort_placeholder")))
     }
 
     /// 创建限制节点
@@ -123,8 +122,8 @@ impl PlanNodeFactory {
         count: i64,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 LimitNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "limit_placeholder")))
     }
 
     /// 创建获取顶点节点
@@ -246,8 +245,8 @@ impl PlanNodeFactory {
         distinct: bool,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 UnionNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "union_placeholder")))
     }
 
     /// 创建展开节点
@@ -257,8 +256,8 @@ impl PlanNodeFactory {
         list_expr: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 UnwindNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "unwind_placeholder")))
     }
 
     /// 创建去重节点
@@ -266,8 +265,8 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 DedupNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "dedup_placeholder")))
     }
 
     /// 创建RollUp应用节点
@@ -277,8 +276,8 @@ impl PlanNodeFactory {
         lambda_vars: Vec<String>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 RollUpApplyNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "roll_up_apply_placeholder")))
     }
 
     /// 创建模式应用节点
@@ -288,8 +287,8 @@ impl PlanNodeFactory {
         join_type: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 PatternApplyNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "pattern_apply_placeholder")))
     }
 
     /// 创建数据收集节点
@@ -298,8 +297,8 @@ impl PlanNodeFactory {
         collect_kind: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 DataCollectNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "data_collect_placeholder")))
     }
 
     /// 创建索引扫描节点
@@ -310,8 +309,8 @@ impl PlanNodeFactory {
         scan_type: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 IndexScan::new 来返回 PlanNodeEnum
-        // 暂时返回一个占位符
-        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
+        // 暂时返回一个参数节点作为占位符
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "index_scan_placeholder")))
     }
 }
 

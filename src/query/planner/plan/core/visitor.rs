@@ -1,7 +1,7 @@
 use super::nodes::{
     AggregateNode, AppendVerticesNode, ArgumentNode, DataCollectNode, DedupNode, ExpandAllNode,
     ExpandNode, FilterNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, InnerJoinNode,
-    LeftJoinNode, LimitNode, LoopNode, PassThroughNode, PatternApplyNode, PlaceholderNode,
+    LeftJoinNode, LimitNode, LoopNode, PassThroughNode, PatternApplyNode,
     ProjectNode, RollUpApplyNode, ScanEdgesNode, ScanVerticesNode, SelectNode, SortNode, StartNode,
     TopNNode, TraverseNode, UnionNode, UnwindNode,
 };
@@ -135,9 +135,6 @@ pub trait PlanNodeVisitor: VisitorCore<Arc<dyn BasePlanNode>, Result = ()> + std
         Ok(())
     }
 
-    fn visit_placeholder(&mut self, _node: &PlaceholderNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
 
     fn visit_select(&mut self, _node: &SelectNode) -> Result<(), PlanNodeVisitError> {
         Ok(())
@@ -625,9 +622,6 @@ impl PlanNodeVisitor for DefaultPlanNodeVisitor {
         Ok(())
     }
 
-    fn visit_placeholder(&mut self, _node: &PlaceholderNode) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
 
     fn visit_select(&mut self, _node: &SelectNode) -> Result<(), PlanNodeVisitError> {
         Ok(())

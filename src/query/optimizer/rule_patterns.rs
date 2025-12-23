@@ -3,7 +3,6 @@
 
 use super::optimizer::{MatchNode, Pattern};
 
-
 /// 常用的模式匹配构建器
 pub struct PatternBuilder;
 
