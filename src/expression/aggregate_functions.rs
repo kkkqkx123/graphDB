@@ -1,6 +1,6 @@
-use crate::core::{ExpressionError, Value};
+use crate::core::types::operators::AggregateFunction;
 use crate::core::Expression;
-use crate::expression::operators_ext::AggregateFunction;
+use crate::core::{ExpressionError, Value};
 use serde::{Deserialize, Serialize};
 
 impl std::fmt::Display for AggregateFunction {
@@ -56,9 +56,9 @@ impl AggregateExpression {
     }
 
     /// 计算聚合表达式的值
-    pub fn evaluate(
+    pub fn evaluate<C: crate::core::expressions::ExpressionContext>(
         &self,
-        context: &crate::core::expressions::ExpressionContext,
+        context: &C,
         state: &mut AggregateState,
     ) -> Result<Value, ExpressionError> {
         // 计算参数值
@@ -95,8 +95,13 @@ impl AggregateExpression {
             }
             AggregateFunction::Collect => Ok(Value::List(state.values.clone())),
             AggregateFunction::Distinct => Ok(Value::List(
-                state.values.iter().cloned().collect::<std::collections::HashSet<_>>()
-                    .into_iter().collect()
+                state
+                    .values
+                    .iter()
+                    .cloned()
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect(),
             )),
         }
     }
@@ -192,15 +197,15 @@ mod tests {
         // 测试从字符串创建
         let func = AggregateFunction::from_str("COUNT").unwrap();
         assert!(matches!(func, AggregateFunction::Count));
-        
+
         let func = AggregateFunction::from_str("SUM").unwrap();
         assert!(matches!(func, AggregateFunction::Sum));
-        
+
         // 测试数值聚合函数检查
         let sum_func = AggregateFunction::from_str("SUM").unwrap();
         assert!(sum_func.is_numeric());
         assert!(!sum_func.is_collection());
-        
+
         let collect_func = AggregateFunction::from_str("COLLECT").unwrap();
         assert!(!collect_func.is_numeric());
         assert!(collect_func.is_collection());

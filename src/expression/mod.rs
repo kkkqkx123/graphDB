@@ -1,16 +1,6 @@
-pub mod aggregate;
 pub mod aggregate_functions;
-pub mod arithmetic;
-pub mod binary;
-pub mod comparison;
-pub mod container;
 pub mod cypher;
-pub mod function;
-pub mod operators_ext;
-pub mod property;
 pub mod storage;
-pub mod type_conversion;
-pub mod unary;
 
 // 重新导出Core访问器
 pub use crate::core::visitor::{ExpressionAcceptor, ExpressionVisitor};
