@@ -4,8 +4,8 @@
 
 use crate::query::parser::ast::expr::Expr;
 
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::factory::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 
 use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext};
@@ -83,8 +83,7 @@ impl MatchPathPlanner {
             // 检查是否是已存在的别名（ArgumentFinder）
             if node_aliases_seen.contains(&node_info.alias) && !node_info.anonymous {
                 let argument_node = PlanNodeFactory::create_argument(0, &node_info.alias)?;
-                match_clause_plan =
-                    SubPlan::new(Some(argument_node.clone()), Some(argument_node));
+                match_clause_plan = SubPlan::new(Some(argument_node.clone()), Some(argument_node));
 
                 // 初始化起始表达式
                 self.initial_expr = Some(Expr::Variable(
@@ -144,7 +143,7 @@ impl MatchPathPlanner {
 
         // 添加起始节点
         if let Some(tail) = &match_clause_plan.tail {
-            if tail.kind() == PlanNodeKind::Start {
+            if tail.name() == "Start" {
                 // 已经添加了起始节点
             }
         }
@@ -392,10 +391,7 @@ impl MatchPathPlanner {
             }],
         };
 
-        let plan = SubPlan::new(
-            Some(index_scan_node.clone()),
-            Some(index_scan_node),
-        );
+        let plan = SubPlan::new(Some(index_scan_node.clone()), Some(index_scan_node));
         Ok(Some(plan))
     }
 
@@ -418,10 +414,7 @@ impl MatchPathPlanner {
             }],
         };
 
-        let plan = SubPlan::new(
-            Some(index_scan_node.clone()),
-            Some(index_scan_node),
-        );
+        let plan = SubPlan::new(Some(index_scan_node.clone()), Some(index_scan_node));
         Ok(Some(plan))
     }
 
@@ -619,7 +612,7 @@ mod tests {
 
         // 验证根节点类型 - 当前实现使用Argument作为占位符
         if let Some(root) = &subplan.root {
-            assert_eq!(root.kind(), PlanNodeKind::Argument);
+            assert_eq!(root.name(), "Argument");
         }
     }
 
@@ -641,7 +634,7 @@ mod tests {
 
         // 验证根节点类型 - 当前实现使用Argument作为占位符
         if let Some(root) = &subplan.root {
-            assert_eq!(root.kind(), PlanNodeKind::Argument);
+            assert_eq!(root.name(), "Argument");
         }
     }
 
@@ -814,12 +807,12 @@ mod tests {
 
         // 验证根节点类型 - 当前实现使用Argument作为占位符
         if let Some(root) = &subplan.root {
-            assert_eq!(root.kind(), PlanNodeKind::Argument);
+            assert_eq!(root.name(), "Argument");
         }
 
         // 验证尾节点类型 - 应该是Argument
         if let Some(tail) = &subplan.tail {
-            assert_eq!(tail.kind(), PlanNodeKind::Argument);
+            assert_eq!(tail.name(), "Argument");
         }
     }
 }

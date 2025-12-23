@@ -9,6 +9,5 @@ pub use nodes::{
     ProjectNode, RollUpApplyNode, ScanEdgesNode, ScanVerticesNode, SelectNode, SortNode, StartNode,
     TraverseNode, UnionNode, UnwindNode,
 };
-pub use nodes::plan_node_enum::{PlanNodeEnum, PlanNodeVisitor};
-pub use crate::core::error::PlanNodeVisitError;
+pub use nodes::plan_node_enum::PlanNodeEnum;
 

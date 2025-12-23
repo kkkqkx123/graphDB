@@ -37,7 +37,7 @@ use crate::query::planner::plan::management::ddl::edge_ops::{
     CreateEdge, DropEdge, ShowCreateEdge, ShowEdges,
 };
 use crate::query::planner::plan::management::ddl::space_ops::{
-    AlterSpace, ClearSpace, CreateNode, CreateSpace, DescSpace, DropNode, DropSpace,
+    AlterSpace, ClearSpace, CreateSpace, DescSpace, DropSpace,
     ShowCreateSpace, ShowSpaces, SwitchSpace,
 };
 use crate::query::planner::plan::management::ddl::tag_ops::{
@@ -160,8 +160,6 @@ pub enum PlanNodeEnum {
     ShowCreateTag(ShowCreateTag),
 
     /// DDL操作节点 - 空间
-    CreateNode(CreateNode),
-    DropNode(DropNode),
     CreateSpace(CreateSpace),
     DescSpace(DescSpace),
     ShowCreateSpace(ShowCreateSpace),
@@ -353,7 +351,7 @@ impl PlanNodeEnum {
 
 impl std::fmt::Display for PlanNodeEnum {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}({})", self.name(), self.id())
+        write!(f, "{:?}()", self)
     }
 }
 

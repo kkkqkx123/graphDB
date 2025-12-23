@@ -3,7 +3,6 @@
 
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::core::error::PlanNodeVisitError;
 
 #[derive(Debug, Clone)]
 pub struct IndexLimit {

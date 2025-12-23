@@ -1,686 +1,141 @@
 //! 角色操作相关的计划节点
-//! 包括创建/删除角色、授权/撤销权限等操作
+//! 包括创建/删除角色等操作
 
-use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::{
-    plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
-        PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
-    },
-    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
-};
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use std::sync::Arc;
 
-// 定义角色类型
-#[derive(Debug, Clone)]
-pub enum RoleType {
-    Guest,
-    User,
-    Admin,
-    DBA,
-}
-
 /// 创建角色计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CreateRole {
-    pub id: i64,
-    pub kind: PlanNodeKind,
-    pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
-    pub col_names: Vec<String>,
-    pub cost: f64,
-    pub username: String,
-    pub space_name: String,
-    pub role_type: RoleType,
+    pub role_name: String,
+    pub if_not_exists: bool,
 }
 
 impl CreateRole {
-    pub fn new(id: i64, username: &str, space_name: &str, role_type: RoleType) -> Self {
+    pub fn new(role_name: &str, if_not_exists: bool) -> Self {
         Self {
-            id,
-            kind: PlanNodeKind::CreateRole,
-            deps: Vec::new(),
-            output_var: None,
-            col_names: Vec::new(),
-            cost: 0.0,
-            username: username.to_string(),
-            space_name: space_name.to_string(),
-            role_type,
+            role_name: role_name.to_string(),
+            if_not_exists,
         }
     }
-}
 
-impl Clone for CreateRole {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            username: self.username.clone(),
-            space_name: self.space_name.clone(),
-            role_type: self.role_type.clone(),
-        }
+    pub fn role_name(&self) -> &str {
+        &self.role_name
+    }
+
+    pub fn if_not_exists(&self) -> bool {
+        self.if_not_exists
     }
 }
 
-impl PlanNodeIdentifiable for CreateRole {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-}
-
-impl PlanNodeProperties for CreateRole {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for CreateRole {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeDependenciesExt for CreateRole {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for CreateRole {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
-impl PlanNodeClonable for CreateRole {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for CreateRole {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for CreateRole {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+impl From<CreateRole> for PlanNodeEnum {
+    fn from(role: CreateRole) -> Self {
+        PlanNodeEnum::CreateRole(Arc::new(role))
     }
 }
 
 /// 删除角色计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DropRole {
-    pub id: i64,
-    pub kind: PlanNodeKind,
-    pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
-    pub col_names: Vec<String>,
-    pub cost: f64,
-    pub username: String,
-    pub space_name: String,
+    pub if_exist: bool,
+    pub role_name: String,
 }
 
 impl DropRole {
-    pub fn new(id: i64, username: &str, space_name: &str) -> Self {
+    pub fn new(if_exist: bool, role_name: &str) -> Self {
         Self {
-            id,
-            kind: PlanNodeKind::DropRole,
-            deps: Vec::new(),
-            output_var: None,
-            col_names: Vec::new(),
-            cost: 0.0,
-            username: username.to_string(),
-            space_name: space_name.to_string(),
+            if_exist,
+            role_name: role_name.to_string(),
         }
     }
-}
 
-impl Clone for DropRole {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            username: self.username.clone(),
-            space_name: self.space_name.clone(),
-        }
+    pub fn if_exist(&self) -> bool {
+        self.if_exist
+    }
+
+    pub fn role_name(&self) -> &str {
+        &self.role_name
     }
 }
 
-impl PlanNodeIdentifiable for DropRole {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
+impl From<DropRole> for PlanNodeEnum {
+    fn from(role: DropRole) -> Self {
+        PlanNodeEnum::DropRole(Arc::new(role))
     }
 }
 
-impl PlanNodeProperties for DropRole {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for DropRole {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeDependenciesExt for DropRole {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for DropRole {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
-impl PlanNodeClonable for DropRole {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for DropRole {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for DropRole {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-/// 授权角色计划节点
-#[derive(Debug)]
+/// 授予角色计划节点
+#[derive(Debug, Clone)]
 pub struct GrantRole {
-    pub id: i64,
-    pub kind: PlanNodeKind,
-    pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
-    pub col_names: Vec<String>,
-    pub cost: f64,
+    pub role_name: String,
     pub username: String,
-    pub space_name: String,
-    pub role_type: RoleType,
 }
 
 impl GrantRole {
-    pub fn new(id: i64, username: &str, space_name: &str, role_type: RoleType) -> Self {
+    pub fn new(role_name: &str, username: &str) -> Self {
         Self {
-            id,
-            kind: PlanNodeKind::GrantRole,
-            deps: Vec::new(),
-            output_var: None,
-            col_names: Vec::new(),
-            cost: 0.0,
+            role_name: role_name.to_string(),
             username: username.to_string(),
-            space_name: space_name.to_string(),
-            role_type,
         }
     }
-}
 
-impl Clone for GrantRole {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            username: self.username.clone(),
-            space_name: self.space_name.clone(),
-            role_type: self.role_type.clone(),
-        }
+    pub fn role_name(&self) -> &str {
+        &self.role_name
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
     }
 }
 
-impl PlanNodeIdentifiable for GrantRole {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-}
-
-impl PlanNodeProperties for GrantRole {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for GrantRole {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeDependenciesExt for GrantRole {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for GrantRole {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
-impl PlanNodeClonable for GrantRole {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for GrantRole {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for GrantRole {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+impl From<GrantRole> for PlanNodeEnum {
+    fn from(role: GrantRole) -> Self {
+        PlanNodeEnum::GrantRole(Arc::new(role))
     }
 }
 
 /// 撤销角色计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RevokeRole {
-    pub id: i64,
-    pub kind: PlanNodeKind,
-    pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
-    pub col_names: Vec<String>,
-    pub cost: f64,
+    pub role_name: String,
     pub username: String,
-    pub space_name: String,
-    pub role_type: RoleType,
 }
 
 impl RevokeRole {
-    pub fn new(id: i64, username: &str, space_name: &str, role_type: RoleType) -> Self {
+    pub fn new(role_name: &str, username: &str) -> Self {
         Self {
-            id,
-            kind: PlanNodeKind::RevokeRole,
-            deps: Vec::new(),
-            output_var: None,
-            col_names: Vec::new(),
-            cost: 0.0,
+            role_name: role_name.to_string(),
             username: username.to_string(),
-            space_name: space_name.to_string(),
-            role_type,
         }
     }
-}
 
-impl Clone for RevokeRole {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            username: self.username.clone(),
-            space_name: self.space_name.clone(),
-            role_type: self.role_type.clone(),
-        }
+    pub fn role_name(&self) -> &str {
+        &self.role_name
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
     }
 }
 
-impl PlanNodeIdentifiable for RevokeRole {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
+impl From<RevokeRole> for PlanNodeEnum {
+    fn from(role: RevokeRole) -> Self {
+        PlanNodeEnum::RevokeRole(Arc::new(role))
     }
 }
 
-impl PlanNodeProperties for RevokeRole {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for RevokeRole {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeDependenciesExt for RevokeRole {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for RevokeRole {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
-impl PlanNodeClonable for RevokeRole {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for RevokeRole {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for RevokeRole {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-/// 显示用户角色计划节点
-#[derive(Debug)]
-pub struct ShowRoles {
-    pub id: i64,
-    pub kind: PlanNodeKind,
-    pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
-    pub col_names: Vec<String>,
-    pub cost: f64,
-    pub username: String,
-}
+/// 显示角色计划节点
+#[derive(Debug, Clone)]
+pub struct ShowRoles;
 
 impl ShowRoles {
-    pub fn new(id: i64, username: &str) -> Self {
-        Self {
-            id,
-            kind: PlanNodeKind::ShowRoles,
-            deps: Vec::new(),
-            output_var: None,
-            col_names: vec![
-                "Account".to_string(),
-                "Space".to_string(),
-                "Role".to_string(),
-            ],
-            cost: 0.0,
-            username: username.to_string(),
-        }
+    pub fn new() -> Self {
+        Self
     }
 }
 
-impl Clone for ShowRoles {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            username: self.username.clone(),
-        }
-    }
-}
-
-impl PlanNodeIdentifiable for ShowRoles {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-}
-
-impl PlanNodeProperties for ShowRoles {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for ShowRoles {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeDependenciesExt for ShowRoles {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for ShowRoles {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
-impl PlanNodeClonable for ShowRoles {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for ShowRoles {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for ShowRoles {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+impl From<ShowRoles> for PlanNodeEnum {
+    fn from(roles: ShowRoles) -> Self {
+        PlanNodeEnum::ShowRoles(Arc::new(roles))
     }
 }

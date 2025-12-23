@@ -9,12 +9,12 @@ use super::rule_traits::{
 use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::algorithms::IndexScan;
-use crate::query::planner::plan::core::nodes::FilterNode as FilterPlanNode;
 use crate::query::planner::plan::core::nodes::ExpandNode as Expand;
+use crate::query::planner::plan::core::nodes::FilterNode as FilterPlanNode;
 use crate::query::planner::plan::core::nodes::ScanEdgesNode as ScanEdges;
 use crate::query::planner::plan::core::nodes::ScanVerticesNode as ScanVertices;
 use crate::query::planner::plan::core::nodes::TraverseNode;
-
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 通用过滤条件下推规则
 #[derive(Debug)]
@@ -1135,9 +1135,7 @@ fn can_push_down_expression_to_scan(expr: &crate::core::Expression) -> bool {
         crate::core::Expression::Binary { left, right, .. } => {
             can_push_down_expression_to_scan(left) && can_push_down_expression_to_scan(right)
         }
-        crate::core::Expression::Unary { operand, .. } => {
-            can_push_down_expression_to_scan(operand)
-        }
+        crate::core::Expression::Unary { operand, .. } => can_push_down_expression_to_scan(operand),
         crate::core::Expression::Function { name, .. } => {
             // 某些函数可以下推，如id(), properties()等
             matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
@@ -1175,19 +1173,18 @@ mod tests {
     use crate::query::planner::plan::core::nodes::{
         ExpandNode, FilterNode, ScanVerticesNode, TraverseNode,
     };
-    
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
             "test_session",
             "test_user",
-            vec!["user".to_string()]
+            vec!["user".to_string()],
         );
         let query_context = QueryContext::new(
             "test_query",
             crate::core::types::query::QueryType::DataQuery,
             "TEST QUERY",
-            session_info
+            session_info,
         );
         OptContext::new(query_context)
     }
@@ -1207,7 +1204,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推条件
         assert!(result.is_some());
     }
@@ -1227,7 +1226,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到遍历操作
         assert!(result.is_some());
     }
@@ -1247,7 +1248,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到扩展操作
         assert!(result.is_some());
     }
@@ -1267,7 +1270,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到哈希内连接
         assert!(result.is_some());
     }
@@ -1287,7 +1292,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到哈希左连接
         assert!(result.is_some());
     }
@@ -1307,7 +1314,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到内连接
         assert!(result.is_some());
     }
@@ -1327,7 +1336,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推谓词到存储
         assert!(result.is_some());
     }
@@ -1335,9 +1346,8 @@ mod tests {
     #[test]
     fn test_can_push_down_to_scan() {
         // 测试辅助函数
-        let result = can_push_down_to_scan(&crate::core::Expression::Variable(
-            "age > 18".to_string(),
-        ));
+        let result =
+            can_push_down_to_scan(&crate::core::Expression::Variable("age > 18".to_string()));
         // 应该返回带有可下推条件的结果
         assert!(result.pushable_condition.is_some());
     }
@@ -1345,9 +1355,8 @@ mod tests {
     #[test]
     fn test_can_push_down_to_traverse() {
         // 测试辅助函数
-        let result = can_push_down_to_traverse(&crate::core::Expression::Variable(
-            "age > 18".to_string(),
-        ));
+        let result =
+            can_push_down_to_traverse(&crate::core::Expression::Variable("age > 18".to_string()));
         // 应该返回带有可下推条件的结果
         assert!(result.pushable_condition.is_some());
     }

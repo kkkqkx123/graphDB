@@ -5,7 +5,6 @@
 use super::plan_node_enum::PlanNodeEnum;
 use crate::core::Expression;
 use crate::query::context::validate::types::Variable;
-use crate::core::error::PlanNodeVisitError;
 
 /// 过滤节点
 ///
@@ -117,10 +116,14 @@ mod tests {
     fn test_filter_node_creation() {
         // 创建一个起始节点作为输入
         let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
-        let start_node_enum = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(start_node);
+        let start_node_enum =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                start_node,
+            );
 
         let condition = Expression::Variable("test".to_string());
-        let filter_node = FilterNode::new(start_node_enum, condition).expect("Filter node should be created successfully");
+        let filter_node = FilterNode::new(start_node_enum, condition)
+            .expect("Filter node should be created successfully");
 
         assert_eq!(filter_node.type_name(), "Filter");
         assert_eq!(filter_node.dependencies().len(), 1);

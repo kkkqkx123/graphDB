@@ -131,9 +131,23 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个连接节点（使用HashInnerJoin作为测试）
-        let join_node = PlanNodeEnum::HashInnerJoin(
-            crate::query::planner::plan::core::nodes::InnerJoinNode::new(),
+        let left_node = PlanNodeEnum::Start(
+            crate::query::planner::plan::core::nodes::StartNode::new()
         );
+        let right_node = PlanNodeEnum::Start(
+            crate::query::planner::plan::core::nodes::StartNode::new()
+        );
+        let hash_keys = vec![];
+        let probe_keys = vec![];
+        
+        let inner_join = crate::query::planner::plan::core::nodes::InnerJoinNode::new(
+            left_node,
+            right_node,
+            hash_keys,
+            probe_keys,
+        ).expect("内连接节点应该创建成功");
+        
+        let join_node = PlanNodeEnum::InnerJoin(inner_join);
         let opt_node = OptGroupNode::new(1, std::sync::Arc::new(join_node));
 
         let result = rule

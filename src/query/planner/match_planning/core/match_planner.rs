@@ -226,7 +226,7 @@ mod tests {
 
         // 验证根节点类型
         if let Some(root) = &subplan.root {
-            assert_eq!(root.kind(), PlanNodeKind::GetNeighbors);
+            assert_eq!(root.name(), "GetNeighbors");
         }
     }
 

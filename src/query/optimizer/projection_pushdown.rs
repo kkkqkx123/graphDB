@@ -35,16 +35,15 @@ impl OptRule for ProjectionPushDownRule {
 impl BaseOptRule for ProjectionPushDownRule {}
 
 impl PushDownRule for ProjectionPushDownRule {
-    fn can_push_down_to(&self, child_type: &str) -> bool {
+    fn can_push_down_to(&self, child_kind: &PlanNodeEnum) -> bool {
         // 投影可以下推到大多数数据访问操作
         matches!(
-            child_type,
-            "ScanVertices"
-                | "ScanEdges"
-                | "IndexScan"
-                | "ScanVertices"
-                | "ScanEdges"
-                | "GetNeighbors"
+            child_kind,
+            PlanNodeEnum::ScanVertices(_)
+                | PlanNodeEnum::ScanEdges(_)
+                | PlanNodeEnum::GetVertices(_)
+                | PlanNodeEnum::GetEdges(_)
+                | PlanNodeEnum::GetNeighbors(_)
         )
     }
 
@@ -91,11 +90,11 @@ impl OptRule for PushProjectDownRule {
 impl BaseOptRule for PushProjectDownRule {}
 
 impl PushDownRule for PushProjectDownRule {
-    fn can_push_down_to(&self, child_type: &str) -> bool {
+    fn can_push_down_to(&self, child_kind: &PlanNodeEnum) -> bool {
         // 投影可以下推到数据访问操作
         matches!(
-            child_type,
-            "ScanVertices" | "ScanEdges" | "IndexScan"
+            child_kind,
+            PlanNodeEnum::ScanVertices(_) | PlanNodeEnum::ScanEdges(_) | PlanNodeEnum::GetVertices(_)
         )
     }
 

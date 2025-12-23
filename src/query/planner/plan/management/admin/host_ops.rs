@@ -1,14 +1,7 @@
 //! 主机操作相关的计划节点
 //! 包括添加/删除主机等操作
 
-use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::{
-    plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
-        PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
-    },
-    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
-};
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use std::sync::Arc;
 
 // 主机信息结构
@@ -22,516 +15,77 @@ pub struct HostInfo {
 }
 
 /// 添加主机计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AddHosts {
-    pub id: i64,
-    pub kind: PlanNodeKind,
-    pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
-    pub col_names: Vec<String>,
-    pub cost: f64,
     pub hosts: Vec<HostInfo>,
 }
 
 impl AddHosts {
-    pub fn new(id: i64, hosts: Vec<HostInfo>) -> Self {
-        Self {
-            id,
-            kind: PlanNodeKind::AddHosts,
-            deps: Vec::new(),
-            output_var: None,
-            col_names: vec!["Add Hosts".to_string()],
-            cost: 0.0,
-            hosts,
-        }
+    pub fn new(hosts: Vec<HostInfo>) -> Self {
+        Self { hosts }
+    }
+
+    pub fn hosts(&self) -> &[HostInfo] {
+        &self.hosts
     }
 }
 
-impl Clone for AddHosts {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            hosts: self.hosts.clone(),
-        }
-    }
-}
-
-impl PlanNodeIdentifiable for AddHosts {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-}
-
-impl PlanNodeProperties for AddHosts {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for AddHosts {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        let initial_len = self.deps.len();
-        self.deps.retain(|dep| dep.id() != id);
-        let final_len = self.deps.len();
-
-        initial_len != final_len
-    }
-}
-
-impl PlanNodeDependenciesExt for AddHosts {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for AddHosts {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
-impl PlanNodeClonable for AddHosts {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for AddHosts {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for AddHosts {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+impl From<AddHosts> for PlanNodeEnum {
+    fn from(hosts: AddHosts) -> Self {
+        PlanNodeEnum::AddHosts(Arc::new(hosts))
     }
 }
 
 /// 删除主机计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DropHosts {
-    pub id: i64,
-    pub kind: PlanNodeKind,
-    pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
-    pub col_names: Vec<String>,
-    pub cost: f64,
     pub hosts: Vec<HostInfo>,
 }
 
 impl DropHosts {
-    pub fn new(id: i64, hosts: Vec<HostInfo>) -> Self {
-        Self {
-            id,
-            kind: PlanNodeKind::DropHosts,
-            deps: Vec::new(),
-            output_var: None,
-            col_names: vec!["Drop Hosts".to_string()],
-            cost: 0.0,
-            hosts,
-        }
+    pub fn new(hosts: Vec<HostInfo>) -> Self {
+        Self { hosts }
+    }
+
+    pub fn hosts(&self) -> &[HostInfo] {
+        &self.hosts
     }
 }
 
-impl Clone for DropHosts {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            hosts: self.hosts.clone(),
-        }
-    }
-}
-
-impl PlanNodeIdentifiable for DropHosts {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-}
-
-impl PlanNodeProperties for DropHosts {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for DropHosts {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        let initial_len = self.deps.len();
-        self.deps.retain(|dep| dep.id() != id);
-        let final_len = self.deps.len();
-
-        initial_len != final_len
-    }
-}
-
-impl PlanNodeDependenciesExt for DropHosts {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for DropHosts {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
-impl PlanNodeClonable for DropHosts {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for DropHosts {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for DropHosts {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+impl From<DropHosts> for PlanNodeEnum {
+    fn from(hosts: DropHosts) -> Self {
+        PlanNodeEnum::DropHosts(Arc::new(hosts))
     }
 }
 
 /// 显示主机计划节点
-#[derive(Debug)]
-pub struct ShowHosts {
-    pub id: i64,
-    pub kind: PlanNodeKind,
-    pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
-    pub col_names: Vec<String>,
-    pub cost: f64,
-}
+#[derive(Debug, Clone)]
+pub struct ShowHosts;
 
 impl ShowHosts {
-    pub fn new(id: i64) -> Self {
-        Self {
-            id,
-            kind: PlanNodeKind::ShowHosts,
-            deps: Vec::new(),
-            output_var: None,
-            col_names: vec![
-                "Host".to_string(),
-                "Port".to_string(),
-                "Status".to_string(),
-                "Leader count".to_string(),
-                "Leader distribution".to_string(),
-            ],
-            cost: 0.0,
-        }
+    pub fn new() -> Self {
+        Self
     }
 }
 
-impl Clone for ShowHosts {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-        }
-    }
-}
-
-impl PlanNodeIdentifiable for ShowHosts {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-}
-
-impl PlanNodeProperties for ShowHosts {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for ShowHosts {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        let initial_len = self.deps.len();
-        self.deps.retain(|dep| dep.id() != id);
-        let final_len = self.deps.len();
-
-        initial_len != final_len
-    }
-}
-
-impl PlanNodeDependenciesExt for ShowHosts {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for ShowHosts {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
-impl PlanNodeClonable for ShowHosts {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for ShowHosts {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for ShowHosts {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+impl From<ShowHosts> for PlanNodeEnum {
+    fn from(hosts: ShowHosts) -> Self {
+        PlanNodeEnum::ShowHosts(Arc::new(hosts))
     }
 }
 
 /// 显示主机状态计划节点
-#[derive(Debug)]
-pub struct ShowHostsStatus {
-    pub id: i64,
-    pub kind: PlanNodeKind,
-    pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
-    pub col_names: Vec<String>,
-    pub cost: f64,
-}
+#[derive(Debug, Clone)]
+pub struct ShowHostsStatus;
 
 impl ShowHostsStatus {
-    pub fn new(id: i64) -> Self {
-        Self {
-            id,
-            kind: PlanNodeKind::ShowHostsStatus,
-            deps: Vec::new(),
-            output_var: None,
-            col_names: vec![
-                "Host".to_string(),
-                "Port".to_string(),
-                "Status".to_string(),
-                "Graph".to_string(),
-                "Meta".to_string(),
-                "Storage".to_string(),
-            ],
-            cost: 0.0,
-        }
+    pub fn new() -> Self {
+        Self
     }
 }
 
-impl Clone for ShowHostsStatus {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-        }
-    }
-}
-
-impl PlanNodeIdentifiable for ShowHostsStatus {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-}
-
-impl PlanNodeProperties for ShowHostsStatus {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for ShowHostsStatus {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        let initial_len = self.deps.len();
-        self.deps.retain(|dep| dep.id() != id);
-        let final_len = self.deps.len();
-
-        initial_len != final_len
-    }
-}
-
-impl PlanNodeDependenciesExt for ShowHostsStatus {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for ShowHostsStatus {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
-impl PlanNodeClonable for ShowHostsStatus {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for ShowHostsStatus {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for ShowHostsStatus {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+impl From<ShowHostsStatus> for PlanNodeEnum {
+    fn from(status: ShowHostsStatus) -> Self {
+        PlanNodeEnum::ShowHostsStatus(Arc::new(status))
     }
 }

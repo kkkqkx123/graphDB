@@ -2,7 +2,6 @@
 //! 包含最短路径、所有路径等算法相关的计划节点
 
 use crate::query::context::validate::types::Variable;
-use crate::core::error::PlanNodeVisitError;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
 /// 多源最短路径计划节点

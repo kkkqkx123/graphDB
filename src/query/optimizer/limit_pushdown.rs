@@ -5,7 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::IndexScan;
+use crate::query::planner::plan::{IndexScan, PlanNodeEnum};
 
 use std::sync::Arc;
 // 注释掉不存在的导入
@@ -58,12 +58,7 @@ impl PushDownRule for PushLimitDownRule {
     fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
         matches!(
             child_node.name(),
-            "IndexScan"
-                | "GetVertices"
-                | "GetEdges"
-                | "ScanVertices"
-                | "ScanEdges"
-                | "Sort"
+            "IndexScan" | "GetVertices" | "GetEdges" | "ScanVertices" | "ScanEdges" | "Sort"
         )
     }
 
@@ -719,8 +714,7 @@ impl PushDownRule for PushLimitDownIndexScanRule {
             .as_any()
             .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
         ) {
-            if let Some(index_scan_plan_node) =
-                child.plan_node.as_any().downcast_ref::<IndexScan>()
+            if let Some(index_scan_plan_node) = child.plan_node.as_any().downcast_ref::<IndexScan>()
             {
                 // 创建新的带有限制的IndexScan节点
                 let mut new_index_scan = index_scan_plan_node.clone();
@@ -961,19 +955,18 @@ mod tests {
         GetEdgesNode, GetNeighborsNode, GetVerticesNode, LimitNode, ProjectNode, ScanEdgesNode,
         ScanVerticesNode,
     };
-    
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
             "test_session",
             "test_user",
-            vec!["user".to_string()]
+            vec!["user".to_string()],
         );
         let query_context = QueryContext::new(
             "test_query",
             crate::core::types::query::QueryType::DataQuery,
             "TEST QUERY",
-            session_info
+            session_info,
         );
         OptContext::new(query_context)
     }
@@ -994,7 +987,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推
         assert!(result.is_some());
     }
@@ -1015,7 +1010,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到获取顶点操作
         assert!(result.is_some());
     }
@@ -1036,7 +1033,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到获取邻居操作
         assert!(result.is_some());
     }
@@ -1057,7 +1056,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到获取边操作
         assert!(result.is_some());
     }
@@ -1078,7 +1079,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到扫描顶点操作
         assert!(result.is_some());
     }
@@ -1099,7 +1102,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到扫描边操作
         assert!(result.is_some());
     }
@@ -1120,7 +1125,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到索引扫描操作
         assert!(result.is_some());
     }
@@ -1141,7 +1148,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到投影操作
         assert!(result.is_some());
     }
