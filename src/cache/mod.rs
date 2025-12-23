@@ -10,6 +10,7 @@ pub mod manager;
 pub mod parser_cache;
 pub mod registry;
 pub mod stats_collector;
+pub mod stats_marker;
 pub mod traits;
 
 // 重新导出主要类型
@@ -24,6 +25,7 @@ pub use manager::{CacheBuilder, CacheManager, CachePolicy, CacheStrategy};
 pub use parser_cache::*;
 pub use registry::{CacheRegistry, CacheRegistryInfo};
 pub use stats_collector::{CacheStats, CacheStatsCollector};
+pub use stats_marker::{StatsMode, StatsEnabled, StatsDisabled};
 pub use traits::*;
 
 #[cfg(test)]

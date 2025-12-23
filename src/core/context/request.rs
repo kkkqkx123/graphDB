@@ -113,11 +113,11 @@ impl Response {
     }
 
     pub fn get_data(&self) -> Option<&Value> {
-        self.data
+        self.data.as_ref()
     }
 
     pub fn get_error(&self) -> Option<&String> {
-        self.error_message
+        self.error_message.as_ref()
     }
 }
 

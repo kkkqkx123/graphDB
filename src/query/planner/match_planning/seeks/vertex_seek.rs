@@ -4,7 +4,7 @@
 use crate::core::Expression;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
 
-use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::{PlanNodeFactory, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
 

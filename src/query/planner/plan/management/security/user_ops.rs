@@ -2,13 +2,7 @@
 //! 包括创建/删除用户等操作
 
 use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::{
-    plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
-        PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties,
-    },
-};
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::{PlanNodeEnum, PlanNode, PlanNodeClonable};
 
 /// 创建用户计划节点
 #[derive(Debug, Clone)]
@@ -38,59 +32,6 @@ impl CreateUser {
     }
 }
 
-impl PlanNodeIdentifiable for CreateUser {
-    fn id(&self) -> i64 {
-        self.id
-    }
-    
-    fn name(&self) -> &'static str {
-        "CreateUser"
-    }
-}
-
-impl PlanNodeProperties for CreateUser {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for CreateUser {
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeMutable for CreateUser {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
 impl PlanNodeClonable for CreateUser {
     fn clone_plan_node(&self) -> PlanNodeEnum {
         PlanNodeEnum::CreateUser(self.clone())
@@ -104,6 +45,38 @@ impl PlanNodeClonable for CreateUser {
 }
 
 impl PlanNode for CreateUser {
+    fn id(&self) -> i64 {
+        self.id
+    }
+    
+    fn name(&self) -> &'static str {
+        "CreateUser"
+    }
+    
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+    
+    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
+        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+    }
+    
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+    
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::CreateUser(self)
     }
@@ -135,59 +108,6 @@ impl DropUser {
     }
 }
 
-impl PlanNodeIdentifiable for DropUser {
-    fn id(&self) -> i64 {
-        self.id
-    }
-    
-    fn name(&self) -> &'static str {
-        "DropUser"
-    }
-}
-
-impl PlanNodeProperties for DropUser {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for DropUser {
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeMutable for DropUser {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
 impl PlanNodeClonable for DropUser {
     fn clone_plan_node(&self) -> PlanNodeEnum {
         PlanNodeEnum::DropUser(self.clone())
@@ -201,6 +121,38 @@ impl PlanNodeClonable for DropUser {
 }
 
 impl PlanNode for DropUser {
+    fn id(&self) -> i64 {
+        self.id
+    }
+    
+    fn name(&self) -> &'static str {
+        "DropUser"
+    }
+    
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+    
+    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
+        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+    }
+    
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+    
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::DropUser(self)
     }
@@ -232,59 +184,6 @@ impl UpdateUser {
     }
 }
 
-impl PlanNodeIdentifiable for UpdateUser {
-    fn id(&self) -> i64 {
-        self.id
-    }
-    
-    fn name(&self) -> &'static str {
-        "UpdateUser"
-    }
-}
-
-impl PlanNodeProperties for UpdateUser {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for UpdateUser {
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeMutable for UpdateUser {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
 impl PlanNodeClonable for UpdateUser {
     fn clone_plan_node(&self) -> PlanNodeEnum {
         PlanNodeEnum::UpdateUser(self.clone())
@@ -298,6 +197,38 @@ impl PlanNodeClonable for UpdateUser {
 }
 
 impl PlanNode for UpdateUser {
+    fn id(&self) -> i64 {
+        self.id
+    }
+    
+    fn name(&self) -> &'static str {
+        "UpdateUser"
+    }
+    
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+    
+    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
+        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+    }
+    
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+    
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::UpdateUser(self)
     }
@@ -343,59 +274,6 @@ impl ChangePassword {
     }
 }
 
-impl PlanNodeIdentifiable for ChangePassword {
-    fn id(&self) -> i64 {
-        self.id
-    }
-    
-    fn name(&self) -> &'static str {
-        "ChangePassword"
-    }
-}
-
-impl PlanNodeProperties for ChangePassword {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for ChangePassword {
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeMutable for ChangePassword {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
 impl PlanNodeClonable for ChangePassword {
     fn clone_plan_node(&self) -> PlanNodeEnum {
         PlanNodeEnum::ChangePassword(self.clone())
@@ -409,6 +287,38 @@ impl PlanNodeClonable for ChangePassword {
 }
 
 impl PlanNode for ChangePassword {
+    fn id(&self) -> i64 {
+        self.id
+    }
+    
+    fn name(&self) -> &'static str {
+        "ChangePassword"
+    }
+    
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+    
+    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
+        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+    }
+    
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+    
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::ChangePassword(self)
     }
@@ -436,59 +346,6 @@ impl ListUsers {
     }
 }
 
-impl PlanNodeIdentifiable for ListUsers {
-    fn id(&self) -> i64 {
-        self.id
-    }
-    
-    fn name(&self) -> &'static str {
-        "ListUsers"
-    }
-}
-
-impl PlanNodeProperties for ListUsers {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for ListUsers {
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeMutable for ListUsers {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
 impl PlanNodeClonable for ListUsers {
     fn clone_plan_node(&self) -> PlanNodeEnum {
         PlanNodeEnum::ListUsers(self.clone())
@@ -502,6 +359,38 @@ impl PlanNodeClonable for ListUsers {
 }
 
 impl PlanNode for ListUsers {
+    fn id(&self) -> i64 {
+        self.id
+    }
+    
+    fn name(&self) -> &'static str {
+        "ListUsers"
+    }
+    
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+    
+    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
+        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+    }
+    
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+    
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::ListUsers(self)
     }
@@ -539,59 +428,6 @@ impl ListUserRoles {
     }
 }
 
-impl PlanNodeIdentifiable for ListUserRoles {
-    fn id(&self) -> i64 {
-        self.id
-    }
-    
-    fn name(&self) -> &'static str {
-        "ListUserRoles"
-    }
-}
-
-impl PlanNodeProperties for ListUserRoles {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for ListUserRoles {
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeMutable for ListUserRoles {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
 impl PlanNodeClonable for ListUserRoles {
     fn clone_plan_node(&self) -> PlanNodeEnum {
         PlanNodeEnum::ListUserRoles(self.clone())
@@ -605,6 +441,38 @@ impl PlanNodeClonable for ListUserRoles {
 }
 
 impl PlanNode for ListUserRoles {
+    fn id(&self) -> i64 {
+        self.id
+    }
+    
+    fn name(&self) -> &'static str {
+        "ListUserRoles"
+    }
+    
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+    
+    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
+        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+    }
+    
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+    
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::ListUserRoles(self)
     }
@@ -643,59 +511,6 @@ impl DescribeUser {
     }
 }
 
-impl PlanNodeIdentifiable for DescribeUser {
-    fn id(&self) -> i64 {
-        self.id
-    }
-    
-    fn name(&self) -> &'static str {
-        "DescribeUser"
-    }
-}
-
-impl PlanNodeProperties for DescribeUser {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-}
-
-impl PlanNodeDependencies for DescribeUser {
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl PlanNodeMutable for DescribeUser {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
 impl PlanNodeClonable for DescribeUser {
     fn clone_plan_node(&self) -> PlanNodeEnum {
         PlanNodeEnum::DescribeUser(self.clone())
@@ -709,6 +524,38 @@ impl PlanNodeClonable for DescribeUser {
 }
 
 impl PlanNode for DescribeUser {
+    fn id(&self) -> i64 {
+        self.id
+    }
+    
+    fn name(&self) -> &'static str {
+        "DescribeUser"
+    }
+    
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+    
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+    
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+    
+    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
+        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+    }
+    
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+    
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+    
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::DescribeUser(self)
     }

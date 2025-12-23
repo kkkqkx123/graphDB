@@ -4,6 +4,7 @@
 use crate::query::context::ast::base::AstContext;
 
 use crate::query::planner::plan::utils::join_params::JoinParams;
+use crate::query::planner::plan::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use std::collections::HashMap;
@@ -217,14 +218,12 @@ impl ConnectionStrategy for SequentialStrategy {
                 let mut col_names = if copy_col_names {
                     // 复制左侧计划的列名
                     left.root
-                        
                         .map(|node| node.col_names().to_vec())
                         .unwrap_or_default()
                 } else {
                     // 使用右侧计划的列名
                     right
                         .tail
-                        
                         .and_then(|node| Some(node.col_names().to_vec()))
                         .unwrap_or_default()
                 };
@@ -490,8 +489,7 @@ impl UnifiedConnector {
 mod tests {
     use super::*;
     use crate::query::context::ast::base::AstContext;
-    
-    
+
     use std::sync::Arc;
 
     #[test]

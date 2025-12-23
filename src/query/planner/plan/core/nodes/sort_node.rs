@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_sort_node_creation() {
-        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node = PlanNodeEnum::Start(StartNode::new());
 
         let sort_items = vec!["name".to_string(), "age".to_string()];
 
@@ -364,9 +364,10 @@ mod tests {
 
     #[test]
     fn test_limit_node_creation() {
-        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node = PlanNodeEnum::Start(StartNode::new());
 
-        let limit_node = LimitNode::new(start_node, 10, 100).expect("Limit node should be created successfully");
+        let limit_node =
+            LimitNode::new(start_node, 10, 100).expect("Limit node should be created successfully");
 
         assert_eq!(limit_node.type_name(), "Limit");
         assert_eq!(limit_node.dependencies().len(), 1);
@@ -376,10 +377,11 @@ mod tests {
 
     #[test]
     fn test_topn_node_creation() {
-        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node = PlanNodeEnum::Start(StartNode::new());
 
         let sort_items = vec!["name".to_string(), "age".to_string()];
-        let topn_node = TopNNode::new(start_node, sort_items, 10).expect("TopN node should be created successfully");
+        let topn_node = TopNNode::new(start_node, sort_items, 10)
+            .expect("TopN node should be created successfully");
 
         assert_eq!(topn_node.type_name(), "TopN");
         assert_eq!(topn_node.dependencies().len(), 1);

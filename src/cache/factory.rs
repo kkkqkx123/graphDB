@@ -4,6 +4,7 @@
 
 use super::cache_impl::*;
 use super::config::CachePolicy;
+use super::stats_marker::{StatsMode, StatsEnabled, StatsDisabled};
 use super::traits::{Cache, StatsCache};
 use std::hash::Hash;
 use std::sync::Arc;
@@ -92,6 +93,8 @@ impl CacheFactory {
     }
 
     /// 根据策略创建带统计的缓存
+    /// 
+    /// 所有返回的缓存均为 StatsEnabled 版本，提供完整的统计功能
     pub fn create_stats_cache_by_policy<K, V>(
         policy: &CachePolicy,
         capacity: usize,
@@ -103,39 +106,53 @@ impl CacheFactory {
         match policy {
             CachePolicy::LRU => {
                 let cache = Self::create_lru_cache(capacity);
-                StatsCacheType::Lru(Arc::new(StatsCacheWrapper::new(cache)))
+                StatsCacheType::Lru(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
             }
             CachePolicy::LFU => {
                 let cache = Self::create_lfu_cache(capacity);
-                StatsCacheType::Lfu(Arc::new(StatsCacheWrapper::new(cache)))
+                StatsCacheType::Lfu(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
             }
             CachePolicy::TTL(ttl) => {
                 let cache = Self::create_ttl_cache(capacity, *ttl);
-                StatsCacheType::Ttl(Arc::new(StatsCacheWrapper::new(cache)))
+                StatsCacheType::Ttl(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
             }
             CachePolicy::FIFO => {
                 let cache = Self::create_fifo_cache(capacity);
-                StatsCacheType::Fifo(Arc::new(StatsCacheWrapper::new(cache)))
+                StatsCacheType::Fifo(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
             }
             CachePolicy::Adaptive => {
                 let cache = Self::create_adaptive_cache(capacity);
-                StatsCacheType::Adaptive(Arc::new(StatsCacheWrapper::new(cache)))
+                StatsCacheType::Adaptive(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
             }
             CachePolicy::None => {
                 let cache = Self::create_unbounded_cache();
-                StatsCacheType::Unbounded(Arc::new(StatsCacheWrapper::new(cache)))
+                StatsCacheType::Unbounded(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
             }
         }
     }
 
     /// 创建带统计的缓存包装器
-    pub fn create_stats_wrapper<K, V, C>(cache: Arc<C>) -> Arc<StatsCacheWrapper<K, V, C>>
+    pub fn create_stats_wrapper<K, V, C>(
+        cache: Arc<C>,
+    ) -> Arc<StatsCacheWrapper<K, V, C, StatsEnabled>>
     where
         K: 'static + Send + Sync + Hash + Eq + Clone,
         V: 'static + Send + Sync + Clone,
         C: Cache<K, V>,
     {
-        Arc::new(StatsCacheWrapper::new(cache))
+        Arc::new(StatsCacheWrapper::new_with_stats(cache))
+    }
+
+    /// 创建无统计的缓存包装器
+    pub fn create_stats_wrapper_no_stats<K, V, C>(
+        cache: Arc<C>,
+    ) -> Arc<StatsCacheWrapper<K, V, C, StatsDisabled>>
+    where
+        K: 'static + Send + Sync + Hash + Eq + Clone,
+        V: 'static + Send + Sync + Clone,
+        C: Cache<K, V>,
+    {
+        Arc::new(StatsCacheWrapper::new_no_stats(cache))
     }
 
     /// 验证缓存容量
@@ -170,14 +187,16 @@ pub enum CacheType<K, V> {
 }
 
 /// 统计缓存类型枚举 - 避免动态分发
+/// 
+/// 所有变体均使用 StatsEnabled，确保一致的统计功能支持
 #[derive(Debug)]
 pub enum StatsCacheType<K, V> {
-    Lru(Arc<StatsCacheWrapper<K, V, ConcurrentLruCache<K, V>>>),
-    Lfu(Arc<StatsCacheWrapper<K, V, ConcurrentLfuCache<K, V>>>),
-    Ttl(Arc<StatsCacheWrapper<K, V, ConcurrentTtlCache<K, V>>>),
-    Fifo(Arc<StatsCacheWrapper<K, V, ConcurrentFifoCache<K, V>>>),
-    Adaptive(Arc<StatsCacheWrapper<K, V, AdaptiveCache<K, V>>>),
-    Unbounded(Arc<StatsCacheWrapper<K, V, ConcurrentUnboundedCache<K, V>>>),
+    Lru(Arc<StatsCacheWrapper<K, V, ConcurrentLruCache<K, V>, StatsEnabled>>),
+    Lfu(Arc<StatsCacheWrapper<K, V, ConcurrentLfuCache<K, V>, StatsEnabled>>),
+    Ttl(Arc<StatsCacheWrapper<K, V, ConcurrentTtlCache<K, V>, StatsEnabled>>),
+    Fifo(Arc<StatsCacheWrapper<K, V, ConcurrentFifoCache<K, V>, StatsEnabled>>),
+    Adaptive(Arc<StatsCacheWrapper<K, V, AdaptiveCache<K, V>, StatsEnabled>>),
+    Unbounded(Arc<StatsCacheWrapper<K, V, ConcurrentUnboundedCache<K, V>, StatsEnabled>>),
 }
 
 // 为 CacheType 实现 Cache trait
@@ -232,23 +251,23 @@ where
 
     fn clear(&self) {
         match self {
-            CacheType::Lru(cache) => Cache::clear(cache),
-            CacheType::Lfu(cache) => Cache::clear(cache),
-            CacheType::Ttl(cache) => Cache::clear(cache),
-            CacheType::Fifo(cache) => Cache::clear(cache),
-            CacheType::Adaptive(cache) => Cache::clear(cache),
-            CacheType::Unbounded(cache) => Cache::clear(cache),
+            CacheType::Lru(cache) => cache.clear(),
+            CacheType::Lfu(cache) => cache.clear(),
+            CacheType::Ttl(cache) => cache.clear(),
+            CacheType::Fifo(cache) => cache.clear(),
+            CacheType::Adaptive(cache) => cache.clear(),
+            CacheType::Unbounded(cache) => cache.clear(),
         }
     }
 
     fn len(&self) -> usize {
         match self {
-            CacheType::Lru(cache) => Cache::len(cache),
-            CacheType::Lfu(cache) => Cache::len(cache),
-            CacheType::Ttl(cache) => Cache::len(cache),
-            CacheType::Fifo(cache) => Cache::len(cache),
-            CacheType::Adaptive(cache) => Cache::len(cache),
-            CacheType::Unbounded(cache) => Cache::len(cache),
+            CacheType::Lru(cache) => cache.len(),
+            CacheType::Lfu(cache) => cache.len(),
+            CacheType::Ttl(cache) => cache.len(),
+            CacheType::Fifo(cache) => cache.len(),
+            CacheType::Adaptive(cache) => cache.len(),
+            CacheType::Unbounded(cache) => cache.len(),
         }
     }
 
@@ -511,7 +530,7 @@ mod tests {
 
     #[test]
     fn test_stats_cache_type_enum() {
-        let cache = StatsCacheType::Lru(Arc::new(StatsCacheWrapper::new(
+        let cache = StatsCacheType::Lru(Arc::new(StatsCacheWrapper::new_with_stats(
             CacheFactory::create_lru_cache::<String, String>(100)
         )));
         

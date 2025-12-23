@@ -53,22 +53,22 @@ pub struct FileSystemUtils;
 impl FileSystemUtils {
     /// Check if a path exists
     pub fn exists<P: AsRef<Path>>(path: P) -> bool {
-        Path::new(path).exists()
+        Path::new(path.as_ref()).exists()
     }
 
     /// Check if a path is a file
     pub fn is_file<P: AsRef<Path>>(path: P) -> bool {
-        Path::new(path).is_file()
+        Path::new(path.as_ref()).is_file()
     }
 
     /// Check if a path is a directory
     pub fn is_directory<P: AsRef<Path>>(path: P) -> bool {
-        Path::new(path).is_dir()
+        Path::new(path.as_ref()).is_dir()
     }
 
     /// Get file attributes
     pub fn get_attributes<P: AsRef<Path>>(path: P) -> FsResult<FileAttributes> {
-        let metadata = fs::metadata(path).map_err(|e| FsError::IoError(e))?;
+        let metadata = fs::metadata(path.as_ref()).map_err(|e| FsError::IoError(e))?;
 
         Ok(FileAttributes {
             size: metadata.len(),
@@ -93,27 +93,27 @@ impl FileSystemUtils {
 
     /// Create a directory and all its parent directories if they don't exist
     pub fn create_dir_all<P: AsRef<Path>>(path: P) -> FsResult<()> {
-        fs::create_dir_all(path).map_err(|e| FsError::IoError(e))
+        fs::create_dir_all(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Create an empty file
     pub fn create_file<P: AsRef<Path>>(path: P) -> FsResult<File> {
-        File::create(path).map_err(|e| FsError::IoError(e))
+        File::create(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Read the entire contents of a file into a string
     pub fn read_to_string<P: AsRef<Path>>(path: P) -> FsResult<String> {
-        fs::read_to_string(path).map_err(|e| FsError::IoError(e))
+        fs::read_to_string(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Read the entire contents of a file into a vector of bytes
     pub fn read<P: AsRef<Path>>(path: P) -> FsResult<Vec<u8>> {
-        fs::read(path).map_err(|e| FsError::IoError(e))
+        fs::read(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Write a string to a file
     pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, contents: C) -> FsResult<()> {
-        fs::write(path, contents).map_err(|e| FsError::IoError(e))
+        fs::write(path.as_ref(), contents).map_err(|e| FsError::IoError(e))
     }
 
     /// Append a string to a file
@@ -121,43 +121,42 @@ impl FileSystemUtils {
         let mut file = std::fs::OpenOptions::new()
             .append(true)
             .create(true)
-            .open(path)
+            .open(path.as_ref())
             .map_err(|e| FsError::IoError(e))?;
 
-        file.write_all(contents)
-            .map_err(|e| FsError::IoError(e))
+        file.write_all(contents.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Copy a file to a new location
     pub fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> FsResult<u64> {
-        fs::copy(from, to).map_err(|e| FsError::IoError(e))
+        fs::copy(from.as_ref(), to.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Remove a file
     pub fn remove_file<P: AsRef<Path>>(path: P) -> FsResult<()> {
-        fs::remove_file(path).map_err(|e| FsError::IoError(e))
+        fs::remove_file(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Remove a directory (must be empty)
     pub fn remove_dir<P: AsRef<Path>>(path: P) -> FsResult<()> {
-        fs::remove_dir(path).map_err(|e| FsError::IoError(e))
+        fs::remove_dir(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Remove a directory and all its contents
     pub fn remove_dir_all<P: AsRef<Path>>(path: P) -> FsResult<()> {
-        fs::remove_dir_all(path).map_err(|e| FsError::IoError(e))
+        fs::remove_dir_all(path.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// Rename or move a file or directory
     pub fn rename<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> FsResult<()> {
-        fs::rename(from, to).map_err(|e| FsError::IoError(e))
+        fs::rename(from.as_ref(), to.as_ref()).map_err(|e| FsError::IoError(e))
     }
 
     /// List all entries in a directory
     pub fn read_dir<P: AsRef<Path>>(path: P) -> FsResult<Vec<PathBuf>> {
         let mut entries = Vec::new();
 
-        for entry in fs::read_dir(path).map_err(|e| FsError::IoError(e))? {
+        for entry in fs::read_dir(path.as_ref()).map_err(|e| FsError::IoError(e))? {
             let entry = entry.map_err(|e| FsError::IoError(e))?;
             entries.push(entry.path());
         }
@@ -168,7 +167,7 @@ impl FileSystemUtils {
     /// Walk a directory recursively and return all file paths
     pub fn walk_dir<P: AsRef<Path>>(path: P) -> FsResult<Vec<PathBuf>> {
         let mut paths = Vec::new();
-        Self::walk_dir_impl(path, &mut paths)?;
+        Self::walk_dir_impl(path.as_ref(), &mut paths)?;
         Ok(paths)
     }
 
@@ -201,22 +200,22 @@ impl FileHandle {
             .read(true)
             .write(true)
             .create(true)
-            .open(path)
+            .open(path.as_ref())
             .map_err(|e| FsError::IoError(e))?;
 
         Ok(Self {
             file: Arc::new(Mutex::new(file)),
-            path: path.to_path_buf(),
+            path: path.as_ref().to_path_buf(),
         })
     }
 
     /// Create a new file handle
     pub fn create<P: AsRef<Path>>(path: P) -> FsResult<Self> {
-        let file = File::create(path).map_err(|e| FsError::IoError(e))?;
+        let file = File::create(path.as_ref()).map_err(|e| FsError::IoError(e))?;
 
         Ok(Self {
             file: Arc::new(Mutex::new(file)),
-            path: path.to_path_buf(),
+            path: path.as_ref().to_path_buf(),
         })
     }
 
@@ -305,25 +304,25 @@ impl FileLock {
             .read(true)
             .write(true)
             .create(true)
-            .open(path)
+            .open(path.as_ref())
             .map_err(|e| FsError::IoError(e))?;
 
         // In a real implementation, we would use proper file locking
         // For this implementation, we'll just return the file handle
         Ok(Self {
             _file: file,
-            _path: path.to_path_buf(),
+            _path: path.as_ref().to_path_buf(),
         })
     }
 
     /// Acquire a shared lock on a file
     pub fn acquire_shared<P: AsRef<Path>>(path: P) -> FsResult<Self> {
-        let file = File::open(path).map_err(|e| FsError::IoError(e))?;
+        let file = File::open(path.as_ref()).map_err(|e| FsError::IoError(e))?;
 
         // In a real implementation, we would use proper file locking
         Ok(Self {
             _file: file,
-            _path: path.to_path_buf(),
+            _path: path.as_ref().to_path_buf(),
         })
     }
 }
@@ -346,7 +345,7 @@ impl FileCache {
 
     /// Get a file from the cache or load it if not present
     pub fn get_or_load<P: AsRef<Path>>(&self, path: P) -> FsResult<Vec<u8>> {
-        let path_buf = path.to_path_buf();
+        let path_buf = path.as_ref().to_path_buf();
 
         // Check if it's in cache first
         {
@@ -383,7 +382,7 @@ impl FileCache {
 
     /// Add a file to the cache
     pub fn put<P: AsRef<Path>>(&self, path: P, data: Vec<u8>) {
-        let path_buf = path.to_path_buf();
+        let path_buf = path.as_ref().to_path_buf();
 
         let mut current_size = self
             .current_size
@@ -401,7 +400,7 @@ impl FileCache {
 
     /// Remove a file from the cache
     pub fn remove<P: AsRef<Path>>(&self, path: P) {
-        let path_buf = path.to_path_buf();
+        let path_buf = path.as_ref().to_path_buf();
 
         let mut cache = self
             .cache
@@ -462,10 +461,10 @@ impl FileSystemWatcher {
 
     /// Add a path to watch
     pub fn watch<P: AsRef<Path>>(&self, path: P) -> FsResult<()> {
-        let path_buf = path.to_path_buf();
+        let path_buf = path.as_ref().to_path_buf();
 
         // Get the current modification time
-        let metadata = fs::metadata(&path_buf).map_err(|e| FsError::IoError(e))?;
+        let metadata = fs::metadata(path.as_ref()).map_err(|e| FsError::IoError(e))?;
         let modified_time = metadata.modified().map_err(|_| {
             FsError::IoError(std::io::Error::new(
                 std::io::ErrorKind::Other,
@@ -483,7 +482,7 @@ impl FileSystemWatcher {
 
     /// Remove a path from watching
     pub fn unwatch<P: AsRef<Path>>(&self, path: P) {
-        let path_buf = path.to_path_buf();
+        let path_buf = path.as_ref().to_path_buf();
         self.watched_paths
             .lock()
             .expect("File system watcher paths lock should not be poisoned")

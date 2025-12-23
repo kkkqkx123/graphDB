@@ -551,7 +551,6 @@ impl VisitorCore<Expression> for FindVisitor {
             } => {
                 // 简化为函数调用
                 let cond_expr = condition
-                    
                     .map(|c| (**c).clone())
                     .unwrap_or(Expression::bool(true));
                 self.visit_function("list_comprehension", &[(**generator).clone(), cond_expr])

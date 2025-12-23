@@ -44,7 +44,7 @@ impl ExpressionConverter {
                 let args: Result<Vec<Expression>, ExpressionError> = func_call
                     .arguments
                     .iter()
-                    .map(|arg| Self::convert_cypher_to_unified(arg))
+                    .map(|arg| Self::convert_cypher_to_unified(&arg))
                     .collect();
                 Ok(Expression::Function {
                     name: func_call.function_name.clone(),
@@ -73,7 +73,7 @@ impl ExpressionConverter {
                 let elements: Result<Vec<Expression>, ExpressionError> = list_expr
                     .elements
                     .iter()
-                    .map(|elem| Self::convert_cypher_to_unified(elem))
+                    .map(|elem| Self::convert_cypher_to_unified(&elem))
                     .collect();
                 Ok(Expression::List(elements?))
             }
@@ -108,8 +108,8 @@ impl ExpressionConverter {
 
                 let _default_alternative = case_expr
                     .default_alternative
-                    
-                    .map(|expr| Self::convert_cypher_to_unified(expr))
+
+                    .map(|expr| Self::convert_cypher_to_unified(&expr))
                     .transpose()?;
 
                 Ok(Expression::Map(alternatives?))
@@ -155,7 +155,7 @@ impl ExpressionConverter {
             Expression::Function { name, args } => {
                 let converted_args: Result<Vec<CypherExpression>, ExpressionError> = args
                     .iter()
-                    .map(|arg| Self::convert_unified_to_cypher(arg))
+                    .map(|arg| Self::convert_unified_to_cypher(&arg))
                     .collect();
                 Ok(CypherExpression::FunctionCall(FunctionCall {
                     function_name: name.clone(),
@@ -183,7 +183,7 @@ impl ExpressionConverter {
             Expression::List(elements) => {
                 let converted_elements: Result<Vec<CypherExpression>, ExpressionError> = elements
                     .iter()
-                    .map(|elem| Self::convert_unified_to_cypher(elem))
+                    .map(|elem| Self::convert_unified_to_cypher(&elem))
                     .collect();
                 Ok(CypherExpression::List(ListExpression {
                     elements: converted_elements?,

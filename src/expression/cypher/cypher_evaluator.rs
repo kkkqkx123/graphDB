@@ -1,12 +1,12 @@
-use crate::core::{Value, ExpressionError};
 use crate::core::expressions::ExpressionContext;
 use crate::core::types::expression::Expression;
-use crate::query::parser::cypher::ast::expressions::{
-    BinaryExpression, CaseExpression,
-    Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
-    MapExpression, PatternExpression, PropertyExpression, UnaryExpression,
-};
 use crate::core::types::operators::UnaryOperator;
+use crate::core::{ExpressionError, Value};
+use crate::query::parser::cypher::ast::expressions::{
+    BinaryExpression, CaseExpression, Expression as CypherExpression, FunctionCall, ListExpression,
+    Literal as CypherLiteral, MapExpression, PatternExpression, PropertyExpression,
+    UnaryExpression,
+};
 
 /// Cypher表达式评估器
 ///
@@ -75,10 +75,9 @@ impl CypherEvaluator {
         let object_value = Self::evaluate_cypher(&prop_expr.expression, context)?;
 
         match object_value {
-            Value::Map(map) => map
-                .get(&prop_expr.property_name)
-                .cloned()
-                .ok_or_else(|| ExpressionError::property_not_found(prop_expr.property_name.clone())),
+            Value::Map(map) => map.get(&prop_expr.property_name).cloned().ok_or_else(|| {
+                ExpressionError::property_not_found(prop_expr.property_name.clone())
+            }),
             Value::Vertex(vertex) => {
                 if let Some(value) = vertex.get_property_any(&prop_expr.property_name) {
                     Ok(value.clone())
@@ -126,10 +125,11 @@ impl CypherEvaluator {
         context: &mut dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         // 转换为统一表达式并使用现有的评估逻辑
-        let unified_expr = super::expression_converter::ExpressionConverter::convert_cypher_to_unified(
-            &CypherExpression::Binary(bin_expr.clone())
-        )?;
-        
+        let unified_expr =
+            super::expression_converter::ExpressionConverter::convert_cypher_to_unified(
+                &CypherExpression::Binary(bin_expr.clone()),
+            )?;
+
         crate::core::ExpressionEvaluator::new().evaluate(&unified_expr, context)
     }
 
@@ -154,48 +154,36 @@ impl CypherEvaluator {
                 Value::Float(f) => Ok(Value::Float(-f)),
                 _ => Ok(Value::Null(crate::core::NullType::Null)),
             },
-            UnaryOperator::IsNull => {
-                Ok(Value::Bool(matches!(value, Value::Null(_))))
-            }
-            UnaryOperator::IsNotNull => {
-                Ok(Value::Bool(!matches!(value, Value::Null(_))))
-            }
-            UnaryOperator::IsEmpty => {
-                match value {
-                    Value::String(s) => Ok(Value::Bool(s.is_empty())),
-                    Value::List(l) => Ok(Value::Bool(l.is_empty())),
-                    Value::Map(m) => Ok(Value::Bool(m.is_empty())),
-                    Value::Null(_) => Ok(Value::Bool(true)),
-                    _ => Ok(Value::Bool(false)),
-                }
-            }
-            UnaryOperator::IsNotEmpty => {
-                match value {
-                    Value::String(s) => Ok(Value::Bool(!s.is_empty())),
-                    Value::List(l) => Ok(Value::Bool(!l.is_empty())),
-                    Value::Map(m) => Ok(Value::Bool(!m.is_empty())),
-                    Value::Null(_) => Ok(Value::Bool(false)),
-                    _ => Ok(Value::Bool(true)),
-                }
-            }
-            UnaryOperator::Increment => {
-                match value {
-                    Value::Int(i) => Ok(Value::Int(i + 1)),
-                    Value::Float(f) => Ok(Value::Float(f + 1.0)),
-                    _ => Err(ExpressionError::invalid_operation(
-                        "Cannot increment non-numeric value".to_string()
-                    )),
-                }
-            }
-            UnaryOperator::Decrement => {
-                match value {
-                    Value::Int(i) => Ok(Value::Int(i - 1)),
-                    Value::Float(f) => Ok(Value::Float(f - 1.0)),
-                    _ => Err(ExpressionError::invalid_operation(
-                        "Cannot decrement non-numeric value".to_string()
-                    )),
-                }
-            }
+            UnaryOperator::IsNull => Ok(Value::Bool(matches!(value, Value::Null(_)))),
+            UnaryOperator::IsNotNull => Ok(Value::Bool(!matches!(value, Value::Null(_)))),
+            UnaryOperator::IsEmpty => match value {
+                Value::String(s) => Ok(Value::Bool(s.is_empty())),
+                Value::List(l) => Ok(Value::Bool(l.is_empty())),
+                Value::Map(m) => Ok(Value::Bool(m.is_empty())),
+                Value::Null(_) => Ok(Value::Bool(true)),
+                _ => Ok(Value::Bool(false)),
+            },
+            UnaryOperator::IsNotEmpty => match value {
+                Value::String(s) => Ok(Value::Bool(!s.is_empty())),
+                Value::List(l) => Ok(Value::Bool(!l.is_empty())),
+                Value::Map(m) => Ok(Value::Bool(!m.is_empty())),
+                Value::Null(_) => Ok(Value::Bool(false)),
+                _ => Ok(Value::Bool(true)),
+            },
+            UnaryOperator::Increment => match value {
+                Value::Int(i) => Ok(Value::Int(i + 1)),
+                Value::Float(f) => Ok(Value::Float(f + 1.0)),
+                _ => Err(ExpressionError::invalid_operation(
+                    "Cannot increment non-numeric value".to_string(),
+                )),
+            },
+            UnaryOperator::Decrement => match value {
+                Value::Int(i) => Ok(Value::Int(i - 1)),
+                Value::Float(f) => Ok(Value::Float(f - 1.0)),
+                _ => Err(ExpressionError::invalid_operation(
+                    "Cannot decrement non-numeric value".to_string(),
+                )),
+            },
         }
     }
 
@@ -252,7 +240,6 @@ impl CypherEvaluator {
         // 暂时返回模式的字符串表示
         Ok(Value::String(format!("{:?}", pattern_expr.pattern)))
     }
-
 
     /// 批量评估Cypher表达式
     pub fn evaluate_cypher_batch(
@@ -355,11 +342,11 @@ impl CypherEvaluator {
             CypherExpression::List(list_expr) => list_expr
                 .elements
                 .iter()
-                .any(|e| Self::contains_cypher_aggregate(e)),
+                .any(|e| Self::contains_cypher_aggregate(&e)),
             CypherExpression::Map(map_expr) => map_expr
                 .properties
                 .values()
-                .any(|e| Self::contains_cypher_aggregate(e)),
+                .any(|e| Self::contains_cypher_aggregate(&e)),
             CypherExpression::Case(case_expr) => {
                 let alternatives_contains = case_expr.alternatives.iter().any(|alt| {
                     Self::contains_cypher_aggregate(&alt.when_expression)
@@ -367,8 +354,7 @@ impl CypherEvaluator {
                 });
                 let default_contains = case_expr
                     .default_alternative
-                    
-                    .map_or(false, |e| Self::contains_cypher_aggregate(e));
+                    .map_or(false, |e| Self::contains_cypher_aggregate(&e));
 
                 alternatives_contains || default_contains
             }
@@ -385,7 +371,8 @@ mod tests {
     fn test_evaluate_literal() {
         let mut context = crate::core::expressions::DefaultExpressionContext::default();
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
-        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &mut context).expect("Cypher evaluation should succeed for literal values");
+        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &mut context)
+            .expect("Cypher evaluation should succeed for literal values");
 
         assert_eq!(result, Value::Int(42));
     }
@@ -396,7 +383,8 @@ mod tests {
         context.set_variable("x".to_string(), Value::Int(100));
 
         let cypher_expr = CypherExpression::Variable("x".to_string());
-        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &mut context).expect("Cypher evaluation should succeed for variable values");
+        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &mut context)
+            .expect("Cypher evaluation should succeed for variable values");
 
         assert_eq!(result, Value::Int(100));
     }
@@ -412,7 +400,8 @@ mod tests {
             right,
         });
 
-        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &mut context).expect("Cypher evaluation should succeed for binary operations");
+        let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &mut context)
+            .expect("Cypher evaluation should succeed for binary operations");
 
         assert_eq!(result, Value::Int(3));
     }

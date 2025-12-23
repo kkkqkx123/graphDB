@@ -130,6 +130,32 @@ impl ExpressionContextCoreExtended for BasicExpressionContext {
     }
 }
 
+impl ExpressionContextCoreExtended for Box<BasicExpressionContext> {
+    fn get_variable(&self, name: &str) -> Option<&FieldValue> {
+        (**self).get_variable(name)
+    }
+
+    fn get_function(&self, name: &str) -> Option<FunctionRef> {
+        (**self).get_function(name)
+    }
+
+    fn has_variable(&self, name: &str) -> bool {
+        (**self).has_variable(name)
+    }
+
+    fn get_variable_names(&self) -> Vec<&str> {
+        (**self).get_variable_names()
+    }
+
+    fn get_depth(&self) -> usize {
+        (**self).get_depth()
+    }
+
+    fn create_child_context(&self) -> ExpressionContextType {
+        (**self).create_child_context()
+    }
+}
+
 impl ExpressionContextCoreExtended for ExpressionContextType {
     fn get_variable(&self, name: &str) -> Option<&FieldValue> {
         match self {
@@ -277,7 +303,7 @@ impl BasicExpressionContext {
 
     /// 获取缓存统计信息
     pub fn get_cache_stats(&self) -> Option<super::cache::ExpressionCacheStats> {
-        self.cache_manager.map(|cm| cm.get_cache_stats())
+        self.cache_manager.as_ref().map(|cm| cm.get_cache_stats())
     }
 
     /// 清空所有缓存
@@ -552,15 +578,15 @@ impl super::default_context::ExpressionContext for BasicExpressionContext {
     }
 
     fn add_path(&mut self, name: String, _path: crate::core::vertex_edge_path::Path) {
-         // 将path存储为变量
-         // 简化实现：跳过复杂的Path转换
-         // TODO: 实现完整的vertex_edge_path::Path到types::query::Path的转换
-         let field_value =
-             crate::core::types::query::FieldValue::Path(crate::core::types::query::Path {
-                 segments: Vec::new(),
-             });
-         self.set_variable(name, field_value);
-     }
+        // 将path存储为变量
+        // 简化实现：跳过复杂的Path转换
+        // TODO: 实现完整的vertex_edge_path::Path到types::query::Path的转换
+        let field_value =
+            crate::core::types::query::FieldValue::Path(crate::core::types::query::Path {
+                segments: Vec::new(),
+            });
+        self.set_variable(name, field_value);
+    }
 
     fn is_empty(&self) -> bool {
         self.variables.is_empty()
@@ -605,7 +631,7 @@ impl super::default_context::ExpressionContext for BasicExpressionContext {
     fn clear(&mut self) {
         self.variables.clear();
     }
-    
+
     fn get_variable_names(&self) -> Vec<&str> {
         self.variables.keys().map(|k| k.as_str()).collect()
     }

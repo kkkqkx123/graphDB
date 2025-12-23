@@ -8,6 +8,7 @@ use super::config::*;
 use super::factory::*;
 use super::registry::*;
 use super::stats_collector::*;
+use super::stats_marker::StatsEnabled;
 use super::traits::StatsCache;
 use crate::cache::config;
 use crate::cache::{
@@ -165,7 +166,12 @@ impl CacheManager {
     }
 
     /// 创建带统计的缓存
-    pub fn create_stats_cache<K, V, C>(&self, cache: Arc<C>) -> Arc<StatsCacheWrapper<K, V, C>>
+    /// 
+    /// 返回启用统计的包装器版本
+    pub fn create_stats_cache<K, V, C>(
+        &self, 
+        cache: Arc<C>
+    ) -> Arc<StatsCacheWrapper<K, V, C, StatsEnabled>>
     where
         K: 'static + Send + Sync + Hash + Eq + Clone,
         V: 'static + Send + Sync + Clone,

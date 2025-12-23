@@ -65,7 +65,7 @@ impl CypherExpressionOptimizer {
                 let optimized_args: Vec<CypherExpression> = func_call
                     .arguments
                     .iter()
-                    .map(|arg| Self::optimize_cypher_expression(arg))
+                    .map(|arg| Self::optimize_cypher_expression(&arg))
                     .collect();
 
                 // 尝试对常量参数的函数进行常量折叠
@@ -88,7 +88,7 @@ impl CypherExpressionOptimizer {
                 let optimized_elements: Vec<CypherExpression> = list_expr
                     .elements
                     .iter()
-                    .map(|elem| Self::optimize_cypher_expression(elem))
+                    .map(|elem| Self::optimize_cypher_expression(&elem))
                     .collect();
                 CypherExpression::List(ListExpression {
                     elements: optimized_elements,
@@ -107,8 +107,8 @@ impl CypherExpressionOptimizer {
             CypherExpression::Case(case_expr) => {
                 let optimized_expression = case_expr
                     .expression
-                    
-                    .map(|expr| Box::new(Self::optimize_cypher_expression(expr)));
+
+                    .map(|expr| Box::new(Self::optimize_cypher_expression(&expr)));
 
                 let optimized_alternatives: Vec<CaseAlternative> = case_expr
                     .alternatives
@@ -121,8 +121,8 @@ impl CypherExpressionOptimizer {
 
                 let optimized_default = case_expr
                     .default_alternative
-                    
-                    .map(|expr| Box::new(Self::optimize_cypher_expression(expr)));
+
+                    .map(|expr| Box::new(Self::optimize_cypher_expression(&expr)));
 
                 // 尝试简化CASE表达式
                 Self::try_simplify_case_expression(
@@ -281,7 +281,7 @@ impl CypherExpressionOptimizer {
     pub fn optimize_cypher_batch(cypher_exprs: &[CypherExpression]) -> Vec<CypherExpression> {
         cypher_exprs
             .iter()
-            .map(|expr| Self::optimize_cypher_expression(expr))
+            .map(|expr| Self::optimize_cypher_expression(&expr))
             .collect()
     }
 
