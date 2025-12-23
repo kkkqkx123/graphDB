@@ -1,6 +1,8 @@
 //! 符号表模块 - 管理查询中的变量和别名
 //! 对应原C++中的context/Symbols.h
 
+use crate::core::PlanNodeRef;
+
 use super::dependency_tracker::DependencyTracker;
 
 use std::collections::HashMap;
@@ -397,7 +399,6 @@ impl Default for SymbolTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_symbol_table() {
@@ -411,41 +412,65 @@ mod tests {
         assert!(table.new_variable("test_var").is_err());
 
         // 测试获取变量
-        let symbol = table.get_variable("test_var").expect("get_variable should return Some in test");
+        let symbol = table
+            .get_variable("test_var")
+            .expect("get_variable should return Some in test");
         assert_eq!(symbol.name, "test_var");
         assert_eq!(symbol.symbol_type, SymbolType::Variable);
 
         // 测试删除变量
-        assert!(table.remove_variable("test_var").expect("remove_variable should succeed in test"));
+        assert!(table
+            .remove_variable("test_var")
+            .expect("remove_variable should succeed in test"));
         assert!(!table.has_variable("test_var"));
     }
 
     #[test]
     fn test_dependency_management() {
         let table = SymbolTable::new();
-        table.new_variable("var1").expect("new_variable should succeed in test");
-        table.new_variable("var2").expect("new_variable should succeed in test");
+        table
+            .new_variable("var1")
+            .expect("new_variable should succeed in test");
+        table
+            .new_variable("var2")
+            .expect("new_variable should succeed in test");
 
         let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
-        let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
+        let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeRef::Filter);
 
         // 设置依赖关系
-        table.read_by("var1", node1.clone()).expect("read_by should succeed in test");
-        table.written_by("var1", node2.clone()).expect("written_by should succeed in test");
-        table.read_by("var2", node2.clone()).expect("read_by should succeed in test");
+        table
+            .read_by("var1", node1.clone())
+            .expect("read_by should succeed in test");
+        table
+            .written_by("var1", node2.clone())
+            .expect("written_by should succeed in test");
+        table
+            .read_by("var2", node2.clone())
+            .expect("read_by should succeed in test");
 
         // 验证依赖关系
-        let var1_readers = table.get_readers("var1").expect("get_readers should return Ok in test");
-        let var1_writers = table.get_writers("var1").expect("get_writers should return Ok in test");
-        let var2_readers = table.get_readers("var2").expect("get_readers should return Ok in test");
+        let var1_readers = table
+            .get_readers("var1")
+            .expect("get_readers should return Ok in test");
+        let var1_writers = table
+            .get_writers("var1")
+            .expect("get_writers should return Ok in test");
+        let var2_readers = table
+            .get_readers("var2")
+            .expect("get_readers should return Ok in test");
 
         assert_eq!(var1_readers.len(), 1);
         assert_eq!(var1_writers.len(), 1);
         assert_eq!(var2_readers.len(), 1);
 
         // 测试节点变量查询
-        let node1_reads = table.get_variables_read_by(&node1).expect("get_variables_read_by should return Ok in test");
-        let node2_writes = table.get_variables_written_by(&node2).expect("get_variables_written_by should return Ok in test");
+        let node1_reads = table
+            .get_variables_read_by(&node1)
+            .expect("get_variables_read_by should return Ok in test");
+        let node2_writes = table
+            .get_variables_written_by(&node2)
+            .expect("get_variables_written_by should return Ok in test");
 
         assert_eq!(node1_reads.len(), 1);
         assert_eq!(node2_writes.len(), 1);
@@ -454,16 +479,24 @@ mod tests {
     #[test]
     fn test_write_conflict_detection() {
         let table = SymbolTable::new();
-        table.new_variable("conflict_var").expect("new_variable should succeed in test");
+        table
+            .new_variable("conflict_var")
+            .expect("new_variable should succeed in test");
 
         let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
         let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
 
         // 多个节点写入同一变量
-        table.written_by("conflict_var", node1.clone()).expect("written_by should succeed in test");
-        table.written_by("conflict_var", node2.clone()).expect("written_by should succeed in test");
+        table
+            .written_by("conflict_var", node1.clone())
+            .expect("written_by should succeed in test");
+        table
+            .written_by("conflict_var", node2.clone())
+            .expect("written_by should succeed in test");
 
-        let conflicts = table.detect_write_conflicts().expect("detect_write_conflicts should return Ok in test");
+        let conflicts = table
+            .detect_write_conflicts()
+            .expect("detect_write_conflicts should return Ok in test");
         assert_eq!(conflicts.len(), 1);
         assert_eq!(conflicts[0].0, "conflict_var");
         assert_eq!(conflicts[0].1.len(), 2);
@@ -472,19 +505,27 @@ mod tests {
     #[test]
     fn test_variable_rename() {
         let table = SymbolTable::new();
-        table.new_variable("old_var").expect("new_variable should succeed in test");
+        table
+            .new_variable("old_var")
+            .expect("new_variable should succeed in test");
 
         let node = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
-        table.read_by("old_var", node.clone()).expect("read_by should succeed in test");
+        table
+            .read_by("old_var", node.clone())
+            .expect("read_by should succeed in test");
 
         // 重命名变量
-        table.rename_variable("old_var", "new_var").expect("rename_variable should succeed in test");
+        table
+            .rename_variable("old_var", "new_var")
+            .expect("rename_variable should succeed in test");
 
         assert!(!table.has_variable("old_var"));
         assert!(table.has_variable("new_var"));
 
         // 检查依赖关系是否更新
-        let new_var_readers = table.get_readers("new_var").expect("get_readers should return Ok in test");
+        let new_var_readers = table
+            .get_readers("new_var")
+            .expect("get_readers should return Ok in test");
         assert_eq!(new_var_readers.len(), 1);
         assert_eq!(new_var_readers[0].id(), "node1");
     }
@@ -493,18 +534,26 @@ mod tests {
     fn test_object_pool() {
         let table = SymbolTable::new();
 
-        let data = table.allocate_from_pool("test_key", 100).expect("allocate_from_pool should succeed in test");
+        let data = table
+            .allocate_from_pool("test_key", 100)
+            .expect("allocate_from_pool should succeed in test");
         assert_eq!(data.len(), 100);
 
-        assert!(table.deallocate_from_pool("test_key").expect("deallocate_from_pool should succeed in test"));
+        assert!(table
+            .deallocate_from_pool("test_key")
+            .expect("deallocate_from_pool should succeed in test"));
     }
 
     #[test]
     fn test_to_string() {
         let table = SymbolTable::new();
-        table.new_variable("test_var").expect("new_variable should succeed in test");
+        table
+            .new_variable("test_var")
+            .expect("new_variable should succeed in test");
 
-        let table_str = table.to_string().expect("to_string should return Ok in test");
+        let table_str = table
+            .to_string()
+            .expect("to_string should return Ok in test");
         assert!(table_str.contains("SymbolTable"));
         assert!(table_str.contains("test_var"));
     }

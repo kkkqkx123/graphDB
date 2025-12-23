@@ -1,6 +1,6 @@
 //! 依赖关系跟踪器模块 - 管理变量读写依赖关系
 
-
+use super::plan_node::{PlanNodeRef, PlanNodeType};
 use std::collections::{HashMap, HashSet};
 
 /// 依赖关系类型
@@ -381,7 +381,6 @@ impl Default for DependencyTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_dependency_tracker() {
@@ -403,7 +402,9 @@ mod tests {
             .expect("add_write_dependency should succeed in test");
 
         // 检查依赖
-        let deps = tracker.get_variable_dependencies("test_var").expect("get_variable_dependencies should return Some in test");
+        let deps = tracker
+            .get_variable_dependencies("test_var")
+            .expect("get_variable_dependencies should return Some in test");
         assert!(deps.is_reader(&node1));
         assert!(deps.is_writer(&node2));
 
@@ -473,8 +474,12 @@ mod tests {
         let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
         let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
 
-        tracker.add_read_dependency("stats_var", node1).expect("add_read_dependency should succeed in stats test");
-        tracker.add_write_dependency("stats_var", node2).expect("add_write_dependency should succeed in stats test");
+        tracker
+            .add_read_dependency("stats_var", node1)
+            .expect("add_read_dependency should succeed in stats test");
+        tracker
+            .add_write_dependency("stats_var", node2)
+            .expect("add_write_dependency should succeed in stats test");
 
         let stats = tracker.get_all_stats();
         assert_eq!(stats.len(), 1);

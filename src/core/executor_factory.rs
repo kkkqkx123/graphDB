@@ -1,8 +1,10 @@
 use crate::core::context::query::QueryContext;
 use crate::core::error::QueryError;
+use crate::query::context::ExecutionPlan;
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::executor::Executor;
+use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
@@ -44,11 +46,10 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactoryWrapper<S> {
         // 获取执行计划的根节点
         let root_node = plan
             .root()
-            
             .ok_or_else(|| QueryError::ExecutionError("执行计划为空".to_string()))?;
 
         // 创建根执行器
-        let mut root_executor = self.create_executor(&**root_node)?;
+        let mut root_executor = self.create_executor(root_node)?;
 
         // 执行查询
         match root_executor.execute().await {
@@ -70,7 +71,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactoryWrapper<S> {
     /// * `Err(QueryError)` - 创建执行器时的错误
     pub fn create_executor(
         &mut self,
-        plan_node: &dyn PlanNode,
+        plan_node: &PlanNodeEnum,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         // 使用重构后的基础工厂创建执行器
         self.base_factory
