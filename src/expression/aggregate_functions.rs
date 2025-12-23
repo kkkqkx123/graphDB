@@ -157,7 +157,7 @@ impl AggregateState {
         }
 
         // 更新最大值
-        if self.max.map_or(true, |max_val| value.gt(&max_val)) {
+        if self.max.as_ref().map_or(true, |max_val| value.gt(max_val)) {
             self.max = Some(value.clone());
         }
 

@@ -2,8 +2,7 @@
 //! 对应 NebulaGraph src/graph/visitor 的功能
 //! 用于表达式分析和转换访问器
 
-use crate::core::visitor::{VisitorCore, VisitorContext, VisitorResult};
-use crate::core::{Expression, ExpressionVisitor};
+use crate::core::visitor::VisitorConfig;
 
 mod deduce_props_visitor;
 mod deduce_type_visitor;

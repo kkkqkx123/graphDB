@@ -53,7 +53,7 @@ impl EliminationRule for EliminateFilterRule {
             return false;
         }
 
-        if let Some(filter_plan_node) = node.plan_node.as_any().downcast_ref::<FilterNode>() {
+        if let Some(filter_plan_node) = node.plan_node.as_filter() {
             let condition = filter_plan_node.condition();
             is_tautology(&format!("{:?}", condition))
         } else {
@@ -327,7 +327,7 @@ impl EliminationRule for RemoveNoopProjectRule {
         }
 
         // 检查投影是否为无操作
-        if let Some(project_plan_node) = node.plan_node.as_any().downcast_ref::<ProjectNode>() {
+        if let Some(project_plan_node) = node.plan_node.as_project() {
             let child_dep_id = node.dependencies[0];
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 在实际实现中，需要比较投影表达式和输入列
@@ -352,7 +352,7 @@ impl EliminationRule for RemoveNoopProjectRule {
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 检查投影是否为无操作
                 if let Some(project_plan_node) =
-                    node.plan_node.as_any().downcast_ref::<ProjectNode>()
+                    node.plan_node.as_project()
                 {
                     if self.is_noop_projection(project_plan_node, child_node)? {
                         let new_plan_node = child_node.plan_node.clone();

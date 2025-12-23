@@ -71,14 +71,12 @@ impl PushDownRule for PushLimitDownRule {
         // 获取Limit节点的值
         if let Some(_limit_plan_node) = limit_node
             .plan_node
-            .as_any()
-            .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
-        ) {
+            .as_limit() {
             // 根据子节点类型创建新的带有LIMIT的节点
             match child.plan_node.name() {
                 "GetVertices" => {
                     // 为GetVertices创建带有LIMIT的节点
-                    if let Some(get_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::GetVerticesNode>() {
+                    if let Some(get_vertices_plan_node) = child.plan_node.as_get_vertices() {
                         // 克隆节点并设置限制和输出变量
                         let mut new_get_vertices = get_vertices_plan_node.clone();
                         new_get_vertices.set_limit(_limit_plan_node.count());
@@ -101,7 +99,7 @@ impl PushDownRule for PushLimitDownRule {
                 }
                 "GetEdges" => {
                     // 为GetEdges创建带有LIMIT的节点
-                    if let Some(get_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::GetEdgesNode>() {
+                    if let Some(get_edges_plan_node) = child.plan_node.as_get_edges() {
                         // 克隆节点并设置限制和输出变量
                         let mut new_get_edges = get_edges_plan_node.clone();
                         new_get_edges.set_limit(_limit_plan_node.count());
@@ -125,7 +123,7 @@ impl PushDownRule for PushLimitDownRule {
                 "IndexScan" => {
                     // 为IndexScan创建带有LIMIT的节点
                     if let Some(index_scan_plan_node) =
-                        child.plan_node.as_any().downcast_ref::<IndexScan>()
+                        child.plan_node.as_index_scan()
                     {
                         // 克隆节点并设置限制和输出变量
                         let mut new_index_scan = index_scan_plan_node.clone();
@@ -149,7 +147,7 @@ impl PushDownRule for PushLimitDownRule {
                 }
                 "ScanVertices" => {
                     // 为ScanVertices创建带有LIMIT的节点
-                    if let Some(scan_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::ScanVerticesNode>() {
+                    if let Some(scan_vertices_plan_node) = child.plan_node.as_scan_vertices() {
                         // 克隆节点并设置限制和输出变量
                         let mut new_scan_vertices = scan_vertices_plan_node.clone();
                         new_scan_vertices.set_limit(_limit_plan_node.count());
@@ -172,7 +170,7 @@ impl PushDownRule for PushLimitDownRule {
                 }
                 "ScanEdges" => {
                     // 为ScanEdges创建带有LIMIT的节点
-                    if let Some(scan_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::ScanEdgesNode>() {
+                    if let Some(scan_edges_plan_node) = child.plan_node.as_scan_edges() {
                         // 克隆节点并设置限制和输出变量
                         let mut new_scan_edges = scan_edges_plan_node.clone();
                         new_scan_edges.set_limit(_limit_plan_node.count());
@@ -258,14 +256,11 @@ impl PushDownRule for PushLimitDownGetVerticesRule {
 
         if let Some(_limit_plan_node) = limit_node
             .plan_node
-            .as_any()
-            .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
-        ) {
+            .as_limit() {
             if let Some(get_vertices_plan_node) =
                 child
                     .plan_node
-                    .as_any()
-                    .downcast_ref::<crate::query::planner::plan::core::nodes::GetVerticesNode>()
+                    .as_get_vertices()
             {
                 // 检查LIMIT的计数是否是可计算的
                 // 在实际实现中，我们需要验证limit表达式是否可评估
@@ -351,14 +346,11 @@ impl PushDownRule for PushLimitDownGetNeighborsRule {
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         if let Some(_limit_plan_node) = limit_node
             .plan_node
-            .as_any()
-            .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
-        ) {
+            .as_limit() {
             if let Some(get_neighbors_plan_node) =
                 child
                     .plan_node
-                    .as_any()
-                    .downcast_ref::<crate::query::planner::plan::core::nodes::GetNeighborsNode>()
+                    .as_get_neighbors()
             {
                 // 创建新的带有限制的GetNeighbors节点
                 let mut new_get_neighbors = get_neighbors_plan_node.clone();
@@ -441,14 +433,11 @@ impl PushDownRule for PushLimitDownGetEdgesRule {
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         if let Some(_limit_plan_node) = limit_node
             .plan_node
-            .as_any()
-            .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
-        ) {
+            .as_limit() {
             if let Some(get_edges_plan_node) =
                 child
                     .plan_node
-                    .as_any()
-                    .downcast_ref::<crate::query::planner::plan::core::nodes::GetEdgesNode>()
+                    .as_get_edges()
             {
                 // 创建新的带有限制的GetEdges节点
                 let mut new_get_edges = get_edges_plan_node.clone();
@@ -531,14 +520,11 @@ impl PushDownRule for PushLimitDownScanVerticesRule {
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         if let Some(_limit_plan_node) = limit_node
             .plan_node
-            .as_any()
-            .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
-        ) {
+            .as_limit() {
             if let Some(scan_vertices_plan_node) =
                 child
                     .plan_node
-                    .as_any()
-                    .downcast_ref::<crate::query::planner::plan::core::nodes::ScanVerticesNode>()
+                    .as_scan_vertices()
             {
                 // 创建新的带有限制的ScanVertices节点
                 let mut new_scan_vertices = scan_vertices_plan_node.clone();
@@ -621,14 +607,11 @@ impl PushDownRule for PushLimitDownScanEdgesRule {
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         if let Some(_limit_plan_node) = limit_node
             .plan_node
-            .as_any()
-            .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
-        ) {
+            .as_limit() {
             if let Some(scan_edges_plan_node) =
                 child
                     .plan_node
-                    .as_any()
-                    .downcast_ref::<crate::query::planner::plan::core::nodes::ScanEdgesNode>()
+                    .as_scan_edges()
             {
                 // 创建新的带有限制的ScanEdges节点
                 let mut new_scan_edges = scan_edges_plan_node.clone();
@@ -711,10 +694,8 @@ impl PushDownRule for PushLimitDownIndexScanRule {
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         if let Some(_limit_plan_node) = limit_node
             .plan_node
-            .as_any()
-            .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
-        ) {
-            if let Some(index_scan_plan_node) = child.plan_node.as_any().downcast_ref::<IndexScan>()
+            .as_limit() {
+            if let Some(index_scan_plan_node) = child.plan_node.as_index_scan()
             {
                 // 创建新的带有限制的IndexScan节点
                 let mut new_index_scan = index_scan_plan_node.clone();
@@ -797,14 +778,10 @@ impl PushDownRule for PushLimitDownProjectRule {
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         if let Some(_limit_plan_node) = limit_node
             .plan_node
-            .as_any()
-            .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
-        ) {
+            .as_limit() {
             if let Some(project_plan_node) = child
                 .plan_node
-                .as_any()
-                .downcast_ref::<crate::query::planner::plan::core::nodes::project_node::ProjectNode>(
-            ) {
+                .as_project() {
                 // 对于Project操作，我们不能直接在Project节点上设置limit
                 // 而是创建一个新的计划结构，将LIMIT应用到Project的输入上
                 // 这需要重新构建计划树

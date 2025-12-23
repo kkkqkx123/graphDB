@@ -37,7 +37,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                     if dep_node.plan_node.is_filter() {
                         // 检查过滤条件是否可以推入到索引扫描中
                         if let Some(filter_node) =
-                            dep_node.plan_node.as_any().downcast_ref::<FilterNode>()
+                            dep_node.plan_node.as_filter()
                         {
                             // 分析过滤条件，确定哪些部分可以推入到索引扫描
                             let filter_condition = filter_node.condition();
@@ -46,7 +46,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 获取当前索引扫描节点
                                 if let Some(index_scan_node) =
-                                    node.plan_node.as_any().downcast_ref::<IndexScan>()
+                                    node.plan_node.as_index_scan()
                                 {
                                     // 创建新的索引扫描节点，合并过滤条件
                                     let mut new_index_scan_node = index_scan_node.clone();
@@ -143,7 +143,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                     if dep_node.plan_node.is_filter() {
                         // 检查过滤条件是否可以推入到索引扫描中
                         if let Some(filter_node) =
-                            dep_node.plan_node.as_any().downcast_ref::<FilterNode>()
+                            dep_node.plan_node.as_filter()
                         {
                             // 分析过滤条件，确定哪些部分可以推入到索引扫描
                             let filter_condition = filter_node.condition();
@@ -152,7 +152,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 获取当前索引扫描节点
                                 if let Some(index_scan_node) =
-                                    node.plan_node.as_any().downcast_ref::<IndexScan>()
+                                    node.plan_node.as_index_scan()
                                 {
                                     // 创建新的索引扫描节点，合并过滤条件
                                     let mut new_index_scan_node = index_scan_node.clone();
@@ -245,11 +245,11 @@ impl OptRule for EdgeIndexFullScanRule {
         // 检查是否没有有效的过滤条件，这可能意味着全扫描
         // 在完整实现中，我们需要检查索引扫描的条件
         // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
-        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScan>()
+        if let Some(_index_scan_node) = node.plan_node.as_index_scan()
         {
             // 如果索引扫描没有有效的过滤条件，可能是全扫描
             if let Some(index_scan_plan_node) =
-                node.plan_node.as_any().downcast_ref::<IndexScan>()
+                node.plan_node.as_index_scan()
             {
                 if !index_scan_plan_node.has_effective_filter() {
                     // 根据具体情况，我们可能将其转换为更高效的操作
@@ -290,11 +290,11 @@ impl OptRule for TagIndexFullScanRule {
         // 检查是否没有有效的过滤条件，这可能意味着全扫描
         // 在完整实现中，我们需要检查索引扫描的条件
         // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
-        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScan>()
+        if let Some(_index_scan_node) = node.plan_node.as_index_scan()
         {
             // 如果索引扫描没有有效的过滤条件，可能是全扫描
             if let Some(index_scan_plan_node) =
-                node.plan_node.as_any().downcast_ref::<IndexScan>()
+                node.plan_node.as_index_scan()
             {
                 if !index_scan_plan_node.has_effective_filter() {
                     // 根据具体情况，我们可能将其转换为更高效的操作
@@ -337,7 +337,7 @@ impl OptRule for IndexScanRule {
         // - 数据分布
         // - 可用内存
         // 这里，我们基于NebulaGraph的IndexScanRule实现，检查索引扫描的查询上下文
-        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScan>()
+        if let Some(_index_scan_node) = node.plan_node.as_index_scan()
         {
             // 实际优化逻辑可能会根据索引条件创建更优化的索引扫描计划
             // 暂时返回当前节点

@@ -71,10 +71,10 @@ impl ConnectionStrategy for InnerJoinStrategy {
             });
         }
 
-        let left_root = left.root.ok_or_else(|| {
+        let left_root = left.root.as_ref().ok_or_else(|| {
             PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
         })?;
-        let right_root = right.root.ok_or_else(|| {
+        let right_root = right.root.as_ref().ok_or_else(|| {
             PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
         })?;
 
@@ -116,10 +116,10 @@ impl ConnectionStrategy for LeftJoinStrategy {
             return Ok(left.clone());
         }
 
-        let left_root = left.root.ok_or_else(|| {
+        let left_root = left.root.as_ref().ok_or_else(|| {
             PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
         })?;
-        let right_root = right.root.ok_or_else(|| {
+        let right_root = right.root.as_ref().ok_or_else(|| {
             PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
         })?;
 
@@ -164,10 +164,10 @@ impl ConnectionStrategy for CartesianStrategy {
             });
         }
 
-        let left_root = left.root.ok_or_else(|| {
+        let left_root = left.root.as_ref().ok_or_else(|| {
             PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
         })?;
-        let right_root = right.root.ok_or_else(|| {
+        let right_root = right.root.as_ref().ok_or_else(|| {
             PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
         })?;
 
@@ -175,8 +175,8 @@ impl ConnectionStrategy for CartesianStrategy {
         // 注意：这里我们暂时使用内连接节点，因为 CartesianNode 还没有实现
         // 在完整的实现中，应该创建一个专门的 CartesianNode
         let join_node = PlanNodeFactory::create_inner_join(
-            left_root.clone(),
-            right_root.clone(),
+            left_root,
+            right_root,
             vec![], // 笛卡尔积没有连接键
             vec![],
         )?;
@@ -230,9 +230,9 @@ impl ConnectionStrategy for SequentialStrategy {
 
                 // 添加连接信息到列名
                 col_names.push("sequential_connection".to_string());
-                Ok(SubPlan::new(left.root.clone(), right.tail.clone()))
+                Ok(SubPlan::new(left.root.as_ref().clone(), right.tail.as_ref().clone()))
             }
-            _ => Ok(SubPlan::new(left.root.clone(), right.tail.clone())),
+            _ => Ok(SubPlan::new(left.root.as_ref().clone(), right.tail.as_ref().clone())),
         }
     }
 
@@ -261,10 +261,10 @@ impl ConnectionStrategy for PatternApplyStrategy {
             });
         }
 
-        let left_root = left.root.ok_or_else(|| {
+        let left_root = left.root.as_ref().ok_or_else(|| {
             PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
         })?;
-        let right_root = right.root.ok_or_else(|| {
+        let right_root = right.root.as_ref().ok_or_else(|| {
             PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
         })?;
 
@@ -272,8 +272,8 @@ impl ConnectionStrategy for PatternApplyStrategy {
         // 注意：这里我们暂时使用内连接节点，因为 PatternApplyNode 还没有实现
         // 在完整的实现中，应该创建一个专门的 PatternApplyNode
         let join_node = PlanNodeFactory::create_inner_join(
-            left_root.clone(),
-            right_root.clone(),
+            left_root,
+            right_root,
             vec![], // 模式应用没有连接键
             vec![],
         )?;
@@ -306,10 +306,10 @@ impl ConnectionStrategy for RollUpApplyStrategy {
             });
         }
 
-        let left_root = left.root.ok_or_else(|| {
+        let left_root = left.root.as_ref().ok_or_else(|| {
             PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
         })?;
-        let right_root = right.root.ok_or_else(|| {
+        let right_root = right.root.as_ref().ok_or_else(|| {
             PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
         })?;
 
@@ -317,8 +317,8 @@ impl ConnectionStrategy for RollUpApplyStrategy {
         // 注意：这里我们暂时使用内连接节点，因为 RollUpApplyNode 还没有实现
         // 在完整的实现中，应该创建一个专门的 RollUpApplyNode
         let join_node = PlanNodeFactory::create_inner_join(
-            left_root.clone(),
-            right_root.clone(),
+            left_root,
+            right_root,
             vec![], // 卷起应用没有连接键
             vec![],
         )?;

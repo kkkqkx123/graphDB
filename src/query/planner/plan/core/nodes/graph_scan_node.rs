@@ -150,6 +150,56 @@ impl GetVerticesNode {
     }
 }
 
+// 为 GetVerticesNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for GetVerticesNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+        self.dependencies()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::GetVertices(self)
+    }
+}
+
+// 为 GetVerticesNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for GetVerticesNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
 /// 获取边节点
 #[derive(Debug)]
 pub struct GetEdgesNode {
@@ -315,6 +365,56 @@ impl GetEdgesNode {
     }
 }
 
+// 为 GetEdgesNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for GetEdgesNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+        self.dependencies()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::GetEdges(self)
+    }
+}
+
+// 为 GetEdgesNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for GetEdgesNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
 /// 获取邻居节点
 #[derive(Debug)]
 pub struct GetNeighborsNode {
@@ -449,6 +549,56 @@ impl GetNeighborsNode {
         let mut cloned = self.clone();
         cloned.id = new_id;
         super::plan_node_enum::PlanNodeEnum::GetNeighbors(cloned)
+    }
+}
+
+// 为 GetNeighborsNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for GetNeighborsNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+        self.dependencies()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::GetNeighbors(self)
+    }
+}
+
+// 为 GetNeighborsNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for GetNeighborsNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
     }
 }
 
@@ -587,6 +737,56 @@ impl ScanVerticesNode {
         let mut cloned = self.clone();
         cloned.id = new_id;
         super::plan_node_enum::PlanNodeEnum::ScanVertices(cloned)
+    }
+}
+
+// 为 ScanVerticesNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for ScanVerticesNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+        self.dependencies()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::ScanVertices(self)
+    }
+}
+
+// 为 ScanVerticesNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for ScanVerticesNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
     }
 }
 
@@ -729,6 +929,56 @@ impl ScanEdgesNode {
         let mut cloned = self.clone();
         cloned.id = new_id;
         super::plan_node_enum::PlanNodeEnum::ScanEdges(cloned)
+    }
+}
+
+// 为 ScanEdgesNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for ScanEdgesNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+        self.dependencies()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::ScanEdges(self)
+    }
+}
+
+// 为 ScanEdgesNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for ScanEdgesNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
     }
 }
 

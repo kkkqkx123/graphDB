@@ -2,8 +2,8 @@
 //!
 //! 使用枚举变体减少装箱，优化内存使用和性能
 
+use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use serde::{Deserialize, Serialize};
-use crate::core::types::operators::{BinaryOperator, UnaryOperator, AggregateFunction};
 
 /// 优化后的表达式类型
 ///
@@ -192,10 +192,10 @@ pub enum DataType {
     Edge,
     Path,
     DateTime,
-    Date,      // 日期类型
-    Time,      // 时间类型
-    Duration,  // 期间类型
-    // 可以根据需要添加更多类型
+    Date, // 日期类型
+    Time, // 时间类型
+    Duration, // 期间类型
+          // 可以根据需要添加更多类型
 }
 
 /// 表达式类型分类
@@ -333,11 +333,11 @@ impl Expression {
         match self {
             Expression::Literal(_) => vec![],
             Expression::Variable(_) => vec![],
-            Expression::Property { object, .. } => vec![object],
-            Expression::Binary { left, right, .. } => vec![left, right],
-            Expression::Unary { operand, .. } => vec![operand],
+            Expression::Property { object, .. } => vec![object.as_ref()],
+            Expression::Binary { left, right, .. } => vec![left.as_ref(), right.as_ref()],
+            Expression::Unary { operand, .. } => vec![operand.as_ref()],
             Expression::Function { args, .. } => args.iter().collect(),
-            Expression::Aggregate { arg, .. } => vec![arg],
+            Expression::Aggregate { arg, .. } => vec![arg.as_ref()],
             Expression::List(items) => items.iter().collect(),
             Expression::Map(pairs) => pairs.iter().map(|(_, expr)| expr).collect(),
             Expression::Case {
@@ -354,21 +354,21 @@ impl Expression {
                 }
                 children
             }
-            Expression::TypeCast { expr, .. } => vec![expr],
+            Expression::TypeCast { expr, .. } => vec![expr.as_ref()],
             Expression::Subscript { collection, index } => {
-                vec![collection, index]
+                vec![collection.as_ref(), index.as_ref()]
             }
             Expression::Range {
                 collection,
                 start,
                 end,
             } => {
-                let mut children = vec![collection];
+                let mut children = vec![collection.as_ref()];
                 if let Some(s) = start {
-                    children.push(&**s);
+                    children.push(s.as_ref());
                 }
                 if let Some(e) = end {
-                    children.push(&**e);
+                    children.push(e.as_ref());
                 }
                 children
             }
@@ -384,34 +384,34 @@ impl Expression {
             Expression::DestinationProperty { .. } => vec![],
 
             // 一元操作扩展
-            Expression::UnaryPlus(expr) => vec![expr],
-            Expression::UnaryNegate(expr) => vec![expr],
-            Expression::UnaryNot(expr) => vec![expr],
-            Expression::UnaryIncr(expr) => vec![expr],
-            Expression::UnaryDecr(expr) => vec![expr],
-            Expression::IsNull(expr) => vec![expr],
-            Expression::IsNotNull(expr) => vec![expr],
-            Expression::IsEmpty(expr) => vec![expr],
-            Expression::IsNotEmpty(expr) => vec![expr],
+            Expression::UnaryPlus(expr) => vec![expr.as_ref()],
+            Expression::UnaryNegate(expr) => vec![expr.as_ref()],
+            Expression::UnaryNot(expr) => vec![expr.as_ref()],
+            Expression::UnaryIncr(expr) => vec![expr.as_ref()],
+            Expression::UnaryDecr(expr) => vec![expr.as_ref()],
+            Expression::IsNull(expr) => vec![expr.as_ref()],
+            Expression::IsNotNull(expr) => vec![expr.as_ref()],
+            Expression::IsEmpty(expr) => vec![expr.as_ref()],
+            Expression::IsNotEmpty(expr) => vec![expr.as_ref()],
 
             // 类型转换
-            Expression::TypeCasting { expr, .. } => vec![expr],
+            Expression::TypeCasting { expr, .. } => vec![expr.as_ref()],
 
             // 列表推导
             Expression::ListComprehension {
                 generator,
                 condition,
             } => {
-                let mut children = vec![generator];
+                let mut children = vec![generator.as_ref()];
                 if let Some(cond) = condition {
-                    children.push(cond);
+                    children.push(cond.as_ref());
                 }
                 children
             }
 
             // 谓词表达式
             Expression::Predicate { list, condition } => {
-                vec![list, condition]
+                vec![list.as_ref(), condition.as_ref()]
             }
 
             // 归约表达式
@@ -421,7 +421,7 @@ impl Expression {
                 expr,
                 ..
             } => {
-                vec![list, initial, expr]
+                vec![list.as_ref(), initial.as_ref(), expr.as_ref()]
             }
 
             // 路径构建表达式
@@ -439,12 +439,12 @@ impl Expression {
                 start,
                 end,
             } => {
-                let mut children = vec![collection];
+                let mut children = vec![collection.as_ref()];
                 if let Some(s) = start {
-                    children.push(s);
+                    children.push(s.as_ref());
                 }
                 if let Some(e) = end {
-                    children.push(e);
+                    children.push(e.as_ref());
                 }
                 children
             }

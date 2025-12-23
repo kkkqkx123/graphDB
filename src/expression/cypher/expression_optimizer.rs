@@ -120,9 +120,9 @@ impl CypherExpressionOptimizer {
                     .collect();
 
                 let optimized_default = case_expr
-                    .default_alternative
-
-                    .map(|expr| Box::new(Self::optimize_cypher_expression(&expr)));
+                     .default_alternative
+                     .as_ref()
+                     .map(|expr| Box::new(Self::optimize_cypher_expression(expr)));
 
                 // 尝试简化CASE表达式
                 Self::try_simplify_case_expression(

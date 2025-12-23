@@ -3,7 +3,7 @@
 //! 包含Start、Argument、Select、Loop等控制流相关的计划节点
 
 use crate::query::context::validate::types::Variable;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 /// Argument节点 - 用于从另一个已执行的操作中获取命名别名
 #[derive(Debug)]

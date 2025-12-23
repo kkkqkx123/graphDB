@@ -89,6 +89,14 @@ pub enum PlanNodeEnum {
     ScanVertices(ScanVerticesNode),
     /// 扫描边节点
     ScanEdges(ScanEdgesNode),
+    /// 哈希内连接节点
+    HashInnerJoin(InnerJoinNode),
+    /// 哈希左连接节点
+    HashLeftJoin(LeftJoinNode),
+    /// 笛卡尔积节点
+    CartesianProduct(CrossJoinNode),
+    /// 索引扫描节点
+    IndexScan(crate::query::planner::plan::algorithms::IndexScan),
     /// 扩展节点
     Expand(ExpandNode),
     /// 全扩展节点
@@ -219,6 +227,164 @@ impl PlanNodeEnum {
 
     pub fn is_limit(&self) -> bool {
         matches!(self, PlanNodeEnum::Limit(_))
+    }
+
+    pub fn is_dedup(&self) -> bool {
+        matches!(self, PlanNodeEnum::Dedup(_))
+    }
+
+    pub fn is_get_vertices(&self) -> bool {
+        matches!(self, PlanNodeEnum::GetVertices(_))
+    }
+
+    pub fn is_get_edges(&self) -> bool {
+        matches!(self, PlanNodeEnum::GetEdges(_))
+    }
+
+    pub fn is_get_neighbors(&self) -> bool {
+        matches!(self, PlanNodeEnum::GetNeighbors(_))
+    }
+
+    pub fn is_scan_vertices(&self) -> bool {
+        matches!(self, PlanNodeEnum::ScanVertices(_))
+    }
+
+    pub fn is_scan_edges(&self) -> bool {
+        matches!(self, PlanNodeEnum::ScanEdges(_))
+    }
+
+    pub fn is_index_scan(&self) -> bool {
+        matches!(self, PlanNodeEnum::IndexScan(_))
+    }
+
+    pub fn is_append_vertices(&self) -> bool {
+        matches!(self, PlanNodeEnum::AppendVertices(_))
+    }
+
+    pub fn is_inner_join(&self) -> bool {
+        matches!(self, PlanNodeEnum::InnerJoin(_))
+    }
+
+    pub fn is_left_join(&self) -> bool {
+        matches!(self, PlanNodeEnum::LeftJoin(_))
+    }
+
+    pub fn is_cross_join(&self) -> bool {
+        matches!(self, PlanNodeEnum::CrossJoin(_))
+    }
+
+    pub fn is_traverse(&self) -> bool {
+        matches!(self, PlanNodeEnum::Traverse(_))
+    }
+
+    pub fn is_expand(&self) -> bool {
+        matches!(self, PlanNodeEnum::Expand(_))
+    }
+
+    pub fn is_hash_inner_join(&self) -> bool {
+        matches!(self, PlanNodeEnum::HashInnerJoin(_))
+    }
+
+    pub fn is_hash_left_join(&self) -> bool {
+        matches!(self, PlanNodeEnum::HashLeftJoin(_))
+    }
+
+    pub fn is_cartesian_product(&self) -> bool {
+        matches!(self, PlanNodeEnum::CartesianProduct(_))
+    }
+
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            PlanNodeEnum::Start(_) => "Start",
+            PlanNodeEnum::Project(_) => "Project",
+            PlanNodeEnum::Sort(_) => "Sort",
+            PlanNodeEnum::Limit(_) => "Limit",
+            PlanNodeEnum::TopN(_) => "TopN",
+            PlanNodeEnum::InnerJoin(_) => "InnerJoin",
+            PlanNodeEnum::LeftJoin(_) => "LeftJoin",
+            PlanNodeEnum::CrossJoin(_) => "CrossJoin",
+            PlanNodeEnum::GetVertices(_) => "GetVertices",
+            PlanNodeEnum::GetEdges(_) => "GetEdges",
+            PlanNodeEnum::GetNeighbors(_) => "GetNeighbors",
+            PlanNodeEnum::ScanVertices(_) => "ScanVertices",
+            PlanNodeEnum::ScanEdges(_) => "ScanEdges",
+            PlanNodeEnum::HashInnerJoin(_) => "HashInnerJoin",
+            PlanNodeEnum::HashLeftJoin(_) => "HashLeftJoin",
+            PlanNodeEnum::CartesianProduct(_) => "CartesianProduct",
+            PlanNodeEnum::IndexScan(_) => "IndexScan",
+            PlanNodeEnum::Expand(_) => "Expand",
+            PlanNodeEnum::ExpandAll(_) => "ExpandAll",
+            PlanNodeEnum::Traverse(_) => "Traverse",
+            PlanNodeEnum::AppendVertices(_) => "AppendVertices",
+            PlanNodeEnum::Filter(_) => "Filter",
+            PlanNodeEnum::Aggregate(_) => "Aggregate",
+            PlanNodeEnum::Argument(_) => "Argument",
+            PlanNodeEnum::Loop(_) => "Loop",
+            PlanNodeEnum::PassThrough(_) => "PassThrough",
+            PlanNodeEnum::Select(_) => "Select",
+            PlanNodeEnum::DataCollect(_) => "DataCollect",
+            PlanNodeEnum::Dedup(_) => "Dedup",
+            PlanNodeEnum::PatternApply(_) => "PatternApply",
+            PlanNodeEnum::RollUpApply(_) => "RollUpApply",
+            PlanNodeEnum::Union(_) => "Union",
+            PlanNodeEnum::Unwind(_) => "Unwind",
+            // 管理节点类型
+            PlanNodeEnum::CreateUser(_) => "CreateUser",
+            PlanNodeEnum::DropUser(_) => "DropUser",
+            PlanNodeEnum::UpdateUser(_) => "UpdateUser",
+            PlanNodeEnum::ChangePassword(_) => "ChangePassword",
+            PlanNodeEnum::ListUsers(_) => "ListUsers",
+            PlanNodeEnum::ListUserRoles(_) => "ListUserRoles",
+            PlanNodeEnum::DescribeUser(_) => "DescribeUser",
+            PlanNodeEnum::CreateRole(_) => "CreateRole",
+            PlanNodeEnum::DropRole(_) => "DropRole",
+            PlanNodeEnum::GrantRole(_) => "GrantRole",
+            PlanNodeEnum::RevokeRole(_) => "RevokeRole",
+            PlanNodeEnum::ShowRoles(_) => "ShowRoles",
+            PlanNodeEnum::UpdateVertex(_) => "UpdateVertex",
+            PlanNodeEnum::UpdateEdge(_) => "UpdateEdge",
+            PlanNodeEnum::InsertVertices(_) => "InsertVertices",
+            PlanNodeEnum::InsertEdges(_) => "InsertEdges",
+            PlanNodeEnum::DeleteVertices(_) => "DeleteVertices",
+            PlanNodeEnum::DeleteTags(_) => "DeleteTags",
+            PlanNodeEnum::DeleteEdges(_) => "DeleteEdges",
+            PlanNodeEnum::NewVertex(_) => "NewVertex",
+            PlanNodeEnum::NewTag(_) => "NewTag",
+            PlanNodeEnum::NewProp(_) => "NewProp",
+            PlanNodeEnum::NewEdge(_) => "NewEdge",
+            PlanNodeEnum::CreateTag(_) => "CreateTag",
+            PlanNodeEnum::DescTag(_) => "DescTag",
+            PlanNodeEnum::DropTag(_) => "DropTag",
+            PlanNodeEnum::ShowTags(_) => "ShowTags",
+            PlanNodeEnum::ShowCreateTag(_) => "ShowCreateTag",
+            PlanNodeEnum::CreateSpace(_) => "CreateSpace",
+            PlanNodeEnum::DescSpace(_) => "DescSpace",
+            PlanNodeEnum::ShowCreateSpace(_) => "ShowCreateSpace",
+            PlanNodeEnum::ShowSpaces(_) => "ShowSpaces",
+            PlanNodeEnum::SwitchSpace(_) => "SwitchSpace",
+            PlanNodeEnum::DropSpace(_) => "DropSpace",
+            PlanNodeEnum::ClearSpace(_) => "ClearSpace",
+            PlanNodeEnum::AlterSpace(_) => "AlterSpace",
+            PlanNodeEnum::CreateEdge(_) => "CreateEdge",
+            PlanNodeEnum::DropEdge(_) => "DropEdge",
+            PlanNodeEnum::ShowEdges(_) => "ShowEdges",
+            PlanNodeEnum::ShowCreateEdge(_) => "ShowCreateEdge",
+            PlanNodeEnum::SubmitJob(_) => "SubmitJob",
+            PlanNodeEnum::CreateSnapshot(_) => "CreateSnapshot",
+            PlanNodeEnum::DropSnapshot(_) => "DropSnapshot",
+            PlanNodeEnum::ShowSnapshots(_) => "ShowSnapshots",
+            PlanNodeEnum::CreateIndex(_) => "CreateIndex",
+            PlanNodeEnum::DropIndex(_) => "DropIndex",
+            PlanNodeEnum::ShowIndexes(_) => "ShowIndexes",
+            PlanNodeEnum::DescIndex(_) => "DescIndex",
+            PlanNodeEnum::AddHosts(_) => "AddHosts",
+            PlanNodeEnum::DropHosts(_) => "DropHosts",
+            PlanNodeEnum::ShowHosts(_) => "ShowHosts",
+            PlanNodeEnum::ShowHostsStatus(_) => "ShowHostsStatus",
+            PlanNodeEnum::ShowConfigs(_) => "ShowConfigs",
+            PlanNodeEnum::SetConfig(_) => "SetConfig",
+            PlanNodeEnum::GetConfig(_) => "GetConfig",
+        }
     }
 
     /// 零成本类型转换 - 直接使用模式匹配

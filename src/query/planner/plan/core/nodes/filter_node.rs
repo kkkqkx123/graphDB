@@ -54,7 +54,7 @@ impl FilterNode {
 
     /// 获取节点的输出变量
     pub fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+        self.output_var.as_ref()
     }
 
     /// 获取列名列表
@@ -104,6 +104,56 @@ impl FilterNode {
             col_names: self.col_names.clone(),
             cost: self.cost,
         })
+    }
+}
+
+// 为 FilterNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for FilterNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
+        self.dependencies().to_vec()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::Filter(self)
+    }
+}
+
+// 为 FilterNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for FilterNode {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+        self.clone_with_new_id(new_id)
     }
 }
 

@@ -57,7 +57,7 @@ impl PaginationPlanner {
         _context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
         // 获取输入计划的根节点
-        let _input_root = input_plan.root.ok_or_else(|| {
+        let _input_root = input_plan.root.as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("Pagination clause requires input plan".to_string())
         })?;
 

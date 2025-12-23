@@ -148,7 +148,7 @@ impl CypherExecutionContext {
 
     /// 获取变量的值
     pub fn get_variable_value(&self, name: &str) -> Option<&Value> {
-        self.variables.get(name).and_then(|v| v.value)
+        self.variables.get(name).and_then(|v| v.value.as_ref())
     }
 
     /// 设置变量值

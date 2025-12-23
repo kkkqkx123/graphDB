@@ -376,7 +376,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         if self.is_top_level || !self.top_level_only {
             self.filter_exprs.push(Expression::Case {
                 conditions: conditions.to_vec(),
-                default: default.map(|e| Box::new(e.clone())),
+                default: default.as_ref().map(|e| Box::new(e.clone())),
             });
         }
         
@@ -431,8 +431,8 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         if self.is_top_level || !self.top_level_only {
             self.filter_exprs.push(Expression::Range {
                 collection: Box::new(collection.clone()),
-                start: start.map(|e| Box::new(e.clone())),
-                end: end.map(|e| Box::new(e.clone())),
+                start: start.as_ref().map(|e| Box::new(e.clone())),
+                end: end.as_ref().map(|e| Box::new(e.clone())),
             });
         }
         

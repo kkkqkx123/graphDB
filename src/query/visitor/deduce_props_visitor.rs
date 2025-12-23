@@ -1,9 +1,7 @@
 //! DeducePropsVisitor - 用于推导表达式属性的访问器
 //! 对应 NebulaGraph DeducePropsVisitor.h/.cpp 的功能
 
-use crate::core::visitor::{
-    VisitorConfig, VisitorContext, VisitorCore, VisitorResult,
-};
+use crate::core::visitor::{VisitorConfig, VisitorContext, VisitorCore};
 use crate::core::visitor::ExpressionAcceptor;
 use crate::core::{Expression, ExpressionVisitor, LiteralValue};
 use crate::query::visitor::QueryVisitor;

@@ -7,9 +7,7 @@ pub mod insert_ops;
 pub mod update_ops;
 
 pub use data_constructors::*;
-pub use delete_ops::*;
 pub use insert_ops::*;
-pub use update_ops::*;
 
 // 重新导出新增的数据操作节点
 pub use delete_ops::{DeleteEdges, DeleteTags, DeleteVertices};

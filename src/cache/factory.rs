@@ -4,7 +4,7 @@
 
 use super::cache_impl::*;
 use super::config::CachePolicy;
-use super::stats_marker::{StatsMode, StatsEnabled, StatsDisabled};
+use super::stats_marker::{StatsEnabled, StatsDisabled};
 use super::traits::{Cache, StatsCache};
 use std::hash::Hash;
 use std::sync::Arc;

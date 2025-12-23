@@ -8,13 +8,8 @@ use super::rule_traits::{
 };
 use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::algorithms::IndexScan;
-use crate::query::planner::plan::core::nodes::ExpandNode as Expand;
-use crate::query::planner::plan::core::nodes::FilterNode as FilterPlanNode;
-use crate::query::planner::plan::core::nodes::ScanEdgesNode as ScanEdges;
-use crate::query::planner::plan::core::nodes::ScanVerticesNode as ScanVertices;
-use crate::query::planner::plan::core::nodes::TraverseNode;
 use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::TraverseNode;
 
 /// 通用过滤条件下推规则
 #[derive(Debug)]
@@ -42,7 +37,7 @@ impl OptRule for FilterPushDownRule {
 
                 // 获取过滤条件
                 if let Some(filter_plan_node) =
-                    node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                    node.plan_node.as_filter()
                 {
                     let filter_condition = filter_plan_node.condition();
 
@@ -114,7 +109,7 @@ impl OptRule for FilterPushDownRule {
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有过滤条件的新索引扫描节点
                                 if let Some(index_scan_node) =
-                                    child_node.plan_node().as_any().downcast_ref::<IndexScan>()
+                                    child_node.plan_node().as_index_scan()
                                 {
                                     let new_index_scan_node = index_scan_node.clone();
 
@@ -304,7 +299,7 @@ impl OptRule for PushFilterDownTraverseRule {
                 if child.plan_node().name() == "Traverse" {
                     // 将过滤条件下推到遍历操作
                     if let Some(filter_plan_node) =
-                        node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                        node.plan_node.as_filter()
                     {
                         let filter_condition = filter_plan_node.condition();
 
@@ -314,7 +309,7 @@ impl OptRule for PushFilterDownTraverseRule {
                         if let Some(pushable_condition) = split_result.pushable_condition {
                             // 创建带有下推过滤条件的新遍历节点
                             if let Some(traverse_node) =
-                                child.plan_node().as_any().downcast_ref::<TraverseNode>()
+                                child.plan_node().as_traverse()
                             {
                                 let new_traverse_node = traverse_node.clone();
 
@@ -429,7 +424,7 @@ impl OptRule for PushFilterDownExpandRule {
                 if child.plan_node().name() == "Expand" {
                     // 将过滤条件下推到扩展操作
                     if let Some(filter_plan_node) =
-                        node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                        node.plan_node.as_filter()
                     {
                         let filter_condition = filter_plan_node.condition();
 
@@ -439,7 +434,7 @@ impl OptRule for PushFilterDownExpandRule {
                         if let Some(_pushable_condition) = split_result.pushable_condition {
                             // 创建带有下推过滤条件的新扩展节点
                             if let Some(expand_node) =
-                                child.plan_node().as_any().downcast_ref::<Expand>()
+                                child.plan_node().as_expand()
                             {
                                 let _new_expand_node = expand_node.clone();
 
@@ -737,7 +732,7 @@ impl OptRule for PredicatePushDownRule {
                     "ScanVertices" => {
                         // 将谓词下推到扫描操作
                         if let Some(filter_plan_node) =
-                            node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                            node.plan_node.as_filter()
                         {
                             let filter_condition = filter_plan_node.condition();
 
@@ -747,7 +742,7 @@ impl OptRule for PredicatePushDownRule {
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有下推谓词的新扫描节点
                                 if let Some(scan_node) =
-                                    child.plan_node().as_any().downcast_ref::<ScanVertices>()
+                                    child.plan_node().as_scan_vertices()
                                 {
                                     let new_scan_node = scan_node.clone();
 
@@ -803,7 +798,7 @@ impl OptRule for PredicatePushDownRule {
                     "ScanEdges" => {
                         // 类似地处理边扫描
                         if let Some(filter_plan_node) =
-                            node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                            node.plan_node.as_filter()
                         {
                             let filter_condition = filter_plan_node.condition();
 
@@ -813,7 +808,7 @@ impl OptRule for PredicatePushDownRule {
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有下推谓词的新边扫描节点
                                 if let Some(scan_edges_node) =
-                                    child.plan_node().as_any().downcast_ref::<ScanEdges>()
+                                    child.plan_node().as_scan_edges()
                                 {
                                     let new_scan_edges_node = scan_edges_node.clone();
 
@@ -872,7 +867,7 @@ impl OptRule for PredicatePushDownRule {
                     "IndexScan" => {
                         // 类似地处理索引扫描
                         if let Some(filter_plan_node) =
-                            node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                            node.plan_node.as_filter()
                         {
                             let filter_condition = filter_plan_node.condition();
 
@@ -882,7 +877,7 @@ impl OptRule for PredicatePushDownRule {
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有下推谓词的新索引扫描节点
                                 if let Some(index_scan_node) =
-                                    child.plan_node().as_any().downcast_ref::<IndexScan>()
+                                    child.plan_node().as_index_scan()
                                 {
                                     let new_index_scan_node = index_scan_node.clone();
 

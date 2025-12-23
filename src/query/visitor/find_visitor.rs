@@ -707,7 +707,7 @@ impl ExpressionVisitor for FindVisitor {
         if self.target_types.contains(&ExpressionType::Case) {
             self.found_exprs.push(Expression::Case {
                 conditions: conditions.to_vec(),
-                default: default.map(|e| Box::new(e.clone())),
+                default: default.as_ref().map(|e| Box::new(e.clone())),
             });
         }
         for (condition, value) in conditions {
@@ -749,8 +749,8 @@ impl ExpressionVisitor for FindVisitor {
         if self.target_types.contains(&ExpressionType::Range) {
             self.found_exprs.push(Expression::Range {
                 collection: Box::new(collection.clone()),
-                start: start.map(|e| Box::new(e.clone())),
-                end: end.map(|e| Box::new(e.clone())),
+                start: start.as_ref().map(|e| Box::new(e.clone())),
+                end: end.as_ref().map(|e| Box::new(e.clone())),
             });
         }
         self.visit(collection);

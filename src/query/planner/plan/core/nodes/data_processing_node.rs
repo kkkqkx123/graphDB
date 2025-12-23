@@ -297,6 +297,56 @@ impl DedupNode {
     }
 }
 
+// 为 DedupNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for DedupNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+        self.dependencies().to_vec()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Dedup(self)
+    }
+}
+
+// 为 DedupNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for DedupNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
 /// RollUpApply节点
 #[derive(Debug, Clone)]
 pub struct RollUpApplyNode {

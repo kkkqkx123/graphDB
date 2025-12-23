@@ -97,16 +97,69 @@ impl ProjectNode {
     }
 }
 
+// 为 ProjectNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for ProjectNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+        vec![Box::new(self.input().clone())]
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Project(self)
+    }
+}
+
+// 为 ProjectNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for ProjectNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::super::start_node::StartNode;
     use super::*;
     use crate::core::Expression;
-    use super::super::start_node::StartNode;
 
     #[test]
     fn test_project_node_creation() {
         // 创建一个起始节点作为输入
-        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
 
         let columns = vec![YieldColumn {
             expr: Expression::Variable("test".to_string()),
@@ -114,7 +167,8 @@ mod tests {
             is_matched: false,
         }];
 
-        let project_node = ProjectNode::new(start_node, columns).expect("Project node should be created successfully");
+        let project_node = ProjectNode::new(start_node, columns)
+            .expect("Project node should be created successfully");
 
         assert_eq!(project_node.type_name(), "Project");
         assert_eq!(project_node.col_names().len(), 1);
@@ -123,7 +177,10 @@ mod tests {
 
     #[test]
     fn test_project_node_columns() {
-        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
 
         let columns = vec![
             YieldColumn {
@@ -138,7 +195,8 @@ mod tests {
             },
         ];
 
-        let project_node = ProjectNode::new(start_node, columns).expect("Project node should be created successfully");
+        let project_node = ProjectNode::new(start_node, columns)
+            .expect("Project node should be created successfully");
 
         assert_eq!(project_node.columns().len(), 2);
         assert_eq!(project_node.columns()[0].alias, "name");

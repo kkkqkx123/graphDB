@@ -1,7 +1,7 @@
 //! EvaluableExprVisitor - 用于判断表达式是否可求值的访问器
 //! 对应 NebulaGraph EvaluableExprVisitor.h/.cpp 的功能
 
-use crate::core::visitor::{VisitorCore, VisitorContext, VisitorResult};
+use crate::core::visitor::{VisitorCore, VisitorContext};
 use crate::core::{Expression, ExpressionVisitor, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction, DataType};
 use crate::query::visitor::QueryVisitor;
 

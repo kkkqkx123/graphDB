@@ -39,8 +39,8 @@ impl OptRule for TopNRule {
                             let mut new_node = child_node.clone(); // 从Sort节点克隆
 
                             // 获取Sort节点的输入作为TopN的输入
-                            let sort_input = sort_plan_node.dependencies()[0].clone();
-                            
+                            let sort_input = (*sort_plan_node.dependencies()[0].clone()).clone();
+
                             // 创建TopN节点并设置输出变量
                             let mut topn_node = crate::query::planner::plan::core::nodes::TopNNode::new(
                                 sort_input,                           // 使用Sort的输入

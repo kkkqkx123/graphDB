@@ -11,7 +11,6 @@ use super::filter_node::FilterNode;
 use super::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
-use super::join_node::InnerJoinNode;
 
 use super::project_node::ProjectNode;
 use super::sort_node::{LimitNode, SortNode};
