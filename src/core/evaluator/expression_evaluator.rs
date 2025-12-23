@@ -19,16 +19,18 @@ impl ExpressionEvaluator {
         ExpressionEvaluator
     }
 
-    /// 在给定上下文中求值表达式
+    /// 在给定上下文中求值表达式（公共接口，保留 dyn 以兼容）
     pub fn evaluate(
         &self,
         expr: &Expression,
         context: &mut dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
+        // 注意：这个方法保留 dyn 用于兼容性，但内部调用泛型实现
+        // 实际上，大多数调用会通过 Evaluator<C> trait 使用泛型版本
         self.eval_expression(expr, context)
     }
 
-    /// 在给定上下文中求值表达式
+    /// 在给定上下文中求值表达式（通过 dyn trait object）
     pub fn eval_expression(
         &self,
         expr: &Expression,
@@ -309,6 +311,130 @@ impl ExpressionEvaluator {
     pub fn can_evaluate(&self, expr: &Expression, context: &dyn ExpressionContext) -> bool {
         // 基础实现：所有表达式都可以求值
         true
+    }
+
+    /// 泛型版本的表达式求值（避免虚表开销）
+    ///
+    /// 编译器会为每个具体的 C 类型生成专用代码，支持完全内联
+    pub fn eval_expression_generic<C: ExpressionContext>(
+        &self,
+        expr: &Expression,
+        context: &mut C,
+    ) -> Result<Value, ExpressionError> {
+        match expr {
+            Expression::Literal(literal_value) => {
+                match literal_value {
+                    LiteralValue::Bool(b) => Ok(Value::Bool(*b)),
+                    LiteralValue::Int(i) => Ok(Value::Int(*i)),
+                    LiteralValue::Float(f) => Ok(Value::Float(*f)),
+                    LiteralValue::String(s) => Ok(Value::String(s.clone())),
+                    LiteralValue::Null => Ok(Value::Null(crate::core::NullType::Null)),
+                }
+            }
+            Expression::TypeCast { expr, target_type } => {
+                let value = self.eval_expression_generic(expr, context)?;
+                self.eval_type_cast(&value, target_type)
+            }
+            Expression::Property { object, property } => {
+                let object_value = self.eval_expression_generic(object, context)?;
+                self.eval_property_access(&object_value, property)
+            }
+            Expression::Variable(name) => {
+                context
+                    .get_variable(name)
+                    .ok_or_else(|| ExpressionError::undefined_variable(name))
+            }
+            Expression::Binary { left, op, right } => {
+                let left_value = self.eval_expression_generic(left, context)?;
+                let right_value = self.eval_expression_generic(right, context)?;
+                self.eval_binary_operation(&left_value, op, &right_value)
+            }
+            Expression::Unary { op, operand } => {
+                let value = self.eval_expression_generic(operand, context)?;
+                self.eval_unary_operation(op, &value)
+            }
+            Expression::Function { name, args } => {
+                let arg_values: Result<Vec<Value>, ExpressionError> =
+                    args.iter().map(|arg| self.eval_expression_generic(arg, context)).collect();
+                let arg_values = arg_values?;
+                self.eval_function_call(name, &arg_values)
+            }
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
+                let arg_value = self.eval_expression_generic(arg, context)?;
+                self.eval_aggregate_function_single(func, &arg_value, *distinct)
+            }
+            Expression::Case {
+                conditions,
+                default,
+            } => {
+                for (condition, value) in conditions {
+                    let condition_result = self.eval_expression_generic(condition, context)?;
+                    match condition_result {
+                        Value::Bool(true) => return self.eval_expression_generic(value, context),
+                        Value::Bool(false) => continue,
+                        _ => return Err(ExpressionError::type_error("CASE条件必须是布尔值")),
+                    }
+                }
+                match default {
+                    Some(default_expr) => self.eval_expression_generic(default_expr, context),
+                    None => Ok(Value::Null(crate::core::NullType::Null)),
+                }
+            }
+            Expression::List(elements) => {
+                let element_values: Result<Vec<Value>, ExpressionError> = elements
+                    .iter()
+                    .map(|elem| self.eval_expression_generic(elem, context))
+                    .collect();
+                element_values.map(Value::List)
+            }
+            Expression::Map(entries) => {
+                let mut map_values = std::collections::HashMap::new();
+                for (key, value_expr) in entries {
+                    let value = self.eval_expression_generic(value_expr, context)?;
+                    map_values.insert(key.clone(), value);
+                }
+                Ok(Value::Map(map_values))
+            }
+            Expression::Subscript { collection, index } => {
+                let collection_value = self.eval_expression_generic(collection, context)?;
+                let index_value = self.eval_expression_generic(index, context)?;
+                self.eval_subscript_access(&collection_value, &index_value)
+            }
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
+                let collection_value = self.eval_expression_generic(collection, context)?;
+                let start_value = start
+                    .as_ref()
+                    .map(|e| self.eval_expression_generic(e, context))
+                    .transpose()?;
+                let end_value = end
+                    .as_ref()
+                    .map(|e| self.eval_expression_generic(e, context))
+                    .transpose()?;
+                self.eval_range_access(&collection_value, start_value.as_ref(), end_value.as_ref())
+            }
+            Expression::Path(elements) => {
+                let element_values: Result<Vec<Value>, ExpressionError> = elements
+                    .iter()
+                    .map(|elem| self.eval_expression_generic(elem, context))
+                    .collect();
+                element_values.map(Value::List)
+            }
+            // 对于复杂表达式，委派给原始实现（这些不需要频繁调用）
+            _ => {
+                // 这里我们需要适配泛型 C 到 dyn ExpressionContext
+                // 创建一个临时的 dyn trait object 来处理剩余的表达式
+                let mut dyn_ctx: &mut dyn ExpressionContext = context;
+                self.eval_expression(expr, dyn_ctx)
+            }
+        }
     }
 
     /// 获取求值器名称
@@ -1046,13 +1172,15 @@ impl Default for ExpressionEvaluator {
 }
 
 impl<C: ExpressionContext> Evaluator<C> for ExpressionEvaluator {
-    /// 求值表达式
+    /// 求值表达式（泛型版本，避免虚表开销）
     fn evaluate(
         &self,
         expr: &Expression,
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
-        self.eval_expression(expr, context)
+        // 使用泛型实现，编译器会为每个具体的 C 类型生成专用代码
+        // 这避免了虚表查询的开销，允许内联优化
+        self.eval_expression_generic(expr, context)
     }
 
     /// 批量求值表达式

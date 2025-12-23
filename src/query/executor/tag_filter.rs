@@ -3,7 +3,7 @@
 //! 提供对顶点标签的高级过滤功能，支持复杂的表达式求值
 
 use crate::core::expressions::{
-    DefaultExpressionContext, ExpressionContext, ExpressionContextEnum,
+    DefaultExpressionContext, ExpressionContext,
 };
 use crate::core::vertex_edge_path::Vertex;
 use crate::core::Value;
@@ -46,7 +46,7 @@ impl TagFilterProcessor {
     }
 
     /// 创建包含标签信息的评估上下文
-    fn create_tag_context(&self, vertex: &Vertex) -> ExpressionContextEnum {
+    fn create_tag_context(&self, vertex: &Vertex) -> DefaultExpressionContext {
         let mut context = DefaultExpressionContext::new();
 
         // 将顶点作为变量添加
@@ -83,7 +83,7 @@ impl TagFilterProcessor {
             }
         }
 
-        ExpressionContextEnum::Default(context)
+        context
     }
 
     /// 将值转换为布尔值

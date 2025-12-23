@@ -11,8 +11,7 @@ pub mod functions;
 
 // 重新导出默认上下文类型
 pub use default_context::{
-    with_edge, with_variables, with_vertex, DefaultExpressionContext, ExpressionContextEnum,
-    ExpressionContextBuilder, QueryContextAdapter, StorageExpressionContext,
+    DefaultExpressionContext, StorageExpressionContext,
 };
 
 // 重新导出统一的ExpressionContext trait

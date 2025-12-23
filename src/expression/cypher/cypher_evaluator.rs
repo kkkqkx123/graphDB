@@ -383,7 +383,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_literal() {
-        let mut context = crate::core::expressions::default_context::ExpressionContextEnum::default();
+        let mut context = crate::core::expressions::DefaultExpressionContext::default();
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
         let result = CypherEvaluator::evaluate_cypher(&cypher_expr, &mut context).expect("Cypher evaluation should succeed for literal values");
 
@@ -392,7 +392,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_variable() {
-        let mut context = crate::core::expressions::default_context::ExpressionContextEnum::default();
+        let mut context = crate::core::expressions::DefaultExpressionContext::default();
         context.set_variable("x".to_string(), Value::Int(100));
 
         let cypher_expr = CypherExpression::Variable("x".to_string());
@@ -403,7 +403,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_binary_add() {
-        let mut context = crate::core::expressions::default_context::ExpressionContextEnum::default();
+        let mut context = crate::core::expressions::DefaultExpressionContext::default();
         let left = Box::new(CypherExpression::Literal(CypherLiteral::Integer(1)));
         let right = Box::new(CypherExpression::Literal(CypherLiteral::Integer(2)));
         let cypher_expr = CypherExpression::Binary(BinaryExpression {

@@ -30,7 +30,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
     pub fn create_executor(
         &self,
         plan_node: &dyn PlanNode,
-        storage: Arc<Mutex<S>>,
+        _storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         match plan_node.kind() {
             // 基础执行器
@@ -245,7 +245,7 @@ mod tests {
         }
 
         fn kind(&self) -> PlanNodeKind {
-            self.kind
+            self.kind.clone()
         }
     }
 
@@ -307,7 +307,7 @@ mod tests {
             &self,
         ) -> std::sync::Arc<dyn crate::query::planner::plan::core::nodes::traits::PlanNode>
         {
-            std::sync::Arc::new(MockPlanNode::new(self.kind))
+            std::sync::Arc::new(MockPlanNode::new(self.kind.clone()))
         }
 
         fn clone_with_new_id(
@@ -315,7 +315,7 @@ mod tests {
             new_id: i64,
         ) -> std::sync::Arc<dyn crate::query::planner::plan::core::nodes::traits::PlanNode>
         {
-            let mut node = MockPlanNode::new(self.kind);
+            let mut node = MockPlanNode::new(self.kind.clone());
             node.id = new_id;
             std::sync::Arc::new(node)
         }
@@ -340,7 +340,9 @@ mod tests {
         let plan_node = MockPlanNode::new(PlanNodeKind::Unknown);
 
         let result = factory.create_executor(&plan_node, storage);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("尚未实现"));
+        match result {
+            Err(e) => assert!(e.to_string().contains("尚未实现")),
+            Ok(_) => panic!("Expected error but got Ok"),
+        }
     }
 }

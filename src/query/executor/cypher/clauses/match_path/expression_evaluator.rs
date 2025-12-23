@@ -235,14 +235,14 @@ mod tests {
         assert_eq!(result, Value::Bool(false));
 
         // 测试负号
-        let neg_expr = Expression::Unary(UnaryExpression {
-            operator: UnaryOperator::Negative,
-            expression: Box::new(Expression::Literal(Literal::Integer(42))),
-        });
-        let result = evaluator
-            .evaluate(&neg_expr, &mut context)
-            .expect("Failed to evaluate neg expression");
-        assert_eq!(result, Value::Int(-42));
+         let neg_expr = Expression::Unary(UnaryExpression {
+             operator: UnaryOperator::Minus,
+             expression: Box::new(Expression::Literal(Literal::Integer(42))),
+         });
+         let result = evaluator
+             .evaluate(&neg_expr, &mut context)
+             .expect("Failed to evaluate neg expression");
+         assert_eq!(result, Value::Int(-42));
     }
 
     #[test]

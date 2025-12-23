@@ -38,7 +38,7 @@ pub struct LoopExecutor<S: StorageEngine> {
     // 循环结果收集
     results: Vec<ExecutionResult>,
     // 循环变量上下文
-    loop_context: crate::core::expressions::default_context::ExpressionContextEnum,
+    loop_context: DefaultExpressionContext,
 }
 
 impl<S: StorageEngine> LoopExecutor<S> {
@@ -58,7 +58,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
             loop_state: LoopState::NotStarted,
             evaluator: ExpressionEvaluator,
             results: Vec::new(),
-            loop_context: crate::core::expressions::default_context::ExpressionContextEnum::Default(DefaultExpressionContext::new()),
+            loop_context: DefaultExpressionContext::new(),
         }
     }
 }
@@ -301,7 +301,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
         self.loop_state = LoopState::NotStarted;
         self.current_iteration = 0;
         self.results.clear();
-        self.loop_context = crate::core::expressions::default_context::ExpressionContextEnum::Default(DefaultExpressionContext::new());
+        self.loop_context = DefaultExpressionContext::new();
 
         // 打开循环体执行器
         self.body_executor.open()?;
@@ -314,7 +314,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
 
         // 清理资源
         self.results.clear();
-        self.loop_context = crate::core::expressions::default_context::ExpressionContextEnum::Default(DefaultExpressionContext::new());
+        self.loop_context = DefaultExpressionContext::new();
 
         Ok(())
     }
