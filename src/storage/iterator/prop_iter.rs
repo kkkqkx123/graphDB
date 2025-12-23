@@ -4,7 +4,7 @@
 //! 类似SequentialIter，但针对属性数据优化
 //! 支持顶点和边的属性访问
 
-use super::{Iterator, IteratorEnum, IteratorKind, Row};
+use super::{Iterator, IteratorKind, Row};
 use crate::core::{DataSet, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -279,14 +279,14 @@ impl Iterator for PropIter {
         self.col_names.clone()
     }
 
-    fn copy(&self) -> IteratorEnum {
-        IteratorEnum::Prop(PropIter {
+    fn copy(&self) -> Self {
+        Self {
             data: self.data.clone(),
             rows: self.rows.clone(),
             col_names: self.col_names.clone(),
             curr_pos: self.curr_pos,
             ds_index: self.ds_index.clone(),
-        })
+        }
     }
 
     // 图特定方法

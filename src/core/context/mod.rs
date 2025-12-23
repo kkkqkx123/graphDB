@@ -1,9 +1,8 @@
 //! 上下文系统模块
 //!
-//! 提供统一的上下文管理系统，包括查询上下文、执行上下文、会话上下文等
+//! 提供类型安全的上下文管理系统，包括查询上下文、执行上下文、会话上下文等
 
 pub mod base;
-pub mod enum_context;
 pub mod execution;
 pub mod manager;
 pub mod query;
@@ -16,7 +15,6 @@ pub mod validation;
 
 // 重新导出常用类型
 pub use base::*;
-pub use enum_context::*;
 pub use execution::*;
 pub use manager::*;
 pub use query::*;

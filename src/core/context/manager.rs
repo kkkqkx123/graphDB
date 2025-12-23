@@ -1,26 +1,86 @@
 //! 上下文管理器模块
 //!
-//! 提供统一的上下文生命周期管理
+//! 提供类型安全的上下文生命周期管理，避免过度抽象
 
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use super::base::{
     ContextConfig, ContextEvent, ContextEventListener, ContextManager,
-    ContextStatistics, ContextType, SimpleEventListener,
+    ContextStatistics, ContextType, SimpleEventListener, ContextBase,
 };
-use super::enum_context::UnifiedContext;
-use super::runtime::{TestRuntimeContext, StorageEnv, PlanContext};
+use super::runtime::{TestRuntimeContext, PlanContext};
+use super::session::SessionContext;
+use super::query::QueryContext;
+use super::execution::ExecutionContext;
+use super::request::RequestContext;
+use super::validation::ValidationContext;
+use super::storage::StorageContext;
+use crate::core::expressions::BasicExpressionContext;
 use crate::core::Value;
 
 /// 事件监听器类型别名
 pub type EventListenerType = SimpleEventListener;
 
+/// 上下文存储 - 使用类型安全的HashMap而非枚举
+#[derive(Debug)]
+pub struct ContextStorage {
+    session_contexts: HashMap<String, SessionContext>,
+    query_contexts: HashMap<String, QueryContext>,
+    execution_contexts: HashMap<String, ExecutionContext>,
+    expression_contexts: HashMap<String, BasicExpressionContext>,
+    request_contexts: HashMap<String, RequestContext>,
+    runtime_contexts: HashMap<String, TestRuntimeContext>,
+    validation_contexts: HashMap<String, ValidationContext>,
+    storage_contexts: HashMap<String, StorageContext>,
+}
+
+impl ContextStorage {
+    pub fn new() -> Self {
+        Self {
+            session_contexts: HashMap::new(),
+            query_contexts: HashMap::new(),
+            execution_contexts: HashMap::new(),
+            expression_contexts: HashMap::new(),
+            request_contexts: HashMap::new(),
+            runtime_contexts: HashMap::new(),
+            validation_contexts: HashMap::new(),
+            storage_contexts: HashMap::new(),
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.session_contexts.clear();
+        self.query_contexts.clear();
+        self.execution_contexts.clear();
+        self.expression_contexts.clear();
+        self.request_contexts.clear();
+        self.runtime_contexts.clear();
+        self.validation_contexts.clear();
+        self.storage_contexts.clear();
+    }
+
+    pub fn len(&self) -> usize {
+        self.session_contexts.len() +
+        self.query_contexts.len() +
+        self.execution_contexts.len() +
+        self.expression_contexts.len() +
+        self.request_contexts.len() +
+        self.runtime_contexts.len() +
+        self.validation_contexts.len() +
+        self.storage_contexts.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
 /// 默认上下文管理器实现
 #[derive(Debug)]
 pub struct DefaultContextManager {
     /// 上下文存储
-    contexts: Arc<RwLock<HashMap<String, UnifiedContext>>>,
+    contexts: Arc<RwLock<ContextStorage>>,
 
     /// 配置
     config: ContextConfig,
@@ -44,7 +104,7 @@ impl DefaultContextManager {
     /// 使用配置创建上下文管理器
     pub fn with_config(config: ContextConfig) -> Self {
         Self {
-            contexts: Arc::new(RwLock::new(HashMap::new())),
+            contexts: Arc::new(RwLock::new(ContextStorage::new())),
             config,
             statistics: Arc::new(RwLock::new(ContextStatistics::new())),
             event_listeners: Arc::new(RwLock::new(Vec::new())),
@@ -97,8 +157,8 @@ impl DefaultContextManager {
         }
     }
 
-    /// 检查上下文是否过期
-    fn is_context_expired(&self, context: &UnifiedContext) -> bool {
+    /// 检查上下文是否过期 - 泛型实现
+    fn is_context_expired<T: ContextBase>(&self, context: &T) -> bool {
         if let Some(timeout_ms) = self.config.timeout_ms {
             if let Ok(elapsed) = context.created_at().elapsed() {
                 elapsed.as_millis() as u64 > timeout_ms
@@ -117,33 +177,123 @@ impl DefaultContextManager {
             Err(_) => return,
         };
 
-        let mut expired_ids = Vec::new();
-
-        for (id, context) in contexts.iter() {
+        // 收集过期的会话上下文
+        let mut expired_session_ids = Vec::new();
+        for (id, context) in contexts.session_contexts.iter() {
             if self.is_context_expired(context) {
-                expired_ids.push(id.clone());
+                expired_session_ids.push(id.clone());
             }
         }
 
-        for id in expired_ids {
-            if let Some(context) = contexts.remove(&id) {
-                // 更新统计信息
-                if let Ok(mut stats) = self.statistics.write() {
-                    let lifetime_ms = context
-                        .created_at()
-                        .elapsed()
-                        .unwrap_or_else(|_| std::time::Duration::from_millis(0))
-                        .as_millis() as u64;
-                    stats.record_destroyed(context.context_type(), lifetime_ms);
-                }
-
-                // 触发销毁事件
-                self.emit_event(ContextEvent::Destroyed {
-                    id: id.clone(),
-                    timestamp: std::time::SystemTime::now(),
-                });
+        // 收集过期的查询上下文
+        let mut expired_query_ids = Vec::new();
+        for (id, context) in contexts.query_contexts.iter() {
+            if self.is_context_expired(context) {
+                expired_query_ids.push(id.clone());
             }
         }
+
+        // 收集过期的执行上下文
+        let mut expired_execution_ids = Vec::new();
+        for (id, context) in contexts.execution_contexts.iter() {
+            if self.is_context_expired(context) {
+                expired_execution_ids.push(id.clone());
+            }
+        }
+
+        // 收集过期的请求上下文
+        let mut expired_request_ids = Vec::new();
+        for (id, context) in contexts.request_contexts.iter() {
+            if self.is_context_expired(context) {
+                expired_request_ids.push(id.clone());
+            }
+        }
+
+        // 收集过期的运行时上下文
+        let mut expired_runtime_ids = Vec::new();
+        for (id, context) in contexts.runtime_contexts.iter() {
+            if self.is_context_expired(context) {
+                expired_runtime_ids.push(id.clone());
+            }
+        }
+
+        // 收集过期的验证上下文
+        let mut expired_validation_ids = Vec::new();
+        for (id, context) in contexts.validation_contexts.iter() {
+            if self.is_context_expired(context) {
+                expired_validation_ids.push(id.clone());
+            }
+        }
+
+        // 收集过期的存储上下文
+        let mut expired_storage_ids = Vec::new();
+        for (id, context) in contexts.storage_contexts.iter() {
+            if self.is_context_expired(context) {
+                expired_storage_ids.push(id.clone());
+            }
+        }
+
+        // 移除过期的上下文并触发事件
+        for id in expired_session_ids {
+            if let Some(context) = contexts.session_contexts.remove(&id) {
+                self.emit_context_destroyed_event(&id, ContextType::Session, &context);
+            }
+        }
+
+        for id in expired_query_ids {
+            if let Some(context) = contexts.query_contexts.remove(&id) {
+                self.emit_context_destroyed_event(&id, ContextType::Query, &context);
+            }
+        }
+
+        for id in expired_execution_ids {
+            if let Some(context) = contexts.execution_contexts.remove(&id) {
+                self.emit_context_destroyed_event(&id, ContextType::Execution, &context);
+            }
+        }
+
+        for id in expired_request_ids {
+            if let Some(context) = contexts.request_contexts.remove(&id) {
+                self.emit_context_destroyed_event(&id, ContextType::Request, &context);
+            }
+        }
+
+        for id in expired_runtime_ids {
+            if let Some(context) = contexts.runtime_contexts.remove(&id) {
+                self.emit_context_destroyed_event(&id, ContextType::Runtime, &context);
+            }
+        }
+
+        for id in expired_validation_ids {
+            if let Some(context) = contexts.validation_contexts.remove(&id) {
+                self.emit_context_destroyed_event(&id, ContextType::Validation, &context);
+            }
+        }
+
+        for id in expired_storage_ids {
+            if let Some(context) = contexts.storage_contexts.remove(&id) {
+                self.emit_context_destroyed_event(&id, ContextType::Storage, &context);
+            }
+        }
+    }
+
+    /// 触发上下文销毁事件
+    fn emit_context_destroyed_event<T: ContextBase>(&self, id: &str, context_type: ContextType, context: &T) {
+        // 更新统计信息
+        if let Ok(mut stats) = self.statistics.write() {
+            let lifetime_ms = context
+                .created_at()
+                .elapsed()
+                .unwrap_or_else(|_| std::time::Duration::from_millis(0))
+                .as_millis() as u64;
+            stats.record_destroyed(context_type, lifetime_ms);
+        }
+
+        // 触发销毁事件
+        self.emit_event(ContextEvent::Destroyed {
+            id: id.to_string(),
+            timestamp: std::time::SystemTime::now(),
+        });
     }
 
     /// 检查是否超过最大活跃上下文数量
@@ -160,187 +310,399 @@ impl DefaultContextManager {
     }
 }
 
-impl ContextManager for DefaultContextManager {
-    fn create_context(&mut self, context_type: ContextType) -> UnifiedContext {
-        // 检查是否超过最大活跃上下文数量
-        if self.is_max_contexts_exceeded() {
-            // 如果启用自动清理，先尝试清理过期上下文
-            if self.config.enable_auto_cleanup {
-                self.cleanup_expired_contexts_internal();
-            }
-
-            // 如果仍然超过限制，返回一个无效的上下文
-            if self.is_max_contexts_exceeded() {
-                // 创建一个无效的上下文
-                let id = self.generate_context_id(context_type.clone());
-                return UnifiedContext::Query(super::query::QueryContext::new(
-                    id,
-                    crate::core::types::query::QueryType::DataQuery,
-                    "".to_string(),
-                    super::session::SessionInfo::new(
-                        "overflow".to_string(),
-                        "system".to_string(),
-                        vec!["system".to_string()],
-                    ),
-                ));
-            }
-        }
-
-        let id = self.generate_context_id(context_type.clone());
-        let context = match context_type {
-            ContextType::Session => UnifiedContext::Session(super::session::SessionContext::new(
-                id.clone(),
-                super::session::UserInfo::new(
-                    "default_user".to_string(),
-                    "default_user_id".to_string(),
-                    vec!["user".to_string()],
-                    vec!["read".to_string()],
-                ),
-                super::session::SessionConfig::default(),
-            )),
-            ContextType::Query => UnifiedContext::Query(super::query::QueryContext::new(
-                id.clone(),
-                crate::core::types::query::QueryType::DataQuery,
-                "SELECT 1".to_string(),
-                super::session::SessionInfo::new(
-                    "default_session".to_string(),
-                    "default_user".to_string(),
-                    vec!["user".to_string()],
-                ),
-            )),
-            ContextType::Execution => UnifiedContext::Execution(super::execution::ExecutionContext::new(
-                super::query::QueryContext::new(
-                    "default_query".to_string(),
-                    crate::core::types::query::QueryType::DataQuery,
-                    "SELECT 1".to_string(),
-                    super::session::SessionInfo::new(
-                        "default_session".to_string(),
-                        "default_user".to_string(),
-                        vec!["user".to_string()],
-                    ),
-                ),
-            )),
-            ContextType::Expression => {
-                UnifiedContext::Expression(crate::core::expressions::BasicExpressionContext::new())
-            }
-            ContextType::Request => UnifiedContext::Request(super::request::RequestContext::with_session(
-                id.clone(),
-                "SELECT 1".to_string(),
-                "default_session",
-                "default_user",
-                "localhost",
-                0,
-            )),
-            ContextType::Runtime => {
-                // 运行时上下文需要计划上下文，这里创建一个默认的
-                let storage_env = Arc::new(StorageEnv::<
-                    MockStorageEngine,
-                    MockSchemaManager,
-                    MockIndexManager,
-                > {
-                    storage_engine: Arc::new(MockStorageEngine),
-                    schema_manager: Arc::new(MockSchemaManager),
-                    index_manager: Arc::new(MockIndexManager),
-                });
-                let plan_context = Arc::new(PlanContext::<
-                    MockStorageEngine,
-                    MockSchemaManager,
-                    MockIndexManager,
-                > {
-                    storage_env,
-                    space_id: 0,
-                    session_id: 0,
-                    plan_id: 0,
-                    v_id_len: 0,
-                    is_int_id: false,
-                    is_edge: false,
-                    default_edge_ver: 0,
-                    is_killed: false,
-                });
-                UnifiedContext::Runtime(TestRuntimeContext::new(
-                    id.clone(),
-                    plan_context,
-                ))
-            }
-            ContextType::Validation => {
-                UnifiedContext::Validation(super::validation::ValidationContext::new(id.clone()))
-            }
-            ContextType::Storage => UnifiedContext::Storage(super::storage::StorageContext::new(id.clone(), 0, 0)),
-        };
-
+impl DefaultContextManager {
+    /// 创建会话上下文
+    pub fn create_session_context(&mut self, user_info: super::session::UserInfo, config: super::session::SessionConfig) -> String {
+        let id = self.generate_context_id(ContextType::Session);
+        let context = SessionContext::new(id.clone(), user_info, config);
+        
         // 更新统计信息
         if let Ok(mut stats) = self.statistics.write() {
-            stats.record_created(context_type.clone());
-            stats.update_max_depth(context.depth());
+            stats.record_created(ContextType::Session);
         }
 
         // 存储上下文
         if let Ok(mut contexts) = self.contexts.write() {
-            contexts.insert(id.clone(), context.clone());
+            contexts.session_contexts.insert(id.clone(), context);
         }
 
         // 触发创建事件
         self.emit_event(ContextEvent::Created {
-            id,
-            context_type,
+            id: id.clone(),
+            context_type: ContextType::Session,
             timestamp: std::time::SystemTime::now(),
         });
 
-        context
+        id
     }
 
-    fn get_context(&self, _id: &str) -> Option<&UnifiedContext> {
-        // 注意：这个实现有生命周期限制，实际返回需要从缓存的引用获取
-        // 由于RwLock的限制，这个trait需要调整或使用内部缓存
-        // 此处是设计问题，应该在trait定义中修改
-        None // 暂时返回None作为解决方案
+    /// 创建查询上下文
+    pub fn create_query_context(&mut self, query: String, session_info: super::session::SessionInfo) -> String {
+        let id = self.generate_context_id(ContextType::Query);
+        let context = QueryContext::new(
+            id.clone(),
+            crate::core::types::query::QueryType::DataQuery,
+            query,
+            session_info,
+        );
+        
+        // 更新统计信息
+        if let Ok(mut stats) = self.statistics.write() {
+            stats.record_created(ContextType::Query);
+        }
+
+        // 存储上下文
+        if let Ok(mut contexts) = self.contexts.write() {
+            contexts.query_contexts.insert(id.clone(), context);
+        }
+
+        // 触发创建事件
+        self.emit_event(ContextEvent::Created {
+            id: id.clone(),
+            context_type: ContextType::Query,
+            timestamp: std::time::SystemTime::now(),
+        });
+
+        id
     }
 
-    fn get_context_mut(&mut self, _id: &str) -> Option<&mut UnifiedContext> {
-        // 由于RwLock的限制，无法返回引用
-        None // 暂时返回None作为解决方案
+    /// 创建执行上下文
+    pub fn create_execution_context(&mut self, query_context: QueryContext) -> String {
+        let id = self.generate_context_id(ContextType::Execution);
+        let context = ExecutionContext::new(query_context);
+        
+        // 更新统计信息
+        if let Ok(mut stats) = self.statistics.write() {
+            stats.record_created(ContextType::Execution);
+        }
+
+        // 存储上下文
+        if let Ok(mut contexts) = self.contexts.write() {
+            contexts.execution_contexts.insert(id.clone(), context);
+        }
+
+        // 触发创建事件
+        self.emit_event(ContextEvent::Created {
+            id: id.clone(),
+            context_type: ContextType::Execution,
+            timestamp: std::time::SystemTime::now(),
+        });
+
+        id
     }
 
-    fn remove_context(&mut self, id: &str) -> Option<UnifiedContext> {
+    /// 创建表达式上下文
+    pub fn create_expression_context(&mut self) -> String {
+        let id = self.generate_context_id(ContextType::Expression);
+        let context = BasicExpressionContext::new();
+        
+        // 更新统计信息
+        if let Ok(mut stats) = self.statistics.write() {
+            stats.record_created(ContextType::Expression);
+        }
+
+        // 存储上下文
+        if let Ok(mut contexts) = self.contexts.write() {
+            contexts.expression_contexts.insert(id.clone(), context);
+        }
+
+        // 触发创建事件
+        self.emit_event(ContextEvent::Created {
+            id: id.clone(),
+            context_type: ContextType::Expression,
+            timestamp: std::time::SystemTime::now(),
+        });
+
+        id
+    }
+
+    /// 创建请求上下文
+    pub fn create_request_context(&mut self, query: String, session_id: &str, user: &str, host: &str, port: u16) -> String {
+        let id = self.generate_context_id(ContextType::Request);
+        let context = RequestContext::with_session(id.clone(), query, session_id, user, host, port);
+        
+        // 更新统计信息
+        if let Ok(mut stats) = self.statistics.write() {
+            stats.record_created(ContextType::Request);
+        }
+
+        // 存储上下文
+        if let Ok(mut contexts) = self.contexts.write() {
+            contexts.request_contexts.insert(id.clone(), context);
+        }
+
+        // 触发创建事件
+        self.emit_event(ContextEvent::Created {
+            id: id.clone(),
+            context_type: ContextType::Request,
+            timestamp: std::time::SystemTime::now(),
+        });
+
+        id
+    }
+
+    /// 创建运行时上下文
+    pub fn create_runtime_context(&mut self, plan_context: Arc<PlanContext<MockStorageEngine, MockSchemaManager, MockIndexManager>>) -> String {
+        let id = self.generate_context_id(ContextType::Runtime);
+        let context = TestRuntimeContext::new(id.clone(), plan_context);
+        
+        // 更新统计信息
+        if let Ok(mut stats) = self.statistics.write() {
+            stats.record_created(ContextType::Runtime);
+        }
+
+        // 存储上下文
+        if let Ok(mut contexts) = self.contexts.write() {
+            contexts.runtime_contexts.insert(id.clone(), context);
+        }
+
+        // 触发创建事件
+        self.emit_event(ContextEvent::Created {
+            id: id.clone(),
+            context_type: ContextType::Runtime,
+            timestamp: std::time::SystemTime::now(),
+        });
+
+        id
+    }
+
+    /// 创建验证上下文
+    pub fn create_validation_context(&mut self) -> String {
+        let id = self.generate_context_id(ContextType::Validation);
+        let context = ValidationContext::new(id.clone());
+        
+        // 更新统计信息
+        if let Ok(mut stats) = self.statistics.write() {
+            stats.record_created(ContextType::Validation);
+        }
+
+        // 存储上下文
+        if let Ok(mut contexts) = self.contexts.write() {
+            contexts.validation_contexts.insert(id.clone(), context);
+        }
+
+        // 触发创建事件
+        self.emit_event(ContextEvent::Created {
+            id: id.clone(),
+            context_type: ContextType::Validation,
+            timestamp: std::time::SystemTime::now(),
+        });
+
+        id
+    }
+
+    /// 创建存储上下文
+    pub fn create_storage_context(&mut self, space_id: u32, part_id: u32) -> String {
+        let id = self.generate_context_id(ContextType::Storage);
+        let context = StorageContext::new(id.clone(), space_id as i32, part_id as i64);
+        
+        // 更新统计信息
+        if let Ok(mut stats) = self.statistics.write() {
+            stats.record_created(ContextType::Storage);
+        }
+
+        // 存储上下文
+        if let Ok(mut contexts) = self.contexts.write() {
+            contexts.storage_contexts.insert(id.clone(), context);
+        }
+
+        // 触发创建事件
+        self.emit_event(ContextEvent::Created {
+            id: id.clone(),
+            context_type: ContextType::Storage,
+            timestamp: std::time::SystemTime::now(),
+        });
+
+        id
+    }
+
+    /// 获取会话上下文
+    pub fn get_session_context(&self, id: &str) -> Option<SessionContext> {
+        if let Ok(contexts) = self.contexts.read() {
+            contexts.session_contexts.get(id).cloned()
+        } else {
+            None
+        }
+    }
+
+    /// 获取查询上下文
+    pub fn get_query_context(&self, id: &str) -> Option<QueryContext> {
+        if let Ok(contexts) = self.contexts.read() {
+            contexts.query_contexts.get(id).cloned()
+        } else {
+            None
+        }
+    }
+
+    /// 获取执行上下文
+    pub fn get_execution_context(&self, id: &str) -> Option<ExecutionContext> {
+        if let Ok(contexts) = self.contexts.read() {
+            contexts.execution_contexts.get(id).cloned()
+        } else {
+            None
+        }
+    }
+
+    /// 获取表达式上下文
+    pub fn get_expression_context(&self, id: &str) -> Option<BasicExpressionContext> {
+        if let Ok(contexts) = self.contexts.read() {
+            contexts.expression_contexts.get(id).cloned()
+        } else {
+            None
+        }
+    }
+
+    /// 获取请求上下文
+    pub fn get_request_context(&self, id: &str) -> Option<RequestContext> {
+        if let Ok(contexts) = self.contexts.read() {
+            contexts.request_contexts.get(id).cloned()
+        } else {
+            None
+        }
+    }
+
+    /// 获取运行时上下文
+    pub fn get_runtime_context(&self, id: &str) -> Option<TestRuntimeContext> {
+        if let Ok(contexts) = self.contexts.read() {
+            contexts.runtime_contexts.get(id).cloned()
+        } else {
+            None
+        }
+    }
+
+    /// 获取验证上下文
+    pub fn get_validation_context(&self, id: &str) -> Option<ValidationContext> {
+        if let Ok(contexts) = self.contexts.read() {
+            contexts.validation_contexts.get(id).cloned()
+        } else {
+            None
+        }
+    }
+
+    /// 获取存储上下文
+    pub fn get_storage_context(&self, id: &str) -> Option<StorageContext> {
+        if let Ok(contexts) = self.contexts.read() {
+            contexts.storage_contexts.get(id).cloned()
+        } else {
+            None
+        }
+    }
+
+    /// 移除会话上下文
+    pub fn remove_session_context(&mut self, id: &str) -> Option<SessionContext> {
         let mut contexts = self.contexts.write().ok()?;
-        if let Some(context) = contexts.remove(id) {
-            // 更新统计信息
-            if let Ok(mut stats) = self.statistics.write() {
-                let lifetime_ms = context
-                    .created_at()
-                    .elapsed()
-                    .unwrap_or_else(|_| std::time::Duration::from_millis(0))
-                    .as_millis() as u64;
-                stats.record_destroyed(context.context_type(), lifetime_ms);
-            }
-
-            // 触发销毁事件
-            self.emit_event(ContextEvent::Destroyed {
-                id: id.to_string(),
-                timestamp: std::time::SystemTime::now(),
-            });
-
+        if let Some(context) = contexts.session_contexts.remove(id) {
+            self.emit_context_destroyed_event(id, ContextType::Session, &context);
             Some(context)
         } else {
             None
         }
     }
 
-    fn cleanup_expired_contexts(&mut self) {
+    /// 移除查询上下文
+    pub fn remove_query_context(&mut self, id: &str) -> Option<QueryContext> {
+        let mut contexts = self.contexts.write().ok()?;
+        if let Some(context) = contexts.query_contexts.remove(id) {
+            self.emit_context_destroyed_event(id, ContextType::Query, &context);
+            Some(context)
+        } else {
+            None
+        }
+    }
+
+    /// 移除执行上下文
+    pub fn remove_execution_context(&mut self, id: &str) -> Option<ExecutionContext> {
+        let mut contexts = self.contexts.write().ok()?;
+        if let Some(context) = contexts.execution_contexts.remove(id) {
+            self.emit_context_destroyed_event(id, ContextType::Execution, &context);
+            Some(context)
+        } else {
+            None
+        }
+    }
+
+    /// 移除表达式上下文
+    pub fn remove_expression_context(&mut self, id: &str) -> Option<BasicExpressionContext> {
+        let mut contexts = self.contexts.write().ok()?;
+        if let Some(context) = contexts.expression_contexts.remove(id) {
+            self.emit_context_destroyed_event(id, ContextType::Expression, &context);
+            Some(context)
+        } else {
+            None
+        }
+    }
+
+    /// 移除请求上下文
+    pub fn remove_request_context(&mut self, id: &str) -> Option<RequestContext> {
+        let mut contexts = self.contexts.write().ok()?;
+        if let Some(context) = contexts.request_contexts.remove(id) {
+            self.emit_context_destroyed_event(id, ContextType::Request, &context);
+            Some(context)
+        } else {
+            None
+        }
+    }
+
+    /// 移除运行时上下文
+    pub fn remove_runtime_context(&mut self, id: &str) -> Option<TestRuntimeContext> {
+        let mut contexts = self.contexts.write().ok()?;
+        if let Some(context) = contexts.runtime_contexts.remove(id) {
+            self.emit_context_destroyed_event(id, ContextType::Runtime, &context);
+            Some(context)
+        } else {
+            None
+        }
+    }
+
+    /// 移除验证上下文
+    pub fn remove_validation_context(&mut self, id: &str) -> Option<ValidationContext> {
+        let mut contexts = self.contexts.write().ok()?;
+        if let Some(context) = contexts.validation_contexts.remove(id) {
+            self.emit_context_destroyed_event(id, ContextType::Validation, &context);
+            Some(context)
+        } else {
+            None
+        }
+    }
+
+    /// 移除存储上下文
+    pub fn remove_storage_context(&mut self, id: &str) -> Option<StorageContext> {
+        let mut contexts = self.contexts.write().ok()?;
+        if let Some(context) = contexts.storage_contexts.remove(id) {
+            self.emit_context_destroyed_event(id, ContextType::Storage, &context);
+            Some(context)
+        } else {
+            None
+        }
+    }
+
+    /// 清理过期上下文
+    pub fn cleanup_expired_contexts(&mut self) {
         if self.config.enable_auto_cleanup {
             self.cleanup_expired_contexts_internal();
         }
     }
 
-    fn context_ids(&self) -> Vec<String> {
+    /// 获取所有上下文ID
+    pub fn context_ids(&self) -> Vec<String> {
         if let Ok(contexts) = self.contexts.read() {
-            contexts.keys().cloned().collect()
+            let mut ids = Vec::new();
+            ids.extend(contexts.session_contexts.keys().cloned());
+            ids.extend(contexts.query_contexts.keys().cloned());
+            ids.extend(contexts.execution_contexts.keys().cloned());
+            ids.extend(contexts.expression_contexts.keys().cloned());
+            ids.extend(contexts.request_contexts.keys().cloned());
+            ids.extend(contexts.runtime_contexts.keys().cloned());
+            ids.extend(contexts.validation_contexts.keys().cloned());
+            ids.extend(contexts.storage_contexts.keys().cloned());
+            ids
         } else {
             Vec::new()
         }
     }
 
-    fn context_count(&self) -> usize {
+    /// 获取上下文总数
+    pub fn context_count(&self) -> usize {
         if let Ok(contexts) = self.contexts.read() {
             contexts.len()
         } else {
@@ -349,6 +711,41 @@ impl ContextManager for DefaultContextManager {
     }
 }
 
+impl ContextManager for DefaultContextManager {
+    /// 清理过期上下文
+    fn cleanup_expired_contexts(&mut self) {
+        if self.config.enable_auto_cleanup {
+            self.cleanup_expired_contexts_internal();
+        }
+    }
+
+    /// 获取所有上下文ID
+    fn context_ids(&self) -> Vec<String> {
+        if let Ok(contexts) = self.contexts.read() {
+            let mut ids = Vec::new();
+            ids.extend(contexts.session_contexts.keys().cloned());
+            ids.extend(contexts.query_contexts.keys().cloned());
+            ids.extend(contexts.execution_contexts.keys().cloned());
+            ids.extend(contexts.expression_contexts.keys().cloned());
+            ids.extend(contexts.request_contexts.keys().cloned());
+            ids.extend(contexts.runtime_contexts.keys().cloned());
+            ids.extend(contexts.validation_contexts.keys().cloned());
+            ids.extend(contexts.storage_contexts.keys().cloned());
+            ids
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// 获取上下文总数
+    fn context_count(&self) -> usize {
+        if let Ok(contexts) = self.contexts.read() {
+            contexts.len()
+        } else {
+            0
+        }
+    }
+}
 
 // Mock实现，用于RuntimeContext的创建
 #[derive(Debug, Clone)]

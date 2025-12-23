@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, Duration};
 use crate::core::Value;
 use super::base::{ContextBase, ContextType, MutableContext};
-use super::enum_context::UnifiedContext;
 
 /// 会话上下文
 #[derive(Debug, Clone)]

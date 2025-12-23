@@ -3,7 +3,7 @@
 //! SequentialIter用于遍历DataSet中的每一行，
 //! 支持行级操作（添加、删除、修改）
 
-use super::{Iterator, IteratorEnum, IteratorKind, Row};
+use super::{Iterator, IteratorKind, Row};
 use crate::core::Value;
 use std::sync::Arc;
 
@@ -201,13 +201,13 @@ impl Iterator for SequentialIter {
         self.col_names.clone()
     }
 
-    fn copy(&self) -> IteratorEnum {
-        IteratorEnum::Sequential(SequentialIter {
+    fn copy(&self) -> Self {
+        Self {
             data: self.data.clone(),
             rows: self.rows.clone(),
             col_names: self.col_names.clone(),
             curr_pos: self.curr_pos,
-        })
+        }
     }
 }
 

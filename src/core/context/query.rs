@@ -8,7 +8,6 @@ use crate::core::types::query::{QueryType, QueryResult};
 use crate::core::Value;
 use super::base::{ContextBase, ContextType, MutableContext};
 use super::session::SessionInfo;
-use super::enum_context::UnifiedContext;
 
 /// 查询上下文
 #[derive(Debug, Clone)]
@@ -129,11 +128,11 @@ impl ContextBase for QueryContext {
     }
 
     fn created_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now() // 使用当前时间作为创建时间
+        std::time::UNIX_EPOCH + std::time::Duration::from_millis(0) // 使用固定时间作为创建时间
     }
 
     fn updated_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now() // 使用当前时间作为更新时间
+        std::time::UNIX_EPOCH + std::time::Duration::from_millis(0) // 使用固定时间作为更新时间
     }
 
     fn is_valid(&self) -> bool {

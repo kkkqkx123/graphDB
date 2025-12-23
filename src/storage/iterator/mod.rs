@@ -2,20 +2,18 @@
 //!
 //! 对应原C++中的Iterator.h/cpp
 //! 提供：
-//! - Iterator: 迭代器基类trait
+//! - IteratorCore: 零成本抽象的迭代器核心trait
 //! - DefaultIter: 单值迭代器
 //! - SequentialIter: 顺序迭代器（DataSet行级）
 //! - GetNeighborsIter: 邻居查询迭代器（图遍历）
 //! - PropIter: 属性查询迭代器
 
 pub mod default_iter;
-pub mod enum_iter;
 pub mod get_neighbors_iter;
 pub mod prop_iter;
 pub mod sequential_iter;
 
 pub use default_iter::DefaultIter;
-pub use enum_iter::IteratorEnum;
 pub use get_neighbors_iter::GetNeighborsIter;
 pub use prop_iter::PropIter;
 pub use sequential_iter::SequentialIter;
@@ -39,9 +37,9 @@ pub enum IteratorKind {
     Prop,
 }
 
-/// 迭代器基类接口
+/// 零成本抽象的迭代器核心trait
 ///
-/// 定义所有迭代器必须实现的接口
+/// 使用泛型实现编译时多态，消除动态分发开销
 /// 支持以下操作：
 /// 1. 基本迭代：next、valid、reset
 /// 2. 删除操作：erase、unstable_erase、clear、erase_range
@@ -49,8 +47,8 @@ pub enum IteratorKind {
 /// 4. 行访问：row、move_row、size、is_empty
 /// 5. 列访问：get_column、get_column_by_index、get_column_index、get_col_names
 /// 6. 图特定：get_tag_prop、get_edge_prop、get_vertex、get_edge
-/// 7. 复制：copy
-pub trait Iterator: Send + Sync + Debug {
+/// 7. 复制：copy（返回具体类型）
+pub trait Iterator: Send + Sync + Debug + Clone {
     /// 返回迭代器类型
     fn kind(&self) -> IteratorKind;
 
@@ -107,8 +105,8 @@ pub trait Iterator: Send + Sync + Debug {
     /// 获取所有列名
     fn get_col_names(&self) -> Vec<String>;
 
-    /// 深拷贝迭代器（用于保存状态）
-    fn copy(&self) -> IteratorEnum;
+    /// 深拷贝迭代器（返回具体类型，零成本抽象）
+    fn copy(&self) -> Self;
 
     /// 类型检查方法
     fn is_default_iter(&self) -> bool {

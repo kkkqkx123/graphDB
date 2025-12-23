@@ -9,20 +9,8 @@ pub use crate::core::context_traits::*;
 
 /// 上下文管理器特征
 ///
-/// 管理上下文生命周期的特征
+/// 管理上下文生命周期的特征，使用类型安全的方法
 pub trait ContextManager {
-    /// 创建上下文
-    fn create_context(&mut self, context_type: ContextType) -> super::enum_context::UnifiedContext;
-
-    /// 获取上下文
-    fn get_context(&self, id: &str) -> Option<&super::enum_context::UnifiedContext>;
-
-    /// 获取可变上下文
-    fn get_context_mut(&mut self, id: &str) -> Option<&mut super::enum_context::UnifiedContext>;
-
-    /// 移除上下文
-    fn remove_context(&mut self, id: &str) -> Option<super::enum_context::UnifiedContext>;
-
     /// 清理过期上下文
     fn cleanup_expired_contexts(&mut self);
 
