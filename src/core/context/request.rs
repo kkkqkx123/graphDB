@@ -246,22 +246,22 @@ impl RequestContext {
 
     /// 获取会话信息
     pub fn session_info(&self) -> Option<&SessionInfo> {
-        self.session_info
+        self.session_info.as_ref()
     }
 
     /// 获取会话ID
     pub fn session_id(&self) -> Option<&str> {
-        self.session_info.map(|s| s.session_id.as_str())
+        self.session_info.as_ref().map(|s| s.session_id.as_str())
     }
 
     /// 获取用户名
     pub fn user_name(&self) -> Option<&str> {
-        self.session_info.map(|s| s.user_name.as_str())
+        self.session_info.as_ref().map(|s| s.user_name.as_str())
     }
 
     /// 获取客户端IP
     pub fn client_ip(&self) -> Option<&str> {
-        self.session_info.map(|s| s.client_ip.as_str())
+        self.session_info.as_ref().map(|s| s.client_ip.as_str())
     }
 
     /// 获取查询字符串

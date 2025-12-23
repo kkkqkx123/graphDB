@@ -330,7 +330,7 @@ impl ExpressionAcceptor for crate::core::Expression {
                 conditions,
                 default,
             } => {
-                let default_cloned = default.map(|b| (**b).clone());
+                let default_cloned = default.as_ref().map(|b| &**b);
                 visitor.visit_case(conditions, &default_cloned)
             }
             Expression::TypeCast { expr, target_type } => {

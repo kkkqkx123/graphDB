@@ -94,7 +94,7 @@ impl ValidationContext {
 
     /// 获取Schema管理器
     pub fn get_schema_manager(&self) -> Option<&Arc<dyn SchemaProvider>> {
-        self.schema_manager
+        self.schema_manager.as_ref()
     }
 
     /// 添加Schema

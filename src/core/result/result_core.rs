@@ -244,7 +244,7 @@ impl Result {
 
     /// 获取迭代器的引用
     pub fn iterator(&self) -> Option<&Arc<dyn ResultIterator>> {
-        self.core.iterator
+        self.core.iterator.as_ref()
     }
 
     /// 获取内存统计

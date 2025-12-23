@@ -359,7 +359,7 @@ impl Clone for BasicExpressionContext {
             variables: self.variables.clone(),
             functions: self.functions.clone(),
             custom_functions: self.custom_functions.clone(),
-            parent: self.parent.map(|p| Box::new(p.clone())),
+            parent: self.parent.clone(),
             depth: self.get_depth(),
             cache_manager: self.cache_manager.clone(),
         }
@@ -406,7 +406,7 @@ impl MutableContext for BasicExpressionContext {
 
 impl HierarchicalContext for BasicExpressionContext {
     fn parent_id(&self) -> Option<&str> {
-        self.parent.map(|_| "parent_expression")
+        self.parent.as_ref().map(|_| "parent_expression")
     }
 
     fn depth(&self) -> usize {

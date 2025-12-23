@@ -152,7 +152,7 @@ impl AggregateState {
         self.values.push(value.clone());
 
         // 更新最小值
-        if self.min.map_or(true, |min_val| value.lt(&min_val)) {
+        if self.min.as_ref().map_or(true, |min_val| value.lt(min_val)) {
             self.min = Some(value.clone());
         }
 

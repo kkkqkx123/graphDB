@@ -365,10 +365,10 @@ impl Expression {
             } => {
                 let mut children = vec![collection];
                 if let Some(s) = start {
-                    children.push(s);
+                    children.push(&**s);
                 }
                 if let Some(e) = end {
-                    children.push(e);
+                    children.push(&**e);
                 }
                 children
             }

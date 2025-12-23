@@ -149,11 +149,11 @@ impl ExpressionContext for DefaultExpressionContext {
     }
 
     fn get_vertex(&self) -> Option<&Vertex> {
-        self.vertex
+        self.vertex.as_ref()
     }
 
     fn get_edge(&self) -> Option<&Edge> {
-        self.edge
+        self.edge.as_ref()
     }
 
     fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
