@@ -10,8 +10,8 @@ use crate::query::context::validate::types::Variable;
 #[derive(Debug, Clone)]
 pub struct AggregateNode {
     id: i64,
-    input: super::plan_node_enum::PlanNodeEnum,
-    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     group_keys: Vec<String>,
     agg_exprs: Vec<String>,
     output_var: Option<Variable>,
@@ -29,11 +29,11 @@ impl AggregateNode {
         let col_names: Vec<String> = group_keys.iter().chain(agg_exprs.iter()).cloned().collect();
 
         let mut deps = Vec::new();
-        deps.push(input.clone());
+        deps.push(Box::new(input.clone()));
 
         Ok(Self {
             id: -1,
-            input,
+            input: Box::new(input),
             deps,
             group_keys,
             agg_exprs,
@@ -73,14 +73,14 @@ impl AggregateNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = dep.clone();
+        self.input = Box::new(dep.clone());
         self.deps.clear();
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn test_aggregate_node_creation() {
-        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let group_keys = vec!["category".to_string()];
         let agg_exprs = vec!["COUNT(*)".to_string()];

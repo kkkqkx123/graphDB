@@ -1,10 +1,10 @@
 //! 管理操作相关的计划节点
 //! 包括索引、配置、主机和系统管理操作
 
-mod config_ops;
-mod host_ops;
-mod index_ops;
-mod system_ops;
+pub mod config_ops;
+pub mod host_ops;
+pub mod index_ops;
+pub mod system_ops;
 
 pub use config_ops::*;
 pub use host_ops::*;

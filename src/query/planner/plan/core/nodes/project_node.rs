@@ -11,12 +11,11 @@ use crate::query::validator::YieldColumn;
 #[derive(Debug, Clone)]
 pub struct ProjectNode {
     id: i64,
-    input: super::plan_node_enum::PlanNodeEnum,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
     columns: Vec<YieldColumn>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies_vec: Vec<super::plan_node_enum::PlanNodeEnum>, // 添加一个 Vec 来满足 trait 要求
 }
 
 impl ProjectNode {
@@ -27,17 +26,13 @@ impl ProjectNode {
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names: Vec<String> = columns.iter().map(|col| col.alias.clone()).collect();
 
-        let mut dependencies_vec = Vec::new();
-        dependencies_vec.push(input.clone());
-
         Ok(Self {
             id: -1,
-            input,
+            input: Box::new(input),
             columns,
             output_var: None,
             col_names,
             cost: 0.0,
-            dependencies_vec,
         })
     }
 
@@ -66,29 +61,17 @@ impl ProjectNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
-        &self.dependencies_vec
+    pub fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = dep.clone();
-        self.dependencies_vec.clear();
-        self.dependencies_vec.push(dep);
+        self.input = Box::new(dep);
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
-        let initial_len = self.dependencies_vec.len();
-        self.dependencies_vec.retain(|dep| dep.id() != id);
-        let final_len = self.dependencies_vec.len();
-
-        if initial_len != final_len {
-            // 更新 input，如果原来的 input 被移除
-            if self.input.id() == id {
-                // 如果移除了唯一的输入节点，使用 Vec 中的第一个元素作为新的输入
-                if let Some(first_dep) = self.dependencies_vec.first() {
-                    self.input = first_dep.clone();
-                }
-            }
+        if self.input.id() == id {
+            // 无法移除唯一的输入节点
             true
         } else {
             false
@@ -104,19 +87,7 @@ impl ProjectNode {
     }
 
     pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
-        super::plan_node_enum::PlanNodeEnum::Project(Self {
-            id: self.id,
-            input: self.input.clone(),
-            columns: self.columns.clone(),
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            dependencies_vec: self
-                .dependencies_vec
-                .iter()
-                .map(|dep| dep.clone())
-                .collect(),
-        })
+        super::plan_node_enum::PlanNodeEnum::Project(self.clone())
     }
 
     pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
@@ -135,7 +106,7 @@ mod tests {
     #[test]
     fn test_project_node_creation() {
         // 创建一个起始节点作为输入
-        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let columns = vec![YieldColumn {
             expr: Expression::Variable("test".to_string()),
@@ -146,14 +117,13 @@ mod tests {
         let project_node = ProjectNode::new(start_node, columns).expect("Project node should be created successfully");
 
         assert_eq!(project_node.type_name(), "Project");
-        assert_eq!(project_node.dependencies().len(), 1);
         assert_eq!(project_node.col_names().len(), 1);
         assert_eq!(project_node.col_names()[0], "test");
     }
 
     #[test]
     fn test_project_node_columns() {
-        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let columns = vec![
             YieldColumn {

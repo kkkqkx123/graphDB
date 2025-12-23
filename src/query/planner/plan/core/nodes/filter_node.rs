@@ -13,7 +13,7 @@ use crate::core::error::PlanNodeVisitError;
 #[derive(Debug, Clone)]
 pub struct FilterNode {
     id: i64,
-    input: PlanNodeEnum,
+    input: Box<PlanNodeEnum>,
     condition: Expression,
     output_var: Option<Variable>,
     col_names: Vec<String>,
@@ -30,7 +30,7 @@ impl FilterNode {
 
         Ok(Self {
             id: -1, // 将在后续分配
-            input,
+            input: Box::new(input),
             condition,
             output_var: None,
             col_names,
@@ -69,7 +69,7 @@ impl FilterNode {
     }
 
     /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> &[PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
         std::slice::from_ref(&self.input)
     }
 

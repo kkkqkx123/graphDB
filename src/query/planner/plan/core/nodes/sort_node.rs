@@ -11,8 +11,8 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct SortNode {
     id: i64,
-    input: super::plan_node_enum::PlanNodeEnum,
-    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     sort_items: Vec<String>,
     limit: Option<i64>,
     output_var: Option<Variable>,
@@ -28,11 +28,11 @@ impl SortNode {
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
-        deps.push(input.clone());
+        deps.push(Box::new(input.clone()));
 
         Ok(Self {
             id: -1,
-            input,
+            input: Box::new(input),
             deps,
             sort_items,
             limit: None,
@@ -77,14 +77,14 @@ impl SortNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = dep.clone();
+        self.input = Box::new(dep.clone());
         self.deps.clear();
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {
@@ -125,8 +125,8 @@ impl SortNode {
 #[derive(Debug, Clone)]
 pub struct LimitNode {
     id: i64,
-    input: super::plan_node_enum::PlanNodeEnum,
-    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     offset: i64,
     count: i64,
     output_var: Option<Variable>,
@@ -137,17 +137,17 @@ pub struct LimitNode {
 impl LimitNode {
     /// 创建新的限制节点
     pub fn new(
-        input: PlanNodeEnum,
+        input: super::plan_node_enum::PlanNodeEnum,
         offset: i64,
         count: i64,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
-        deps.push(input.clone());
+        deps.push(Box::new(input.clone()));
 
         Ok(Self {
             id: -1,
-            input,
+            input: Box::new(input),
             deps,
             offset,
             count,
@@ -189,14 +189,14 @@ impl LimitNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = dep.clone();
+        self.input = Box::new(dep.clone());
         self.deps.clear();
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {
@@ -237,8 +237,8 @@ impl LimitNode {
 #[derive(Debug, Clone)]
 pub struct TopNNode {
     id: i64,
-    input: super::plan_node_enum::PlanNodeEnum,
-    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     sort_items: Vec<String>,
     limit: i64,
     output_var: Option<Variable>,
@@ -249,17 +249,17 @@ pub struct TopNNode {
 impl TopNNode {
     /// 创建新的TopN节点
     pub fn new(
-        input: PlanNodeEnum,
+        input: super::plan_node_enum::PlanNodeEnum,
         sort_items: Vec<String>,
         limit: i64,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
-        deps.push(input.clone());
+        deps.push(Box::new(input.clone()));
 
         Ok(Self {
             id: -1,
-            input,
+            input: Box::new(input),
             deps,
             sort_items,
             limit,
@@ -301,14 +301,14 @@ impl TopNNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = dep.clone();
+        self.input = Box::new(dep.clone());
         self.deps.clear();
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {

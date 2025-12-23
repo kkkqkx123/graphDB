@@ -11,15 +11,15 @@ use crate::query::context::validate::types::Variable;
 #[derive(Debug, Clone)]
 pub struct InnerJoinNode {
     id: i64,
-    left: super::plan_node_enum::PlanNodeEnum,
-    right: super::plan_node_enum::PlanNodeEnum,
+    left: Box<super::plan_node_enum::PlanNodeEnum>,
+    right: Box<super::plan_node_enum::PlanNodeEnum>,
     hash_keys: Vec<Expression>,
     probe_keys: Vec<Expression>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
     // 内部存储的依赖向量，用于快速访问
-    inner_deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    inner_deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 impl InnerJoinNode {
@@ -33,12 +33,12 @@ impl InnerJoinNode {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
 
-        let inner_deps = vec![left.clone(), right.clone()];
+        let inner_deps = vec![Box::new(left.clone()), Box::new(right.clone())];
 
         Ok(Self {
             id: -1,
-            left,
-            right,
+            left: Box::new(left),
+            right: Box::new(right),
             hash_keys,
             probe_keys,
             output_var: None,
@@ -78,7 +78,7 @@ impl InnerJoinNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.inner_deps
     }
 
@@ -146,14 +146,14 @@ impl InnerJoinNode {
 #[derive(Debug, Clone)]
 pub struct LeftJoinNode {
     id: i64,
-    left: super::plan_node_enum::PlanNodeEnum,
-    right: super::plan_node_enum::PlanNodeEnum,
+    left: Box<super::plan_node_enum::PlanNodeEnum>,
+    right: Box<super::plan_node_enum::PlanNodeEnum>,
     hash_keys: Vec<Expression>,
     probe_keys: Vec<Expression>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    inner_deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    inner_deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 impl LeftJoinNode {
@@ -167,12 +167,12 @@ impl LeftJoinNode {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
 
-        let inner_deps = vec![left.clone(), right.clone()];
+        let inner_deps = vec![Box::new(left.clone()), Box::new(right.clone())];
 
         Ok(Self {
             id: -1,
-            left,
-            right,
+            left: Box::new(left),
+            right: Box::new(right),
             hash_keys,
             probe_keys,
             output_var: None,
@@ -212,7 +212,7 @@ impl LeftJoinNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.inner_deps
     }
 
@@ -277,12 +277,12 @@ impl LeftJoinNode {
 #[derive(Debug, Clone)]
 pub struct CrossJoinNode {
     id: i64,
-    left: super::plan_node_enum::PlanNodeEnum,
-    right: super::plan_node_enum::PlanNodeEnum,
+    left: Box<super::plan_node_enum::PlanNodeEnum>,
+    right: Box<super::plan_node_enum::PlanNodeEnum>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    inner_deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    inner_deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 impl CrossJoinNode {
@@ -294,12 +294,12 @@ impl CrossJoinNode {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
 
-        let inner_deps = vec![left.clone(), right.clone()];
+        let inner_deps = vec![Box::new(left.clone()), Box::new(right.clone())];
 
         Ok(Self {
             id: -1,
-            left,
-            right,
+            left: Box::new(left),
+            right: Box::new(right),
             output_var: None,
             col_names,
             cost: 0.0,
@@ -327,7 +327,7 @@ impl CrossJoinNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.inner_deps
     }
 
@@ -392,8 +392,8 @@ mod tests {
 
     #[test]
     fn test_inner_join_node_creation() {
-        let left_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
-        let right_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let left_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let right_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let hash_keys = vec![Expression::Variable("key".to_string())];
         let probe_keys = vec![Expression::Variable("key".to_string())];
@@ -409,8 +409,8 @@ mod tests {
 
     #[test]
     fn test_inner_join_node_dependencies() {
-        let left_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
-        let right_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let left_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let right_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let hash_keys = vec![Expression::Variable("key".to_string())];
         let probe_keys = vec![Expression::Variable("key".to_string())];

@@ -7,12 +7,11 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{create_basic_pattern, is_tautology, BaseOptRule, EliminationRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::{
     AppendVerticesNode, DedupNode, FilterNode, GetEdgesNode, GetVerticesNode, InnerJoinNode,
     LeftJoinNode, LimitNode, ProjectNode, ScanEdgesNode, ScanVerticesNode, SortNode, StartNode,
 };
-use crate::query::planner::plan::PlanNodeKind;
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -29,7 +28,7 @@ impl OptRule for EliminateFilterRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为过滤节点
-        if node.plan_node.kind() != PlanNodeKind::Filter {
+        if !node.plan_node.is_filter() {
             return Ok(None);
         }
 
@@ -50,7 +49,7 @@ impl BaseOptRule for EliminateFilterRule {}
 
 impl EliminationRule for EliminateFilterRule {
     fn can_eliminate(&self, _ctx: &OptContext, node: &OptGroupNode) -> bool {
-        if node.plan_node.kind() != PlanNodeKind::Filter {
+        if !node.plan_node.is_filter() {
             return false;
         }
 
@@ -118,7 +117,7 @@ impl OptRule for DedupEliminationRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为去重操作
-        if node.plan_node.kind() != PlanNodeKind::Dedup {
+        if !node.plan_node.is_dedup() {
             return Ok(None);
         }
 
@@ -140,7 +139,7 @@ impl BaseOptRule for DedupEliminationRule {}
 impl EliminationRule for DedupEliminationRule {
     fn can_eliminate(&self, ctx: &OptContext, node: &OptGroupNode) -> bool {
         // 检查是否为去重节点
-        if node.plan_node.kind() != PlanNodeKind::Dedup {
+        if !node.plan_node.is_dedup() {
             return false;
         }
 
@@ -153,10 +152,9 @@ impl EliminationRule for DedupEliminationRule {
         let child_dep_id = node.dependencies[0];
         if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
             // 如果依赖节点已经产生唯一结果（如IndexScan、GetVertices等），则可以消除去重操作
-            matches!(
-                child_node.plan_node.kind(),
-                PlanNodeKind::IndexScan | PlanNodeKind::GetVertices | PlanNodeKind::GetEdges
-            )
+            child_node.plan_node.is_index_scan()
+                || child_node.plan_node.is_get_vertices()
+                || child_node.plan_node.is_get_edges()
         } else {
             false
         }
@@ -171,38 +169,36 @@ impl EliminationRule for DedupEliminationRule {
             let child_dep_id = node.dependencies[0];
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 检查子节点是否已经是唯一结果的操作
-                match child_node.plan_node.kind() {
-                    PlanNodeKind::IndexScan
-                    | PlanNodeKind::GetVertices
-                    | PlanNodeKind::GetEdges => {
-                        // 这些操作已经产生唯一结果，可以移除去重
-                        let new_plan_node = child_node.plan_node.clone();
+                if child_node.plan_node.is_index_scan()
+                    || child_node.plan_node.is_get_vertices()
+                    || child_node.plan_node.is_get_edges()
+                {
+                    // 这些操作已经产生唯一结果，可以移除去重
+                    let new_plan_node = child_node.plan_node.clone();
 
-                        // 创建新的OptGroupNode
-                        let mut new_node = OptGroupNode {
-                            id: child_node.id,
-                            plan_node: new_plan_node,
-                            dependencies: child_node.dependencies.clone(),
-                            cost: child_node.cost,
-                            properties: child_node.properties.clone(),
-                            explored_rules: child_node.explored_rules.clone(),
-                            group_id: child_node.group_id,
-                        };
+                    // 创建新的OptGroupNode
+                    let mut new_node = OptGroupNode {
+                        id: child_node.id,
+                        plan_node: new_plan_node,
+                        dependencies: child_node.dependencies.clone(),
+                        cost: child_node.cost,
+                        properties: child_node.properties.clone(),
+                        explored_rules: child_node.explored_rules.clone(),
+                        group_id: child_node.group_id,
+                    };
 
-                        // 保留当前节点的输出变量
-                        if let Some(output_var) = node.plan_node.output_var() {
-                            new_node.plan_node = create_plan_node_with_output_var(
-                                &child_node.plan_node,
-                                output_var.clone(),
-                            );
-                        }
-
-                        return Ok(Some(new_node));
+                    // 保留当前节点的输出变量
+                    if let Some(output_var) = node.plan_node.output_var() {
+                        new_node.plan_node = create_plan_node_with_output_var(
+                            &child_node.plan_node,
+                            output_var.clone(),
+                        );
                     }
-                    _ => {
-                        // 其他类型不能移除去重
-                        return Ok(None);
-                    }
+
+                    return Ok(Some(new_node));
+                } else {
+                    // 其他类型不能移除去重
+                    return Ok(None);
                 }
             }
         }
@@ -225,7 +221,7 @@ impl OptRule for RemoveNoopProjectRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为投影操作
-        if node.plan_node.kind() != PlanNodeKind::Project {
+        if !node.plan_node.is_project() {
             return Ok(None);
         }
 
@@ -321,7 +317,7 @@ impl RemoveNoopProjectRule {
 impl EliminationRule for RemoveNoopProjectRule {
     fn can_eliminate(&self, ctx: &OptContext, node: &OptGroupNode) -> bool {
         // 检查是否为投影节点
-        if node.plan_node.kind() != PlanNodeKind::Project {
+        if !node.plan_node.is_project() {
             return false;
         }
 
@@ -404,7 +400,7 @@ impl OptRule for EliminateAppendVerticesRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为添加顶点操作
-        if node.plan_node.kind() != PlanNodeKind::AppendVertices {
+        if !node.plan_node.is_append_vertices() {
             return Ok(None);
         }
 
@@ -417,7 +413,7 @@ impl OptRule for EliminateAppendVerticesRule {
     }
 
     fn pattern(&self) -> Pattern {
-        create_basic_pattern(PlanNodeKind::AppendVertices)
+        create_basic_pattern("AppendVertices")
     }
 }
 
@@ -425,7 +421,7 @@ impl BaseOptRule for EliminateAppendVerticesRule {}
 
 impl EliminationRule for EliminateAppendVerticesRule {
     fn can_eliminate(&self, _ctx: &OptContext, node: &OptGroupNode) -> bool {
-        if node.plan_node.kind() != PlanNodeKind::AppendVertices {
+        if !node.plan_node.is_append_vertices() {
             return false;
         }
 
@@ -482,7 +478,7 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为添加顶点操作
-        if node.plan_node.kind() != PlanNodeKind::AppendVertices {
+        if !node.plan_node.is_append_vertices() {
             return Ok(None);
         }
 
@@ -495,7 +491,7 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::AppendVertices, PlanNodeKind::InnerJoin)
+        PatternBuilder::with_dependency("AppendVertices", "InnerJoin")
     }
 }
 
@@ -503,7 +499,7 @@ impl BaseOptRule for RemoveAppendVerticesBelowJoinRule {}
 
 impl EliminationRule for RemoveAppendVerticesBelowJoinRule {
     fn can_eliminate(&self, ctx: &OptContext, node: &OptGroupNode) -> bool {
-        if node.plan_node.kind() != PlanNodeKind::AppendVertices {
+        if !node.plan_node.is_append_vertices() {
             return false;
         }
 
@@ -511,12 +507,9 @@ impl EliminationRule for RemoveAppendVerticesBelowJoinRule {
         if node.dependencies.len() == 1 {
             let child_dep_id = node.dependencies[0];
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                return matches!(
-                    child_node.plan_node.kind(),
-                    PlanNodeKind::InnerJoin
-                        | PlanNodeKind::HashInnerJoin
-                        | PlanNodeKind::HashLeftJoin
-                );
+                return child_node.plan_node.is_inner_join()
+                    || child_node.plan_node.is_hash_inner_join()
+                    || child_node.plan_node.is_hash_left_join();
             }
         }
 

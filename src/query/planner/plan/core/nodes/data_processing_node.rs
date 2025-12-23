@@ -8,8 +8,8 @@ use crate::query::context::validate::types::Variable;
 #[derive(Debug, Clone)]
 pub struct UnionNode {
     id: i64,
-    input: super::plan_node_enum::PlanNodeEnum,
-    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     distinct: bool,
     output_var: Option<Variable>,
     col_names: Vec<String>,
@@ -23,11 +23,11 @@ impl UnionNode {
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
-        deps.push(input.clone());
+        deps.push(Box::new(input.clone()));
 
         Ok(Self {
             id: -1,
-            input,
+            input: Box::new(input),
             deps,
             distinct,
             output_var: None,
@@ -60,14 +60,14 @@ impl UnionNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = dep.clone();
+        self.input = Box::new(dep.clone());
         self.deps.clear();
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {
@@ -105,8 +105,8 @@ impl UnionNode {
 #[derive(Debug, Clone)]
 pub struct UnwindNode {
     id: i64,
-    input: super::plan_node_enum::PlanNodeEnum,
-    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     alias: String,
     list_expr: String,
     output_var: Option<Variable>,
@@ -124,11 +124,11 @@ impl UnwindNode {
         col_names.push(alias.to_string());
 
         let mut deps = Vec::new();
-        deps.push(input.clone());
+        deps.push(Box::new(input.clone()));
 
         Ok(Self {
             id: -1,
-            input,
+            input: Box::new(input),
             deps,
             alias: alias.to_string(),
             list_expr: list_expr.to_string(),
@@ -166,14 +166,14 @@ impl UnwindNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = dep.clone();
+        self.input = Box::new(dep.clone());
         self.deps.clear();
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {
@@ -212,8 +212,8 @@ impl UnwindNode {
 #[derive(Debug, Clone)]
 pub struct DedupNode {
     id: i64,
-    input: super::plan_node_enum::PlanNodeEnum,
-    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -225,11 +225,11 @@ impl DedupNode {
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
-        deps.push(input.clone());
+        deps.push(Box::new(input.clone()));
 
         Ok(Self {
             id: -1,
-            input,
+            input: Box::new(input),
             deps,
             output_var: None,
             col_names,
@@ -257,14 +257,14 @@ impl DedupNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = dep.clone();
+        self.input = Box::new(dep.clone());
         self.deps.clear();
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {
@@ -301,8 +301,8 @@ impl DedupNode {
 #[derive(Debug, Clone)]
 pub struct RollUpApplyNode {
     id: i64,
-    input: super::plan_node_enum::PlanNodeEnum,
-    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     collect_exprs: Vec<String>,
     lambda_vars: Vec<String>,
     output_var: Option<Variable>,
@@ -318,11 +318,11 @@ impl RollUpApplyNode {
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
-        deps.push(input.clone());
+        deps.push(Box::new(input.clone()));
 
         Ok(Self {
             id: -1,
-            input,
+            input: Box::new(input),
             deps,
             collect_exprs,
             lambda_vars,
@@ -360,14 +360,14 @@ impl RollUpApplyNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = dep.clone();
+        self.input = Box::new(dep.clone());
         self.deps.clear();
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {
@@ -406,8 +406,8 @@ impl RollUpApplyNode {
 #[derive(Debug, Clone)]
 pub struct PatternApplyNode {
     id: i64,
-    input: super::plan_node_enum::PlanNodeEnum,
-    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     pattern: String,
     join_type: String,
     output_var: Option<Variable>,
@@ -423,11 +423,11 @@ impl PatternApplyNode {
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
-        deps.push(input.clone());
+        deps.push(Box::new(input.clone()));
 
         Ok(Self {
             id: -1,
-            input,
+            input: Box::new(input),
             deps,
             pattern: pattern.to_string(),
             join_type: join_type.to_string(),
@@ -465,14 +465,14 @@ impl PatternApplyNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = dep.clone();
+        self.input = Box::new(dep.clone());
         self.deps.clear();
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {
@@ -511,8 +511,8 @@ impl PatternApplyNode {
 #[derive(Debug, Clone)]
 pub struct DataCollectNode {
     id: i64,
-    input: super::plan_node_enum::PlanNodeEnum,
-    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     collect_kind: String,
     output_var: Option<Variable>,
     col_names: Vec<String>,
@@ -526,11 +526,11 @@ impl DataCollectNode {
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
-        deps.push(input.clone());
+        deps.push(Box::new(input.clone()));
 
         Ok(Self {
             id: -1,
-            input,
+            input: Box::new(input),
             deps,
             collect_kind: collect_kind.to_string(),
             output_var: None,
@@ -563,14 +563,14 @@ impl DataCollectNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = dep.clone();
+        self.input = Box::new(dep.clone());
         self.deps.clear();
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {
@@ -611,7 +611,7 @@ mod tests {
 
     #[test]
     fn test_union_node_creation() {
-        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let union_node = UnionNode::new(start_node, true).expect("Union node should be created successfully");
 
@@ -622,7 +622,7 @@ mod tests {
 
     #[test]
     fn test_unwind_node_creation() {
-        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let unwind_node = UnwindNode::new(start_node, "item", "list").expect("Unwind node should be created successfully");
 
@@ -634,7 +634,7 @@ mod tests {
 
     #[test]
     fn test_dedup_node_creation() {
-        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let dedup_node = DedupNode::new(start_node).expect("Dedup node should be created successfully");
 

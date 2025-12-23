@@ -3,6 +3,7 @@ use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
 
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::core::nodes::PlanNodeFactory;
 
 #[derive(Debug)]
 pub struct LookupPlanner {

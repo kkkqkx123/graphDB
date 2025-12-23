@@ -6,7 +6,6 @@ use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{combine_conditions, BaseOptRule, FilterSplitResult};
 use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::PlanNodeKind;
 use crate::query::planner::plan::core::nodes::FilterNode;
 use crate::query::planner::plan::algorithms::IndexScan;
 
@@ -27,7 +26,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为索引扫描操作
-        if node.plan_node.kind() != PlanNodeKind::IndexScan {
+        if !node.plan_node.is_index_scan() {
             return Ok(None);
         }
 
@@ -35,7 +34,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
         if node.dependencies.len() >= 1 {
             for dep_id in &node.dependencies {
                 if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(*dep_id) {
-                    if dep_node.plan_node.kind() == PlanNodeKind::Filter {
+                    if dep_node.plan_node.is_filter() {
                         // 检查过滤条件是否可以推入到索引扫描中
                         if let Some(filter_node) =
                             dep_node.plan_node.as_any().downcast_ref::<FilterNode>()
@@ -133,7 +132,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为索引扫描操作
-        if node.plan_node.kind() != PlanNodeKind::IndexScan {
+        if !node.plan_node.is_index_scan() {
             return Ok(None);
         }
 
@@ -141,7 +140,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
         if node.dependencies.len() >= 1 {
             for dep_id in &node.dependencies {
                 if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(*dep_id) {
-                    if dep_node.plan_node.kind() == PlanNodeKind::Filter {
+                    if dep_node.plan_node.is_filter() {
                         // 检查过滤条件是否可以推入到索引扫描中
                         if let Some(filter_node) =
                             dep_node.plan_node.as_any().downcast_ref::<FilterNode>()
@@ -239,7 +238,7 @@ impl OptRule for EdgeIndexFullScanRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为可能是全扫描的索引扫描操作
-        if node.plan_node.kind() != PlanNodeKind::IndexScan {
+        if !node.plan_node.is_index_scan() {
             return Ok(None);
         }
 
@@ -284,7 +283,7 @@ impl OptRule for TagIndexFullScanRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为可能是全扫描的索引扫描操作
-        if node.plan_node.kind() != PlanNodeKind::IndexScan {
+        if !node.plan_node.is_index_scan() {
             return Ok(None);
         }
 
@@ -329,7 +328,7 @@ impl OptRule for IndexScanRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为索引扫描操作
-        if node.plan_node.kind() != PlanNodeKind::IndexScan {
+        if !node.plan_node.is_index_scan() {
             return Ok(None);
         }
 
@@ -370,7 +369,7 @@ impl OptRule for UnionAllEdgeIndexScanRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为作为UNION一部分的索引扫描操作
-        if node.plan_node.kind() != PlanNodeKind::IndexScan {
+        if !node.plan_node.is_index_scan() {
             return Ok(None);
         }
 
@@ -406,7 +405,7 @@ impl OptRule for UnionAllTagIndexScanRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为作为UNION一部分的索引扫描操作
-        if node.plan_node.kind() != PlanNodeKind::IndexScan {
+        if !node.plan_node.is_index_scan() {
             return Ok(None);
         }
 
@@ -709,7 +708,7 @@ impl UnionAllEdgeIndexScanRule {
         let mut index_scan_nodes = Vec::new();
         for &dep_id in &node.dependencies {
             if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(dep_id) {
-                if dep_node.plan_node.kind() == PlanNodeKind::IndexScan {
+                if dep_node.plan_node.is_index_scan() {
                     if let Some(index_scan) = dep_node
                         .plan_node
                         .as_any()
@@ -875,7 +874,7 @@ impl UnionAllTagIndexScanRule {
         let mut index_scan_nodes = Vec::new();
         for &dep_id in &node.dependencies {
             if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(dep_id) {
-                if dep_node.plan_node.kind() == PlanNodeKind::IndexScan {
+                if dep_node.plan_node.is_index_scan() {
                     if let Some(index_scan) = dep_node
                         .plan_node
                         .as_any()

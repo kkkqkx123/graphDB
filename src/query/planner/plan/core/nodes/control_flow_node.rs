@@ -13,7 +13,7 @@ pub struct ArgumentNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 ArgumentNode 实现 Clone
@@ -68,7 +68,7 @@ impl ArgumentNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = self
             .dependencies
             .lock()
@@ -80,7 +80,7 @@ impl ArgumentNode {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
-            .push(dep);
+            .push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -120,12 +120,12 @@ impl ArgumentNode {
 pub struct SelectNode {
     id: i64,
     condition: String,
-    if_branch: Option<super::plan_node_enum::PlanNodeEnum>,
-    else_branch: Option<super::plan_node_enum::PlanNodeEnum>,
+    if_branch: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
+    else_branch: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 SelectNode 实现 Clone
@@ -134,8 +134,8 @@ impl Clone for SelectNode {
         SelectNode {
             id: self.id,
             condition: self.condition.clone(),
-            if_branch: self.if_branch.map(|node| node.clone()),
-            else_branch: self.else_branch.map(|node| node.clone()),
+            if_branch: self.if_branch.as_ref().map(|node| node.clone()),
+            else_branch: self.else_branch.as_ref().map(|node| node.clone()),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -159,18 +159,18 @@ impl SelectNode {
     }
 
     pub fn set_if_branch(&mut self, branch: super::plan_node_enum::PlanNodeEnum) {
-        self.if_branch = Some(branch);
+        self.if_branch = Some(Box::new(branch));
     }
 
     pub fn set_else_branch(&mut self, branch: super::plan_node_enum::PlanNodeEnum) {
-        self.else_branch = Some(branch);
+        self.else_branch = Some(Box::new(branch));
     }
 
-    pub fn if_branch(&self) -> &Option<super::plan_node_enum::PlanNodeEnum> {
+    pub fn if_branch(&self) -> &Option<Box<super::plan_node_enum::PlanNodeEnum>> {
         &self.if_branch
     }
 
-    pub fn else_branch(&self) -> &Option<super::plan_node_enum::PlanNodeEnum> {
+    pub fn else_branch(&self) -> &Option<Box<super::plan_node_enum::PlanNodeEnum>> {
         &self.else_branch
     }
 
@@ -200,7 +200,7 @@ impl SelectNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = self
             .dependencies
             .lock()
@@ -212,7 +212,7 @@ impl SelectNode {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
-            .push(dep);
+            .push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -261,11 +261,11 @@ impl SelectNode {
 pub struct LoopNode {
     id: i64,
     condition: String,
-    body: Option<super::plan_node_enum::PlanNodeEnum>,
+    body: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 LoopNode 实现 Clone
@@ -274,7 +274,7 @@ impl Clone for LoopNode {
         LoopNode {
             id: self.id,
             condition: self.condition.clone(),
-            body: self.body.map(|node| node.clone()),
+            body: self.body.as_ref().map(|node| node.clone()),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -297,10 +297,10 @@ impl LoopNode {
     }
 
     pub fn set_body(&mut self, body: super::plan_node_enum::PlanNodeEnum) {
-        self.body = Some(body);
+        self.body = Some(Box::new(body));
     }
 
-    pub fn body(&self) -> &Option<super::plan_node_enum::PlanNodeEnum> {
+    pub fn body(&self) -> &Option<Box<super::plan_node_enum::PlanNodeEnum>> {
         &self.body
     }
 
@@ -330,7 +330,7 @@ impl LoopNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = self
             .dependencies
             .lock()
@@ -342,7 +342,7 @@ impl LoopNode {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
-            .push(dep);
+            .push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -392,7 +392,7 @@ pub struct PassThroughNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 PassThroughNode 实现 Clone
@@ -441,7 +441,7 @@ impl PassThroughNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = self
             .dependencies
             .lock()
@@ -453,7 +453,7 @@ impl PassThroughNode {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
-            .push(dep);
+            .push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {

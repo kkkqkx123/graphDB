@@ -16,6 +16,7 @@ pub use control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode}
 pub use data_processing_node::{
     DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
+pub use factory::PlanNodeFactory;
 pub use filter_node::FilterNode;
 pub use graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,

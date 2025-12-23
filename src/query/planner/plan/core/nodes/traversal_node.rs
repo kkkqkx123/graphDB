@@ -19,7 +19,7 @@ pub struct ExpandNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 ExpandNode 实现 Clone
@@ -93,7 +93,7 @@ impl ExpandNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = self
             .dependencies
             .lock()
@@ -105,7 +105,7 @@ impl ExpandNode {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
-            .push(dep);
+            .push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -156,7 +156,7 @@ pub struct ExpandAllNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 ExpandAllNode 实现 Clone
@@ -232,7 +232,7 @@ impl ExpandAllNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = self
             .dependencies
             .lock()
@@ -244,7 +244,7 @@ impl ExpandAllNode {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
-            .push(dep);
+            .push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -292,7 +292,7 @@ pub struct TraverseNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 TraverseNode 实现 Clone
@@ -371,7 +371,7 @@ impl TraverseNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = self
             .dependencies
             .lock()
@@ -383,7 +383,7 @@ impl TraverseNode {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
-            .push(dep);
+            .push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -429,7 +429,7 @@ pub struct AppendVerticesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 AppendVerticesNode 实现 Clone
@@ -506,7 +506,7 @@ impl AppendVerticesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = self
             .dependencies
             .lock()
@@ -518,7 +518,7 @@ impl AppendVerticesNode {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
-            .push(dep);
+            .push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {

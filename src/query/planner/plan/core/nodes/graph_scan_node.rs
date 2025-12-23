@@ -13,20 +13,16 @@ use std::sync::{Arc, Mutex};
 pub struct GetVerticesNode {
     id: i64,
     space_id: i32,
-    #[allow(dead_code)]
     src_ref: Expression,
     src_vids: String,
-    #[allow(dead_code)]
     tag_props: Vec<TagProp>,
-    #[allow(dead_code)]
     expr: Option<String>,
-    #[allow(dead_code)]
     dedup: bool,
     limit: Option<i64>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 GetVerticesNode 实现 Clone
@@ -112,7 +108,7 @@ impl GetVerticesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = safe_lock(&self.dependencies)
             .expect("GetVerticesNode dependencies lock should not be poisoned");
         deps.clone()
@@ -121,7 +117,7 @@ impl GetVerticesNode {
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         let mut deps = safe_lock(&self.dependencies)
             .expect("GetVerticesNode dependencies lock should not be poisoned");
-        deps.push(dep);
+        deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -175,7 +171,7 @@ pub struct GetEdgesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 GetEdgesNode 实现 Clone
@@ -277,7 +273,7 @@ impl GetEdgesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = safe_lock(&self.dependencies)
             .expect("GetEdgesNode dependencies lock should not be poisoned");
         deps.clone()
@@ -286,7 +282,7 @@ impl GetEdgesNode {
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         let mut deps = safe_lock(&self.dependencies)
             .expect("GetEdgesNode dependencies lock should not be poisoned");
-        deps.push(dep);
+        deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -341,7 +337,7 @@ pub struct GetNeighborsNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 GetNeighborsNode 实现 Clone
@@ -414,7 +410,7 @@ impl GetNeighborsNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = safe_lock(&self.dependencies)
             .expect("GetNeighborsNode dependencies lock should not be poisoned");
         deps.clone()
@@ -423,7 +419,7 @@ impl GetNeighborsNode {
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         let mut deps = safe_lock(&self.dependencies)
             .expect("GetNeighborsNode dependencies lock should not be poisoned");
-        deps.push(dep);
+        deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -467,7 +463,7 @@ pub struct ScanVerticesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 ScanVerticesNode 实现 Clone
@@ -552,7 +548,7 @@ impl ScanVerticesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = safe_lock(&self.dependencies)
             .expect("ScanVerticesNode dependencies lock should not be poisoned");
         deps.clone()
@@ -561,7 +557,7 @@ impl ScanVerticesNode {
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         let mut deps = safe_lock(&self.dependencies)
             .expect("ScanVerticesNode dependencies lock should not be poisoned");
-        deps.push(dep);
+        deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -607,7 +603,7 @@ pub struct ScanEdgesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
+    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
 }
 
 // 为 ScanEdgesNode 实现 Clone
@@ -694,7 +690,7 @@ impl ScanEdgesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
         let deps = safe_lock(&self.dependencies)
             .expect("ScanEdgesNode dependencies lock should not be poisoned");
         deps.clone()
@@ -703,7 +699,7 @@ impl ScanEdgesNode {
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         let mut deps = safe_lock(&self.dependencies)
             .expect("ScanEdgesNode dependencies lock should not be poisoned");
-        deps.push(dep);
+        deps.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
