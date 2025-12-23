@@ -22,8 +22,6 @@ pub use base::{
     BaseExecutor, ChainableExecutor, EdgeDirection, ExecutionContext, InputExecutor, StartExecutor,
 };
 
-// Re-export factory types
-pub use factory::{BaseExecutorFactory, ExecutorCreator};
 
 // Re-export result processing executors
 pub use result_processing::{

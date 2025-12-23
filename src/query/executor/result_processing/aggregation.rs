@@ -287,7 +287,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
             // 计算分组键
             let mut group_key = Vec::new();
             for group_expr in &self.group_keys {
-                let key_value = evaluator.evaluate(group_expr, &context).map_err(|e| {
+                let key_value = evaluator.evaluate(group_expr, &mut context).map_err(|e| {
                     crate::core::error::DBError::Expression(
                         crate::core::error::ExpressionError::function_error(format!(
                             "Failed to evaluate group key: {}",
@@ -702,7 +702,7 @@ impl<S: StorageEngine> HavingExecutor<S> {
             }
 
             // 评估 HAVING 条件
-            let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
+            let condition_result = evaluator.evaluate(&self.condition, &mut context).map_err(|e| {
                 crate::core::error::DBError::Expression(
                     crate::core::error::ExpressionError::function_error(format!(
                         "Failed to evaluate HAVING condition: {}",

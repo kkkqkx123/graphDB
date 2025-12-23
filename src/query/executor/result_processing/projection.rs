@@ -63,7 +63,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
         // 对每个投影列进行求值
         for column in &self.columns {
-            match evaluator.evaluate(&column.expression, &context) {
+            match evaluator.evaluate(&column.expression, &mut context) {
                 Ok(value) => projected_row.push(value),
                 Err(e) => {
                     return Err(DBError::Expression(
@@ -129,7 +129,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
             let mut projected_row = Vec::new();
             for column in &self.columns {
-                match evaluator.evaluate(&column.expression, &context) {
+                match evaluator.evaluate(&column.expression, &mut context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
                         return Err(DBError::Expression(
@@ -176,7 +176,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
             let mut projected_row = Vec::new();
             for column in &self.columns {
-                match evaluator.evaluate(&column.expression, &context) {
+                match evaluator.evaluate(&column.expression, &mut context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
                         return Err(DBError::Expression(
@@ -262,7 +262,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
 
                     let mut projected_row = Vec::new();
                     for column in &self.columns {
-                        match evaluator.evaluate(&column.expression, &context) {
+                        match evaluator.evaluate(&column.expression, &mut context) {
                             Ok(value) => projected_row.push(value),
                             Err(e) => {
                                 return Err(DBError::Expression(

@@ -266,7 +266,7 @@ impl ResultProcessorFactory {
         id: usize,
         storage: Arc<Mutex<S>>,
         aggregate_functions: Vec<
-            crate::query::executor::result_processing::aggregation::AggregateFunction,
+            crate::core::types::operators::AggregateFunction,
         >,
         group_keys: Vec<crate::core::Expression>,
     ) -> crate::query::executor::result_processing::aggregation::AggregateExecutor<S> {

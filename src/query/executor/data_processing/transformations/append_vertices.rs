@@ -136,7 +136,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     // 计算源表达式获取顶点ID
                     let evaluator = ExpressionEvaluator::new();
                     let vid = evaluator
-                        .evaluate(&self.src_expr, &expr_context)
+                        .evaluate(&self.src_expr, &mut expr_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),
@@ -161,7 +161,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 
                     let evaluator = ExpressionEvaluator::new();
                     let vid = evaluator
-                        .evaluate(&self.src_expr, &expr_context)
+                        .evaluate(&self.src_expr, &mut expr_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),
@@ -185,7 +185,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 
                     let evaluator = ExpressionEvaluator::new();
                     let vid = evaluator
-                        .evaluate(&self.src_expr, &expr_context)
+                        .evaluate(&self.src_expr, &mut expr_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),

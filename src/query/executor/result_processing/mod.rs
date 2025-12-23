@@ -27,9 +27,12 @@ pub use limit::LimitExecutor;
 // 聚合执行器
 pub mod aggregation;
 pub use aggregation::{
-    AggregateExecutor, AggregateFunction, AggregateState, GroupAggregateState, GroupByExecutor,
+    AggregateExecutor, AggregateState, GroupAggregateState, GroupByExecutor,
     HavingExecutor,
 };
+
+// Re-export AggregateFunction directly from its source
+pub use crate::core::types::operators::AggregateFunction;
 
 // 去重执行器
 pub mod dedup;

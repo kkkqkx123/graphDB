@@ -95,7 +95,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
             }
 
             // 评估过滤条件
-            let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
+            let condition_result = evaluator.evaluate(&self.condition, &mut context).map_err(|e| {
                 DBError::Expression(crate::core::error::ExpressionError::function_error(format!(
                     "Failed to evaluate filter condition: {}",
                     e
@@ -123,7 +123,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
             context.set_variable("value".to_string(), value.clone());
 
             // 评估过滤条件
-            let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
+            let condition_result = evaluator.evaluate(&self.condition, &mut context).map_err(|e| {
                 DBError::Expression(crate::core::error::ExpressionError::function_error(format!(
                     "Failed to evaluate filter condition: {}",
                     e
@@ -157,7 +157,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
             );
 
             // 评估过滤条件
-            let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
+            let condition_result = evaluator.evaluate(&self.condition, &mut context).map_err(|e| {
                 DBError::Expression(crate::core::error::ExpressionError::function_error(format!(
                     "Failed to evaluate filter condition: {}",
                     e
@@ -185,7 +185,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
             // 评估过滤条件
-            let condition_result = evaluator.evaluate(&self.condition, &context).map_err(|e| {
+            let condition_result = evaluator.evaluate(&self.condition, &mut context).map_err(|e| {
                 DBError::Expression(crate::core::error::ExpressionError::function_error(format!(
                     "Failed to evaluate filter condition: {}",
                     e

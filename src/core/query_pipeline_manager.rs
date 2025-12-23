@@ -1,6 +1,6 @@
 use crate::core::context::query::QueryContext;
 use crate::core::error::{DBError, DBResult};
-use crate::core::executor_factory::ExecutorFactory;
+use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::optimizer::Optimizer;
 use crate::query::parser::parser::Parser;

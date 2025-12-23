@@ -1,82 +1,29 @@
 //! 执行器工厂模块
 //!
 //! 负责根据执行计划创建对应的执行器实例
-//! 采用简洁的工厂模式设计，职责单一，易于扩展
+//! 采用直接匹配模式，简单高效，易于维护
 
 use crate::core::error::QueryError;
 use crate::query::executor::traits::Executor;
 use crate::query::planner::plan::core::{PlanNode, PlanNodeKind};
 use crate::storage::StorageEngine;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-
-/// 执行器创建器特征
-///
-/// 定义创建执行器的统一接口，支持对象安全的设计
-pub trait ExecutorCreator<S: StorageEngine>: std::fmt::Debug + Send + Sync {
-    /// 根据计划节点创建执行器实例
-    fn create_executor(
-        &self,
-        plan_node: &dyn PlanNode,
-        storage: Arc<Mutex<S>>,
-    ) -> Result<Box<dyn Executor<S>>, QueryError>;
-}
 
 /// 执行器工厂
 ///
-/// 负责管理执行器创建器的注册和分发，职责单一
+/// 负责根据计划节点类型创建对应的执行器实例
+/// 采用直接匹配模式，避免过度抽象
 #[derive(Debug)]
 pub struct ExecutorFactory<S: StorageEngine + 'static> {
-    /// 执行器创建器映射表
-    creators: HashMap<PlanNodeKind, Box<dyn ExecutorCreator<S>>>,
+    _phantom: std::marker::PhantomData<S>,
 }
 
 impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
     /// 创建新的执行器工厂
     pub fn new() -> Self {
-        let mut factory = Self {
-            creators: HashMap::new(),
-        };
-
-        // 注册默认的执行器创建器
-        factory.register_default_creators();
-        factory
-    }
-
-    /// 注册默认的执行器创建器
-    fn register_default_creators(&mut self) {
-        use crate::query::executor::factory::creators::*;
-
-        // 数据访问执行器
-        self.register_creator(
-            PlanNodeKind::ScanVertices,
-            Box::new(ScanVerticesCreator::new()),
-        );
-        self.register_creator(PlanNodeKind::ScanEdges, Box::new(ScanEdgesCreator::new()));
-
-        // 结果处理执行器
-        self.register_creator(PlanNodeKind::Filter, Box::new(FilterCreator::new()));
-        self.register_creator(PlanNodeKind::Project, Box::new(ProjectCreator::new()));
-        self.register_creator(PlanNodeKind::Limit, Box::new(LimitCreator::new()));
-        self.register_creator(PlanNodeKind::Sort, Box::new(SortCreator::new()));
-        self.register_creator(PlanNodeKind::Aggregate, Box::new(AggregateCreator::new()));
-
-        // 数据处理执行器
-        self.register_creator(PlanNodeKind::HashInnerJoin, Box::new(JoinCreator::new()));
-        self.register_creator(PlanNodeKind::HashLeftJoin, Box::new(JoinCreator::new()));
-        self.register_creator(PlanNodeKind::CartesianProduct, Box::new(JoinCreator::new()));
-
-        // 图遍历执行器
-        self.register_creator(PlanNodeKind::Expand, Box::new(ExpandCreator::new()));
-
-        // 基础执行器
-        self.register_creator(PlanNodeKind::Start, Box::new(StartCreator::new()));
-        self.register_creator(PlanNodeKind::Unknown, Box::new(DefaultCreator::new()));
-    }
-
-    /// 注册执行器创建器
-    pub fn register_creator(&mut self, kind: PlanNodeKind, creator: Box<dyn ExecutorCreator<S>>) {
-        self.creators.insert(kind, creator);
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
     }
 
     /// 根据计划节点创建执行器
@@ -85,185 +32,78 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
         plan_node: &dyn PlanNode,
         storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        let kind = plan_node.kind();
+        match plan_node.kind() {
+            // 基础执行器
+            PlanNodeKind::Start => {
+                // TODO: 实现开始执行器
+                Err(QueryError::ExecutionError("开始执行器尚未实现".to_string()))
+            }
+            PlanNodeKind::Unknown => {
+                // TODO: 实现默认执行器
+                Err(QueryError::ExecutionError("默认执行器尚未实现".to_string()))
+            }
 
-        let creator = self.creators.get(&kind).ok_or_else(|| {
-            QueryError::ExecutionError(format!("未找到类型 {:?} 的执行器创建器", kind))
-        })?;
+            // 数据访问执行器
+            PlanNodeKind::ScanVertices => {
+                // TODO: 实现扫描顶点执行器
+                Err(QueryError::ExecutionError(
+                    "扫描顶点执行器尚未实现".to_string(),
+                ))
+            }
+            PlanNodeKind::ScanEdges => {
+                // TODO: 实现扫描边执行器
+                Err(QueryError::ExecutionError(
+                    "扫描边执行器尚未实现".to_string(),
+                ))
+            }
 
-        creator.create_executor(plan_node, storage)
+            // 结果处理执行器
+            PlanNodeKind::Filter => {
+                // TODO: 实现过滤执行器
+                Err(QueryError::ExecutionError("过滤执行器尚未实现".to_string()))
+            }
+            PlanNodeKind::Project => {
+                // TODO: 实现投影执行器
+                Err(QueryError::ExecutionError("投影执行器尚未实现".to_string()))
+            }
+            PlanNodeKind::Limit => {
+                // TODO: 实现限制执行器
+                Err(QueryError::ExecutionError("限制执行器尚未实现".to_string()))
+            }
+            PlanNodeKind::Sort => {
+                // TODO: 实现排序执行器
+                Err(QueryError::ExecutionError("排序执行器尚未实现".to_string()))
+            }
+            PlanNodeKind::Aggregate => {
+                // TODO: 实现聚合执行器
+                Err(QueryError::ExecutionError("聚合执行器尚未实现".to_string()))
+            }
+
+            // 数据处理执行器
+            PlanNodeKind::HashInnerJoin
+            | PlanNodeKind::HashLeftJoin
+            | PlanNodeKind::CartesianProduct => {
+                // TODO: 实现连接执行器
+                Err(QueryError::ExecutionError("连接执行器尚未实现".to_string()))
+            }
+
+            // 图遍历执行器
+            PlanNodeKind::Expand => {
+                // TODO: 实现扩展执行器
+                Err(QueryError::ExecutionError("扩展执行器尚未实现".to_string()))
+            }
+
+            kind => Err(QueryError::ExecutionError(format!(
+                "未知的执行器类型: {:?}",
+                kind
+            ))),
+        }
     }
 }
 
 impl<S: StorageEngine + 'static + std::fmt::Debug> Default for ExecutorFactory<S> {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-/// 执行器ID生成器
-///
-/// 专门负责生成唯一的执行器ID，职责单一
-#[derive(Debug)]
-pub struct ExecutorIdGenerator {
-    next_id: usize,
-}
-
-impl ExecutorIdGenerator {
-    /// 创建新的ID生成器
-    pub fn new() -> Self {
-        Self { next_id: 1 }
-    }
-
-    /// 生成下一个执行器ID
-    pub fn generate_id(&mut self) -> usize {
-        let id = self.next_id;
-        self.next_id += 1;
-        id
-    }
-
-    /// 获取下一个ID（不递增）
-    pub fn next_id(&self) -> usize {
-        self.next_id
-    }
-}
-
-impl Default for ExecutorIdGenerator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// 执行器创建器模块
-///
-/// 包含所有具体的执行器创建器实现
-pub mod creators {
-    use super::*;
-    use std::marker::PhantomData;
-
-    // 数据访问执行器创建器
-    mod data_access;
-    pub use data_access::{ScanEdgesCreator, ScanVerticesCreator};
-
-    // 结果处理执行器创建器
-    mod result_processing;
-    pub use result_processing::{
-        AggregateCreator, FilterCreator, LimitCreator, ProjectCreator, SortCreator,
-    };
-
-    // 数据处理执行器创建器
-    mod data_processing;
-    pub use data_processing::JoinCreator;
-
-    // 图遍历执行器创建器
-    mod graph_traversal;
-    pub use graph_traversal::ExpandCreator;
-
-    // 基础执行器创建器
-    mod base;
-    pub use base::{DefaultCreator, StartCreator};
-}
-
-/// 聚合表达式解析工具
-///
-/// 提供聚合表达式的解析和验证功能
-pub mod aggregation {
-    use crate::core::error::QueryError;
-    use crate::core::types::operators::AggregateFunction;
-    use crate::query::executor::result_processing::aggregation::AggregateFunctionSpec;
-
-    /// 解析聚合表达式字符串为AggregateFunctionSpec
-    pub fn parse_aggregate_expression(expr_str: &str) -> Result<AggregateFunctionSpec, QueryError> {
-        // 去除空白字符并转换为大写
-        let expr = expr_str.trim().to_uppercase();
-
-        // 检查表达式是否为空
-        if expr.is_empty() {
-            return Err(QueryError::ExecutionError("聚合表达式不能为空".to_string()));
-        }
-
-        // 解析常见的聚合函数模式
-        if expr.starts_with("COUNT(") && expr.ends_with(")") {
-            let content = &expr[6..expr.len() - 1].trim();
-            if content == "*" || content == "1" {
-                // COUNT(*) 或 COUNT(1)
-                return Ok(AggregateFunctionSpec::count());
-            } else {
-                // COUNT(field)
-                return Ok(AggregateFunctionSpec::count_distinct(content.to_string()));
-            }
-        }
-
-        if expr.starts_with("SUM(") && expr.ends_with(")") {
-            let field = expr[4..expr.len() - 1].trim().to_string();
-            return Ok(AggregateFunctionSpec::sum(field));
-        }
-
-        if expr.starts_with("AVG(") && expr.ends_with(")") {
-            let field = expr[4..expr.len() - 1].trim().to_string();
-            return Ok(AggregateFunctionSpec::avg(field));
-        }
-
-        if expr.starts_with("MAX(") && expr.ends_with(")") {
-            let field = expr[4..expr.len() - 1].trim().to_string();
-            return Ok(AggregateFunctionSpec::max(field));
-        }
-
-        if expr.starts_with("MIN(") && expr.ends_with(")") {
-            let field = expr[4..expr.len() - 1].trim().to_string();
-            return Ok(AggregateFunctionSpec::min(field));
-        }
-
-        // 处理DISTINCT关键字
-        if expr.starts_with("COUNT(DISTINCT") && expr.ends_with(")") {
-            let field = expr[14..expr.len() - 1].trim().to_string();
-            return Ok(AggregateFunctionSpec::count_distinct(field));
-        }
-
-        // 处理其他支持的聚合函数
-        if expr.starts_with("COLLECT(") && expr.ends_with(")") {
-            let field = expr[8..expr.len() - 1].trim().to_string();
-            return Ok(AggregateFunctionSpec::new(AggregateFunction::Collect).with_field(field));
-        }
-
-        // 如果无法识别聚合函数，返回错误而不是使用默认值
-        Err(QueryError::ExecutionError(format!(
-            "无法识别的聚合表达式: '{}'",
-            expr_str
-        )))
-    }
-
-    /// 验证聚合节点的参数
-    pub fn validate_aggregate_node(
-        group_keys: &[String],
-        agg_exprs: &[String],
-    ) -> Result<(), QueryError> {
-        // 检查聚合表达式是否为空
-        if agg_exprs.is_empty() {
-            return Err(QueryError::ExecutionError(
-                "聚合操作需要至少一个聚合表达式".to_string(),
-            ));
-        }
-
-        // 验证分组键的有效性
-        for key in group_keys {
-            if key.trim().is_empty() {
-                return Err(QueryError::ExecutionError(
-                    "分组键不能为空字符串".to_string(),
-                ));
-            }
-        }
-
-        // 验证聚合表达式的有效性
-        for expr in agg_exprs {
-            if expr.trim().is_empty() {
-                return Err(QueryError::ExecutionError(
-                    "聚合表达式不能为空字符串".to_string(),
-                ));
-            }
-        }
-
-        Ok(())
     }
 }
 
@@ -372,56 +212,121 @@ mod tests {
         }
     }
 
+    // 模拟计划节点用于测试
+    #[derive(Debug)]
+    struct MockPlanNode {
+        kind: PlanNodeKind,
+        id: i64,
+    }
+
+    impl MockPlanNode {
+        fn new(kind: PlanNodeKind) -> Self {
+            Self { kind, id: 1 }
+        }
+    }
+
+    impl crate::query::planner::plan::core::nodes::traits::PlanNodeIdentifiable for MockPlanNode {
+        fn id(&self) -> i64 {
+            self.id
+        }
+
+        fn kind(&self) -> PlanNodeKind {
+            self.kind
+        }
+    }
+
+    impl crate::query::planner::plan::core::nodes::traits::PlanNodeProperties for MockPlanNode {
+        fn output_var(&self) -> Option<&crate::query::context::validate::types::Variable> {
+            None
+        }
+
+        fn col_names(&self) -> &[String] {
+            &[]
+        }
+
+        fn cost(&self) -> f64 {
+            0.0
+        }
+    }
+
+    impl crate::query::planner::plan::core::nodes::traits::PlanNodeDependencies for MockPlanNode {
+        fn dependencies(
+            &self,
+        ) -> Vec<std::sync::Arc<dyn crate::query::planner::plan::core::nodes::traits::PlanNode>>
+        {
+            Vec::new()
+        }
+
+        fn add_dependency(
+            &mut self,
+            _dep: std::sync::Arc<dyn crate::query::planner::plan::core::nodes::traits::PlanNode>,
+        ) {
+            // 空实现
+        }
+
+        fn remove_dependency(&mut self, _id: i64) -> bool {
+            false
+        }
+    }
+
+    impl crate::query::planner::plan::core::nodes::traits::PlanNodeMutable for MockPlanNode {
+        fn set_output_var(&mut self, _var: crate::query::context::validate::types::Variable) {
+            // 空实现
+        }
+
+        fn set_col_names(&mut self, _names: Vec<String>) {
+            // 空实现
+        }
+    }
+
+    impl crate::query::planner::plan::core::nodes::traits::PlanNodeVisitable for MockPlanNode {
+        fn accept(
+            &self,
+            _visitor: &mut dyn crate::query::planner::plan::core::visitor::PlanNodeVisitor,
+        ) -> Result<(), crate::query::planner::plan::core::visitor::PlanNodeVisitError> {
+            Ok(())
+        }
+    }
+
+    impl crate::query::planner::plan::core::nodes::traits::PlanNodeClonable for MockPlanNode {
+        fn clone_plan_node(
+            &self,
+        ) -> std::sync::Arc<dyn crate::query::planner::plan::core::nodes::traits::PlanNode>
+        {
+            std::sync::Arc::new(MockPlanNode::new(self.kind))
+        }
+
+        fn clone_with_new_id(
+            &self,
+            new_id: i64,
+        ) -> std::sync::Arc<dyn crate::query::planner::plan::core::nodes::traits::PlanNode>
+        {
+            let mut node = MockPlanNode::new(self.kind);
+            node.id = new_id;
+            std::sync::Arc::new(node)
+        }
+    }
+
+    impl crate::query::planner::plan::core::nodes::traits::PlanNode for MockPlanNode {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+    }
+
     #[test]
     fn test_factory_creation() {
+        let _factory = ExecutorFactory::<MockStorage>::new();
+        // 工厂创建成功
+    }
+
+    #[test]
+    fn test_create_unsupported_executor() {
         let factory = ExecutorFactory::<MockStorage>::new();
-        assert!(!factory.creators.is_empty());
-    }
+        let storage = Arc::new(Mutex::new(MockStorage));
+        let plan_node = MockPlanNode::new(PlanNodeKind::Unknown);
 
-    #[test]
-    fn test_id_generator() {
-        let mut generator = ExecutorIdGenerator::new();
-        assert_eq!(generator.next_id(), 1);
-        assert_eq!(generator.generate_id(), 1);
-        assert_eq!(generator.next_id(), 2);
-        assert_eq!(generator.generate_id(), 2);
-    }
-
-    #[test]
-    fn test_aggregate_expression_parsing() {
-        // 测试COUNT(*)
-        let result = aggregation::parse_aggregate_expression("COUNT(*)");
-        assert!(result.is_ok());
-
-        // 测试COUNT(field)
-        let result = aggregation::parse_aggregate_expression("COUNT(name)");
-        assert!(result.is_ok());
-
-        // 测试SUM(field)
-        let result = aggregation::parse_aggregate_expression("SUM(age)");
-        assert!(result.is_ok());
-
-        // 测试无效表达式
-        let result = aggregation::parse_aggregate_expression("INVALID()");
+        let result = factory.create_executor(&plan_node, storage);
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_aggregate_validation() {
-        // 测试有效参数
-        let result = aggregation::validate_aggregate_node(
-            &["category".to_string()],
-            &["COUNT(*)".to_string()],
-        );
-        assert!(result.is_ok());
-
-        // 测试空聚合表达式
-        let result = aggregation::validate_aggregate_node(&["category".to_string()], &[]);
-        assert!(result.is_err());
-
-        // 测试空分组键
-        let result =
-            aggregation::validate_aggregate_node(&["".to_string()], &["COUNT(*)".to_string()]);
-        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("尚未实现"));
     }
 }

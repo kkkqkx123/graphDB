@@ -142,7 +142,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
             let mut sort_values = Vec::new();
             for sort_key in &self.sort_keys {
                 let sort_value = evaluator
-                    .evaluate(&sort_key.expression, &expr_context)
+                    .evaluate(&sort_key.expression, &mut expr_context)
                     .map_err(|e| {
                         DBError::Query(crate::core::error::QueryError::ExecutionError(
                             e.to_string(),
