@@ -20,6 +20,7 @@ use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, Trave
 use crate::core::Value;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::parser::expressions::convert_ast_to_graph_expression;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::validator::YieldColumn;
 
 /// 节点工厂
@@ -100,9 +101,8 @@ impl PlanNodeFactory {
         group_keys: Vec<String>,
         agg_exprs: Vec<String>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 这里需要重构 AggregateNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "aggregate_placeholder")))
+        let aggregate_node = AggregateNode::new(input, group_keys, agg_exprs)?;
+        Ok(PlanNodeEnum::Aggregate(aggregate_node))
     }
 
     /// 创建排序节点
@@ -110,9 +110,8 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         sort_items: Vec<String>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 这里需要重构 SortNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "sort_placeholder")))
+        let sort_node = SortNode::new(input, sort_items)?;
+        Ok(PlanNodeEnum::Sort(sort_node))
     }
 
     /// 创建限制节点
@@ -121,9 +120,8 @@ impl PlanNodeFactory {
         offset: i64,
         count: i64,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 这里需要重构 LimitNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "limit_placeholder")))
+        let limit_node = LimitNode::new(input, offset, count)?;
+        Ok(PlanNodeEnum::Limit(limit_node))
     }
 
     /// 创建获取顶点节点
@@ -244,9 +242,8 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         distinct: bool,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 这里需要重构 UnionNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "union_placeholder")))
+        let union_node = UnionNode::new(input, distinct)?;
+        Ok(PlanNodeEnum::Union(union_node))
     }
 
     /// 创建展开节点
@@ -255,18 +252,16 @@ impl PlanNodeFactory {
         alias: &str,
         list_expr: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 这里需要重构 UnwindNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "unwind_placeholder")))
+        let unwind_node = UnwindNode::new(input, alias, list_expr)?;
+        Ok(PlanNodeEnum::Unwind(unwind_node))
     }
 
     /// 创建去重节点
     pub fn create_dedup(
         input: PlanNodeEnum,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 这里需要重构 DedupNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "dedup_placeholder")))
+        let dedup_node = DedupNode::new(input)?;
+        Ok(PlanNodeEnum::Dedup(dedup_node))
     }
 
     /// 创建RollUp应用节点
@@ -275,9 +270,8 @@ impl PlanNodeFactory {
         collect_exprs: Vec<String>,
         lambda_vars: Vec<String>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 这里需要重构 RollUpApplyNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "roll_up_apply_placeholder")))
+        let roll_up_apply_node = RollUpApplyNode::new(input, collect_exprs, lambda_vars)?;
+        Ok(PlanNodeEnum::RollUpApply(roll_up_apply_node))
     }
 
     /// 创建模式应用节点
@@ -286,9 +280,8 @@ impl PlanNodeFactory {
         pattern: &str,
         join_type: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 这里需要重构 PatternApplyNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "pattern_apply_placeholder")))
+        let pattern_apply_node = PatternApplyNode::new(input, pattern, join_type)?;
+        Ok(PlanNodeEnum::PatternApply(pattern_apply_node))
     }
 
     /// 创建数据收集节点
@@ -296,9 +289,8 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         collect_kind: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 这里需要重构 DataCollectNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "data_collect_placeholder")))
+        let data_collect_node = DataCollectNode::new(input, collect_kind)?;
+        Ok(PlanNodeEnum::DataCollect(data_collect_node))
     }
 
     /// 创建索引扫描节点
@@ -326,7 +318,7 @@ mod tests {
     fn test_create_start_node() {
         let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
 
-        assert_eq!(start_node.kind(), PlanNodeKind::Start);
+        assert_eq!(start_node.type_name(), "Start");
         assert_eq!(start_node.dependencies().len(), 0);
         assert_eq!(start_node.col_names().len(), 0);
     }
@@ -335,7 +327,7 @@ mod tests {
     fn test_create_placeholder_node() {
         let placeholder_node = PlanNodeFactory::create_placeholder_node().expect("Placeholder node should be created successfully");
 
-        assert_eq!(placeholder_node.kind(), PlanNodeKind::Argument);
+        assert_eq!(placeholder_node.type_name(), "Argument");
         assert_eq!(placeholder_node.dependencies().len(), 0);
         assert_eq!(placeholder_node.col_names().len(), 0);
     }
@@ -344,7 +336,7 @@ mod tests {
     fn test_create_get_vertices_node() {
         let get_vertices_node = PlanNodeFactory::create_get_vertices(1, "1,2,3").expect("GetVertices node should be created successfully");
 
-        assert_eq!(get_vertices_node.kind(), PlanNodeKind::GetVertices);
+        assert_eq!(get_vertices_node.type_name(), "GetVertices");
         assert_eq!(get_vertices_node.dependencies().len(), 0);
     }
 }

@@ -5,6 +5,7 @@
 use crate::core::ValueTypeDef;
 
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{MatchClauseContext, Path, PathType, WhereClauseContext};
 use crate::query::validator::{Column, Variable};

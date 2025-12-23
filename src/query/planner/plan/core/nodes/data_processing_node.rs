@@ -2,21 +2,14 @@
 //!
 //! 包含Union、Unwind、Dedup等数据处理相关的计划节点
 
-
-
-use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
-    PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
-};
 use crate::query::context::validate::types::Variable;
-use std::sync::Arc;
 
 /// Union节点
 #[derive(Debug, Clone)]
 pub struct UnionNode {
     id: i64,
-    input: PlanNodeEnum,
-    deps: Vec<PlanNodeEnum>,
+    input: super::plan_node_enum::PlanNodeEnum,
+    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
     distinct: bool,
     output_var: Option<Variable>,
     col_names: Vec<String>,
@@ -25,7 +18,7 @@ pub struct UnionNode {
 
 impl UnionNode {
     pub fn new(
-        input: PlanNodeEnum,
+        input: super::plan_node_enum::PlanNodeEnum,
         distinct: bool,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
@@ -46,66 +39,51 @@ impl UnionNode {
     pub fn distinct(&self) -> bool {
         self.distinct
     }
-}
 
-impl PlanNodeIdentifiable for UnionNode {
-    fn id(&self) -> i64 {
+    pub fn id(&self) -> i64 {
         self.id
     }
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::Union
-    }
-}
 
-impl PlanNodeProperties for UnionNode {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    pub fn type_name(&self) -> &'static str {
+        "Union"
     }
-    fn col_names(&self) -> &[String] {
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    fn cost(&self) -> f64 {
+
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for UnionNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+        &self.deps
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         self.input = dep.clone();
         self.deps.clear();
         self.deps.push(dep);
     }
 
-    fn remove_dependency(&mut self, _id: i64) -> bool {
+    pub fn remove_dependency(&mut self, _id: i64) -> bool {
         false
     }
-}
 
-impl PlanNodeDependenciesExt for UnionNode {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for UnionNode {
-    fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    fn set_col_names(&mut self, names: Vec<String>) {
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for UnionNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(Self {
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Union(Self {
             id: self.id,
             input: self.input.clone(),
             deps: self.deps.clone(),
@@ -116,25 +94,10 @@ impl PlanNodeClonable for UnionNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for UnionNode {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_union(self)?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for UnionNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+        super::plan_node_enum::PlanNodeEnum::Union(cloned)
     }
 }
 
@@ -142,8 +105,8 @@ impl PlanNode for UnionNode {
 #[derive(Debug, Clone)]
 pub struct UnwindNode {
     id: i64,
-    input: PlanNodeEnum,
-    deps: Vec<PlanNodeEnum>,
+    input: super::plan_node_enum::PlanNodeEnum,
+    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
     alias: String,
     list_expr: String,
     output_var: Option<Variable>,
@@ -153,7 +116,7 @@ pub struct UnwindNode {
 
 impl UnwindNode {
     pub fn new(
-        input: PlanNodeEnum,
+        input: super::plan_node_enum::PlanNodeEnum,
         alias: &str,
         list_expr: &str,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -182,66 +145,51 @@ impl UnwindNode {
     pub fn list_expr(&self) -> &str {
         &self.list_expr
     }
-}
 
-impl PlanNodeIdentifiable for UnwindNode {
-    fn id(&self) -> i64 {
+    pub fn id(&self) -> i64 {
         self.id
     }
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::Unwind
-    }
-}
 
-impl PlanNodeProperties for UnwindNode {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    pub fn type_name(&self) -> &'static str {
+        "Unwind"
     }
-    fn col_names(&self) -> &[String] {
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    fn cost(&self) -> f64 {
+
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for UnwindNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+        &self.deps
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         self.input = dep.clone();
         self.deps.clear();
         self.deps.push(dep);
     }
 
-    fn remove_dependency(&mut self, _id: i64) -> bool {
+    pub fn remove_dependency(&mut self, _id: i64) -> bool {
         false
     }
-}
 
-impl PlanNodeDependenciesExt for UnwindNode {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for UnwindNode {
-    fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    fn set_col_names(&mut self, names: Vec<String>) {
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for UnwindNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(Self {
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Unwind(Self {
             id: self.id,
             input: self.input.clone(),
             deps: self.deps.clone(),
@@ -253,25 +201,10 @@ impl PlanNodeClonable for UnwindNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for UnwindNode {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_unwind(self)?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for UnwindNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+        super::plan_node_enum::PlanNodeEnum::Unwind(cloned)
     }
 }
 
@@ -279,8 +212,8 @@ impl PlanNode for UnwindNode {
 #[derive(Debug, Clone)]
 pub struct DedupNode {
     id: i64,
-    input: PlanNodeEnum,
-    deps: Vec<PlanNodeEnum>,
+    input: super::plan_node_enum::PlanNodeEnum,
+    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -288,7 +221,7 @@ pub struct DedupNode {
 
 impl DedupNode {
     pub fn new(
-        input: PlanNodeEnum,
+        input: super::plan_node_enum::PlanNodeEnum,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
         let mut deps = Vec::new();
@@ -303,66 +236,51 @@ impl DedupNode {
             cost: 0.0,
         })
     }
-}
 
-impl PlanNodeIdentifiable for DedupNode {
-    fn id(&self) -> i64 {
+    pub fn id(&self) -> i64 {
         self.id
     }
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::Dedup
-    }
-}
 
-impl PlanNodeProperties for DedupNode {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    pub fn type_name(&self) -> &'static str {
+        "Dedup"
     }
-    fn col_names(&self) -> &[String] {
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    fn cost(&self) -> f64 {
+
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for DedupNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+        &self.deps
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         self.input = dep.clone();
         self.deps.clear();
         self.deps.push(dep);
     }
 
-    fn remove_dependency(&mut self, _id: i64) -> bool {
+    pub fn remove_dependency(&mut self, _id: i64) -> bool {
         false
     }
-}
 
-impl PlanNodeDependenciesExt for DedupNode {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for DedupNode {
-    fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    fn set_col_names(&mut self, names: Vec<String>) {
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for DedupNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(Self {
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Dedup(Self {
             id: self.id,
             input: self.input.clone(),
             deps: self.deps.clone(),
@@ -372,25 +290,10 @@ impl PlanNodeClonable for DedupNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for DedupNode {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_dedup(self)?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for DedupNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+        super::plan_node_enum::PlanNodeEnum::Dedup(cloned)
     }
 }
 
@@ -398,8 +301,8 @@ impl PlanNode for DedupNode {
 #[derive(Debug, Clone)]
 pub struct RollUpApplyNode {
     id: i64,
-    input: PlanNodeEnum,
-    deps: Vec<PlanNodeEnum>,
+    input: super::plan_node_enum::PlanNodeEnum,
+    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
     collect_exprs: Vec<String>,
     lambda_vars: Vec<String>,
     output_var: Option<Variable>,
@@ -409,7 +312,7 @@ pub struct RollUpApplyNode {
 
 impl RollUpApplyNode {
     pub fn new(
-        input: PlanNodeEnum,
+        input: super::plan_node_enum::PlanNodeEnum,
         collect_exprs: Vec<String>,
         lambda_vars: Vec<String>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -436,66 +339,51 @@ impl RollUpApplyNode {
     pub fn lambda_vars(&self) -> &[String] {
         &self.lambda_vars
     }
-}
 
-impl PlanNodeIdentifiable for RollUpApplyNode {
-    fn id(&self) -> i64 {
+    pub fn id(&self) -> i64 {
         self.id
     }
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::RollUpApply
-    }
-}
 
-impl PlanNodeProperties for RollUpApplyNode {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    pub fn type_name(&self) -> &'static str {
+        "RollUpApply"
     }
-    fn col_names(&self) -> &[String] {
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    fn cost(&self) -> f64 {
+
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for RollUpApplyNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+        &self.deps
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         self.input = dep.clone();
         self.deps.clear();
         self.deps.push(dep);
     }
 
-    fn remove_dependency(&mut self, _id: i64) -> bool {
+    pub fn remove_dependency(&mut self, _id: i64) -> bool {
         false
     }
-}
 
-impl PlanNodeDependenciesExt for RollUpApplyNode {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for RollUpApplyNode {
-    fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    fn set_col_names(&mut self, names: Vec<String>) {
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for RollUpApplyNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(Self {
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::RollUpApply(Self {
             id: self.id,
             input: self.input.clone(),
             deps: self.deps.clone(),
@@ -507,25 +395,10 @@ impl PlanNodeClonable for RollUpApplyNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for RollUpApplyNode {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_roll_up_apply(self)?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for RollUpApplyNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+        super::plan_node_enum::PlanNodeEnum::RollUpApply(cloned)
     }
 }
 
@@ -533,8 +406,8 @@ impl PlanNode for RollUpApplyNode {
 #[derive(Debug, Clone)]
 pub struct PatternApplyNode {
     id: i64,
-    input: PlanNodeEnum,
-    deps: Vec<PlanNodeEnum>,
+    input: super::plan_node_enum::PlanNodeEnum,
+    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
     pattern: String,
     join_type: String,
     output_var: Option<Variable>,
@@ -544,7 +417,7 @@ pub struct PatternApplyNode {
 
 impl PatternApplyNode {
     pub fn new(
-        input: PlanNodeEnum,
+        input: super::plan_node_enum::PlanNodeEnum,
         pattern: &str,
         join_type: &str,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -571,66 +444,51 @@ impl PatternApplyNode {
     pub fn join_type(&self) -> &str {
         &self.join_type
     }
-}
 
-impl PlanNodeIdentifiable for PatternApplyNode {
-    fn id(&self) -> i64 {
+    pub fn id(&self) -> i64 {
         self.id
     }
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::PatternApply
-    }
-}
 
-impl PlanNodeProperties for PatternApplyNode {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    pub fn type_name(&self) -> &'static str {
+        "PatternApply"
     }
-    fn col_names(&self) -> &[String] {
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    fn cost(&self) -> f64 {
+
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for PatternApplyNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+        &self.deps
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         self.input = dep.clone();
         self.deps.clear();
         self.deps.push(dep);
     }
 
-    fn remove_dependency(&mut self, _id: i64) -> bool {
+    pub fn remove_dependency(&mut self, _id: i64) -> bool {
         false
     }
-}
 
-impl PlanNodeDependenciesExt for PatternApplyNode {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for PatternApplyNode {
-    fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    fn set_col_names(&mut self, names: Vec<String>) {
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for PatternApplyNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(Self {
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::PatternApply(Self {
             id: self.id,
             input: self.input.clone(),
             deps: self.deps.clone(),
@@ -642,25 +500,10 @@ impl PlanNodeClonable for PatternApplyNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for PatternApplyNode {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_pattern_apply(self)?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for PatternApplyNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+        super::plan_node_enum::PlanNodeEnum::PatternApply(cloned)
     }
 }
 
@@ -668,8 +511,8 @@ impl PlanNode for PatternApplyNode {
 #[derive(Debug, Clone)]
 pub struct DataCollectNode {
     id: i64,
-    input: PlanNodeEnum,
-    deps: Vec<PlanNodeEnum>,
+    input: super::plan_node_enum::PlanNodeEnum,
+    deps: Vec<super::plan_node_enum::PlanNodeEnum>,
     collect_kind: String,
     output_var: Option<Variable>,
     col_names: Vec<String>,
@@ -678,7 +521,7 @@ pub struct DataCollectNode {
 
 impl DataCollectNode {
     pub fn new(
-        input: PlanNodeEnum,
+        input: super::plan_node_enum::PlanNodeEnum,
         collect_kind: &str,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
@@ -699,66 +542,51 @@ impl DataCollectNode {
     pub fn collect_kind(&self) -> &str {
         &self.collect_kind
     }
-}
 
-impl PlanNodeIdentifiable for DataCollectNode {
-    fn id(&self) -> i64 {
+    pub fn id(&self) -> i64 {
         self.id
     }
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::DataCollect
-    }
-}
 
-impl PlanNodeProperties for DataCollectNode {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    pub fn type_name(&self) -> &'static str {
+        "DataCollect"
     }
-    fn col_names(&self) -> &[String] {
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    fn cost(&self) -> f64 {
+
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for DataCollectNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+        &self.deps
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         self.input = dep.clone();
         self.deps.clear();
         self.deps.push(dep);
     }
 
-    fn remove_dependency(&mut self, _id: i64) -> bool {
+    pub fn remove_dependency(&mut self, _id: i64) -> bool {
         false
     }
-}
 
-impl PlanNodeDependenciesExt for DataCollectNode {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for DataCollectNode {
-    fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    fn set_col_names(&mut self, names: Vec<String>) {
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for DataCollectNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(Self {
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::DataCollect(Self {
             id: self.id,
             input: self.input.clone(),
             deps: self.deps.clone(),
@@ -769,25 +597,10 @@ impl PlanNodeClonable for DataCollectNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for DataCollectNode {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_data_collect(self)?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for DataCollectNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+        super::plan_node_enum::PlanNodeEnum::DataCollect(cloned)
     }
 }
 
@@ -798,24 +611,22 @@ mod tests {
 
     #[test]
     fn test_union_node_creation() {
-        let start_node = StartNode::new();
-        let start_node = Arc::new(start_node);
+        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let union_node = UnionNode::new(start_node, true).expect("Union node should be created successfully");
 
-        assert_eq!(union_node.kind(), PlanNodeKind::Union);
+        assert_eq!(union_node.type_name(), "Union");
         assert_eq!(union_node.dependencies().len(), 1);
         assert!(union_node.distinct());
     }
 
     #[test]
     fn test_unwind_node_creation() {
-        let start_node = StartNode::new();
-        let start_node = Arc::new(start_node);
+        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let unwind_node = UnwindNode::new(start_node, "item", "list").expect("Unwind node should be created successfully");
 
-        assert_eq!(unwind_node.kind(), PlanNodeKind::Unwind);
+        assert_eq!(unwind_node.type_name(), "Unwind");
         assert_eq!(unwind_node.dependencies().len(), 1);
         assert_eq!(unwind_node.alias(), "item");
         assert_eq!(unwind_node.list_expr(), "list");
@@ -823,12 +634,11 @@ mod tests {
 
     #[test]
     fn test_dedup_node_creation() {
-        let start_node = StartNode::new();
-        let start_node = Arc::new(start_node);
+        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let dedup_node = DedupNode::new(start_node).expect("Dedup node should be created successfully");
 
-        assert_eq!(dedup_node.kind(), PlanNodeKind::Dedup);
+        assert_eq!(dedup_node.type_name(), "Dedup");
         assert_eq!(dedup_node.dependencies().len(), 1);
     }
 }

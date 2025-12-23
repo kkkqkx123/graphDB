@@ -5,6 +5,7 @@
 use crate::query::parser::ast::expr::Expr;
 
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 
 use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext};

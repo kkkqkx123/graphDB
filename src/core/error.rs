@@ -322,22 +322,7 @@ impl From<crate::storage::StorageError> for DBError {
 }
 
 // ExpressionError 是本地定义，无需转换实现
-
-impl From<crate::query::planner::plan::core::visitor::PlanNodeVisitError> for DBError {
-    fn from(err: crate::query::planner::plan::core::visitor::PlanNodeVisitError) -> Self {
-        match err {
-            crate::query::planner::plan::core::visitor::PlanNodeVisitError::VisitError(msg) => {
-                DBError::Plan(PlanNodeVisitError::VisitError(msg))
-            }
-            crate::query::planner::plan::core::visitor::PlanNodeVisitError::TraversalError(msg) => {
-                DBError::Plan(PlanNodeVisitError::TraversalError(msg))
-            }
-            crate::query::planner::plan::core::visitor::PlanNodeVisitError::ValidationError(
-                msg,
-            ) => DBError::Plan(PlanNodeVisitError::ValidationError(msg)),
-        }
-    }
-}
+// PlanNodeVisitError 的 From 实现已通过 #[from] 属性自动生成（第22行）
 
 impl From<crate::query::visitor::TypeDeductionError> for DBError {
     fn from(err: crate::query::visitor::TypeDeductionError) -> Self {

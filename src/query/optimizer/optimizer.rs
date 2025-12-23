@@ -1,7 +1,8 @@
 //! Optimizer implementation for optimizing execution plans
 use crate::core::context::QueryContext;
+use crate::core::error::PlanNodeVisitError;
 use crate::query::context::validate;
-use crate::query::planner::plan::{PlanNodeKind, PlanNodeEnum, ExecutionPlan, PlanNodeVisitor, PlanNodeVisitError};
+use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -68,11 +69,7 @@ impl OptContext {
         self.plan_node_to_group_node.get(&plan_node_id)
     }
 
-    pub fn get_group_node_from_pool(
-        &mut self,
-        id: usize,
-        plan_node: PlanNodeEnum,
-    ) -> OptGroupNode {
+    pub fn get_group_node_from_pool(&mut self, id: usize, plan_node: PlanNodeEnum) -> OptGroupNode {
         let mut node = self.object_pool.acquire();
         node.id = id;
         node.plan_node = plan_node;
@@ -192,22 +189,24 @@ struct DummyPlanNode {
     cost: f64,
 }
 
-impl crate::query::planner::plan::core::nodes::traits::PlanNodeIdentifiable for DummyPlanNode {
+impl DummyPlanNode {
     fn id(&self) -> i64 {
         self.id
     }
 
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::Unknown
-    }
-}
-
-impl crate::query::planner::plan::core::nodes::traits::PlanNodeProperties for DummyPlanNode {
-    fn output_var(&self) -> std::option::Option<&validate::types::Variable> {
-        self.output_var
+    fn type_name(&self) -> &'static str {
+        "Dummy"
     }
 
-    fn col_names(&self) -> &[std::string::String] {
+    fn dependencies(&self) -> &[PlanNodeEnum] {
+        &self.dependencies
+    }
+
+    fn output_var(&self) -> Option<&validate::types::Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
@@ -216,83 +215,13 @@ impl crate::query::planner::plan::core::nodes::traits::PlanNodeProperties for Du
     }
 }
 
-impl crate::query::planner::plan::core::nodes::traits::PlanNodeDependencies for DummyPlanNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.dependencies.clone()
-    }
-
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.dependencies.push(dep);
-    }
-
-    fn remove_dependency(&mut self, id: i64) -> bool {
-        let initial_len = self.dependencies.len();
-        self.dependencies.retain(|dep| dep.id() != id);
-        self.dependencies.len() < initial_len
-    }
-}
-
-impl crate::query::planner::plan::core::nodes::traits::PlanNodeDependenciesExt
-    for DummyPlanNode
-{
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.dependencies)
-    }
-}
-
-impl crate::query::planner::plan::core::nodes::traits::PlanNodeMutable for DummyPlanNode {
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-}
-
-impl crate::query::planner::plan::core::nodes::traits::PlanNodeClonable for DummyPlanNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(DummyPlanNode {
-            id: self.id,
-            dependencies: Vec::new(), // Don't clone dependencies to avoid infinite recursion
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-        })
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        Arc::new(DummyPlanNode {
-            id: new_id,
-            dependencies: Vec::new(), // Don't clone dependencies to avoid infinite recursion
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-        })
-    }
-}
-
-impl crate::query::planner::plan::core::nodes::traits::PlanNodeVisitable for DummyPlanNode {
-    fn accept(&self, _visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        // For the dummy node, we don't implement the visitor pattern
-        Ok(())
-    }
-}
-
-impl crate::query::planner::plan::core::nodes::traits::PlanNode for DummyPlanNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
 impl Default for OptGroupNode {
     fn default() -> Self {
         Self {
             id: 0,
-            plan_node: Arc::new(DummyPlanNode::default()),
+            plan_node: PlanNodeEnum::Start(
+                crate::query::planner::plan::core::nodes::StartNode::new(),
+            ),
             dependencies: Vec::new(),
             cost: 0.0,
             properties: PlanNodeProperties::default(),
@@ -381,32 +310,18 @@ impl MatchedResult {
     }
 }
 
-// Match node by kind or set of kinds of plan node
+// Match node by type name or set of type names of plan node
 #[derive(Debug, Clone)]
 pub enum MatchNode {
-    Single(PlanNodeKind),
-    Multi(Vec<PlanNodeKind>),
+    Single(&'static str),
+    Multi(Vec<&'static str>),
 }
 
 impl MatchNode {
     pub fn matches(&self, node: &PlanNodeEnum) -> bool {
         match self {
-            MatchNode::Single(kind) => node.kind() == *kind,
-            MatchNode::Multi(kinds) => kinds
-                .iter()
-                .any(|k| node.kind() == *k || *k == PlanNodeKind::Unknown),
-        }
-    }
-}
-
-// 为了向后兼容，添加一个接受 &dyn PlanNode 的方法
-impl MatchNode {
-    pub fn matches_dyn(&self, node: &dyn crate::query::planner::plan::core::nodes::traits::PlanNode) -> bool {
-        match self {
-            MatchNode::Single(kind) => node.kind() == *kind,
-            MatchNode::Multi(kinds) => kinds
-                .iter()
-                .any(|k| node.kind() == *k || *k == PlanNodeKind::Unknown),
+            MatchNode::Single(type_name) => node.type_name() == *type_name,
+            MatchNode::Multi(type_names) => type_names.iter().any(|t| node.type_name() == *t),
         }
     }
 }
@@ -418,16 +333,16 @@ pub struct Pattern {
 }
 
 impl Pattern {
-    pub fn new(kind: PlanNodeKind) -> Self {
+    pub fn new(type_name: &'static str) -> Self {
         Self {
-            node: MatchNode::Single(kind),
+            node: MatchNode::Single(type_name),
             dependencies: Vec::new(),
         }
     }
 
-    pub fn multi(kinds: Vec<PlanNodeKind>) -> Self {
+    pub fn multi(type_names: Vec<&'static str>) -> Self {
         Self {
-            node: MatchNode::Multi(kinds),
+            node: MatchNode::Multi(type_names),
             dependencies: Vec::new(),
         }
     }

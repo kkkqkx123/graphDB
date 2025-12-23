@@ -5,7 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::PlanNodeKind;
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
 
 /// 投影下推规则
@@ -35,16 +35,16 @@ impl OptRule for ProjectionPushDownRule {
 impl BaseOptRule for ProjectionPushDownRule {}
 
 impl PushDownRule for ProjectionPushDownRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
+    fn can_push_down_to(&self, child_type: &str) -> bool {
         // 投影可以下推到大多数数据访问操作
         matches!(
-            child_kind,
-            PlanNodeKind::ScanVertices
-                | PlanNodeKind::ScanEdges
-                | PlanNodeKind::IndexScan
-                | PlanNodeKind::GetVertices
-                | PlanNodeKind::GetEdges
-                | PlanNodeKind::GetNeighbors
+            child_type,
+            "ScanVertices"
+                | "ScanEdges"
+                | "IndexScan"
+                | "ScanVertices"
+                | "ScanEdges"
+                | "GetNeighbors"
         )
     }
 
@@ -76,7 +76,7 @@ impl OptRule for PushProjectDownRule {
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 在完整实现中，这会将投影操作下推
         // 更接近数据源以减少数据传输
-        if node.plan_node.kind() == PlanNodeKind::Project {
+        if node.plan_node.is_project() {
             Ok(Some(node.clone()))
         } else {
             Ok(None)
@@ -91,11 +91,11 @@ impl OptRule for PushProjectDownRule {
 impl BaseOptRule for PushProjectDownRule {}
 
 impl PushDownRule for PushProjectDownRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
+    fn can_push_down_to(&self, child_type: &str) -> bool {
         // 投影可以下推到数据访问操作
         matches!(
-            child_kind,
-            PlanNodeKind::ScanVertices | PlanNodeKind::ScanEdges | PlanNodeKind::IndexScan
+            child_type,
+            "ScanVertices" | "ScanEdges" | "IndexScan"
         )
     }
 
@@ -139,15 +139,14 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = std::sync::Arc::new(
-            ProjectNode::new(
-                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+        let project_node = PlanNodeEnum::Project(
+            crate::query::planner::plan::core::nodes::ProjectNode::new(
+                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
                 vec![],
             )
             .expect("Node should be created successfully"),
-        )
-            as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
-        let opt_node = OptGroupNode::new(1, project_node);
+        );
+        let opt_node = OptGroupNode::new(1, std::sync::Arc::new(project_node));
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -162,15 +161,14 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个投影节点
-        let project_node = std::sync::Arc::new(
-            ProjectNode::new(
-                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+        let project_node = PlanNodeEnum::Project(
+            crate::query::planner::plan::core::nodes::ProjectNode::new(
+                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
                 vec![],
             )
             .expect("Node should be created successfully"),
-        )
-            as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
-        let opt_node = OptGroupNode::new(1, project_node);
+        );
+        let opt_node = OptGroupNode::new(1, std::sync::Arc::new(project_node));
 
         let result = rule
             .apply(&mut ctx, &opt_node)

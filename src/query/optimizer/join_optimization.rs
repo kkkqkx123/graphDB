@@ -5,8 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::PlanNodeKind;
-
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
 /// 转换连接以获得更好性能的规则
 #[derive(Debug)]
@@ -23,9 +22,9 @@ impl OptRule for JoinOptimizationRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为连接操作
-        if node.plan_node.kind() != PlanNodeKind::InnerJoin
-            && node.plan_node.kind() != PlanNodeKind::HashInnerJoin
-            && node.plan_node.kind() != PlanNodeKind::HashLeftJoin
+        if !node.plan_node.is_hash_inner_join()
+            && !node.plan_node.is_hash_left_join()
+            && !node.plan_node.is_inner_join()
         {
             return Ok(None);
         }
@@ -47,13 +46,16 @@ impl OptRule for JoinOptimizationRule {
 
                 // 简单的启发式：如果右子树有GetVertices或IndexScan等操作，
                 // 而且看起来结果集较小，我们可能考虑哈希连接
-                match (left_node.plan_node.kind(), right_node.plan_node.kind()) {
-                    (PlanNodeKind::IndexScan, _) | (_, PlanNodeKind::IndexScan) => {
+                match (
+                    left_node.plan_node.type_name(),
+                    right_node.plan_node.type_name(),
+                ) {
+                    ("IndexScan", _) | (_, "IndexScan") => {
                         // 如果任一侧是索引扫描，这可能意味着较小的结果集
                         // 根据具体情况，我们可以优化连接策略
                     }
-                    (PlanNodeKind::GetVertices, _) | (_, PlanNodeKind::GetVertices) => {
-                        // 类似地，GetVertices可能返回较小结果集
+                    ("ScanVertices", _) | (_, "ScanVertices") => {
+                        // 类似地，ScanVertices可能返回较小结果集
                     }
                     _ => {
                         // 其他情况，保持原连接计划
@@ -92,11 +94,11 @@ impl JoinOptimizationRule {
         // 简单的启发式：如果任一侧是索引扫描或者获取特定顶点/边的操作，
         // 可能意味着较小的结果集，适合使用哈希连接
         matches!(
-            left_node.plan_node.kind(),
-            PlanNodeKind::IndexScan | PlanNodeKind::GetVertices | PlanNodeKind::GetEdges
+            left_node.plan_node.type_name(),
+            "IndexScan" | "ScanVertices" | "ScanEdges"
         ) || matches!(
-            right_node.plan_node.kind(),
-            PlanNodeKind::IndexScan | PlanNodeKind::GetVertices | PlanNodeKind::GetEdges
+            right_node.plan_node.type_name(),
+            "IndexScan" | "ScanVertices" | "ScanEdges"
         )
     }
 }
@@ -112,13 +114,13 @@ mod tests {
         let session_info = crate::core::context::session::SessionInfo::new(
             "test_session",
             "test_user",
-            vec!["user".to_string()]
+            vec!["user".to_string()],
         );
         let query_context = QueryContext::new(
             "test_query",
             crate::core::types::query::QueryType::DataQuery,
             "TEST QUERY",
-            session_info
+            session_info,
         );
         OptContext::new(query_context)
     }
@@ -128,19 +130,15 @@ mod tests {
         let rule = JoinOptimizationRule;
         let mut ctx = create_test_context();
 
-        // 创建一个连接节点（使用Limit作为占位符，因为我们没有特定的连接结构）
-        let join_node = std::sync::Arc::new(
-            LimitNode::new(
-                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                10,
-                0,
-            )
-            .expect("Limit node should be created successfully"),
-        )
-            as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
-        let opt_node = OptGroupNode::new(1, join_node);
+        // 创建一个连接节点（使用HashInnerJoin作为测试）
+        let join_node = PlanNodeEnum::HashInnerJoin(
+            crate::query::planner::plan::core::nodes::InnerJoinNode::new(),
+        );
+        let opt_node = OptGroupNode::new(1, std::sync::Arc::new(join_node));
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
 }

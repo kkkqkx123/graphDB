@@ -5,8 +5,7 @@
 
 use crate::core::error::QueryError;
 use crate::query::executor::traits::Executor;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::plan::PlanNodeKind;
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
@@ -34,25 +33,21 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
         plan_node: &PlanNodeEnum,
         _storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        match plan_node.kind() {
+        match plan_node {
             // 基础执行器
-            PlanNodeKind::Start => {
+            PlanNodeEnum::Start(_) => {
                 // TODO: 实现开始执行器
                 Err(QueryError::ExecutionError("开始执行器尚未实现".to_string()))
             }
-            PlanNodeKind::Unknown => {
-                // TODO: 实现默认执行器
-                Err(QueryError::ExecutionError("默认执行器尚未实现".to_string()))
-            }
 
             // 数据访问执行器
-            PlanNodeKind::ScanVertices => {
+            PlanNodeEnum::ScanVertices(_) => {
                 // TODO: 实现扫描顶点执行器
                 Err(QueryError::ExecutionError(
                     "扫描顶点执行器尚未实现".to_string(),
                 ))
             }
-            PlanNodeKind::ScanEdges => {
+            PlanNodeEnum::ScanEdges(_) => {
                 // TODO: 实现扫描边执行器
                 Err(QueryError::ExecutionError(
                     "扫描边执行器尚未实现".to_string(),
@@ -60,44 +55,44 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
             }
 
             // 结果处理执行器
-            PlanNodeKind::Filter => {
+            PlanNodeEnum::Filter(_) => {
                 // TODO: 实现过滤执行器
                 Err(QueryError::ExecutionError("过滤执行器尚未实现".to_string()))
             }
-            PlanNodeKind::Project => {
+            PlanNodeEnum::Project(_) => {
                 // TODO: 实现投影执行器
                 Err(QueryError::ExecutionError("投影执行器尚未实现".to_string()))
             }
-            PlanNodeKind::Limit => {
+            PlanNodeEnum::Limit(_) => {
                 // TODO: 实现限制执行器
                 Err(QueryError::ExecutionError("限制执行器尚未实现".to_string()))
             }
-            PlanNodeKind::Sort => {
+            PlanNodeEnum::Sort(_) => {
                 // TODO: 实现排序执行器
                 Err(QueryError::ExecutionError("排序执行器尚未实现".to_string()))
             }
-            PlanNodeKind::Aggregate => {
+            PlanNodeEnum::Aggregate(_) => {
                 // TODO: 实现聚合执行器
                 Err(QueryError::ExecutionError("聚合执行器尚未实现".to_string()))
             }
 
             // 数据处理执行器
-            PlanNodeKind::HashInnerJoin
-            | PlanNodeKind::HashLeftJoin
-            | PlanNodeKind::CartesianProduct => {
+            PlanNodeEnum::HashInnerJoin(_)
+            | PlanNodeEnum::HashLeftJoin(_)
+            | PlanNodeEnum::CartesianProduct(_) => {
                 // TODO: 实现连接执行器
                 Err(QueryError::ExecutionError("连接执行器尚未实现".to_string()))
             }
 
             // 图遍历执行器
-            PlanNodeKind::Expand => {
+            PlanNodeEnum::Expand(_) => {
                 // TODO: 实现扩展执行器
                 Err(QueryError::ExecutionError("扩展执行器尚未实现".to_string()))
             }
 
-            kind => Err(QueryError::ExecutionError(format!(
+            _ => Err(QueryError::ExecutionError(format!(
                 "未知的执行器类型: {:?}",
-                kind
+                plan_node.type_name()
             ))),
         }
     }
@@ -228,108 +223,6 @@ mod tests {
         }
     }
 
-    // 模拟计划节点用于测试
-    #[derive(Debug)]
-    struct MockPlanNode {
-        kind: PlanNodeKind,
-        id: i64,
-    }
-
-    impl MockPlanNode {
-        fn new(kind: PlanNodeKind) -> Self {
-            Self { kind, id: 1 }
-        }
-    }
-
-    impl crate::query::planner::plan::core::nodes::traits::PlanNodeIdentifiable for MockPlanNode {
-        fn id(&self) -> i64 {
-            self.id
-        }
-
-        fn kind(&self) -> PlanNodeKind {
-            self.kind
-        }
-    }
-
-    impl crate::query::planner::plan::core::nodes::traits::PlanNodeProperties for MockPlanNode {
-        fn output_var(&self) -> Option<&crate::query::context::validate::types::Variable> {
-            None
-        }
-
-        fn col_names(&self) -> &[String] {
-            &[]
-        }
-
-        fn cost(&self) -> f64 {
-            0.0
-        }
-    }
-
-    impl crate::query::planner::plan::core::nodes::traits::PlanNodeDependencies for MockPlanNode {
-        fn dependencies(
-            &self,
-        ) -> Vec<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum> {
-            Vec::new()
-        }
-
-        fn add_dependency(
-            &mut self,
-            _dep: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum,
-        ) {
-            // 空实现
-        }
-
-        fn remove_dependency(&mut self, _id: i64) -> bool {
-            false
-        }
-    }
-
-    impl crate::query::planner::plan::core::nodes::traits::PlanNodeMutable for MockPlanNode {
-        fn set_output_var(&mut self, _var: crate::query::context::validate::types::Variable) {
-            // 空实现
-        }
-
-        fn set_col_names(&mut self, _names: Vec<String>) {
-            // 空实现
-        }
-    }
-
-    impl crate::query::planner::plan::core::nodes::traits::PlanNodeVisitable for MockPlanNode {
-        fn accept(
-            &self,
-            _visitor: &mut dyn crate::query::planner::plan::core::visitor::PlanNodeVisitor,
-        ) -> Result<(), crate::query::planner::plan::core::visitor::PlanNodeVisitError> {
-            Ok(())
-        }
-    }
-
-    impl crate::query::planner::plan::core::nodes::traits::PlanNodeClonable for MockPlanNode {
-        fn clone_plan_node(
-            &self,
-        ) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
-            use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-            // 这里需要创建一个实际的PlanNodeEnum，但由于MockPlanNode不是真实的节点类型，
-            // 我们暂时返回一个StartNode作为占位符
-            PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new())
-        }
-
-        fn clone_with_new_id(
-            &self,
-            new_id: i64,
-        ) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
-            use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-            // 这里需要创建一个实际的PlanNodeEnum，但由于MockPlanNode不是真实的节点类型，
-            // 我们暂时返回一个StartNode作为占位符
-            PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new())
-        }
-    }
-
-    impl crate::query::planner::plan::core::nodes::traits::PlanNode for MockPlanNode {
-        fn as_any(&self) -> &dyn std::any::Any {
-            self
-        }
-    }
-
     #[test]
     fn test_factory_creation() {
         let _factory = ExecutorFactory::<MockStorage>::new();
@@ -340,7 +233,8 @@ mod tests {
     fn test_create_unsupported_executor() {
         let factory = ExecutorFactory::<MockStorage>::new();
         let storage = Arc::new(Mutex::new(MockStorage));
-        let plan_node = MockPlanNode::new(PlanNodeKind::Unknown);
+        let plan_node =
+            PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
 
         let result = factory.create_executor(&plan_node, storage);
         match result {

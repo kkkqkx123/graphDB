@@ -9,6 +9,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::CypherCl
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
     clause_structs::{

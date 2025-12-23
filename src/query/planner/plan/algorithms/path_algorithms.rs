@@ -2,9 +2,7 @@
 //! 包含最短路径、所有路径等算法相关的计划节点
 
 use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::{
-    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
-};
+use crate::core::error::PlanNodeVisitError;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
 /// 多源最短路径计划节点
@@ -73,9 +71,9 @@ impl MultiShortestPath {
         self.id
     }
 
-    /// 获取节点的类型
-    pub fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::MultiShortestPath
+    /// 获取类型名称
+    pub fn type_name(&self) -> &'static str {
+        "MultiShortestPath"
     }
 
     /// 获取节点的输出变量
@@ -94,8 +92,8 @@ impl MultiShortestPath {
     }
 
     /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[PlanNodeEnum] {
+        &self.deps
     }
 
     /// 添加依赖节点
@@ -140,10 +138,11 @@ impl MultiShortestPath {
     }
 
     /// 使用访问者模式访问节点
-    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.plan_pre_visit()?;
-        visitor.plan_post_visit()?;
-        Ok(())
+    pub fn accept<V>(&self, visitor: &mut V) -> V::Result
+    where
+        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+    {
+        visitor.visit_multi_shortest_path(self)
     }
 }
 
@@ -195,9 +194,9 @@ impl BFSShortest {
         self.id
     }
 
-    /// 获取节点的类型
-    pub fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::BFSShortest
+    /// 获取类型名称
+    pub fn type_name(&self) -> &'static str {
+        "BFSShortest"
     }
 
     /// 获取节点的输出变量
@@ -216,8 +215,8 @@ impl BFSShortest {
     }
 
     /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[PlanNodeEnum] {
+        &self.deps
     }
 
     /// 添加依赖节点
@@ -262,10 +261,11 @@ impl BFSShortest {
     }
 
     /// 使用访问者模式访问节点
-    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.plan_pre_visit()?;
-        visitor.plan_post_visit()?;
-        Ok(())
+    pub fn accept<V>(&self, visitor: &mut V) -> V::Result
+    where
+        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+    {
+        visitor.visit_bfs_shortest(self)
     }
 }
 
@@ -328,9 +328,9 @@ impl AllPaths {
         self.id
     }
 
-    /// 获取节点的类型
-    pub fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::AllPaths
+    /// 获取类型名称
+    pub fn type_name(&self) -> &'static str {
+        "AllPaths"
     }
 
     /// 获取节点的输出变量
@@ -349,8 +349,8 @@ impl AllPaths {
     }
 
     /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[PlanNodeEnum] {
+        &self.deps
     }
 
     /// 添加依赖节点
@@ -395,10 +395,11 @@ impl AllPaths {
     }
 
     /// 使用访问者模式访问节点
-    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.plan_pre_visit()?;
-        visitor.plan_post_visit()?;
-        Ok(())
+    pub fn accept<V>(&self, visitor: &mut V) -> V::Result
+    where
+        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+    {
+        visitor.visit_all_paths(self)
     }
 }
 
@@ -454,9 +455,9 @@ impl ShortestPath {
         self.id
     }
 
-    /// 获取节点的类型
-    pub fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::ShortestPath
+    /// 获取类型名称
+    pub fn type_name(&self) -> &'static str {
+        "ShortestPath"
     }
 
     /// 获取节点的输出变量
@@ -475,8 +476,8 @@ impl ShortestPath {
     }
 
     /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[PlanNodeEnum] {
+        &self.deps
     }
 
     /// 添加依赖节点
@@ -521,9 +522,10 @@ impl ShortestPath {
     }
 
     /// 使用访问者模式访问节点
-    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.plan_pre_visit()?;
-        visitor.plan_post_visit()?;
-        Ok(())
+    pub fn accept<V>(&self, visitor: &mut V) -> V::Result
+    where
+        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+    {
+        visitor.visit_shortest_path(self)
     }
 }

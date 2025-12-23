@@ -3,12 +3,6 @@
 //! 包含Expand、ExpandAll、Traverse等图遍历相关的计划节点
 
 use super::super::common::{EdgeProp, TagProp};
-
-
-use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
-    PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
-};
 use crate::core::Value;
 use crate::query::context::validate::types::Variable;
 use std::sync::{Arc, Mutex};
@@ -25,7 +19,7 @@ pub struct ExpandNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<PlanNodeEnum>>,
+    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 ExpandNode 实现 Clone
@@ -78,29 +72,28 @@ impl ExpandNode {
     }
 }
 
-impl PlanNodeIdentifiable for ExpandNode {
-    fn id(&self) -> i64 {
+impl ExpandNode {
+    pub fn id(&self) -> i64 {
         self.id
     }
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::Expand
-    }
-}
 
-impl PlanNodeProperties for ExpandNode {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    pub fn type_name(&self) -> &'static str {
+        "Expand"
     }
-    fn col_names(&self) -> &[String] {
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    fn cost(&self) -> f64 {
+
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for ExpandNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
         let deps = self
             .dependencies
             .lock()
@@ -108,14 +101,14 @@ impl PlanNodeDependencies for ExpandNode {
         deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
             .push(dep);
     }
 
-    fn remove_dependency(&mut self, id: i64) -> bool {
+    pub fn remove_dependency(&mut self, id: i64) -> bool {
         let mut deps = self
             .dependencies
             .lock()
@@ -127,54 +120,23 @@ impl PlanNodeDependencies for ExpandNode {
             false
         }
     }
-}
 
-impl PlanNodeDependenciesExt for ExpandNode {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        let deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        f(&deps)
-    }
-}
-
-impl PlanNodeMutable for ExpandNode {
-    fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    fn set_col_names(&mut self, names: Vec<String>) {
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for ExpandNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Expand(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for ExpandNode {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_expand(self)?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for ExpandNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+        super::plan_node_enum::PlanNodeEnum::Expand(cloned)
     }
 }
 
@@ -194,7 +156,7 @@ pub struct ExpandAllNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<PlanNodeEnum>>,
+    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 ExpandAllNode 实现 Clone
@@ -249,29 +211,28 @@ impl ExpandAllNode {
     }
 }
 
-impl PlanNodeIdentifiable for ExpandAllNode {
-    fn id(&self) -> i64 {
+impl ExpandAllNode {
+    pub fn id(&self) -> i64 {
         self.id
     }
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::ExpandAll
-    }
-}
 
-impl PlanNodeProperties for ExpandAllNode {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    pub fn type_name(&self) -> &'static str {
+        "ExpandAll"
     }
-    fn col_names(&self) -> &[String] {
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    fn cost(&self) -> f64 {
+
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for ExpandAllNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
         let deps = self
             .dependencies
             .lock()
@@ -279,14 +240,14 @@ impl PlanNodeDependencies for ExpandAllNode {
         deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
             .push(dep);
     }
 
-    fn remove_dependency(&mut self, id: i64) -> bool {
+    pub fn remove_dependency(&mut self, id: i64) -> bool {
         let mut deps = self
             .dependencies
             .lock()
@@ -298,54 +259,23 @@ impl PlanNodeDependencies for ExpandAllNode {
             false
         }
     }
-}
 
-impl PlanNodeDependenciesExt for ExpandAllNode {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        let deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        f(&deps)
-    }
-}
-
-impl PlanNodeMutable for ExpandAllNode {
-    fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    fn set_col_names(&mut self, names: Vec<String>) {
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for ExpandAllNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::ExpandAll(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for ExpandAllNode {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_expand_all(self)?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for ExpandAllNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+        super::plan_node_enum::PlanNodeEnum::ExpandAll(cloned)
     }
 }
 
@@ -362,7 +292,7 @@ pub struct TraverseNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<PlanNodeEnum>>,
+    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 TraverseNode 实现 Clone
@@ -420,29 +350,28 @@ impl TraverseNode {
     }
 }
 
-impl PlanNodeIdentifiable for TraverseNode {
-    fn id(&self) -> i64 {
+impl TraverseNode {
+    pub fn id(&self) -> i64 {
         self.id
     }
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::Traverse
-    }
-}
 
-impl PlanNodeProperties for TraverseNode {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    pub fn type_name(&self) -> &'static str {
+        "Traverse"
     }
-    fn col_names(&self) -> &[String] {
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    fn cost(&self) -> f64 {
+
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for TraverseNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
         let deps = self
             .dependencies
             .lock()
@@ -450,14 +379,14 @@ impl PlanNodeDependencies for TraverseNode {
         deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
             .push(dep);
     }
 
-    fn remove_dependency(&mut self, id: i64) -> bool {
+    pub fn remove_dependency(&mut self, id: i64) -> bool {
         let mut deps = self
             .dependencies
             .lock()
@@ -469,54 +398,23 @@ impl PlanNodeDependencies for TraverseNode {
             false
         }
     }
-}
 
-impl PlanNodeDependenciesExt for TraverseNode {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        let deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        f(&deps)
-    }
-}
-
-impl PlanNodeMutable for TraverseNode {
-    fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    fn set_col_names(&mut self, names: Vec<String>) {
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for TraverseNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Traverse(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for TraverseNode {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_traverse(self)?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for TraverseNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+        super::plan_node_enum::PlanNodeEnum::Traverse(cloned)
     }
 }
 
@@ -531,7 +429,7 @@ pub struct AppendVerticesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<PlanNodeEnum>>,
+    dependencies: Mutex<Vec<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 AppendVerticesNode 实现 Clone
@@ -587,29 +485,28 @@ impl AppendVerticesNode {
     }
 }
 
-impl PlanNodeIdentifiable for AppendVerticesNode {
-    fn id(&self) -> i64 {
+impl AppendVerticesNode {
+    pub fn id(&self) -> i64 {
         self.id
     }
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::AppendVertices
-    }
-}
 
-impl PlanNodeProperties for AppendVerticesNode {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    pub fn type_name(&self) -> &'static str {
+        "AppendVertices"
     }
-    fn col_names(&self) -> &[String] {
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    fn cost(&self) -> f64 {
+
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for AppendVerticesNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
+    pub fn dependencies(&self) -> Vec<super::plan_node_enum::PlanNodeEnum> {
         let deps = self
             .dependencies
             .lock()
@@ -617,14 +514,14 @@ impl PlanNodeDependencies for AppendVerticesNode {
         deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
             .push(dep);
     }
 
-    fn remove_dependency(&mut self, id: i64) -> bool {
+    pub fn remove_dependency(&mut self, id: i64) -> bool {
         let mut deps = self
             .dependencies
             .lock()
@@ -636,54 +533,23 @@ impl PlanNodeDependencies for AppendVerticesNode {
             false
         }
     }
-}
 
-impl PlanNodeDependenciesExt for AppendVerticesNode {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        let deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        f(&deps)
-    }
-}
-
-impl PlanNodeMutable for AppendVerticesNode {
-    fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    fn set_col_names(&mut self, names: Vec<String>) {
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for AppendVerticesNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::AppendVertices(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
-    }
-}
-
-impl PlanNodeVisitable for AppendVerticesNode {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_append_vertices(self)?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for AppendVerticesNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+        super::plan_node_enum::PlanNodeEnum::AppendVertices(cloned)
     }
 }
 
@@ -695,7 +561,7 @@ mod tests {
     fn test_expand_node_creation() {
         let edge_types = vec!["edge1".to_string(), "edge2".to_string()];
         let node = ExpandNode::new(1, edge_types, "OUT");
-        assert_eq!(node.kind(), PlanNodeKind::Expand);
+        assert_eq!(node.type_name(), "Expand");
         assert_eq!(node.space_id, 1);
         assert_eq!(node.direction, "OUT");
         assert_eq!(node.edge_types.len(), 2);
@@ -705,7 +571,7 @@ mod tests {
     fn test_traverse_node_creation() {
         let edge_types = vec!["edge1".to_string()];
         let node = TraverseNode::new(1, edge_types, "BOTH");
-        assert_eq!(node.kind(), PlanNodeKind::Traverse);
+        assert_eq!(node.type_name(), "Traverse");
         assert_eq!(node.space_id, 1);
         assert_eq!(node.direction, "BOTH");
     }
@@ -715,7 +581,7 @@ mod tests {
         let vids = vec![Value::String("vid1".to_string())];
         let tag_ids = vec![1, 2];
         let node = AppendVerticesNode::new(1, vids, tag_ids);
-        assert_eq!(node.kind(), PlanNodeKind::AppendVertices);
+        assert_eq!(node.type_name(), "AppendVertices");
         assert_eq!(node.space_id, 1);
         assert_eq!(node.vids.len(), 1);
         assert_eq!(node.tag_ids.len(), 2);

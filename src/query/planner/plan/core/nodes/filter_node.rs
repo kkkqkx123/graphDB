@@ -5,7 +5,7 @@
 use super::plan_node_enum::PlanNodeEnum;
 use crate::core::Expression;
 use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::visitor::{PlanNodeVisitor, PlanNodeVisitError};
+use crate::core::error::PlanNodeVisitError;
 
 /// 过滤节点
 ///
@@ -48,6 +48,10 @@ impl FilterNode {
         self.id
     }
 
+    /// 获取类型名称
+    pub fn type_name(&self) -> &'static str {
+        "Filter"
+    }
 
     /// 获取节点的输出变量
     pub fn output_var(&self) -> Option<&Variable> {
@@ -65,8 +69,8 @@ impl FilterNode {
     }
 
     /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        vec![self.input.clone()]
+    pub fn dependencies(&self) -> &[PlanNodeEnum] {
+        std::slice::from_ref(&self.input)
     }
 
     /// 设置节点的输出变量
@@ -79,9 +83,28 @@ impl FilterNode {
         self.col_names = names;
     }
 
-    /// 使用访问者模式访问节点
-    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.visit_filter(self)
+    /// 克隆节点
+    pub fn clone_plan_node(&self) -> PlanNodeEnum {
+        PlanNodeEnum::Filter(Self {
+            id: self.id,
+            input: self.input.clone(),
+            condition: self.condition.clone(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        })
+    }
+
+    /// 使用新ID克隆节点
+    pub fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+        PlanNodeEnum::Filter(Self {
+            id: new_id,
+            input: self.input.clone(),
+            condition: self.condition.clone(),
+            output_var: self.output_var.clone(),
+            col_names: self.col_names.clone(),
+            cost: self.cost,
+        })
     }
 }
 
@@ -99,7 +122,7 @@ mod tests {
         let condition = Expression::Variable("test".to_string());
         let filter_node = FilterNode::new(start_node_enum, condition).expect("Filter node should be created successfully");
 
-        assert_eq!(filter_node.kind(), PlanNodeKind::Filter);
+        assert_eq!(filter_node.type_name(), "Filter");
         assert_eq!(filter_node.dependencies().len(), 1);
     }
 }

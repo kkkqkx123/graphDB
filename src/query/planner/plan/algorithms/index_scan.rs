@@ -2,10 +2,8 @@
 //! 包含索引扫描、全文索引扫描等搜索相关操作
 
 use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::{
-    PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
-};
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::core::error::PlanNodeVisitError;
 
 #[derive(Debug, Clone)]
 pub struct IndexLimit {
@@ -64,9 +62,9 @@ impl IndexScan {
         self.id
     }
 
-    /// 获取节点的类型
-    pub fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::IndexScan
+    /// 获取类型名称
+    pub fn type_name(&self) -> &'static str {
+        "IndexScan"
     }
 
     /// 获取节点的输出变量
@@ -85,8 +83,8 @@ impl IndexScan {
     }
 
     /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[PlanNodeEnum] {
+        &self.deps
     }
 
     /// 添加依赖节点
@@ -131,11 +129,11 @@ impl IndexScan {
     }
 
     /// 使用访问者模式访问节点
-    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.plan_pre_visit()?;
-        // 这里需要调用 visitor.visit_index_scan(self)，但需要先在 PlanNodeVisitor 中添加这个方法
-        visitor.plan_post_visit()?;
-        Ok(())
+    pub fn accept<V>(&self, visitor: &mut V) -> V::Result
+    where
+        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+    {
+        visitor.visit_index_scan(self)
     }
 }
 
@@ -173,9 +171,9 @@ impl FulltextIndexScan {
         self.id
     }
 
-    /// 获取节点的类型
-    pub fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::FulltextIndexScan
+    /// 获取类型名称
+    pub fn type_name(&self) -> &'static str {
+        "FulltextIndexScan"
     }
 
     /// 获取节点的输出变量
@@ -194,8 +192,8 @@ impl FulltextIndexScan {
     }
 
     /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.deps.clone()
+    pub fn dependencies(&self) -> &[PlanNodeEnum] {
+        &self.deps
     }
 
     /// 添加依赖节点
@@ -240,10 +238,10 @@ impl FulltextIndexScan {
     }
 
     /// 使用访问者模式访问节点
-    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.plan_pre_visit()?;
-        // 这里需要调用 visitor.visit_fulltext_index_scan(self)，但需要先在 PlanNodeVisitor 中添加这个方法
-        visitor.plan_post_visit()?;
-        Ok(())
+    pub fn accept<V>(&self, visitor: &mut V) -> V::Result
+    where
+        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+    {
+        visitor.visit_fulltext_index_scan(self)
     }
 }

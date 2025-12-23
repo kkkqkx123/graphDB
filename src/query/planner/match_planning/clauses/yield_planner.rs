@@ -12,6 +12,7 @@ use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;

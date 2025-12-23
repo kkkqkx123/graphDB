@@ -68,10 +68,8 @@ impl Planner for FetchEdgesPlanner {
                 fetch_ctx.edge_name
             )),
         ) {
-            Ok(node) => Arc::new(node)
-                as Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>,
-            Err(_) => get_edges_node.clone()
-                as Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>,
+            Ok(node) => Arc::new(node),
+            Err(_) => get_edges_node.clone(),
         };
 
         // 4. 创建投影节点
@@ -81,8 +79,7 @@ impl Planner for FetchEdgesPlanner {
         };
 
         // 5. 如果需要去重，创建去重节点
-        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if fetch_ctx.distinct
-        {
+        let final_node = if fetch_ctx.distinct {
             match DedupNode::new(project_node.clone()) {
                 Ok(node) => Arc::new(node),
                 Err(_) => project_node.clone(),

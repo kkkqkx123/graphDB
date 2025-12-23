@@ -1,24 +1,118 @@
 //! PlanNode 枚举实现
 //!
 //! 使用枚举替代 trait objects，避免动态分发，提高性能
+//! 实现零成本抽象的核心系统
 
-
-
+use crate::core::error::PlanNodeVisitError;
 use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::visitor::{PlanNodeVisitor, PlanNodeVisitError};
-use std::fmt;
 
 // 导入所有具体的节点类型
-use super::start_node::StartNode;
-use super::project_node::ProjectNode;
-use super::sort_node::{SortNode, LimitNode, TopNNode};
-use super::join_node::{InnerJoinNode, LeftJoinNode, CrossJoinNode};
-use super::graph_scan_node::{GetVerticesNode, GetEdgesNode, GetNeighborsNode, ScanVerticesNode, ScanEdgesNode};
-use super::traversal_node::{ExpandNode, ExpandAllNode, TraverseNode, AppendVerticesNode};
-use super::filter_node::FilterNode;
 use super::aggregate_node::AggregateNode;
 use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
-use super::data_processing_node::{DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode};
+use super::data_processing_node::{
+    DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
+};
+use super::filter_node::FilterNode;
+use super::graph_scan_node::{
+    GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
+};
+use super::join_node::{CrossJoinNode, InnerJoinNode, LeftJoinNode};
+use super::project_node::ProjectNode;
+use super::sort_node::{LimitNode, SortNode, TopNNode};
+use super::start_node::StartNode;
+use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
+
+/// 零成本访问者trait - 使用泛型避免动态分发
+pub trait PlanNodeVisitor {
+    type Result;
+
+    /// 访问Start节点 - 编译时分发
+    fn visit_start(&mut self, node: &StartNode) -> Self::Result;
+
+    /// 访问Project节点 - 编译时分发
+    fn visit_project(&mut self, node: &ProjectNode) -> Self::Result;
+
+    /// 访问Sort节点 - 编译时分发
+    fn visit_sort(&mut self, node: &SortNode) -> Self::Result;
+
+    /// 访问Limit节点 - 编译时分发
+    fn visit_limit(&mut self, node: &LimitNode) -> Self::Result;
+
+    /// 访问TopN节点 - 编译时分发
+    fn visit_topn(&mut self, node: &TopNNode) -> Self::Result;
+
+    /// 访问InnerJoin节点 - 编译时分发
+    fn visit_inner_join(&mut self, node: &InnerJoinNode) -> Self::Result;
+
+    /// 访问LeftJoin节点 - 编译时分发
+    fn visit_left_join(&mut self, node: &LeftJoinNode) -> Self::Result;
+
+    /// 访问CrossJoin节点 - 编译时分发
+    fn visit_cross_join(&mut self, node: &CrossJoinNode) -> Self::Result;
+
+    /// 访问GetVertices节点 - 编译时分发
+    fn visit_get_vertices(&mut self, node: &GetVerticesNode) -> Self::Result;
+
+    /// 访问GetEdges节点 - 编译时分发
+    fn visit_get_edges(&mut self, node: &GetEdgesNode) -> Self::Result;
+
+    /// 访问GetNeighbors节点 - 编译时分发
+    fn visit_get_neighbors(&mut self, node: &GetNeighborsNode) -> Self::Result;
+
+    /// 访问ScanVertices节点 - 编译时分发
+    fn visit_scan_vertices(&mut self, node: &ScanVerticesNode) -> Self::Result;
+
+    /// 访问ScanEdges节点 - 编译时分发
+    fn visit_scan_edges(&mut self, node: &ScanEdgesNode) -> Self::Result;
+
+    /// 访问Expand节点 - 编译时分发
+    fn visit_expand(&mut self, node: &ExpandNode) -> Self::Result;
+
+    /// 访问ExpandAll节点 - 编译时分发
+    fn visit_expand_all(&mut self, node: &ExpandAllNode) -> Self::Result;
+
+    /// 访问Traverse节点 - 编译时分发
+    fn visit_traverse(&mut self, node: &TraverseNode) -> Self::Result;
+
+    /// 访问AppendVertices节点 - 编译时分发
+    fn visit_append_vertices(&mut self, node: &AppendVerticesNode) -> Self::Result;
+
+    /// 访问Filter节点 - 编译时分发
+    fn visit_filter(&mut self, node: &FilterNode) -> Self::Result;
+
+    /// 访问Aggregate节点 - 编译时分发
+    fn visit_aggregate(&mut self, node: &AggregateNode) -> Self::Result;
+
+    /// 访问Argument节点 - 编译时分发
+    fn visit_argument(&mut self, node: &ArgumentNode) -> Self::Result;
+
+    /// 访问Loop节点 - 编译时分发
+    fn visit_loop(&mut self, node: &LoopNode) -> Self::Result;
+
+    /// 访问PassThrough节点 - 编译时分发
+    fn visit_pass_through(&mut self, node: &PassThroughNode) -> Self::Result;
+
+    /// 访问Select节点 - 编译时分发
+    fn visit_select(&mut self, node: &SelectNode) -> Self::Result;
+
+    /// 访问DataCollect节点 - 编译时分发
+    fn visit_data_collect(&mut self, node: &DataCollectNode) -> Self::Result;
+
+    /// 访问Dedup节点 - 编译时分发
+    fn visit_dedup(&mut self, node: &DedupNode) -> Self::Result;
+
+    /// 访问PatternApply节点 - 编译时分发
+    fn visit_pattern_apply(&mut self, node: &PatternApplyNode) -> Self::Result;
+
+    /// 访问RollUpApply节点 - 编译时分发
+    fn visit_roll_up_apply(&mut self, node: &RollUpApplyNode) -> Self::Result;
+
+    /// 访问Union节点 - 编译时分发
+    fn visit_union(&mut self, node: &UnionNode) -> Self::Result;
+
+    /// 访问Unwind节点 - 编译时分发
+    fn visit_unwind(&mut self, node: &UnwindNode) -> Self::Result;
+}
 
 /// PlanNode 枚举，包含所有可能的节点类型
 ///
@@ -86,6 +180,99 @@ pub enum PlanNodeEnum {
 }
 
 impl PlanNodeEnum {
+    /// 零成本类型检查 - 直接使用模式匹配
+    pub fn is_start(&self) -> bool {
+        matches!(self, PlanNodeEnum::Start(_))
+    }
+
+    pub fn is_project(&self) -> bool {
+        matches!(self, PlanNodeEnum::Project(_))
+    }
+
+    pub fn is_filter(&self) -> bool {
+        matches!(self, PlanNodeEnum::Filter(_))
+    }
+
+    pub fn is_sort(&self) -> bool {
+        matches!(self, PlanNodeEnum::Sort(_))
+    }
+
+    pub fn is_limit(&self) -> bool {
+        matches!(self, PlanNodeEnum::Limit(_))
+    }
+
+    /// 零成本类型转换 - 直接使用模式匹配
+    pub fn as_start(&self) -> Option<&StartNode> {
+        match self {
+            PlanNodeEnum::Start(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_project(&self) -> Option<&ProjectNode> {
+        match self {
+            PlanNodeEnum::Project(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_filter(&self) -> Option<&FilterNode> {
+        match self {
+            PlanNodeEnum::Filter(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_sort(&self) -> Option<&SortNode> {
+        match self {
+            PlanNodeEnum::Sort(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_limit(&self) -> Option<&LimitNode> {
+        match self {
+            PlanNodeEnum::Limit(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    /// 零成本类型转换（可变） - 直接使用模式匹配
+    pub fn as_start_mut(&mut self) -> Option<&mut StartNode> {
+        match self {
+            PlanNodeEnum::Start(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_project_mut(&mut self) -> Option<&mut ProjectNode> {
+        match self {
+            PlanNodeEnum::Project(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_filter_mut(&mut self) -> Option<&mut FilterNode> {
+        match self {
+            PlanNodeEnum::Filter(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_sort_mut(&mut self) -> Option<&mut SortNode> {
+        match self {
+            PlanNodeEnum::Sort(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_limit_mut(&mut self) -> Option<&mut LimitNode> {
+        match self {
+            PlanNodeEnum::Limit(node) => Some(node),
+            _ => None,
+        }
+    }
+
     /// 获取节点的唯一ID
     pub fn id(&self) -> i64 {
         match self {
@@ -317,9 +504,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::AppendVertices(node) => {
                 vec![]
             }
-            PlanNodeEnum::Filter(node) => {
-                node.dependencies()
-            }
+            PlanNodeEnum::Filter(node) => node.dependencies(),
             PlanNodeEnum::Aggregate(node) => {
                 vec![]
             }
@@ -426,38 +611,41 @@ impl PlanNodeEnum {
         }
     }
 
-    /// 使用访问者模式访问节点
-    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+    /// 零成本访问者模式 - 编译时分发
+    pub fn accept<V>(&self, visitor: &mut V) -> V::Result
+    where
+        V: PlanNodeVisitor,
+    {
         match self {
-            PlanNodeEnum::Start(node) => node.accept(visitor),
-            PlanNodeEnum::Project(node) => node.accept(visitor),
-            PlanNodeEnum::Sort(node) => node.accept(visitor),
-            PlanNodeEnum::Limit(node) => node.accept(visitor),
-            PlanNodeEnum::TopN(node) => node.accept(visitor),
-            PlanNodeEnum::InnerJoin(node) => node.accept(visitor),
-            PlanNodeEnum::LeftJoin(node) => node.accept(visitor),
-            PlanNodeEnum::CrossJoin(node) => node.accept(visitor),
-            PlanNodeEnum::GetVertices(node) => node.accept(visitor),
-            PlanNodeEnum::GetEdges(node) => node.accept(visitor),
-            PlanNodeEnum::GetNeighbors(node) => node.accept(visitor),
-            PlanNodeEnum::ScanVertices(node) => node.accept(visitor),
-            PlanNodeEnum::ScanEdges(node) => node.accept(visitor),
-            PlanNodeEnum::Expand(node) => node.accept(visitor),
-            PlanNodeEnum::ExpandAll(node) => node.accept(visitor),
-            PlanNodeEnum::Traverse(node) => node.accept(visitor),
-            PlanNodeEnum::AppendVertices(node) => node.accept(visitor),
-            PlanNodeEnum::Filter(node) => node.accept(visitor),
-            PlanNodeEnum::Aggregate(node) => node.accept(visitor),
-            PlanNodeEnum::Argument(node) => node.accept(visitor),
-            PlanNodeEnum::Loop(node) => node.accept(visitor),
-            PlanNodeEnum::PassThrough(node) => node.accept(visitor),
-            PlanNodeEnum::Select(node) => node.accept(visitor),
-            PlanNodeEnum::DataCollect(node) => node.accept(visitor),
-            PlanNodeEnum::Dedup(node) => node.accept(visitor),
-            PlanNodeEnum::PatternApply(node) => node.accept(visitor),
-            PlanNodeEnum::RollUpApply(node) => node.accept(visitor),
-            PlanNodeEnum::Union(node) => node.accept(visitor),
-            PlanNodeEnum::Unwind(node) => node.accept(visitor),
+            PlanNodeEnum::Start(node) => visitor.visit_start(node),
+            PlanNodeEnum::Project(node) => visitor.visit_project(node),
+            PlanNodeEnum::Sort(node) => visitor.visit_sort(node),
+            PlanNodeEnum::Limit(node) => visitor.visit_limit(node),
+            PlanNodeEnum::TopN(node) => visitor.visit_topn(node),
+            PlanNodeEnum::InnerJoin(node) => visitor.visit_inner_join(node),
+            PlanNodeEnum::LeftJoin(node) => visitor.visit_left_join(node),
+            PlanNodeEnum::CrossJoin(node) => visitor.visit_cross_join(node),
+            PlanNodeEnum::GetVertices(node) => visitor.visit_get_vertices(node),
+            PlanNodeEnum::GetEdges(node) => visitor.visit_get_edges(node),
+            PlanNodeEnum::GetNeighbors(node) => visitor.visit_get_neighbors(node),
+            PlanNodeEnum::ScanVertices(node) => visitor.visit_scan_vertices(node),
+            PlanNodeEnum::ScanEdges(node) => visitor.visit_scan_edges(node),
+            PlanNodeEnum::Expand(node) => visitor.visit_expand(node),
+            PlanNodeEnum::ExpandAll(node) => visitor.visit_expand_all(node),
+            PlanNodeEnum::Traverse(node) => visitor.visit_traverse(node),
+            PlanNodeEnum::AppendVertices(node) => visitor.visit_append_vertices(node),
+            PlanNodeEnum::Filter(node) => visitor.visit_filter(node),
+            PlanNodeEnum::Aggregate(node) => visitor.visit_aggregate(node),
+            PlanNodeEnum::Argument(node) => visitor.visit_argument(node),
+            PlanNodeEnum::Loop(node) => visitor.visit_loop(node),
+            PlanNodeEnum::PassThrough(node) => visitor.visit_pass_through(node),
+            PlanNodeEnum::Select(node) => visitor.visit_select(node),
+            PlanNodeEnum::DataCollect(node) => visitor.visit_data_collect(node),
+            PlanNodeEnum::Dedup(node) => visitor.visit_dedup(node),
+            PlanNodeEnum::PatternApply(node) => visitor.visit_pattern_apply(node),
+            PlanNodeEnum::RollUpApply(node) => visitor.visit_roll_up_apply(node),
+            PlanNodeEnum::Union(node) => visitor.visit_union(node),
+            PlanNodeEnum::Unwind(node) => visitor.visit_unwind(node),
         }
     }
 
@@ -633,7 +821,10 @@ impl PlanNodeEnum {
     pub fn is_control_flow_node(&self) -> bool {
         matches!(
             self,
-            PlanNodeEnum::Select | PlanNodeEnum::Loop | PlanNodeEnum::PassThrough | PlanNodeEnum::Start
+            PlanNodeEnum::Select
+                | PlanNodeEnum::Loop
+                | PlanNodeEnum::PassThrough
+                | PlanNodeEnum::Start
         )
     }
 }
@@ -643,7 +834,6 @@ impl fmt::Display for PlanNodeEnum {
         write!(f, "{}({})", self.name(), self.id())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -664,5 +854,154 @@ mod tests {
         let enum_node = PlanNodeEnum::Start(start_node);
 
         assert_eq!(format!("{}", enum_node), "Start(-1)");
+    }
+
+    #[test]
+    fn test_zero_cost_type_check() {
+        let start_node = StartNode::new();
+        let enum_node = PlanNodeEnum::Start(start_node);
+
+        // 零成本类型检查
+        assert!(enum_node.is_start());
+        assert!(!enum_node.is_project());
+        assert!(!enum_node.is_filter());
+        assert!(!enum_node.is_sort());
+        assert!(!enum_node.is_limit());
+    }
+
+    #[test]
+    fn test_zero_cost_type_conversion() {
+        let start_node = StartNode::new();
+        let enum_node = PlanNodeEnum::Start(start_node);
+
+        // 零成本类型转换
+        let start_ref = enum_node.as_start();
+        assert!(start_ref.is_some());
+
+        let project_ref = enum_node.as_project();
+        assert!(project_ref.is_none());
+
+        let filter_ref = enum_node.as_filter();
+        assert!(filter_ref.is_none());
+    }
+
+    #[test]
+    fn test_zero_cost_visitor_pattern() {
+        use super::*;
+
+        struct CostCalculator {
+            total_cost: f64,
+        }
+
+        impl PlanNodeVisitor for CostCalculator {
+            type Result = f64;
+
+            fn visit_start(&mut self, node: &StartNode) -> Self::Result {
+                self.total_cost += node.cost();
+                self.total_cost
+            }
+
+            fn visit_project(&mut self, node: &ProjectNode) -> Self::Result {
+                self.total_cost += node.cost();
+                self.total_cost
+            }
+
+            fn visit_filter(&mut self, node: &FilterNode) -> Self::Result {
+                self.total_cost += node.cost();
+                self.total_cost
+            }
+
+            fn visit_sort(&mut self, node: &SortNode) -> Self::Result {
+                self.total_cost += node.cost();
+                self.total_cost
+            }
+
+            fn visit_limit(&mut self, node: &LimitNode) -> Self::Result {
+                self.total_cost += node.cost();
+                self.total_cost
+            }
+
+            // 为其他节点类型提供默认实现
+            fn visit_topn(&mut self, node: &TopNNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_inner_join(&mut self, node: &InnerJoinNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_left_join(&mut self, node: &LeftJoinNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_cross_join(&mut self, node: &CrossJoinNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_get_vertices(&mut self, node: &GetVerticesNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_get_edges(&mut self, node: &GetEdgesNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_get_neighbors(&mut self, node: &GetNeighborsNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_scan_vertices(&mut self, node: &ScanVerticesNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_scan_edges(&mut self, node: &ScanEdgesNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_expand(&mut self, node: &ExpandNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_expand_all(&mut self, node: &ExpandAllNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_traverse(&mut self, node: &TraverseNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_append_vertices(&mut self, node: &AppendVerticesNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_aggregate(&mut self, node: &AggregateNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_argument(&mut self, node: &ArgumentNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_loop(&mut self, node: &LoopNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_pass_through(&mut self, node: &PassThroughNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_select(&mut self, node: &SelectNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_data_collect(&mut self, node: &DataCollectNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_dedup(&mut self, node: &DedupNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_pattern_apply(&mut self, node: &PatternApplyNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_roll_up_apply(&mut self, node: &RollUpApplyNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_union(&mut self, node: &UnionNode) -> Self::Result {
+                self.total_cost
+            }
+            fn visit_unwind(&mut self, node: &UnwindNode) -> Self::Result {
+                self.total_cost
+            }
+        }
+
+        let start_node = StartNode::new();
+        let enum_node = PlanNodeEnum::Start(start_node);
+
+        let mut calculator = CostCalculator { total_cost: 0.0 };
+        let cost = enum_node.accept(&mut calculator);
+
+        assert!(cost > 0.0);
     }
 }

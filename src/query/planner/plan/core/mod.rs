@@ -1,6 +1,5 @@
 pub mod common;
 pub mod nodes;
-pub mod visitor;
 
 pub use common::{EdgeProp, TagProp};
 pub use nodes::{
@@ -10,6 +9,6 @@ pub use nodes::{
     ProjectNode, RollUpApplyNode, ScanEdgesNode, ScanVerticesNode, SelectNode, SortNode, StartNode,
     TraverseNode, UnionNode, UnwindNode,
 };
-pub use nodes::plan_node_enum::PlanNodeEnum;
-pub use visitor::{PlanNodeVisitor, PlanNodeVisitError, DefaultPlanNodeVisitor};
+pub use nodes::plan_node_enum::{PlanNodeEnum, PlanNodeVisitor};
+pub use crate::core::error::PlanNodeVisitError;
 

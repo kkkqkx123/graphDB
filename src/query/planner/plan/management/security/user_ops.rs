@@ -9,6 +9,7 @@ use crate::query::planner::plan::core::{
     },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
+use crate::query::planner::plan::PlanNodeEnum;
 use std::sync::Arc;
 
 /// 创建用户计划节点

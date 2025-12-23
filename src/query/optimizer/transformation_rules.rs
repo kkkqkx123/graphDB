@@ -4,7 +4,7 @@
 use super::optimizer::{OptContext, OptGroupNode, OptRule, OptimizerError, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
-use crate::query::planner::plan::PlanNodeKind;
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
 
 
@@ -23,7 +23,7 @@ impl OptRule for TopNRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为Limit操作
-        if node.plan_node.kind() != PlanNodeKind::Limit {
+        if !node.plan_node.is_limit() {
             return Ok(None);
         }
 
@@ -31,23 +31,15 @@ impl OptRule for TopNRule {
         if node.dependencies.len() == 1 {
             let child_dep_id = node.dependencies[0];
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                if child_node.plan_node.kind() == PlanNodeKind::Sort {
+                if child_node.plan_node.is_sort() {
                     // 根据NebulaGraph的实现，将Limit和Sort转换为TopN
-                    if let Some(limit_plan_node) =
-                        node.plan_node
-                            .as_any()
-                            .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>()
-                    {
-                        if let Some(sort_plan_node) = child_node
-                            .plan_node
-                            .as_any()
-                            .downcast_ref::<crate::query::planner::plan::core::nodes::SortNode>(
-                        ) {
+                    if let Some(limit_plan_node) = node.plan_node.as_limit() {
+                        if let Some(sort_plan_node) = child_node.plan_node.as_sort() {
                             // 创建新的OptGroupNode
                             let mut new_node = child_node.clone(); // 从Sort节点克隆
 
                             // 获取Sort节点的输入作为TopN的输入
-                            let sort_input = child_node.plan_node.clone();
+                            let sort_input = sort_plan_node.dependencies()[0].clone();
                             
                             // 创建TopN节点并设置输出变量
                             let mut topn_node = crate::query::planner::plan::core::nodes::TopNNode::new(
@@ -57,11 +49,11 @@ impl OptRule for TopNRule {
                             ).expect("TopN node should be created successfully");
 
                             // 保持输出变量不变
-                            if let Some(output_var) = node.plan_node.output_var() {
+                            if let Some(output_var) = limit_plan_node.output_var() {
                                 topn_node.set_output_var(output_var.clone());
                             }
 
-                            new_node.plan_node = std::sync::Arc::new(topn_node);
+                            new_node.plan_node = std::sync::Arc::new(PlanNodeEnum::TopN(topn_node));
 
                             // 保持原始Sort节点的依赖（即TopN的输入）
                             if !child_node.dependencies.is_empty() {
@@ -83,7 +75,7 @@ impl OptRule for TopNRule {
     fn pattern(&self) -> Pattern {
         
         // Limit节点，依赖一个Sort节点
-        PatternBuilder::with_dependency(PlanNodeKind::Limit, PlanNodeKind::Sort)
+        PatternBuilder::with_dependency("Limit", "Sort")
     }
 }
 
@@ -117,15 +109,14 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个Sort节点
-        let sort_node = std::sync::Arc::new(
+        let sort_node = PlanNodeEnum::Sort(
             SortNode::new(
-                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
                 vec![],
             )
             .expect("Sort node should be created successfully"),
-        )
-            as std::sync::Arc<dyn crate::query::planner::plan::core::plan_node_traits::PlanNode>;
-        let opt_node = OptGroupNode::new(1, sort_node);
+        );
+        let opt_node = OptGroupNode::new(1, std::sync::Arc::new(sort_node));
 
         let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
         assert!(result.is_none());

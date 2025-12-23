@@ -2,15 +2,8 @@
 //!
 //! ProjectNode 用于根据指定的列表达式投影输入数据流
 
-
-
-use super::traits::{
-    PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
-    PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
-};
 use crate::query::context::validate::types::Variable;
 use crate::query::validator::YieldColumn;
-use std::sync::Arc;
 
 /// 投影节点
 ///
@@ -18,18 +11,18 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct ProjectNode {
     id: i64,
-    input: PlanNodeEnum,
+    input: super::plan_node_enum::PlanNodeEnum,
     columns: Vec<YieldColumn>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies_vec: Vec<PlanNodeEnum>, // 添加一个 Vec 来满足 trait 要求
+    dependencies_vec: Vec<super::plan_node_enum::PlanNodeEnum>, // 添加一个 Vec 来满足 trait 要求
 }
 
 impl ProjectNode {
     /// 创建新的投影节点
     pub fn new(
-        input: PlanNodeEnum,
+        input: super::plan_node_enum::PlanNodeEnum,
         columns: Vec<YieldColumn>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names: Vec<String> = columns.iter().map(|col| col.alias.clone()).collect();
@@ -52,41 +45,38 @@ impl ProjectNode {
     pub fn columns(&self) -> &[YieldColumn] {
         &self.columns
     }
-}
 
-impl PlanNodeIdentifiable for ProjectNode {
-    fn id(&self) -> i64 {
+    pub fn id(&self) -> i64 {
         self.id
     }
-    fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::Project
-    }
-}
 
-impl PlanNodeProperties for ProjectNode {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    pub fn type_name(&self) -> &'static str {
+        "Project"
     }
-    fn col_names(&self) -> &[String] {
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    fn cost(&self) -> f64 {
+
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for ProjectNode {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
-        self.dependencies_vec.clone()
+    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
+        &self.dependencies_vec
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
         self.input = dep.clone();
         self.dependencies_vec.clear();
         self.dependencies_vec.push(dep);
     }
 
-    fn remove_dependency(&mut self, id: i64) -> bool {
+    pub fn remove_dependency(&mut self, id: i64) -> bool {
         let initial_len = self.dependencies_vec.len();
         self.dependencies_vec.retain(|dep| dep.id() != id);
         let final_len = self.dependencies_vec.len();
@@ -104,29 +94,17 @@ impl PlanNodeDependencies for ProjectNode {
             false
         }
     }
-}
 
-impl PlanNodeDependenciesExt for ProjectNode {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.dependencies_vec)
-    }
-}
-
-impl PlanNodeMutable for ProjectNode {
-    fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    fn set_col_names(&mut self, names: Vec<String>) {
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for ProjectNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(Self {
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Project(Self {
             id: self.id,
             input: self.input.clone(),
             columns: self.columns.clone(),
@@ -141,35 +119,10 @@ impl PlanNodeClonable for ProjectNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        Arc::new(Self {
-            id: new_id,
-            input: self.input.clone(),
-            columns: self.columns.clone(),
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            dependencies_vec: self
-                .dependencies_vec
-                .iter()
-                .map(|dep| dep.clone())
-                .collect(),
-        })
-    }
-}
-
-impl PlanNodeVisitable for ProjectNode {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
-        visitor.pre_visit()?;
-        visitor.visit_project(self)?;
-        visitor.post_visit()?;
-        Ok(())
-    }
-}
-
-impl PlanNode for ProjectNode {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        super::plan_node_enum::PlanNodeEnum::Project(cloned)
     }
 }
 
@@ -177,12 +130,12 @@ impl PlanNode for ProjectNode {
 mod tests {
     use super::*;
     use crate::core::Expression;
+    use super::super::start_node::StartNode;
 
     #[test]
     fn test_project_node_creation() {
         // 创建一个起始节点作为输入
-        let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
-        let start_node = Arc::new(start_node);
+        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let columns = vec![YieldColumn {
             expr: Expression::Variable("test".to_string()),
@@ -192,7 +145,7 @@ mod tests {
 
         let project_node = ProjectNode::new(start_node, columns).expect("Project node should be created successfully");
 
-        assert_eq!(project_node.kind(), PlanNodeKind::Project);
+        assert_eq!(project_node.type_name(), "Project");
         assert_eq!(project_node.dependencies().len(), 1);
         assert_eq!(project_node.col_names().len(), 1);
         assert_eq!(project_node.col_names()[0], "test");
@@ -200,8 +153,7 @@ mod tests {
 
     #[test]
     fn test_project_node_columns() {
-        let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
-        let start_node = Arc::new(start_node);
+        let start_node = super::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
 
         let columns = vec![
             YieldColumn {

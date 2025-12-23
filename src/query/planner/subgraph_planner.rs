@@ -2,6 +2,7 @@
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
 
+use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 
 #[derive(Debug)]

@@ -75,7 +75,7 @@ impl<T> NetworkServer<T> {
         loop {
             match self
                 .listener
-                
+                .as_mut()
                 .expect("Listener should be initialized before starting server")
                 .accept()
                 .await
