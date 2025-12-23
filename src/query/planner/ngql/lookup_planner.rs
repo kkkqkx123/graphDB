@@ -70,10 +70,14 @@ impl Planner for LookupPlanner {
             // 创建新的索引扫描节点作为PlanNodeEnum
             let index_scan_enum = if lookup_ctx.is_edge {
                 let get_edges = GetEdgesNode::new(1, "", "", "", "");
-                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(get_edges)
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(
+                    get_edges,
+                )
             } else {
                 let get_vertices = GetVerticesNode::new(1, "");
-                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(get_vertices)
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(
+                    get_vertices,
+                )
             };
 
             let filter_node = Arc::new(
@@ -104,10 +108,14 @@ impl Planner for LookupPlanner {
         // 创建新的索引扫描节点作为PlanNodeEnum
         let index_scan_enum = if lookup_ctx.is_edge {
             let get_edges = GetEdgesNode::new(1, "", "", "", "");
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(get_edges)
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(
+                get_edges,
+            )
         } else {
             let get_vertices = GetVerticesNode::new(1, "");
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(get_vertices)
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(
+                get_vertices,
+            )
         };
 
         let project_node = Arc::new(
@@ -124,14 +132,18 @@ impl Planner for LookupPlanner {
                     crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(get_edges),
                     vec![],
                 ).expect("ProjectNode creation should succeed");
-                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Project(temp_project)
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Project(
+                    temp_project,
+                )
             } else {
                 let get_vertices = GetVerticesNode::new(1, "");
                 let temp_project = ProjectNode::new(
                     crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(get_vertices),
                     vec![],
                 ).expect("ProjectNode creation should succeed");
-                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Project(temp_project)
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Project(
+                    temp_project,
+                )
             };
 
             let dedup_node = Arc::new(
@@ -146,18 +158,26 @@ impl Planner for LookupPlanner {
         // 将Arc<dyn PlanNode>转换为PlanNodeEnum
         let final_node_enum = if lookup_ctx.is_edge {
             let get_edges = GetEdgesNode::new(1, "", "", "", "");
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(get_edges)
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(
+                get_edges,
+            )
         } else {
             let get_vertices = GetVerticesNode::new(1, "");
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(get_vertices)
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(
+                get_vertices,
+            )
         };
 
         let index_scan_enum = if lookup_ctx.is_edge {
             let get_edges = GetEdgesNode::new(1, "", "", "", "");
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(get_edges)
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(
+                get_edges,
+            )
         } else {
             let get_vertices = GetVerticesNode::new(1, "");
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(get_vertices)
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(
+                get_vertices,
+            )
         };
 
         // 创建SubPlan

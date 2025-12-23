@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{DataSet, Value};
 use crate::core::expressions::{DefaultExpressionContext, ExpressionContext};
+use crate::core::{DataSet, Value};
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
@@ -356,8 +356,8 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for UnwindExecutor<S>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
     use crate::core::Expression;
+    use crate::core::Value;
     use crate::storage::NativeStorage;
     use std::sync::{Arc, Mutex};
 
@@ -365,7 +365,8 @@ mod tests {
     async fn test_unwind_executor() {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_unwind")).expect("NativeStorage should be created successfully"),
+            NativeStorage::new(config.test_db_path("test_db_unwind"))
+                .expect("NativeStorage should be created successfully"),
         ));
 
         // 创建输入数据
@@ -390,7 +391,10 @@ mod tests {
         );
 
         // 执行展开
-        let result = executor.execute().await.expect("Executor should execute successfully");
+        let result = executor
+            .execute()
+            .await
+            .expect("Executor should execute successfully");
 
         // 检查结果
         if let ExecutionResult::Values(values) = result {

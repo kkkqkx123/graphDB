@@ -6,8 +6,6 @@ use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
-
-
 /// 转换Limit-Sort为TopN的规则
 #[derive(Debug)]
 pub struct TopNRule;
@@ -42,11 +40,13 @@ impl OptRule for TopNRule {
                             let sort_input = (*sort_plan_node.dependencies()[0].clone()).clone();
 
                             // 创建TopN节点并设置输出变量
-                            let mut topn_node = crate::query::planner::plan::core::nodes::TopNNode::new(
-                                sort_input,                           // 使用Sort的输入
-                                sort_plan_node.sort_items().to_vec(), // 使用Sort的排序项
-                                limit_plan_node.count(), // 使用Limit的计数值作为TopN的限制
-                            ).expect("TopN node should be created successfully");
+                            let mut topn_node =
+                                crate::query::planner::plan::core::nodes::TopNNode::new(
+                                    sort_input,                           // 使用Sort的输入
+                                    sort_plan_node.sort_items().to_vec(), // 使用Sort的排序项
+                                    limit_plan_node.count(), // 使用Limit的计数值作为TopN的限制
+                                )
+                                .expect("TopN node should be created successfully");
 
                             // 保持输出变量不变
                             if let Some(output_var) = limit_plan_node.output_var() {
@@ -73,7 +73,6 @@ impl OptRule for TopNRule {
     }
 
     fn pattern(&self) -> Pattern {
-        
         // Limit节点，依赖一个Sort节点
         PatternBuilder::with_dependency("Limit", "Sort")
     }
@@ -92,13 +91,13 @@ mod tests {
         let session_info = crate::core::context::session::SessionInfo::new(
             "test_session",
             "test_user",
-            vec!["user".to_string()]
+            vec!["user".to_string()],
         );
         let query_context = QueryContext::new(
             "test_query",
             crate::core::types::query::QueryType::DataQuery,
             "TEST QUERY",
-            session_info
+            session_info,
         );
         OptContext::new(query_context)
     }
@@ -118,7 +117,9 @@ mod tests {
         );
         let opt_node = OptGroupNode::new(1, std::sync::Arc::new(sort_node));
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         assert!(result.is_none());
     }
 }

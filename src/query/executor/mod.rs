@@ -22,7 +22,6 @@ pub use base::{
     BaseExecutor, ChainableExecutor, EdgeDirection, ExecutionContext, InputExecutor, StartExecutor,
 };
 
-
 // Re-export result processing executors
 pub use result_processing::{
     AggregateExecutor, AggregateFunction, AggregateState, DedupExecutor, DedupStrategy,

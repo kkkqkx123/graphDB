@@ -126,11 +126,16 @@ mod tests {
             is_unique: true,
         };
 
-        manager.add_index(index.clone()).expect("Failed to add index");
+        manager
+            .add_index(index.clone())
+            .expect("Failed to add index");
 
         let retrieved = manager.get_index("idx_users_id");
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.expect("Failed to retrieve index").name, "idx_users_id");
+        assert_eq!(
+            retrieved.expect("Failed to retrieve index").name,
+            "idx_users_id"
+        );
     }
 
     #[test]
@@ -147,7 +152,9 @@ mod tests {
         manager.add_index(index).expect("Failed to add index");
         assert!(manager.has_index("idx_users_id"));
 
-        manager.remove_index("idx_users_id").expect("Failed to remove index");
+        manager
+            .remove_index("idx_users_id")
+            .expect("Failed to remove index");
         assert!(!manager.has_index("idx_users_id"));
     }
 

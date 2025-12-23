@@ -1,7 +1,9 @@
 //! Cypher表达式系统
 
+use crate::core::types::operators::{
+    BinaryOperator as CoreBinaryOperator, UnaryOperator as CoreUnaryOperator,
+};
 use std::collections::HashMap;
-use crate::core::types::operators::{BinaryOperator as CoreBinaryOperator, UnaryOperator as CoreUnaryOperator};
 
 /// 表达式
 #[derive(Debug, Clone)]

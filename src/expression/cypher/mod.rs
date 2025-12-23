@@ -66,17 +66,18 @@ impl CypherProcessor {
 mod tests {
     use super::*;
     use crate::core::expressions::BasicExpressionContext;
-    use crate::query::parser::cypher::ast::{UnaryOperator};
     use crate::query::parser::cypher::ast::expressions::{
         Expression as CypherExpression, Literal as CypherLiteral, UnaryExpression,
     };
+    use crate::query::parser::cypher::ast::UnaryOperator;
 
     #[test]
     fn test_cypher_processor_basic() {
         let mut context = BasicExpressionContext::default();
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
 
-        let result = CypherProcessor::process(&cypher_expr, &mut context).expect("Cypher processing should succeed for literal values");
+        let result = CypherProcessor::process(&cypher_expr, &mut context)
+            .expect("Cypher processing should succeed for literal values");
         assert_eq!(result, crate::core::Value::Int(42));
     }
 
@@ -88,7 +89,8 @@ mod tests {
             expression: Box::new(CypherExpression::Literal(CypherLiteral::Boolean(true))),
         });
 
-        let result = CypherProcessor::process_with_optimization(&expr, &mut context).expect("Cypher processing with optimization should succeed");
+        let result = CypherProcessor::process_with_optimization(&expr, &mut context)
+            .expect("Cypher processing with optimization should succeed");
         assert_eq!(result, crate::core::Value::Bool(false));
     }
 
@@ -102,7 +104,8 @@ mod tests {
         context.set_variable("x".to_string(), field_value);
 
         let cypher_expr = CypherExpression::Variable("x".to_string());
-        let result = CypherProcessor::evaluate_direct(&cypher_expr, &mut context).expect("Cypher direct evaluation should succeed");
+        let result = CypherProcessor::evaluate_direct(&cypher_expr, &mut context)
+            .expect("Cypher direct evaluation should succeed");
         assert_eq!(result, crate::core::Value::Int(100));
     }
 }

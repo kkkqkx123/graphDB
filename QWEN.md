@@ -1,13 +1,15 @@
 # GraphDB Project Context
 
-## Code Standards
+## Coding Standards
 
 **Security Assurance**
 Always avoid the use of unwrap. In testing, substitute with expect.
-Refrain from using unsafe methods except for operations directly involving underlying layers.
+Refrain from using unsafe methods except where directly involving low-level operations.
+All instances of unsafe usage must be explicitly documented in the unsafe.md file within the docs\archive directory.
 
-**Type Design Standards**
-Minimise the use of dynamic distribution forms such as dyn. Always prioritise the use of deterministic types.
+**Type Design Guidelines**
+Minimise the use of dynamic dispatch forms such as `dyn`, always prioritising deterministic types.
+All instances of dynamic dispatch must be explicitly documented in the `dynamic.md` file within the `docs\archive` directory.
 
 ## Language
 
@@ -66,11 +68,6 @@ The graphDB project utilises Cargo as its build system. To build the project:
 
 - rustc: 1.88.0
 - cargo: 1.88.0
-- rustup:
-Default host: x86_64-pc-windows-msvc
-rustup home: D:\Source\.rustup
-installed toolchains: stable-x86_64-pc-windows-msvc (active, default)
-installed targets: x86_64-pc-windows-msvc
 
 2. **Build commands**:
    ```bash
@@ -80,10 +77,39 @@ installed targets: x86_64-pc-windows-msvc
    ```
 
 3. **Type check and compile check**
+
+analyze_cargo is a cli tool that automatically runs `cargo check`, categorizes the errors/warnings, and generates a detailed Markdown report.
+default output file is `cargo_errors_report.md` in pwd.
+You can use it instead of `cargo check`. You can also use `cargo check`.
+
+**Usage**
 ```bash
-cargo check --message-format=short 2>&1 | findstr /C:"error[E" # Default Type check(use `cargo check --message-format=short` when you need to find warnings.)
-cargo check 2>&1 | findstr /C:"error[E" # Detailed Type check(Only use it when you need that. when use this, always add filter logic, like `cargo check 2>&1 | Select-String "error\[E" | Select-Object -First 10`)
-```   
+analyze_cargo
+```
+
+### Options
+- `--output <file>`: Specify output file path (default: cargo_errors_report.md)
+- `--filter-warnings`: Filter warnings, only show errors
+- `--filter-paths <paths>`: Filter errors by file paths (comma-separated)
+
+**Examples**
+
+```bash
+# Default usage
+analyze_cargo
+
+# Specify output file
+analyze_cargo --output report.md
+
+# Filter warnings only
+analyze_cargo --filter-warnings
+
+# Filter by specific paths(folder or file)
+analyze_cargo --filter-paths src/main.rs,src/lib.rs
+
+# Combine filters
+analyze_cargo --filter-warnings --output errors_only.md
+```
 
 4. **Run commands**:
    ```bash
@@ -134,4 +160,3 @@ It is not recommended to run all tests in one time.
 - The project utilises Rust version 2021, employing the ownership system to ensure memory safety
 - Does not include distributed functionality, focusing instead on single-machine performance and simplicity
 - The architecture aims to minimise external dependencies, leveraging the security and performance of the Rust ecosystem
-- Due to the excessive length of cargo command output, always execute commands in the format: `<cargo command> 2>&1 | Select-Object -Last 60`(or more line. When use `cargo check`, use `-First` instead to capture errors first)

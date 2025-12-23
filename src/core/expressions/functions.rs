@@ -2,9 +2,9 @@
 //!
 //! 提供表达式求值过程中的函数定义和实现，包括内置函数和自定义函数
 
-use crate::core::{ExpressionError};
-use crate::core::types::query::FieldValue;
 use crate::core::types::operators::AggregateFunction;
+use crate::core::types::query::FieldValue;
+use crate::core::ExpressionError;
 
 /// 函数引用枚举，避免动态分发
 #[derive(Debug, Clone)]

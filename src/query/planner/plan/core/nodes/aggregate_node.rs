@@ -123,12 +123,16 @@ mod tests {
 
     #[test]
     fn test_aggregate_node_creation() {
-        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
 
         let group_keys = vec!["category".to_string()];
         let agg_exprs = vec!["COUNT(*)".to_string()];
 
-        let aggregate_node = AggregateNode::new(start_node, group_keys, agg_exprs).expect("Aggregate node should be created successfully");
+        let aggregate_node = AggregateNode::new(start_node, group_keys, agg_exprs)
+            .expect("Aggregate node should be created successfully");
 
         assert_eq!(aggregate_node.type_name(), "Aggregate");
         assert_eq!(aggregate_node.dependencies().len(), 1);

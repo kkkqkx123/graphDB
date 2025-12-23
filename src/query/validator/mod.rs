@@ -22,8 +22,7 @@ pub use match_validator::MatchValidator;
 pub use crate::query::context::validate::ValidationContext;
 pub use validation_factory::ValidationFactory;
 pub use validation_interface::{
-    ValidationError, ValidationErrorType, ValidationStrategy,
-    ValidationStrategyType,
+    ValidationError, ValidationErrorType, ValidationStrategy, ValidationStrategyType,
 };
 
 // 为了向后兼容，导出类型定义

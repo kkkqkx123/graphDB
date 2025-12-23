@@ -169,7 +169,7 @@ impl<S: StorageEngine> InputExecutor<S> for ExpandExecutor<S> {
     }
 
     fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor
+        self.input_executor.as_ref()
     }
 }
 

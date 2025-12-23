@@ -2,8 +2,8 @@
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
 
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 
 #[derive(Debug)]
 pub struct LookupPlanner {
@@ -40,10 +40,7 @@ impl Planner for LookupPlanner {
 
         // For now, just return a subplan with the lookup node
         // In a complete implementation, this would be more complex
-        Ok(SubPlan::new(
-            Some(lookup_node.clone()),
-            Some(lookup_node),
-        ))
+        Ok(SubPlan::new(Some(lookup_node.clone()), Some(lookup_node)))
     }
 
     fn match_planner(&self, ast_ctx: &AstContext) -> bool {

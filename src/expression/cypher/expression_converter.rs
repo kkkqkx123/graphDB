@@ -1,11 +1,10 @@
 use crate::core::ExpressionError;
 use crate::core::{Expression, LiteralValue};
-use crate::query::parser::cypher::ast::{BinaryOperator, UnaryOperator};
 use crate::query::parser::cypher::ast::expressions::{
-    BinaryExpression,
-    Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
-    MapExpression, PropertyExpression, UnaryExpression,
+    BinaryExpression, Expression as CypherExpression, FunctionCall, ListExpression,
+    Literal as CypherLiteral, MapExpression, PropertyExpression, UnaryExpression,
 };
+use crate::query::parser::cypher::ast::{BinaryOperator, UnaryOperator};
 
 /// Cypher表达式转换器
 ///
@@ -21,14 +20,19 @@ impl ExpressionConverter {
         match cypher_expr {
             CypherExpression::Literal(literal) => {
                 // 使用共享的字面量转换逻辑
-                let value = super::cypher_evaluator::CypherEvaluator::cypher_literal_to_value(literal)?;
+                let value =
+                    super::cypher_evaluator::CypherEvaluator::cypher_literal_to_value(literal)?;
                 let unified_literal = match value {
                     crate::core::Value::String(s) => LiteralValue::String(s),
                     crate::core::Value::Int(i) => LiteralValue::Int(i),
                     crate::core::Value::Float(f) => LiteralValue::Float(f),
                     crate::core::Value::Bool(b) => LiteralValue::Bool(b),
                     crate::core::Value::Null(_) => LiteralValue::Null,
-                    _ => return Err(ExpressionError::invalid_operation("Unsupported literal type".to_string())),
+                    _ => {
+                        return Err(ExpressionError::invalid_operation(
+                            "Unsupported literal type".to_string(),
+                        ))
+                    }
                 };
                 Ok(Expression::Literal(unified_literal))
             }
@@ -133,14 +137,18 @@ impl ExpressionConverter {
                     LiteralValue::Bool(b) => crate::core::Value::Bool(*b),
                     LiteralValue::Null => crate::core::Value::Null(crate::core::NullType::Null),
                 };
-                
+
                 let cypher_literal = match value {
                     crate::core::Value::String(s) => CypherLiteral::String(s),
                     crate::core::Value::Int(i) => CypherLiteral::Integer(i),
                     crate::core::Value::Float(f) => CypherLiteral::Float(f),
                     crate::core::Value::Bool(b) => CypherLiteral::Boolean(b),
                     crate::core::Value::Null(_) => CypherLiteral::Null,
-                    _ => return Err(ExpressionError::invalid_operation("Unsupported value type".to_string())),
+                    _ => {
+                        return Err(ExpressionError::invalid_operation(
+                            "Unsupported value type".to_string(),
+                        ))
+                    }
                 };
                 Ok(CypherExpression::Literal(cypher_literal))
             }
@@ -236,17 +244,18 @@ impl ExpressionConverter {
 mod tests {
     use super::*;
     use crate::core::{Expression, LiteralValue};
-    use crate::query::parser::cypher::ast::{BinaryOperator, UnaryOperator};
     use crate::query::parser::cypher::ast::expressions::{
-        BinaryExpression, CaseAlternative, CaseExpression,
-        Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
-        MapExpression, PropertyExpression, UnaryExpression,
+        BinaryExpression, CaseAlternative, CaseExpression, Expression as CypherExpression,
+        FunctionCall, ListExpression, Literal as CypherLiteral, MapExpression, PropertyExpression,
+        UnaryExpression,
     };
+    use crate::query::parser::cypher::ast::{BinaryOperator, UnaryOperator};
 
     #[test]
     fn test_convert_literal() {
         let cypher_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
-        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).expect("Conversion from cypher to unified should succeed for literals");
+        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr)
+            .expect("Conversion from cypher to unified should succeed for literals");
 
         match unified_expr {
             Expression::Literal(LiteralValue::Int(i)) => assert_eq!(i, 42),
@@ -257,7 +266,8 @@ mod tests {
     #[test]
     fn test_convert_variable() {
         let cypher_expr = CypherExpression::Variable("x".to_string());
-        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).expect("Conversion from cypher to unified should succeed for variables");
+        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr)
+            .expect("Conversion from cypher to unified should succeed for variables");
 
         match unified_expr {
             Expression::Variable(name) => assert_eq!(name, "x"),
@@ -275,7 +285,8 @@ mod tests {
             right,
         });
 
-        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr).expect("Conversion from cypher to unified should succeed for binary operations");
+        let unified_expr = ExpressionConverter::convert_cypher_to_unified(&cypher_expr)
+            .expect("Conversion from cypher to unified should succeed for binary operations");
 
         match unified_expr {
             Expression::Binary {
@@ -293,8 +304,10 @@ mod tests {
     #[test]
     fn test_round_trip_conversion() {
         let original = CypherExpression::Literal(CypherLiteral::String("test".to_string()));
-        let unified = ExpressionConverter::convert_cypher_to_unified(&original).expect("Conversion from cypher to unified should succeed for round trip");
-        let back_to_cypher = ExpressionConverter::convert_unified_to_cypher(&unified).expect("Conversion from unified to cypher should succeed for round trip");
+        let unified = ExpressionConverter::convert_cypher_to_unified(&original)
+            .expect("Conversion from cypher to unified should succeed for round trip");
+        let back_to_cypher = ExpressionConverter::convert_unified_to_cypher(&unified)
+            .expect("Conversion from unified to cypher should succeed for round trip");
 
         match back_to_cypher {
             CypherExpression::Literal(CypherLiteral::String(s)) => assert_eq!(s, "test"),

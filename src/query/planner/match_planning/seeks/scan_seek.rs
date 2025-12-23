@@ -204,7 +204,9 @@ mod tests {
         // 单个标签
         let node_info = create_test_node_info(vec!["Person"], false, false);
         let scan_seek = ScanSeek::new(node_info);
-        let filter_expr = scan_seek.create_label_filter_expression().expect("Label filter expression should be created successfully");
+        let filter_expr = scan_seek
+            .create_label_filter_expression()
+            .expect("Label filter expression should be created successfully");
 
         match filter_expr {
             Expression::Function { name, args } => {
@@ -217,7 +219,9 @@ mod tests {
         // 多个标签
         let node_info = create_test_node_info(vec!["Person", "Student"], false, false);
         let scan_seek = ScanSeek::new(node_info);
-        let filter_expr = scan_seek.create_label_filter_expression().expect("Label filter expression should be created successfully");
+        let filter_expr = scan_seek
+            .create_label_filter_expression()
+            .expect("Label filter expression should be created successfully");
 
         match filter_expr {
             Expression::Binary { op, .. } => {

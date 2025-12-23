@@ -322,7 +322,8 @@ impl ExpressionAcceptor for crate::core::Expression {
                 conditions,
                 default,
             } => {
-                visitor.visit_case(conditions, default)
+                let default_cloned = default.as_ref().map(|b| b.as_ref().clone());
+                visitor.visit_case(conditions, &default_cloned)
             }
             Expression::TypeCast { expr, target_type } => {
                 visitor.visit_type_cast(expr, target_type)
@@ -398,15 +399,23 @@ impl ExpressionAcceptor for crate::core::Expression {
                     &[generator.as_ref().clone(), cond_expr],
                 )
             }
-            Expression::Predicate { list, condition } => {
-                visitor.visit_function("predicate", &[list.clone(), condition.clone()])
-            }
+            Expression::Predicate { list, condition } => visitor.visit_function(
+                "predicate",
+                &[list.as_ref().clone(), condition.as_ref().clone()],
+            ),
             Expression::Reduce {
                 list,
                 initial,
                 expr,
                 ..
-            } => visitor.visit_function("reduce", &[list.clone(), initial.clone(), expr.clone()]),
+            } => visitor.visit_function(
+                "reduce",
+                &[
+                    list.as_ref().clone(),
+                    initial.as_ref().clone(),
+                    expr.as_ref().clone(),
+                ],
+            ),
             Expression::PathBuild(items) => visitor.visit_path(items),
             Expression::ESQuery(query) => {
                 visitor.visit_function("es_query", &[crate::core::Expression::string(query)])
@@ -417,9 +426,9 @@ impl ExpressionAcceptor for crate::core::Expression {
                 start,
                 end,
             } => {
-                let start_cloned = start.as_ref().map(|b| b.clone());
-                let end_cloned = end.as_ref().map(|b| b.clone());
-                visitor.visit_range(collection, &start_cloned, &end_cloned)
+                let start_cloned = start.as_ref().map(|b| b.as_ref().clone());
+                let end_cloned = end.as_ref().map(|b| b.as_ref().clone());
+                visitor.visit_range(collection.as_ref(), &start_cloned, &end_cloned)
             }
             Expression::MatchPathPattern { patterns, .. } => visitor.visit_list(patterns),
         }

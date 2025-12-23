@@ -8,8 +8,8 @@ use super::rule_traits::{
 };
 use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
+use crate::query::planner::plan::core::nodes::{ScanVerticesNode, TraverseNode};
 use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::TraverseNode;
 
 /// 通用过滤条件下推规则
 #[derive(Debug)]
@@ -36,9 +36,7 @@ impl OptRule for FilterPushDownRule {
                 let child_node = &matched.dependencies[0];
 
                 // 获取过滤条件
-                if let Some(filter_plan_node) =
-                    node.plan_node.as_filter()
-                {
+                if let Some(filter_plan_node) = node.plan_node.as_filter() {
                     let filter_condition = filter_plan_node.condition();
 
                     // 根据子节点类型确定是否可以下推过滤条件
@@ -53,7 +51,7 @@ impl OptRule for FilterPushDownRule {
                                 if let Some(scan_node) = child_node
                                     .plan_node()
                                     .as_any()
-                                    .downcast_ref::<ScanVertices>()
+                                    .downcast_ref::<ScanVerticesNode>()
                                 {
                                     let new_scan_node = scan_node.clone();
 
@@ -72,7 +70,7 @@ impl OptRule for FilterPushDownRule {
                                     // 创建带有修改后扫描节点的新OptGroupNode
                                     let mut new_scan_opt_node = child_node.node.clone();
                                     new_scan_opt_node.plan_node =
-                                        std::sync::Arc::new(new_scan_node);
+                                        PlanNodeEnum::ScanVertices(new_scan_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
                                     if let Some(_remaining_condition) =
@@ -85,7 +83,7 @@ impl OptRule for FilterPushDownRule {
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(_new_filter_node);
+                                            PlanNodeEnum::Filter(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_scan_opt_node.id];
 
@@ -128,7 +126,7 @@ impl OptRule for FilterPushDownRule {
                                     // 创建带有修改后索引扫描节点的新OptGroupNode
                                     let mut new_index_scan_opt_node = child_node.node.clone();
                                     new_index_scan_opt_node.plan_node =
-                                        std::sync::Arc::new(new_index_scan_node);
+                                        PlanNodeEnum::IndexScan(new_index_scan_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
                                     if let Some(_remaining_condition) =
@@ -141,7 +139,7 @@ impl OptRule for FilterPushDownRule {
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(_new_filter_node);
+                                            PlanNodeEnum::Filter(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_index_scan_opt_node.id];
 
@@ -202,7 +200,7 @@ impl OptRule for FilterPushDownRule {
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(_new_filter_node);
+                                            PlanNodeEnum::Filter(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_traverse_opt_node.id];
 
@@ -298,9 +296,7 @@ impl OptRule for PushFilterDownTraverseRule {
 
                 if child.plan_node().name() == "Traverse" {
                     // 将过滤条件下推到遍历操作
-                    if let Some(filter_plan_node) =
-                        node.plan_node.as_filter()
-                    {
+                    if let Some(filter_plan_node) = node.plan_node.as_filter() {
                         let filter_condition = filter_plan_node.condition();
 
                         // 分析过滤条件，确定哪些部分可以下推到遍历操作
@@ -308,9 +304,7 @@ impl OptRule for PushFilterDownTraverseRule {
 
                         if let Some(pushable_condition) = split_result.pushable_condition {
                             // 创建带有下推过滤条件的新遍历节点
-                            if let Some(traverse_node) =
-                                child.plan_node().as_traverse()
-                            {
+                            if let Some(traverse_node) = child.plan_node().as_traverse() {
                                 let new_traverse_node = traverse_node.clone();
 
                                 // 合并现有过滤条件和新的过滤条件
@@ -330,7 +324,7 @@ impl OptRule for PushFilterDownTraverseRule {
                                 // 创建带有修改后遍历节点的新OptGroupNode
                                 let mut new_traverse_opt_node = child.node.clone();
                                 new_traverse_opt_node.plan_node =
-                                    std::sync::Arc::new(new_traverse_node);
+                                    PlanNodeEnum::Traverse(new_traverse_node);
 
                                 // 如果有剩余的过滤条件，创建新的过滤节点
                                 if let Some(_remaining_condition) = split_result.remaining_condition
@@ -342,7 +336,7 @@ impl OptRule for PushFilterDownTraverseRule {
 
                                     let mut new_filter_opt_node = node.clone();
                                     new_filter_opt_node.plan_node =
-                                        std::sync::Arc::new(_new_filter_node);
+                                        PlanNodeEnum::Filter(_new_filter_node);
                                     new_filter_opt_node.dependencies =
                                         vec![new_traverse_opt_node.id];
 
@@ -423,9 +417,7 @@ impl OptRule for PushFilterDownExpandRule {
 
                 if child.plan_node().name() == "Expand" {
                     // 将过滤条件下推到扩展操作
-                    if let Some(filter_plan_node) =
-                        node.plan_node.as_filter()
-                    {
+                    if let Some(filter_plan_node) = node.plan_node.as_filter() {
                         let filter_condition = filter_plan_node.condition();
 
                         // 分析过滤条件，确定哪些部分可以下推到扩展操作
@@ -433,9 +425,7 @@ impl OptRule for PushFilterDownExpandRule {
 
                         if let Some(_pushable_condition) = split_result.pushable_condition {
                             // 创建带有下推过滤条件的新扩展节点
-                            if let Some(expand_node) =
-                                child.plan_node().as_expand()
-                            {
+                            if let Some(expand_node) = child.plan_node().as_expand() {
                                 let _new_expand_node = expand_node.clone();
 
                                 // 扩展节点本身没有filter字段，我们需要创建一个新的过滤节点
@@ -448,7 +438,7 @@ impl OptRule for PushFilterDownExpandRule {
 
                                 let mut new_filter_opt_node = node.clone();
                                 new_filter_opt_node.plan_node =
-                                    std::sync::Arc::new(_new_filter_node);
+                                    PlanNodeEnum::Filter(_new_filter_node);
                                 new_filter_opt_node.dependencies = vec![child.node.id];
 
                                 // 如果有剩余的过滤条件，创建另一个过滤节点
@@ -461,7 +451,7 @@ impl OptRule for PushFilterDownExpandRule {
 
                                     let mut top_filter_opt_node = node.clone();
                                     top_filter_opt_node.plan_node =
-                                        std::sync::Arc::new(top_filter_node);
+                                        PlanNodeEnum::Filter(top_filter_node);
                                     top_filter_opt_node.dependencies = vec![new_filter_opt_node.id];
 
                                     Ok(Some(top_filter_opt_node))
@@ -731,9 +721,7 @@ impl OptRule for PredicatePushDownRule {
                 match child.plan_node().name() {
                     "ScanVertices" => {
                         // 将谓词下推到扫描操作
-                        if let Some(filter_plan_node) =
-                            node.plan_node.as_filter()
-                        {
+                        if let Some(filter_plan_node) = node.plan_node.as_filter() {
                             let filter_condition = filter_plan_node.condition();
 
                             // 分析过滤条件，确定哪些部分可以下推到扫描操作
@@ -741,9 +729,7 @@ impl OptRule for PredicatePushDownRule {
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有下推谓词的新扫描节点
-                                if let Some(scan_node) =
-                                    child.plan_node().as_scan_vertices()
-                                {
+                                if let Some(scan_node) = child.plan_node().as_scan_vertices() {
                                     let new_scan_node = scan_node.clone();
 
                                     // 合并现有过滤条件和新的谓词
@@ -761,7 +747,7 @@ impl OptRule for PredicatePushDownRule {
                                     // 创建带有修改后扫描节点的新OptGroupNode
                                     let mut new_scan_opt_node = child.node.clone();
                                     new_scan_opt_node.plan_node =
-                                        std::sync::Arc::new(new_scan_node);
+                                        PlanNodeEnum::ScanVertices(new_scan_node);
 
                                     // 如果有剩余的过滤条件，创建新的过滤节点
                                     if let Some(_remaining_condition) =
@@ -774,7 +760,7 @@ impl OptRule for PredicatePushDownRule {
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(_new_filter_node);
+                                            PlanNodeEnum::Filter(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_scan_opt_node.id];
 
@@ -797,9 +783,7 @@ impl OptRule for PredicatePushDownRule {
                     }
                     "ScanEdges" => {
                         // 类似地处理边扫描
-                        if let Some(filter_plan_node) =
-                            node.plan_node.as_filter()
-                        {
+                        if let Some(filter_plan_node) = node.plan_node.as_filter() {
                             let filter_condition = filter_plan_node.condition();
 
                             // 分析过滤条件，确定哪些部分可以下推到边扫描操作
@@ -807,9 +791,7 @@ impl OptRule for PredicatePushDownRule {
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有下推谓词的新边扫描节点
-                                if let Some(scan_edges_node) =
-                                    child.plan_node().as_scan_edges()
-                                {
+                                if let Some(scan_edges_node) = child.plan_node().as_scan_edges() {
                                     let new_scan_edges_node = scan_edges_node.clone();
 
                                     // 合并现有过滤条件和新的谓词
@@ -830,7 +812,7 @@ impl OptRule for PredicatePushDownRule {
                                     // 创建带有修改后边扫描节点的新OptGroupNode
                                     let mut new_scan_edges_opt_node = child.node.clone();
                                     new_scan_edges_opt_node.plan_node =
-                                        std::sync::Arc::new(new_scan_edges_node);
+                                        PlanNodeEnum::ScanEdges(new_scan_edges_node);
 
                                     // 如果有剩余的过滤条件，创建新的过滤节点
                                     if let Some(_remaining_condition) =
@@ -843,7 +825,7 @@ impl OptRule for PredicatePushDownRule {
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(_new_filter_node);
+                                            PlanNodeEnum::Filter(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_scan_edges_opt_node.id];
 
@@ -866,9 +848,7 @@ impl OptRule for PredicatePushDownRule {
                     }
                     "IndexScan" => {
                         // 类似地处理索引扫描
-                        if let Some(filter_plan_node) =
-                            node.plan_node.as_filter()
-                        {
+                        if let Some(filter_plan_node) = node.plan_node.as_filter() {
                             let filter_condition = filter_plan_node.condition();
 
                             // 分析过滤条件，确定哪些部分可以下推到索引扫描操作
@@ -876,9 +856,7 @@ impl OptRule for PredicatePushDownRule {
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有下推谓词的新索引扫描节点
-                                if let Some(index_scan_node) =
-                                    child.plan_node().as_index_scan()
-                                {
+                                if let Some(index_scan_node) = child.plan_node().as_index_scan() {
                                     let new_index_scan_node = index_scan_node.clone();
 
                                     // 合并现有过滤条件和新的谓词
@@ -896,7 +874,7 @@ impl OptRule for PredicatePushDownRule {
                                     // 创建带有修改后索引扫描节点的新OptGroupNode
                                     let mut new_index_scan_opt_node = child.node.clone();
                                     new_index_scan_opt_node.plan_node =
-                                        std::sync::Arc::new(new_index_scan_node);
+                                        PlanNodeEnum::IndexScan(new_index_scan_node);
 
                                     // 如果有剩余的过滤条件，创建新的过滤节点
                                     if let Some(_remaining_condition) =
@@ -909,7 +887,7 @@ impl OptRule for PredicatePushDownRule {
 
                                         let mut new_filter_opt_node = node.clone();
                                         new_filter_opt_node.plan_node =
-                                            std::sync::Arc::new(_new_filter_node);
+                                            PlanNodeEnum::Filter(_new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_index_scan_opt_node.id];
 

@@ -1,9 +1,9 @@
 //! DeduceTypeVisitor - 用于推导表达式类型的访问器
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
+use crate::core::Expression;
 use crate::core::TypeUtils;
 use crate::core::ValueTypeDef;
-use crate::core::Expression;
 use crate::core::{BinaryOperator, UnaryOperator};
 use crate::query::validator::ValidationContext;
 use crate::query::visitor::QueryVisitor;
@@ -734,12 +734,12 @@ impl<'a, S: StorageEngine> QueryVisitor for DeduceTypeVisitor<'a, S> {
     fn get_result(&self) -> Self::QueryResult {
         self.type_.clone()
     }
-    
+
     fn reset(&mut self) {
         self.status = None;
         self.type_ = ValueTypeDef::Empty;
     }
-    
+
     fn is_success(&self) -> bool {
         self.status.is_none()
     }

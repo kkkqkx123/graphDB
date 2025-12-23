@@ -2,13 +2,13 @@
 //! 包括创建/删除用户等操作
 
 use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::{PlanNodeEnum, PlanNode, PlanNodeClonable};
+use crate::query::planner::plan::{PlanNode, PlanNodeClonable, PlanNodeEnum};
 
 /// 创建用户计划节点
 #[derive(Debug, Clone)]
 pub struct CreateUser {
     pub id: i64,
-    pub deps: Vec<PlanNodeEnum>,
+    pub deps: Vec<Box<PlanNodeEnum>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -48,35 +48,35 @@ impl PlanNode for CreateUser {
     fn id(&self) -> i64 {
         self.id
     }
-    
+
     fn name(&self) -> &'static str {
         "CreateUser"
     }
-    
+
     fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
-    
+
     fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    
+
     fn cost(&self) -> f64 {
         self.cost
     }
-    
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+
+    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
+        &self.deps
     }
-    
+
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    
+
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-    
+
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::CreateUser(self)
     }
@@ -86,7 +86,7 @@ impl PlanNode for CreateUser {
 #[derive(Debug, Clone)]
 pub struct DropUser {
     pub id: i64,
-    pub deps: Vec<PlanNodeEnum>,
+    pub deps: Vec<Box<PlanNodeEnum>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -124,35 +124,35 @@ impl PlanNode for DropUser {
     fn id(&self) -> i64 {
         self.id
     }
-    
+
     fn name(&self) -> &'static str {
         "DropUser"
     }
-    
+
     fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
-    
+
     fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    
+
     fn cost(&self) -> f64 {
         self.cost
     }
-    
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+
+    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
+        &self.deps
     }
-    
+
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    
+
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-    
+
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::DropUser(self)
     }
@@ -162,7 +162,7 @@ impl PlanNode for DropUser {
 #[derive(Debug, Clone)]
 pub struct UpdateUser {
     pub id: i64,
-    pub deps: Vec<PlanNodeEnum>,
+    pub deps: Vec<Box<PlanNodeEnum>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -200,35 +200,35 @@ impl PlanNode for UpdateUser {
     fn id(&self) -> i64 {
         self.id
     }
-    
+
     fn name(&self) -> &'static str {
         "UpdateUser"
     }
-    
+
     fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
-    
+
     fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    
+
     fn cost(&self) -> f64 {
         self.cost
     }
-    
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+
+    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
+        &self.deps
     }
-    
+
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    
+
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-    
+
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::UpdateUser(self)
     }
@@ -238,7 +238,7 @@ impl PlanNode for UpdateUser {
 #[derive(Debug, Clone)]
 pub struct ChangePassword {
     pub id: i64,
-    pub deps: Vec<PlanNodeEnum>,
+    pub deps: Vec<Box<PlanNodeEnum>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -290,35 +290,35 @@ impl PlanNode for ChangePassword {
     fn id(&self) -> i64 {
         self.id
     }
-    
+
     fn name(&self) -> &'static str {
         "ChangePassword"
     }
-    
+
     fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
-    
+
     fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    
+
     fn cost(&self) -> f64 {
         self.cost
     }
-    
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+
+    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
+        &self.deps
     }
-    
+
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    
+
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-    
+
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::ChangePassword(self)
     }
@@ -328,7 +328,7 @@ impl PlanNode for ChangePassword {
 #[derive(Debug, Clone)]
 pub struct ListUsers {
     pub id: i64,
-    pub deps: Vec<PlanNodeEnum>,
+    pub deps: Vec<Box<PlanNodeEnum>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -362,35 +362,35 @@ impl PlanNode for ListUsers {
     fn id(&self) -> i64 {
         self.id
     }
-    
+
     fn name(&self) -> &'static str {
         "ListUsers"
     }
-    
+
     fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
-    
+
     fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    
+
     fn cost(&self) -> f64 {
         self.cost
     }
-    
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+
+    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
+        &self.deps
     }
-    
+
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    
+
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-    
+
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::ListUsers(self)
     }
@@ -400,7 +400,7 @@ impl PlanNode for ListUsers {
 #[derive(Debug, Clone)]
 pub struct ListUserRoles {
     pub id: i64,
-    pub deps: Vec<PlanNodeEnum>,
+    pub deps: Vec<Box<PlanNodeEnum>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -444,35 +444,35 @@ impl PlanNode for ListUserRoles {
     fn id(&self) -> i64 {
         self.id
     }
-    
+
     fn name(&self) -> &'static str {
         "ListUserRoles"
     }
-    
+
     fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
-    
+
     fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    
+
     fn cost(&self) -> f64 {
         self.cost
     }
-    
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+
+    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
+        &self.deps
     }
-    
+
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    
+
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-    
+
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::ListUserRoles(self)
     }
@@ -482,7 +482,7 @@ impl PlanNode for ListUserRoles {
 #[derive(Debug, Clone)]
 pub struct DescribeUser {
     pub id: i64,
-    pub deps: Vec<PlanNodeEnum>,
+    pub deps: Vec<Box<PlanNodeEnum>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -527,35 +527,35 @@ impl PlanNode for DescribeUser {
     fn id(&self) -> i64 {
         self.id
     }
-    
+
     fn name(&self) -> &'static str {
         "DescribeUser"
     }
-    
+
     fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
-    
+
     fn col_names(&self) -> &[String] {
         &self.col_names
     }
-    
+
     fn cost(&self) -> f64 {
         self.cost
     }
-    
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.deps.iter().map(|dep| Box::new(dep.clone())).collect()
+
+    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
+        &self.deps
     }
-    
+
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
-    
+
     fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-    
+
     fn into_enum(self) -> PlanNodeEnum {
         PlanNodeEnum::DescribeUser(self)
     }

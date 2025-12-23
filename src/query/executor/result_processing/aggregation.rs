@@ -9,8 +9,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::core::expressions::DefaultExpressionContext;
 use crate::core::expressions::default_context::ExpressionContext;
+use crate::core::expressions::DefaultExpressionContext;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 use crate::core::{Expression, ExpressionEvaluator};
@@ -703,14 +703,17 @@ impl<S: StorageEngine> HavingExecutor<S> {
             }
 
             // 评估 HAVING 条件
-            let condition_result = evaluator.evaluate(&self.condition, &mut context).map_err(|e| {
-                crate::core::error::DBError::Expression(
-                    crate::core::error::ExpressionError::function_error(format!(
-                        "Failed to evaluate HAVING condition: {}",
-                        e
-                    )),
-                )
-            })?;
+            let condition_result =
+                evaluator
+                    .evaluate(&self.condition, &mut context)
+                    .map_err(|e| {
+                        crate::core::error::DBError::Expression(
+                            crate::core::error::ExpressionError::function_error(format!(
+                                "Failed to evaluate HAVING condition: {}",
+                                e
+                            )),
+                        )
+                    })?;
 
             // 如果条件为真，保留该行
             if let Value::Bool(true) = condition_result {

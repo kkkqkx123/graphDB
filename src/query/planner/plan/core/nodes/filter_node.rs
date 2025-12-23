@@ -129,8 +129,8 @@ impl super::plan_node_traits::PlanNode for FilterNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
-        self.dependencies().to_vec()
+    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
+        std::slice::from_ref(&self.input)
     }
 
     fn set_output_var(&mut self, var: Variable) {

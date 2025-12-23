@@ -8,8 +8,8 @@ use super::yield_planner::YieldClausePlanner;
 use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::factory::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
     clause_structs::{
@@ -321,12 +321,7 @@ mod tests {
         let order_by = Some(create_test_order_by());
         let pagination = Some(create_test_pagination());
 
-        let result = planner.build_return_projection(
-            &yield_clause,
-            order_by,
-            pagination,
-            true,
-        );
+        let result = planner.build_return_projection(&yield_clause, order_by, pagination, true);
         if let Err(e) = &result {
             println!("Error in test_build_return_projection: {:?}", e);
         }
@@ -341,12 +336,8 @@ mod tests {
         let pagination = Some(create_test_pagination());
         let where_clause = Some(create_test_where());
 
-        let result = planner.build_with_projection(
-            &yield_clause,
-            order_by,
-            pagination,
-            where_clause,
-        );
+        let result =
+            planner.build_with_projection(&yield_clause, order_by, pagination, where_clause);
         if let Err(e) = &result {
             println!("Error in test_build_with_projection: {:?}", e);
         }
@@ -395,12 +386,8 @@ mod tests {
         let pagination = Some(create_test_pagination());
         let where_clause = Some(create_test_where());
 
-        let cost = ProjectionPlanner::estimate_projection_cost(
-            order_by,
-            pagination,
-            where_clause,
-            true,
-        );
+        let cost =
+            ProjectionPlanner::estimate_projection_cost(order_by, pagination, where_clause, true);
 
         // 预期成本 = 100 (ORDER BY) + 10 (分页) + 50 (WHERE) + 80 (去重) = 240
         assert_eq!(cost, 240.0);

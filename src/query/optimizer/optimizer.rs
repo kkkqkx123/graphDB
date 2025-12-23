@@ -4,7 +4,6 @@ use crate::query::context::validate;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
 
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
 
 // A simple object pool for reusing objects and reducing allocations
 #[derive(Debug)]
@@ -291,7 +290,7 @@ pub struct MatchedResult {
 
 impl MatchedResult {
     pub fn plan_node(&self) -> &PlanNodeEnum {
-        self.node.plan_node
+        &self.node.plan_node
     }
 
     pub fn result(&self, pos: &[usize]) -> &MatchedResult {
@@ -570,7 +569,7 @@ impl Optimizer {
             for rule_set in &self.rule_sets {
                 for rule in &rule_set.rules {
                     // Apply the rule to the group
-                    self.apply_rule(&mut opt_ctx, &mut root_group, rule)?;
+                    self.apply_rule(&mut opt_ctx, &mut root_group, rule.as_ref())?;
                 }
             }
 

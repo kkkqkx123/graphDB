@@ -66,9 +66,7 @@ pub struct SimpleEventListener {
 impl SimpleEventListener {
     /// 创建新的简单事件监听器
     pub fn new() -> Self {
-        Self {
-            events: Vec::new(),
-        }
+        Self { events: Vec::new() }
     }
 
     /// 获取事件历史

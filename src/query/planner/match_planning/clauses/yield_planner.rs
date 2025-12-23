@@ -11,8 +11,8 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::factory::PlanNodeFactory;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
@@ -72,7 +72,7 @@ impl YieldClausePlanner {
         // 处理投影（列选择）
         if yield_clause_ctx.need_gen_project {
             // 创建投影节点
-            let _input_root = plan.root.ok_or_else(|| {
+            let _input_root = plan.root.as_ref().ok_or_else(|| {
                 PlannerError::PlanGenerationFailed(
                     "YIELD clause requires input plan for projection".to_string(),
                 )
@@ -104,7 +104,7 @@ impl YieldClausePlanner {
         // 处理去重
         if yield_clause_ctx.distinct {
             // 创建去重节点
-            let _input_root = plan.root.ok_or_else(|| {
+            let _input_root = plan.root.as_ref().ok_or_else(|| {
                 PlannerError::PlanGenerationFailed(
                     "YIELD clause requires input plan for deduplication".to_string(),
                 )

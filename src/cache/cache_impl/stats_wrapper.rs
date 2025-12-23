@@ -4,7 +4,7 @@
 //! 编译器会特化此实现，消除所有条件分支
 
 use crate::cache::stats_collector::CacheStats;
-use crate::cache::stats_marker::{StatsMode, StatsEnabled, StatsDisabled};
+use crate::cache::stats_marker::{StatsDisabled, StatsEnabled, StatsMode};
 use crate::cache::traits::*;
 use std::sync::{Arc, RwLock};
 
@@ -29,7 +29,7 @@ where
     pub fn new_no_stats(cache: Arc<C>) -> Self {
         Self {
             inner: cache,
-            stats: None,  // 编译时消除
+            stats: None, // 编译时消除
             _marker: std::marker::PhantomData,
         }
     }
@@ -72,7 +72,7 @@ where
 }
 
 /// 禁用统计模式的 Cache 实现
-/// 
+///
 /// 编译器会优化掉所有统计逻辑，完全不产生开销
 impl<K, V, C> Cache<K, V> for StatsCacheWrapper<K, V, C, StatsDisabled>
 where
@@ -119,7 +119,7 @@ where
 }
 
 /// 启用统计模式的 Cache 实现
-/// 
+///
 /// 记录命中、未命中和操作计数
 impl<K, V, C> Cache<K, V> for StatsCacheWrapper<K, V, C, StatsEnabled>
 where

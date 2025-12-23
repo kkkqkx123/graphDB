@@ -4,14 +4,14 @@
 
 use super::cache_impl::*;
 use super::config::CachePolicy;
-use super::stats_marker::{StatsEnabled, StatsDisabled};
+use super::stats_marker::{StatsDisabled, StatsEnabled};
 use super::traits::{Cache, StatsCache};
 use std::hash::Hash;
 use std::sync::Arc;
 use std::time::Duration;
 
 /// 缓存工厂
-/// 
+///
 /// 负责创建各种类型的缓存实例，提供统一的创建接口
 pub struct CacheFactory;
 
@@ -74,10 +74,7 @@ impl CacheFactory {
     }
 
     /// 根据策略创建缓存
-    pub fn create_cache_by_policy<K, V>(
-        policy: &CachePolicy,
-        capacity: usize,
-    ) -> CacheType<K, V>
+    pub fn create_cache_by_policy<K, V>(policy: &CachePolicy, capacity: usize) -> CacheType<K, V>
     where
         K: 'static + Send + Sync + Hash + Eq + Clone,
         V: 'static + Send + Sync + Clone,
@@ -93,7 +90,7 @@ impl CacheFactory {
     }
 
     /// 根据策略创建带统计的缓存
-    /// 
+    ///
     /// 所有返回的缓存均为 StatsEnabled 版本，提供完整的统计功能
     pub fn create_stats_cache_by_policy<K, V>(
         policy: &CachePolicy,
@@ -187,7 +184,7 @@ pub enum CacheType<K, V> {
 }
 
 /// 统计缓存类型枚举 - 避免动态分发
-/// 
+///
 /// 所有变体均使用 StatsEnabled，确保一致的统计功能支持
 #[derive(Debug)]
 pub enum StatsCacheType<K, V> {
@@ -477,16 +474,14 @@ mod tests {
 
     #[test]
     fn test_cache_factory_create_by_policy() {
-        let lru_cache = CacheFactory::create_cache_by_policy::<String, String>(
-            &CachePolicy::LRU, 
-            100
-        );
+        let lru_cache =
+            CacheFactory::create_cache_by_policy::<String, String>(&CachePolicy::LRU, 100);
         lru_cache.put("key".to_string(), "value".to_string());
         assert_eq!(lru_cache.get(&"key".to_string()), Some("value".to_string()));
 
         let ttl_cache = CacheFactory::create_cache_by_policy::<String, String>(
-            &CachePolicy::TTL(Duration::from_secs(60)), 
-            100
+            &CachePolicy::TTL(Duration::from_secs(60)),
+            100,
         );
         ttl_cache.put("key".to_string(), "value".to_string());
         assert_eq!(ttl_cache.get(&"key".to_string()), Some("value".to_string()));
@@ -494,10 +489,8 @@ mod tests {
 
     #[test]
     fn test_cache_factory_create_stats_by_policy() {
-        let lru_cache = CacheFactory::create_stats_cache_by_policy::<String, String>(
-            &CachePolicy::LRU, 
-            100
-        );
+        let lru_cache =
+            CacheFactory::create_stats_cache_by_policy::<String, String>(&CachePolicy::LRU, 100);
         lru_cache.put("key".to_string(), "value".to_string());
         assert_eq!(lru_cache.get(&"key".to_string()), Some("value".to_string()));
         assert_eq!(lru_cache.hits(), 1);
@@ -508,7 +501,7 @@ mod tests {
     fn test_cache_factory_validation() {
         assert!(CacheFactory::validate_capacity(100).is_ok());
         assert!(CacheFactory::validate_capacity(0).is_err());
-        
+
         assert!(CacheFactory::validate_ttl(Duration::from_secs(60)).is_ok());
         assert!(CacheFactory::validate_ttl(Duration::from_secs(0)).is_err());
     }
@@ -521,7 +514,7 @@ mod tests {
         assert!(cache.contains(&"key".to_string()));
         assert_eq!(cache.len(), 1);
         assert!(!cache.is_empty());
-        
+
         cache.remove(&"key".to_string());
         assert!(!cache.contains(&"key".to_string()));
         assert_eq!(cache.len(), 0);
@@ -531,15 +524,15 @@ mod tests {
     #[test]
     fn test_stats_cache_type_enum() {
         let cache = StatsCacheType::Lru(Arc::new(StatsCacheWrapper::new_with_stats(
-            CacheFactory::create_lru_cache::<String, String>(100)
+            CacheFactory::create_lru_cache::<String, String>(100),
         )));
-        
+
         cache.put("key".to_string(), "value".to_string());
         assert_eq!(cache.get(&"key".to_string()), Some("value".to_string()));
         assert_eq!(cache.hits(), 1);
         assert_eq!(cache.misses(), 0);
         assert_eq!(cache.hit_rate(), 1.0);
-        
+
         cache.reset_stats();
         assert_eq!(cache.hits(), 0);
         assert_eq!(cache.misses(), 0);

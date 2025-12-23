@@ -68,11 +68,6 @@ The graphDB project utilises Cargo as its build system. To build the project:
 
 - rustc: 1.88.0
 - cargo: 1.88.0
-- rustup:
-Default host: x86_64-pc-windows-msvc
-rustup home: D:\Source\.rustup
-installed toolchains: stable-x86_64-pc-windows-msvc (active, default)
-installed targets: x86_64-pc-windows-msvc
 
 2. **Build commands**:
    ```bash
@@ -109,7 +104,7 @@ analyze_cargo --output report.md
 # Filter warnings only
 analyze_cargo --filter-warnings
 
-# Filter by specific paths
+# Filter by specific paths(folder or file)
 analyze_cargo --filter-paths src/main.rs,src/lib.rs
 
 # Combine filters
@@ -165,4 +160,3 @@ It is not recommended to run all tests in one time.
 - The project utilises Rust version 2021, employing the ownership system to ensure memory safety
 - Does not include distributed functionality, focusing instead on single-machine performance and simplicity
 - The architecture aims to minimise external dependencies, leveraging the security and performance of the Rust ecosystem
-- Due to the excessive length of cargo command output, always execute commands in the format: `<cargo command> 2>&1 | Select-Object -Last 60`(or more line. When use `cargo check`, use `-First` instead to capture errors first)

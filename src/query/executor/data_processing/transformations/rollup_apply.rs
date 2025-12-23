@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{DataSet, List, Value};
 use crate::core::expressions::{DefaultExpressionContext, ExpressionContext};
+use crate::core::{DataSet, List, Value};
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
@@ -361,8 +361,16 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         self.check_bi_input_data_sets()?;
 
         // 获取输入结果
-        let left_result = self.base.context.get_result(&self.left_input_var).expect("Context should have left result");
-        let right_result = self.base.context.get_result(&self.right_input_var).expect("Context should have right result");
+        let left_result = self
+            .base
+            .context
+            .get_result(&self.left_input_var)
+            .expect("Context should have left result");
+        let right_result = self
+            .base
+            .context
+            .get_result(&self.right_input_var)
+            .expect("Context should have right result");
 
         // 将结果转换为值列表
         let left_values = match left_result {
@@ -518,8 +526,8 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RollUpApplyExecut
 mod tests {
     use super::*;
     use crate::config::test_config::test_config;
-    use crate::core::Value;
     use crate::core::Expression;
+    use crate::core::Value;
     use crate::storage::NativeStorage;
     use std::sync::{Arc, Mutex};
 
@@ -527,7 +535,8 @@ mod tests {
     async fn test_rollup_apply_executor() {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_rollup_apply")).expect("NativeStorage should be created successfully"),
+            NativeStorage::new(config.test_db_path("test_db_rollup_apply"))
+                .expect("NativeStorage should be created successfully"),
         ));
 
         // 创建左输入数据
@@ -565,7 +574,10 @@ mod tests {
         );
 
         // 执行RollUpApply
-        let result = executor.execute().await.expect("Executor should execute successfully");
+        let result = executor
+            .execute()
+            .await
+            .expect("Executor should execute successfully");
 
         // 检查结果
         if let ExecutionResult::Values(values) = result {

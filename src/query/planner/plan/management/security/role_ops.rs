@@ -30,7 +30,7 @@ impl CreateRole {
 
 impl From<CreateRole> for PlanNodeEnum {
     fn from(role: CreateRole) -> Self {
-        PlanNodeEnum::CreateRole(Arc::new(role))
+        PlanNodeEnum::CreateRole(role)
     }
 }
 

@@ -15,7 +15,7 @@ pub use deduce_props_visitor::{DeducePropsVisitor, ExpressionProps};
 pub use deduce_type_visitor::{DeduceTypeVisitor, TypeDeductionError};
 pub use evaluable_expr_visitor::EvaluableExprVisitor;
 pub use extract_filter_expr_visitor::ExtractFilterExprVisitor;
-pub use find_visitor::{FindVisitor, ExpressionType};
+pub use find_visitor::{ExpressionType, FindVisitor};
 pub use fold_constant_expr_visitor::FoldConstantExprVisitor;
 
 /// 查询访问器基础trait
@@ -23,13 +23,13 @@ pub use fold_constant_expr_visitor::FoldConstantExprVisitor;
 pub trait QueryVisitor {
     /// 查询结果类型
     type QueryResult;
-    
+
     /// 获取查询结果
     fn get_result(&self) -> Self::QueryResult;
-    
+
     /// 重置访问器状态
     fn reset(&mut self);
-    
+
     /// 检查访问是否成功
     fn is_success(&self) -> bool;
 }
@@ -92,7 +92,10 @@ impl QueryVisitorBuilder {
     }
 
     /// 构建常量折叠访问器
-    pub fn build_fold_constant(self, parameters: std::collections::HashMap<String, crate::core::Value>) -> FoldConstantExprVisitor {
+    pub fn build_fold_constant(
+        self,
+        parameters: std::collections::HashMap<String, crate::core::Value>,
+    ) -> FoldConstantExprVisitor {
         FoldConstantExprVisitor::new(parameters)
     }
 }

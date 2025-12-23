@@ -5,8 +5,6 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-
 
 /// 优化索引全扫描为更高效的全表扫描的规则
 #[derive(Debug)]
@@ -63,9 +61,7 @@ impl OptRule for ScanWithFilterOptimizationRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为扫描操作
-        if !node.plan_node.is_scan_vertices()
-            && !node.plan_node.is_scan_edges()
-        {
+        if !node.plan_node.is_scan_vertices() && !node.plan_node.is_scan_edges() {
             return Ok(None);
         }
 
@@ -125,7 +121,7 @@ mod tests {
 
         // 创建一个扫描节点（作为索引扫描的占位符）
         let scan_node = PlanNodeEnum::ScanVertices(
-            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1)
+            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
         let opt_node = OptGroupNode::new(1, std::sync::Arc::new(scan_node));
 
@@ -143,7 +139,7 @@ mod tests {
 
         // 创建一个扫描顶点节点
         let scan_node = PlanNodeEnum::ScanVertices(
-            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1)
+            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
         let opt_node = OptGroupNode::new(1, std::sync::Arc::new(scan_node));
 

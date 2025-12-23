@@ -60,6 +60,6 @@ impl UpdateEdge {
 
 impl From<UpdateEdge> for PlanNodeEnum {
     fn from(edge: UpdateEdge) -> Self {
-        PlanNodeEnum::UpdateEdge(Arc::new(edge))
+        PlanNodeEnum::UpdateEdge(edge)
     }
 }

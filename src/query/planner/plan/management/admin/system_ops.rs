@@ -23,7 +23,10 @@ pub struct SubmitJob {
 
 impl SubmitJob {
     pub fn new(job_type: JobType, parameters: Vec<String>) -> Self {
-        Self { job_type, parameters }
+        Self {
+            job_type,
+            parameters,
+        }
     }
 
     pub fn job_type(&self) -> &JobType {
@@ -67,7 +70,7 @@ impl CreateSnapshot {
 
 impl From<CreateSnapshot> for PlanNodeEnum {
     fn from(snapshot: CreateSnapshot) -> Self {
-        PlanNodeEnum::CreateSnapshot(Arc::new(snapshot))
+        PlanNodeEnum::CreateSnapshot(snapshot)
     }
 }
 
@@ -107,6 +110,6 @@ impl ShowSnapshots {
 
 impl From<ShowSnapshots> for PlanNodeEnum {
     fn from(snapshots: ShowSnapshots) -> Self {
-        PlanNodeEnum::ShowSnapshots(Arc::new(snapshots))
+        PlanNodeEnum::ShowSnapshots(snapshots)
     }
 }

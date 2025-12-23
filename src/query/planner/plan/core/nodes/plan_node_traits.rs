@@ -22,7 +22,7 @@ pub trait PlanNode {
     fn cost(&self) -> f64;
 
     /// 获取节点的依赖节点列表
-    fn dependencies(&self) -> Vec<Box<PlanNodeEnum>>;
+    fn dependencies(&self) -> &[Box<PlanNodeEnum>];
 
     /// 设置节点的输出变量
     fn set_output_var(&mut self, var: Variable);
@@ -33,36 +33,19 @@ pub trait PlanNode {
     /// 转换为 PlanNodeEnum
     fn into_enum(self) -> PlanNodeEnum;
 
-    // 便捷方法访问特定输入
-
     /// 获取单个输入（适用于单输入节点）
     fn input(&self) -> Option<&PlanNodeEnum> {
-        let deps = self.dependencies();
-        if deps.len() == 1 {
-            Some(&deps[0])
-        } else {
-            None
-        }
+        self.dependencies().first().map(|boxed| boxed.as_ref())
     }
 
     /// 获取左输入（适用于双输入节点）
     fn left_input(&self) -> Option<&PlanNodeEnum> {
-        let deps = self.dependencies();
-        if deps.len() >= 1 {
-            Some(&deps[0])
-        } else {
-            None
-        }
+        self.dependencies().first().map(|boxed| boxed.as_ref())
     }
 
     /// 获取右输入（适用于双输入节点）
     fn right_input(&self) -> Option<&PlanNodeEnum> {
-        let deps = self.dependencies();
-        if deps.len() >= 2 {
-            Some(&deps[1])
-        } else {
-            None
-        }
+        self.dependencies().get(1).map(|boxed| boxed.as_ref())
     }
 
     /// 获取输入数量

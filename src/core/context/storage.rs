@@ -2,11 +2,11 @@
 //!
 //! 提供存储层操作的上下文管理，整合自expression/context/storage.rs
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-use crate::core::Value;
 use super::base::{ContextBase, ContextType, MutableContext};
+use crate::core::Value;
 
 /// 存储上下文
 ///
@@ -15,46 +15,46 @@ use super::base::{ContextBase, ContextType, MutableContext};
 pub struct StorageContext {
     /// 上下文ID
     pub id: String,
-    
+
     /// 存储空间ID
     pub space_id: i32,
-    
+
     /// 会话ID
     pub session_id: i64,
-    
+
     /// 事务ID（如果有）
     pub transaction_id: Option<i64>,
-    
+
     /// 只读标志
     pub read_only: bool,
-    
+
     /// 一致性级别
     pub consistency_level: ConsistencyLevel,
-    
+
     /// 超时时间（毫秒）
     pub timeout_ms: u64,
-    
+
     /// 重试次数
     pub retry_count: u32,
-    
+
     /// 变量绑定
     pub variables: HashMap<String, Value>,
-    
+
     /// 版本化变量
     pub versioned_variables: HashMap<String, Vec<Value>>,
-    
+
     /// 内部变量
     pub inner_variables: HashMap<String, Value>,
-    
+
     /// 自定义属性
     pub attributes: HashMap<String, Value>,
-    
+
     /// 创建时间
     pub created_at: std::time::SystemTime,
-    
+
     /// 最后更新时间
     pub updated_at: std::time::SystemTime,
-    
+
     /// 是否有效
     pub valid: bool,
 }
@@ -129,39 +129,48 @@ impl StorageContext {
 
     /// 获取变量值（最新版本）
     pub fn get_var(&self, name: &str) -> Result<&Value, String> {
-        self.variables.get(name).ok_or_else(|| {
-            format!("Variable '{}' not found", name)
-        })
+        self.variables
+            .get(name)
+            .ok_or_else(|| format!("Variable '{}' not found", name))
     }
 
     /// 获取指定版本的变量值
     pub fn get_versioned_var(&self, name: &str, version: i64) -> Result<&Value, String> {
-        let versions = self.versioned_variables.get(name)
+        let versions = self
+            .versioned_variables
+            .get(name)
             .ok_or_else(|| format!("Versioned variable '{}' not found", name))?;
-        
+
         let index = if version >= 0 {
             version as usize
         } else {
             // 负数索引从末尾开始
             let abs_version = (-version) as usize;
             if abs_version > versions.len() {
-                return Err(format!("Version index {} out of range for variable '{}'", version, name));
+                return Err(format!(
+                    "Version index {} out of range for variable '{}'",
+                    version, name
+                ));
             }
             versions.len() - abs_version
         };
-        
-        versions.get(index)
+
+        versions
+            .get(index)
             .ok_or_else(|| format!("Version {} not found for variable '{}'", version, name))
     }
 
     /// 设置变量值
     pub fn set_var(&mut self, name: &str, value: Value) -> Result<(), String> {
         self.variables.insert(name.to_string(), value);
-        
+
         // 同时添加到版本化变量
-        let versions = self.versioned_variables.entry(name.to_string()).or_insert_with(Vec::new);
+        let versions = self
+            .versioned_variables
+            .entry(name.to_string())
+            .or_insert_with(Vec::new);
         versions.insert(0, self.variables[name].clone());
-        
+
         self.touch();
         Ok(())
     }
@@ -180,14 +189,16 @@ impl StorageContext {
     /// 获取变量属性值
     pub fn get_var_prop(&self, var: &str, prop: &str) -> Result<Value, String> {
         let var_value = self.get_var(var)?;
-        
+
         match var_value {
-            Value::Map(props) => {
-                props.get(prop)
-                    .cloned()
-                    .ok_or_else(|| format!("Property '{}' not found in variable '{}'", prop, var))
-            }
-            _ => Err(format!("Variable '{}' is not a map, cannot get property '{}'", var, prop)),
+            Value::Map(props) => props
+                .get(prop)
+                .cloned()
+                .ok_or_else(|| format!("Property '{}' not found in variable '{}'", prop, var)),
+            _ => Err(format!(
+                "Variable '{}' is not a map, cannot get property '{}'",
+                var, prop
+            )),
         }
     }
 
@@ -205,7 +216,7 @@ impl StorageContext {
     /// 获取输入属性索引
     pub fn get_input_prop_index(&self, prop: &str) -> Result<usize, String> {
         let input_props = self.get_var("__input_props__")?;
-        
+
         match input_props {
             Value::List(props) => {
                 for (i, p) in props.iter().enumerate() {
@@ -224,10 +235,14 @@ impl StorageContext {
     /// 按列索引获取值
     pub fn get_column(&self, index: i32) -> Result<Value, String> {
         let columns = self.get_var("__columns__")?;
-        
+
         match columns {
             Value::List(cols) => {
-                let idx = if index >= 0 { index as usize } else { cols.len() - (-index) as usize };
+                let idx = if index >= 0 {
+                    index as usize
+                } else {
+                    cols.len() - (-index) as usize
+                };
                 cols.get(idx)
                     .cloned()
                     .ok_or_else(|| format!("Column index {} out of range", index))
@@ -265,8 +280,12 @@ impl StorageContext {
 
     /// 初始化变量
     pub fn init_var(&mut self, name: &str) {
-        self.variables.entry(name.to_string()).or_insert(Value::Null(Default::default()));
-        self.versioned_variables.entry(name.to_string()).or_insert_with(Vec::new);
+        self.variables
+            .entry(name.to_string())
+            .or_insert(Value::Null(Default::default()));
+        self.versioned_variables
+            .entry(name.to_string())
+            .or_insert_with(Vec::new);
         self.touch();
     }
 

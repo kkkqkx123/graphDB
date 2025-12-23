@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::Value;
 use crate::core::expressions::{DefaultExpressionContext, ExpressionContext};
+use crate::core::Value;
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
@@ -156,8 +156,8 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AssignExecutor<S>
 mod tests {
     use super::*;
     use crate::config::test_config::test_config;
-    use crate::core::Value;
     use crate::core::Expression;
+    use crate::core::Value;
     use crate::storage::NativeStorage;
     use std::sync::{Arc, Mutex};
 
@@ -165,7 +165,8 @@ mod tests {
     async fn test_assign_executor() {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_assign")).expect("NativeStorage should be created successfully"),
+            NativeStorage::new(config.test_db_path("test_db_assign"))
+                .expect("NativeStorage should be created successfully"),
         ));
 
         // 创建赋值项
@@ -177,7 +178,10 @@ mod tests {
         let mut executor = AssignExecutor::new(1, storage, assign_items);
 
         // 执行赋值
-        let result = executor.execute().await.expect("Executor should execute successfully");
+        let result = executor
+            .execute()
+            .await
+            .expect("Executor should execute successfully");
         assert!(matches!(result, ExecutionResult::Success));
 
         // 检查变量是否正确设置

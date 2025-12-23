@@ -2,11 +2,11 @@
 //!
 //! 提供查询验证过程中的上下文管理，整合自query/context/validate/
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
+use super::base::{ContextBase, ContextType, MutableContext};
 use crate::core::Value;
-use super::base::{ContextBase, ContextType, MutableContext, HierarchicalContext};
 
 /// 验证上下文
 ///
@@ -15,31 +15,31 @@ use super::base::{ContextBase, ContextType, MutableContext, HierarchicalContext}
 pub struct ValidationContext {
     /// 上下文ID
     pub id: String,
-    
+
     /// 验证阶段
     pub phase: ValidationPhase,
-    
+
     /// 验证选项
     pub options: ValidationOptions,
-    
+
     /// 已验证的符号表
     pub validated_symbols: HashMap<String, ValidatedSymbol>,
-    
+
     /// 验证错误列表
     pub errors: Vec<ValidationError>,
-    
+
     /// 验证警告列表
     pub warnings: Vec<ValidationWarning>,
-    
+
     /// 自定义属性
     pub attributes: HashMap<String, Value>,
-    
+
     /// 创建时间
     pub created_at: std::time::SystemTime,
-    
+
     /// 最后更新时间
     pub updated_at: std::time::SystemTime,
-    
+
     /// 是否有效
     pub valid: bool,
 }
@@ -322,7 +322,10 @@ impl ValidationContext {
     }
 
     /// 获取指定类型的警告
-    pub fn get_warnings_by_type(&self, warning_type: ValidationWarningType) -> Vec<&ValidationWarning> {
+    pub fn get_warnings_by_type(
+        &self,
+        warning_type: ValidationWarningType,
+    ) -> Vec<&ValidationWarning> {
         self.warnings
             .iter()
             .filter(|w| w.warning_type == warning_type)

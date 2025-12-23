@@ -6,8 +6,8 @@ pub mod filter_node;
 pub mod graph_scan_node;
 pub mod join_node;
 pub mod plan_node_enum;
-pub mod plan_node_traits;
 pub mod plan_node_operations;
+pub mod plan_node_traits;
 pub mod project_node;
 pub mod sort_node;
 pub mod start_node;
@@ -24,10 +24,10 @@ pub use graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
 pub use join_node::{CrossJoinNode, InnerJoinNode, LeftJoinNode};
+pub use plan_node_enum::PlanNodeEnum;
+pub use plan_node_operations::*;
+pub use plan_node_traits::*;
 pub use project_node::ProjectNode;
 pub use sort_node::{LimitNode, SortNode, TopNNode};
 pub use start_node::StartNode;
 pub use traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
-pub use plan_node_enum::PlanNodeEnum;
-pub use plan_node_traits::*;
-pub use plan_node_operations::*;

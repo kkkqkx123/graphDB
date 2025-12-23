@@ -72,7 +72,9 @@ impl CypherLexer {
             });
         }
 
-        let ch = self.peek_char().expect("Lexer should have a character to peek at");
+        let ch = self
+            .peek_char()
+            .expect("Lexer should have a character to peek at");
         let position = self.position;
 
         match ch {
@@ -196,7 +198,9 @@ impl CypherLexer {
 
     /// 读取标点符号
     fn read_punctuation(&mut self) -> Result<String, String> {
-        let ch = self.peek_char().expect("Lexer should have a character to peek at");
+        let ch = self
+            .peek_char()
+            .expect("Lexer should have a character to peek at");
         self.consume_char();
         Ok(ch.to_string())
     }
@@ -204,7 +208,9 @@ impl CypherLexer {
     /// 读取操作符
     fn read_operator(&mut self) -> Result<String, String> {
         let mut operator = String::new();
-        let first_char = self.peek_char().expect("Lexer should have a character to peek at");
+        let first_char = self
+            .peek_char()
+            .expect("Lexer should have a character to peek at");
         operator.push(first_char);
         self.consume_char();
 
@@ -431,11 +437,17 @@ mod tests {
         assert_eq!(tokens[0].value, "MATCH");
 
         // 检查字符串字面量
-        let string_token = tokens.iter().find(|t| t.value == "Alice").expect("Should find Alice token");
+        let string_token = tokens
+            .iter()
+            .find(|t| t.value == "Alice")
+            .expect("Should find Alice token");
         assert_eq!(string_token.token_type, TokenType::LiteralString);
 
         // 检查数字字面量
-        let number_token = tokens.iter().find(|t| t.value == "25").expect("Should find number token");
+        let number_token = tokens
+            .iter()
+            .find(|t| t.value == "25")
+            .expect("Should find number token");
         assert_eq!(number_token.token_type, TokenType::LiteralNumber);
     }
 
@@ -452,7 +464,10 @@ mod tests {
         // 查找注释标记
         let comment_token = tokens.iter().find(|t| t.token_type == TokenType::Comment);
         assert!(comment_token.is_some());
-        assert_eq!(comment_token.expect("Should find comment token").value, " 这是一个注释");
+        assert_eq!(
+            comment_token.expect("Should find comment token").value,
+            " 这是一个注释"
+        );
     }
 
     #[test]

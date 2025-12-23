@@ -6,7 +6,6 @@ use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{combine_conditions, BaseOptRule, FilterSplitResult};
 use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::core::nodes::FilterNode;
 use crate::query::planner::plan::algorithms::IndexScan;
 
 use std::sync::Arc;
@@ -36,18 +35,14 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                 if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(*dep_id) {
                     if dep_node.plan_node.is_filter() {
                         // 检查过滤条件是否可以推入到索引扫描中
-                        if let Some(filter_node) =
-                            dep_node.plan_node.as_filter()
-                        {
+                        if let Some(filter_node) = dep_node.plan_node.as_filter() {
                             // 分析过滤条件，确定哪些部分可以推入到索引扫描
                             let filter_condition = filter_node.condition();
                             let split_result = can_push_down_to_index_scan(filter_condition);
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 获取当前索引扫描节点
-                                if let Some(index_scan_node) =
-                                    node.plan_node.as_index_scan()
-                                {
+                                if let Some(index_scan_node) = node.plan_node.as_index_scan() {
                                     // 创建新的索引扫描节点，合并过滤条件
                                     let mut new_index_scan_node = index_scan_node.clone();
 
@@ -142,18 +137,14 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                 if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(*dep_id) {
                     if dep_node.plan_node.is_filter() {
                         // 检查过滤条件是否可以推入到索引扫描中
-                        if let Some(filter_node) =
-                            dep_node.plan_node.as_filter()
-                        {
+                        if let Some(filter_node) = dep_node.plan_node.as_filter() {
                             // 分析过滤条件，确定哪些部分可以推入到索引扫描
                             let filter_condition = filter_node.condition();
                             let split_result = can_push_down_to_index_scan(filter_condition);
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 获取当前索引扫描节点
-                                if let Some(index_scan_node) =
-                                    node.plan_node.as_index_scan()
-                                {
+                                if let Some(index_scan_node) = node.plan_node.as_index_scan() {
                                     // 创建新的索引扫描节点，合并过滤条件
                                     let mut new_index_scan_node = index_scan_node.clone();
 
@@ -245,12 +236,9 @@ impl OptRule for EdgeIndexFullScanRule {
         // 检查是否没有有效的过滤条件，这可能意味着全扫描
         // 在完整实现中，我们需要检查索引扫描的条件
         // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
-        if let Some(_index_scan_node) = node.plan_node.as_index_scan()
-        {
+        if let Some(_index_scan_node) = node.plan_node.as_index_scan() {
             // 如果索引扫描没有有效的过滤条件，可能是全扫描
-            if let Some(index_scan_plan_node) =
-                node.plan_node.as_index_scan()
-            {
+            if let Some(index_scan_plan_node) = node.plan_node.as_index_scan() {
                 if !index_scan_plan_node.has_effective_filter() {
                     // 根据具体情况，我们可能将其转换为更高效的操作
                     // 简单起见，目前我们返回原节点
@@ -290,12 +278,9 @@ impl OptRule for TagIndexFullScanRule {
         // 检查是否没有有效的过滤条件，这可能意味着全扫描
         // 在完整实现中，我们需要检查索引扫描的条件
         // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
-        if let Some(_index_scan_node) = node.plan_node.as_index_scan()
-        {
+        if let Some(_index_scan_node) = node.plan_node.as_index_scan() {
             // 如果索引扫描没有有效的过滤条件，可能是全扫描
-            if let Some(index_scan_plan_node) =
-                node.plan_node.as_index_scan()
-            {
+            if let Some(index_scan_plan_node) = node.plan_node.as_index_scan() {
                 if !index_scan_plan_node.has_effective_filter() {
                     // 根据具体情况，我们可能将其转换为更高效的操作
                     // 简单起见，目前我们返回原节点
@@ -337,8 +322,7 @@ impl OptRule for IndexScanRule {
         // - 数据分布
         // - 可用内存
         // 这里，我们基于NebulaGraph的IndexScanRule实现，检查索引扫描的查询上下文
-        if let Some(_index_scan_node) = node.plan_node.as_index_scan()
-        {
+        if let Some(_index_scan_node) = node.plan_node.as_index_scan() {
             // 实际优化逻辑可能会根据索引条件创建更优化的索引扫描计划
             // 暂时返回当前节点
             Ok(Some(node.clone()))
@@ -709,11 +693,7 @@ impl UnionAllEdgeIndexScanRule {
         for &dep_id in &node.dependencies {
             if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(dep_id) {
                 if dep_node.plan_node.is_index_scan() {
-                    if let Some(index_scan) = dep_node
-                        .plan_node
-                        .as_any()
-                        .downcast_ref::<IndexScan>()
-                    {
+                    if let Some(index_scan) = dep_node.plan_node.as_index_scan() {
                         index_scan_nodes.push((dep_id, index_scan.clone()));
                     }
                 }
@@ -732,7 +712,10 @@ impl UnionAllEdgeIndexScanRule {
 
             // 创建新的OptGroupNode
             let mut new_opt_node = node.clone();
-            new_opt_node.plan_node = Arc::new(new_index_scan_node);
+            new_opt_node.plan_node =
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::IndexScan(
+                    new_index_scan_node,
+                );
 
             // 清空原有依赖，因为已经合并
             new_opt_node.dependencies.clear();
@@ -875,11 +858,7 @@ impl UnionAllTagIndexScanRule {
         for &dep_id in &node.dependencies {
             if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(dep_id) {
                 if dep_node.plan_node.is_index_scan() {
-                    if let Some(index_scan) = dep_node
-                        .plan_node
-                        .as_any()
-                        .downcast_ref::<IndexScan>()
-                    {
+                    if let Some(index_scan) = dep_node.plan_node.as_index_scan() {
                         index_scan_nodes.push((dep_id, index_scan.clone()));
                     }
                 }
@@ -898,7 +877,10 @@ impl UnionAllTagIndexScanRule {
 
             // 创建新的OptGroupNode
             let mut new_opt_node = node.clone();
-            new_opt_node.plan_node = Arc::new(new_index_scan_node);
+            new_opt_node.plan_node =
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::IndexScan(
+                    new_index_scan_node,
+                );
 
             // 清空原有依赖，因为已经合并
             new_opt_node.dependencies.clear();
@@ -1032,19 +1014,18 @@ mod tests {
     use crate::core::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
-    
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
             "test_session",
             "test_user",
-            vec!["user".to_string()]
+            vec!["user".to_string()],
         );
         let query_context = QueryContext::new(
             "test_query",
             crate::core::types::query::QueryType::DataQuery,
             "TEST QUERY",
-            session_info
+            session_info,
         );
         OptContext::new(query_context)
     }
@@ -1075,7 +1056,9 @@ mod tests {
         ctx.add_plan_node_and_group_node(1, &index_scan_opt_node);
         ctx.add_plan_node_and_group_node(2, &filter_opt_node);
 
-        let result = rule.apply(&mut ctx, &index_scan_opt_node).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &index_scan_opt_node)
+            .expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1105,7 +1088,9 @@ mod tests {
         ctx.add_plan_node_and_group_node(1, &index_scan_opt_node);
         ctx.add_plan_node_and_group_node(2, &filter_opt_node);
 
-        let result = rule.apply(&mut ctx, &index_scan_opt_node).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &index_scan_opt_node)
+            .expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1118,7 +1103,9 @@ mod tests {
         let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1131,7 +1118,9 @@ mod tests {
         let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1144,7 +1133,9 @@ mod tests {
         let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1157,7 +1148,9 @@ mod tests {
         let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1170,7 +1163,9 @@ mod tests {
         let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Failed to apply rule");
         assert!(result.is_some());
     }
 
@@ -1268,7 +1263,9 @@ mod tests {
         let mut union_node = OptGroupNode::new(3, Arc::new(IndexScan::new(3, 1, 2, 3, "RANGE")));
         union_node.dependencies = vec![1, 2];
 
-        let result = rule.apply(&mut ctx, &union_node).expect("Failed to apply rule");
+        let result = rule
+            .apply(&mut ctx, &union_node)
+            .expect("Failed to apply rule");
         assert!(result.is_some());
     }
 }

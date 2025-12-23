@@ -84,7 +84,7 @@ impl SetConfig {
 
 impl From<SetConfig> for PlanNodeEnum {
     fn from(config: SetConfig) -> Self {
-        PlanNodeEnum::SetConfig(Arc::new(config))
+        PlanNodeEnum::SetConfig(config)
     }
 }
 
@@ -114,6 +114,6 @@ impl GetConfig {
 
 impl From<GetConfig> for PlanNodeEnum {
     fn from(config: GetConfig) -> Self {
-        PlanNodeEnum::GetConfig(Arc::new(config))
+        PlanNodeEnum::GetConfig(config)
     }
 }

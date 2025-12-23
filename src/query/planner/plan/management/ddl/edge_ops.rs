@@ -38,7 +38,7 @@ impl CreateEdge {
 
 impl From<CreateEdge> for PlanNodeEnum {
     fn from(edge: CreateEdge) -> Self {
-        PlanNodeEnum::CreateEdge(Arc::new(edge))
+        PlanNodeEnum::CreateEdge(edge)
     }
 }
 
@@ -68,7 +68,7 @@ impl DropEdge {
 
 impl From<DropEdge> for PlanNodeEnum {
     fn from(edge: DropEdge) -> Self {
-        PlanNodeEnum::DropEdge(Arc::new(edge))
+        PlanNodeEnum::DropEdge(edge)
     }
 }
 

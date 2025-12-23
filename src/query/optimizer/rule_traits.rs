@@ -332,7 +332,11 @@ pub fn create_pattern_with_dependency(
 ///
 /// # 返回值
 /// 如果找到指定类型的依赖节点，返回true；否则返回false
-pub fn has_dependency_of_kind(ctx: &OptContext, node: &OptGroupNode, node_name: &'static str) -> bool {
+pub fn has_dependency_of_kind(
+    ctx: &OptContext,
+    node: &OptGroupNode,
+    node_name: &'static str,
+) -> bool {
     // 检查节点的依赖列表
     for &dep_id in &node.dependencies {
         // 使用OptContext查找依赖节点
@@ -669,13 +673,13 @@ mod tests {
         let session_info = crate::core::context::session::SessionInfo::new(
             "test_session",
             "test_user",
-            vec!["user".to_string()]
+            vec!["user".to_string()],
         );
         let query_ctx = QueryContext::new(
             "test_query",
             crate::core::types::query::QueryType::DataQuery,
             "TEST QUERY",
-            session_info
+            session_info,
         );
         let mut opt_ctx = OptContext::new(query_ctx);
 

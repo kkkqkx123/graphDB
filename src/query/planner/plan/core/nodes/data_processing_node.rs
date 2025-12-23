@@ -319,8 +319,8 @@ impl super::plan_node_traits::PlanNode for DedupNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
-        self.dependencies().to_vec()
+    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        std::slice::from_ref(&self.input)
     }
 
     fn set_output_var(&mut self, var: Variable) {
@@ -661,9 +661,13 @@ mod tests {
 
     #[test]
     fn test_union_node_creation() {
-        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
 
-        let union_node = UnionNode::new(start_node, true).expect("Union node should be created successfully");
+        let union_node =
+            UnionNode::new(start_node, true).expect("Union node should be created successfully");
 
         assert_eq!(union_node.type_name(), "Union");
         assert_eq!(union_node.dependencies().len(), 1);
@@ -672,9 +676,13 @@ mod tests {
 
     #[test]
     fn test_unwind_node_creation() {
-        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
 
-        let unwind_node = UnwindNode::new(start_node, "item", "list").expect("Unwind node should be created successfully");
+        let unwind_node = UnwindNode::new(start_node, "item", "list")
+            .expect("Unwind node should be created successfully");
 
         assert_eq!(unwind_node.type_name(), "Unwind");
         assert_eq!(unwind_node.dependencies().len(), 1);
@@ -684,9 +692,13 @@ mod tests {
 
     #[test]
     fn test_dedup_node_creation() {
-        let start_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let start_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
 
-        let dedup_node = DedupNode::new(start_node).expect("Dedup node should be created successfully");
+        let dedup_node =
+            DedupNode::new(start_node).expect("Dedup node should be created successfully");
 
         assert_eq!(dedup_node.type_name(), "Dedup");
         assert_eq!(dedup_node.dependencies().len(), 1);

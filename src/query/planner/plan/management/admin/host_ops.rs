@@ -32,7 +32,7 @@ impl AddHosts {
 
 impl From<AddHosts> for PlanNodeEnum {
     fn from(hosts: AddHosts) -> Self {
-        PlanNodeEnum::AddHosts(Arc::new(hosts))
+        PlanNodeEnum::AddHosts(hosts)
     }
 }
 
@@ -86,6 +86,6 @@ impl ShowHostsStatus {
 
 impl From<ShowHostsStatus> for PlanNodeEnum {
     fn from(status: ShowHostsStatus) -> Self {
-        PlanNodeEnum::ShowHostsStatus(Arc::new(status))
+        PlanNodeEnum::ShowHostsStatus(status)
     }
 }

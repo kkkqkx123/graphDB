@@ -2,6 +2,7 @@
 //! 处理Nebula GO查询的规划
 
 use crate::query::context::ast::{AstContext, GoContext};
+use crate::query::planner::plan::core::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::{
     ArgumentNode, DedupNode, ExpandAllNode, ExpandNode, FilterNode, InnerJoinNode, ProjectNode,
 };
@@ -42,37 +43,21 @@ impl GoPlanner {
 
 impl Planner for GoPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // 从ast_ctx创建GoContext
         let go_ctx = GoContext::new(ast_ctx.clone());
-
-        // 实现GO查询的规划逻辑
         println!("Processing GO query planning: {:?}", go_ctx);
 
-        // 创建执行计划节点
-        // 1. 创建参数节点（如果需要）
-        let arg_node = Arc::new(ArgumentNode::new(1, &go_ctx.from.user_defined_var_name));
+        let arg_node = ArgumentNode::new(1, &go_ctx.from.user_defined_var_name);
+        let arg_node_enum = PlanNodeEnum::Argument(arg_node);
 
-        // 2. 创建扩展节点
-        let mut _edge_types = go_ctx.over.edge_types.clone();
-        // 如果是双向扩展，设置边类型
+        let mut edge_types = go_ctx.over.edge_types.clone();
         if go_ctx.over.direction == "both" {
-            _edge_types = go_ctx.over.edge_types.clone();
+            edge_types = go_ctx.over.edge_types.clone();
         } else if go_ctx.over.direction == "in" {
-            // 对于入边，边类型取负值
-            _edge_types = go_ctx
-                .over
-                .edge_types
-                .iter()
-                .map(|et| format!("-{}", et))
-                .collect();
-        } else {
-            // 默认是出边
-            _edge_types = go_ctx.over.edge_types.clone();
+            edge_types = edge_types.iter().map(|et| format!("-{}", et)).collect();
         }
 
-        let _expand_node = Arc::new(ExpandNode::new(1, _edge_types.clone(), "out"));
+        let expand_node = ExpandNode::new(1, edge_types.clone(), "out");
 
-        // 3. 创建ExpandAll节点进行多步扩展
         let direction = if go_ctx.over.direction == "both" {
             "both"
         } else if go_ctx.over.direction == "in" {
@@ -81,85 +66,86 @@ impl Planner for GoPlanner {
             "out"
         };
 
-        let edge_types = go_ctx.over.edge_types.clone(); // 正确初始化edge_types变量
-        let expand_all_node = Arc::new(ExpandAllNode::new(1, edge_types, direction));
+        let expand_all_node = ExpandAllNode::new(1, go_ctx.over.edge_types.clone(), direction);
 
-        // 4. 如果有JOIN操作，创建JOIN节点
-        let join_node = if go_ctx.join_dst {
-            // 使用InnerJoinNode替代HashLeftJoin
-            use crate::core::Expression;
-            let join_key = Expression::Variable("_expandall_vid".to_string());
-            let join = Arc::new(
-                InnerJoinNode::new(
-                    expand_all_node.clone(),
-                    arg_node.clone(),
-                    vec![join_key.clone()],
-                    vec![join_key],
-                )
-                .expect("InnerJoinNode creation should succeed with valid input"),
-            );
-            Some(join)
+        let join_node_opt: Option<PlanNodeEnum> = if go_ctx.join_dst {
+            let join_key = crate::core::Expression::Variable("_expandall_vid".to_string());
+            let left_input =
+                PlanNodeEnum::Argument(ArgumentNode::new(1, &go_ctx.from.user_defined_var_name));
+            let right_input = PlanNodeEnum::ExpandAll(expand_all_node.clone());
+
+            match InnerJoinNode::new(
+                left_input,
+                right_input,
+                vec![join_key.clone()],
+                vec![join_key],
+            ) {
+                Ok(join) => Some(PlanNodeEnum::InnerJoin(join)),
+                Err(_) => None,
+            }
         } else {
             None
         };
 
-        // 5. 创建过滤节点（如果有过滤条件）
-        let filter_node = if let Some(ref condition) = go_ctx.filter {
-            use crate::core::Expression;
-            let expr = Expression::Variable(condition.clone());
-            let dependency_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
-                if let Some(ref join_ref) = join_node {
-                    join_ref.clone()
-                } else {
-                    expand_all_node.clone()
-                };
-            let filter = Arc::new(
-                FilterNode::new(dependency_node, expr)
-                    .expect("FilterNode creation should succeed with valid input"),
-            );
-            Some(filter)
+        let filter_node_opt: Option<PlanNodeEnum> = if let Some(ref condition) = go_ctx.filter {
+            let expr = crate::core::Expression::Variable(condition.clone());
+            let input_node = if let Some(ref join_node) = join_node_opt {
+                join_node.clone()
+            } else {
+                PlanNodeEnum::ExpandAll(expand_all_node.clone())
+            };
+
+            match FilterNode::new(input_node, expr) {
+                Ok(filter) => Some(PlanNodeEnum::Filter(filter)),
+                Err(_) => None,
+            }
         } else {
             None
         };
 
-        // 6. 创建投影节点
-        use crate::core::Expression;
-        use crate::query::validator::YieldColumn;
-        let yield_columns = vec![YieldColumn {
-            expr: Expression::Variable(go_ctx.yield_expr.clone().unwrap_or("DEFAULT".to_string())),
+        let yield_columns = vec![crate::query::validator::YieldColumn {
+            expr: crate::core::Expression::Variable(
+                go_ctx.yield_expr.clone().unwrap_or("DEFAULT".to_string()),
+            ),
             alias: "project_result".to_string(),
             is_matched: false,
         }];
 
-        let last_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
-            if let Some(ref filter_ref) = filter_node {
-                filter_ref.clone()
-            } else if let Some(ref join_ref) = join_node {
-                join_ref.clone()
-            } else {
-                expand_all_node.clone()
-            };
-
-        let project_node = Arc::new(
-            ProjectNode::new(last_node, yield_columns)
-                .expect("ProjectNode creation should succeed with valid input"),
-        );
-
-        // 7. 如果需要去重，创建去重节点
-        let final_node: Arc<dyn crate::query::planner::plan::core::PlanNode> = if go_ctx.distinct {
-            let dedup_node = Arc::new(
-                DedupNode::new(project_node)
-                    .expect("DedupNode creation should succeed with valid input"),
-            );
-            dedup_node
+        let last_node: PlanNodeEnum = if let Some(ref filter_node) = filter_node_opt {
+            filter_node.clone()
+        } else if let Some(ref join_node) = join_node_opt {
+            join_node.clone()
         } else {
-            project_node
+            PlanNodeEnum::ExpandAll(expand_all_node)
         };
 
-        // 创建SubPlan
+        let project_node_enum = match ProjectNode::new(last_node, yield_columns) {
+            Ok(project) => PlanNodeEnum::Project(project),
+            Err(_) => {
+                let fallback_project = ProjectNode::new(
+                    PlanNodeEnum::Argument(ArgumentNode::new(
+                        1,
+                        &go_ctx.from.user_defined_var_name,
+                    )),
+                    yield_columns,
+                )
+                .expect("Fallback ProjectNode creation should succeed");
+                PlanNodeEnum::Project(fallback_project)
+            }
+        };
+
+        let final_node: PlanNodeEnum = if go_ctx.distinct {
+            match DedupNode::new(project_node_enum.clone()) {
+                Ok(dedup) => PlanNodeEnum::Dedup(dedup),
+                Err(_) => project_node_enum.clone(),
+            }
+        } else {
+            project_node_enum
+        };
+
         let sub_plan = SubPlan {
             root: Some(final_node),
-            tail: Some(arg_node),
+            tail: Some(arg_node_enum),
         };
 
         Ok(sub_plan)

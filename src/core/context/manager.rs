@@ -6,16 +6,16 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use super::base::{
-    ContextConfig, ContextEvent, ContextEventListener, ContextManager,
-    ContextStatistics, ContextType, SimpleEventListener, ContextBase,
+    ContextBase, ContextConfig, ContextEvent, ContextEventListener, ContextManager,
+    ContextStatistics, ContextType, SimpleEventListener,
 };
-use super::runtime::{TestRuntimeContext, PlanContext};
-use super::session::SessionContext;
-use super::query::QueryContext;
 use super::execution::ExecutionContext;
+use super::query::QueryContext;
 use super::request::RequestContext;
-use super::validation::ValidationContext;
+use super::runtime::{PlanContext, TestRuntimeContext};
+use super::session::SessionContext;
 use super::storage::StorageContext;
+use super::validation::ValidationContext;
 use crate::core::expressions::BasicExpressionContext;
 use crate::core::Value;
 
@@ -61,14 +61,14 @@ impl ContextStorage {
     }
 
     pub fn len(&self) -> usize {
-        self.session_contexts.len() +
-        self.query_contexts.len() +
-        self.execution_contexts.len() +
-        self.expression_contexts.len() +
-        self.request_contexts.len() +
-        self.runtime_contexts.len() +
-        self.validation_contexts.len() +
-        self.storage_contexts.len()
+        self.session_contexts.len()
+            + self.query_contexts.len()
+            + self.execution_contexts.len()
+            + self.expression_contexts.len()
+            + self.request_contexts.len()
+            + self.runtime_contexts.len()
+            + self.validation_contexts.len()
+            + self.storage_contexts.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -278,7 +278,12 @@ impl DefaultContextManager {
     }
 
     /// 触发上下文销毁事件
-    fn emit_context_destroyed_event<T: ContextBase>(&self, id: &str, context_type: ContextType, context: &T) {
+    fn emit_context_destroyed_event<T: ContextBase>(
+        &self,
+        id: &str,
+        context_type: ContextType,
+        context: &T,
+    ) {
         // 更新统计信息
         if let Ok(mut stats) = self.statistics.write() {
             let lifetime_ms = context
@@ -312,10 +317,14 @@ impl DefaultContextManager {
 
 impl DefaultContextManager {
     /// 创建会话上下文
-    pub fn create_session_context(&mut self, user_info: super::session::UserInfo, config: super::session::SessionConfig) -> String {
+    pub fn create_session_context(
+        &mut self,
+        user_info: super::session::UserInfo,
+        config: super::session::SessionConfig,
+    ) -> String {
         let id = self.generate_context_id(ContextType::Session);
         let context = SessionContext::new(id.clone(), user_info, config);
-        
+
         // 更新统计信息
         if let Ok(mut stats) = self.statistics.write() {
             stats.record_created(ContextType::Session);
@@ -337,7 +346,11 @@ impl DefaultContextManager {
     }
 
     /// 创建查询上下文
-    pub fn create_query_context(&mut self, query: String, session_info: super::session::SessionInfo) -> String {
+    pub fn create_query_context(
+        &mut self,
+        query: String,
+        session_info: super::session::SessionInfo,
+    ) -> String {
         let id = self.generate_context_id(ContextType::Query);
         let context = QueryContext::new(
             id.clone(),
@@ -345,7 +358,7 @@ impl DefaultContextManager {
             query,
             session_info,
         );
-        
+
         // 更新统计信息
         if let Ok(mut stats) = self.statistics.write() {
             stats.record_created(ContextType::Query);
@@ -370,7 +383,7 @@ impl DefaultContextManager {
     pub fn create_execution_context(&mut self, query_context: QueryContext) -> String {
         let id = self.generate_context_id(ContextType::Execution);
         let context = ExecutionContext::new(query_context);
-        
+
         // 更新统计信息
         if let Ok(mut stats) = self.statistics.write() {
             stats.record_created(ContextType::Execution);
@@ -395,7 +408,7 @@ impl DefaultContextManager {
     pub fn create_expression_context(&mut self) -> String {
         let id = self.generate_context_id(ContextType::Expression);
         let context = BasicExpressionContext::new();
-        
+
         // 更新统计信息
         if let Ok(mut stats) = self.statistics.write() {
             stats.record_created(ContextType::Expression);
@@ -417,10 +430,17 @@ impl DefaultContextManager {
     }
 
     /// 创建请求上下文
-    pub fn create_request_context(&mut self, query: String, session_id: &str, user: &str, host: &str, port: u16) -> String {
+    pub fn create_request_context(
+        &mut self,
+        query: String,
+        session_id: &str,
+        user: &str,
+        host: &str,
+        port: u16,
+    ) -> String {
         let id = self.generate_context_id(ContextType::Request);
         let context = RequestContext::with_session(id.clone(), query, session_id, user, host, port);
-        
+
         // 更新统计信息
         if let Ok(mut stats) = self.statistics.write() {
             stats.record_created(ContextType::Request);
@@ -442,10 +462,13 @@ impl DefaultContextManager {
     }
 
     /// 创建运行时上下文
-    pub fn create_runtime_context(&mut self, plan_context: Arc<PlanContext<MockStorageEngine, MockSchemaManager, MockIndexManager>>) -> String {
+    pub fn create_runtime_context(
+        &mut self,
+        plan_context: Arc<PlanContext<MockStorageEngine, MockSchemaManager, MockIndexManager>>,
+    ) -> String {
         let id = self.generate_context_id(ContextType::Runtime);
         let context = TestRuntimeContext::new(id.clone(), plan_context);
-        
+
         // 更新统计信息
         if let Ok(mut stats) = self.statistics.write() {
             stats.record_created(ContextType::Runtime);
@@ -470,7 +493,7 @@ impl DefaultContextManager {
     pub fn create_validation_context(&mut self) -> String {
         let id = self.generate_context_id(ContextType::Validation);
         let context = ValidationContext::new(id.clone());
-        
+
         // 更新统计信息
         if let Ok(mut stats) = self.statistics.write() {
             stats.record_created(ContextType::Validation);
@@ -495,7 +518,7 @@ impl DefaultContextManager {
     pub fn create_storage_context(&mut self, space_id: u32, part_id: u32) -> String {
         let id = self.generate_context_id(ContextType::Storage);
         let context = StorageContext::new(id.clone(), space_id as i32, part_id as i64);
-        
+
         // 更新统计信息
         if let Ok(mut stats) = self.statistics.write() {
             stats.record_created(ContextType::Storage);
@@ -849,4 +872,3 @@ impl Default for DefaultContextManager {
         Self::new()
     }
 }
-

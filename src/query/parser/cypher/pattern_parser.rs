@@ -201,7 +201,9 @@ mod tests {
     #[test]
     fn test_parse_simple_node_pattern() {
         let mut parser = CypherParserCore::new("(n:Person)".to_string());
-        let node = parser.parse_node_pattern().expect("Pattern parser should parse valid node patterns");
+        let node = parser
+            .parse_node_pattern()
+            .expect("Pattern parser should parse valid node patterns");
 
         assert_eq!(node.variable, Some("n".to_string()));
         assert_eq!(node.labels, vec!["Person".to_string()]);
@@ -211,7 +213,9 @@ mod tests {
     #[test]
     fn test_parse_node_pattern_with_properties() {
         let mut parser = CypherParserCore::new("(n:Person {name: 'Alice', age: 30})".to_string());
-        let node = parser.parse_node_pattern().expect("Pattern parser should parse valid node patterns");
+        let node = parser
+            .parse_node_pattern()
+            .expect("Pattern parser should parse valid node patterns");
 
         assert_eq!(node.variable, Some("n".to_string()));
         assert_eq!(node.labels, vec!["Person".to_string()]);
@@ -226,7 +230,9 @@ mod tests {
     #[test]
     fn test_parse_relationship_pattern() {
         let mut parser = CypherParserCore::new("-[:FRIENDS_WITH]->".to_string());
-        let relationship = parser.parse_relationship_pattern().expect("Pattern parser should parse valid relationship patterns");
+        let relationship = parser
+            .parse_relationship_pattern()
+            .expect("Pattern parser should parse valid relationship patterns");
 
         assert_eq!(relationship.direction, Direction::Right);
         assert!(relationship.variable.is_none());
@@ -238,7 +244,9 @@ mod tests {
     #[test]
     fn test_parse_relationship_pattern_with_variable() {
         let mut parser = CypherParserCore::new("-[r:KNOWS]->".to_string());
-        let relationship = parser.parse_relationship_pattern().expect("Pattern parser should parse valid relationship patterns");
+        let relationship = parser
+            .parse_relationship_pattern()
+            .expect("Pattern parser should parse valid relationship patterns");
 
         assert_eq!(relationship.direction, Direction::Right);
         assert_eq!(relationship.variable, Some("r".to_string()));
@@ -248,7 +256,9 @@ mod tests {
     #[test]
     fn test_parse_left_direction() {
         let mut parser = CypherParserCore::new("<-[:KNOWS]-".to_string());
-        let relationship = parser.parse_relationship_pattern().expect("Pattern parser should parse valid relationship patterns");
+        let relationship = parser
+            .parse_relationship_pattern()
+            .expect("Pattern parser should parse valid relationship patterns");
 
         assert_eq!(relationship.direction, Direction::Left);
         assert_eq!(relationship.types, vec!["KNOWS".to_string()]);
@@ -257,7 +267,9 @@ mod tests {
     #[test]
     fn test_parse_both_direction() {
         let mut parser = CypherParserCore::new("-[:KNOWS]-".to_string());
-        let relationship = parser.parse_relationship_pattern().expect("Pattern parser should parse valid relationship patterns");
+        let relationship = parser
+            .parse_relationship_pattern()
+            .expect("Pattern parser should parse valid relationship patterns");
 
         assert_eq!(relationship.direction, Direction::Both);
         assert_eq!(relationship.types, vec!["KNOWS".to_string()]);
@@ -266,7 +278,9 @@ mod tests {
     #[test]
     fn test_parse_relationship_with_range() {
         let mut parser = CypherParserCore::new("-[:KNOWS*1..3]-".to_string());
-        let relationship = parser.parse_relationship_pattern().expect("Pattern parser should parse valid relationship patterns");
+        let relationship = parser
+            .parse_relationship_pattern()
+            .expect("Pattern parser should parse valid relationship patterns");
 
         assert_eq!(relationship.direction, Direction::Both);
         assert_eq!(relationship.types, vec!["KNOWS".to_string()]);
@@ -281,7 +295,9 @@ mod tests {
     fn test_parse_simple_pattern() {
         let mut parser =
             CypherParserCore::new("(a:Person)-[:FRIENDS_WITH]->(b:Person)".to_string());
-        let pattern = parser.parse_pattern().expect("Pattern parser should parse valid patterns");
+        let pattern = parser
+            .parse_pattern()
+            .expect("Pattern parser should parse valid patterns");
 
         assert_eq!(pattern.parts.len(), 1);
 
@@ -300,7 +316,9 @@ mod tests {
         let mut parser = CypherParserCore::new(
             "(a:Person)-[:KNOWS]->(b:Person), (c:Company)-[:LOCATED_IN]->(d:City)".to_string(),
         );
-        let patterns = parser.parse_patterns().expect("Pattern parser should parse valid patterns");
+        let patterns = parser
+            .parse_patterns()
+            .expect("Pattern parser should parse valid patterns");
 
         assert_eq!(patterns.len(), 2);
 
@@ -320,7 +338,9 @@ mod tests {
         let mut parser = CypherParserCore::new(
             "(a:Person)-[:KNOWS*1..2]->(b:Person)<-[:WORKS_WITH]-(c:Company)".to_string(),
         );
-        let pattern = parser.parse_pattern().expect("Pattern parser should parse valid patterns");
+        let pattern = parser
+            .parse_pattern()
+            .expect("Pattern parser should parse valid patterns");
 
         assert_eq!(pattern.parts.len(), 1);
 

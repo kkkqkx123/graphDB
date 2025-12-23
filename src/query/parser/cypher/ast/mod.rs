@@ -10,6 +10,7 @@ pub mod query_types;
 pub mod statements;
 
 // 重新导出主要类型
+pub use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 pub use clauses::{
     CallClause, CreateClause, DeleteClause, LimitClause, MatchClause, MergeAction, MergeActionType,
     MergeClause, OrderByClause, OrderByItem, Ordering, RemoveClause, RemoveItem, RemoveItemType,
@@ -18,10 +19,9 @@ pub use clauses::{
 };
 pub use converters::{CypherConverter, ExpressionEvaluator};
 pub use expressions::{
-    BinaryExpression, CaseAlternative, CaseExpression, Expression, FunctionCall,
-    ListExpression, Literal, MapExpression, PatternExpression, PropertyExpression, UnaryExpression,
+    BinaryExpression, CaseAlternative, CaseExpression, Expression, FunctionCall, ListExpression,
+    Literal, MapExpression, PatternExpression, PropertyExpression, UnaryExpression,
 };
-pub use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 pub use patterns::{Direction, NodePattern, Pattern, PatternPart, Range, RelationshipPattern};
 pub use query_types::{Condition, Query};
 pub use statements::{CypherStatement, QueryClause};

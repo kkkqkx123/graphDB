@@ -37,8 +37,8 @@ use crate::query::planner::plan::management::ddl::edge_ops::{
     CreateEdge, DropEdge, ShowCreateEdge, ShowEdges,
 };
 use crate::query::planner::plan::management::ddl::space_ops::{
-    AlterSpace, ClearSpace, CreateSpace, DescSpace, DropSpace,
-    ShowCreateSpace, ShowSpaces, SwitchSpace,
+    AlterSpace, ClearSpace, CreateSpace, DescSpace, DropSpace, ShowCreateSpace, ShowSpaces,
+    SwitchSpace,
 };
 use crate::query::planner::plan::management::ddl::tag_ops::{
     CreateTag, DescTag, DropTag, ShowCreateTag, ShowTags,
@@ -455,6 +455,69 @@ impl PlanNodeEnum {
     pub fn as_limit_mut(&mut self) -> Option<&mut LimitNode> {
         match self {
             PlanNodeEnum::Limit(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_get_vertices(&self) -> Option<&GetVerticesNode> {
+        match self {
+            PlanNodeEnum::GetVertices(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_get_edges(&self) -> Option<&GetEdgesNode> {
+        match self {
+            PlanNodeEnum::GetEdges(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_get_neighbors(&self) -> Option<&GetNeighborsNode> {
+        match self {
+            PlanNodeEnum::GetNeighbors(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_scan_vertices(&self) -> Option<&ScanVerticesNode> {
+        match self {
+            PlanNodeEnum::ScanVertices(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_scan_edges(&self) -> Option<&ScanEdgesNode> {
+        match self {
+            PlanNodeEnum::ScanEdges(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_index_scan(&self) -> Option<&crate::query::planner::plan::algorithms::IndexScan> {
+        match self {
+            PlanNodeEnum::IndexScan(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_expand_all(&self) -> Option<&ExpandAllNode> {
+        match self {
+            PlanNodeEnum::ExpandAll(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_traverse(&self) -> Option<&TraverseNode> {
+        match self {
+            PlanNodeEnum::Traverse(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_expand(&self) -> Option<&ExpandNode> {
+        match self {
+            PlanNodeEnum::Expand(node) => Some(node),
             _ => None,
         }
     }

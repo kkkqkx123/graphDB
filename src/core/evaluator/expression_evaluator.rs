@@ -2,12 +2,12 @@
 //!
 //! 提供具体的表达式求值功能
 
+use super::traits::Evaluator;
 use crate::core::expressions::ExpressionContext;
 use crate::core::types::expression::{Expression, LiteralValue};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::ExpressionError;
 use crate::core::Value;
-use super::traits::Evaluator;
 
 /// 表达式求值器实现
 #[derive(Debug)]
@@ -322,15 +322,13 @@ impl ExpressionEvaluator {
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
         match expr {
-            Expression::Literal(literal_value) => {
-                match literal_value {
-                    LiteralValue::Bool(b) => Ok(Value::Bool(*b)),
-                    LiteralValue::Int(i) => Ok(Value::Int(*i)),
-                    LiteralValue::Float(f) => Ok(Value::Float(*f)),
-                    LiteralValue::String(s) => Ok(Value::String(s.clone())),
-                    LiteralValue::Null => Ok(Value::Null(crate::core::NullType::Null)),
-                }
-            }
+            Expression::Literal(literal_value) => match literal_value {
+                LiteralValue::Bool(b) => Ok(Value::Bool(*b)),
+                LiteralValue::Int(i) => Ok(Value::Int(*i)),
+                LiteralValue::Float(f) => Ok(Value::Float(*f)),
+                LiteralValue::String(s) => Ok(Value::String(s.clone())),
+                LiteralValue::Null => Ok(Value::Null(crate::core::NullType::Null)),
+            },
             Expression::TypeCast { expr, target_type } => {
                 let value = self.eval_expression_generic(expr, context)?;
                 self.eval_type_cast(&value, target_type)
@@ -339,11 +337,9 @@ impl ExpressionEvaluator {
                 let object_value = self.eval_expression_generic(object, context)?;
                 self.eval_property_access(&object_value, property)
             }
-            Expression::Variable(name) => {
-                context
-                    .get_variable(name)
-                    .ok_or_else(|| ExpressionError::undefined_variable(name))
-            }
+            Expression::Variable(name) => context
+                .get_variable(name)
+                .ok_or_else(|| ExpressionError::undefined_variable(name)),
             Expression::Binary { left, op, right } => {
                 let left_value = self.eval_expression_generic(left, context)?;
                 let right_value = self.eval_expression_generic(right, context)?;
@@ -354,8 +350,10 @@ impl ExpressionEvaluator {
                 self.eval_unary_operation(op, &value)
             }
             Expression::Function { name, args } => {
-                let arg_values: Result<Vec<Value>, ExpressionError> =
-                    args.iter().map(|arg| self.eval_expression_generic(arg, context)).collect();
+                let arg_values: Result<Vec<Value>, ExpressionError> = args
+                    .iter()
+                    .map(|arg| self.eval_expression_generic(arg, context))
+                    .collect();
                 let arg_values = arg_values?;
                 self.eval_function_call(name, &arg_values)
             }
@@ -1173,11 +1171,7 @@ impl Default for ExpressionEvaluator {
 
 impl<C: ExpressionContext> Evaluator<C> for ExpressionEvaluator {
     /// 求值表达式（泛型版本，避免虚表开销）
-    fn evaluate(
-        &self,
-        expr: &Expression,
-        context: &mut C,
-    ) -> Result<Value, ExpressionError> {
+    fn evaluate(&self, expr: &Expression, context: &mut C) -> Result<Value, ExpressionError> {
         // 使用泛型实现，编译器会为每个具体的 C 类型生成专用代码
         // 这避免了虚表查询的开销，允许内联优化
         self.eval_expression_generic(expr, context)

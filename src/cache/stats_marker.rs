@@ -5,7 +5,7 @@
 use std::marker::PhantomData;
 
 /// 统计模式标记 trait
-/// 
+///
 /// 编译时标记，用于在编译时确定缓存是否启用统计功能
 pub trait StatsMode: Send + Sync {
     /// 是否启用统计

@@ -1,8 +1,11 @@
 //! EvaluableExprVisitor - 用于判断表达式是否可求值的访问器
 //! 对应 NebulaGraph EvaluableExprVisitor.h/.cpp 的功能
 
-use crate::core::visitor::{VisitorCore, VisitorContext};
-use crate::core::{Expression, ExpressionVisitor, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction, DataType};
+use crate::core::visitor::{VisitorContext, VisitorCore};
+use crate::core::{
+    AggregateFunction, BinaryOperator, DataType, Expression, ExpressionVisitor, LiteralValue,
+    UnaryOperator,
+};
 use crate::query::visitor::QueryVisitor;
 
 #[derive(Debug)]
@@ -48,7 +51,10 @@ impl EvaluableExprVisitor {
     }
 
     /// 创建带配置和初始深度的 EvaluableExprVisitor
-    pub fn with_config_and_depth(config: crate::core::visitor::VisitorConfig, depth: usize) -> Self {
+    pub fn with_config_and_depth(
+        config: crate::core::visitor::VisitorConfig,
+        depth: usize,
+    ) -> Self {
         Self {
             evaluable: true,
             error: None,
@@ -126,16 +132,27 @@ impl VisitorCore<Expression> for EvaluableExprVisitor {
             Expression::Binary { left, op, right } => self.visit_binary(left, op, right),
             Expression::Unary { op, operand } => self.visit_unary(op, operand),
             Expression::Function { name, args } => self.visit_function(name, args),
-            Expression::Aggregate { func, arg, distinct } => self.visit_aggregate(func, arg, *distinct),
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => self.visit_aggregate(func, arg, *distinct),
             Expression::List(items) => self.visit_list(items),
             Expression::Map(pairs) => self.visit_map(pairs),
-            Expression::Case { conditions, default } => {
+            Expression::Case {
+                conditions,
+                default,
+            } => {
                 let default_cloned = default.map(|b| (**b).clone());
                 self.visit_case(conditions, &default_cloned)
             }
             Expression::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
             Expression::Subscript { collection, index } => self.visit_subscript(collection, index),
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 let start_cloned = start.map(|b| (**b).clone());
                 let end_cloned = end.map(|b| (**b).clone());
                 self.visit_range(collection, &start_cloned, &end_cloned)
@@ -147,8 +164,10 @@ impl VisitorCore<Expression> for EvaluableExprVisitor {
             Expression::InputProperty(prop) => self.visit_input_property(prop),
             Expression::VariableProperty { var, prop } => self.visit_variable_property(var, prop),
             Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
-            Expression::DestinationProperty { tag, prop } => self.visit_destination_property(tag, prop),
-            
+            Expression::DestinationProperty { tag, prop } => {
+                self.visit_destination_property(tag, prop)
+            }
+
             // 处理新增的表达式类型
             Expression::UnaryPlus(expr) => self.visit_unary(&UnaryOperator::Plus, expr),
             Expression::UnaryNegate(expr) => self.visit_unary(&UnaryOperator::Minus, expr),
@@ -159,29 +178,40 @@ impl VisitorCore<Expression> for EvaluableExprVisitor {
             Expression::IsNotNull(expr) => self.visit_unary(&UnaryOperator::IsNotNull, expr),
             Expression::IsEmpty(expr) => self.visit_unary(&UnaryOperator::IsEmpty, expr),
             Expression::IsNotEmpty(expr) => self.visit_unary(&UnaryOperator::IsNotEmpty, expr),
-            
+
             Expression::TypeCasting { expr, .. } => self.visit_type_cast(expr, &DataType::String),
-            Expression::ListComprehension { generator, condition } => {
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => {
                 // 简化为函数调用
                 let cond_expr = condition
-                    
                     .map(|c| (**c).clone())
                     .unwrap_or(Expression::bool(true));
-                self.visit_function(
-                    "list_comprehension",
-                    &[(**generator).clone(), cond_expr],
-                )
+                self.visit_function("list_comprehension", &[(**generator).clone(), cond_expr])
             }
             Expression::Predicate { list, condition } => {
                 self.visit_function("predicate", &[(**list).clone(), (**condition).clone()])
             }
-            Expression::Reduce { list, initial, expr, .. } => {
-                self.visit_function("reduce", &[(**list).clone(), (**initial).clone(), (**expr).clone()])
-            }
+            Expression::Reduce {
+                list,
+                initial,
+                expr,
+                ..
+            } => self.visit_function(
+                "reduce",
+                &[(**list).clone(), (**initial).clone(), (**expr).clone()],
+            ),
             Expression::PathBuild(items) => self.visit_path(items),
-            Expression::ESQuery(query) => self.visit_function("es_query", &[Expression::string(query)]),
+            Expression::ESQuery(query) => {
+                self.visit_function("es_query", &[Expression::string(query)])
+            }
             Expression::UUID => self.visit_function("uuid", &[]),
-            Expression::SubscriptRange { collection, start, end } => {
+            Expression::SubscriptRange {
+                collection,
+                start,
+                end,
+            } => {
                 let start_cloned = start.map(|b| (**b).clone());
                 let end_cloned = end.map(|b| (**b).clone());
                 self.visit_range(collection, &start_cloned, &end_cloned)
@@ -225,7 +255,12 @@ impl ExpressionVisitor for EvaluableExprVisitor {
         Ok(())
     }
 
-    fn visit_binary(&mut self, left: &Expression, _op: &BinaryOperator, right: &Expression) -> Self::Result {
+    fn visit_binary(
+        &mut self,
+        left: &Expression,
+        _op: &BinaryOperator,
+        right: &Expression,
+    ) -> Self::Result {
         self.visit(left)?;
         self.visit(right)?;
         Ok(())
@@ -243,7 +278,12 @@ impl ExpressionVisitor for EvaluableExprVisitor {
         Ok(())
     }
 
-    fn visit_aggregate(&mut self, _func: &AggregateFunction, arg: &Expression, _distinct: bool) -> Self::Result {
+    fn visit_aggregate(
+        &mut self,
+        _func: &AggregateFunction,
+        arg: &Expression,
+        _distinct: bool,
+    ) -> Self::Result {
         self.visit(arg)?;
         Ok(())
     }
@@ -262,7 +302,11 @@ impl ExpressionVisitor for EvaluableExprVisitor {
         Ok(())
     }
 
-    fn visit_case(&mut self, conditions: &[(Expression, Expression)], default: &Option<Expression>) -> Self::Result {
+    fn visit_case(
+        &mut self,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Expression>,
+    ) -> Self::Result {
         for (condition, value) in conditions {
             self.visit(condition)?;
             self.visit(value)?;
@@ -284,7 +328,12 @@ impl ExpressionVisitor for EvaluableExprVisitor {
         Ok(())
     }
 
-    fn visit_range(&mut self, collection: &Expression, start: &Option<Expression>, end: &Option<Expression>) -> Self::Result {
+    fn visit_range(
+        &mut self,
+        collection: &Expression,
+        start: &Option<Expression>,
+        end: &Option<Expression>,
+    ) -> Self::Result {
         self.visit(collection)?;
         if let Some(start_expr) = start {
             self.visit(start_expr)?;
@@ -350,12 +399,12 @@ impl QueryVisitor for EvaluableExprVisitor {
     fn get_result(&self) -> Self::QueryResult {
         self.evaluable
     }
-    
+
     fn reset(&mut self) {
         self.evaluable = true;
         self.error = None;
     }
-    
+
     fn is_success(&self) -> bool {
         self.error.is_none()
     }

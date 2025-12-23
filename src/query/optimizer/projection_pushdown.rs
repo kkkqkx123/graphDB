@@ -7,7 +7,6 @@ use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
-
 /// 投影下推规则
 #[derive(Debug)]
 pub struct ProjectionPushDownRule;
@@ -94,7 +93,9 @@ impl PushDownRule for PushProjectDownRule {
         // 投影可以下推到数据访问操作
         matches!(
             child_kind,
-            PlanNodeEnum::ScanVertices(_) | PlanNodeEnum::ScanEdges(_) | PlanNodeEnum::GetVertices(_)
+            PlanNodeEnum::ScanVertices(_)
+                | PlanNodeEnum::ScanEdges(_)
+                | PlanNodeEnum::GetVertices(_)
         )
     }
 
@@ -121,13 +122,13 @@ mod tests {
         let session_info = crate::core::context::session::SessionInfo::new(
             "test_session",
             "test_user",
-            vec!["user".to_string()]
+            vec!["user".to_string()],
         );
         let query_context = QueryContext::new(
             "test_query",
             crate::core::types::query::QueryType::DataQuery,
             "TEST QUERY",
-            session_info
+            session_info,
         );
         OptContext::new(query_context)
     }

@@ -23,7 +23,10 @@ impl PatternBuilder {
     }
 
     /// 创建带多个依赖的模式
-    pub fn with_dependencies(node_name: &'static str, dependency_names: Vec<&'static str>) -> Pattern {
+    pub fn with_dependencies(
+        node_name: &'static str,
+        dependency_names: Vec<&'static str>,
+    ) -> Pattern {
         let mut pattern = Pattern::new(node_name);
         for dep_name in dependency_names {
             pattern = pattern.with_dependency(Pattern::new(dep_name));
@@ -73,20 +76,12 @@ impl PatternBuilder {
 
     /// 创建连接操作模式
     pub fn join() -> Pattern {
-        Pattern::multi(vec![
-            "InnerJoin",
-            "HashInnerJoin",
-            "HashLeftJoin",
-        ])
+        Pattern::multi(vec!["InnerJoin", "HashInnerJoin", "HashLeftJoin"])
     }
 
     /// 创建获取操作模式（顶点、边或邻居）
     pub fn get() -> Pattern {
-        Pattern::multi(vec![
-            "GetVertices",
-            "GetEdges",
-            "GetNeighbors",
-        ])
+        Pattern::multi(vec!["GetVertices", "GetEdges", "GetNeighbors"])
     }
 
     /// 创建去重操作模式
@@ -185,18 +180,12 @@ impl PatternMatcher {
             MatchNode::Single("Filter") => {
                 // 检查依赖是否也是过滤操作
                 !pattern.dependencies.is_empty()
-                    && matches!(
-                        &pattern.dependencies[0].node,
-                        MatchNode::Single("Filter")
-                    )
+                    && matches!(&pattern.dependencies[0].node, MatchNode::Single("Filter"))
             }
             MatchNode::Single("Project") => {
                 // 检查依赖是否也是投影操作
                 !pattern.dependencies.is_empty()
-                    && matches!(
-                        &pattern.dependencies[0].node,
-                        MatchNode::Single("Project")
-                    )
+                    && matches!(&pattern.dependencies[0].node, MatchNode::Single("Project"))
             }
             _ => false,
         }

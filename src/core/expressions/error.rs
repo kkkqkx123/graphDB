@@ -180,12 +180,18 @@ impl ExpressionError {
 
     /// 创建未知函数错误
     pub fn unknown_function(name: impl Into<String>) -> Self {
-        Self::new(ExpressionErrorType::UnknownFunction, format!("未知函数: {}", name.into()))
+        Self::new(
+            ExpressionErrorType::UnknownFunction,
+            format!("未知函数: {}", name.into()),
+        )
     }
 
     /// 创建无效参数数量错误
     pub fn invalid_argument_count(name: impl Into<String>) -> Self {
-        Self::new(ExpressionErrorType::InvalidArgumentCount, format!("无效参数数量: {}", name.into()))
+        Self::new(
+            ExpressionErrorType::InvalidArgumentCount,
+            format!("无效参数数量: {}", name.into()),
+        )
     }
 }
 

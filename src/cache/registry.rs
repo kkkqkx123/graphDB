@@ -17,7 +17,7 @@ pub struct CacheRegistryInfo {
 }
 
 /// 缓存注册表
-/// 
+///
 /// 负责管理所有缓存的注册信息，不存储实际缓存实例
 #[derive(Clone)]
 pub struct CacheRegistry {
@@ -52,57 +52,84 @@ impl CacheRegistry {
             policy,
         };
 
-        let mut registry = self.registry.write().expect("Cache registry write lock was poisoned");
+        let mut registry = self
+            .registry
+            .write()
+            .expect("Cache registry write lock was poisoned");
         registry.insert(name.to_string(), info);
-        
+
         Ok(())
     }
 
     /// 获取缓存注册信息
     pub fn get_cache_info(&self, name: &str) -> Option<CacheRegistryInfo> {
-        let registry = self.registry.read().expect("Cache registry read lock was poisoned");
+        let registry = self
+            .registry
+            .read()
+            .expect("Cache registry read lock was poisoned");
         registry.get(name).cloned()
     }
 
     /// 获取所有缓存注册信息
     pub fn get_all_cache_info(&self) -> Vec<CacheRegistryInfo> {
-        let registry = self.registry.read().expect("Cache registry read lock was poisoned");
+        let registry = self
+            .registry
+            .read()
+            .expect("Cache registry read lock was poisoned");
         registry.values().cloned().collect()
     }
 
     /// 获取缓存名称列表
     pub fn cache_names(&self) -> Vec<String> {
-        let registry = self.registry.read().expect("Cache registry read lock was poisoned");
+        let registry = self
+            .registry
+            .read()
+            .expect("Cache registry read lock was poisoned");
         registry.keys().cloned().collect()
     }
 
     /// 检查缓存是否存在
     pub fn has_cache(&self, name: &str) -> bool {
-        let registry = self.registry.read().expect("Cache registry read lock was poisoned");
+        let registry = self
+            .registry
+            .read()
+            .expect("Cache registry read lock was poisoned");
         registry.contains_key(name)
     }
 
     /// 移除缓存
     pub fn remove_cache(&self, name: &str) -> bool {
-        let mut registry = self.registry.write().expect("Cache registry write lock was poisoned");
+        let mut registry = self
+            .registry
+            .write()
+            .expect("Cache registry write lock was poisoned");
         registry.remove(name).is_some()
     }
 
     /// 清空所有缓存注册信息
     pub fn clear_all(&self) {
-        let mut registry = self.registry.write().expect("Cache registry write lock was poisoned");
+        let mut registry = self
+            .registry
+            .write()
+            .expect("Cache registry write lock was poisoned");
         registry.clear();
     }
 
     /// 获取缓存数量
     pub fn cache_count(&self) -> usize {
-        let registry = self.registry.read().expect("Cache registry read lock was poisoned");
+        let registry = self
+            .registry
+            .read()
+            .expect("Cache registry read lock was poisoned");
         registry.len()
     }
 
     /// 根据策略类型获取缓存列表
     pub fn get_caches_by_policy(&self, policy: CacheStrategy) -> Vec<CacheRegistryInfo> {
-        let registry = self.registry.read().expect("Cache registry read lock was poisoned");
+        let registry = self
+            .registry
+            .read()
+            .expect("Cache registry read lock was poisoned");
         registry
             .values()
             .filter(|info| info.policy == policy)
@@ -112,7 +139,10 @@ impl CacheRegistry {
 
     /// 获取在指定时间后创建的缓存
     pub fn get_caches_created_after(&self, after: std::time::Instant) -> Vec<CacheRegistryInfo> {
-        let registry = self.registry.read().expect("Cache registry read lock was poisoned");
+        let registry = self
+            .registry
+            .read()
+            .expect("Cache registry read lock was poisoned");
         registry
             .values()
             .filter(|info| info.created_at > after)
@@ -129,7 +159,10 @@ impl Default for CacheRegistry {
 
 impl std::fmt::Debug for CacheRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let registry = self.registry.read().expect("Cache registry read lock was poisoned");
+        let registry = self
+            .registry
+            .read()
+            .expect("Cache registry read lock was poisoned");
         f.debug_struct("CacheRegistry")
             .field("cache_count", &registry.len())
             .finish()
@@ -149,12 +182,16 @@ mod tests {
         assert!(!registry.has_cache("test"));
 
         // 注册缓存
-        registry.register_cache("test", "LRU", 100, CacheStrategy::LRU).expect("Registration should succeed");
+        registry
+            .register_cache("test", "LRU", 100, CacheStrategy::LRU)
+            .expect("Registration should succeed");
         assert_eq!(registry.cache_count(), 1);
         assert!(registry.has_cache("test"));
 
         // 获取缓存信息
-        let info = registry.get_cache_info("test").expect("Cache info should exist");
+        let info = registry
+            .get_cache_info("test")
+            .expect("Cache info should exist");
         assert_eq!(info.name, "test");
         assert_eq!(info.cache_type, "LRU");
         assert_eq!(info.capacity, 100);
@@ -171,9 +208,15 @@ mod tests {
         let registry = CacheRegistry::new();
 
         // 注册多个缓存
-        registry.register_cache("lru_cache", "LRU", 100, CacheStrategy::LRU).expect("LRU registration should succeed");
-        registry.register_cache("lfu_cache", "LFU", 200, CacheStrategy::LFU).expect("LFU registration should succeed");
-        registry.register_cache("fifo_cache", "FIFO", 300, CacheStrategy::FIFO).expect("FIFO registration should succeed");
+        registry
+            .register_cache("lru_cache", "LRU", 100, CacheStrategy::LRU)
+            .expect("LRU registration should succeed");
+        registry
+            .register_cache("lfu_cache", "LFU", 200, CacheStrategy::LFU)
+            .expect("LFU registration should succeed");
+        registry
+            .register_cache("fifo_cache", "FIFO", 300, CacheStrategy::FIFO)
+            .expect("FIFO registration should succeed");
 
         assert_eq!(registry.cache_count(), 3);
 
@@ -205,7 +248,10 @@ mod tests {
         // 空名称应该失败
         let result = registry.register_cache("", "LRU", 100, CacheStrategy::LRU);
         assert!(result.is_err());
-        assert_eq!(result.expect_err("Should return an error"), "缓存名称不能为空");
+        assert_eq!(
+            result.expect_err("Should return an error"),
+            "缓存名称不能为空"
+        );
     }
 
     #[test]
@@ -214,12 +260,16 @@ mod tests {
         let now = std::time::Instant::now();
 
         // 注册缓存
-        registry.register_cache("cache1", "LRU", 100, CacheStrategy::LRU).expect("Cache1 registration should succeed");
+        registry
+            .register_cache("cache1", "LRU", 100, CacheStrategy::LRU)
+            .expect("Cache1 registration should succeed");
 
         // 稍等一下再注册第二个缓存
         std::thread::sleep(std::time::Duration::from_millis(1));
         let later = std::time::Instant::now();
-        registry.register_cache("cache2", "LFU", 200, CacheStrategy::LFU).expect("Cache2 registration should succeed");
+        registry
+            .register_cache("cache2", "LFU", 200, CacheStrategy::LFU)
+            .expect("Cache2 registration should succeed");
 
         // 获取在指定时间后创建的缓存
         let caches_after = registry.get_caches_created_after(now);

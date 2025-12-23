@@ -152,8 +152,8 @@ mod tests {
     use crate::query::executor::cypher::{CypherExecutorFactory, CypherExecutorTrait};
     use crate::query::executor::traits::{ExecutorLifecycle, ExecutorMetadata};
     use crate::query::parser::cypher::ast::clauses::*;
-    use crate::query::parser::cypher::ast::statements::CypherStatement;
     use crate::query::parser::cypher::ast::expressions::Expression;
+    use crate::query::parser::cypher::ast::statements::CypherStatement;
     use crate::storage::NativeStorage;
     use std::sync::{Arc, Mutex};
 
@@ -179,8 +179,8 @@ mod tests {
 
     /// 创建测试用的MATCH语句
     fn create_test_match_statement() -> CypherStatement {
-        use crate::query::parser::cypher::ast::patterns::{Pattern, PatternPart, NodePattern};
-        
+        use crate::query::parser::cypher::ast::patterns::{NodePattern, Pattern, PatternPart};
+
         CypherStatement::Match(MatchClause {
             patterns: vec![Pattern {
                 parts: vec![PatternPart {
@@ -199,8 +199,8 @@ mod tests {
 
     /// 创建测试用的CREATE语句
     fn create_test_create_statement() -> CypherStatement {
-        use crate::query::parser::cypher::ast::patterns::{Pattern, PatternPart, NodePattern};
-        
+        use crate::query::parser::cypher::ast::patterns::{NodePattern, Pattern, PatternPart};
+
         CypherStatement::Create(CreateClause {
             patterns: vec![Pattern {
                 parts: vec![PatternPart {
@@ -236,9 +236,7 @@ mod tests {
 
     /// 创建测试用的SET语句
     fn create_test_set_statement() -> CypherStatement {
-        CypherStatement::Set(SetClause {
-            items: vec![],
-        })
+        CypherStatement::Set(SetClause { items: vec![] })
     }
 
     /// 创建测试用的WHERE语句
@@ -263,13 +261,17 @@ mod tests {
         let mut factory = CypherExecutorFactory::new(storage);
 
         // 创建第一个执行器
-        let executor1 = factory.create_executor().expect("Failed to create executor");
+        let executor1 = factory
+            .create_executor()
+            .expect("Failed to create executor");
         assert_eq!(executor1.id(), 1);
         assert_eq!(executor1.name(), "CypherExecutor-1");
         assert_eq!(factory.next_id(), 2);
 
         // 创建第二个执行器
-        let executor2 = factory.create_executor().expect("Failed to create executor");
+        let executor2 = factory
+            .create_executor()
+            .expect("Failed to create executor");
         assert_eq!(executor2.id(), 2);
         assert_eq!(executor2.name(), "CypherExecutor-2");
         assert_eq!(factory.next_id(), 3);
@@ -367,12 +369,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_executor_for_unsupported_statement() {
-        let storage = create_test_storage_with_name("test_create_executor_for_unsupported_statement");
+        let storage =
+            create_test_storage_with_name("test_create_executor_for_unsupported_statement");
         let mut factory = CypherExecutorFactory::new(storage);
-        
+
         // 创建一个不支持的语句类型（例如MERGE）
-        use crate::query::parser::cypher::ast::patterns::{Pattern, PatternPart, NodePattern};
-        
+        use crate::query::parser::cypher::ast::patterns::{NodePattern, Pattern, PatternPart};
+
         let statement = CypherStatement::Merge(MergeClause {
             pattern: Pattern {
                 parts: vec![PatternPart {
@@ -442,8 +445,12 @@ mod tests {
         let mut factory = CypherExecutorFactory::new(storage);
 
         // 创建几个执行器
-        let _executor1 = factory.create_executor().expect("Failed to create executor");
-        let _executor2 = factory.create_executor().expect("Failed to create executor");
+        let _executor1 = factory
+            .create_executor()
+            .expect("Failed to create executor");
+        let _executor2 = factory
+            .create_executor()
+            .expect("Failed to create executor");
         assert_eq!(factory.next_id(), 3);
 
         // 重置ID计数器
@@ -451,7 +458,9 @@ mod tests {
         assert_eq!(factory.next_id(), 1);
 
         // 创建新执行器应该从ID 1开始
-        let executor3 = factory.create_executor().expect("Failed to create executor");
+        let executor3 = factory
+            .create_executor()
+            .expect("Failed to create executor");
         assert_eq!(executor3.id(), 1);
         assert_eq!(factory.next_id(), 2);
     }
@@ -509,7 +518,9 @@ mod tests {
         let storage = create_test_storage_with_name("test_executor_lifecycle");
         let mut factory = CypherExecutorFactory::new(storage);
 
-        let mut executor = factory.create_executor().expect("Failed to create executor");
+        let mut executor = factory
+            .create_executor()
+            .expect("Failed to create executor");
 
         // 测试执行器生命周期
         assert!(!executor.is_open());
@@ -525,7 +536,9 @@ mod tests {
         let mut factory = CypherExecutorFactory::new(storage);
 
         // 先创建一个通用执行器
-        let _general_executor = factory.create_executor().expect("Failed to create executor");
+        let _general_executor = factory
+            .create_executor()
+            .expect("Failed to create executor");
         assert_eq!(factory.next_id(), 2);
 
         // 然后创建一个专用执行器
@@ -536,7 +549,9 @@ mod tests {
         assert_eq!(factory.next_id(), 3);
 
         // 再创建一个通用执行器
-        let _general_executor2 = factory.create_executor().expect("Failed to create executor");
+        let _general_executor2 = factory
+            .create_executor()
+            .expect("Failed to create executor");
         assert_eq!(factory.next_id(), 4);
     }
 }

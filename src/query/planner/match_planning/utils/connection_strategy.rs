@@ -230,9 +230,15 @@ impl ConnectionStrategy for SequentialStrategy {
 
                 // 添加连接信息到列名
                 col_names.push("sequential_connection".to_string());
-                Ok(SubPlan::new(left.root.as_ref().clone(), right.tail.as_ref().clone()))
+                Ok(SubPlan::new(
+                    left.root.as_ref().clone(),
+                    right.tail.as_ref().clone(),
+                ))
             }
-            _ => Ok(SubPlan::new(left.root.as_ref().clone(), right.tail.as_ref().clone())),
+            _ => Ok(SubPlan::new(
+                left.root.as_ref().clone(),
+                right.tail.as_ref().clone(),
+            )),
         }
     }
 

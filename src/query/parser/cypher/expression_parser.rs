@@ -163,7 +163,7 @@ impl CypherParserCore {
                 operator: UnaryOperator::Plus,
                 expression: Box::new(expression),
             }))
-            } else if self.is_current_token_value("-") {
+        } else if self.is_current_token_value("-") {
             self.consume_token(); // 消费 '-'
             let expression = self.parse_unary_expression()?;
             Ok(Expression::Unary(UnaryExpression {
@@ -404,7 +404,9 @@ mod tests {
     #[test]
     fn test_parse_simple_expression() {
         let mut parser = CypherParserCore::new("n.name".to_string());
-        let expression = parser.parse_expression_full().expect("Expression parser should parse valid expressions");
+        let expression = parser
+            .parse_expression_full()
+            .expect("Expression parser should parse valid expressions");
 
         match expression {
             Expression::Property(prop) => {
@@ -421,7 +423,9 @@ mod tests {
     #[test]
     fn test_parse_comparison_expression() {
         let mut parser = CypherParserCore::new("n.age > 30".to_string());
-        let expression = parser.parse_expression_full().expect("Expression parser should parse valid expressions");
+        let expression = parser
+            .parse_expression_full()
+            .expect("Expression parser should parse valid expressions");
 
         match expression {
             Expression::Binary(binary) => {
@@ -448,7 +452,9 @@ mod tests {
     #[test]
     fn test_parse_logical_expression() {
         let mut parser = CypherParserCore::new("n.age > 30 AND n.name = \"Alice\"".to_string());
-        let expression = parser.parse_expression_full().expect("Expression parser should parse valid expressions");
+        let expression = parser
+            .parse_expression_full()
+            .expect("Expression parser should parse valid expressions");
 
         match expression {
             Expression::Binary(binary) => {
@@ -462,7 +468,9 @@ mod tests {
     #[test]
     fn test_parse_function_call() {
         let mut parser = CypherParserCore::new("count(n)".to_string());
-        let expression = parser.parse_expression_full().expect("Expression parser should parse valid expressions");
+        let expression = parser
+            .parse_expression_full()
+            .expect("Expression parser should parse valid expressions");
 
         match expression {
             Expression::FunctionCall(func) => {
@@ -480,7 +488,9 @@ mod tests {
     #[test]
     fn test_parse_list_expression() {
         let mut parser = CypherParserCore::new("[1, 2, 3]".to_string());
-        let expression = parser.parse_expression_full().expect("Expression parser should parse valid expressions");
+        let expression = parser
+            .parse_expression_full()
+            .expect("Expression parser should parse valid expressions");
 
         match expression {
             Expression::List(list) => {
@@ -494,7 +504,9 @@ mod tests {
     #[test]
     fn test_parse_map_expression() {
         let mut parser = CypherParserCore::new("{name: \"Alice\", age: 30}".to_string());
-        let expression = parser.parse_expression_full().expect("Expression parser should parse valid expressions");
+        let expression = parser
+            .parse_expression_full()
+            .expect("Expression parser should parse valid expressions");
 
         match expression {
             Expression::Map(map) => {

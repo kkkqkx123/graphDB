@@ -13,10 +13,6 @@ use super::base::{ContextBase, ContextType, MutableContext};
 use crate::common::base::id::{EdgeType, TagId};
 use crate::core::Value;
 
-// 导入实际实现类型，用于默认类型别名
-use crate::query::context::managers::{MemorySchemaManager, MemoryIndexManager};
-use crate::storage::native_storage::NativeStorage;
-
 /// 结果状态枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResultStatus {

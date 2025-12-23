@@ -393,22 +393,22 @@ impl ExprParser {
     }
 
     fn parse_comparison_op(&mut self) -> Option<BinaryOp> {
-         if self.match_token(LexerToken::Eq) {
-             Some(BinaryOp::Equal)
-         } else if self.match_token(LexerToken::Ne) {
-             Some(BinaryOp::NotEqual)
-         } else if self.match_token(LexerToken::Lt) {
-             Some(BinaryOp::LessThan)
-         } else if self.match_token(LexerToken::Le) {
-             Some(BinaryOp::LessThanOrEqual)
-         } else if self.match_token(LexerToken::Gt) {
-             Some(BinaryOp::GreaterThan)
-         } else if self.match_token(LexerToken::Ge) {
-             Some(BinaryOp::GreaterThanOrEqual)
-         } else {
-             None
-         }
-     }
+        if self.match_token(LexerToken::Eq) {
+            Some(BinaryOp::Equal)
+        } else if self.match_token(LexerToken::Ne) {
+            Some(BinaryOp::NotEqual)
+        } else if self.match_token(LexerToken::Lt) {
+            Some(BinaryOp::LessThan)
+        } else if self.match_token(LexerToken::Le) {
+            Some(BinaryOp::LessThanOrEqual)
+        } else if self.match_token(LexerToken::Gt) {
+            Some(BinaryOp::GreaterThan)
+        } else if self.match_token(LexerToken::Ge) {
+            Some(BinaryOp::GreaterThanOrEqual)
+        } else {
+            None
+        }
+    }
 
     fn parse_additive_op(&mut self) -> Option<BinaryOp> {
         if self.match_token(LexerToken::Plus) {

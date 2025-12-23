@@ -9,7 +9,6 @@ use super::factory::*;
 use super::registry::*;
 use super::stats_collector::*;
 use super::stats_marker::StatsEnabled;
-use super::traits::StatsCache;
 use crate::cache::config;
 use crate::cache::{
     Cache, ConcurrentLfuCache, ConcurrentLruCache, ConcurrentTtlCache, StatsCacheWrapper,
@@ -166,11 +165,11 @@ impl CacheManager {
     }
 
     /// 创建带统计的缓存
-    /// 
+    ///
     /// 返回启用统计的包装器版本
     pub fn create_stats_cache<K, V, C>(
-        &self, 
-        cache: Arc<C>
+        &self,
+        cache: Arc<C>,
     ) -> Arc<StatsCacheWrapper<K, V, C, StatsEnabled>>
     where
         K: 'static + Send + Sync + Hash + Eq + Clone,
@@ -364,7 +363,9 @@ mod tests {
         manager.register_lru_cache::<String, String>("test", 100);
         assert!(manager.has_cache("test"));
 
-        let info = manager.get_cache_info("test").expect("Cache info should exist");
+        let info = manager
+            .get_cache_info("test")
+            .expect("Cache info should exist");
         assert_eq!(info.name, "test");
         assert_eq!(info.cache_type, "LRU");
         assert_eq!(info.capacity, 100);
@@ -386,15 +387,21 @@ mod tests {
         assert_eq!(manager.cache_names().len(), 6);
 
         // 验证缓存信息
-        let lru_info = manager.get_cache_info("lru_cache").expect("LRU cache info should exist");
+        let lru_info = manager
+            .get_cache_info("lru_cache")
+            .expect("LRU cache info should exist");
         assert_eq!(lru_info.cache_type, "LRU");
         assert_eq!(lru_info.capacity, 100);
 
-        let lfu_info = manager.get_cache_info("lfu_cache").expect("LFU cache info should exist");
+        let lfu_info = manager
+            .get_cache_info("lfu_cache")
+            .expect("LFU cache info should exist");
         assert_eq!(lfu_info.cache_type, "LFU");
         assert_eq!(lfu_info.capacity, 200);
 
-        let unbounded_info = manager.get_cache_info("unbounded_cache").expect("Unbounded cache info should exist");
+        let unbounded_info = manager
+            .get_cache_info("unbounded_cache")
+            .expect("Unbounded cache info should exist");
         assert_eq!(unbounded_info.cache_type, "Unbounded");
         assert_eq!(unbounded_info.capacity, usize::MAX);
 

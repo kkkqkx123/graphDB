@@ -1,10 +1,9 @@
+use crate::core::types::operators::UnaryOperator;
 use crate::core::ExpressionError;
 use crate::query::parser::cypher::ast::expressions::{
-    BinaryExpression, CaseAlternative, CaseExpression,
-    Expression as CypherExpression, FunctionCall, ListExpression, Literal as CypherLiteral,
-    MapExpression, UnaryExpression,
+    BinaryExpression, CaseAlternative, CaseExpression, Expression as CypherExpression,
+    FunctionCall, ListExpression, Literal as CypherLiteral, MapExpression, UnaryExpression,
 };
-use crate::core::types::operators::UnaryOperator;
 
 /// Cypher表达式优化器
 ///
@@ -120,9 +119,9 @@ impl CypherExpressionOptimizer {
                     .collect();
 
                 let optimized_default = case_expr
-                     .default_alternative
-                     .as_ref()
-                     .map(|expr| Box::new(Self::optimize_cypher_expression(expr)));
+                    .default_alternative
+                    .as_ref()
+                    .map(|expr| Box::new(Self::optimize_cypher_expression(expr)));
 
                 // 尝试简化CASE表达式
                 Self::try_simplify_case_expression(
@@ -140,20 +139,30 @@ impl CypherExpressionOptimizer {
     fn try_fold_constants(bin_expr: &BinaryExpression) -> Option<CypherExpression> {
         // 创建临时的空上下文用于常量计算
         let mut context = crate::core::expressions::BasicExpressionContext::default();
-        
+
         // 使用 CypherEvaluator 评估表达式
         match super::cypher_evaluator::CypherEvaluator::evaluate_cypher(
             &CypherExpression::Binary(bin_expr.clone()),
-            &mut context
+            &mut context,
         ) {
             Ok(value) => {
                 // 将评估结果转换回 Cypher 表达式
                 match value {
-                    crate::core::Value::Int(i) => Some(CypherExpression::Literal(CypherLiteral::Integer(i))),
-                    crate::core::Value::Float(f) => Some(CypherExpression::Literal(CypherLiteral::Float(f))),
-                    crate::core::Value::Bool(b) => Some(CypherExpression::Literal(CypherLiteral::Boolean(b))),
-                    crate::core::Value::String(s) => Some(CypherExpression::Literal(CypherLiteral::String(s))),
-                    crate::core::Value::Null(_) => Some(CypherExpression::Literal(CypherLiteral::Null)),
+                    crate::core::Value::Int(i) => {
+                        Some(CypherExpression::Literal(CypherLiteral::Integer(i)))
+                    }
+                    crate::core::Value::Float(f) => {
+                        Some(CypherExpression::Literal(CypherLiteral::Float(f)))
+                    }
+                    crate::core::Value::Bool(b) => {
+                        Some(CypherExpression::Literal(CypherLiteral::Boolean(b)))
+                    }
+                    crate::core::Value::String(s) => {
+                        Some(CypherExpression::Literal(CypherLiteral::String(s)))
+                    }
+                    crate::core::Value::Null(_) => {
+                        Some(CypherExpression::Literal(CypherLiteral::Null))
+                    }
                     _ => None, // 复杂类型不进行常量折叠
                 }
             }
@@ -332,7 +341,9 @@ impl CypherExpressionOptimizer {
     }
 
     /// 优化Cypher表达式（公开方法，与expression_evaluator兼容）
-    pub fn optimize_cypher(cypher_expr: &CypherExpression) -> Result<CypherExpression, ExpressionError> {
+    pub fn optimize_cypher(
+        cypher_expr: &CypherExpression,
+    ) -> Result<CypherExpression, ExpressionError> {
         Ok(Self::optimize_cypher_expression(cypher_expr))
     }
 }

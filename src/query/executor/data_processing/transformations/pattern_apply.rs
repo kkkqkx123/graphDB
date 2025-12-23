@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::core::expressions::{DefaultExpressionContext, ExpressionContext};
 use crate::core::error::{DBError, DBResult};
+use crate::core::expressions::{DefaultExpressionContext, ExpressionContext};
 use crate::core::{DataSet, Edge, Path, Value, Vertex};
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
@@ -162,11 +162,13 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
 
                     // 评估属性表达式
                     let evaluator = ExpressionEvaluator::new();
-                    let result = evaluator.evaluate(prop_expr, &mut temp_context).map_err(|e| {
-                        DBError::Query(crate::core::error::QueryError::ExecutionError(
-                            e.to_string(),
-                        ))
-                    })?;
+                    let result = evaluator
+                        .evaluate(prop_expr, &mut temp_context)
+                        .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     // 如果结果是布尔值且为false，则不匹配
                     if let Value::Bool(false) = result {
@@ -230,11 +232,13 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
 
                     // 评估属性表达式
                     let evaluator = ExpressionEvaluator::new();
-                    let result = evaluator.evaluate(prop_expr, &mut temp_context).map_err(|e| {
-                        DBError::Query(crate::core::error::QueryError::ExecutionError(
-                            e.to_string(),
-                        ))
-                    })?;
+                    let result = evaluator
+                        .evaluate(prop_expr, &mut temp_context)
+                        .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     // 如果结果是布尔值且为false，则不匹配
                     if let Value::Bool(false) = result {

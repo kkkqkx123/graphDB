@@ -7,12 +7,10 @@ use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNo
 use super::data_processing_node::{
     DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
-use super::filter_node::FilterNode;
 use super::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
 
-use super::project_node::ProjectNode;
 use super::sort_node::{LimitNode, SortNode};
 use super::start_node::StartNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
@@ -37,10 +35,13 @@ impl PlanNodeFactory {
         let expr = convert_ast_to_graph_expression(&condition).map_err(|e| {
             crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
         })?;
-        
+
         // 这里需要重构 FilterNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
         // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "filter_placeholder")))
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(
+            -1,
+            "filter_placeholder",
+        )))
     }
 
     /// 创建投影节点
@@ -50,7 +51,10 @@ impl PlanNodeFactory {
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 ProjectNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
         // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "project_placeholder")))
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(
+            -1,
+            "project_placeholder",
+        )))
     }
 
     /// 创建内连接节点
@@ -79,12 +83,15 @@ impl PlanNodeFactory {
 
         // 这里需要重构 InnerJoinNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
         // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "inner_join_placeholder")))
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(
+            -1,
+            "inner_join_placeholder",
+        )))
     }
 
     /// 创建起始节点
-    pub fn create_start_node(
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    pub fn create_start_node() -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError>
+    {
         Ok(PlanNodeEnum::Start(StartNode::new()))
     }
 
@@ -128,7 +135,9 @@ impl PlanNodeFactory {
         space_id: i32,
         src_vids: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        Ok(PlanNodeEnum::GetVertices(GetVerticesNode::new(space_id, src_vids)))
+        Ok(PlanNodeEnum::GetVertices(GetVerticesNode::new(
+            space_id, src_vids,
+        )))
     }
 
     /// 创建获取边节点
@@ -149,7 +158,9 @@ impl PlanNodeFactory {
         space_id: i32,
         src_vids: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        Ok(PlanNodeEnum::GetNeighbors(GetNeighborsNode::new(space_id, src_vids)))
+        Ok(PlanNodeEnum::GetNeighbors(GetNeighborsNode::new(
+            space_id, src_vids,
+        )))
     }
 
     /// 创建扫描顶点节点
@@ -164,7 +175,9 @@ impl PlanNodeFactory {
         space_id: i32,
         edge_type: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        Ok(PlanNodeEnum::ScanEdges(ScanEdgesNode::new(space_id, edge_type)))
+        Ok(PlanNodeEnum::ScanEdges(ScanEdgesNode::new(
+            space_id, edge_type,
+        )))
     }
 
     /// 创建扩展节点
@@ -173,7 +186,9 @@ impl PlanNodeFactory {
         edge_types: Vec<String>,
         direction: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        Ok(PlanNodeEnum::Expand(ExpandNode::new(space_id, edge_types, direction)))
+        Ok(PlanNodeEnum::Expand(ExpandNode::new(
+            space_id, edge_types, direction,
+        )))
     }
 
     /// 创建扩展全部节点
@@ -193,7 +208,9 @@ impl PlanNodeFactory {
         edge_types: Vec<String>,
         direction: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        Ok(PlanNodeEnum::Traverse(TraverseNode::new(space_id, edge_types, direction)))
+        Ok(PlanNodeEnum::Traverse(TraverseNode::new(
+            space_id, edge_types, direction,
+        )))
     }
 
     /// 创建追加顶点节点
@@ -202,7 +219,9 @@ impl PlanNodeFactory {
         vids: Vec<Value>,
         tag_ids: Vec<i32>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        Ok(PlanNodeEnum::AppendVertices(AppendVerticesNode::new(space_id, vids, tag_ids)))
+        Ok(PlanNodeEnum::AppendVertices(AppendVerticesNode::new(
+            space_id, vids, tag_ids,
+        )))
     }
 
     /// 创建参数节点
@@ -301,7 +320,10 @@ impl PlanNodeFactory {
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 IndexScan::new 来返回 PlanNodeEnum
         // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "index_scan_placeholder")))
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(
+            -1,
+            "index_scan_placeholder",
+        )))
     }
 }
 
@@ -311,11 +333,11 @@ mod tests {
     use crate::core::Expression;
     use crate::query::parser::ast::expr::{Expr, VariableExpr};
     use crate::query::parser::ast::types::Span;
-    
 
     #[test]
     fn test_create_start_node() {
-        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
+        let start_node = PlanNodeFactory::create_start_node()
+            .expect("Start node should be created successfully");
 
         assert_eq!(start_node.type_name(), "Start");
         assert_eq!(start_node.dependencies().len(), 0);
@@ -324,7 +346,8 @@ mod tests {
 
     #[test]
     fn test_create_placeholder_node() {
-        let placeholder_node = PlanNodeFactory::create_placeholder_node().expect("Placeholder node should be created successfully");
+        let placeholder_node = PlanNodeFactory::create_placeholder_node()
+            .expect("Placeholder node should be created successfully");
 
         assert_eq!(placeholder_node.type_name(), "Argument");
         assert_eq!(placeholder_node.dependencies().len(), 0);
@@ -333,7 +356,8 @@ mod tests {
 
     #[test]
     fn test_create_get_vertices_node() {
-        let get_vertices_node = PlanNodeFactory::create_get_vertices(1, "1,2,3").expect("GetVertices node should be created successfully");
+        let get_vertices_node = PlanNodeFactory::create_get_vertices(1, "1,2,3")
+            .expect("GetVertices node should be created successfully");
 
         assert_eq!(get_vertices_node.type_name(), "GetVertices");
         assert_eq!(get_vertices_node.dependencies().len(), 0);

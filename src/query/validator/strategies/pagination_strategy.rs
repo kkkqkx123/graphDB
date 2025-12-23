@@ -4,8 +4,8 @@
 use super::super::structs::*;
 use super::super::validation_interface::*;
 use crate::config::test_config::test_config;
-use crate::core::ValueTypeDef;
 use crate::core::Expression;
+use crate::core::ValueTypeDef;
 
 /// 分页验证策略
 pub struct PaginationValidationStrategy;
@@ -295,9 +295,8 @@ mod tests {
             .is_ok());
 
         // 测试无效的字符串表达式
-        let string_expr = Expression::Literal(crate::core::LiteralValue::String(
-            "invalid".to_string(),
-        ));
+        let string_expr =
+            Expression::Literal(crate::core::LiteralValue::String("invalid".to_string()));
         assert!(strategy
             .validate_pagination_expr(&string_expr, "LIMIT")
             .is_err());

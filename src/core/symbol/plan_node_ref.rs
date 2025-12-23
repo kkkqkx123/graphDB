@@ -81,7 +81,7 @@ mod tests {
         let ref1 = PlanNodeRef::new("node_1".to_string(), 42);
         let ref2 = PlanNodeRef::new("node_1".to_string(), 42);
         let ref3 = PlanNodeRef::new("node_2".to_string(), 42);
-        
+
         assert_eq!(ref1, ref2);
         assert_ne!(ref1, ref3);
     }
@@ -89,16 +89,16 @@ mod tests {
     #[test]
     fn test_plan_node_ref_hash() {
         use std::collections::HashSet;
-        
+
         let ref1 = PlanNodeRef::new("node_1".to_string(), 42);
         let ref2 = PlanNodeRef::new("node_1".to_string(), 42);
         let ref3 = PlanNodeRef::new("node_2".to_string(), 42);
-        
+
         let mut set = HashSet::new();
         set.insert(ref1.clone());
         set.insert(ref2);
         set.insert(ref3);
-        
+
         assert_eq!(set.len(), 2); // ref1 和 ref2 相同，ref3 不同
     }
 }

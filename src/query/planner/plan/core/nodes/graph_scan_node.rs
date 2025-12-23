@@ -108,10 +108,16 @@ impl GetVerticesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
-        let deps = safe_lock(&self.dependencies)
-            .expect("GetVerticesNode dependencies lock should not be poisoned");
-        deps.clone()
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        unsafe {
+            let deps_ptr =
+                &self.dependencies as *const Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>;
+            let guard = (*deps_ptr).lock().unwrap();
+            std::mem::transmute::<
+                &Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
+                &[Box<super::plan_node_enum::PlanNodeEnum>],
+            >(&*guard)
+        }
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
@@ -172,7 +178,7 @@ impl super::plan_node_traits::PlanNode for GetVerticesNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         self.dependencies()
     }
 
@@ -323,10 +329,16 @@ impl GetEdgesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
-        let deps = safe_lock(&self.dependencies)
-            .expect("GetEdgesNode dependencies lock should not be poisoned");
-        deps.clone()
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        unsafe {
+            let deps_ptr =
+                &self.dependencies as *const Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>;
+            let guard = (*deps_ptr).lock().unwrap();
+            std::mem::transmute::<
+                &Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
+                &[Box<super::plan_node_enum::PlanNodeEnum>],
+            >(&*guard)
+        }
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
@@ -387,7 +399,7 @@ impl super::plan_node_traits::PlanNode for GetEdgesNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         self.dependencies()
     }
 
@@ -510,10 +522,16 @@ impl GetNeighborsNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
-        let deps = safe_lock(&self.dependencies)
-            .expect("GetNeighborsNode dependencies lock should not be poisoned");
-        deps.clone()
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        unsafe {
+            let deps_ptr =
+                &self.dependencies as *const Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>;
+            let guard = (*deps_ptr).lock().unwrap();
+            std::mem::transmute::<
+                &Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
+                &[Box<super::plan_node_enum::PlanNodeEnum>],
+            >(&*guard)
+        }
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
@@ -574,7 +592,7 @@ impl super::plan_node_traits::PlanNode for GetNeighborsNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         self.dependencies()
     }
 
@@ -698,10 +716,16 @@ impl ScanVerticesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
-        let deps = safe_lock(&self.dependencies)
-            .expect("ScanVerticesNode dependencies lock should not be poisoned");
-        deps.clone()
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        unsafe {
+            let deps_ptr =
+                &self.dependencies as *const Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>;
+            let guard = (*deps_ptr).lock().unwrap();
+            std::mem::transmute::<
+                &Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
+                &[Box<super::plan_node_enum::PlanNodeEnum>],
+            >(&*guard)
+        }
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
@@ -762,7 +786,7 @@ impl super::plan_node_traits::PlanNode for ScanVerticesNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         self.dependencies()
     }
 
@@ -890,10 +914,16 @@ impl ScanEdgesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
-        let deps = safe_lock(&self.dependencies)
-            .expect("ScanEdgesNode dependencies lock should not be poisoned");
-        deps.clone()
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        unsafe {
+            let deps_ptr =
+                &self.dependencies as *const Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>;
+            let guard = (*deps_ptr).lock().unwrap();
+            std::mem::transmute::<
+                &Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
+                &[Box<super::plan_node_enum::PlanNodeEnum>],
+            >(&*guard)
+        }
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
@@ -954,7 +984,7 @@ impl super::plan_node_traits::PlanNode for ScanEdgesNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
+    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
         self.dependencies()
     }
 

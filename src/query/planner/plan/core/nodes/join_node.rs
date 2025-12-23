@@ -386,14 +386,20 @@ impl CrossJoinNode {
 
 #[cfg(test)]
 mod tests {
+    use super::super::start_node::StartNode;
     use super::*;
     use crate::core::Expression;
-    use super::super::start_node::StartNode;
 
     #[test]
     fn test_inner_join_node_creation() {
-        let left_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
-        let right_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let left_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+        let right_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
 
         let hash_keys = vec![Expression::Variable("key".to_string())];
         let probe_keys = vec![Expression::Variable("key".to_string())];
@@ -409,8 +415,14 @@ mod tests {
 
     #[test]
     fn test_inner_join_node_dependencies() {
-        let left_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
-        let right_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(StartNode::new());
+        let left_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+        let right_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
 
         let hash_keys = vec![Expression::Variable("key".to_string())];
         let probe_keys = vec![Expression::Variable("key".to_string())];

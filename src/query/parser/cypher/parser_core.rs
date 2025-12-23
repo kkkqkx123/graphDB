@@ -327,21 +327,27 @@ mod tests {
     #[test]
     fn test_identifier_parsing() {
         let mut parser = CypherParserCore::new("myVariable".to_string());
-        let identifier = parser.parse_identifier().expect("Failed to parse identifier");
+        let identifier = parser
+            .parse_identifier()
+            .expect("Failed to parse identifier");
         assert_eq!(identifier, "myVariable");
     }
 
     #[test]
     fn test_string_literal_parsing() {
         let mut parser = CypherParserCore::new("\"Hello, World!\"".to_string());
-        let string_literal = parser.parse_string_literal().expect("Parser should parse valid string literals");
+        let string_literal = parser
+            .parse_string_literal()
+            .expect("Parser should parse valid string literals");
         assert_eq!(string_literal, "Hello, World!");
     }
 
     #[test]
     fn test_number_literal_parsing() {
         let mut parser = CypherParserCore::new("42".to_string());
-        let number_literal = parser.parse_number_literal().expect("Parser should parse valid number literals");
+        let number_literal = parser
+            .parse_number_literal()
+            .expect("Parser should parse valid number literals");
         assert_eq!(number_literal, 42);
     }
 
@@ -350,7 +356,12 @@ mod tests {
         let mut parser = CypherParserCore::new("MATCH".to_string());
         let result = parser.expect_keyword("MATCH");
         assert!(result.is_ok());
-        assert_eq!(result.expect("Parser should return valid keyword result").value, "MATCH");
+        assert_eq!(
+            result
+                .expect("Parser should return valid keyword result")
+                .value,
+            "MATCH"
+        );
     }
 
     #[test]

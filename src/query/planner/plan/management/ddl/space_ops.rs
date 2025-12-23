@@ -4,7 +4,6 @@
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use std::sync::Arc;
 
-
 // 元数据定义相关结构
 #[derive(Debug, Clone)]
 pub struct Schema {
@@ -126,7 +125,7 @@ impl ShowSpaces {
 
 impl From<ShowSpaces> for PlanNodeEnum {
     fn from(spaces: ShowSpaces) -> Self {
-        PlanNodeEnum::ShowSpaces(Arc::new(spaces))
+        PlanNodeEnum::ShowSpaces(spaces)
     }
 }
 
@@ -180,7 +179,7 @@ impl DropSpace {
 
 impl From<DropSpace> for PlanNodeEnum {
     fn from(space: DropSpace) -> Self {
-        PlanNodeEnum::DropSpace(Arc::new(space))
+        PlanNodeEnum::DropSpace(space)
     }
 }
 
@@ -210,7 +209,7 @@ impl ClearSpace {
 
 impl From<ClearSpace> for PlanNodeEnum {
     fn from(space: ClearSpace) -> Self {
-        PlanNodeEnum::ClearSpace(Arc::new(space))
+        PlanNodeEnum::ClearSpace(space)
     }
 }
 
@@ -249,6 +248,6 @@ impl AlterSpace {
 
 impl From<AlterSpace> for PlanNodeEnum {
     fn from(space: AlterSpace) -> Self {
-        PlanNodeEnum::AlterSpace(Arc::new(space))
+        PlanNodeEnum::AlterSpace(space)
     }
 }

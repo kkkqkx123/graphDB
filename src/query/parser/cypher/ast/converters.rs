@@ -1,10 +1,10 @@
 //! Cypher AST转换逻辑
 
 use crate::core::error::QueryError;
+use crate::core::types::operators::BinaryOperator;
 use crate::core::value::Value;
 use crate::core::vertex_edge_path::Tag;
 use crate::query::parser::cypher::ast::expressions::Expression;
-use crate::core::types::operators::BinaryOperator;
 use crate::query::parser::cypher::ast::statements::CypherStatement;
 use crate::query::parser::cypher::ast::{Condition, Query};
 use std::collections::HashMap;
@@ -647,17 +647,19 @@ impl ExpressionEvaluator {
                 _ => Err("CONTAINS操作符只能应用于字符串".to_string()),
             },
             BinaryOperator::Like => {
-                 match (&left, &right) {
-                     (Value::String(s), Value::String(pattern)) => {
-                         // 简化处理：使用基本的字符串包含来模拟正则匹配
-                         // 实际应该使用regex crate
-                         Ok(Value::Bool(s.contains(pattern)))
-                     }
-                     _ => Err("正则匹配操作符只能应用于字符串".to_string()),
-                 }
-             }
+                match (&left, &right) {
+                    (Value::String(s), Value::String(pattern)) => {
+                        // 简化处理：使用基本的字符串包含来模拟正则匹配
+                        // 实际应该使用regex crate
+                        Ok(Value::Bool(s.contains(pattern)))
+                    }
+                    _ => Err("正则匹配操作符只能应用于字符串".to_string()),
+                }
+            }
             BinaryOperator::StringConcat => match (&left, &right) {
-                (Value::String(s1), Value::String(s2)) => Ok(Value::String(format!("{}{}", s1, s2))),
+                (Value::String(s1), Value::String(s2)) => {
+                    Ok(Value::String(format!("{}{}", s1, s2)))
+                }
                 _ => Err("字符串连接操作符只能应用于字符串".to_string()),
             },
             BinaryOperator::Subscript => match (&left, &right) {
@@ -697,14 +699,22 @@ impl ExpressionEvaluator {
             },
             BinaryOperator::Intersect => match (&left, &right) {
                 (Value::List(l1), Value::List(l2)) => {
-                    let result: Vec<_> = l1.iter().filter(|item| l2.contains(item)).cloned().collect();
+                    let result: Vec<_> = l1
+                        .iter()
+                        .filter(|item| l2.contains(item))
+                        .cloned()
+                        .collect();
                     Ok(Value::List(result))
                 }
                 _ => Err("交集操作符只能应用于列表".to_string()),
             },
             BinaryOperator::Except => match (&left, &right) {
                 (Value::List(l1), Value::List(l2)) => {
-                    let result: Vec<_> = l1.iter().filter(|item| !l2.contains(item)).cloned().collect();
+                    let result: Vec<_> = l1
+                        .iter()
+                        .filter(|item| !l2.contains(item))
+                        .cloned()
+                        .collect();
                     Ok(Value::List(result))
                 }
                 _ => Err("差集操作符只能应用于列表".to_string()),
@@ -724,9 +734,7 @@ impl ExpressionEvaluator {
                 Value::Bool(b) => Ok(Value::Bool(!b)),
                 _ => Err("NOT操作符只能应用于布尔值".to_string()),
             },
-            crate::core::types::operators::UnaryOperator::Minus => {
-                expr.negate()
-            }
+            crate::core::types::operators::UnaryOperator::Minus => expr.negate(),
             crate::core::types::operators::UnaryOperator::Plus => Ok(expr),
             crate::core::types::operators::UnaryOperator::IsNull => {
                 Ok(Value::Bool(matches!(expr, Value::Null(_))))
@@ -1122,7 +1130,12 @@ mod tests {
 
         // 测试变量求值
         let var_expr = Expression::Variable("x".to_string());
-        assert_eq!(evaluator.evaluate(&var_expr).expect("Evaluator should evaluate variable expression"), Value::Int(10));
+        assert_eq!(
+            evaluator
+                .evaluate(&var_expr)
+                .expect("Evaluator should evaluate variable expression"),
+            Value::Int(10)
+        );
 
         // 测试二元表达式
         let binary_expr = Expression::Binary(BinaryExpression {
@@ -1130,13 +1143,23 @@ mod tests {
             operator: BinaryOperator::Add,
             right: Box::new(Expression::Literal(Literal::Integer(3))),
         });
-        assert_eq!(evaluator.evaluate(&binary_expr).expect("Evaluator should evaluate binary expression"), Value::Int(8));
+        assert_eq!(
+            evaluator
+                .evaluate(&binary_expr)
+                .expect("Evaluator should evaluate binary expression"),
+            Value::Int(8)
+        );
 
         // 测试函数调用
         let func_expr = Expression::FunctionCall(FunctionCall {
             function_name: "abs".to_string(),
             arguments: vec![Expression::Literal(Literal::Integer(-5))],
         });
-        assert_eq!(evaluator.evaluate(&func_expr).expect("Evaluator should evaluate function expression"), Value::Int(5));
+        assert_eq!(
+            evaluator
+                .evaluate(&func_expr)
+                .expect("Evaluator should evaluate function expression"),
+            Value::Int(5)
+        );
     }
 }

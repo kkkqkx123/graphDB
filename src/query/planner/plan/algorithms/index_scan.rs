@@ -15,7 +15,7 @@ pub struct IndexLimit {
 #[derive(Debug, Clone)]
 pub struct IndexScan {
     pub id: i64,
-    pub deps: Vec<PlanNodeEnum>,
+    pub deps: Vec<Box<PlanNodeEnum>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -82,13 +82,13 @@ impl IndexScan {
     }
 
     /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> &[PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
         &self.deps
     }
 
     /// 添加依赖节点
     pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     /// 移除依赖节点
@@ -140,7 +140,7 @@ impl IndexScan {
 #[derive(Debug, Clone)]
 pub struct FulltextIndexScan {
     pub id: i64,
-    pub deps: Vec<PlanNodeEnum>,
+    pub deps: Vec<Box<PlanNodeEnum>>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -191,13 +191,13 @@ impl FulltextIndexScan {
     }
 
     /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> &[PlanNodeEnum] {
+    pub fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
         &self.deps
     }
 
     /// 添加依赖节点
     pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
+        self.deps.push(Box::new(dep));
     }
 
     /// 移除依赖节点

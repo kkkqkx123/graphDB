@@ -272,7 +272,8 @@ mod tests {
         let validator = MatchValidator::new(context);
 
         // 测试没有聚合函数的表达式
-        let non_agg_expr = Expression::Literal(crate::core::types::expression::LiteralValue::Int(1));
+        let non_agg_expr =
+            Expression::Literal(crate::core::types::expression::LiteralValue::Int(1));
         assert_eq!(validator.has_aggregate_expr(&non_agg_expr), false);
     }
 

@@ -124,7 +124,8 @@ impl FileSystemUtils {
             .open(path.as_ref())
             .map_err(|e| FsError::IoError(e))?;
 
-        file.write_all(contents.as_ref()).map_err(|e| FsError::IoError(e))
+        file.write_all(contents.as_ref())
+            .map_err(|e| FsError::IoError(e))
     }
 
     /// Copy a file to a new location

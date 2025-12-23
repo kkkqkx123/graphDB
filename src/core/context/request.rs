@@ -2,12 +2,12 @@
 //!
 //! 管理查询请求的上下文信息，整合自query/context/request_context.rs
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use serde::{Deserialize, Serialize};
 
+use super::base::{ContextBase, ContextType, MutableContext};
 use crate::core::Value;
-use super::base::{ContextBase, ContextType, MutableContext, HierarchicalContext};
 
 /// 会话信息
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -142,7 +142,7 @@ pub enum RequestStatus {
 pub struct RequestContext {
     /// 上下文ID
     pub id: String,
-    
+
     // 会话信息
     pub session_info: Option<SessionInfo>,
 
@@ -160,10 +160,10 @@ pub struct RequestContext {
 
     // 自定义属性
     pub attributes: Arc<RwLock<HashMap<String, Value>>>,
-    
+
     // 最后更新时间
     pub updated_at: std::time::SystemTime,
-    
+
     // 是否有效
     pub valid: bool,
 }

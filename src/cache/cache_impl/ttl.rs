@@ -1,10 +1,10 @@
 //! TTL缓存实现
 
+use crate::cache::traits::*;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use crate::cache::traits::*;
 
 /// TTL缓存条目
 #[derive(Debug, Clone)]
@@ -22,11 +22,11 @@ impl<V> TtlEntry<V> {
             ttl,
         }
     }
-    
+
     pub fn is_expired(&self) -> bool {
         self.created_at.elapsed() > self.ttl
     }
-    
+
     pub fn value(&self) -> &V {
         &self.value
     }
@@ -52,11 +52,11 @@ where
             cache: HashMap::new(),
         }
     }
-    
+
     fn cleanup_expired(&mut self) {
         self.cache.retain(|_, entry| !entry.is_expired());
     }
-    
+
     fn evict_if_needed(&mut self) {
         if self.cache.len() >= self.capacity {
             // 简单的FIFO驱逐策略
@@ -68,7 +68,7 @@ where
 }
 
 /// 线程安全的TTL缓存
-/// 
+///
 /// TtlCache 作为内部实现，不直接实现 Cache trait（因为 &self 方法无法
 /// 提供内部可变性来执行过期清理）。仅通过 ConcurrentTtlCache 的 Mutex 包装
 /// 来提供正确实现。
@@ -95,10 +95,12 @@ where
     V: Clone,
 {
     fn get(&self, key: &K) -> Option<V> {
-        let mut cache = self.inner.lock()
+        let mut cache = self
+            .inner
+            .lock()
             .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
-    
+
         let result = cache.cache.get(key).and_then(|entry| {
             if !entry.is_expired() {
                 Some(entry.value().clone())
@@ -110,7 +112,9 @@ where
     }
 
     fn put(&self, key: K, value: V) {
-        let mut cache = self.inner.lock()
+        let mut cache = self
+            .inner
+            .lock()
             .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
         cache.evict_if_needed();
@@ -120,7 +124,9 @@ where
     }
 
     fn contains(&self, key: &K) -> bool {
-        let mut cache = self.inner.lock()
+        let mut cache = self
+            .inner
+            .lock()
             .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
 
@@ -132,7 +138,9 @@ where
     }
 
     fn remove(&self, key: &K) -> Option<V> {
-        let mut cache = self.inner.lock()
+        let mut cache = self
+            .inner
+            .lock()
             .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
 
@@ -144,20 +152,26 @@ where
     }
 
     fn clear(&self) {
-        let mut cache = self.inner.lock()
+        let mut cache = self
+            .inner
+            .lock()
             .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cache.clear();
     }
 
     fn len(&self) -> usize {
-        let mut cache = self.inner.lock()
+        let mut cache = self
+            .inner
+            .lock()
             .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
         cache.cache.len()
     }
 
     fn is_empty(&self) -> bool {
-        let mut cache = self.inner.lock()
+        let mut cache = self
+            .inner
+            .lock()
             .expect("ConcurrentTtlCache lock should not be poisoned");
         cache.cleanup_expired();
         cache.cache.is_empty()

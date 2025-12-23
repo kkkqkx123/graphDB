@@ -37,18 +37,14 @@ impl AggregateValidationStrategy {
             } => {
                 conditions.iter().any(|(cond, val)| {
                     self.has_aggregate_expr(cond) || self.has_aggregate_expr(val)
-                }) || default
-                    
-                    .map_or(false, |d| self.has_aggregate_expr(d))
+                }) || default.map_or(false, |d| self.has_aggregate_expr(d))
             }
             Expression::ListComprehension {
                 generator,
                 condition,
             } => {
                 self.has_aggregate_expr(generator)
-                    || condition
-                        
-                        .map_or(false, |c| self.has_aggregate_expr(c))
+                    || condition.map_or(false, |c| self.has_aggregate_expr(c))
             }
             Expression::Predicate { list, condition } => {
                 self.has_aggregate_expr(list) || self.has_aggregate_expr(condition)
@@ -157,18 +153,14 @@ impl AggregateValidationStrategy {
             } => {
                 conditions.iter().any(|(cond, val)| {
                     self.has_wildcard_property(cond) || self.has_wildcard_property(val)
-                }) || default
-                    
-                    .map_or(false, |d| self.has_wildcard_property(d))
+                }) || default.map_or(false, |d| self.has_wildcard_property(d))
             }
             Expression::ListComprehension {
                 generator,
                 condition,
             } => {
                 self.has_wildcard_property(generator)
-                    || condition
-                        
-                        .map_or(false, |c| self.has_wildcard_property(c))
+                    || condition.map_or(false, |c| self.has_wildcard_property(c))
             }
             Expression::Predicate { list, condition } => {
                 self.has_wildcard_property(list) || self.has_wildcard_property(condition)
@@ -351,8 +343,8 @@ impl ValidationStrategy for AggregateValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::operators::{UnaryOperator, BinaryOperator, AggregateFunction};
     use crate::core::types::expression::DataType;
+    use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
     use crate::core::Expression;
 
     #[test]
@@ -367,7 +359,8 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试没有聚合函数的表达式
-        let non_agg_expr = Expression::Literal(crate::core::types::expression::LiteralValue::Int(1));
+        let non_agg_expr =
+            Expression::Literal(crate::core::types::expression::LiteralValue::Int(1));
         assert_eq!(strategy.has_aggregate_expr(&non_agg_expr), false);
 
         // 测试包含聚合函数的表达式
@@ -389,7 +382,8 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试没有聚合函数的UNWIND表达式
-        let non_agg_expr = Expression::Literal(crate::core::types::expression::LiteralValue::Int(1));
+        let non_agg_expr =
+            Expression::Literal(crate::core::types::expression::LiteralValue::Int(1));
         assert!(strategy.validate_unwind_aggregate(&non_agg_expr).is_ok());
 
         // 测试包含聚合函数的UNWIND表达式

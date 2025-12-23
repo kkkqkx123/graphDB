@@ -1,9 +1,9 @@
 //! FIFO缓存实现
 
+use crate::cache::traits::*;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
-use crate::cache::traits::*;
 
 /// FIFO缓存实现
 #[derive(Debug)]
@@ -24,7 +24,7 @@ where
             order: VecDeque::new(),
         }
     }
-    
+
     fn evict_if_needed(&mut self) {
         if self.cache.len() >= self.capacity {
             if let Some(old_key) = self.order.pop_front() {
@@ -35,7 +35,7 @@ where
 }
 
 /// 线程安全的FIFO缓存
-/// 
+///
 /// FifoCache 作为内部实现，不直接实现 Cache trait（因为 &self 方法无法
 /// 提供内部可变性）。仅通过 ConcurrentFifoCache 的 Mutex 包装来提供正确实现。
 #[derive(Debug)]
@@ -61,13 +61,17 @@ where
     V: Clone,
 {
     fn get(&self, key: &K) -> Option<V> {
-        let cache = self.inner.lock()
+        let cache = self
+            .inner
+            .lock()
             .expect("ConcurrentFifoCache lock should not be poisoned");
         cache.cache.get(key).cloned()
     }
 
     fn put(&self, key: K, value: V) {
-        let mut cache = self.inner.lock()
+        let mut cache = self
+            .inner
+            .lock()
             .expect("ConcurrentFifoCache lock should not be poisoned");
 
         if !cache.cache.contains_key(&key) {
@@ -79,13 +83,17 @@ where
     }
 
     fn contains(&self, key: &K) -> bool {
-        let cache = self.inner.lock()
+        let cache = self
+            .inner
+            .lock()
             .expect("ConcurrentFifoCache lock should not be poisoned");
         cache.cache.contains_key(key)
     }
 
     fn remove(&self, key: &K) -> Option<V> {
-        let mut cache = self.inner.lock()
+        let mut cache = self
+            .inner
+            .lock()
             .expect("ConcurrentFifoCache lock should not be poisoned");
         let result = cache.cache.remove(key);
         if result.is_some() {
@@ -95,20 +103,26 @@ where
     }
 
     fn clear(&self) {
-        let mut cache = self.inner.lock()
+        let mut cache = self
+            .inner
+            .lock()
             .expect("ConcurrentFifoCache lock should not be poisoned");
         cache.cache.clear();
         cache.order.clear();
     }
 
     fn len(&self) -> usize {
-        let cache = self.inner.lock()
+        let cache = self
+            .inner
+            .lock()
             .expect("ConcurrentFifoCache lock should not be poisoned");
         cache.cache.len()
     }
 
     fn is_empty(&self) -> bool {
-        let cache = self.inner.lock()
+        let cache = self
+            .inner
+            .lock()
             .expect("ConcurrentFifoCache lock should not be poisoned");
         cache.cache.is_empty()
     }

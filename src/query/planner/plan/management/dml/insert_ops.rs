@@ -44,6 +44,6 @@ impl InsertEdges {
 
 impl From<InsertEdges> for PlanNodeEnum {
     fn from(edges: InsertEdges) -> Self {
-        PlanNodeEnum::InsertEdges(Arc::new(edges))
+        PlanNodeEnum::InsertEdges(edges)
     }
 }

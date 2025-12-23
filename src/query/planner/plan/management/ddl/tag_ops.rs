@@ -37,7 +37,7 @@ impl CreateTag {
 
 impl From<CreateTag> for PlanNodeEnum {
     fn from(tag: CreateTag) -> Self {
-        PlanNodeEnum::CreateTag(Arc::new(tag))
+        PlanNodeEnum::CreateTag(tag)
     }
 }
 
@@ -131,6 +131,6 @@ impl ShowCreateTag {
 
 impl From<ShowCreateTag> for PlanNodeEnum {
     fn from(tag: ShowCreateTag) -> Self {
-        PlanNodeEnum::ShowCreateTag(Arc::new(tag))
+        PlanNodeEnum::ShowCreateTag(tag)
     }
 }

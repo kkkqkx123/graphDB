@@ -7,9 +7,6 @@ use super::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::FilterNode as FilterPlanNode;
 
-
-
-
 /// 合并多个过滤操作的规则
 #[derive(Debug)]
 pub struct CombineFilterRule;
@@ -34,12 +31,11 @@ impl OptRule for CombineFilterRule {
             if matched.dependencies.len() == 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node.is_filter() {
+                if child.plan_node().is_filter() {
                     // 将两个连续的过滤节点合并为一个
-                    if let (Some(top_filter), Some(child_filter)) = (
-                        node.plan_node.as_filter(),
-                        child.plan_node.as_filter(),
-                    ) {
+                    if let (Some(top_filter), Some(child_filter)) =
+                        (node.plan_node.as_filter(), child.plan_node().as_filter())
+                    {
                         let top_condition = top_filter.condition();
                         let child_condition = child_filter.condition();
 
@@ -55,7 +51,8 @@ impl OptRule for CombineFilterRule {
                         let input = (*top_filter
                             .dependencies()
                             .first()
-                            .expect("Filter should have at least one dependency")).clone();
+                            .expect("Filter should have at least one dependency"))
+                        .clone();
                         let combined_filter_node = match FilterPlanNode::new(
                             input,
                             crate::core::Expression::Variable(combined_condition_str),
@@ -70,7 +67,7 @@ impl OptRule for CombineFilterRule {
                         // 创建一个新的OptGroupNode
                         let mut combined_filter_opt_node = node.clone();
                         combined_filter_opt_node.plan_node =
-                            std::sync::Arc::new(combined_filter_node);
+                            crate::query::planner::plan::PlanNodeEnum::Filter(combined_filter_node);
 
                         // 设置依赖关系
                         if !child.dependencies.is_empty() {
@@ -104,10 +101,9 @@ impl MergeRule for CombineFilterRule {
         node: &OptGroupNode,
         child: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let (Some(top_filter), Some(child_filter)) = (
-            node.plan_node.as_filter(),
-            child.plan_node.as_filter(),
-        ) {
+        if let (Some(top_filter), Some(child_filter)) =
+            (node.plan_node.as_filter(), child.plan_node.as_filter())
+        {
             let top_condition = top_filter.condition();
             let child_condition = child_filter.condition();
 
@@ -121,7 +117,8 @@ impl MergeRule for CombineFilterRule {
             let input = (*top_filter
                 .dependencies()
                 .first()
-                .expect("Filter should have at least one dependency")).clone();
+                .expect("Filter should have at least one dependency"))
+            .clone();
             let combined_filter_node = match FilterPlanNode::new(
                 input,
                 crate::core::Expression::Variable(combined_condition_str),
@@ -132,7 +129,8 @@ impl MergeRule for CombineFilterRule {
             // combined_filter_node.deps = child_filter.deps.clone();
 
             let mut combined_filter_opt_node = node.clone();
-            combined_filter_opt_node.plan_node = std::sync::Arc::new(combined_filter_node);
+            combined_filter_opt_node.plan_node =
+                crate::query::planner::plan::PlanNodeEnum::Filter(combined_filter_node);
 
             if !child.dependencies.is_empty() {
                 combined_filter_opt_node.dependencies = child.dependencies.clone();
@@ -169,7 +167,7 @@ impl OptRule for CollapseProjectRule {
             if matched.dependencies.len() == 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node.is_project() {
+                if child.plan_node().is_project() {
                     // 在完整实现中，我们会合并这两个投影操作
                     // 以减少中间数据存储
                     Ok(Some(node.clone()))
@@ -232,7 +230,7 @@ impl OptRule for MergeGetVerticesAndProjectRule {
             if matched.dependencies.len() >= 1 {
                 // 检查子节点是否为可以合并的投影操作
                 let child = &matched.dependencies[0];
-                if child.plan_node.is_project() {
+                if child.plan_node().is_project() {
                     // 在完整实现中，我们会合并这些操作
                     // 以减少中间步骤并直接获取所需的属性
                     Ok(Some(node.clone()))
@@ -295,7 +293,7 @@ impl OptRule for MergeGetVerticesAndDedupRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node.is_dedup() {
+                if child.plan_node().is_dedup() {
                     // 在完整实现中，我们会合并这些操作
                     // 以避免中间数据存储并使执行更高效
                     Ok(Some(node.clone()))
@@ -358,7 +356,7 @@ impl OptRule for MergeGetNbrsAndDedupRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node.is_dedup() {
+                if child.plan_node().is_dedup() {
                     // 在完整实现中，我们会合并这些操作
                     // 以避免中间数据存储并使执行更高效
                     Ok(Some(node.clone()))
@@ -421,7 +419,7 @@ impl OptRule for MergeGetNbrsAndProjectRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node.is_project() {
+                if child.plan_node().is_project() {
                     // 在完整实现中，我们会合并这些操作
                     // 以避免中间数据存储并直接获取所需的属性
                     Ok(Some(node.clone()))
@@ -469,19 +467,18 @@ mod tests {
         DedupNode as Dedup, FilterNode as Filter, GetNeighborsNode as GetNeighbors,
         GetVerticesNode as GetVertices, ProjectNode as Project,
     };
-    
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
             "test_session",
             "test_user",
-            vec!["user".to_string()]
+            vec!["user".to_string()],
         );
         let query_context = QueryContext::new(
             "test_query",
             crate::core::types::query::QueryType::DataQuery,
             "TEST QUERY",
-            session_info
+            session_info,
         );
         OptContext::new(query_context)
     }
@@ -503,7 +500,9 @@ mod tests {
         };
         let opt_node = OptGroupNode::new(1, filter_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试合并连续的过滤操作
         assert!(result.is_some());
     }
@@ -522,7 +521,9 @@ mod tests {
         };
         let opt_node = OptGroupNode::new(1, project_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配投影节点并尝试折叠连续的投影操作
         assert!(result.is_some());
     }
@@ -536,7 +537,9 @@ mod tests {
         let get_vertices_node = std::sync::Arc::new(GetVertices::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_vertices_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配获取顶点节点并尝试与投影操作合并
         assert!(result.is_some());
     }
@@ -550,7 +553,9 @@ mod tests {
         let get_vertices_node = std::sync::Arc::new(GetVertices::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_vertices_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配获取顶点节点并尝试与去重操作合并
         assert!(result.is_some());
     }
@@ -564,7 +569,9 @@ mod tests {
         let get_nbrs_node = std::sync::Arc::new(GetNeighbors::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_nbrs_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配获取邻居节点并尝试与去重操作合并
         assert!(result.is_some());
     }
@@ -578,7 +585,9 @@ mod tests {
         let get_nbrs_node = std::sync::Arc::new(GetNeighbors::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_nbrs_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该匹配获取邻居节点并尝试与投影操作合并
         assert!(result.is_some());
     }

@@ -97,7 +97,10 @@ pub struct NewEdge {
 
 impl NewEdge {
     pub fn new(edge_type_id: i32, props: Vec<(String, String)>) -> Self {
-        Self { edge_type_id, props }
+        Self {
+            edge_type_id,
+            props,
+        }
     }
 
     pub fn edge_type_id(&self) -> i32 {
@@ -111,6 +114,6 @@ impl NewEdge {
 
 impl From<NewEdge> for PlanNodeEnum {
     fn from(edge: NewEdge) -> Self {
-        PlanNodeEnum::NewEdge(Arc::new(edge))
+        PlanNodeEnum::NewEdge(edge)
     }
 }

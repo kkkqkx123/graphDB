@@ -1,9 +1,9 @@
 //! 表达式转换器
 //! 将AST表达式转换为graph表达式
 
-use crate::core::Value;
 use crate::core::types::expression::{Expression, LiteralValue};
-use crate::core::types::operators::{BinaryOperator, UnaryOperator, AggregateFunction};
+use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
+use crate::core::Value;
 use crate::query::parser::ast::{
     BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, Expr, FunctionCallExpr, ListExpr, MapExpr,
     PredicateExpr, PropertyAccessExpr, SubscriptExpr, UnaryExpr, UnaryOp, VariableExpr,
@@ -230,13 +230,13 @@ fn convert_binary_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
         BinaryOp::GreaterThanOrEqual => Ok(BinaryOperator::GreaterThanOrEqual),
 
         // 字符串操作符
-        BinaryOp::Like => Ok(BinaryOperator::Like),  // Like 
+        BinaryOp::Like => Ok(BinaryOperator::Like), // Like
         BinaryOp::In => Ok(BinaryOperator::In),
         BinaryOp::NotIn => Ok(BinaryOperator::NotIn),
         BinaryOp::Contains => Ok(BinaryOperator::Contains),
         BinaryOp::StartsWith => Ok(BinaryOperator::StartsWith),
         BinaryOp::EndsWith => Ok(BinaryOperator::EndsWith),
-        
+
         // 其他操作符
         BinaryOp::StringConcat => Ok(BinaryOperator::StringConcat),
         BinaryOp::Subscript => Ok(BinaryOperator::Subscript),
@@ -263,9 +263,7 @@ fn convert_unary_op(op: &UnaryOp) -> Result<UnaryOperator, String> {
 }
 
 /// 转换聚合函数
-fn convert_aggregate_function(
-    func_name: &str,
-) -> Result<AggregateFunction, String> {
+fn convert_aggregate_function(func_name: &str) -> Result<AggregateFunction, String> {
     match func_name {
         "COUNT" => Ok(AggregateFunction::Count),
         "SUM" => Ok(AggregateFunction::Sum),

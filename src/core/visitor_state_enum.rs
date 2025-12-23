@@ -1,5 +1,5 @@
 //! 访问者状态枚举实现
-//! 
+//!
 //! 这个模块提供了零成本抽象的访问者状态管理，使用枚举替代动态分发
 
 use std::collections::HashMap;
@@ -242,17 +242,19 @@ mod tests {
     #[test]
     fn test_default_visitor_state() {
         let mut state = DefaultVisitorState::new();
-        
+
         assert_eq!(state.continue_visiting(), true);
         assert_eq!(state.depth(), 0);
         assert_eq!(state.visit_count(), 0);
         assert!(state.custom_data().is_empty());
-        
+
         state.set_continue_visiting(false);
         state.set_depth(5);
         state.set_visit_count(10);
-        state.custom_data_mut().insert("key".to_string(), "value".to_string());
-        
+        state
+            .custom_data_mut()
+            .insert("key".to_string(), "value".to_string());
+
         assert_eq!(state.continue_visiting(), false);
         assert_eq!(state.depth(), 5);
         assert_eq!(state.visit_count(), 10);
@@ -262,23 +264,23 @@ mod tests {
     #[test]
     fn test_visitor_state_enum() {
         let mut state = VisitorStateEnum::new();
-        
+
         assert_eq!(state.should_continue(), true);
         assert_eq!(state.depth(), 0);
         assert_eq!(state.visit_count(), 0);
         assert_eq!(state.state_type(), "Default");
-        
+
         state.inc_depth();
         state.inc_visit_count();
         state.set_custom_data("test".to_string(), "data".to_string());
-        
+
         assert_eq!(state.depth(), 1);
         assert_eq!(state.visit_count(), 1);
         assert_eq!(state.get_custom_data("test"), Some(&"data".to_string()));
-        
+
         state.stop();
         assert_eq!(state.should_continue(), false);
-        
+
         state.reset();
         assert_eq!(state.should_continue(), true);
         assert_eq!(state.depth(), 0);
@@ -290,15 +292,15 @@ mod tests {
     fn test_visitor_state_enum_with_depth() {
         let state = VisitorStateEnum::with_depth(3);
         assert_eq!(state.depth(), 3);
-        
+
         let mut state = state;
         state.dec_depth();
         assert_eq!(state.depth(), 2);
-        
+
         state.dec_depth();
         state.dec_depth();
         assert_eq!(state.depth(), 0);
-        
+
         // 深度不会变成负数
         state.dec_depth();
         assert_eq!(state.depth(), 0);

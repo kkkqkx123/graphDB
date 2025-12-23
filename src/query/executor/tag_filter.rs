@@ -2,9 +2,7 @@
 //!
 //! 提供对顶点标签的高级过滤功能，支持复杂的表达式求值
 
-use crate::core::expressions::{
-    DefaultExpressionContext, ExpressionContext,
-};
+use crate::core::expressions::{DefaultExpressionContext, ExpressionContext};
 use crate::core::vertex_edge_path::Vertex;
 use crate::core::Value;
 use crate::core::{Expression, ExpressionEvaluator};

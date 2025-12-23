@@ -68,7 +68,9 @@ where
         match self.strategy {
             AdaptiveStrategy::LRU => self.lru_cache.contains(key),
             AdaptiveStrategy::LFU => self.lfu_cache.contains(key),
-            AdaptiveStrategy::Hybrid => self.lru_cache.contains(key) || self.lfu_cache.contains(key),
+            AdaptiveStrategy::Hybrid => {
+                self.lru_cache.contains(key) || self.lfu_cache.contains(key)
+            }
         }
     }
 
@@ -76,9 +78,10 @@ where
         match self.strategy {
             AdaptiveStrategy::LRU => self.lru_cache.remove(key),
             AdaptiveStrategy::LFU => self.lfu_cache.remove(key),
-            AdaptiveStrategy::Hybrid => {
-                self.lru_cache.remove(key).or_else(|| self.lfu_cache.remove(key))
-            }
+            AdaptiveStrategy::Hybrid => self
+                .lru_cache
+                .remove(key)
+                .or_else(|| self.lfu_cache.remove(key)),
         }
     }
 

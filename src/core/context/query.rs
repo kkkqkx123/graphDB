@@ -2,12 +2,11 @@
 //!
 //! 提供查询执行过程中的上下文管理
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use crate::core::types::query::{QueryType, QueryResult};
-use crate::core::Value;
 use super::base::{ContextBase, ContextType, MutableContext};
 use super::session::SessionInfo;
+use crate::core::types::query::QueryType;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// 查询上下文
 #[derive(Debug, Clone)]
@@ -82,27 +81,27 @@ impl QueryContext {
             start_time: std::time::Instant::now(),
         }
     }
-    
+
     /// 添加查询参数
     pub fn add_parameter(&mut self, name: impl Into<String>, value: QueryParameter) {
         self.parameters.insert(name.into(), value);
     }
-    
+
     /// 获取查询参数
     pub fn get_parameter(&self, name: &str) -> Option<&QueryParameter> {
         self.parameters.get(name)
     }
-    
+
     /// 设置查询选项
     pub fn set_options(&mut self, options: QueryOptions) {
         self.options = options;
     }
-    
+
     /// 获取执行时间（毫秒）
     pub fn elapsed_ms(&self) -> u64 {
         self.start_time.elapsed().as_millis() as u64
     }
-    
+
     /// 检查是否超时
     pub fn is_timeout(&self) -> bool {
         if let Some(timeout_ms) = self.options.timeout_ms {
@@ -111,7 +110,7 @@ impl QueryContext {
             false
         }
     }
-    
+
     /// 检查用户是否有指定角色
     pub fn has_role(&self, role: &str) -> bool {
         self.session_info.roles.contains(&role.to_string())
@@ -165,7 +164,6 @@ impl Default for QueryOptions {
         }
     }
 }
-
 
 /// 查询状态
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -224,46 +222,49 @@ impl QueryStatistics {
             error_message: None,
         }
     }
-    
+
     /// 设置状态
     pub fn set_status(&mut self, status: QueryStatus) {
         self.status = status.clone();
-        if matches!(status, QueryStatus::Completed | QueryStatus::Cancelled | QueryStatus::Error) {
+        if matches!(
+            status,
+            QueryStatus::Completed | QueryStatus::Cancelled | QueryStatus::Error
+        ) {
             self.end_time = Some(std::time::SystemTime::now());
         }
     }
-    
+
     /// 设置执行计划
     pub fn set_execution_plan(&mut self, plan: impl Into<String>) {
         self.execution_plan = Some(plan.into());
     }
-    
+
     /// 增加扫描的顶点数
     pub fn add_vertices_scanned(&mut self, count: usize) {
         self.vertices_scanned += count;
     }
-    
+
     /// 增加扫描的边数
     pub fn add_edges_scanned(&mut self, count: usize) {
         self.edges_scanned += count;
     }
-    
+
     /// 设置返回的行数
     pub fn set_rows_returned(&mut self, count: usize) {
         self.rows_returned = count;
     }
-    
+
     /// 设置内存使用量
     pub fn set_memory_used(&mut self, bytes: usize) {
         self.memory_used_bytes = bytes;
     }
-    
+
     /// 设置错误信息
     pub fn set_error(&mut self, error: impl Into<String>) {
         self.error_message = Some(error.into());
         self.set_status(QueryStatus::Error);
     }
-    
+
     /// 获取执行时间（毫秒）
     pub fn execution_time_ms(&self) -> Option<u64> {
         self.end_time.and_then(|end| {
@@ -272,10 +273,13 @@ impl QueryStatistics {
                 .map(|duration| duration.as_millis() as u64)
         })
     }
-    
+
     /// 检查是否已完成
     pub fn is_completed(&self) -> bool {
-        matches!(self.status, QueryStatus::Completed | QueryStatus::Cancelled | QueryStatus::Error)
+        matches!(
+            self.status,
+            QueryStatus::Completed | QueryStatus::Cancelled | QueryStatus::Error
+        )
     }
 }
 

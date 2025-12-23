@@ -1,12 +1,12 @@
 //! 查询执行上下文 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
+use crate::core::context::{QueryExecutionContext, RequestContext, ValidationContext};
 use crate::core::{SymbolTable, Value};
 use crate::graph::utils::IdGenerator;
 use crate::query::context::managers::{
     CharsetInfo, IndexManager, MetaClient, SchemaManager, StorageClient,
 };
-use crate::core::context::{QueryExecutionContext, RequestContext, ValidationContext};
 use crate::utils::ObjectPool;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -576,13 +576,20 @@ mod tests {
         let mut ctx = QueryContext::new();
 
         // 测试符号表
-        ctx.sym_table_mut().new_variable("test_var").expect("Failed to create new variable");
+        ctx.sym_table_mut()
+            .new_variable("test_var")
+            .expect("Failed to create new variable");
         assert!(ctx.sym_table().has_variable("test_var"));
 
         // 测试执行上下文
         let value = crate::core::Value::Int(42);
-        ctx.ectx().set_value("test_val", value.clone()).expect("Failed to set value");
-        let retrieved = ctx.ectx().get_value("test_val").expect("Failed to get value");
+        ctx.ectx()
+            .set_value("test_val", value.clone())
+            .expect("Failed to set value");
+        let retrieved = ctx
+            .ectx()
+            .get_value("test_val")
+            .expect("Failed to get value");
         assert_eq!(retrieved, value);
     }
 
@@ -594,25 +601,37 @@ mod tests {
         let schema_manager = Arc::new(MockSchemaManager::new());
         ctx.set_schema_manager(schema_manager.clone());
         assert!(ctx.schema_manager().is_some());
-        assert!(ctx.schema_manager().expect("Schema manager should exist").has_schema("test_schema"));
+        assert!(ctx
+            .schema_manager()
+            .expect("Schema manager should exist")
+            .has_schema("test_schema"));
 
         // 设置索引管理器
         let index_manager = Arc::new(MockIndexManager::new());
         ctx.set_index_manager(index_manager.clone());
         assert!(ctx.index_manager().is_some());
-        assert!(ctx.index_manager().expect("Index manager should exist").has_index("test_index"));
+        assert!(ctx
+            .index_manager()
+            .expect("Index manager should exist")
+            .has_index("test_index"));
 
         // 设置存储客户端
         let storage_client = Arc::new(MockStorageClient);
         ctx.set_storage_client(storage_client.clone());
         assert!(ctx.get_storage_client().is_some());
-        assert!(ctx.get_storage_client().expect("Storage client should exist").is_connected());
+        assert!(ctx
+            .get_storage_client()
+            .expect("Storage client should exist")
+            .is_connected());
 
         // 设置元数据客户端
         let meta_client = Arc::new(MockMetaClient);
         ctx.set_meta_client(meta_client.clone());
         assert!(ctx.get_meta_client().is_some());
-        assert!(ctx.get_meta_client().expect("Meta client should exist").is_connected());
+        assert!(ctx
+            .get_meta_client()
+            .expect("Meta client should exist")
+            .is_connected());
     }
 
     #[test]
@@ -629,7 +648,10 @@ mod tests {
         assert!(!ctx.plan().expect("Plan should exist").is_profile_enabled());
 
         // 启用性能分析
-        ctx.plan_mut().as_mut().expect("Plan should exist").enable_profile();
+        ctx.plan_mut()
+            .as_mut()
+            .expect("Plan should exist")
+            .enable_profile();
         assert!(ctx.plan().expect("Plan should exist").is_profile_enabled());
     }
 
@@ -647,11 +669,15 @@ mod tests {
         // 检查字符集信息
         assert!(ctx.get_charset_info().is_some());
         assert_eq!(
-            ctx.get_charset_info().expect("Charset info should exist").charset,
+            ctx.get_charset_info()
+                .expect("Charset info should exist")
+                .charset,
             charset_info.charset
         );
         assert_eq!(
-            ctx.get_charset_info().expect("Charset info should exist").collation,
+            ctx.get_charset_info()
+                .expect("Charset info should exist")
+                .collation,
             charset_info.collation
         );
     }
@@ -731,6 +757,9 @@ mod tests {
 
         // 检查请求上下文是否正确设置
         assert!(ctx.rctx().is_some());
-        assert_eq!(ctx.rctx().expect("Request context should exist").query(), "MATCH (n) RETURN n");
+        assert_eq!(
+            ctx.rctx().expect("Request context should exist").query(),
+            "MATCH (n) RETURN n"
+        );
     }
 }

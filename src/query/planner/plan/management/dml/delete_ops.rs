@@ -22,7 +22,7 @@ impl DeleteVertices {
 
 impl From<DeleteVertices> for PlanNodeEnum {
     fn from(vertices: DeleteVertices) -> Self {
-        PlanNodeEnum::DeleteVertices(Arc::new(vertices))
+        PlanNodeEnum::DeleteVertices(vertices)
     }
 }
 
@@ -71,6 +71,6 @@ impl DeleteEdges {
 
 impl From<DeleteEdges> for PlanNodeEnum {
     fn from(edges: DeleteEdges) -> Self {
-        PlanNodeEnum::DeleteEdges(Arc::new(edges))
+        PlanNodeEnum::DeleteEdges(edges)
     }
 }

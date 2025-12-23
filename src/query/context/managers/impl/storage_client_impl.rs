@@ -206,7 +206,9 @@ mod tests {
             key: "user1".to_string(),
             value: Value::String("Alice".to_string()),
         };
-        client.execute(write_op).expect("Write operation should succeed");
+        client
+            .execute(write_op)
+            .expect("Write operation should succeed");
 
         // 删除数据
         let delete_op = StorageOperation::Delete {

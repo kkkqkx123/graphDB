@@ -25,7 +25,7 @@ pub use manager::{CacheBuilder, CacheManager, CachePolicy, CacheStrategy};
 pub use parser_cache::*;
 pub use registry::{CacheRegistry, CacheRegistryInfo};
 pub use stats_collector::{CacheStats, CacheStatsCollector};
-pub use stats_marker::{StatsMode, StatsEnabled, StatsDisabled};
+pub use stats_marker::{StatsDisabled, StatsEnabled, StatsMode};
 pub use traits::*;
 
 #[cfg(test)]

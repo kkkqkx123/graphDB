@@ -540,16 +540,20 @@ impl ExprVisitor for TypeChecker {
     }
 
     fn visit_binary(&mut self, expr: &BinaryExpr) -> Self::Result {
-         // 检查二元表达式的类型兼容性
-         match expr.op {
-             BinaryOp::Add | BinaryOp::Subtract | BinaryOp::Multiply | BinaryOp::Divide | BinaryOp::Modulo => {
-                 // 算术操作符需要数值类型
-                 // TODO: 实现类型检查逻辑
-                 self.warnings.push(format!(
-                     "Arithmetic operation {} should have numeric operands",
-                     expr.op
-                 ));
-             }
+        // 检查二元表达式的类型兼容性
+        match expr.op {
+            BinaryOp::Add
+            | BinaryOp::Subtract
+            | BinaryOp::Multiply
+            | BinaryOp::Divide
+            | BinaryOp::Modulo => {
+                // 算术操作符需要数值类型
+                // TODO: 实现类型检查逻辑
+                self.warnings.push(format!(
+                    "Arithmetic operation {} should have numeric operands",
+                    expr.op
+                ));
+            }
             BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => {
                 // 逻辑操作符需要布尔类型
                 self.warnings.push(format!(

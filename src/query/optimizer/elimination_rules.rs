@@ -1,17 +1,12 @@
 //! 消除优化规则
 //! 这些规则负责消除冗余的操作，如永真式过滤、无操作投影、不必要的去重等
 
-use std::sync::Arc;
-
 use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{create_basic_pattern, is_tautology, BaseOptRule, EliminationRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::core::nodes::{
-    AppendVerticesNode, DedupNode, FilterNode, GetEdgesNode, GetVerticesNode, InnerJoinNode,
-    LeftJoinNode, LimitNode, ProjectNode, ScanEdgesNode, ScanVerticesNode, SortNode, StartNode,
-};
 use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::ProjectNode;
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -351,9 +346,7 @@ impl EliminationRule for RemoveNoopProjectRule {
             let child_dep_id = node.dependencies[0];
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 检查投影是否为无操作
-                if let Some(project_plan_node) =
-                    node.plan_node.as_project()
-                {
+                if let Some(project_plan_node) = node.plan_node.as_project() {
                     if self.is_noop_projection(project_plan_node, child_node)? {
                         let new_plan_node = child_node.plan_node.clone();
 
@@ -873,7 +866,7 @@ fn create_plan_node_with_output_var(
     // 这里我们只处理一些常见的节点类型作为示例，实际中需要处理所有类型
     match plan_node {
         PlanNodeEnum::Filter(filter_node) => {
-            let input = filter_node
+            let input = *filter_node
                 .dependencies()
                 .get(0)
                 .expect("Filter should have at least one dependency")
@@ -885,7 +878,7 @@ fn create_plan_node_with_output_var(
             PlanNodeEnum::Filter(new_node)
         }
         PlanNodeEnum::Project(project_node) => {
-            let input = project_node
+            let input = *project_node
                 .dependencies()
                 .get(0)
                 .expect("Project should have at least one dependency")
@@ -897,7 +890,7 @@ fn create_plan_node_with_output_var(
             PlanNodeEnum::Project(new_node)
         }
         PlanNodeEnum::Dedup(dedup_node) => {
-            let input = dedup_node
+            let input = *dedup_node
                 .dependencies()
                 .get(0)
                 .expect("Dedup should have at least one dependency")
@@ -909,7 +902,7 @@ fn create_plan_node_with_output_var(
         }
         PlanNodeEnum::Sort(sort_node) => {
             // 创建新的排序节点，需要使用正确的构造函数
-            let input = sort_node
+            let input = *sort_node
                 .dependencies()
                 .get(0)
                 .expect("Sort should have at least one dependency")

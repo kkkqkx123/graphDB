@@ -4,8 +4,8 @@
 use super::super::structs::*;
 use super::super::validation_interface::*;
 use crate::config::test_config::test_config;
-use crate::core::ValueTypeDef;
 use crate::core::Expression;
+use crate::core::ValueTypeDef;
 
 /// 表达式验证策略
 pub struct ExpressionValidationStrategy;

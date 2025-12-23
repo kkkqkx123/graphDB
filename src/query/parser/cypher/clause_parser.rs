@@ -498,7 +498,9 @@ mod tests {
     #[test]
     fn test_parse_match_clause() {
         let mut parser = CypherParserCore::new("MATCH (n:Person) WHERE n.age > 30".to_string());
-        let match_clause = parser.parse_match_clause().expect("Clause parser should parse valid match clauses");
+        let match_clause = parser
+            .parse_match_clause()
+            .expect("Clause parser should parse valid match clauses");
 
         assert_eq!(match_clause.patterns.len(), 1);
         assert!(match_clause.where_clause.is_some());
@@ -508,7 +510,9 @@ mod tests {
     #[test]
     fn test_parse_optional_match_clause() {
         let mut parser = CypherParserCore::new("OPTIONAL MATCH (n:Person)".to_string());
-        let match_clause = parser.parse_match_clause().expect("Clause parser should parse valid match clauses");
+        let match_clause = parser
+            .parse_match_clause()
+            .expect("Clause parser should parse valid match clauses");
 
         assert_eq!(match_clause.patterns.len(), 1);
         assert!(match_clause.where_clause.is_none());
@@ -518,7 +522,9 @@ mod tests {
     #[test]
     fn test_parse_return_clause() {
         let mut parser = CypherParserCore::new("RETURN DISTINCT n.name AS name, n.age".to_string());
-        let return_clause = parser.parse_return_clause().expect("Clause parser should parse valid return clauses");
+        let return_clause = parser
+            .parse_return_clause()
+            .expect("Clause parser should parse valid return clauses");
 
         assert!(return_clause.distinct);
         assert_eq!(return_clause.return_items.len(), 2);
@@ -532,7 +538,9 @@ mod tests {
     #[test]
     fn test_parse_return_all() {
         let mut parser = CypherParserCore::new("RETURN *".to_string());
-        let return_clause = parser.parse_return_clause().expect("Clause parser should parse valid return clauses");
+        let return_clause = parser
+            .parse_return_clause()
+            .expect("Clause parser should parse valid return clauses");
 
         assert!(!return_clause.distinct);
         assert_eq!(return_clause.return_items.len(), 1);
@@ -545,7 +553,9 @@ mod tests {
     #[test]
     fn test_parse_order_by_clause() {
         let mut parser = CypherParserCore::new("ORDER BY n.name DESC, n.age ASC".to_string());
-        let order_by_clause = parser.parse_order_by_clause().expect("Clause parser should parse valid order by clauses");
+        let order_by_clause = parser
+            .parse_order_by_clause()
+            .expect("Clause parser should parse valid order by clauses");
 
         assert_eq!(order_by_clause.items.len(), 2);
         assert_eq!(order_by_clause.items[0].ordering, Ordering::Descending);
@@ -555,7 +565,9 @@ mod tests {
     #[test]
     fn test_parse_create_clause() {
         let mut parser = CypherParserCore::new("CREATE (n:Person {name: \"Alice\"})".to_string());
-        let create_clause = parser.parse_create_clause().expect("Clause parser should parse valid create clauses");
+        let create_clause = parser
+            .parse_create_clause()
+            .expect("Clause parser should parse valid create clauses");
 
         assert_eq!(create_clause.patterns.len(), 1);
     }
@@ -563,7 +575,9 @@ mod tests {
     #[test]
     fn test_parse_delete_clause() {
         let mut parser = CypherParserCore::new("DELETE n, m".to_string());
-        let delete_clause = parser.parse_delete_clause().expect("Clause parser should parse valid delete clauses");
+        let delete_clause = parser
+            .parse_delete_clause()
+            .expect("Clause parser should parse valid delete clauses");
 
         assert!(!delete_clause.detach);
         assert_eq!(delete_clause.expressions.len(), 2);
@@ -572,7 +586,9 @@ mod tests {
     #[test]
     fn test_parse_detach_delete_clause() {
         let mut parser = CypherParserCore::new("DETACH DELETE n".to_string());
-        let delete_clause = parser.parse_delete_clause().expect("Clause parser should parse valid delete clauses");
+        let delete_clause = parser
+            .parse_delete_clause()
+            .expect("Clause parser should parse valid delete clauses");
 
         assert!(delete_clause.detach);
         assert_eq!(delete_clause.expressions.len(), 1);
@@ -581,7 +597,9 @@ mod tests {
     #[test]
     fn test_parse_set_clause() {
         let mut parser = CypherParserCore::new("SET n.name = \"Alice\", n.age += 1".to_string());
-        let set_clause = parser.parse_set_clause().expect("Clause parser should parse valid set clauses");
+        let set_clause = parser
+            .parse_set_clause()
+            .expect("Clause parser should parse valid set clauses");
 
         assert_eq!(set_clause.items.len(), 2);
         assert_eq!(set_clause.items[0].operator, SetOperator::Replace);
@@ -592,7 +610,9 @@ mod tests {
     fn test_parse_with_clause() {
         let mut parser =
             CypherParserCore::new("WITH n.name AS name, n.age WHERE n.age > 30".to_string());
-        let with_clause = parser.parse_with_clause().expect("Clause parser should parse valid with clauses");
+        let with_clause = parser
+            .parse_with_clause()
+            .expect("Clause parser should parse valid with clauses");
 
         assert!(!with_clause.distinct);
         assert_eq!(with_clause.return_items.len(), 2);
@@ -602,7 +622,9 @@ mod tests {
     #[test]
     fn test_parse_unwind_clause() {
         let mut parser = CypherParserCore::new("UNWIND [1, 2, 3] AS number".to_string());
-        let unwind_clause = parser.parse_unwind_clause().expect("Clause parser should parse valid unwind clauses");
+        let unwind_clause = parser
+            .parse_unwind_clause()
+            .expect("Clause parser should parse valid unwind clauses");
 
         match unwind_clause.expression {
             Expression::List(_) => {} // 验证是列表表达式
@@ -614,7 +636,9 @@ mod tests {
     #[test]
     fn test_parse_call_clause() {
         let mut parser = CypherParserCore::new("CALL db.info()".to_string());
-        let call_clause = parser.parse_call_clause().expect("Clause parser should parse valid call clauses");
+        let call_clause = parser
+            .parse_call_clause()
+            .expect("Clause parser should parse valid call clauses");
 
         assert_eq!(call_clause.procedure, "db.info");
         assert!(call_clause.arguments.is_empty());
@@ -624,13 +648,17 @@ mod tests {
     #[test]
     fn test_parse_call_clause_with_yield() {
         let mut parser = CypherParserCore::new("CALL db.info() YIELD name, value".to_string());
-        let call_clause = parser.parse_call_clause().expect("Clause parser should parse valid call clauses");
+        let call_clause = parser
+            .parse_call_clause()
+            .expect("Clause parser should parse valid call clauses");
 
         assert_eq!(call_clause.procedure, "db.info");
         assert!(call_clause.arguments.is_empty());
         assert!(call_clause.yield_items.is_some());
 
-        let yield_items = call_clause.yield_items.expect("Call clause should have yield items");
+        let yield_items = call_clause
+            .yield_items
+            .expect("Call clause should have yield items");
         assert_eq!(yield_items.len(), 2);
         assert_eq!(yield_items[0], "name");
         assert_eq!(yield_items[1], "value");

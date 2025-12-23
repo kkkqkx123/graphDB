@@ -10,9 +10,7 @@ pub mod evaluation;
 pub mod functions;
 
 // 重新导出默认上下文类型
-pub use default_context::{
-    DefaultExpressionContext, StorageExpressionContext,
-};
+pub use default_context::{DefaultExpressionContext, StorageExpressionContext};
 
 // 重新导出统一的ExpressionContext trait
 pub use crate::core::evaluator::traits::ExpressionContext;
@@ -22,8 +20,8 @@ pub use cache::{ExpressionCacheManager, ExpressionCacheStats};
 
 // 重新导出函数相关类型
 pub use functions::{
-    BuiltinFunction, ConversionFunction, CustomFunction, DateTimeFunction,
-    ExpressionFunction, FunctionRef, MathFunction, StringFunction,
+    BuiltinFunction, ConversionFunction, CustomFunction, DateTimeFunction, ExpressionFunction,
+    FunctionRef, MathFunction, StringFunction,
 };
 // 聚合函数从operators模块导出，避免重复定义
 pub use crate::core::types::operators::AggregateFunction;

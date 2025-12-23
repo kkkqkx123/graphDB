@@ -231,14 +231,14 @@ impl QueryVisitor for FoldConstantExprVisitor {
         // 在实际使用中，应该通过fold方法获取结果
         Expr::Constant(crate::query::parser::ast::ConstantExpr::new(
             Value::Null(crate::core::NullType::Null),
-            crate::query::parser::ast::Span::default()
+            crate::query::parser::ast::Span::default(),
         ))
     }
-    
+
     fn reset(&mut self) {
         // FoldConstantExprVisitor没有需要重置的状态
     }
-    
+
     fn is_success(&self) -> bool {
         true // FoldConstantExprVisitor 总是成功
     }

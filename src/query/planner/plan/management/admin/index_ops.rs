@@ -47,7 +47,7 @@ impl CreateIndex {
 
 impl From<CreateIndex> for PlanNodeEnum {
     fn from(index: CreateIndex) -> Self {
-        PlanNodeEnum::CreateIndex(Arc::new(index))
+        PlanNodeEnum::CreateIndex(index)
     }
 }
 

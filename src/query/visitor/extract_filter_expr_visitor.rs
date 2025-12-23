@@ -1,8 +1,11 @@
 //! ExtractFilterExprVisitor - 用于提取过滤表达式的访问器
 //! 对应 NebulaGraph ExtractFilterExprVisitor.h/.cpp 的功能
 
-use crate::core::visitor::{VisitorCore, VisitorContext, VisitorResult};
-use crate::core::{Expression, ExpressionVisitor, LiteralValue, BinaryOperator, UnaryOperator, AggregateFunction, DataType};
+use crate::core::visitor::{VisitorContext, VisitorCore, VisitorResult};
+use crate::core::{
+    AggregateFunction, BinaryOperator, DataType, Expression, ExpressionVisitor, LiteralValue,
+    UnaryOperator,
+};
 use crate::query::visitor::QueryVisitor;
 
 #[derive(Debug)]
@@ -68,7 +71,7 @@ impl ExtractFilterExprVisitor {
     pub fn with_config_and_depth(
         top_level_only: bool,
         config: crate::core::visitor::VisitorConfig,
-        depth: usize
+        depth: usize,
     ) -> Self {
         Self {
             filter_exprs: Vec::new(),
@@ -184,16 +187,27 @@ impl VisitorCore<Expression> for ExtractFilterExprVisitor {
             Expression::Binary { left, op, right } => self.visit_binary(left, op, right),
             Expression::Unary { op, operand } => self.visit_unary(op, operand),
             Expression::Function { name, args } => self.visit_function(name, args),
-            Expression::Aggregate { func, arg, distinct } => self.visit_aggregate(func, arg, *distinct),
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => self.visit_aggregate(func, arg, *distinct),
             Expression::List(items) => self.visit_list(items),
             Expression::Map(pairs) => self.visit_map(pairs),
-            Expression::Case { conditions, default } => {
+            Expression::Case {
+                conditions,
+                default,
+            } => {
                 let default_cloned = default.map(|b| (**b).clone());
                 self.visit_case(conditions, &default_cloned)
             }
             Expression::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
             Expression::Subscript { collection, index } => self.visit_subscript(collection, index),
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 let start_cloned = start.map(|b| (**b).clone());
                 let end_cloned = end.map(|b| (**b).clone());
                 self.visit_range(collection, &start_cloned, &end_cloned)
@@ -205,8 +219,10 @@ impl VisitorCore<Expression> for ExtractFilterExprVisitor {
             Expression::InputProperty(prop) => self.visit_input_property(prop),
             Expression::VariableProperty { var, prop } => self.visit_variable_property(var, prop),
             Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
-            Expression::DestinationProperty { tag, prop } => self.visit_destination_property(tag, prop),
-            
+            Expression::DestinationProperty { tag, prop } => {
+                self.visit_destination_property(tag, prop)
+            }
+
             // 处理新增的表达式类型
             Expression::UnaryPlus(expr) => self.visit_unary(&UnaryOperator::Plus, expr),
             Expression::UnaryNegate(expr) => self.visit_unary(&UnaryOperator::Minus, expr),
@@ -217,29 +233,40 @@ impl VisitorCore<Expression> for ExtractFilterExprVisitor {
             Expression::IsNotNull(expr) => self.visit_unary(&UnaryOperator::IsNotNull, expr),
             Expression::IsEmpty(expr) => self.visit_unary(&UnaryOperator::IsEmpty, expr),
             Expression::IsNotEmpty(expr) => self.visit_unary(&UnaryOperator::IsNotEmpty, expr),
-            
+
             Expression::TypeCasting { expr, .. } => self.visit_type_cast(expr, &DataType::String),
-            Expression::ListComprehension { generator, condition } => {
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => {
                 // 简化为函数调用
                 let cond_expr = condition
-                    
                     .map(|c| (**c).clone())
                     .unwrap_or(Expression::bool(true));
-                self.visit_function(
-                    "list_comprehension",
-                    &[(**generator).clone(), cond_expr],
-                )
+                self.visit_function("list_comprehension", &[(**generator).clone(), cond_expr])
             }
             Expression::Predicate { list, condition } => {
                 self.visit_function("predicate", &[(**list).clone(), (**condition).clone()])
             }
-            Expression::Reduce { list, initial, expr, .. } => {
-                self.visit_function("reduce", &[(**list).clone(), (**initial).clone(), (**expr).clone()])
-            }
+            Expression::Reduce {
+                list,
+                initial,
+                expr,
+                ..
+            } => self.visit_function(
+                "reduce",
+                &[(**list).clone(), (**initial).clone(), (**expr).clone()],
+            ),
             Expression::PathBuild(items) => self.visit_path(items),
-            Expression::ESQuery(query) => self.visit_function("es_query", &[Expression::string(query)]),
+            Expression::ESQuery(query) => {
+                self.visit_function("es_query", &[Expression::string(query)])
+            }
             Expression::UUID => self.visit_function("uuid", &[]),
-            Expression::SubscriptRange { collection, start, end } => {
+            Expression::SubscriptRange {
+                collection,
+                start,
+                end,
+            } => {
                 let start_cloned = start.map(|b| (**b).clone());
                 let end_cloned = end.map(|b| (**b).clone());
                 self.visit_range(collection, &start_cloned, &end_cloned)
@@ -288,7 +315,12 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         Ok(())
     }
 
-    fn visit_binary(&mut self, left: &Expression, op: &BinaryOperator, right: &Expression) -> Self::Result {
+    fn visit_binary(
+        &mut self,
+        left: &Expression,
+        op: &BinaryOperator,
+        right: &Expression,
+    ) -> Self::Result {
         // 二元操作通常是过滤表达式
         if self.is_top_level || !self.top_level_only {
             self.filter_exprs.push(Expression::Binary {
@@ -297,7 +329,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
                 right: Box::new(right.clone()),
             });
         }
-        
+
         let old_top_level = self.is_top_level;
         self.is_top_level = false;
         self.visit(left)?;
@@ -314,7 +346,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
                 operand: Box::new(operand.clone()),
             });
         }
-        
+
         let old_top_level = self.is_top_level;
         self.is_top_level = false;
         self.visit(operand)?;
@@ -330,7 +362,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
                 args: args.to_vec(),
             });
         }
-        
+
         let old_top_level = self.is_top_level;
         self.is_top_level = false;
         for arg in args {
@@ -340,7 +372,12 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         Ok(())
     }
 
-    fn visit_aggregate(&mut self, func: &AggregateFunction, arg: &Expression, _distinct: bool) -> Self::Result {
+    fn visit_aggregate(
+        &mut self,
+        func: &AggregateFunction,
+        arg: &Expression,
+        _distinct: bool,
+    ) -> Self::Result {
         // 聚合函数通常不是过滤表达式
         let old_top_level = self.is_top_level;
         self.is_top_level = false;
@@ -371,7 +408,11 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         Ok(())
     }
 
-    fn visit_case(&mut self, conditions: &[(Expression, Expression)], default: &Option<Expression>) -> Self::Result {
+    fn visit_case(
+        &mut self,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Expression>,
+    ) -> Self::Result {
         // CASE表达式可能是过滤表达式
         if self.is_top_level || !self.top_level_only {
             self.filter_exprs.push(Expression::Case {
@@ -379,7 +420,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
                 default: default.as_ref().map(|e| Box::new(e.clone())),
             });
         }
-        
+
         let old_top_level = self.is_top_level;
         self.is_top_level = false;
         for (condition, value) in conditions {
@@ -401,7 +442,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
                 target_type: target_type.clone(),
             });
         }
-        
+
         let old_top_level = self.is_top_level;
         self.is_top_level = false;
         self.visit(expr)?;
@@ -417,7 +458,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
                 index: Box::new(index.clone()),
             });
         }
-        
+
         let old_top_level = self.is_top_level;
         self.is_top_level = false;
         self.visit(collection)?;
@@ -426,7 +467,12 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         Ok(())
     }
 
-    fn visit_range(&mut self, collection: &Expression, start: &Option<Expression>, end: &Option<Expression>) -> Self::Result {
+    fn visit_range(
+        &mut self,
+        collection: &Expression,
+        start: &Option<Expression>,
+        end: &Option<Expression>,
+    ) -> Self::Result {
         // 范围访问可能是过滤表达式的一部分
         if self.is_top_level || !self.top_level_only {
             self.filter_exprs.push(Expression::Range {
@@ -435,7 +481,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
                 end: end.as_ref().map(|e| Box::new(e.clone())),
             });
         }
-        
+
         let old_top_level = self.is_top_level;
         self.is_top_level = false;
         self.visit(collection)?;
@@ -454,7 +500,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         if self.is_top_level || !self.top_level_only {
             self.filter_exprs.push(Expression::Path(items.to_vec()));
         }
-        
+
         let old_top_level = self.is_top_level;
         self.is_top_level = false;
         for item in items {
@@ -494,7 +540,8 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
     fn visit_input_property(&mut self, prop: &str) -> Self::Result {
         // 输入属性可能是过滤表达式的一部分
         if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::InputProperty(prop.to_string()));
+            self.filter_exprs
+                .push(Expression::InputProperty(prop.to_string()));
         }
         Ok(())
     }
@@ -539,12 +586,12 @@ impl QueryVisitor for ExtractFilterExprVisitor {
     fn get_result(&self) -> Self::QueryResult {
         self.filter_exprs.clone()
     }
-    
+
     fn reset(&mut self) {
         self.filter_exprs.clear();
         self.is_top_level = true;
     }
-    
+
     fn is_success(&self) -> bool {
         true // ExtractFilterExprVisitor 总是成功，即使没有找到任何过滤表达式
     }
