@@ -267,14 +267,14 @@ impl<S: StorageEngine> TraverseExecutor<S> {
             for path in &self.completed_paths {
                 // 添加起始节点
                 if !visited_vertices.contains(&path.src.vid) {
-                    vertices.push(path.src.as_ref().clone());
+                    vertices.push(path.src.clone());
                     visited_vertices.insert(path.src.vid.clone());
                 }
 
                 // 添加路径中的所有节点
                 for step in &path.steps {
                     if !visited_vertices.contains(&step.dst.vid) {
-                        vertices.push(step.dst.as_ref().clone());
+                        vertices.push(step.dst.clone());
                         visited_vertices.insert(step.dst.vid.clone());
                     }
                 }
@@ -291,7 +291,7 @@ impl<S: StorageEngine> InputExecutor<S> for TraverseExecutor<S> {
     }
 
     fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+        self.input_executor
     }
 }
 

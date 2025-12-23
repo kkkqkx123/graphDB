@@ -6,7 +6,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 /// 处理LIMIT和OFFSET子句的规划
 /// 负责规划LIMIT和OFFSET子句
 use crate::query::planner::match_planning::core::ClauseType;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
@@ -56,7 +56,7 @@ impl PaginationPlanner {
         _context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
         // 获取输入计划的根节点
-        let _input_root = input_plan.root.as_ref().ok_or_else(|| {
+        let _input_root = input_plan.root.ok_or_else(|| {
             PlannerError::PlanGenerationFailed("Pagination clause requires input plan".to_string())
         })?;
 
@@ -71,7 +71,7 @@ impl PaginationPlanner {
 
         // 创建新的子计划
         let mut subplan = input_plan.clone();
-        subplan.root = Some(limit_node.clone_plan_node());
+        subplan.root = Some(limit_node.clone());
         subplan.tail = Some(limit_node);
 
         Ok(subplan)

@@ -4,7 +4,7 @@
 use crate::core::Expression;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
@@ -127,9 +127,9 @@ impl IndexSeek {
         let root = if let Some(props) = &self.node_info.props {
             // 将 Expression 转换为 Expr
             let expr = self.convert_expression_to_expr(props.clone())?;
-            PlanNodeFactory::create_filter(index_scan_node.clone_plan_node(), expr)?
+            PlanNodeFactory::create_filter(index_scan_node.clone(), expr)?
         } else {
-            index_scan_node.clone_plan_node()
+            index_scan_node.clone()
         };
 
         // 处理额外的过滤条件

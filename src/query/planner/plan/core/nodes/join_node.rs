@@ -2,8 +2,8 @@
 //!
 //! 包含各种连接节点类型，如内连接、左连接等
 
-use super::super::plan_node_kind::PlanNodeKind;
-use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+
+
 use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
     PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
@@ -18,22 +18,22 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct InnerJoinNode {
     id: i64,
-    left: Arc<dyn PlanNode>,
-    right: Arc<dyn PlanNode>,
+    left: PlanNodeEnum,
+    right: PlanNodeEnum,
     hash_keys: Vec<Expression>,
     probe_keys: Vec<Expression>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
     // 内部存储的依赖向量，用于快速访问
-    inner_deps: Vec<Arc<dyn PlanNode>>,
+    inner_deps: Vec<PlanNodeEnum>,
 }
 
 impl InnerJoinNode {
     /// 创建新的内连接节点
     pub fn new(
-        left: Arc<dyn PlanNode>,
-        right: Arc<dyn PlanNode>,
+        left: PlanNodeEnum,
+        right: PlanNodeEnum,
         hash_keys: Vec<Expression>,
         probe_keys: Vec<Expression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -77,7 +77,7 @@ impl PlanNodeIdentifiable for InnerJoinNode {
 
 impl PlanNodeProperties for InnerJoinNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -88,11 +88,11 @@ impl PlanNodeProperties for InnerJoinNode {
 }
 
 impl PlanNodeDependencies for InnerJoinNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.inner_deps.clone()
     }
 
-    fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, _dep: PlanNodeEnum) {
         // 内连接节点不支持添加依赖，它需要恰好两个输入
         // 在实际使用中，内连接节点在创建时就确定了依赖
         panic!("内连接节点不支持添加依赖，它需要恰好两个输入")
@@ -125,7 +125,7 @@ impl PlanNodeDependencies for InnerJoinNode {
 impl PlanNodeDependenciesExt for InnerJoinNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.inner_deps)
     }
@@ -141,11 +141,11 @@ impl PlanNodeMutable for InnerJoinNode {
 }
 
 impl PlanNodeClonable for InnerJoinNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
-            left: self.left.clone_plan_node(),
-            right: self.right.clone_plan_node(),
+            left: self.left.clone(),
+            right: self.right.clone(),
             hash_keys: self.hash_keys.clone(),
             probe_keys: self.probe_keys.clone(),
             output_var: self.output_var.clone(),
@@ -155,11 +155,11 @@ impl PlanNodeClonable for InnerJoinNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         Arc::new(Self {
             id: new_id,
-            left: self.left.clone_plan_node(),
-            right: self.right.clone_plan_node(),
+            left: self.left.clone(),
+            right: self.right.clone(),
             hash_keys: self.hash_keys.clone(),
             probe_keys: self.probe_keys.clone(),
             output_var: self.output_var.clone(),
@@ -191,21 +191,21 @@ impl PlanNode for InnerJoinNode {
 #[derive(Debug, Clone)]
 pub struct LeftJoinNode {
     id: i64,
-    left: Arc<dyn PlanNode>,
-    right: Arc<dyn PlanNode>,
+    left: PlanNodeEnum,
+    right: PlanNodeEnum,
     hash_keys: Vec<Expression>,
     probe_keys: Vec<Expression>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    inner_deps: Vec<Arc<dyn PlanNode>>,
+    inner_deps: Vec<PlanNodeEnum>,
 }
 
 impl LeftJoinNode {
     /// 创建新的左连接节点
     pub fn new(
-        left: Arc<dyn PlanNode>,
-        right: Arc<dyn PlanNode>,
+        left: PlanNodeEnum,
+        right: PlanNodeEnum,
         hash_keys: Vec<Expression>,
         probe_keys: Vec<Expression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -249,7 +249,7 @@ impl PlanNodeIdentifiable for LeftJoinNode {
 
 impl PlanNodeProperties for LeftJoinNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -260,11 +260,11 @@ impl PlanNodeProperties for LeftJoinNode {
 }
 
 impl PlanNodeDependencies for LeftJoinNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.inner_deps.clone()
     }
 
-    fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, _dep: PlanNodeEnum) {
         panic!("左连接节点不支持添加依赖，它需要恰好两个输入")
     }
 
@@ -294,7 +294,7 @@ impl PlanNodeDependencies for LeftJoinNode {
 impl PlanNodeDependenciesExt for LeftJoinNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.inner_deps)
     }
@@ -310,11 +310,11 @@ impl PlanNodeMutable for LeftJoinNode {
 }
 
 impl PlanNodeClonable for LeftJoinNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
-            left: self.left.clone_plan_node(),
-            right: self.right.clone_plan_node(),
+            left: self.left.clone(),
+            right: self.right.clone(),
             hash_keys: self.hash_keys.clone(),
             probe_keys: self.probe_keys.clone(),
             output_var: self.output_var.clone(),
@@ -324,11 +324,11 @@ impl PlanNodeClonable for LeftJoinNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         Arc::new(Self {
             id: new_id,
-            left: self.left.clone_plan_node(),
-            right: self.right.clone_plan_node(),
+            left: self.left.clone(),
+            right: self.right.clone(),
             hash_keys: self.hash_keys.clone(),
             probe_keys: self.probe_keys.clone(),
             output_var: self.output_var.clone(),
@@ -360,19 +360,19 @@ impl PlanNode for LeftJoinNode {
 #[derive(Debug, Clone)]
 pub struct CrossJoinNode {
     id: i64,
-    left: Arc<dyn PlanNode>,
-    right: Arc<dyn PlanNode>,
+    left: PlanNodeEnum,
+    right: PlanNodeEnum,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    inner_deps: Vec<Arc<dyn PlanNode>>,
+    inner_deps: Vec<PlanNodeEnum>,
 }
 
 impl CrossJoinNode {
     /// 创建新的交叉连接节点
     pub fn new(
-        left: Arc<dyn PlanNode>,
-        right: Arc<dyn PlanNode>,
+        left: PlanNodeEnum,
+        right: PlanNodeEnum,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
@@ -402,7 +402,7 @@ impl PlanNodeIdentifiable for CrossJoinNode {
 
 impl PlanNodeProperties for CrossJoinNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -413,11 +413,11 @@ impl PlanNodeProperties for CrossJoinNode {
 }
 
 impl PlanNodeDependencies for CrossJoinNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.inner_deps.clone()
     }
 
-    fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, _dep: PlanNodeEnum) {
         panic!("交叉连接节点不支持添加依赖，它需要恰好两个输入")
     }
 
@@ -447,7 +447,7 @@ impl PlanNodeDependencies for CrossJoinNode {
 impl PlanNodeDependenciesExt for CrossJoinNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.inner_deps)
     }
@@ -463,11 +463,11 @@ impl PlanNodeMutable for CrossJoinNode {
 }
 
 impl PlanNodeClonable for CrossJoinNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
-            left: self.left.clone_plan_node(),
-            right: self.right.clone_plan_node(),
+            left: self.left.clone(),
+            right: self.right.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -475,11 +475,11 @@ impl PlanNodeClonable for CrossJoinNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         Arc::new(Self {
             id: new_id,
-            left: self.left.clone_plan_node(),
-            right: self.right.clone_plan_node(),
+            left: self.left.clone(),
+            right: self.right.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,

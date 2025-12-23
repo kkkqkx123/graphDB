@@ -381,7 +381,7 @@ impl KeywordCache {
     }
     
     pub fn get_stats(&self) -> Option<(u64, u64, f64)> {
-        self.stats.as_ref().map(|stats| {
+        self.stats.map(|stats| {
             (stats.hits(), stats.misses(), stats.hit_rate())
         })
     }
@@ -430,7 +430,7 @@ impl ExpressionCache {
     }
     
     pub fn get_stats(&self) -> Option<(u64, u64, f64)> {
-        self.stats.as_ref().map(|stats| {
+        self.stats.map(|stats| {
             (stats.hits(), stats.misses(), stats.hit_rate())
         })
     }
@@ -479,7 +479,7 @@ impl PatternCache {
     }
     
     pub fn get_stats(&self) -> Option<(u64, u64, f64)> {
-        self.stats.as_ref().map(|stats| {
+        self.stats.map(|stats| {
             (stats.hits(), stats.misses(), stats.hit_rate())
         })
     }

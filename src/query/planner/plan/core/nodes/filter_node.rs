@@ -2,8 +2,8 @@
 //!
 //! FilterNode 用于根据指定的条件过滤输入数据流
 
-use super::super::plan_node_kind::PlanNodeKind;
-use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+
+
 use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
     PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
@@ -18,8 +18,8 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct FilterNode {
     id: i64,
-    input: Arc<dyn PlanNode>,
-    deps: Vec<Arc<dyn PlanNode>>, // 添加这个字段以满足PlanNodeDependencies trait
+    input: PlanNodeEnum,
+    deps: Vec<PlanNodeEnum>, // 添加这个字段以满足PlanNodeDependencies trait
     condition: Expression,
     output_var: Option<Variable>,
     col_names: Vec<String>,
@@ -29,7 +29,7 @@ pub struct FilterNode {
 impl FilterNode {
     /// 创建新的过滤节点
     pub fn new(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         condition: Expression,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
@@ -64,7 +64,7 @@ impl PlanNodeIdentifiable for FilterNode {
 
 impl PlanNodeProperties for FilterNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -75,11 +75,11 @@ impl PlanNodeProperties for FilterNode {
 }
 
 impl PlanNodeDependencies for FilterNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         // 过滤节点只支持单个输入，替换现有输入
         self.input = dep.clone();
         self.deps.clear();
@@ -109,7 +109,7 @@ impl PlanNodeDependencies for FilterNode {
 impl PlanNodeDependenciesExt for FilterNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -125,10 +125,10 @@ impl PlanNodeMutable for FilterNode {
 }
 
 impl PlanNodeClonable for FilterNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             deps: self.deps.clone(),
             condition: self.condition.clone(),
             output_var: self.output_var.clone(),
@@ -137,10 +137,10 @@ impl PlanNodeClonable for FilterNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         Arc::new(Self {
             id: new_id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             deps: self.deps.clone(), // 包含deps字段
             condition: self.condition.clone(),
             output_var: self.output_var.clone(),

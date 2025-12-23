@@ -23,7 +23,7 @@ pub struct IndexLimit {
 pub struct IndexScan {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -99,7 +99,7 @@ impl PlanNodeIdentifiable for IndexScan {
 
 impl PlanNodeProperties for IndexScan {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[String] {
@@ -112,11 +112,11 @@ impl PlanNodeProperties for IndexScan {
 }
 
 impl PlanNodeDependencies for IndexScan {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
@@ -141,11 +141,11 @@ impl PlanNodeMutable for IndexScan {
 }
 
 impl PlanNodeClonable for IndexScan {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
@@ -172,7 +172,7 @@ impl PlanNode for IndexScan {
 pub struct FulltextIndexScan {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -228,7 +228,7 @@ impl PlanNodeIdentifiable for FulltextIndexScan {
 
 impl PlanNodeProperties for FulltextIndexScan {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[String] {
@@ -241,11 +241,11 @@ impl PlanNodeProperties for FulltextIndexScan {
 }
 
 impl PlanNodeDependencies for FulltextIndexScan {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
@@ -270,11 +270,11 @@ impl PlanNodeMutable for FulltextIndexScan {
 }
 
 impl PlanNodeClonable for FulltextIndexScan {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)

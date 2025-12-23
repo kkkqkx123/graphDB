@@ -17,7 +17,7 @@ use std::sync::Arc;
 pub struct CreateTag {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -70,7 +70,7 @@ impl PlanNodeIdentifiable for CreateTag {
 
 impl PlanNodeProperties for CreateTag {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[String] {
@@ -83,11 +83,11 @@ impl PlanNodeProperties for CreateTag {
 }
 
 impl PlanNodeDependencies for CreateTag {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
@@ -103,7 +103,7 @@ impl PlanNodeDependencies for CreateTag {
 impl PlanNodeDependenciesExt for CreateTag {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -120,11 +120,11 @@ impl PlanNodeMutable for CreateTag {
 }
 
 impl PlanNodeClonable for CreateTag {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
@@ -150,7 +150,7 @@ impl PlanNode for CreateTag {
 pub struct DescTag {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -203,7 +203,7 @@ impl PlanNodeIdentifiable for DescTag {
 
 impl PlanNodeProperties for DescTag {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[String] {
@@ -216,11 +216,11 @@ impl PlanNodeProperties for DescTag {
 }
 
 impl PlanNodeDependencies for DescTag {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
@@ -236,7 +236,7 @@ impl PlanNodeDependencies for DescTag {
 impl PlanNodeDependenciesExt for DescTag {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -253,11 +253,11 @@ impl PlanNodeMutable for DescTag {
 }
 
 impl PlanNodeClonable for DescTag {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
@@ -283,7 +283,7 @@ impl PlanNode for DescTag {
 pub struct DropTag {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -341,7 +341,7 @@ impl PlanNodeIdentifiable for DropTag {
 
 impl PlanNodeProperties for DropTag {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[String] {
@@ -354,11 +354,11 @@ impl PlanNodeProperties for DropTag {
 }
 
 impl PlanNodeDependencies for DropTag {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
@@ -374,7 +374,7 @@ impl PlanNodeDependencies for DropTag {
 impl PlanNodeDependenciesExt for DropTag {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -391,11 +391,11 @@ impl PlanNodeMutable for DropTag {
 }
 
 impl PlanNodeClonable for DropTag {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
@@ -421,7 +421,7 @@ impl PlanNode for DropTag {
 pub struct ShowTags {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -465,7 +465,7 @@ impl PlanNodeIdentifiable for ShowTags {
 
 impl PlanNodeProperties for ShowTags {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[String] {
@@ -478,11 +478,11 @@ impl PlanNodeProperties for ShowTags {
 }
 
 impl PlanNodeDependencies for ShowTags {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
@@ -498,7 +498,7 @@ impl PlanNodeDependencies for ShowTags {
 impl PlanNodeDependenciesExt for ShowTags {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -515,11 +515,11 @@ impl PlanNodeMutable for ShowTags {
 }
 
 impl PlanNodeClonable for ShowTags {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
@@ -545,7 +545,7 @@ impl PlanNode for ShowTags {
 pub struct ShowCreateTag {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -596,7 +596,7 @@ impl PlanNodeIdentifiable for ShowCreateTag {
 
 impl PlanNodeProperties for ShowCreateTag {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[String] {
@@ -609,11 +609,11 @@ impl PlanNodeProperties for ShowCreateTag {
 }
 
 impl PlanNodeDependencies for ShowCreateTag {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
@@ -629,7 +629,7 @@ impl PlanNodeDependencies for ShowCreateTag {
 impl PlanNodeDependenciesExt for ShowCreateTag {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -646,11 +646,11 @@ impl PlanNodeMutable for ShowCreateTag {
 }
 
 impl PlanNodeClonable for ShowCreateTag {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)

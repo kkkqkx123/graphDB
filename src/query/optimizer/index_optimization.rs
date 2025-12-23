@@ -6,9 +6,9 @@ use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{combine_conditions, BaseOptRule, FilterSplitResult};
 use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::algorithms::IndexScan as IndexScanPlanNode;
-use crate::query::planner::plan::core::nodes::FilterNode as FilterPlanNode;
-use crate::query::planner::plan::PlanNodeKind;
+
+
+
 use std::sync::Arc;
 
 /// 基于过滤条件优化边索引扫描的规则
@@ -1032,7 +1032,7 @@ mod tests {
     use crate::core::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
-    use crate::query::planner::plan::PlanNodeKind;
+    
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(

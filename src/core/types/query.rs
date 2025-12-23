@@ -237,7 +237,7 @@ impl QueryResult {
     /// 获取成功数据
     pub fn get_success_data(&self) -> Option<&QueryData> {
         match self {
-            QueryResult::Success { data, .. } => data.as_ref(),
+            QueryResult::Success { data, .. } => data,
             _ => None,
         }
     }

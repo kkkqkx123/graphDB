@@ -162,7 +162,7 @@ impl<T> Lazy<T> {
         let value = (self.init_fn)();
         *guard = Some(value);
         guard
-            .as_ref()
+            
             .expect("Value should have been initialized in the previous line")
             .clone()
     }

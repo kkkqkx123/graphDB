@@ -148,7 +148,7 @@ impl CypherExecutionContext {
 
     /// 获取变量的值
     pub fn get_variable_value(&self, name: &str) -> Option<&Value> {
-        self.variables.get(name).and_then(|v| v.value.as_ref())
+        self.variables.get(name).and_then(|v| v.value)
     }
 
     /// 设置变量值
@@ -252,7 +252,7 @@ impl CypherExecutionContext {
 
     /// 获取当前顶点
     pub fn current_vertex(&self) -> Option<&Vertex> {
-        self.current_vertex.as_ref()
+        self.current_vertex
     }
 
     /// 设置当前边
@@ -262,7 +262,7 @@ impl CypherExecutionContext {
 
     /// 获取当前边
     pub fn current_edge(&self) -> Option<&Edge> {
-        self.current_edge.as_ref()
+        self.current_edge
     }
 
     /// 添加路径
@@ -328,7 +328,7 @@ impl CypherVariable {
 
     /// 获取变量值
     pub fn value(&self) -> Option<&Value> {
-        self.value.as_ref()
+        self.value
     }
 
     /// 检查变量是否有值

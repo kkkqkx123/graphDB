@@ -1,8 +1,8 @@
 //! Optimizer implementation for optimizing execution plans
 use crate::core::context::QueryContext;
 use crate::query::context::validate;
-use crate::query::planner::plan::core::{PlanNodeVisitError, PlanNodeVisitor};
-use crate::query::planner::plan::{ExecutionPlan, PlanNode, PlanNodeKind};
+
+
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -71,7 +71,7 @@ impl OptContext {
     pub fn get_group_node_from_pool(
         &mut self,
         id: usize,
-        plan_node: std::sync::Arc<dyn PlanNode>,
+        plan_node: std::sync::PlanNodeEnum,
     ) -> OptGroupNode {
         let mut node = self.object_pool.acquire();
         node.id = id;
@@ -172,7 +172,7 @@ impl OptGroup {
 #[derive(Debug)]
 pub struct OptGroupNode {
     pub id: usize,
-    pub plan_node: std::sync::Arc<dyn PlanNode>,
+    pub plan_node: std::sync::PlanNodeEnum,
     pub dependencies: Vec<usize>, // IDs of dependency groups
     pub cost: f64,
     pub properties: PlanNodeProperties,
@@ -186,7 +186,7 @@ use crate::query::context::validate::types::Variable;
 #[derive(Debug, Default)]
 struct DummyPlanNode {
     id: i64,
-    dependencies: Vec<std::sync::Arc<dyn PlanNode>>,
+    dependencies: Vec<std::sync::PlanNodeEnum>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -204,7 +204,7 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeIdentifiable f
 
 impl crate::query::planner::plan::core::plan_node_traits::PlanNodeProperties for DummyPlanNode {
     fn output_var(&self) -> std::option::Option<&validate::types::Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[std::string::String] {
@@ -217,11 +217,11 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeProperties for
 }
 
 impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies for DummyPlanNode {
-    fn dependencies(&self) -> Vec<std::sync::Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<std::sync::PlanNodeEnum> {
         self.dependencies.clone()
     }
 
-    fn add_dependency(&mut self, dep: std::sync::Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: std::sync::PlanNodeEnum) {
         self.dependencies.push(dep);
     }
 
@@ -237,7 +237,7 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependenciesEx
 {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[std::sync::Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[std::sync::PlanNodeEnum]) -> R,
     {
         f(&self.dependencies)
     }
@@ -254,7 +254,7 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable for Du
 }
 
 impl crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable for DummyPlanNode {
-    fn clone_plan_node(&self) -> std::sync::Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> std::sync::PlanNodeEnum {
         std::sync::Arc::new(DummyPlanNode {
             id: self.id,
             dependencies: Vec::new(), // Don't clone dependencies to avoid infinite recursion
@@ -264,7 +264,7 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable for D
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> std::sync::Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> std::sync::PlanNodeEnum {
         std::sync::Arc::new(DummyPlanNode {
             id: new_id,
             dependencies: Vec::new(), // Don't clone dependencies to avoid infinite recursion
@@ -303,7 +303,7 @@ impl Default for OptGroupNode {
 }
 
 impl OptGroupNode {
-    pub fn new(id: usize, plan_node: std::sync::Arc<dyn PlanNode>) -> Self {
+    pub fn new(id: usize, plan_node: std::sync::PlanNodeEnum) -> Self {
         Self {
             id,
             plan_node,
@@ -335,7 +335,7 @@ impl Clone for OptGroupNode {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
-            plan_node: self.plan_node.clone_plan_node(),
+            plan_node: self.plan_node.clone(),
             dependencies: self.dependencies.clone(),
             cost: self.cost,
             properties: self.properties.clone(),
@@ -363,7 +363,7 @@ pub struct MatchedResult {
 
 impl MatchedResult {
     pub fn plan_node(&self) -> &dyn PlanNode {
-        self.node.plan_node.as_ref()
+        self.node.plan_node
     }
 
     pub fn result(&self, pos: &[usize]) -> &MatchedResult {
@@ -426,7 +426,7 @@ impl Pattern {
     }
 
     pub fn matches(&self, node: &OptGroupNode) -> bool {
-        if !self.node.matches(node.plan_node.as_ref()) {
+        if !self.node.matches(node.plan_node) {
             return false;
         }
 
@@ -507,7 +507,7 @@ pub trait OptRule: std::fmt::Debug {
             // For now, this is a simplified version that doesn't implement full dependency matching
             // This would need a more complex structure to properly match dependencies
             dependencies.push(MatchedResult {
-                node: OptGroupNode::new(0, group_node.plan_node.clone_plan_node()), // Placeholder
+                node: OptGroupNode::new(0, group_node.plan_node.clone()), // Placeholder
                 dependencies: Vec::new(),
             });
         }
@@ -644,7 +644,7 @@ impl Optimizer {
             for rule_set in &self.rule_sets {
                 for rule in &rule_set.rules {
                     // Apply the rule to the group
-                    self.apply_rule(&mut opt_ctx, &mut root_group, rule.as_ref())?;
+                    self.apply_rule(&mut opt_ctx, &mut root_group, rule)?;
                 }
             }
 
@@ -697,7 +697,7 @@ impl Optimizer {
         // Convert an execution plan to an optimization group structure
         if let Some(root_node) = &plan.root {
             let mut group = OptGroup::new(0, false); // Physical group for execution plan
-            self.convert_node_to_group(root_node.as_ref(), &mut group, 0)?;
+            self.convert_node_to_group(root_node, &mut group, 0)?;
             Ok(group)
         } else {
             Err(OptimizerError::PlanConversionError(
@@ -713,14 +713,14 @@ impl Optimizer {
         node_id: usize,
     ) -> Result<(), OptimizerError> {
         // Create an OptGroupNode from the PlanNode
-        let opt_node = OptGroupNode::new(node_id, node.clone_plan_node());
+        let opt_node = OptGroupNode::new(node_id, node.clone());
         group.nodes.push(opt_node);
 
         // Process dependencies
         for (i, dep) in node.dependencies().iter().enumerate() {
             // In a complete implementation, we would recursively process the dependencies
             // For now, we just call this function recursively
-            self.convert_node_to_group(dep.as_ref(), group, node_id + i + 1)?;
+            self.convert_node_to_group(dep, group, node_id + i + 1)?;
         }
 
         Ok(())
@@ -729,7 +729,7 @@ impl Optimizer {
     fn group_to_plan(&self, group: &OptGroup) -> Result<ExecutionPlan, OptimizerError> {
         // Convert an optimization group back to an execution plan
         if let Some(opt_node) = group.nodes.first() {
-            let root = Some(opt_node.plan_node.clone_plan_node());
+            let root = Some(opt_node.plan_node.clone());
             Ok(ExecutionPlan::new(root))
         } else {
             Err(OptimizerError::PlanConversionError(

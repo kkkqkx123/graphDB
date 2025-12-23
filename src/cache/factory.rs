@@ -232,23 +232,23 @@ where
 
     fn clear(&self) {
         match self {
-            CacheType::Lru(cache) => Cache::clear(cache.as_ref()),
-            CacheType::Lfu(cache) => Cache::clear(cache.as_ref()),
-            CacheType::Ttl(cache) => Cache::clear(cache.as_ref()),
-            CacheType::Fifo(cache) => Cache::clear(cache.as_ref()),
-            CacheType::Adaptive(cache) => Cache::clear(cache.as_ref()),
-            CacheType::Unbounded(cache) => Cache::clear(cache.as_ref()),
+            CacheType::Lru(cache) => Cache::clear(cache),
+            CacheType::Lfu(cache) => Cache::clear(cache),
+            CacheType::Ttl(cache) => Cache::clear(cache),
+            CacheType::Fifo(cache) => Cache::clear(cache),
+            CacheType::Adaptive(cache) => Cache::clear(cache),
+            CacheType::Unbounded(cache) => Cache::clear(cache),
         }
     }
 
     fn len(&self) -> usize {
         match self {
-            CacheType::Lru(cache) => Cache::len(cache.as_ref()),
-            CacheType::Lfu(cache) => Cache::len(cache.as_ref()),
-            CacheType::Ttl(cache) => Cache::len(cache.as_ref()),
-            CacheType::Fifo(cache) => Cache::len(cache.as_ref()),
-            CacheType::Adaptive(cache) => Cache::len(cache.as_ref()),
-            CacheType::Unbounded(cache) => Cache::len(cache.as_ref()),
+            CacheType::Lru(cache) => Cache::len(cache),
+            CacheType::Lfu(cache) => Cache::len(cache),
+            CacheType::Ttl(cache) => Cache::len(cache),
+            CacheType::Fifo(cache) => Cache::len(cache),
+            CacheType::Adaptive(cache) => Cache::len(cache),
+            CacheType::Unbounded(cache) => Cache::len(cache),
         }
     }
 

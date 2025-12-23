@@ -1,15 +1,14 @@
 //! 执行计划结构定义
 //! 包含ExecutionPlan和SubPlan结构
 
-use crate::query::planner::plan::core::PlanNode;
-use std::sync::Arc;
+
 
 /// 执行计划结构
 /// 表示完整的可执行计划，包含根节点和计划ID
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExecutionPlan {
     /// 计划树的根节点
-    pub root: Option<Arc<dyn PlanNode>>,
+    pub root: Option<PlanNodeEnum>,
 
     /// 计划的唯一ID
     pub id: i64,
@@ -23,7 +22,7 @@ pub struct ExecutionPlan {
 
 impl ExecutionPlan {
     /// 创建新的执行计划
-    pub fn new(root: Option<Arc<dyn PlanNode>>) -> Self {
+    pub fn new(root: Option<PlanNodeEnum>) -> Self {
         Self {
             root,
             id: -1, // 将在后续分配
@@ -33,17 +32,17 @@ impl ExecutionPlan {
     }
 
     /// 设置计划的根节点
-    pub fn set_root(&mut self, root: Arc<dyn PlanNode>) {
+    pub fn set_root(&mut self, root: PlanNodeEnum) {
         self.root = Some(root);
     }
 
     /// 获取计划的根节点引用
-    pub fn root(&self) -> &Option<Arc<dyn PlanNode>> {
+    pub fn root(&self) -> &Option<PlanNodeEnum> {
         &self.root
     }
 
     /// 获取可变的根节点引用
-    pub fn root_mut(&mut self) -> &mut Option<Arc<dyn PlanNode>> {
+    pub fn root_mut(&mut self) -> &mut Option<PlanNodeEnum> {
         &mut self.root
     }
 
@@ -66,65 +65,55 @@ impl ExecutionPlan {
 /// SubPlan结构
 /// 表示执行计划的一个子部分，包含根节点和尾节点
 /// 用于复杂查询的分段规划
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubPlan {
     /// 子计划的根节点
-    pub root: Option<Arc<dyn PlanNode>>,
+    pub root: Option<PlanNodeEnum>,
 
     /// 子计划的尾节点
     /// 用于连接多个子计划
-    pub tail: Option<Arc<dyn PlanNode>>,
-}
-
-impl Clone for SubPlan {
-    fn clone(&self) -> Self {
-        // 正确克隆SubPlan，保留节点引用
-        Self {
-            root: self.root.as_ref().map(|node| node.clone_plan_node()),
-            tail: self.tail.as_ref().map(|node| node.clone_plan_node()),
-        }
-    }
+    pub tail: Option<PlanNodeEnum>,
 }
 
 impl SubPlan {
     /// 创建新的SubPlan
-    pub fn new(root: Option<Arc<dyn PlanNode>>, tail: Option<Arc<dyn PlanNode>>) -> Self {
+    pub fn new(root: Option<PlanNodeEnum>, tail: Option<PlanNodeEnum>) -> Self {
         Self { root, tail }
     }
 
     /// 创建仅包含根节点的SubPlan
-    pub fn from_root(root: Arc<dyn PlanNode>) -> Self {
+    pub fn from_root(root: PlanNodeEnum) -> Self {
         Self {
-            root: Some(root.clone_plan_node()),
+            root: Some(root.clone()),
             tail: Some(root),
         }
     }
 
     /// 创建仅包含单个节点的SubPlan
-    pub fn from_single_node(node: Arc<dyn PlanNode>) -> Self {
+    pub fn from_single_node(node: PlanNodeEnum) -> Self {
         Self {
-            root: Some(node.clone_plan_node()),
+            root: Some(node.clone()),
             tail: Some(node),
         }
     }
 
     /// 获取根节点引用
-    pub fn root(&self) -> &Option<Arc<dyn PlanNode>> {
+    pub fn root(&self) -> &Option<PlanNodeEnum> {
         &self.root
     }
 
     /// 获取尾节点引用
-    pub fn tail(&self) -> &Option<Arc<dyn PlanNode>> {
+    pub fn tail(&self) -> &Option<PlanNodeEnum> {
         &self.tail
     }
 
     /// 设置根节点
-    pub fn set_root(&mut self, root: Arc<dyn PlanNode>) {
+    pub fn set_root(&mut self, root: PlanNodeEnum) {
         self.root = Some(root);
     }
 
     /// 设置尾节点
-    pub fn set_tail(&mut self, tail: Arc<dyn PlanNode>) {
+    pub fn set_tail(&mut self, tail: PlanNodeEnum) {
         self.tail = Some(tail);
     }
 
@@ -134,15 +123,15 @@ impl SubPlan {
     }
 
     /// 获取SubPlan中的所有节点
-    pub fn collect_nodes(&self) -> Vec<Arc<dyn PlanNode>> {
+    pub fn collect_nodes(&self) -> Vec<PlanNodeEnum> {
         let mut nodes = Vec::new();
 
         if let Some(root) = &self.root {
-            nodes.push(root.clone_plan_node());
+            nodes.push(root.clone());
         }
 
         if let Some(tail) = &self.tail {
-            nodes.push(tail.clone_plan_node());
+            nodes.push(tail.clone());
         }
 
         nodes

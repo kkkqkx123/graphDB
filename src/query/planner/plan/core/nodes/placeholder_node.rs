@@ -2,8 +2,8 @@
 //!
 //! PlaceholderNode 用于表示计划中的占位符，通常用于参数化查询
 
-use super::super::plan_node_kind::PlanNodeKind;
-use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+
+
 use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
     PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
@@ -20,7 +20,7 @@ pub struct PlaceholderNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies_vec: Vec<Arc<dyn PlanNode>>, // 添加依赖向量
+    dependencies_vec: Vec<PlanNodeEnum>, // 添加依赖向量
 }
 
 impl PlaceholderNode {
@@ -47,7 +47,7 @@ impl PlanNodeIdentifiable for PlaceholderNode {
 
 impl PlanNodeProperties for PlaceholderNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -58,11 +58,11 @@ impl PlanNodeProperties for PlaceholderNode {
 }
 
 impl PlanNodeDependencies for PlaceholderNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.dependencies_vec.clone()
     }
 
-    fn add_dependency(&mut self, _dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, _dep: PlanNodeEnum) {
         // 占位符节点不支持依赖
         panic!("占位符节点不支持依赖")
     }
@@ -76,7 +76,7 @@ impl PlanNodeDependencies for PlaceholderNode {
 impl PlanNodeDependenciesExt for PlaceholderNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.dependencies_vec)
     }
@@ -92,7 +92,7 @@ impl PlanNodeMutable for PlaceholderNode {
 }
 
 impl PlanNodeClonable for PlaceholderNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
             output_var: self.output_var.clone(),
@@ -102,7 +102,7 @@ impl PlanNodeClonable for PlaceholderNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         Arc::new(Self {
             id: new_id,
             output_var: self.output_var.clone(),

@@ -8,7 +8,7 @@ use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{create_basic_pattern, is_tautology, BaseOptRule, EliminationRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::core::nodes::{FilterNode, ProjectNode};
-use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -68,7 +68,7 @@ impl EliminationRule for EliminateFilterRule {
 
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 创建一个全新的节点，而不是修改现有的节点
-                let new_plan_node = child_node.plan_node.clone_plan_node();
+                let new_plan_node = child_node.plan_node.clone();
 
                 // 创建新的OptGroupNode
                 let mut new_node = OptGroupNode {
@@ -84,7 +84,7 @@ impl EliminationRule for EliminateFilterRule {
                 // 尝试设置输出变量
                 if let Some(output_var) = node.plan_node.output_var() {
                     // 创建一个新的计划节点并设置输出变量
-                    // 由于Arc<dyn PlanNode>是不可变的，我们需要基于原节点创建一个新节点
+                    // 由于PlanNodeEnum是不可变的，我们需要基于原节点创建一个新节点
                     // 这需要PlanNode有具体类型才能设置输出变量
                     let new_plan_node_with_output =
                         create_plan_node_with_output_var(&child_node.plan_node, output_var.clone());
@@ -172,7 +172,7 @@ impl EliminationRule for DedupEliminationRule {
                     | PlanNodeKind::GetVertices
                     | PlanNodeKind::GetEdges => {
                         // 这些操作已经产生唯一结果，可以移除去重
-                        let new_plan_node = child_node.plan_node.clone_plan_node();
+                        let new_plan_node = child_node.plan_node.clone();
 
                         // 创建新的OptGroupNode
                         let mut new_node = OptGroupNode {
@@ -355,7 +355,7 @@ impl EliminationRule for RemoveNoopProjectRule {
                     node.plan_node.as_any().downcast_ref::<ProjectNode>()
                 {
                     if self.is_noop_projection(project_plan_node, child_node)? {
-                        let new_plan_node = child_node.plan_node.clone_plan_node();
+                        let new_plan_node = child_node.plan_node.clone();
 
                         // 创建新的OptGroupNode
                         let mut new_node = OptGroupNode {
@@ -437,7 +437,7 @@ impl EliminationRule for EliminateAppendVerticesRule {
         if node.dependencies.len() == 1 {
             let child_dep_id = node.dependencies[0];
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                let new_plan_node = child_node.plan_node.clone_plan_node();
+                let new_plan_node = child_node.plan_node.clone();
 
                 // 创建新的OptGroupNode
                 let mut new_node = OptGroupNode {
@@ -529,7 +529,7 @@ impl EliminationRule for RemoveAppendVerticesBelowJoinRule {
             if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
                 // 在实际实现中，我们可能需要根据具体情况决定如何替换
                 // 目前简单地返回子节点
-                let new_plan_node = child_node.plan_node.clone_plan_node();
+                let new_plan_node = child_node.plan_node.clone();
 
                 // 创建新的OptGroupNode
                 let mut new_node = OptGroupNode {
@@ -564,7 +564,7 @@ mod tests {
     use crate::query::planner::plan::core::nodes::{
         AppendVerticesNode, DedupNode, FilterNode, ProjectNode, SortNode,
     };
-    use crate::query::planner::plan::{PlanNode, PlanNodeKind, PlanNodeMutable};
+    
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
@@ -855,9 +855,9 @@ mod tests {
 
 /// 创建具有指定输出变量的PlanNode副本
 fn create_plan_node_with_output_var(
-    plan_node: &Arc<dyn PlanNode>,
+    plan_node: &PlanNodeEnum,
     output_var: crate::query::context::validate::types::Variable,
-) -> Arc<dyn PlanNode> {
+) -> PlanNodeEnum {
     use crate::query::planner::plan::core::nodes::*;
     use crate::query::planner::plan::*;
 
@@ -984,7 +984,7 @@ fn create_plan_node_with_output_var(
             new_node.set_output_var(output_var);
             Arc::new(new_node)
         } else {
-            plan_node.clone_plan_node()
+            plan_node.clone()
         }
     } else if let Some(hash_left_join_node) = plan_node
         .as_any()
@@ -1003,10 +1003,10 @@ fn create_plan_node_with_output_var(
             new_node.set_output_var(output_var);
             Arc::new(new_node)
         } else {
-            plan_node.clone_plan_node()
+            plan_node.clone()
         }
     } else {
         // 如果无法识别具体类型，则返回原节点的克隆（不改变输出变量）
-        plan_node.clone_plan_node()
+        plan_node.clone()
     }
 }

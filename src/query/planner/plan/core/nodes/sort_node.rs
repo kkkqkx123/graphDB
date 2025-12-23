@@ -2,8 +2,8 @@
 //!
 //! SortNode 用于对输入数据进行排序操作
 
-use super::super::plan_node_kind::PlanNodeKind;
-use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+
+
 use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
     PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
@@ -17,8 +17,8 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct SortNode {
     id: i64,
-    input: Arc<dyn PlanNode>,
-    deps: Vec<Arc<dyn PlanNode>>,
+    input: PlanNodeEnum,
+    deps: Vec<PlanNodeEnum>,
     sort_items: Vec<String>,
     limit: Option<i64>,
     output_var: Option<Variable>,
@@ -29,7 +29,7 @@ pub struct SortNode {
 impl SortNode {
     /// 创建新的排序节点
     pub fn new(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         sort_items: Vec<String>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
@@ -75,7 +75,7 @@ impl PlanNodeIdentifiable for SortNode {
 
 impl PlanNodeProperties for SortNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -86,11 +86,11 @@ impl PlanNodeProperties for SortNode {
 }
 
 impl PlanNodeDependencies for SortNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.input = dep.clone();
         self.deps.clear();
         self.deps.push(dep);
@@ -104,7 +104,7 @@ impl PlanNodeDependencies for SortNode {
 impl PlanNodeDependenciesExt for SortNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -120,10 +120,10 @@ impl PlanNodeMutable for SortNode {
 }
 
 impl PlanNodeClonable for SortNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             deps: self.deps.clone(),
             sort_items: self.sort_items.clone(),
             limit: self.limit,
@@ -133,10 +133,10 @@ impl PlanNodeClonable for SortNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         Arc::new(Self {
             id: new_id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             deps: self.deps.clone(),
             sort_items: self.sort_items.clone(),
             limit: self.limit,
@@ -168,8 +168,8 @@ impl PlanNode for SortNode {
 #[derive(Debug, Clone)]
 pub struct LimitNode {
     id: i64,
-    input: Arc<dyn PlanNode>,
-    deps: Vec<Arc<dyn PlanNode>>,
+    input: PlanNodeEnum,
+    deps: Vec<PlanNodeEnum>,
     offset: i64,
     count: i64,
     output_var: Option<Variable>,
@@ -180,7 +180,7 @@ pub struct LimitNode {
 impl LimitNode {
     /// 创建新的限制节点
     pub fn new(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         offset: i64,
         count: i64,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -222,7 +222,7 @@ impl PlanNodeIdentifiable for LimitNode {
 
 impl PlanNodeProperties for LimitNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -233,11 +233,11 @@ impl PlanNodeProperties for LimitNode {
 }
 
 impl PlanNodeDependencies for LimitNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.input = dep.clone();
         self.deps.clear();
         self.deps.push(dep);
@@ -251,7 +251,7 @@ impl PlanNodeDependencies for LimitNode {
 impl PlanNodeDependenciesExt for LimitNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -267,10 +267,10 @@ impl PlanNodeMutable for LimitNode {
 }
 
 impl PlanNodeClonable for LimitNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             deps: self.deps.clone(),
             offset: self.offset,
             count: self.count,
@@ -280,10 +280,10 @@ impl PlanNodeClonable for LimitNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         Arc::new(Self {
             id: new_id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             deps: self.deps.clone(),
             offset: self.offset,
             count: self.count,
@@ -315,8 +315,8 @@ impl PlanNode for LimitNode {
 #[derive(Debug, Clone)]
 pub struct TopNNode {
     id: i64,
-    input: Arc<dyn PlanNode>,
-    deps: Vec<Arc<dyn PlanNode>>,
+    input: PlanNodeEnum,
+    deps: Vec<PlanNodeEnum>,
     sort_items: Vec<String>,
     limit: i64,
     output_var: Option<Variable>,
@@ -327,7 +327,7 @@ pub struct TopNNode {
 impl TopNNode {
     /// 创建新的TopN节点
     pub fn new(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         sort_items: Vec<String>,
         limit: i64,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -369,7 +369,7 @@ impl PlanNodeIdentifiable for TopNNode {
 
 impl PlanNodeProperties for TopNNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -380,11 +380,11 @@ impl PlanNodeProperties for TopNNode {
 }
 
 impl PlanNodeDependencies for TopNNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.input = dep.clone();
         self.deps.clear();
         self.deps.push(dep);
@@ -398,7 +398,7 @@ impl PlanNodeDependencies for TopNNode {
 impl PlanNodeDependenciesExt for TopNNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -414,10 +414,10 @@ impl PlanNodeMutable for TopNNode {
 }
 
 impl PlanNodeClonable for TopNNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             deps: self.deps.clone(),
             sort_items: self.sort_items.clone(),
             limit: self.limit,
@@ -427,10 +427,10 @@ impl PlanNodeClonable for TopNNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         Arc::new(Self {
             id: new_id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             deps: self.deps.clone(),
             sort_items: self.sort_items.clone(),
             limit: self.limit,

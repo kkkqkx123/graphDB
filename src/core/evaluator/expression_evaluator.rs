@@ -117,14 +117,14 @@ impl ExpressionEvaluator {
             } => {
                 let collection_value = self.evaluate(collection, context)?;
                 let start_value = start
-                    .as_ref()
+                    
                     .map(|e| self.evaluate(e, context))
                     .transpose()?;
                 let end_value = end
-                    .as_ref()
+                    
                     .map(|e| self.evaluate(e, context))
                     .transpose()?;
-                self.eval_range_access(&collection_value, start_value.as_ref(), end_value.as_ref())
+                self.eval_range_access(&collection_value, start_value, end_value)
             }
             Expression::Path(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements
@@ -273,14 +273,14 @@ impl ExpressionEvaluator {
             } => {
                 let collection_value = self.evaluate(collection, context)?;
                 let start_value = start
-                    .as_ref()
+                    
                     .map(|e| self.evaluate(e, context))
                     .transpose()?;
                 let end_value = end
-                    .as_ref()
+                    
                     .map(|e| self.evaluate(e, context))
                     .transpose()?;
-                self.eval_range_access(&collection_value, start_value.as_ref(), end_value.as_ref())
+                self.eval_range_access(&collection_value, start_value, end_value)
             }
             // 匹配路径模式表达式
             Expression::MatchPathPattern {
@@ -411,14 +411,14 @@ impl ExpressionEvaluator {
             } => {
                 let collection_value = self.eval_expression_generic(collection, context)?;
                 let start_value = start
-                    .as_ref()
+                    
                     .map(|e| self.eval_expression_generic(e, context))
                     .transpose()?;
                 let end_value = end
-                    .as_ref()
+                    
                     .map(|e| self.eval_expression_generic(e, context))
                     .transpose()?;
-                self.eval_range_access(&collection_value, start_value.as_ref(), end_value.as_ref())
+                self.eval_range_access(&collection_value, start_value, end_value)
             }
             Expression::Path(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements

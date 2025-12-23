@@ -69,7 +69,7 @@ impl ExpressionContextCoreExtended for BasicExpressionContext {
 
         // 如果在当前上下文中找不到，则在父上下文中查找
         if let Some(parent) = &self.parent {
-            ExpressionContextCoreExtended::get_variable(parent.as_ref(), name)
+            ExpressionContextCoreExtended::get_variable(parent, name)
         } else {
             None
         }
@@ -277,7 +277,7 @@ impl BasicExpressionContext {
 
     /// 获取缓存统计信息
     pub fn get_cache_stats(&self) -> Option<super::cache::ExpressionCacheStats> {
-        self.cache_manager.as_ref().map(|cm| cm.get_cache_stats())
+        self.cache_manager.map(|cm| cm.get_cache_stats())
     }
 
     /// 清空所有缓存
@@ -333,7 +333,7 @@ impl Clone for BasicExpressionContext {
             variables: self.variables.clone(),
             functions: self.functions.clone(),
             custom_functions: self.custom_functions.clone(),
-            parent: self.parent.as_ref().map(|p| Box::new(p.as_ref().clone())),
+            parent: self.parent.map(|p| Box::new(p.clone())),
             depth: self.get_depth(),
             cache_manager: self.cache_manager.clone(),
         }
@@ -380,7 +380,7 @@ impl MutableContext for BasicExpressionContext {
 
 impl HierarchicalContext for BasicExpressionContext {
     fn parent_id(&self) -> Option<&str> {
-        self.parent.as_ref().map(|_| "parent_expression")
+        self.parent.map(|_| "parent_expression")
     }
 
     fn depth(&self) -> usize {

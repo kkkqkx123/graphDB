@@ -188,14 +188,14 @@ impl VisitorCore<Expression> for ExtractFilterExprVisitor {
             Expression::List(items) => self.visit_list(items),
             Expression::Map(pairs) => self.visit_map(pairs),
             Expression::Case { conditions, default } => {
-                let default_cloned = default.as_ref().map(|b| (**b).clone());
+                let default_cloned = default.map(|b| (**b).clone());
                 self.visit_case(conditions, &default_cloned)
             }
             Expression::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
             Expression::Subscript { collection, index } => self.visit_subscript(collection, index),
             Expression::Range { collection, start, end } => {
-                let start_cloned = start.as_ref().map(|b| (**b).clone());
-                let end_cloned = end.as_ref().map(|b| (**b).clone());
+                let start_cloned = start.map(|b| (**b).clone());
+                let end_cloned = end.map(|b| (**b).clone());
                 self.visit_range(collection, &start_cloned, &end_cloned)
             }
             Expression::Path(items) => self.visit_path(items),
@@ -222,7 +222,7 @@ impl VisitorCore<Expression> for ExtractFilterExprVisitor {
             Expression::ListComprehension { generator, condition } => {
                 // 简化为函数调用
                 let cond_expr = condition
-                    .as_ref()
+                    
                     .map(|c| (**c).clone())
                     .unwrap_or(Expression::bool(true));
                 self.visit_function(
@@ -240,8 +240,8 @@ impl VisitorCore<Expression> for ExtractFilterExprVisitor {
             Expression::ESQuery(query) => self.visit_function("es_query", &[Expression::string(query)]),
             Expression::UUID => self.visit_function("uuid", &[]),
             Expression::SubscriptRange { collection, start, end } => {
-                let start_cloned = start.as_ref().map(|b| (**b).clone());
-                let end_cloned = end.as_ref().map(|b| (**b).clone());
+                let start_cloned = start.map(|b| (**b).clone());
+                let end_cloned = end.map(|b| (**b).clone());
                 self.visit_range(collection, &start_cloned, &end_cloned)
             }
             Expression::MatchPathPattern { patterns, .. } => self.visit_list(patterns),
@@ -376,7 +376,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         if self.is_top_level || !self.top_level_only {
             self.filter_exprs.push(Expression::Case {
                 conditions: conditions.to_vec(),
-                default: default.as_ref().map(|e| Box::new(e.clone())),
+                default: default.map(|e| Box::new(e.clone())),
             });
         }
         
@@ -431,8 +431,8 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         if self.is_top_level || !self.top_level_only {
             self.filter_exprs.push(Expression::Range {
                 collection: Box::new(collection.clone()),
-                start: start.as_ref().map(|e| Box::new(e.clone())),
-                end: end.as_ref().map(|e| Box::new(e.clone())),
+                start: start.map(|e| Box::new(e.clone())),
+                end: end.map(|e| Box::new(e.clone())),
             });
         }
         

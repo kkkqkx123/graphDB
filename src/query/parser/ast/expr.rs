@@ -50,13 +50,13 @@ impl Expr {
             Expr::Case(e) => {
                 let match_constant = e
                     .match_expr
-                    .as_ref()
+                    
                     .map_or(true, |expr| expr.is_constant());
                 let when_constant = e
                     .when_then_pairs
                     .iter()
                     .all(|(when, then)| when.is_constant() && then.is_constant());
-                let default_constant = e.default.as_ref().map_or(true, |expr| expr.is_constant());
+                let default_constant = e.default.map_or(true, |expr| expr.is_constant());
                 match_constant && when_constant && default_constant
             }
             Expr::Subscript(e) => e.collection.is_constant() && e.index.is_constant(),
@@ -485,7 +485,7 @@ impl ExprUtils {
             Expr::Case(e) => {
                 let match_contains = e
                     .match_expr
-                    .as_ref()
+                    
                     .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
                 let when_contains = e.when_then_pairs.iter().any(|(when, then)| {
                     Self::contains_aggregate_recursive(when)
@@ -493,7 +493,7 @@ impl ExprUtils {
                 });
                 let default_contains = e
                     .default
-                    .as_ref()
+                    
                     .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
                 match_contains || when_contains || default_contains
             }

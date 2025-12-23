@@ -107,7 +107,7 @@ impl CypherExpressionOptimizer {
             CypherExpression::Case(case_expr) => {
                 let optimized_expression = case_expr
                     .expression
-                    .as_ref()
+                    
                     .map(|expr| Box::new(Self::optimize_cypher_expression(expr)));
 
                 let optimized_alternatives: Vec<CaseAlternative> = case_expr
@@ -121,7 +121,7 @@ impl CypherExpressionOptimizer {
 
                 let optimized_default = case_expr
                     .default_alternative
-                    .as_ref()
+                    
                     .map(|expr| Box::new(Self::optimize_cypher_expression(expr)));
 
                 // 尝试简化CASE表达式
@@ -308,7 +308,7 @@ impl CypherExpressionOptimizer {
             CypherExpression::Case(case_expr) => {
                 case_expr
                     .expression
-                    .as_ref()
+                    
                     .map_or(false, |e| Self::can_optimize(e))
                     || case_expr.alternatives.iter().any(|alt| {
                         Self::can_optimize(&alt.when_expression)
@@ -316,7 +316,7 @@ impl CypherExpressionOptimizer {
                     })
                     || case_expr
                         .default_alternative
-                        .as_ref()
+                        
                         .map_or(false, |e| Self::can_optimize(e))
             }
             _ => false,

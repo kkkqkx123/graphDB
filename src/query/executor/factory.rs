@@ -5,7 +5,7 @@
 
 use crate::core::error::QueryError;
 use crate::query::executor::traits::Executor;
-use crate::query::planner::plan::core::{PlanNode, PlanNodeKind};
+
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
 

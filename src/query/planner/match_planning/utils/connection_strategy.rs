@@ -2,7 +2,7 @@
 //! 提供统一的连接机制，支持不同类型的连接策略
 
 use crate::query::context::ast::base::AstContext;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::utils::join_params::JoinParams;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
@@ -70,10 +70,10 @@ impl ConnectionStrategy for InnerJoinStrategy {
             });
         }
 
-        let left_root = left.root.as_ref().ok_or_else(|| {
+        let left_root = left.root.ok_or_else(|| {
             PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
         })?;
-        let right_root = right.root.as_ref().ok_or_else(|| {
+        let right_root = right.root.ok_or_else(|| {
             PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
         })?;
 
@@ -115,10 +115,10 @@ impl ConnectionStrategy for LeftJoinStrategy {
             return Ok(left.clone());
         }
 
-        let left_root = left.root.as_ref().ok_or_else(|| {
+        let left_root = left.root.ok_or_else(|| {
             PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
         })?;
-        let right_root = right.root.as_ref().ok_or_else(|| {
+        let right_root = right.root.ok_or_else(|| {
             PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
         })?;
 
@@ -163,10 +163,10 @@ impl ConnectionStrategy for CartesianStrategy {
             });
         }
 
-        let left_root = left.root.as_ref().ok_or_else(|| {
+        let left_root = left.root.ok_or_else(|| {
             PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
         })?;
-        let right_root = right.root.as_ref().ok_or_else(|| {
+        let right_root = right.root.ok_or_else(|| {
             PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
         })?;
 
@@ -217,14 +217,14 @@ impl ConnectionStrategy for SequentialStrategy {
                 let mut col_names = if copy_col_names {
                     // 复制左侧计划的列名
                     left.root
-                        .as_ref()
+                        
                         .map(|node| node.col_names().to_vec())
                         .unwrap_or_default()
                 } else {
                     // 使用右侧计划的列名
                     right
                         .tail
-                        .as_ref()
+                        
                         .and_then(|node| Some(node.col_names().to_vec()))
                         .unwrap_or_default()
                 };
@@ -262,10 +262,10 @@ impl ConnectionStrategy for PatternApplyStrategy {
             });
         }
 
-        let left_root = left.root.as_ref().ok_or_else(|| {
+        let left_root = left.root.ok_or_else(|| {
             PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
         })?;
-        let right_root = right.root.as_ref().ok_or_else(|| {
+        let right_root = right.root.ok_or_else(|| {
             PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
         })?;
 
@@ -307,10 +307,10 @@ impl ConnectionStrategy for RollUpApplyStrategy {
             });
         }
 
-        let left_root = left.root.as_ref().ok_or_else(|| {
+        let left_root = left.root.ok_or_else(|| {
             PlannerError::InvalidAstContext("Left plan should have a root node".to_string())
         })?;
-        let right_root = right.root.as_ref().ok_or_else(|| {
+        let right_root = right.root.ok_or_else(|| {
             PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
         })?;
 
@@ -490,8 +490,8 @@ impl UnifiedConnector {
 mod tests {
     use super::*;
     use crate::query::context::ast::base::AstContext;
-    use crate::query::planner::plan::core::plan_node_kind::PlanNodeKind;
-    use crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable;
+    
+    
     use std::sync::Arc;
 
     #[test]

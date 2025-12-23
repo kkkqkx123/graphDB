@@ -48,7 +48,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 /// - NULL 值将产生零行结果
 use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
@@ -216,13 +216,13 @@ fn is_valid_identifier(identifier: &str) -> bool {
 /// * `input_plan` - 输入的执行计划
 ///
 /// # 返回
-/// * `Result<Arc<dyn PlanNode>, PlannerError>` - UNWIND 节点或错误
+/// * `Result<PlanNodeEnum, PlannerError>` - UNWIND 节点或错误
 fn create_unwind_node(
     _ctx: &crate::query::validator::structs::UnwindClauseContext,
     input_plan: &SubPlan,
 ) -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
     // 获取输入计划的根节点
-    let _input_root = input_plan.root.as_ref().ok_or_else(|| {
+    let _input_root = input_plan.root.ok_or_else(|| {
         PlannerError::PlanGenerationFailed("UNWIND clause requires input plan".to_string())
     })?;
 
@@ -232,7 +232,7 @@ fn create_unwind_node(
     // 设置 UNWIND 节点的属性
     // 将表达式和别名信息存储在列名中，供执行器使用
     // 使用特殊格式存储 UNWIND 信息
-    // 由于 Arc<dyn PlanNode> 不能直接修改，我们使用占位符
+    // 由于 PlanNodeEnum 不能直接修改，我们使用占位符
     // 实际的属性会在执行时设置
 
     Ok(unwind_node)

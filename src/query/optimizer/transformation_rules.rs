@@ -4,8 +4,8 @@
 use super::optimizer::{OptContext, OptGroupNode, OptRule, OptimizerError, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
-use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
-use crate::query::planner::plan::PlanNodeKind;
+
+
 
 /// 转换Limit-Sort为TopN的规则
 #[derive(Debug)]
@@ -80,7 +80,7 @@ impl OptRule for TopNRule {
     }
 
     fn pattern(&self) -> Pattern {
-        use crate::query::planner::plan::PlanNodeKind;
+        
         // Limit节点，依赖一个Sort节点
         PatternBuilder::with_dependency(PlanNodeKind::Limit, PlanNodeKind::Sort)
     }

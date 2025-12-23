@@ -152,12 +152,12 @@ impl AggregateState {
         self.values.push(value.clone());
 
         // 更新最小值
-        if self.min.as_ref().map_or(true, |min_val| value.lt(min_val)) {
+        if self.min.map_or(true, |min_val| value.lt(min_val)) {
             self.min = Some(value.clone());
         }
 
         // 更新最大值
-        if self.max.as_ref().map_or(true, |max_val| value.gt(max_val)) {
+        if self.max.map_or(true, |max_val| value.gt(max_val)) {
             self.max = Some(value.clone());
         }
 

@@ -38,7 +38,7 @@ impl AggregateValidationStrategy {
                 conditions.iter().any(|(cond, val)| {
                     self.has_aggregate_expr(cond) || self.has_aggregate_expr(val)
                 }) || default
-                    .as_ref()
+                    
                     .map_or(false, |d| self.has_aggregate_expr(d))
             }
             Expression::ListComprehension {
@@ -47,7 +47,7 @@ impl AggregateValidationStrategy {
             } => {
                 self.has_aggregate_expr(generator)
                     || condition
-                        .as_ref()
+                        
                         .map_or(false, |c| self.has_aggregate_expr(c))
             }
             Expression::Predicate { list, condition } => {
@@ -158,7 +158,7 @@ impl AggregateValidationStrategy {
                 conditions.iter().any(|(cond, val)| {
                     self.has_wildcard_property(cond) || self.has_wildcard_property(val)
                 }) || default
-                    .as_ref()
+                    
                     .map_or(false, |d| self.has_wildcard_property(d))
             }
             Expression::ListComprehension {
@@ -167,7 +167,7 @@ impl AggregateValidationStrategy {
             } => {
                 self.has_wildcard_property(generator)
                     || condition
-                        .as_ref()
+                        
                         .map_or(false, |c| self.has_wildcard_property(c))
             }
             Expression::Predicate { list, condition } => {

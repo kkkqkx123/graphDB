@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::expressions::{DefaultExpressionContext, ExpressionContext};
 use crate::core::Value;
-use crate::core::expressions::{ExpressionContext, DefaultExpressionContext};
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
@@ -201,7 +201,7 @@ impl<S: StorageEngine> InputExecutor<S> for ProjectExecutor<S> {
     }
 
     fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+        self.input_executor
     }
 }
 
@@ -251,14 +251,9 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                 for path in paths {
                     let mut context = DefaultExpressionContext::new();
                     // 设置路径相关信息作为变量
-                    context.set_variable(
-                        "path_length".to_string(),
-                        Value::Int(path.len() as i64),
-                    );
-                    context.set_variable(
-                        "src".to_string(),
-                        Value::String(path.src.vid.to_string()),
-                    );
+                    context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
+                    context
+                        .set_variable("src".to_string(), Value::String(path.src.vid.to_string()));
 
                     let mut projected_row = Vec::new();
                     for column in &self.columns {
@@ -517,7 +512,10 @@ mod tests {
         executor.set_input(Box::new(input_executor));
 
         // 执行投影
-        let result = executor.execute().await.expect("Projection executor should execute successfully");
+        let result = executor
+            .execute()
+            .await
+            .expect("Projection executor should execute successfully");
 
         // 验证结果
         match result {
@@ -562,7 +560,10 @@ mod tests {
         executor.set_input(Box::new(input_executor));
 
         // 执行投影
-        let result = executor.execute().await.expect("Projection executor should execute successfully");
+        let result = executor
+            .execute()
+            .await
+            .expect("Projection executor should execute successfully");
 
         // 验证结果
         match result {
@@ -626,7 +627,10 @@ mod tests {
         executor.set_input(Box::new(input_executor));
 
         // 执行投影
-        let result = executor.execute().await.expect("Projection executor should execute successfully");
+        let result = executor
+            .execute()
+            .await
+            .expect("Projection executor should execute successfully");
 
         // 验证结果
         match result {
@@ -693,7 +697,10 @@ mod tests {
         executor.set_input(Box::new(input_executor));
 
         // 执行投影
-        let result = executor.execute().await.expect("Projection executor should execute successfully");
+        let result = executor
+            .execute()
+            .await
+            .expect("Projection executor should execute successfully");
 
         // 验证结果
         match result {

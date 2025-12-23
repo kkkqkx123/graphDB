@@ -1,7 +1,7 @@
 /// Go planner implementation for handling GO queries
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::SubPlan;
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ impl Planner for GoPlanner {
         let go_node = PlanNodeFactory::create_placeholder_node()?;
 
         // For now, just return a subplan with the go node
-        Ok(SubPlan::new(Some(go_node.clone_plan_node()), Some(go_node)))
+        Ok(SubPlan::new(Some(go_node.clone()), Some(go_node)))
     }
 
     fn match_planner(&self, ast_ctx: &AstContext) -> bool {

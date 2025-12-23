@@ -3,7 +3,7 @@ use crate::core::{Expression, LiteralValue};
 /// 进行全表扫描操作的规划
 /// 负责规划全表扫描操作
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
@@ -33,9 +33,9 @@ impl ScanSeek {
             let _filter_expr = self.create_label_filter_expression()?;
             // TODO: 需要将 Expression 转换为 Expr
             // 暂时使用克隆的方式，实际需要实现转换逻辑
-            scan_vertices_node.clone_plan_node()
+            scan_vertices_node.clone()
         } else {
-            scan_vertices_node.clone_plan_node()
+            scan_vertices_node.clone()
         };
 
         // 如果有额外的过滤条件，再添加一个过滤节点

@@ -330,7 +330,7 @@ impl ExpressionAcceptor for crate::core::Expression {
                 conditions,
                 default,
             } => {
-                let default_cloned = default.as_ref().map(|b| (**b).clone());
+                let default_cloned = default.map(|b| (**b).clone());
                 visitor.visit_case(conditions, &default_cloned)
             }
             Expression::TypeCast { expr, target_type } => {
@@ -344,8 +344,8 @@ impl ExpressionAcceptor for crate::core::Expression {
                 start,
                 end,
             } => {
-                let start_cloned = start.as_ref().map(|b| (**b).clone());
-                let end_cloned = end.as_ref().map(|b| (**b).clone());
+                let start_cloned = start.map(|b| (**b).clone());
+                let end_cloned = end.map(|b| (**b).clone());
                 visitor.visit_range(collection, &start_cloned, &end_cloned)
             }
             Expression::Path(items) => visitor.visit_path(items),
@@ -399,7 +399,7 @@ impl ExpressionAcceptor for crate::core::Expression {
             } => {
                 // 简化为函数调用
                 let cond_expr = condition
-                    .as_ref()
+                    
                     .map(|c| (**c).clone())
                     .unwrap_or_else(|| crate::core::Expression::bool(true));
                 visitor.visit_function("list_comprehension", &[(**generator).clone(), cond_expr])
@@ -426,8 +426,8 @@ impl ExpressionAcceptor for crate::core::Expression {
                 start,
                 end,
             } => {
-                let start_cloned = start.as_ref().map(|b| (**b).clone());
-                let end_cloned = end.as_ref().map(|b| (**b).clone());
+                let start_cloned = start.map(|b| (**b).clone());
+                let end_cloned = end.map(|b| (**b).clone());
                 visitor.visit_range(collection, &start_cloned, &end_cloned)
             }
             Expression::MatchPathPattern { patterns, .. } => visitor.visit_list(patterns),

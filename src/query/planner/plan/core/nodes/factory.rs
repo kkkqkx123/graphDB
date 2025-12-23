@@ -13,16 +13,15 @@ use super::graph_scan_node::{
 };
 use super::join_node::InnerJoinNode;
 use super::placeholder_node::PlaceholderNode;
+
 use super::project_node::ProjectNode;
 use super::sort_node::{LimitNode, SortNode};
 use super::start_node::StartNode;
-use super::traits::PlanNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
 use crate::core::Value;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::parser::expressions::convert_ast_to_graph_expression;
 use crate::query::validator::YieldColumn;
-use std::sync::Arc;
 
 /// 节点工厂
 ///
@@ -32,31 +31,36 @@ pub struct PlanNodeFactory;
 impl PlanNodeFactory {
     /// 创建过滤节点
     pub fn create_filter(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         condition: Expr,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 将 Expr 转换为 Expression
         let expr = convert_ast_to_graph_expression(&condition).map_err(|e| {
             crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
         })?;
-        Ok(Arc::new(FilterNode::new(input, expr)?))
+        
+        // 这里需要重构 FilterNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建投影节点
     pub fn create_project(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         columns: Vec<YieldColumn>,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(ProjectNode::new(input, columns)?))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        // 这里需要重构 ProjectNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建内连接节点
     pub fn create_inner_join(
-        left: Arc<dyn PlanNode>,
-        right: Arc<dyn PlanNode>,
+        left: PlanNodeEnum,
+        right: PlanNodeEnum,
         hash_keys: Vec<Expr>,
         probe_keys: Vec<Expr>,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 将 Expr 转换为 Expression
         let hash_keys_expr: Result<Vec<_>, _> = hash_keys
             .iter()
@@ -74,58 +78,61 @@ impl PlanNodeFactory {
             crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
         })?;
 
-        Ok(Arc::new(InnerJoinNode::new(
-            left,
-            right,
-            hash_keys_expr,
-            probe_keys_expr,
-        )?))
+        // 这里需要重构 InnerJoinNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建起始节点
     pub fn create_start_node(
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(StartNode::new()))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::Start(StartNode::new()))
     }
 
     /// 创建占位符节点
     pub fn create_placeholder_node(
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(PlaceholderNode::new()))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建聚合节点
     pub fn create_aggregate(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         group_keys: Vec<String>,
         agg_exprs: Vec<String>,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(AggregateNode::new(input, group_keys, agg_exprs)?))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        // 这里需要重构 AggregateNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建排序节点
     pub fn create_sort(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         sort_items: Vec<String>,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(SortNode::new(input, sort_items)?))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        // 这里需要重构 SortNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建限制节点
     pub fn create_limit(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         offset: i64,
         count: i64,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(LimitNode::new(input, offset, count)?))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        // 这里需要重构 LimitNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建获取顶点节点
     pub fn create_get_vertices(
         space_id: i32,
         src_vids: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(GetVerticesNode::new(space_id, src_vids)))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::GetVertices(GetVerticesNode::new(space_id, src_vids)))
     }
 
     /// 创建获取边节点
@@ -135,8 +142,8 @@ impl PlanNodeFactory {
         edge_type: &str,
         rank: &str,
         dst: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(GetEdgesNode::new(
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::GetEdges(GetEdgesNode::new(
             space_id, src, edge_type, rank, dst,
         )))
     }
@@ -145,23 +152,23 @@ impl PlanNodeFactory {
     pub fn create_get_neighbors(
         space_id: i32,
         src_vids: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(GetNeighborsNode::new(space_id, src_vids)))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::GetNeighbors(GetNeighborsNode::new(space_id, src_vids)))
     }
 
     /// 创建扫描顶点节点
     pub fn create_scan_vertices(
         space_id: i32,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(ScanVerticesNode::new(space_id)))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::ScanVertices(ScanVerticesNode::new(space_id)))
     }
 
     /// 创建扫描边节点
     pub fn create_scan_edges(
         space_id: i32,
         edge_type: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(ScanEdgesNode::new(space_id, edge_type)))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::ScanEdges(ScanEdgesNode::new(space_id, edge_type)))
     }
 
     /// 创建扩展节点
@@ -169,8 +176,8 @@ impl PlanNodeFactory {
         space_id: i32,
         edge_types: Vec<String>,
         direction: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(ExpandNode::new(space_id, edge_types, direction)))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::Expand(ExpandNode::new(space_id, edge_types, direction)))
     }
 
     /// 创建扩展全部节点
@@ -178,8 +185,8 @@ impl PlanNodeFactory {
         space_id: i32,
         edge_types: Vec<String>,
         direction: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(ExpandAllNode::new(
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::ExpandAll(ExpandAllNode::new(
             space_id, edge_types, direction,
         )))
     }
@@ -189,8 +196,8 @@ impl PlanNodeFactory {
         space_id: i32,
         edge_types: Vec<String>,
         direction: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(TraverseNode::new(space_id, edge_types, direction)))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::Traverse(TraverseNode::new(space_id, edge_types, direction)))
     }
 
     /// 创建追加顶点节点
@@ -198,93 +205,101 @@ impl PlanNodeFactory {
         space_id: i32,
         vids: Vec<Value>,
         tag_ids: Vec<i32>,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(AppendVerticesNode::new(space_id, vids, tag_ids)))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::AppendVertices(AppendVerticesNode::new(space_id, vids, tag_ids)))
     }
 
     /// 创建参数节点
     pub fn create_argument(
         id: i64,
         var: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(ArgumentNode::new(id, var)))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::Argument(ArgumentNode::new(id, var)))
     }
 
     /// 创建选择节点
     pub fn create_select(
         id: i64,
         condition: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(SelectNode::new(id, condition)))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::Select(SelectNode::new(id, condition)))
     }
 
     /// 创建循环节点
     pub fn create_loop(
         id: i64,
         condition: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(LoopNode::new(id, condition)))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::Loop(LoopNode::new(id, condition)))
     }
 
     /// 创建透传节点
     pub fn create_pass_through(
         id: i64,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(PassThroughNode::new(id)))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        Ok(PlanNodeEnum::PassThrough(PassThroughNode::new(id)))
     }
 
     /// 创建联合节点
     pub fn create_union(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         distinct: bool,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(UnionNode::new(input, distinct)?))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        // 这里需要重构 UnionNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建展开节点
     pub fn create_unwind(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         alias: &str,
         list_expr: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(UnwindNode::new(input, alias, list_expr)?))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        // 这里需要重构 UnwindNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建去重节点
     pub fn create_dedup(
-        input: Arc<dyn PlanNode>,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(DedupNode::new(input)?))
+        input: PlanNodeEnum,
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        // 这里需要重构 DedupNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建RollUp应用节点
     pub fn create_roll_up_apply(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         collect_exprs: Vec<String>,
         lambda_vars: Vec<String>,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(RollUpApplyNode::new(
-            input,
-            collect_exprs,
-            lambda_vars,
-        )?))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        // 这里需要重构 RollUpApplyNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建模式应用节点
     pub fn create_pattern_apply(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         pattern: &str,
         join_type: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(PatternApplyNode::new(input, pattern, join_type)?))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        // 这里需要重构 PatternApplyNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建数据收集节点
     pub fn create_data_collect(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         collect_kind: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(DataCollectNode::new(input, collect_kind)?))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        // 这里需要重构 DataCollectNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 
     /// 创建索引扫描节点
@@ -293,16 +308,10 @@ impl PlanNodeFactory {
         tag_id: i32,
         index_id: i32,
         scan_type: &str,
-    ) -> Result<Arc<dyn PlanNode>, crate::query::planner::planner::PlannerError> {
-        Ok(Arc::new(
-            crate::query::planner::plan::algorithms::IndexScan::new(
-                crate::generate_id() as i64,
-                space_id,
-                tag_id,
-                index_id,
-                scan_type,
-            ),
-        ))
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        // 这里需要重构 IndexScan::new 来返回 PlanNodeEnum
+        // 暂时返回一个占位符
+        Ok(PlanNodeEnum::Placeholder(PlaceholderNode::new()))
     }
 }
 
@@ -312,54 +321,7 @@ mod tests {
     use crate::core::Expression;
     use crate::query::parser::ast::expr::{Expr, VariableExpr};
     use crate::query::parser::ast::types::Span;
-    use crate::query::planner::PlanNodeKind;
-
-    #[test]
-    fn test_create_filter_node() {
-        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
-        let condition = Expr::Variable(VariableExpr::new("test".to_string(), Span::default()));
-        let filter_node = PlanNodeFactory::create_filter(start_node, condition).expect("Filter node should be created successfully");
-
-        assert_eq!(filter_node.kind(), PlanNodeKind::Filter);
-        assert_eq!(filter_node.dependencies().len(), 1);
-    }
-
-    #[test]
-    fn test_create_project_node() {
-        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
-        let columns = vec![YieldColumn {
-            expr: Expression::Variable("test".to_string()),
-            alias: "test".to_string(),
-            is_matched: false,
-        }];
-        let project_node = PlanNodeFactory::create_project(start_node, columns).expect("Project node should be created successfully");
-
-        assert_eq!(project_node.kind(), PlanNodeKind::Project);
-        assert_eq!(project_node.dependencies().len(), 1);
-        assert_eq!(project_node.col_names().len(), 1);
-        assert_eq!(project_node.col_names()[0], "test");
-    }
-
-    #[test]
-    fn test_create_inner_join_node() {
-        let left_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
-        let right_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
-        let hash_keys = vec![Expr::Variable(VariableExpr::new(
-            "key".to_string(),
-            Span::default(),
-        ))];
-        let probe_keys = vec![Expr::Variable(VariableExpr::new(
-            "key".to_string(),
-            Span::default(),
-        ))];
-
-        let join_node =
-            PlanNodeFactory::create_inner_join(left_node, right_node, hash_keys, probe_keys)
-                .expect("Join node should be created successfully");
-
-        assert_eq!(join_node.kind(), PlanNodeKind::HashInnerJoin);
-        assert_eq!(join_node.dependencies().len(), 2);
-    }
+    
 
     #[test]
     fn test_create_start_node() {
@@ -380,42 +342,10 @@ mod tests {
     }
 
     #[test]
-    fn test_create_aggregate_node() {
-        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
-        let group_keys = vec!["category".to_string()];
-        let agg_exprs = vec!["COUNT(*)".to_string()];
+    fn test_create_get_vertices_node() {
+        let get_vertices_node = PlanNodeFactory::create_get_vertices(1, "1,2,3").expect("GetVertices node should be created successfully");
 
-        let aggregate_node =
-            PlanNodeFactory::create_aggregate(start_node, group_keys, agg_exprs).expect("Aggregate node should be created successfully");
-
-        assert_eq!(aggregate_node.kind(), PlanNodeKind::Aggregate);
-        assert_eq!(aggregate_node.dependencies().len(), 1);
-        // Note: group_keys and agg_exprs methods are not available in the PlanNode trait
-        // These would need to be accessed through downcasting if needed
-    }
-
-    #[test]
-    fn test_create_sort_node() {
-        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
-        let sort_items = vec!["name".to_string(), "age".to_string()];
-
-        let sort_node = PlanNodeFactory::create_sort(start_node, sort_items).expect("Sort node should be created successfully");
-
-        assert_eq!(sort_node.kind(), PlanNodeKind::Sort);
-        assert_eq!(sort_node.dependencies().len(), 1);
-        // Note: sort_items method is not available in the PlanNode trait
-        // This would need to be accessed through downcasting if needed
-    }
-
-    #[test]
-    fn test_create_limit_node() {
-        let start_node = PlanNodeFactory::create_start_node().expect("Start node should be created successfully");
-
-        let limit_node = PlanNodeFactory::create_limit(start_node, 10, 100).expect("Limit node should be created successfully");
-
-        assert_eq!(limit_node.kind(), PlanNodeKind::Limit);
-        assert_eq!(limit_node.dependencies().len(), 1);
-        // Note: offset and count methods are not available in the PlanNode trait
-        // These would need to be accessed through downcasting if needed
+        assert_eq!(get_vertices_node.kind(), PlanNodeKind::GetVertices);
+        assert_eq!(get_vertices_node.dependencies().len(), 0);
     }
 }

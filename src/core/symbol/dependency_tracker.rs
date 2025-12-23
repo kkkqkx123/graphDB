@@ -1,6 +1,6 @@
 //! 依赖关系跟踪器模块 - 管理变量读写依赖关系
 
-use super::plan_node::PlanNodeRef;
+
 use std::collections::{HashMap, HashSet};
 
 /// 依赖关系类型
@@ -381,7 +381,7 @@ impl Default for DependencyTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::symbol::plan_node::PlanNodeType;
+    
 
     #[test]
     fn test_dependency_tracker() {

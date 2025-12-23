@@ -3,7 +3,7 @@
 //! 负责规划最短路径算法的执行
 
 use crate::core::ValueTypeDef;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{MatchClauseContext, Path, PathType, WhereClauseContext};
@@ -39,10 +39,10 @@ impl ShortestPathPlanner {
         let (start_plan, end_plan) = self.find_start_end_nodes(where_clause, node_aliases_seen)?;
 
         // 3. 创建连接节点
-        let start_root = start_plan.root.as_ref().ok_or_else(|| {
+        let start_root = start_plan.root.ok_or_else(|| {
             PlannerError::PlanGenerationFailed("Start plan should have a root node".to_string())
         })?;
-        let end_root = end_plan.root.as_ref().ok_or_else(|| {
+        let end_root = end_plan.root.ok_or_else(|| {
             PlannerError::PlanGenerationFailed("End plan should have a root node".to_string())
         })?;
 
@@ -127,7 +127,7 @@ impl ShortestPathPlanner {
             };
             let argument_node = PlanNodeFactory::create_argument(0, &node_info.alias)?;
             return Ok(SubPlan::new(
-                Some(argument_node.clone_plan_node()),
+                Some(argument_node.clone()),
                 Some(argument_node),
             ));
         }
@@ -237,7 +237,7 @@ impl ShortestPathPlanner {
         };
 
         let plan = SubPlan::new(
-            Some(index_scan_node.clone_plan_node()),
+            Some(index_scan_node.clone()),
             Some(index_scan_node),
         );
         Ok(Some(plan))
@@ -262,7 +262,7 @@ impl ShortestPathPlanner {
         };
 
         let plan = SubPlan::new(
-            Some(index_scan_node.clone_plan_node()),
+            Some(index_scan_node.clone()),
             Some(index_scan_node),
         );
         Ok(Some(plan))

@@ -5,9 +5,9 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable;
-use crate::query::planner::plan::IndexScan as IndexScanPlanNode;
-use crate::query::planner::plan::PlanNodeKind;
+
+
+
 use std::sync::Arc;
 // 注释掉不存在的导入
 // use crate::query::planner::plan::operations::AllPaths;
@@ -962,7 +962,7 @@ mod tests {
         GetEdgesNode, GetNeighborsNode, GetVerticesNode, LimitNode, ProjectNode, ScanEdgesNode,
         ScanVerticesNode,
     };
-    use crate::query::planner::plan::{PlanNode, PlanNodeKind};
+    
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(

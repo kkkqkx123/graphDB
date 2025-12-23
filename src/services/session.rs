@@ -399,7 +399,7 @@ mod tests {
             .expect("Failed to get session info in test");
         assert!(info.is_some());
         assert_eq!(
-            info.as_ref().expect("Session info should exist").user_id,
+            info.expect("Session info should exist").user_id,
             Some("user123".to_string())
         );
 

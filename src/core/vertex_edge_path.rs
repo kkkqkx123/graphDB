@@ -331,7 +331,7 @@ impl std::hash::Hash for Path {
 impl Path {
     /// 获取路径中的边
     pub fn edges(&self) -> Vec<&Edge> {
-        self.steps.iter().map(|step| step.edge.as_ref()).collect()
+        self.steps.iter().map(|step| step.edge).collect()
     }
 
     /// 获取路径长度（步骤数）

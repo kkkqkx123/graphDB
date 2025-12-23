@@ -2,8 +2,8 @@
 //!
 //! 包含Start、Argument、Select、Loop等控制流相关的计划节点
 
-use super::super::plan_node_kind::PlanNodeKind;
-use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+
+
 use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
     PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
@@ -19,7 +19,7 @@ pub struct ArgumentNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<Arc<dyn PlanNode>>>,
+    dependencies: Mutex<Vec<PlanNodeEnum>>,
 }
 
 // 为 ArgumentNode 实现 Clone
@@ -64,7 +64,7 @@ impl PlanNodeIdentifiable for ArgumentNode {
 
 impl PlanNodeProperties for ArgumentNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -75,7 +75,7 @@ impl PlanNodeProperties for ArgumentNode {
 }
 
 impl PlanNodeDependencies for ArgumentNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         let deps = self
             .dependencies
             .lock()
@@ -83,7 +83,7 @@ impl PlanNodeDependencies for ArgumentNode {
         deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
@@ -107,7 +107,7 @@ impl PlanNodeDependencies for ArgumentNode {
 impl PlanNodeDependenciesExt for ArgumentNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         let deps = self
             .dependencies
@@ -127,11 +127,11 @@ impl PlanNodeMutable for ArgumentNode {
 }
 
 impl PlanNodeClonable for ArgumentNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
@@ -158,12 +158,12 @@ impl PlanNode for ArgumentNode {
 pub struct SelectNode {
     id: i64,
     condition: String,
-    if_branch: Option<Arc<dyn PlanNode>>,
-    else_branch: Option<Arc<dyn PlanNode>>,
+    if_branch: Option<PlanNodeEnum>,
+    else_branch: Option<PlanNodeEnum>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<Arc<dyn PlanNode>>>,
+    dependencies: Mutex<Vec<PlanNodeEnum>>,
 }
 
 // 为 SelectNode 实现 Clone
@@ -172,8 +172,8 @@ impl Clone for SelectNode {
         SelectNode {
             id: self.id,
             condition: self.condition.clone(),
-            if_branch: self.if_branch.as_ref().map(|node| node.clone_plan_node()),
-            else_branch: self.else_branch.as_ref().map(|node| node.clone_plan_node()),
+            if_branch: self.if_branch.map(|node| node.clone()),
+            else_branch: self.else_branch.map(|node| node.clone()),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -196,19 +196,19 @@ impl SelectNode {
         }
     }
 
-    pub fn set_if_branch(&mut self, branch: Arc<dyn PlanNode>) {
+    pub fn set_if_branch(&mut self, branch: PlanNodeEnum) {
         self.if_branch = Some(branch);
     }
 
-    pub fn set_else_branch(&mut self, branch: Arc<dyn PlanNode>) {
+    pub fn set_else_branch(&mut self, branch: PlanNodeEnum) {
         self.else_branch = Some(branch);
     }
 
-    pub fn if_branch(&self) -> &Option<Arc<dyn PlanNode>> {
+    pub fn if_branch(&self) -> &Option<PlanNodeEnum> {
         &self.if_branch
     }
 
-    pub fn else_branch(&self) -> &Option<Arc<dyn PlanNode>> {
+    pub fn else_branch(&self) -> &Option<PlanNodeEnum> {
         &self.else_branch
     }
 
@@ -228,7 +228,7 @@ impl PlanNodeIdentifiable for SelectNode {
 
 impl PlanNodeProperties for SelectNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -239,7 +239,7 @@ impl PlanNodeProperties for SelectNode {
 }
 
 impl PlanNodeDependencies for SelectNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         let deps = self
             .dependencies
             .lock()
@@ -247,7 +247,7 @@ impl PlanNodeDependencies for SelectNode {
         deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
@@ -271,7 +271,7 @@ impl PlanNodeDependencies for SelectNode {
 impl PlanNodeDependenciesExt for SelectNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         let deps = self
             .dependencies
@@ -291,12 +291,12 @@ impl PlanNodeMutable for SelectNode {
 }
 
 impl PlanNodeClonable for SelectNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
             condition: self.condition.clone(),
-            if_branch: self.if_branch.as_ref().map(|node| node.clone_plan_node()),
-            else_branch: self.else_branch.as_ref().map(|node| node.clone_plan_node()),
+            if_branch: self.if_branch.map(|node| node.clone()),
+            else_branch: self.else_branch.map(|node| node.clone()),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -304,7 +304,7 @@ impl PlanNodeClonable for SelectNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
@@ -331,11 +331,11 @@ impl PlanNode for SelectNode {
 pub struct LoopNode {
     id: i64,
     condition: String,
-    body: Option<Arc<dyn PlanNode>>,
+    body: Option<PlanNodeEnum>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<Arc<dyn PlanNode>>>,
+    dependencies: Mutex<Vec<PlanNodeEnum>>,
 }
 
 // 为 LoopNode 实现 Clone
@@ -344,7 +344,7 @@ impl Clone for LoopNode {
         LoopNode {
             id: self.id,
             condition: self.condition.clone(),
-            body: self.body.as_ref().map(|node| node.clone_plan_node()),
+            body: self.body.map(|node| node.clone()),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -366,11 +366,11 @@ impl LoopNode {
         }
     }
 
-    pub fn set_body(&mut self, body: Arc<dyn PlanNode>) {
+    pub fn set_body(&mut self, body: PlanNodeEnum) {
         self.body = Some(body);
     }
 
-    pub fn body(&self) -> &Option<Arc<dyn PlanNode>> {
+    pub fn body(&self) -> &Option<PlanNodeEnum> {
         &self.body
     }
 
@@ -390,7 +390,7 @@ impl PlanNodeIdentifiable for LoopNode {
 
 impl PlanNodeProperties for LoopNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -401,7 +401,7 @@ impl PlanNodeProperties for LoopNode {
 }
 
 impl PlanNodeDependencies for LoopNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         let deps = self
             .dependencies
             .lock()
@@ -409,7 +409,7 @@ impl PlanNodeDependencies for LoopNode {
         deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
@@ -433,7 +433,7 @@ impl PlanNodeDependencies for LoopNode {
 impl PlanNodeDependenciesExt for LoopNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         let deps = self
             .dependencies
@@ -453,11 +453,11 @@ impl PlanNodeMutable for LoopNode {
 }
 
 impl PlanNodeClonable for LoopNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
             condition: self.condition.clone(),
-            body: self.body.as_ref().map(|node| node.clone_plan_node()),
+            body: self.body.map(|node| node.clone()),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -465,7 +465,7 @@ impl PlanNodeClonable for LoopNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
@@ -494,7 +494,7 @@ pub struct PassThroughNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<Arc<dyn PlanNode>>>,
+    dependencies: Mutex<Vec<PlanNodeEnum>>,
 }
 
 // 为 PassThroughNode 实现 Clone
@@ -533,7 +533,7 @@ impl PlanNodeIdentifiable for PassThroughNode {
 
 impl PlanNodeProperties for PassThroughNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -544,7 +544,7 @@ impl PlanNodeProperties for PassThroughNode {
 }
 
 impl PlanNodeDependencies for PassThroughNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         let deps = self
             .dependencies
             .lock()
@@ -552,7 +552,7 @@ impl PlanNodeDependencies for PassThroughNode {
         deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.dependencies
             .lock()
             .expect("PlanNode dependencies lock should not be poisoned")
@@ -576,7 +576,7 @@ impl PlanNodeDependencies for PassThroughNode {
 impl PlanNodeDependenciesExt for PassThroughNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         let deps = self
             .dependencies
@@ -596,11 +596,11 @@ impl PlanNodeMutable for PassThroughNode {
 }
 
 impl PlanNodeClonable for PassThroughNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)

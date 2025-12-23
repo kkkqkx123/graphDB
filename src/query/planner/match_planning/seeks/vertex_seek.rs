@@ -3,7 +3,7 @@
 /// 负责规划基于顶点ID的查找操作，包括固定ID和可变ID
 use crate::core::Expression;
 use crate::query::planner::match_planning::seeks::seek_strategy::SeekStrategy;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::path_structs::NodeInfo;
@@ -99,7 +99,7 @@ impl VertexSeek {
         };
 
         Ok(SubPlan::new(
-            Some(get_vertices_node.clone_plan_node()),
+            Some(get_vertices_node.clone()),
             Some(get_vertices_node),
         ))
     }

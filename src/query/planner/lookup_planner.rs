@@ -1,7 +1,7 @@
 /// Lookup planner implementation for handling LOOKUP queries in NebulaGraph
 use super::planner::{Planner, PlannerError};
 use crate::query::context::ast::AstContext;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::SubPlan;
 
 #[derive(Debug)]
@@ -40,7 +40,7 @@ impl Planner for LookupPlanner {
         // For now, just return a subplan with the lookup node
         // In a complete implementation, this would be more complex
         Ok(SubPlan::new(
-            Some(lookup_node.clone_plan_node()),
+            Some(lookup_node.clone()),
             Some(lookup_node),
         ))
     }

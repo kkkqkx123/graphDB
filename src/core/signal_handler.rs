@@ -88,7 +88,7 @@ impl SignalHandler {
 
     /// Get the global signal handler instance
     pub fn get() -> Option<Arc<SignalHandler>> {
-        unsafe { SIGNAL_HANDLER.as_ref().cloned() }
+        unsafe { SIGNAL_HANDLER.cloned() }
     }
 
     /// Handle a received signal

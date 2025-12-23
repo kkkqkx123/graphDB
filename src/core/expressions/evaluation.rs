@@ -132,7 +132,7 @@ impl EvaluationStatistics {
     /// 获取函数缓存命中率
     pub fn function_cache_hit_rate(&self) -> f64 {
         self.cache_stats
-            .as_ref()
+            
             .map(|stats| stats.function_cache_hit_rate)
             .unwrap_or_else(|| 0.0)
     }
@@ -140,7 +140,7 @@ impl EvaluationStatistics {
     /// 获取表达式缓存命中率
     pub fn expression_cache_hit_rate(&self) -> f64 {
         self.cache_stats
-            .as_ref()
+            
             .map(|stats| stats.expression_cache_hit_rate)
             .unwrap_or_else(|| 0.0)
     }
@@ -148,7 +148,7 @@ impl EvaluationStatistics {
     /// 获取变量缓存命中率
     pub fn variable_cache_hit_rate(&self) -> f64 {
         self.cache_stats
-            .as_ref()
+            
             .map(|stats| stats.variable_cache_hit_rate)
             .unwrap_or_else(|| 0.0)
     }

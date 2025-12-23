@@ -2,8 +2,8 @@
 //!
 //! ProjectNode 用于根据指定的列表达式投影输入数据流
 
-use super::super::plan_node_kind::PlanNodeKind;
-use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+
+
 use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
     PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
@@ -18,18 +18,18 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct ProjectNode {
     id: i64,
-    input: Arc<dyn PlanNode>,
+    input: PlanNodeEnum,
     columns: Vec<YieldColumn>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies_vec: Vec<Arc<dyn PlanNode>>, // 添加一个 Vec 来满足 trait 要求
+    dependencies_vec: Vec<PlanNodeEnum>, // 添加一个 Vec 来满足 trait 要求
 }
 
 impl ProjectNode {
     /// 创建新的投影节点
     pub fn new(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         columns: Vec<YieldColumn>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names: Vec<String> = columns.iter().map(|col| col.alias.clone()).collect();
@@ -65,7 +65,7 @@ impl PlanNodeIdentifiable for ProjectNode {
 
 impl PlanNodeProperties for ProjectNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -76,11 +76,11 @@ impl PlanNodeProperties for ProjectNode {
 }
 
 impl PlanNodeDependencies for ProjectNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.dependencies_vec.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.input = dep.clone();
         self.dependencies_vec.clear();
         self.dependencies_vec.push(dep);
@@ -109,7 +109,7 @@ impl PlanNodeDependencies for ProjectNode {
 impl PlanNodeDependenciesExt for ProjectNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.dependencies_vec)
     }
@@ -125,10 +125,10 @@ impl PlanNodeMutable for ProjectNode {
 }
 
 impl PlanNodeClonable for ProjectNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             columns: self.columns.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
@@ -136,15 +136,15 @@ impl PlanNodeClonable for ProjectNode {
             dependencies_vec: self
                 .dependencies_vec
                 .iter()
-                .map(|dep| dep.clone_plan_node())
+                .map(|dep| dep.clone())
                 .collect(),
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         Arc::new(Self {
             id: new_id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             columns: self.columns.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
@@ -152,7 +152,7 @@ impl PlanNodeClonable for ProjectNode {
             dependencies_vec: self
                 .dependencies_vec
                 .iter()
-                .map(|dep| dep.clone_plan_node())
+                .map(|dep| dep.clone())
                 .collect(),
         })
     }

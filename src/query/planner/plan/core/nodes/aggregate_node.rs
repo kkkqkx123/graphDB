@@ -2,8 +2,8 @@
 //!
 //! AggregateNode 用于对输入数据进行聚合操作
 
-use super::super::plan_node_kind::PlanNodeKind;
-use super::super::visitor::{PlanNodeVisitError, PlanNodeVisitor};
+
+
 use super::traits::{
     PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
     PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
@@ -17,8 +17,8 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct AggregateNode {
     id: i64,
-    input: Arc<dyn PlanNode>,
-    deps: Vec<Arc<dyn PlanNode>>,
+    input: PlanNodeEnum,
+    deps: Vec<PlanNodeEnum>,
     group_keys: Vec<String>,
     agg_exprs: Vec<String>,
     output_var: Option<Variable>,
@@ -29,7 +29,7 @@ pub struct AggregateNode {
 impl AggregateNode {
     /// 创建新的聚合节点
     pub fn new(
-        input: Arc<dyn PlanNode>,
+        input: PlanNodeEnum,
         group_keys: Vec<String>,
         agg_exprs: Vec<String>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -72,7 +72,7 @@ impl PlanNodeIdentifiable for AggregateNode {
 
 impl PlanNodeProperties for AggregateNode {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
     fn col_names(&self) -> &[String] {
         &self.col_names
@@ -83,11 +83,11 @@ impl PlanNodeProperties for AggregateNode {
 }
 
 impl PlanNodeDependencies for AggregateNode {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.input = dep.clone();
         self.deps.clear();
         self.deps.push(dep);
@@ -102,7 +102,7 @@ impl PlanNodeDependencies for AggregateNode {
 impl PlanNodeDependenciesExt for AggregateNode {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -118,10 +118,10 @@ impl PlanNodeMutable for AggregateNode {
 }
 
 impl PlanNodeClonable for AggregateNode {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(Self {
             id: self.id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             deps: self.deps.clone(),
             group_keys: self.group_keys.clone(),
             agg_exprs: self.agg_exprs.clone(),
@@ -131,10 +131,10 @@ impl PlanNodeClonable for AggregateNode {
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         Arc::new(Self {
             id: new_id,
-            input: self.input.clone_plan_node(),
+            input: self.input.clone(),
             deps: self.deps.clone(),
             group_keys: self.group_keys.clone(),
             agg_exprs: self.agg_exprs.clone(),

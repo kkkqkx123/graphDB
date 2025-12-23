@@ -33,7 +33,7 @@ impl Clone for NativeStorage {
 
 impl NativeStorage {
     pub fn new<P: AsRef<std::path::Path>>(path: P) -> Result<Self, StorageError> {
-        let db_path = path.as_ref().to_string_lossy().to_string();
+        let db_path = path.to_string_lossy().to_string();
         let db = sled::open(&db_path)?;
         let nodes_tree = db.open_tree("nodes")?;
         let edges_tree = db.open_tree("edges")?;

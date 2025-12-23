@@ -5,7 +5,7 @@ use super::nodes::{
     ProjectNode, RollUpApplyNode, ScanEdgesNode, ScanVerticesNode, SelectNode, SortNode, StartNode,
     TopNNode, TraverseNode, UnionNode, UnwindNode,
 };
-use super::plan_node_traits::PlanNode as BasePlanNode;
+
 use crate::core::error::{DBError, DBResult};
 use std::sync::Arc;
 use crate::core::visitor::{

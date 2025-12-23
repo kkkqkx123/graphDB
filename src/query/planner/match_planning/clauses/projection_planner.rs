@@ -7,7 +7,7 @@ use super::where_clause_planner::WhereClausePlanner;
 use super::yield_planner::YieldClausePlanner;
 use crate::query::planner::match_planning::core::cypher_clause_planner::CypherClausePlanner;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{
@@ -66,7 +66,7 @@ impl ProjectionPlanner {
             if plan.root.is_none() {
                 // 如果YIELD没有产生有效的计划，创建一个空的起始节点
                 let start_node = PlanNodeFactory::create_placeholder_node()?;
-                plan = SubPlan::new(Some(start_node.clone_plan_node()), Some(start_node));
+                plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
             }
 
             let order_plan =
@@ -91,7 +91,7 @@ impl ProjectionPlanner {
                 if plan.root.is_none() {
                     // 如果前面的步骤没有产生有效的计划，创建一个空的起始节点
                     let start_node = PlanNodeFactory::create_placeholder_node()?;
-                    plan = SubPlan::new(Some(start_node.clone_plan_node()), Some(start_node));
+                    plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
                 }
 
                 let pagination_plan = pagination_planner.transform(
@@ -119,7 +119,7 @@ impl ProjectionPlanner {
             if plan.root.is_none() {
                 // 如果前面的步骤没有产生有效的计划，创建一个空的起始节点
                 let start_node = PlanNodeFactory::create_placeholder_node()?;
-                plan = SubPlan::new(Some(start_node.clone_plan_node()), Some(start_node));
+                plan = SubPlan::new(Some(start_node.clone()), Some(start_node));
             }
 
             let where_plan =
@@ -141,7 +141,7 @@ impl ProjectionPlanner {
 
             // TODO: 设置去重键
 
-            let dedup_plan = SubPlan::new(Some(dedup_node.clone_plan_node()), Some(dedup_node));
+            let dedup_plan = SubPlan::new(Some(dedup_node.clone()), Some(dedup_node));
             // 使用新的统一连接器
             plan = UnifiedConnector::add_input(
                 &crate::query::context::ast::AstContext::new("PROJECTION", "test"),
@@ -322,8 +322,8 @@ mod tests {
 
         let result = planner.build_return_projection(
             &yield_clause,
-            order_by.as_ref(),
-            pagination.as_ref(),
+            order_by,
+            pagination,
             true,
         );
         if let Err(e) = &result {
@@ -342,9 +342,9 @@ mod tests {
 
         let result = planner.build_with_projection(
             &yield_clause,
-            order_by.as_ref(),
-            pagination.as_ref(),
-            where_clause.as_ref(),
+            order_by,
+            pagination,
+            where_clause,
         );
         if let Err(e) = &result {
             println!("Error in test_build_with_projection: {:?}", e);
@@ -395,9 +395,9 @@ mod tests {
         let where_clause = Some(create_test_where());
 
         let cost = ProjectionPlanner::estimate_projection_cost(
-            order_by.as_ref(),
-            pagination.as_ref(),
-            where_clause.as_ref(),
+            order_by,
+            pagination,
+            where_clause,
             true,
         );
 
@@ -421,9 +421,9 @@ mod tests {
 
         let result = planner.build_projection_plan(
             &yield_clause,
-            order_by.as_ref(),
-            pagination.as_ref(),
-            where_clause.as_ref(),
+            order_by,
+            pagination,
+            where_clause,
             true,
             true,
         );

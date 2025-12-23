@@ -13,8 +13,8 @@ pub use nodes::{
     ProjectNode, RollUpApplyNode, ScanEdgesNode, ScanVerticesNode, SelectNode, SortNode, StartNode,
     TraverseNode, UnionNode, UnwindNode,
 };
-pub use plan_node_kind::PlanNodeKind;
-pub use visitor::{DefaultPlanNodeVisitor, PlanNodeVisitError, PlanNodeVisitor};
+pub 
+pub 
 
 pub mod plan_node_traits {
     pub use super::nodes::traits::*;

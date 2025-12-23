@@ -114,7 +114,7 @@ impl Planner for SubgraphPlanner {
         }
 
         // 创建SubPlan
-        let sub_plan = SubPlan::new(Some(project_node.clone_plan_node()), Some(arg_node));
+        let sub_plan = SubPlan::new(Some(project_node.clone()), Some(arg_node));
 
         Ok(sub_plan)
     }

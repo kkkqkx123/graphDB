@@ -367,7 +367,7 @@ impl CypherEvaluator {
                 });
                 let default_contains = case_expr
                     .default_alternative
-                    .as_ref()
+                    
                     .map_or(false, |e| Self::contains_cypher_aggregate(e));
 
                 alternatives_contains || default_contains

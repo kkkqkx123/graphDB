@@ -3,10 +3,10 @@
 //! 负责规划路径模式的匹配
 
 use crate::query::parser::ast::expr::Expr;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::planner::PlanNodeKind;
+
 use crate::query::validator::structs::{MatchClauseContext, Path, WhereClauseContext};
 use crate::query::validator::{Column, Variable};
 use std::collections::HashSet;
@@ -83,7 +83,7 @@ impl MatchPathPlanner {
             if node_aliases_seen.contains(&node_info.alias) && !node_info.anonymous {
                 let argument_node = PlanNodeFactory::create_argument(0, &node_info.alias)?;
                 match_clause_plan =
-                    SubPlan::new(Some(argument_node.clone_plan_node()), Some(argument_node));
+                    SubPlan::new(Some(argument_node.clone()), Some(argument_node));
 
                 // 初始化起始表达式
                 self.initial_expr = Some(Expr::Variable(
@@ -328,8 +328,8 @@ impl MatchPathPlanner {
             columns: vec![],
         };
 
-        // 由于不能直接修改 Arc<dyn PlanNode>，我们使用占位符
-        subplan.root = Some(project_node.clone_plan_node());
+        // 由于不能直接修改 PlanNodeEnum，我们使用占位符
+        subplan.root = Some(project_node.clone());
         Ok(())
     }
 
@@ -392,7 +392,7 @@ impl MatchPathPlanner {
         };
 
         let plan = SubPlan::new(
-            Some(index_scan_node.clone_plan_node()),
+            Some(index_scan_node.clone()),
             Some(index_scan_node),
         );
         Ok(Some(plan))
@@ -418,7 +418,7 @@ impl MatchPathPlanner {
         };
 
         let plan = SubPlan::new(
-            Some(index_scan_node.clone_plan_node()),
+            Some(index_scan_node.clone()),
             Some(index_scan_node),
         );
         Ok(Some(plan))
@@ -452,7 +452,7 @@ impl MatchPathPlanner {
             ],
         };
 
-        let plan = SubPlan::new(Some(edge_scan_node.clone_plan_node()), Some(edge_scan_node));
+        let plan = SubPlan::new(Some(edge_scan_node.clone()), Some(edge_scan_node));
         Ok(Some(plan))
     }
 

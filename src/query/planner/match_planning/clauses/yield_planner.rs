@@ -10,7 +10,7 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 /// 它可以包含聚合函数、投影列和去重操作。
 use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::plan::core::nodes::PlanNodeFactory;
+
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
@@ -65,13 +65,13 @@ impl YieldClausePlanner {
             // TODO: 设置聚合相关的参数
             // 这里需要根据group_keys和group_items设置聚合逻辑
 
-            plan = SubPlan::new(Some(agg_node.clone_plan_node()), Some(agg_node));
+            plan = SubPlan::new(Some(agg_node.clone()), Some(agg_node));
         }
 
         // 处理投影（列选择）
         if yield_clause_ctx.need_gen_project {
             // 创建投影节点
-            let _input_root = plan.root.as_ref().ok_or_else(|| {
+            let _input_root = plan.root.ok_or_else(|| {
                 PlannerError::PlanGenerationFailed(
                     "YIELD clause requires input plan for projection".to_string(),
                 )
@@ -83,7 +83,7 @@ impl YieldClausePlanner {
             // 这里需要根据proj_cols设置投影逻辑
 
             if plan.root.is_none() {
-                plan.root = Some(project_node.clone_plan_node());
+                plan.root = Some(project_node.clone());
                 plan.tail = Some(project_node);
             } else {
                 // 使用新的统一连接器将投影节点连接到现有计划的尾部
@@ -93,7 +93,7 @@ impl YieldClausePlanner {
                 );
                 plan = UnifiedConnector::add_input(
                     &temp_ast_context,
-                    &SubPlan::new(Some(project_node.clone_plan_node()), Some(project_node)),
+                    &SubPlan::new(Some(project_node.clone()), Some(project_node)),
                     &plan,
                     true,
                 )?;
@@ -103,7 +103,7 @@ impl YieldClausePlanner {
         // 处理去重
         if yield_clause_ctx.distinct {
             // 创建去重节点
-            let _input_root = plan.root.as_ref().ok_or_else(|| {
+            let _input_root = plan.root.ok_or_else(|| {
                 PlannerError::PlanGenerationFailed(
                     "YIELD clause requires input plan for deduplication".to_string(),
                 )
@@ -114,7 +114,7 @@ impl YieldClausePlanner {
             // TODO: 设置去重键
 
             if plan.root.is_none() {
-                plan.root = Some(dedup_node.clone_plan_node());
+                plan.root = Some(dedup_node.clone());
                 plan.tail = Some(dedup_node);
             } else {
                 // 使用新的统一连接器将去重节点连接到现有计划的尾部
@@ -124,7 +124,7 @@ impl YieldClausePlanner {
                 );
                 plan = UnifiedConnector::add_input(
                     &temp_ast_context,
-                    &SubPlan::new(Some(dedup_node.clone_plan_node()), Some(dedup_node)),
+                    &SubPlan::new(Some(dedup_node.clone()), Some(dedup_node)),
                     &plan,
                     true,
                 )?;

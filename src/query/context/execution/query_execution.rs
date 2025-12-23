@@ -202,7 +202,7 @@ impl QueryContext {
 
     /// 获取请求上下文
     pub fn rctx(&self) -> Option<&RequestContext> {
-        self.rctx.as_ref().map(|r| r.as_ref())
+        self.rctx.map(|r| r)
     }
 
     /// 获取验证上下文
@@ -227,7 +227,7 @@ impl QueryContext {
 
     /// 获取执行计划
     pub fn plan(&self) -> Option<&ExecutionPlan> {
-        self.plan.as_ref().map(|p| p.as_ref())
+        self.plan.map(|p| p)
     }
 
     /// 获取可变执行计划
@@ -242,27 +242,27 @@ impl QueryContext {
 
     /// 获取模式管理器
     pub fn schema_manager(&self) -> Option<&Arc<dyn SchemaManager>> {
-        self.schema_manager.as_ref()
+        self.schema_manager
     }
 
     /// 获取索引管理器
     pub fn index_manager(&self) -> Option<&Arc<dyn IndexManager>> {
-        self.index_manager.as_ref()
+        self.index_manager
     }
 
     /// 获取存储客户端
     pub fn get_storage_client(&self) -> Option<&Arc<dyn StorageClient>> {
-        self.storage_client.as_ref()
+        self.storage_client
     }
 
     /// 获取元数据客户端
     pub fn get_meta_client(&self) -> Option<&Arc<dyn MetaClient>> {
-        self.meta_client.as_ref()
+        self.meta_client
     }
 
     /// 获取字符集信息
     pub fn get_charset_info(&self) -> Option<&CharsetInfo> {
-        self.charset_info.as_ref().map(|ci| ci.as_ref())
+        self.charset_info.map(|ci| ci)
     }
 
     /// 获取对象池

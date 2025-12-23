@@ -108,7 +108,7 @@ impl ExpressionConverter {
 
                 let _default_alternative = case_expr
                     .default_alternative
-                    .as_ref()
+                    
                     .map(|expr| Self::convert_cypher_to_unified(expr))
                     .transpose()?;
 

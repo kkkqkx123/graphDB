@@ -408,7 +408,7 @@ impl<S: StorageEngine> InputExecutor<S> for TopNExecutor<S> {
     }
 
     fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+        self.input_executor
     }
 }
 
@@ -424,7 +424,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for TopNExecutor<S> {
     }
 
     fn get_input(&self) -> Option<&ExecutionResult> {
-        self.base.input.as_ref()
+        self.base.input
     }
 
     fn context(&self) -> &ResultProcessorContext {

@@ -203,7 +203,7 @@ mod tests {
 
         assert!(iter.is_valid());
         assert_eq!(iter.size(), 1);
-        assert_eq!(iter.value_ptr().as_ref(), value.as_ref());
+        assert_eq!(iter.value_ptr(), value);
 
         iter.next();
         assert!(!iter.is_valid());

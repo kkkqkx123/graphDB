@@ -508,7 +508,7 @@ impl VisitorCore<Expression> for FindVisitor {
                 conditions,
                 default,
             } => {
-                let default_cloned = default.as_ref().map(|b| (**b).clone());
+                let default_cloned = default.map(|b| (**b).clone());
                 self.visit_case(conditions, &default_cloned)
             }
             Expression::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
@@ -518,8 +518,8 @@ impl VisitorCore<Expression> for FindVisitor {
                 start,
                 end,
             } => {
-                let start_cloned = start.as_ref().map(|b| (**b).clone());
-                let end_cloned = end.as_ref().map(|b| (**b).clone());
+                let start_cloned = start.map(|b| (**b).clone());
+                let end_cloned = end.map(|b| (**b).clone());
                 self.visit_range(collection, &start_cloned, &end_cloned)
             }
             Expression::Path(items) => self.visit_path(items),
@@ -551,7 +551,7 @@ impl VisitorCore<Expression> for FindVisitor {
             } => {
                 // 简化为函数调用
                 let cond_expr = condition
-                    .as_ref()
+                    
                     .map(|c| (**c).clone())
                     .unwrap_or(Expression::bool(true));
                 self.visit_function("list_comprehension", &[(**generator).clone(), cond_expr])
@@ -578,8 +578,8 @@ impl VisitorCore<Expression> for FindVisitor {
                 start,
                 end,
             } => {
-                let start_cloned = start.as_ref().map(|b| (**b).clone());
-                let end_cloned = end.as_ref().map(|b| (**b).clone());
+                let start_cloned = start.map(|b| (**b).clone());
+                let end_cloned = end.map(|b| (**b).clone());
                 self.visit_range(collection, &start_cloned, &end_cloned)
             }
             Expression::MatchPathPattern { patterns, .. } => self.visit_list(patterns),
@@ -708,7 +708,7 @@ impl ExpressionVisitor for FindVisitor {
         if self.target_types.contains(&ExpressionType::Case) {
             self.found_exprs.push(Expression::Case {
                 conditions: conditions.to_vec(),
-                default: default.as_ref().map(|e| Box::new(e.clone())),
+                default: default.map(|e| Box::new(e.clone())),
             });
         }
         for (condition, value) in conditions {
@@ -750,8 +750,8 @@ impl ExpressionVisitor for FindVisitor {
         if self.target_types.contains(&ExpressionType::Range) {
             self.found_exprs.push(Expression::Range {
                 collection: Box::new(collection.clone()),
-                start: start.as_ref().map(|e| Box::new(e.clone())),
-                end: end.as_ref().map(|e| Box::new(e.clone())),
+                start: start.map(|e| Box::new(e.clone())),
+                end: end.map(|e| Box::new(e.clone())),
             });
         }
         self.visit(collection);

@@ -85,7 +85,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
 
     /// 获取当前状态
     pub fn status(&self) -> Option<&TypeDeductionError> {
-        self.status.as_ref()
+        self.status
     }
 
     /// 获取推导出的类型
@@ -138,10 +138,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 end,
             } => {
                 self.visit(collection)?;
-                if let Some(start_expr) = start.as_ref() {
+                if let Some(start_expr) = start {
                     self.visit(start_expr)?;
                 }
-                if let Some(end_expr) = end.as_ref() {
+                if let Some(end_expr) = end {
                     self.visit(end_expr)?;
                 }
                 // 范围访问始终返回列表
@@ -230,7 +230,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 Ok(())
             }
             Expression::TypeCast { expr, target_type } => {
-                self.visit(expr.as_ref())?;
+                self.visit(expr)?;
                 self.type_ = self.parse_data_type(target_type);
                 Ok(())
             }
@@ -288,24 +288,24 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 arg,
                 distinct: _,
             } => {
-                self.visit(arg.as_ref())?;
+                self.visit(arg)?;
                 self.visit_aggregate_func(func)
             }
             Expression::ListComprehension {
                 generator,
                 condition,
             } => {
-                self.visit(generator.as_ref())?;
-                if let Some(condition_expr) = condition.as_ref() {
-                    self.visit(condition_expr.as_ref())?;
+                self.visit(generator)?;
+                if let Some(condition_expr) = condition {
+                    self.visit(condition_expr)?;
                 }
                 // 列表推导始终返回列表类型
                 self.type_ = ValueTypeDef::List;
                 Ok(())
             }
             Expression::Predicate { list, condition } => {
-                self.visit(list.as_ref())?;
-                self.visit(condition.as_ref())?;
+                self.visit(list)?;
+                self.visit(condition)?;
                 // 谓词表达式返回布尔值
                 self.type_ = ValueTypeDef::Bool;
                 Ok(())
@@ -353,10 +353,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 end,
             } => {
                 self.visit(collection)?;
-                if let Some(start_idx) = start.as_ref() {
+                if let Some(start_idx) = start {
                     self.visit(start_idx)?;
                 }
-                if let Some(end_idx) = end.as_ref() {
+                if let Some(end_idx) = end {
                     self.visit(end_idx)?;
                 }
                 // 范围下标始终返回列表
@@ -369,7 +369,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 Ok(())
             }
             Expression::TypeCasting { expr, .. } => {
-                self.visit(expr.as_ref())?;
+                self.visit(expr)?;
                 // 类型转换后返回转换后的类型
                 Ok(())
             }

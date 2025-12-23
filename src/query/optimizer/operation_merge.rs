@@ -5,9 +5,9 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::core::nodes::FilterNode as FilterPlanNode;
-use crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies;
-use crate::query::planner::plan::PlanNodeKind;
+
+
+
 
 /// 合并多个过滤操作的规则
 #[derive(Debug)]
@@ -476,7 +476,7 @@ mod tests {
         DedupNode as Dedup, FilterNode as Filter, GetNeighborsNode as GetNeighbors,
         GetVerticesNode as GetVertices, ProjectNode as Project,
     };
-    use crate::query::planner::plan::PlanNodeKind;
+    
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(

@@ -2,7 +2,7 @@
 //! 对应原C++中的context/Symbols.h
 
 use super::dependency_tracker::DependencyTracker;
-use super::plan_node::PlanNodeRef;
+
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -397,7 +397,7 @@ impl Default for SymbolTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::symbol::plan_node::PlanNodeType;
+    
 
     #[test]
     fn test_symbol_table() {

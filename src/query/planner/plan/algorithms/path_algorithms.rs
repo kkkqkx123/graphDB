@@ -16,7 +16,7 @@ use std::sync::Arc;
 pub struct MultiShortestPath {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -28,7 +28,7 @@ pub struct MultiShortestPath {
 }
 
 impl MultiShortestPath {
-    pub fn new(id: i64, left: Arc<dyn PlanNode>, right: Arc<dyn PlanNode>, steps: usize) -> Self {
+    pub fn new(id: i64, left: PlanNodeEnum, right: PlanNodeEnum, steps: usize) -> Self {
         let mut result = Self {
             id,
             kind: PlanNodeKind::MultiShortestPath,
@@ -105,7 +105,7 @@ impl PlanNodeIdentifiable for MultiShortestPath {
 
 impl PlanNodeProperties for MultiShortestPath {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[String] {
@@ -118,11 +118,11 @@ impl PlanNodeProperties for MultiShortestPath {
 }
 
 impl PlanNodeDependencies for MultiShortestPath {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
@@ -139,7 +139,7 @@ impl PlanNodeDependencies for MultiShortestPath {
 impl PlanNodeDependenciesExt for MultiShortestPath {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -156,11 +156,11 @@ impl PlanNodeMutable for MultiShortestPath {
 }
 
 impl PlanNodeClonable for MultiShortestPath {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
@@ -186,7 +186,7 @@ impl PlanNode for MultiShortestPath {
 pub struct BFSShortest {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -199,7 +199,7 @@ pub struct BFSShortest {
 impl BFSShortest {
     pub fn new(
         id: i64,
-        dep: Arc<dyn PlanNode>,
+        dep: PlanNodeEnum,
         steps: usize,
         edge_types: Vec<String>,
         no_loop: bool,
@@ -256,7 +256,7 @@ impl PlanNodeIdentifiable for BFSShortest {
 
 impl PlanNodeProperties for BFSShortest {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[String] {
@@ -269,11 +269,11 @@ impl PlanNodeProperties for BFSShortest {
 }
 
 impl PlanNodeDependencies for BFSShortest {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
@@ -290,7 +290,7 @@ impl PlanNodeDependencies for BFSShortest {
 impl PlanNodeDependenciesExt for BFSShortest {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -307,11 +307,11 @@ impl PlanNodeMutable for BFSShortest {
 }
 
 impl PlanNodeClonable for BFSShortest {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
@@ -337,7 +337,7 @@ impl PlanNode for BFSShortest {
 pub struct AllPaths {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -352,8 +352,8 @@ pub struct AllPaths {
 impl AllPaths {
     pub fn new(
         id: i64,
-        left: Arc<dyn PlanNode>,
-        right: Arc<dyn PlanNode>,
+        left: PlanNodeEnum,
+        right: PlanNodeEnum,
         steps: usize,
         edge_types: Vec<String>,
         min_hop: usize,
@@ -420,7 +420,7 @@ impl PlanNodeIdentifiable for AllPaths {
 
 impl PlanNodeProperties for AllPaths {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[String] {
@@ -433,11 +433,11 @@ impl PlanNodeProperties for AllPaths {
 }
 
 impl PlanNodeDependencies for AllPaths {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
@@ -454,7 +454,7 @@ impl PlanNodeDependencies for AllPaths {
 impl PlanNodeDependenciesExt for AllPaths {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -471,11 +471,11 @@ impl PlanNodeMutable for AllPaths {
 }
 
 impl PlanNodeClonable for AllPaths {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
@@ -501,7 +501,7 @@ impl PlanNode for AllPaths {
 pub struct ShortestPath {
     pub id: i64,
     pub kind: PlanNodeKind,
-    pub deps: Vec<Arc<dyn PlanNode>>,
+    pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
@@ -514,8 +514,8 @@ pub struct ShortestPath {
 impl ShortestPath {
     pub fn new(
         id: i64,
-        left: Arc<dyn PlanNode>,
-        right: Arc<dyn PlanNode>,
+        left: PlanNodeEnum,
+        right: PlanNodeEnum,
         edge_types: Vec<String>,
         max_step: usize,
     ) -> Self {
@@ -575,7 +575,7 @@ impl PlanNodeIdentifiable for ShortestPath {
 
 impl PlanNodeProperties for ShortestPath {
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var
     }
 
     fn col_names(&self) -> &[String] {
@@ -588,11 +588,11 @@ impl PlanNodeProperties for ShortestPath {
 }
 
 impl PlanNodeDependencies for ShortestPath {
-    fn dependencies(&self) -> Vec<Arc<dyn PlanNode>> {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: Arc<dyn PlanNode>) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
@@ -609,7 +609,7 @@ impl PlanNodeDependencies for ShortestPath {
 impl PlanNodeDependenciesExt for ShortestPath {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[Arc<dyn PlanNode>]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.deps)
     }
@@ -626,11 +626,11 @@ impl PlanNodeMutable for ShortestPath {
 }
 
 impl PlanNodeClonable for ShortestPath {
-    fn clone_plan_node(&self) -> Arc<dyn PlanNode> {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
         Arc::new(self.clone())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> Arc<dyn PlanNode> {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
         Arc::new(cloned)
