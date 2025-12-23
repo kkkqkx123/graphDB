@@ -48,7 +48,7 @@ impl ShowConfigs {
 
 impl From<ShowConfigs> for PlanNodeEnum {
     fn from(configs: ShowConfigs) -> Self {
-        PlanNodeEnum::ShowConfigs(Arc::new(configs))
+        PlanNodeEnum::ShowConfigs(configs)
     }
 }
 

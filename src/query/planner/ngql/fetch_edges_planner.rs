@@ -3,11 +3,10 @@
 
 use crate::query::context::ast::{AstContext, FetchEdgesContext};
 use crate::query::planner::plan::core::nodes::{
-    ArgumentNode, DedupNode, FilterNode, GetEdgesNode, ProjectNode,
+    ArgumentNode, DedupNode, FilterNode, GetEdgesNode, PlanNodeEnum, ProjectNode,
 };
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use std::sync::Arc;
 
 /// FETCH EDGES查询规划器
 /// 负责将FETCH EDGES查询转换为执行计划
@@ -49,16 +48,16 @@ impl Planner for FetchEdgesPlanner {
         println!("Processing FETCH EDGES query planning: {:?}", fetch_ctx);
 
         // 1. 创建参数节点，获取边的条件
-        let arg_node = Arc::new(ArgumentNode::new(1, &fetch_ctx.input_var_name));
+        let arg_node = ArgumentNode::new(1, &fetch_ctx.input_var_name);
 
         // 2. 创建获取边的节点
-        let get_edges_node = Arc::new(GetEdgesNode::new(
+        let get_edges_node = GetEdgesNode::new(
             1, // space_id
             &fetch_ctx.src.clone().unwrap_or_default(),
             &fetch_ctx.edge_type.clone().unwrap_or_default(),
             &fetch_ctx.rank.clone().unwrap_or_default(),
             &fetch_ctx.dst.clone().unwrap_or_default(),
-        ));
+        );
 
         // 3. 创建过滤空边的节点
         let filter_node = match FilterNode::new(
@@ -71,8 +70,11 @@ impl Planner for FetchEdgesPlanner {
 
         // 4. 创建投影节点
         let project_node = match ProjectNode::new(filter_node.clone(), vec![]) {
-            Ok(node) => Arc::new(node),
-            Err(_) => filter_node.clone(),
+            Ok(node) => PlanNodeEnum::Project(node),
+            Err(e) => {
+                println!("Failed to create project node: {:?}", e);
+                filter_node
+            }
         };
 
         // 5. 如果需要去重，创建去重节点

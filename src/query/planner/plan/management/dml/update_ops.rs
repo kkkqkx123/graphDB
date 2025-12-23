@@ -30,7 +30,7 @@ impl UpdateVertex {
 
 impl From<UpdateVertex> for PlanNodeEnum {
     fn from(vertex: UpdateVertex) -> Self {
-        PlanNodeEnum::UpdateVertex(Arc::new(vertex))
+        PlanNodeEnum::UpdateVertex(vertex)
     }
 }
 

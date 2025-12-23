@@ -70,7 +70,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                                     // 创建带有修改后索引扫描节点的新OptGroupNode
                                     let mut new_index_scan_opt_node = node.clone();
                                     new_index_scan_opt_node.plan_node =
-                                        Arc::new(new_index_scan_node);
+                                        PlanNodeEnum::IndexScan(new_index_scan_node);
 
                                     // 如果有剩余的过滤条件，创建新的过滤节点
                                     if let Some(_remaining_condition) =
@@ -81,7 +81,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                                         // 这里简化处理，直接返回原节点
 
                                         let mut new_filter_opt_node = dep_node.clone();
-                                        new_filter_opt_node.plan_node = Arc::new(new_filter_node);
+                                        new_filter_opt_node.plan_node = PlanNodeEnum::Filter(new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_index_scan_opt_node.id];
 
@@ -172,7 +172,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                                     // 创建带有修改后索引扫描节点的新OptGroupNode
                                     let mut new_index_scan_opt_node = node.clone();
                                     new_index_scan_opt_node.plan_node =
-                                        Arc::new(new_index_scan_node);
+                                        PlanNodeEnum::IndexScan(new_index_scan_node);
 
                                     // 如果有剩余的过滤条件，创建新的过滤节点
                                     if let Some(_remaining_condition) =
@@ -183,7 +183,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                                         // 这里简化处理，直接返回原节点
 
                                         let mut new_filter_opt_node = dep_node.clone();
-                                        new_filter_opt_node.plan_node = Arc::new(new_filter_node);
+                                        new_filter_opt_node.plan_node = PlanNodeEnum::Filter(new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_index_scan_opt_node.id];
 
@@ -1036,13 +1036,13 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
+        let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
 
         // 创建一个过滤节点作为依赖
-        let filter_node = Arc::new(
+        let filter_node = PlanNodeEnum::Filter(
             crate::query::planner::plan::core::nodes::FilterNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::core::Expression::Variable("age > 18".to_string()),
             )
             .expect("Failed to create filter node"),
@@ -1068,13 +1068,13 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
+        let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
 
         // 创建一个过滤节点作为依赖
-        let filter_node = Arc::new(
+        let filter_node = PlanNodeEnum::Filter(
             crate::query::planner::plan::core::nodes::FilterNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
                 crate::core::Expression::Variable("name = 'test'".to_string()),
             )
             .expect("Failed to create filter node"),
@@ -1100,7 +1100,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
+        let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule
@@ -1115,7 +1115,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
+        let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule
@@ -1130,7 +1130,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
+        let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule
@@ -1145,7 +1145,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
+        let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule
@@ -1160,7 +1160,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个索引扫描节点
-        let index_scan_node = Arc::new(IndexScan::new(1, 1, 2, 3, "RANGE"));
+        let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule
@@ -1248,19 +1248,19 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建第一个索引扫描节点
-        let index_scan1 = IndexScan::new(1, 1, 2, 3, "RANGE");
-        let opt_node1 = OptGroupNode::new(1, Arc::new(index_scan1));
+        let index_scan1 = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
+        let opt_node1 = OptGroupNode::new(1, index_scan1);
 
         // 创建第二个索引扫描节点
-        let index_scan2 = IndexScan::new(2, 1, 2, 3, "RANGE");
-        let opt_node2 = OptGroupNode::new(2, Arc::new(index_scan2));
+        let index_scan2 = PlanNodeEnum::IndexScan(IndexScan::new(2, 1, 2, 3, "RANGE"));
+        let opt_node2 = OptGroupNode::new(2, index_scan2);
 
         // 添加到上下文
         ctx.add_plan_node_and_group_node(1, &opt_node1);
         ctx.add_plan_node_and_group_node(2, &opt_node2);
 
         // 创建一个有多个依赖的节点
-        let mut union_node = OptGroupNode::new(3, Arc::new(IndexScan::new(3, 1, 2, 3, "RANGE")));
+        let mut union_node = OptGroupNode::new(3, PlanNodeEnum::IndexScan(IndexScan::new(3, 1, 2, 3, "RANGE")));
         union_node.dependencies = vec![1, 2];
 
         let result = rule

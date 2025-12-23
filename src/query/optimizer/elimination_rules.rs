@@ -915,7 +915,7 @@ fn create_plan_node_with_output_var(
         }
         PlanNodeEnum::Limit(limit_node) => {
             // 创建新的限制节点，需要使用正确的构造函数
-            let input = limit_node
+            let input = *limit_node
                 .dependencies()
                 .get(0)
                 .expect("Limit should have at least one dependency")
@@ -969,8 +969,8 @@ fn create_plan_node_with_output_var(
         PlanNodeEnum::InnerJoin(inner_join_node) => {
             let deps = inner_join_node.dependencies();
             if deps.len() >= 2 {
-                let left = deps[0].clone();
-                let right = deps[1].clone();
+                let left = *deps[0].clone();
+                let right = *deps[1].clone();
                 let hash_keys = inner_join_node.hash_keys().to_vec();
                 let probe_keys = inner_join_node.probe_keys().to_vec();
                 let mut new_node = InnerJoinNode::new(left, right, hash_keys, probe_keys)
@@ -984,8 +984,8 @@ fn create_plan_node_with_output_var(
         PlanNodeEnum::LeftJoin(left_join_node) => {
             let deps = left_join_node.dependencies();
             if deps.len() >= 2 {
-                let left = deps[0].clone();
-                let right = deps[1].clone();
+                let left = *deps[0].clone();
+                let right = *deps[1].clone();
                 let hash_keys = left_join_node.hash_keys().to_vec();
                 let probe_keys = left_join_node.probe_keys().to_vec();
                 let mut new_node = LeftJoinNode::new(left, right, hash_keys, probe_keys)

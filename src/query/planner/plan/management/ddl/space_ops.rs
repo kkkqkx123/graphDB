@@ -85,7 +85,7 @@ impl DescSpace {
 
 impl From<DescSpace> for PlanNodeEnum {
     fn from(space: DescSpace) -> Self {
-        PlanNodeEnum::DescSpace(Arc::new(space))
+        PlanNodeEnum::DescSpace(space)
     }
 }
 
@@ -109,7 +109,7 @@ impl ShowCreateSpace {
 
 impl From<ShowCreateSpace> for PlanNodeEnum {
     fn from(space: ShowCreateSpace) -> Self {
-        PlanNodeEnum::ShowCreateSpace(Arc::new(space))
+        PlanNodeEnum::ShowCreateSpace(space)
     }
 }
 
@@ -149,7 +149,7 @@ impl SwitchSpace {
 
 impl From<SwitchSpace> for PlanNodeEnum {
     fn from(space: SwitchSpace) -> Self {
-        PlanNodeEnum::SwitchSpace(Arc::new(space))
+        PlanNodeEnum::SwitchSpace(space)
     }
 }
 

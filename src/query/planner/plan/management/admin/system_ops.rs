@@ -94,7 +94,7 @@ impl DropSnapshot {
 
 impl From<DropSnapshot> for PlanNodeEnum {
     fn from(snapshot: DropSnapshot) -> Self {
-        PlanNodeEnum::DropSnapshot(Arc::new(snapshot))
+        PlanNodeEnum::DropSnapshot(snapshot)
     }
 }
 

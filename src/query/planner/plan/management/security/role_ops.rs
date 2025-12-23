@@ -60,7 +60,7 @@ impl DropRole {
 
 impl From<DropRole> for PlanNodeEnum {
     fn from(role: DropRole) -> Self {
-        PlanNodeEnum::DropRole(Arc::new(role))
+        PlanNodeEnum::DropRole(role)
     }
 }
 
@@ -136,6 +136,6 @@ impl ShowRoles {
 
 impl From<ShowRoles> for PlanNodeEnum {
     fn from(roles: ShowRoles) -> Self {
-        PlanNodeEnum::ShowRoles(Arc::new(roles))
+        PlanNodeEnum::ShowRoles(roles)
     }
 }

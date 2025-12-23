@@ -61,7 +61,7 @@ impl DescTag {
 
 impl From<DescTag> for PlanNodeEnum {
     fn from(tag: DescTag) -> Self {
-        PlanNodeEnum::DescTag(Arc::new(tag))
+        PlanNodeEnum::DescTag(tag)
     }
 }
 
@@ -107,7 +107,7 @@ impl ShowTags {
 
 impl From<ShowTags> for PlanNodeEnum {
     fn from(tags: ShowTags) -> Self {
-        PlanNodeEnum::ShowTags(Arc::new(tags))
+        PlanNodeEnum::ShowTags(tags)
     }
 }
 

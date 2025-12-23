@@ -49,7 +49,7 @@ impl DeleteTags {
 
 impl From<DeleteTags> for PlanNodeEnum {
     fn from(tags: DeleteTags) -> Self {
-        PlanNodeEnum::DeleteTags(Arc::new(tags))
+        PlanNodeEnum::DeleteTags(tags)
     }
 }
 

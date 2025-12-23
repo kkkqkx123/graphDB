@@ -54,7 +54,7 @@ impl DropHosts {
 
 impl From<DropHosts> for PlanNodeEnum {
     fn from(hosts: DropHosts) -> Self {
-        PlanNodeEnum::DropHosts(Arc::new(hosts))
+        PlanNodeEnum::DropHosts(hosts)
     }
 }
 
@@ -70,7 +70,7 @@ impl ShowHosts {
 
 impl From<ShowHosts> for PlanNodeEnum {
     fn from(hosts: ShowHosts) -> Self {
-        PlanNodeEnum::ShowHosts(Arc::new(hosts))
+        PlanNodeEnum::ShowHosts(hosts)
     }
 }
 

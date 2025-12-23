@@ -49,7 +49,9 @@ use crate::query::planner::match_planning::core::cypher_clause_planner::{
 use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 
+use crate::query::planner::plan::core::nodes::data_processing_node::UnwindNode;
 use crate::query::planner::plan::factory::PlanNodeFactory;
+use crate::query::planner::plan::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
@@ -219,24 +221,23 @@ fn is_valid_identifier(identifier: &str) -> bool {
 /// # 返回
 /// * `Result<PlanNodeEnum, PlannerError>` - UNWIND 节点或错误
 fn create_unwind_node(
-    _ctx: &crate::query::validator::structs::UnwindClauseContext,
+    ctx: &crate::query::validator::structs::UnwindClauseContext,
     input_plan: &SubPlan,
-) -> Result<Arc<dyn crate::query::planner::plan::PlanNode>, PlannerError> {
-    // 获取输入计划的根节点
-    let _input_root = input_plan.root.ok_or_else(|| {
+) -> Result<PlanNodeEnum, PlannerError> {
+    let input_root = input_plan.root.clone().ok_or_else(|| {
         PlannerError::PlanGenerationFailed("UNWIND clause requires input plan".to_string())
     })?;
 
-    // 创建 UNWIND 节点
-    let unwind_node = PlanNodeFactory::create_placeholder_node()?;
+    let list_expr_str = ctx.unwind_expr.to_string();
+    let unwind_node = UnwindNode::new(input_root, &ctx.alias, &list_expr_str)?;
 
     // 设置 UNWIND 节点的属性
     // 将表达式和别名信息存储在列名中，供执行器使用
     // 使用特殊格式存储 UNWIND 信息
     // 由于 PlanNodeEnum 不能直接修改，我们使用占位符
     // 实际的属性会在执行时设置
-
-    Ok(unwind_node)
+    Ok(PlanNodeEnum::Unwind(unwind_node))
+    
 }
 
 /// 序列化表达式为字符串

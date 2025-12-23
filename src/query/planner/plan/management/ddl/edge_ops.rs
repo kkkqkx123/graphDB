@@ -108,6 +108,6 @@ impl ShowCreateEdge {
 
 impl From<ShowCreateEdge> for PlanNodeEnum {
     fn from(edge: ShowCreateEdge) -> Self {
-        PlanNodeEnum::ShowCreateEdge(Arc::new(edge))
+        PlanNodeEnum::ShowCreateEdge(edge)
     }
 }

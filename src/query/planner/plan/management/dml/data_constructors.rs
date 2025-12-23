@@ -27,7 +27,7 @@ impl NewVertex {
 
 impl From<NewVertex> for PlanNodeEnum {
     fn from(vertex: NewVertex) -> Self {
-        PlanNodeEnum::NewVertex(Arc::new(vertex))
+        PlanNodeEnum::NewVertex(vertex)
     }
 }
 
@@ -84,7 +84,7 @@ impl NewProp {
 
 impl From<NewProp> for PlanNodeEnum {
     fn from(prop: NewProp) -> Self {
-        PlanNodeEnum::NewProp(Arc::new(prop))
+        PlanNodeEnum::NewProp(prop)
     }
 }
 

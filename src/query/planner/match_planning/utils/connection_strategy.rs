@@ -175,9 +175,9 @@ impl ConnectionStrategy for CartesianStrategy {
         // 注意：这里我们暂时使用内连接节点，因为 CartesianNode 还没有实现
         // 在完整的实现中，应该创建一个专门的 CartesianNode
         let join_node = PlanNodeFactory::create_inner_join(
-            left_root,
-            right_root,
-            vec![], // 笛卡尔积没有连接键
+            left_root.clone(),
+            right_root.clone(),
+            vec![],
             vec![],
         )?;
 
@@ -206,8 +206,8 @@ impl ConnectionStrategy for SequentialStrategy {
         }
 
         // 使用引用避免移动值
-        match (&left.root, &right.tail) {
-            (Some(_), Some(_)) => {
+        match (left.root.as_ref(), right.tail.as_ref()) {
+            (Some(left_root), Some(right_tail)) => {
                 // 设置输入变量和列名
                 // 根据 copy_col_names 参数决定是否复制列名
                 let copy_col_names = params
@@ -217,27 +217,22 @@ impl ConnectionStrategy for SequentialStrategy {
 
                 let mut col_names = if copy_col_names {
                     // 复制左侧计划的列名
-                    left.root
-                        .map(|node| node.col_names().to_vec())
-                        .unwrap_or_default()
+                    left_root.col_names().to_vec()
                 } else {
                     // 使用右侧计划的列名
-                    right
-                        .tail
-                        .and_then(|node| Some(node.col_names().to_vec()))
-                        .unwrap_or_default()
+                    right_tail.col_names().to_vec()
                 };
 
                 // 添加连接信息到列名
                 col_names.push("sequential_connection".to_string());
                 Ok(SubPlan::new(
-                    left.root.as_ref().clone(),
-                    right.tail.as_ref().clone(),
+                    Some(left_root.clone()),
+                    Some(right_tail.clone()),
                 ))
             }
             _ => Ok(SubPlan::new(
-                left.root.as_ref().clone(),
-                right.tail.as_ref().clone(),
+                left.root.clone(),
+                right.tail.clone(),
             )),
         }
     }
@@ -274,13 +269,10 @@ impl ConnectionStrategy for PatternApplyStrategy {
             PlannerError::InvalidAstContext("Right plan should have a root node".to_string())
         })?;
 
-        // 使用新的节点工厂创建模式应用节点
-        // 注意：这里我们暂时使用内连接节点，因为 PatternApplyNode 还没有实现
-        // 在完整的实现中，应该创建一个专门的 PatternApplyNode
         let join_node = PlanNodeFactory::create_inner_join(
-            left_root,
-            right_root,
-            vec![], // 模式应用没有连接键
+            left_root.clone(),
+            right_root.clone(),
+            vec![],
             vec![],
         )?;
 
@@ -323,9 +315,9 @@ impl ConnectionStrategy for RollUpApplyStrategy {
         // 注意：这里我们暂时使用内连接节点，因为 RollUpApplyNode 还没有实现
         // 在完整的实现中，应该创建一个专门的 RollUpApplyNode
         let join_node = PlanNodeFactory::create_inner_join(
-            left_root,
-            right_root,
-            vec![], // 卷起应用没有连接键
+            left_root.clone(),
+            right_root.clone(),
+            vec![],
             vec![],
         )?;
 

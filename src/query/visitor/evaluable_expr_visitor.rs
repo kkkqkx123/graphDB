@@ -184,8 +184,8 @@ impl VisitorCore<Expression> for EvaluableExprVisitor {
                 generator,
                 condition,
             } => {
-                // 简化为函数调用
                 let cond_expr = condition
+                    .as_ref()
                     .map(|c| (**c).clone())
                     .unwrap_or(Expression::bool(true));
                 self.visit_function("list_comprehension", &[(**generator).clone(), cond_expr])

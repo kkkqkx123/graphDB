@@ -4,11 +4,10 @@
 use crate::query::context::ast::{AstContext, SubgraphContext};
 use crate::query::planner::plan::core::nodes::{
     ArgumentNode as Argument, ExpandAllNode as ExpandAll, ExpandNode as Expand,
-    FilterNode as Filter, ProjectNode as Project,
+    FilterNode as Filter, PlanNodeEnum, ProjectNode as Project,
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use std::sync::Arc;
 
 /// SUBGRAPH查询规划器
 /// 负责将SUBGRAPH查询转换为执行计划
@@ -43,78 +42,58 @@ impl SubgraphPlanner {
 
 impl Planner for SubgraphPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // 从ast_ctx创建SubgraphContext
         let subgraph_ctx = SubgraphContext::new(ast_ctx.clone());
 
-        // 实现SUBGRAPH查询的规划逻辑
         println!("Processing SUBGRAPH query planning: {:?}", subgraph_ctx);
 
-        // 1. 创建参数节点，获取起始顶点
-        let arg_node = Arc::new(Argument::new(1, &subgraph_ctx.from.user_defined_var_name));
+        let arg_node = Argument::new(1, &subgraph_ctx.from.user_defined_var_name);
 
-        // 2. 创建扩展节点进行子图扩展
-        let _expand_node = Arc::new(Expand::new(2, subgraph_ctx.edge_types.clone(), "out"));
+        let expand_node = Expand::new(1, subgraph_ctx.edge_types.clone(), "out");
 
-        // 3. 创建ExpandAll节点进行多步扩展
-        let expand_all_node = Arc::new(ExpandAll::new(3, subgraph_ctx.edge_types.clone(), "out"));
+        let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAll::new(2, subgraph_ctx.edge_types.clone(), "out"));
 
-        // 4. 创建过滤节点（如果有过滤条件）
-        let filter_node: Arc<dyn crate::query::planner::plan::core::PlanNode> =
-            if let Some(ref condition) = subgraph_ctx.filter {
-                match Filter::new(
-                    expand_all_node.clone(),
-                    crate::core::Expression::Variable(condition.clone()),
-                ) {
-                    Ok(node) => Arc::new(node),
-                    Err(_) => expand_all_node.clone(),
-                }
-            } else {
-                expand_all_node.clone()
-            };
+        let filter_node: PlanNodeEnum = if let Some(ref condition) = subgraph_ctx.filter {
+            match Filter::new(
+                expand_all_node.clone(),
+                crate::core::Expression::Variable(condition.clone()),
+            ) {
+                Ok(node) => PlanNodeEnum::Filter(node),
+                Err(_) => expand_all_node.clone(),
+            }
+        } else {
+            expand_all_node.clone()
+        };
 
-        // 5. 如果有标签过滤，添加额外过滤
-        let tag_filter_node = if let Some(ref tag_condition) = subgraph_ctx.tag_filter {
+        let tag_filter_node: PlanNodeEnum = if let Some(ref tag_condition) = subgraph_ctx.tag_filter {
             match Filter::new(
                 filter_node.clone(),
                 crate::core::Expression::Variable(tag_condition.clone()),
             ) {
-                Ok(node) => Arc::new(node),
+                Ok(node) => PlanNodeEnum::Filter(node),
                 Err(_) => filter_node.clone(),
             }
         } else {
             filter_node
         };
 
-        // 6. 如果有边过滤，添加额外过滤
-        let edge_filter_node = if let Some(ref edge_condition) = subgraph_ctx.edge_filter {
+        let edge_filter_node: PlanNodeEnum = if let Some(ref edge_condition) = subgraph_ctx.edge_filter {
             match Filter::new(
                 tag_filter_node.clone(),
                 crate::core::Expression::Variable(edge_condition.clone()),
             ) {
-                Ok(node) => Arc::new(node),
+                Ok(node) => PlanNodeEnum::Filter(node),
                 Err(_) => tag_filter_node.clone(),
             }
         } else {
             tag_filter_node
         };
 
-        // 7. 创建投影节点
-        let project_node = match Project::new(edge_filter_node.clone(), vec![]) {
-            Ok(node) => Arc::new(node),
-            Err(_) => edge_filter_node.clone(),
+        let project_node: PlanNodeEnum = match Project::new(edge_filter_node.clone(), vec![]) {
+            Ok(node) => PlanNodeEnum::Project(node),
+            Err(_) => edge_filter_node,
         };
 
-        // 8. 如果需要返回属性，设置属性获取
-        if subgraph_ctx.get_vertex_prop {
-            // 可能需要额外的GetVertices节点来获取顶点属性
-        }
-
-        if subgraph_ctx.get_edge_prop {
-            // 可能需要额外的GetEdges节点来获取边属性
-        }
-
-        // 创建SubPlan
-        let sub_plan = SubPlan::new(Some(project_node.clone()), Some(arg_node));
+        let sub_plan = SubPlan::new(Some(project_node), Some(PlanNodeEnum::Argument(arg_node)));
 
         Ok(sub_plan)
     }

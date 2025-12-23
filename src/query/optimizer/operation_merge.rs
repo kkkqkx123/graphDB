@@ -48,13 +48,13 @@ impl OptRule for CombineFilterRule {
                         // 创建一个新的过滤节点，包含合并后的条件
                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                         // 这里简化处理，直接返回原节点
-                        let input = (*top_filter
+                        let input = *top_filter
                             .dependencies()
                             .first()
-                            .expect("Filter should have at least one dependency"))
-                        .clone();
+                            .expect("Filter should have at least one dependency");
+
                         let combined_filter_node = match FilterPlanNode::new(
-                            input,
+                            *input,
                             crate::core::Expression::Variable(combined_condition_str),
                         ) {
                             Ok(node) => node,
@@ -70,9 +70,7 @@ impl OptRule for CombineFilterRule {
                             crate::query::planner::plan::PlanNodeEnum::Filter(combined_filter_node);
 
                         // 设置依赖关系
-                        if !child.dependencies.is_empty() {
-                            combined_filter_opt_node.dependencies = child.dependencies.clone();
-                        }
+                        combined_filter_opt_node.dependencies = node.dependencies.clone();
 
                         return Ok(Some(combined_filter_opt_node));
                     }
@@ -114,13 +112,13 @@ impl MergeRule for CombineFilterRule {
 
             // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
             // 这里简化处理，直接返回原节点
-            let input = (*top_filter
+            let input = *top_filter
                 .dependencies()
                 .first()
-                .expect("Filter should have at least one dependency"))
-            .clone();
+                .expect("Filter should have at least one dependency");
+
             let combined_filter_node = match FilterPlanNode::new(
-                input,
+                *input,
                 crate::core::Expression::Variable(combined_condition_str),
             ) {
                 Ok(node) => node,
@@ -132,9 +130,7 @@ impl MergeRule for CombineFilterRule {
             combined_filter_opt_node.plan_node =
                 crate::query::planner::plan::PlanNodeEnum::Filter(combined_filter_node);
 
-            if !child.dependencies.is_empty() {
-                combined_filter_opt_node.dependencies = child.dependencies.clone();
-            }
+            combined_filter_opt_node.dependencies = node.dependencies.clone();
 
             Ok(Some(combined_filter_opt_node))
         } else {

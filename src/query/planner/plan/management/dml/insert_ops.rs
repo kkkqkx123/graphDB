@@ -22,7 +22,7 @@ impl InsertVertices {
 
 impl From<InsertVertices> for PlanNodeEnum {
     fn from(vertices: InsertVertices) -> Self {
-        PlanNodeEnum::InsertVertices(Arc::new(vertices))
+        PlanNodeEnum::InsertVertices(vertices)
     }
 }
 

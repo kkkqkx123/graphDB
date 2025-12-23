@@ -20,9 +20,9 @@ impl AggregateValidationStrategy {
     pub fn has_aggregate_expr(&self, expr: &Expression) -> bool {
         match expr {
             Expression::Aggregate { .. } => true,
-            Expression::Unary { operand, .. } => self.has_aggregate_expr(operand),
+            Expression::Unary { operand, .. } => self.has_aggregate_expr(operand.as_ref()),
             Expression::Binary { left, right, .. } => {
-                self.has_aggregate_expr(left) || self.has_aggregate_expr(right)
+                self.has_aggregate_expr(left.as_ref()) || self.has_aggregate_expr(right.as_ref())
             }
             Expression::Function { args, .. } => {
                 args.iter().any(|arg| self.has_aggregate_expr(arg))
@@ -37,17 +37,17 @@ impl AggregateValidationStrategy {
             } => {
                 conditions.iter().any(|(cond, val)| {
                     self.has_aggregate_expr(cond) || self.has_aggregate_expr(val)
-                }) || default.map_or(false, |d| self.has_aggregate_expr(d))
+                }) || default.as_ref().map_or(false, |d| self.has_aggregate_expr(d))
             }
             Expression::ListComprehension {
                 generator,
                 condition,
             } => {
-                self.has_aggregate_expr(generator)
-                    || condition.map_or(false, |c| self.has_aggregate_expr(c))
+                self.has_aggregate_expr(generator.as_ref())
+                    || condition.as_ref().map_or(false, |c| self.has_aggregate_expr(c))
             }
             Expression::Predicate { list, condition } => {
-                self.has_aggregate_expr(list) || self.has_aggregate_expr(condition)
+                self.has_aggregate_expr(list.as_ref()) || self.has_aggregate_expr(condition.as_ref())
             }
             Expression::Reduce {
                 list,
@@ -55,9 +55,9 @@ impl AggregateValidationStrategy {
                 expr,
                 ..
             } => {
-                self.has_aggregate_expr(list)
-                    || self.has_aggregate_expr(initial)
-                    || self.has_aggregate_expr(expr)
+                self.has_aggregate_expr(list.as_ref())
+                    || self.has_aggregate_expr(initial.as_ref())
+                    || self.has_aggregate_expr(expr.as_ref())
             }
             _ => false,
         }
@@ -136,9 +136,9 @@ impl AggregateValidationStrategy {
     fn has_wildcard_property(&self, expr: &Expression) -> bool {
         match expr {
             Expression::Property { property, .. } if property == "*" => true,
-            Expression::Unary { operand, .. } => self.has_wildcard_property(operand),
+            Expression::Unary { operand, .. } => self.has_wildcard_property(operand.as_ref()),
             Expression::Binary { left, right, .. } => {
-                self.has_wildcard_property(left) || self.has_wildcard_property(right)
+                self.has_wildcard_property(left.as_ref()) || self.has_wildcard_property(right.as_ref())
             }
             Expression::Function { args, .. } => {
                 args.iter().any(|arg| self.has_wildcard_property(arg))
@@ -153,17 +153,17 @@ impl AggregateValidationStrategy {
             } => {
                 conditions.iter().any(|(cond, val)| {
                     self.has_wildcard_property(cond) || self.has_wildcard_property(val)
-                }) || default.map_or(false, |d| self.has_wildcard_property(d))
+                }) || default.as_ref().map_or(false, |d| self.has_wildcard_property(d))
             }
             Expression::ListComprehension {
                 generator,
                 condition,
             } => {
-                self.has_wildcard_property(generator)
-                    || condition.map_or(false, |c| self.has_wildcard_property(c))
+                self.has_wildcard_property(generator.as_ref())
+                    || condition.as_ref().map_or(false, |c| self.has_wildcard_property(c))
             }
             Expression::Predicate { list, condition } => {
-                self.has_wildcard_property(list) || self.has_wildcard_property(condition)
+                self.has_wildcard_property(list.as_ref()) || self.has_wildcard_property(condition.as_ref())
             }
             Expression::Reduce {
                 list,
@@ -171,9 +171,9 @@ impl AggregateValidationStrategy {
                 expr,
                 ..
             } => {
-                self.has_wildcard_property(list)
-                    || self.has_wildcard_property(initial)
-                    || self.has_wildcard_property(expr)
+                self.has_wildcard_property(list.as_ref())
+                    || self.has_wildcard_property(initial.as_ref())
+                    || self.has_wildcard_property(expr.as_ref())
             }
             _ => false,
         }

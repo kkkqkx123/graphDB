@@ -77,7 +77,7 @@ impl DropIndex {
 
 impl From<DropIndex> for PlanNodeEnum {
     fn from(index: DropIndex) -> Self {
-        PlanNodeEnum::DropIndex(Arc::new(index))
+        PlanNodeEnum::DropIndex(index)
     }
 }
 
@@ -123,6 +123,6 @@ impl DescIndex {
 
 impl From<DescIndex> for PlanNodeEnum {
     fn from(index: DescIndex) -> Self {
-        PlanNodeEnum::DescIndex(Arc::new(index))
+        PlanNodeEnum::DescIndex(index)
     }
 }
