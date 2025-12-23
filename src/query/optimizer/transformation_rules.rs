@@ -4,6 +4,7 @@
 use super::optimizer::{OptContext, OptGroupNode, OptRule, OptimizerError, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
+use crate::query::planner::plan::PlanNodeKind;
 
 
 

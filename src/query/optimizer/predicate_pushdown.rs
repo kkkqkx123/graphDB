@@ -8,9 +8,10 @@ use super::rule_traits::{
 };
 use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
+use crate::query::planner::plan::PlanNodeKind;
 use crate::query::planner::plan::algorithms::IndexScan;
+use crate::query::planner::plan::core::nodes::FilterNode as FilterPlanNode;
 use crate::query::planner::plan::core::nodes::ExpandNode as Expand;
-
 use crate::query::planner::plan::core::nodes::ScanEdgesNode as ScanEdges;
 use crate::query::planner::plan::core::nodes::ScanVerticesNode as ScanVertices;
 use crate::query::planner::plan::core::nodes::TraverseNode;

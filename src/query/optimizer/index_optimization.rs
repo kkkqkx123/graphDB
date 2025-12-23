@@ -6,8 +6,9 @@ use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{combine_conditions, BaseOptRule, FilterSplitResult};
 use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-
-
+use crate::query::planner::plan::PlanNodeKind;
+use crate::query::planner::plan::core::nodes::FilterNode;
+use crate::query::planner::plan::algorithms::IndexScan;
 
 use std::sync::Arc;
 
@@ -37,7 +38,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                     if dep_node.plan_node.kind() == PlanNodeKind::Filter {
                         // 检查过滤条件是否可以推入到索引扫描中
                         if let Some(filter_node) =
-                            dep_node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                            dep_node.plan_node.as_any().downcast_ref::<FilterNode>()
                         {
                             // 分析过滤条件，确定哪些部分可以推入到索引扫描
                             let filter_condition = filter_node.condition();
@@ -46,7 +47,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 获取当前索引扫描节点
                                 if let Some(index_scan_node) =
-                                    node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>()
+                                    node.plan_node.as_any().downcast_ref::<IndexScan>()
                                 {
                                     // 创建新的索引扫描节点，合并过滤条件
                                     let mut new_index_scan_node = index_scan_node.clone();
@@ -143,7 +144,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                     if dep_node.plan_node.kind() == PlanNodeKind::Filter {
                         // 检查过滤条件是否可以推入到索引扫描中
                         if let Some(filter_node) =
-                            dep_node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
+                            dep_node.plan_node.as_any().downcast_ref::<FilterNode>()
                         {
                             // 分析过滤条件，确定哪些部分可以推入到索引扫描
                             let filter_condition = filter_node.condition();
@@ -152,7 +153,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 获取当前索引扫描节点
                                 if let Some(index_scan_node) =
-                                    node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>()
+                                    node.plan_node.as_any().downcast_ref::<IndexScan>()
                                 {
                                     // 创建新的索引扫描节点，合并过滤条件
                                     let mut new_index_scan_node = index_scan_node.clone();
@@ -245,11 +246,11 @@ impl OptRule for EdgeIndexFullScanRule {
         // 检查是否没有有效的过滤条件，这可能意味着全扫描
         // 在完整实现中，我们需要检查索引扫描的条件
         // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
-        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>()
+        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScan>()
         {
             // 如果索引扫描没有有效的过滤条件，可能是全扫描
             if let Some(index_scan_plan_node) =
-                node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>()
+                node.plan_node.as_any().downcast_ref::<IndexScan>()
             {
                 if !index_scan_plan_node.has_effective_filter() {
                     // 根据具体情况，我们可能将其转换为更高效的操作
@@ -290,11 +291,11 @@ impl OptRule for TagIndexFullScanRule {
         // 检查是否没有有效的过滤条件，这可能意味着全扫描
         // 在完整实现中，我们需要检查索引扫描的条件
         // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
-        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>()
+        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScan>()
         {
             // 如果索引扫描没有有效的过滤条件，可能是全扫描
             if let Some(index_scan_plan_node) =
-                node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>()
+                node.plan_node.as_any().downcast_ref::<IndexScan>()
             {
                 if !index_scan_plan_node.has_effective_filter() {
                     // 根据具体情况，我们可能将其转换为更高效的操作
@@ -337,7 +338,7 @@ impl OptRule for IndexScanRule {
         // - 数据分布
         // - 可用内存
         // 这里，我们基于NebulaGraph的IndexScanRule实现，检查索引扫描的查询上下文
-        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScanPlanNode>()
+        if let Some(_index_scan_node) = node.plan_node.as_any().downcast_ref::<IndexScan>()
         {
             // 实际优化逻辑可能会根据索引条件创建更优化的索引扫描计划
             // 暂时返回当前节点
@@ -556,7 +557,7 @@ fn combine_expression_list(exprs: &[String]) -> String {
 }
 
 /// 更新索引扫描的限制条件
-fn update_index_scan_limits(index_scan: &mut IndexScanPlanNode, condition: &Expression) {
+fn update_index_scan_limits(index_scan: &mut IndexScan, condition: &Expression) {
     // 尝试将过滤条件转换为索引扫描限制
     // 使用表达式解析器来更准确地提取条件
 
@@ -567,7 +568,7 @@ fn update_index_scan_limits(index_scan: &mut IndexScanPlanNode, condition: &Expr
 /// 从表达式中提取索引限制
 fn extract_index_limits_from_expression(
     expr: &crate::core::Expression,
-    index_scan: &mut IndexScanPlanNode,
+    index_scan: &mut IndexScan,
 ) {
     use crate::core::Expression;
 
@@ -712,7 +713,7 @@ impl UnionAllEdgeIndexScanRule {
                     if let Some(index_scan) = dep_node
                         .plan_node
                         .as_any()
-                        .downcast_ref::<IndexScanPlanNode>()
+                        .downcast_ref::<IndexScan>()
                     {
                         index_scan_nodes.push((dep_id, index_scan.clone()));
                     }
@@ -754,9 +755,9 @@ impl UnionAllEdgeIndexScanRule {
     /// 尝试合并多个索引扫描节点
     fn try_merge_index_scans(
         &self,
-        index_scans: &[(usize, IndexScanPlanNode)],
+        index_scans: &[(usize, IndexScan)],
         is_edge_index: bool,
-    ) -> Option<IndexScanPlanNode> {
+    ) -> Option<IndexScan> {
         // 检查所有索引扫描是否兼容
         if !self.are_index_scans_mergeable(index_scans, is_edge_index) {
             return None;
@@ -803,7 +804,7 @@ impl UnionAllEdgeIndexScanRule {
     /// 检查索引扫描是否可以合并
     fn are_index_scans_mergeable(
         &self,
-        index_scans: &[(usize, IndexScanPlanNode)],
+        index_scans: &[(usize, IndexScan)],
         is_edge_index: bool,
     ) -> bool {
         if index_scans.is_empty() {
@@ -843,7 +844,7 @@ impl UnionAllEdgeIndexScanRule {
     fn reorder_index_scans(
         &self,
         _ctx: &OptContext,
-        index_scans: &[(usize, IndexScanPlanNode)],
+        index_scans: &[(usize, IndexScan)],
     ) -> Option<Vec<usize>> {
         // 根据成本估算重新排序，成本低的优先
         let mut sorted_scans: Vec<_> = index_scans.iter().collect();
@@ -878,7 +879,7 @@ impl UnionAllTagIndexScanRule {
                     if let Some(index_scan) = dep_node
                         .plan_node
                         .as_any()
-                        .downcast_ref::<IndexScanPlanNode>()
+                        .downcast_ref::<IndexScan>()
                     {
                         index_scan_nodes.push((dep_id, index_scan.clone()));
                     }
@@ -920,9 +921,9 @@ impl UnionAllTagIndexScanRule {
     /// 尝试合并多个索引扫描节点
     fn try_merge_index_scans(
         &self,
-        index_scans: &[(usize, IndexScanPlanNode)],
+        index_scans: &[(usize, IndexScan)],
         is_edge_index: bool,
-    ) -> Option<IndexScanPlanNode> {
+    ) -> Option<IndexScan> {
         // 检查所有索引扫描是否兼容
         if !self.are_index_scans_mergeable(index_scans, is_edge_index) {
             return None;
@@ -969,7 +970,7 @@ impl UnionAllTagIndexScanRule {
     /// 检查索引扫描是否可以合并
     fn are_index_scans_mergeable(
         &self,
-        index_scans: &[(usize, IndexScanPlanNode)],
+        index_scans: &[(usize, IndexScan)],
         is_edge_index: bool,
     ) -> bool {
         if index_scans.is_empty() {
@@ -1009,7 +1010,7 @@ impl UnionAllTagIndexScanRule {
     fn reorder_index_scans(
         &self,
         _ctx: &OptContext,
-        index_scans: &[(usize, IndexScanPlanNode)],
+        index_scans: &[(usize, IndexScan)],
     ) -> Option<Vec<usize>> {
         // 根据成本估算重新排序，成本低的优先
         let mut sorted_scans: Vec<_> = index_scans.iter().collect();

@@ -3,9 +3,9 @@
 //! FilterNode 用于根据指定的条件过滤输入数据流
 
 use super::plan_node_enum::PlanNodeEnum;
-use super::plan_node_kind::PlanNodeKind;
 use crate::core::Expression;
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::visitor::{PlanNodeVisitor, PlanNodeVisitError};
 
 /// 过滤节点
 ///
@@ -48,10 +48,6 @@ impl FilterNode {
         self.id
     }
 
-    /// 获取节点的类型
-    pub fn kind(&self) -> PlanNodeKind {
-        PlanNodeKind::Filter
-    }
 
     /// 获取节点的输出变量
     pub fn output_var(&self) -> Option<&Variable> {
@@ -84,7 +80,7 @@ impl FilterNode {
     }
 
     /// 使用访问者模式访问节点
-    pub fn accept(&self, visitor: &mut dyn crate::query::planner::plan::core::visitor::PlanNodeVisitor) -> Result<(), crate::query::planner::plan::core::visitor::PlanNodeVisitError> {
+    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.visit_filter(self)
     }
 }

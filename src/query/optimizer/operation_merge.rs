@@ -5,6 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
+use crate::query::planner::plan::{PlanNodeKind, FilterNode as FilterPlanNode};
 
 
 

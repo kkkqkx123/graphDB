@@ -7,8 +7,12 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{create_basic_pattern, is_tautology, BaseOptRule, EliminationRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::core::nodes::{FilterNode, ProjectNode};
-
+use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::{
+    AppendVerticesNode, DedupNode, FilterNode, GetEdgesNode, GetVerticesNode, InnerJoinNode,
+    LeftJoinNode, LimitNode, ProjectNode, ScanEdgesNode, ScanVerticesNode, SortNode, StartNode,
+};
+use crate::query::planner::plan::PlanNodeKind;
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -562,21 +566,20 @@ mod tests {
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
     use crate::query::planner::plan::core::nodes::{
-        AppendVerticesNode, DedupNode, FilterNode, ProjectNode, SortNode,
+        AppendVerticesNode, DedupNode, FilterNode, ProjectNode, SortNode, StartNode,
     };
-    
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
             "test_session",
             "test_user",
-            vec!["user".to_string()]
+            vec!["user".to_string()],
         );
         let query_context = QueryContext::new(
             "test_query",
             crate::core::types::query::QueryType::DataQuery,
             "TEST QUERY",
-            session_info
+            session_info,
         );
         OptContext::new(query_context)
     }
@@ -587,9 +590,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个带有永真式条件的过滤节点
-        let filter_node = Arc::new(
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let filter_node = PlanNodeEnum::Filter(
             FilterNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                start_node,
                 crate::core::Expression::Variable("1 = 1".to_string()),
             )
             .expect("Filter node should be created successfully"),
@@ -597,13 +601,16 @@ mod tests {
         let mut opt_node = OptGroupNode::new(1, filter_node);
 
         // 添加一个子节点作为依赖
-        let child_node =
-            Arc::new(crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1));
+        let child_node = PlanNodeEnum::ScanVertices(
+            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
+        );
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         // 规则应该识别永真式过滤并尝试消除它们
         assert!(result.is_some());
     }
@@ -614,21 +621,21 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个去重节点
-        let dedup_node = Arc::new(
-            DedupNode::new(Arc::new(
-                crate::query::planner::plan::core::nodes::StartNode::new(),
-            ))
-            .expect("Filter node should be created successfully"),
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let dedup_node = PlanNodeEnum::Dedup(
+            DedupNode::new(start_node).expect("Dedup node should be created successfully"),
         );
         let mut opt_node = OptGroupNode::new(1, dedup_node);
 
         // 添加一个IndexScan子节点作为依赖（IndexScan产生唯一结果）
-        let child_node = Arc::new(IndexScan::new(2, 1, 1, 1, "UNIQUE"));
+        let child_node = PlanNodeEnum::IndexScan(IndexScan::new(2, 1, 1, 1, "UNIQUE"));
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
 
@@ -638,16 +645,15 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个子节点，设置输出列
-        let mut child_node =
-            Arc::new(crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1));
+        let mut child_node = PlanNodeEnum::ScanVertices(
+            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
+        );
         // 注意：需要使用 PlanNode trait 中的 set_col_names 方法
-        if let Some(child_node_mut) = std::sync::Arc::get_mut(&mut child_node) {
-            child_node_mut.set_col_names(vec![
-                "id".to_string(),
-                "name".to_string(),
-                "age".to_string(),
-            ]);
-        }
+        child_node.set_col_names(vec![
+            "id".to_string(),
+            "name".to_string(),
+            "age".to_string(),
+        ]);
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
@@ -657,17 +663,17 @@ mod tests {
             alias: "*".to_string(),
             is_matched: false,
         }];
-        let project_node_all = Arc::new(
-            ProjectNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                columns_all,
-            )
-            .expect("Filter node should be created successfully"),
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let project_node_all = PlanNodeEnum::Project(
+            ProjectNode::new(start_node, columns_all)
+                .expect("Project node should be created successfully"),
         );
         let mut opt_node_all = OptGroupNode::new(1, project_node_all);
         opt_node_all.dependencies.push(2);
 
-        let result_all = rule.apply(&mut ctx, &opt_node_all).expect("Failed to apply rule");
+        let result_all = rule
+            .apply(&mut ctx, &opt_node_all)
+            .expect("Failed to apply rule");
         assert!(result_all.is_some(), "投影所有列的节点应该被消除");
 
         // 测试2: 创建一个投影相同列的投影节点（应该被消除）
@@ -688,17 +694,17 @@ mod tests {
                 is_matched: false,
             },
         ];
-        let project_node_same = Arc::new(
-            ProjectNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                columns_same,
-            )
-            .expect("Filter node should be created successfully"),
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let project_node_same = PlanNodeEnum::Project(
+            ProjectNode::new(start_node, columns_same)
+                .expect("Project node should be created successfully"),
         );
         let mut opt_node_same = OptGroupNode::new(3, project_node_same);
         opt_node_same.dependencies.push(2);
 
-        let result_same = rule.apply(&mut ctx, &opt_node_same).expect("Failed to apply rule");
+        let result_same = rule
+            .apply(&mut ctx, &opt_node_same)
+            .expect("Failed to apply rule");
         assert!(result_same.is_some(), "投影相同列的节点应该被消除");
 
         // 测试3: 创建一个投影不同列的投影节点（不应该被消除）
@@ -714,17 +720,17 @@ mod tests {
                 is_matched: false,
             },
         ];
-        let project_node_diff = Arc::new(
-            ProjectNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                columns_diff,
-            )
-            .expect("Filter node should be created successfully"),
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let project_node_diff = PlanNodeEnum::Project(
+            ProjectNode::new(start_node, columns_diff)
+                .expect("Project node should be created successfully"),
         );
         let mut opt_node_diff = OptGroupNode::new(4, project_node_diff);
         opt_node_diff.dependencies.push(2);
 
-        let result_diff = rule.apply(&mut ctx, &opt_node_diff).expect("Failed to apply rule");
+        let result_diff = rule
+            .apply(&mut ctx, &opt_node_diff)
+            .expect("Failed to apply rule");
         assert!(result_diff.is_none(), "投影不同列的节点不应该被消除");
 
         // 测试4: 创建一个投影带别名的节点（不应该被消除）
@@ -745,17 +751,17 @@ mod tests {
                 is_matched: false,
             },
         ];
-        let project_node_alias = Arc::new(
-            ProjectNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                columns_alias,
-            )
-            .expect("Filter node should be created successfully"),
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let project_node_alias = PlanNodeEnum::Project(
+            ProjectNode::new(start_node, columns_alias)
+                .expect("Project node should be created successfully"),
         );
         let mut opt_node_alias = OptGroupNode::new(5, project_node_alias);
         opt_node_alias.dependencies.push(2);
 
-        let result_alias = rule.apply(&mut ctx, &opt_node_alias).expect("Failed to apply rule");
+        let result_alias = rule
+            .apply(&mut ctx, &opt_node_alias)
+            .expect("Failed to apply rule");
         assert!(result_alias.is_none(), "投影带别名的节点不应该被消除");
 
         // 测试5: 创建一个投影包含表达式的节点（不应该被消除）
@@ -782,17 +788,17 @@ mod tests {
                 is_matched: false,
             },
         ];
-        let project_node_expr = Arc::new(
-            ProjectNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                columns_expr,
-            )
-            .expect("Filter node should be created successfully"),
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let project_node_expr = PlanNodeEnum::Project(
+            ProjectNode::new(start_node, columns_expr)
+                .expect("Project node should be created successfully"),
         );
         let mut opt_node_expr = OptGroupNode::new(6, project_node_expr);
         opt_node_expr.dependencies.push(2);
 
-        let result_expr = rule.apply(&mut ctx, &opt_node_expr).expect("Failed to apply rule");
+        let result_expr = rule
+            .apply(&mut ctx, &opt_node_expr)
+            .expect("Failed to apply rule");
         assert!(result_expr.is_none(), "投影包含表达式的节点不应该被消除");
     }
 
@@ -802,17 +808,21 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个添加顶点节点
-        let append_vertices_node = Arc::new(AppendVerticesNode::new(1, vec![], vec![]));
+        let append_vertices_node =
+            PlanNodeEnum::AppendVertices(AppendVerticesNode::new(1, vec![], vec![]));
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
 
         // 添加一个子节点作为依赖
-        let child_node =
-            Arc::new(crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1));
+        let child_node = PlanNodeEnum::ScanVertices(
+            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
+        );
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
 
@@ -822,24 +832,29 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个添加顶点节点
-        let append_vertices_node = Arc::new(AppendVerticesNode::new(1, vec![], vec![]));
+        let append_vertices_node =
+            PlanNodeEnum::AppendVertices(AppendVerticesNode::new(1, vec![], vec![]));
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
 
         // 添加一个HashInnerJoin子节点作为依赖
-        let child_node = Arc::new(
+        let start_node1 = PlanNodeEnum::Start(StartNode::new());
+        let start_node2 = PlanNodeEnum::Start(StartNode::new());
+        let child_node = PlanNodeEnum::InnerJoin(
             crate::query::planner::plan::core::nodes::InnerJoinNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
+                start_node1,
+                start_node2,
                 vec![],
                 vec![],
             )
-            .expect("Filter node should be created successfully"),
+            .expect("InnerJoin node should be created successfully"),
         );
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule
+            .apply(&mut ctx, &opt_node)
+            .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
 
@@ -858,155 +873,146 @@ fn create_plan_node_with_output_var(
     plan_node: &PlanNodeEnum,
     output_var: crate::query::context::validate::types::Variable,
 ) -> PlanNodeEnum {
+    use crate::query::planner::plan::algorithms::IndexScan;
     use crate::query::planner::plan::core::nodes::*;
-    use crate::query::planner::plan::*;
 
     // 尝试将plan_node向下转换为具体类型，并创建带有新输出变量的新实例
     // 这里我们只处理一些常见的节点类型作为示例，实际中需要处理所有类型
-    if let Some(filter_node) = plan_node.as_any().downcast_ref::<FilterNode>() {
-        let input = filter_node
-            .dependencies()
-            .get(0)
-            .expect("Filter should have at least one dependency")
-            .clone();
-        let condition = filter_node.condition().clone();
-        let mut new_node = FilterNode::new(input, condition)
-            .expect("FilterNode creation should succeed with valid input");
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
-    } else if let Some(project_node) = plan_node.as_any().downcast_ref::<ProjectNode>() {
-        let input = project_node
-            .dependencies()
-            .get(0)
-            .expect("Project should have at least one dependency")
-            .clone();
-        let columns = project_node.columns().to_vec();
-        let mut new_node = ProjectNode::new(input, columns)
-            .expect("ProjectNode creation should succeed with valid input");
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
-    } else if let Some(dedup_node) = plan_node.as_any().downcast_ref::<DedupNode>() {
-        let input = dedup_node
-            .dependencies()
-            .get(0)
-            .expect("Dedup should have at least one dependency")
-            .clone();
-        let mut new_node =
-            DedupNode::new(input).expect("DedupNode creation should succeed with valid input");
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
-    } else if let Some(sort_node) = plan_node.as_any().downcast_ref::<SortNode>() {
-        // 创建新的排序节点，需要使用正确的构造函数
-        let input = sort_node
-            .dependencies()
-            .get(0)
-            .expect("Sort should have at least one dependency")
-            .clone();
-        let sort_items = sort_node.sort_items().to_vec();
-        let mut new_node = SortNode::new(input, sort_items)
-            .expect("SortNode creation should succeed with valid input");
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
-    } else if let Some(limit_node) = plan_node.as_any().downcast_ref::<LimitNode>() {
-        // 创建新的限制节点，需要使用正确的构造函数
-        let input = limit_node
-            .dependencies()
-            .get(0)
-            .expect("Limit should have at least one dependency")
-            .clone();
-        let offset = limit_node.offset();
-        let count = limit_node.count();
-        let mut new_node = LimitNode::new(input, offset, count)
-            .expect("LimitNode creation should succeed with valid input");
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
-    } else if let Some(scan_vertices_node) = plan_node.as_any().downcast_ref::<ScanVerticesNode>() {
-        // 创建新的扫描顶点节点，需要使用正确的构造函数
-        let space_id = scan_vertices_node.space_id();
-        let mut new_node = ScanVerticesNode::new(space_id);
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
-    } else if let Some(index_scan_node) = plan_node.as_any().downcast_ref::<IndexScan>() {
-        // 创建新的索引扫描节点，需要使用正确的构造函数
-        let id = index_scan_node.id();
-        let space_id = index_scan_node.space_id;
-        let tag_id = index_scan_node.tag_id;
-        let index_id = index_scan_node.index_id;
-        let scan_type = &index_scan_node.scan_type;
-        let mut new_node = IndexScan::new(id, space_id, tag_id, index_id, scan_type);
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
-    } else if let Some(append_vertices_node) =
-        plan_node.as_any().downcast_ref::<AppendVerticesNode>()
-    {
-        // 创建新的添加顶点节点，需要使用正确的构造函数
-        let space_id = append_vertices_node.space_id();
-        let vids = append_vertices_node.vids().to_vec();
-        let tag_ids = append_vertices_node.tag_ids().to_vec();
-        let mut new_node = AppendVerticesNode::new(space_id, vids, tag_ids);
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
-    } else if let Some(scan_edges_node) = plan_node.as_any().downcast_ref::<ScanEdgesNode>() {
-        let mut new_node =
-            ScanEdgesNode::new(scan_edges_node.space_id(), scan_edges_node.edge_type());
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
-    } else if let Some(get_vertices_node) = plan_node.as_any().downcast_ref::<GetVerticesNode>() {
-        let mut new_node =
-            GetVerticesNode::new(get_vertices_node.space_id(), get_vertices_node.src_vids());
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
-    } else if let Some(get_edges_node) = plan_node.as_any().downcast_ref::<GetEdgesNode>() {
-        let mut new_node = GetEdgesNode::new(
-            get_edges_node.space_id(),
-            get_edges_node.src(),
-            get_edges_node.edge_type(),
-            get_edges_node.rank(),
-            get_edges_node.dst(),
-        );
-        new_node.set_output_var(output_var);
-        Arc::new(new_node)
-    } else if let Some(hash_inner_join_node) =
-        plan_node
-            .as_any()
-            .downcast_ref::<crate::query::planner::plan::core::nodes::InnerJoinNode>()
-    {
-        let deps = hash_inner_join_node.dependencies();
-        if deps.len() >= 2 {
-            let left = deps[0].clone();
-            let right = deps[1].clone();
-            let hash_keys = hash_inner_join_node.hash_keys().to_vec();
-            let probe_keys = hash_inner_join_node.probe_keys().to_vec();
-            let mut new_node = crate::query::planner::plan::core::nodes::InnerJoinNode::new(
-                left, right, hash_keys, probe_keys,
-            )
-            .expect("InnerJoinNode creation should succeed with valid input");
+    match plan_node {
+        PlanNodeEnum::Filter(filter_node) => {
+            let input = filter_node
+                .dependencies()
+                .get(0)
+                .expect("Filter should have at least one dependency")
+                .clone();
+            let condition = filter_node.condition().clone();
+            let mut new_node = FilterNode::new(input, condition)
+                .expect("FilterNode creation should succeed with valid input");
             new_node.set_output_var(output_var);
-            Arc::new(new_node)
-        } else {
+            PlanNodeEnum::Filter(new_node)
+        }
+        PlanNodeEnum::Project(project_node) => {
+            let input = project_node
+                .dependencies()
+                .get(0)
+                .expect("Project should have at least one dependency")
+                .clone();
+            let columns = project_node.columns().to_vec();
+            let mut new_node = ProjectNode::new(input, columns)
+                .expect("ProjectNode creation should succeed with valid input");
+            new_node.set_output_var(output_var);
+            PlanNodeEnum::Project(new_node)
+        }
+        PlanNodeEnum::Dedup(dedup_node) => {
+            let input = dedup_node
+                .dependencies()
+                .get(0)
+                .expect("Dedup should have at least one dependency")
+                .clone();
+            let mut new_node =
+                DedupNode::new(input).expect("DedupNode creation should succeed with valid input");
+            new_node.set_output_var(output_var);
+            PlanNodeEnum::Dedup(new_node)
+        }
+        PlanNodeEnum::Sort(sort_node) => {
+            // 创建新的排序节点，需要使用正确的构造函数
+            let input = sort_node
+                .dependencies()
+                .get(0)
+                .expect("Sort should have at least one dependency")
+                .clone();
+            let sort_items = sort_node.sort_items().to_vec();
+            let mut new_node = SortNode::new(input, sort_items)
+                .expect("SortNode creation should succeed with valid input");
+            new_node.set_output_var(output_var);
+            PlanNodeEnum::Sort(new_node)
+        }
+        PlanNodeEnum::Limit(limit_node) => {
+            // 创建新的限制节点，需要使用正确的构造函数
+            let input = limit_node
+                .dependencies()
+                .get(0)
+                .expect("Limit should have at least one dependency")
+                .clone();
+            let offset = limit_node.offset();
+            let count = limit_node.count();
+            let mut new_node = LimitNode::new(input, offset, count)
+                .expect("LimitNode creation should succeed with valid input");
+            new_node.set_output_var(output_var);
+            PlanNodeEnum::Limit(new_node)
+        }
+        PlanNodeEnum::ScanVertices(scan_vertices_node) => {
+            // 创建新的扫描顶点节点，需要使用正确的构造函数
+            let space_id = scan_vertices_node.space_id();
+            let mut new_node = ScanVerticesNode::new(space_id);
+            new_node.set_output_var(output_var);
+            PlanNodeEnum::ScanVertices(new_node)
+        }
+        PlanNodeEnum::AppendVertices(append_vertices_node) => {
+            // 创建新的添加顶点节点，需要使用正确的构造函数
+            let space_id = append_vertices_node.space_id();
+            let vids = append_vertices_node.vids().to_vec();
+            let tag_ids = append_vertices_node.tag_ids().to_vec();
+            let mut new_node = AppendVerticesNode::new(space_id, vids, tag_ids);
+            new_node.set_output_var(output_var);
+            PlanNodeEnum::AppendVertices(new_node)
+        }
+        PlanNodeEnum::ScanEdges(scan_edges_node) => {
+            let mut new_node =
+                ScanEdgesNode::new(scan_edges_node.space_id(), scan_edges_node.edge_type());
+            new_node.set_output_var(output_var);
+            PlanNodeEnum::ScanEdges(new_node)
+        }
+        PlanNodeEnum::GetVertices(get_vertices_node) => {
+            let mut new_node =
+                GetVerticesNode::new(get_vertices_node.space_id(), get_vertices_node.src_vids());
+            new_node.set_output_var(output_var);
+            PlanNodeEnum::GetVertices(new_node)
+        }
+        PlanNodeEnum::GetEdges(get_edges_node) => {
+            let mut new_node = GetEdgesNode::new(
+                get_edges_node.space_id(),
+                get_edges_node.src(),
+                get_edges_node.edge_type(),
+                get_edges_node.rank(),
+                get_edges_node.dst(),
+            );
+            new_node.set_output_var(output_var);
+            PlanNodeEnum::GetEdges(new_node)
+        }
+        PlanNodeEnum::InnerJoin(inner_join_node) => {
+            let deps = inner_join_node.dependencies();
+            if deps.len() >= 2 {
+                let left = deps[0].clone();
+                let right = deps[1].clone();
+                let hash_keys = inner_join_node.hash_keys().to_vec();
+                let probe_keys = inner_join_node.probe_keys().to_vec();
+                let mut new_node = InnerJoinNode::new(left, right, hash_keys, probe_keys)
+                    .expect("InnerJoinNode creation should succeed with valid input");
+                new_node.set_output_var(output_var);
+                PlanNodeEnum::InnerJoin(new_node)
+            } else {
+                plan_node.clone()
+            }
+        }
+        PlanNodeEnum::LeftJoin(left_join_node) => {
+            let deps = left_join_node.dependencies();
+            if deps.len() >= 2 {
+                let left = deps[0].clone();
+                let right = deps[1].clone();
+                let hash_keys = left_join_node.hash_keys().to_vec();
+                let probe_keys = left_join_node.probe_keys().to_vec();
+                let mut new_node = LeftJoinNode::new(left, right, hash_keys, probe_keys)
+                    .expect("LeftJoinNode creation should succeed with valid input");
+                new_node.set_output_var(output_var);
+                PlanNodeEnum::LeftJoin(new_node)
+            } else {
+                plan_node.clone()
+            }
+        }
+        _ => {
+            // 如果无法识别具体类型，则返回原节点的克隆（不改变输出变量）
             plan_node.clone()
         }
-    } else if let Some(hash_left_join_node) = plan_node
-        .as_any()
-        .downcast_ref::<crate::query::planner::plan::core::nodes::LeftJoinNode>(
-    ) {
-        let deps = hash_left_join_node.dependencies();
-        if deps.len() >= 2 {
-            let left = deps[0].clone();
-            let right = deps[1].clone();
-            let hash_keys = hash_left_join_node.hash_keys().to_vec();
-            let probe_keys = hash_left_join_node.probe_keys().to_vec();
-            let mut new_node = crate::query::planner::plan::core::nodes::LeftJoinNode::new(
-                left, right, hash_keys, probe_keys,
-            )
-            .expect("LeftJoinNode creation should succeed with valid input");
-            new_node.set_output_var(output_var);
-            Arc::new(new_node)
-        } else {
-            plan_node.clone()
-        }
-    } else {
-        // 如果无法识别具体类型，则返回原节点的克隆（不改变输出变量）
-        plan_node.clone()
     }
 }

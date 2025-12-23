@@ -2,6 +2,7 @@
 //! 提供优化规则的通用接口和辅助函数，减少代码重复
 
 use super::optimizer::{OptContext, OptGroupNode, OptRule, OptimizerError, Pattern};
+use crate::query::planner::plan::{PlanNodeKind, PlanNodeEnum};
 
 use std::collections::HashMap;
 
@@ -417,7 +418,7 @@ pub fn get_dependency_at<'a>(
 /// 辅助函数：创建新的OptGroupNode
 pub fn create_new_opt_group_node(
     id: usize,
-    plan_node: std::sync::PlanNodeEnum,
+    plan_node: std::sync::Arc<PlanNodeEnum>,
 ) -> OptGroupNode {
     OptGroupNode::new(id, plan_node)
 }
@@ -425,7 +426,7 @@ pub fn create_new_opt_group_node(
 /// 辅助函数：克隆OptGroupNode但替换计划节点
 pub fn clone_with_new_plan_node(
     node: &OptGroupNode,
-    plan_node: std::sync::PlanNodeEnum,
+    plan_node: std::sync::Arc<PlanNodeEnum>,
 ) -> OptGroupNode {
     let mut new_node = node.clone();
     new_node.plan_node = plan_node;

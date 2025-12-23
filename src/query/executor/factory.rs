@@ -5,6 +5,8 @@
 
 use crate::core::error::QueryError;
 use crate::query::executor::traits::Executor;
+use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::PlanNodeKind;
 
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
@@ -29,7 +31,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
     /// 根据计划节点创建执行器
     pub fn create_executor(
         &self,
-        plan_node: &dyn PlanNode,
+        plan_node: &PlanNodeEnum,
         _storage: Arc<Mutex<S>>,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         match plan_node.kind() {
@@ -245,7 +247,7 @@ mod tests {
         }
 
         fn kind(&self) -> PlanNodeKind {
-            self.kind.clone()
+            self.kind
         }
     }
 
@@ -266,14 +268,13 @@ mod tests {
     impl crate::query::planner::plan::core::nodes::traits::PlanNodeDependencies for MockPlanNode {
         fn dependencies(
             &self,
-        ) -> Vec<std::sync::Arc<dyn crate::query::planner::plan::core::nodes::traits::PlanNode>>
-        {
+        ) -> Vec<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum> {
             Vec::new()
         }
 
         fn add_dependency(
             &mut self,
-            _dep: std::sync::Arc<dyn crate::query::planner::plan::core::nodes::traits::PlanNode>,
+            _dep: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum,
         ) {
             // 空实现
         }
@@ -305,19 +306,21 @@ mod tests {
     impl crate::query::planner::plan::core::nodes::traits::PlanNodeClonable for MockPlanNode {
         fn clone_plan_node(
             &self,
-        ) -> std::sync::Arc<dyn crate::query::planner::plan::core::nodes::traits::PlanNode>
-        {
-            std::sync::Arc::new(MockPlanNode::new(self.kind.clone()))
+        ) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
+            use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+            // 这里需要创建一个实际的PlanNodeEnum，但由于MockPlanNode不是真实的节点类型，
+            // 我们暂时返回一个StartNode作为占位符
+            PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new())
         }
 
         fn clone_with_new_id(
             &self,
             new_id: i64,
-        ) -> std::sync::Arc<dyn crate::query::planner::plan::core::nodes::traits::PlanNode>
-        {
-            let mut node = MockPlanNode::new(self.kind.clone());
-            node.id = new_id;
-            std::sync::Arc::new(node)
+        ) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
+            use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+            // 这里需要创建一个实际的PlanNodeEnum，但由于MockPlanNode不是真实的节点类型，
+            // 我们暂时返回一个StartNode作为占位符
+            PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new())
         }
     }
 

@@ -2,6 +2,7 @@
 //! 对应原C++中的context/Symbols.h
 
 use crate::core::PlanNodeRef;
+use crate::core::symbol::plan_node::PlanNodeType;
 
 use super::dependency_tracker::DependencyTracker;
 
@@ -436,7 +437,7 @@ mod tests {
             .expect("new_variable should succeed in test");
 
         let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
-        let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeRef::Filter);
+        let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
 
         // 设置依赖关系
         table

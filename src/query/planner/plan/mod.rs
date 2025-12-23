@@ -6,7 +6,7 @@ pub mod management;
 pub mod utils;
 
 pub use core::{
-    DefaultPlanNodeVisitor, PlanNode, PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
+    DefaultPlanNodeVisitor, PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor, PlanNodeEnum,
 };
 pub use execution_plan::{ExecutionPlan, SubPlan};
 

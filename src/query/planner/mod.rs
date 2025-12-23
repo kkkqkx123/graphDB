@@ -18,5 +18,5 @@ pub mod ngql;
 // 重新导出主要的类型
 pub use match_planning::MatchPlanner;
 pub use ngql::{GoPlanner, LookupPlanner, PathPlanner, SubgraphPlanner};
-pub 
+pub use plan::execution_plan::{ExecutionPlan, SubPlan};
 pub use planner::{Planner, PlannerError, PlannerRegistry, SequentialPlanner};

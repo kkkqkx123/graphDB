@@ -5,6 +5,7 @@
 
 
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::core::visitor::{PlanNodeVisitor, PlanNodeVisitError};
 use std::fmt;
 
 // 导入所有具体的节点类型
@@ -120,38 +121,38 @@ impl PlanNodeEnum {
         }
     }
 
-    /// 获取节点的类型
-    pub fn kind(&self) -> PlanNodeKind {
+    /// 获取节点类型的名称
+    pub fn name(&self) -> &'static str {
         match self {
-            PlanNodeEnum::Start(node) => node.kind(),
-            PlanNodeEnum::Project(node) => node.kind(),
-            PlanNodeEnum::Sort(node) => node.kind(),
-            PlanNodeEnum::Limit(node) => node.kind(),
-            PlanNodeEnum::TopN(node) => node.kind(),
-            PlanNodeEnum::InnerJoin(node) => node.kind(),
-            PlanNodeEnum::LeftJoin(node) => node.kind(),
-            PlanNodeEnum::CrossJoin(node) => node.kind(),
-            PlanNodeEnum::GetVertices(node) => node.kind(),
-            PlanNodeEnum::GetEdges(node) => node.kind(),
-            PlanNodeEnum::GetNeighbors(node) => node.kind(),
-            PlanNodeEnum::ScanVertices(node) => node.kind(),
-            PlanNodeEnum::ScanEdges(node) => node.kind(),
-            PlanNodeEnum::Expand(node) => node.kind(),
-            PlanNodeEnum::ExpandAll(node) => node.kind(),
-            PlanNodeEnum::Traverse(node) => node.kind(),
-            PlanNodeEnum::AppendVertices(node) => node.kind(),
-            PlanNodeEnum::Filter(node) => node.kind(),
-            PlanNodeEnum::Aggregate(node) => node.kind(),
-            PlanNodeEnum::Argument(node) => node.kind(),
-            PlanNodeEnum::Loop(node) => node.kind(),
-            PlanNodeEnum::PassThrough(node) => node.kind(),
-            PlanNodeEnum::Select(node) => node.kind(),
-            PlanNodeEnum::DataCollect(node) => node.kind(),
-            PlanNodeEnum::Dedup(node) => node.kind(),
-            PlanNodeEnum::PatternApply(node) => node.kind(),
-            PlanNodeEnum::RollUpApply(node) => node.kind(),
-            PlanNodeEnum::Union(node) => node.kind(),
-            PlanNodeEnum::Unwind(node) => node.kind(),
+            PlanNodeEnum::Start(_) => "Start",
+            PlanNodeEnum::Project(_) => "Project",
+            PlanNodeEnum::Sort(_) => "Sort",
+            PlanNodeEnum::Limit(_) => "Limit",
+            PlanNodeEnum::TopN(_) => "TopN",
+            PlanNodeEnum::InnerJoin(_) => "InnerJoin",
+            PlanNodeEnum::LeftJoin(_) => "LeftJoin",
+            PlanNodeEnum::CrossJoin(_) => "CrossJoin",
+            PlanNodeEnum::GetVertices(_) => "GetVertices",
+            PlanNodeEnum::GetEdges(_) => "GetEdges",
+            PlanNodeEnum::GetNeighbors(_) => "GetNeighbors",
+            PlanNodeEnum::ScanVertices(_) => "ScanVertices",
+            PlanNodeEnum::ScanEdges(_) => "ScanEdges",
+            PlanNodeEnum::Expand(_) => "Expand",
+            PlanNodeEnum::ExpandAll(_) => "ExpandAll",
+            PlanNodeEnum::Traverse(_) => "Traverse",
+            PlanNodeEnum::AppendVertices(_) => "AppendVertices",
+            PlanNodeEnum::Filter(_) => "Filter",
+            PlanNodeEnum::Aggregate(_) => "Aggregate",
+            PlanNodeEnum::Argument(_) => "Argument",
+            PlanNodeEnum::Loop(_) => "Loop",
+            PlanNodeEnum::PassThrough(_) => "PassThrough",
+            PlanNodeEnum::Select(_) => "Select",
+            PlanNodeEnum::DataCollect(_) => "DataCollect",
+            PlanNodeEnum::Dedup(_) => "Dedup",
+            PlanNodeEnum::PatternApply(_) => "PatternApply",
+            PlanNodeEnum::RollUpApply(_) => "RollUpApply",
+            PlanNodeEnum::Union(_) => "Union",
+            PlanNodeEnum::Unwind(_) => "Unwind",
         }
     }
 
@@ -317,7 +318,7 @@ impl PlanNodeEnum {
                 vec![]
             }
             PlanNodeEnum::Filter(node) => {
-                vec![]
+                node.dependencies()
             }
             PlanNodeEnum::Aggregate(node) => {
                 vec![]
@@ -588,13 +589,61 @@ impl PlanNodeEnum {
             }
         }
     }
+
+    /// 判断节点是否是查询节点
+    pub fn is_query_node(&self) -> bool {
+        matches!(
+            self,
+            PlanNodeEnum::GetVertices
+                | PlanNodeEnum::GetEdges
+                | PlanNodeEnum::GetNeighbors
+                | PlanNodeEnum::Expand
+                | PlanNodeEnum::ExpandAll
+                | PlanNodeEnum::Traverse
+                | PlanNodeEnum::AppendVertices
+                | PlanNodeEnum::ScanVertices
+                | PlanNodeEnum::ScanEdges
+        )
+    }
+
+    /// 判断节点是否是数据处理节点
+    pub fn is_data_processing_node(&self) -> bool {
+        matches!(
+            self,
+            PlanNodeEnum::Filter
+                | PlanNodeEnum::Union
+                | PlanNodeEnum::Project
+                | PlanNodeEnum::Unwind
+                | PlanNodeEnum::Sort
+                | PlanNodeEnum::TopN
+                | PlanNodeEnum::Limit
+                | PlanNodeEnum::Aggregate
+                | PlanNodeEnum::Dedup
+                | PlanNodeEnum::DataCollect
+                | PlanNodeEnum::InnerJoin
+                | PlanNodeEnum::LeftJoin
+                | PlanNodeEnum::CrossJoin
+                | PlanNodeEnum::RollUpApply
+                | PlanNodeEnum::PatternApply
+                | PlanNodeEnum::Argument
+        )
+    }
+
+    /// 判断节点是否是控制流节点
+    pub fn is_control_flow_node(&self) -> bool {
+        matches!(
+            self,
+            PlanNodeEnum::Select | PlanNodeEnum::Loop | PlanNodeEnum::PassThrough | PlanNodeEnum::Start
+        )
+    }
 }
 
 impl fmt::Display for PlanNodeEnum {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}({})", self.kind(), self.id())
+        write!(f, "{}({})", self.name(), self.id())
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -605,7 +654,7 @@ mod tests {
         let start_node = StartNode::new();
         let enum_node = PlanNodeEnum::Start(start_node);
 
-        assert_eq!(enum_node.kind(), PlanNodeKind::Start);
+        assert_eq!(enum_node.name(), "Start");
         assert_eq!(enum_node.id(), -1);
     }
 

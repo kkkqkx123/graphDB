@@ -1,10 +1,10 @@
 //! Optimizer implementation for optimizing execution plans
 use crate::core::context::QueryContext;
 use crate::query::context::validate;
-
-
+use crate::query::planner::plan::{PlanNodeKind, PlanNodeEnum, ExecutionPlan, PlanNodeVisitor, PlanNodeVisitError};
 
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::Arc;
 
 // A simple object pool for reusing objects and reducing allocations
 #[derive(Debug)]
@@ -71,7 +71,7 @@ impl OptContext {
     pub fn get_group_node_from_pool(
         &mut self,
         id: usize,
-        plan_node: std::sync::PlanNodeEnum,
+        plan_node: PlanNodeEnum,
     ) -> OptGroupNode {
         let mut node = self.object_pool.acquire();
         node.id = id;
@@ -172,7 +172,7 @@ impl OptGroup {
 #[derive(Debug)]
 pub struct OptGroupNode {
     pub id: usize,
-    pub plan_node: std::sync::PlanNodeEnum,
+    pub plan_node: PlanNodeEnum,
     pub dependencies: Vec<usize>, // IDs of dependency groups
     pub cost: f64,
     pub properties: PlanNodeProperties,
@@ -186,13 +186,13 @@ use crate::query::context::validate::types::Variable;
 #[derive(Debug, Default)]
 struct DummyPlanNode {
     id: i64,
-    dependencies: Vec<std::sync::PlanNodeEnum>,
+    dependencies: Vec<PlanNodeEnum>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
 }
 
-impl crate::query::planner::plan::core::plan_node_traits::PlanNodeIdentifiable for DummyPlanNode {
+impl crate::query::planner::plan::core::nodes::traits::PlanNodeIdentifiable for DummyPlanNode {
     fn id(&self) -> i64 {
         self.id
     }
@@ -202,7 +202,7 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeIdentifiable f
     }
 }
 
-impl crate::query::planner::plan::core::plan_node_traits::PlanNodeProperties for DummyPlanNode {
+impl crate::query::planner::plan::core::nodes::traits::PlanNodeProperties for DummyPlanNode {
     fn output_var(&self) -> std::option::Option<&validate::types::Variable> {
         self.output_var
     }
@@ -216,12 +216,12 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeProperties for
     }
 }
 
-impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies for DummyPlanNode {
-    fn dependencies(&self) -> Vec<std::sync::PlanNodeEnum> {
+impl crate::query::planner::plan::core::nodes::traits::PlanNodeDependencies for DummyPlanNode {
+    fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.dependencies.clone()
     }
 
-    fn add_dependency(&mut self, dep: std::sync::PlanNodeEnum) {
+    fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.dependencies.push(dep);
     }
 
@@ -232,18 +232,18 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependencies f
     }
 }
 
-impl crate::query::planner::plan::core::plan_node_traits::PlanNodeDependenciesExt
+impl crate::query::planner::plan::core::nodes::traits::PlanNodeDependenciesExt
     for DummyPlanNode
 {
     fn with_dependencies<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(&[std::sync::PlanNodeEnum]) -> R,
+        F: FnOnce(&[PlanNodeEnum]) -> R,
     {
         f(&self.dependencies)
     }
 }
 
-impl crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable for DummyPlanNode {
+impl crate::query::planner::plan::core::nodes::traits::PlanNodeMutable for DummyPlanNode {
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -253,9 +253,9 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeMutable for Du
     }
 }
 
-impl crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable for DummyPlanNode {
-    fn clone_plan_node(&self) -> std::sync::PlanNodeEnum {
-        std::sync::Arc::new(DummyPlanNode {
+impl crate::query::planner::plan::core::nodes::traits::PlanNodeClonable for DummyPlanNode {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
+        Arc::new(DummyPlanNode {
             id: self.id,
             dependencies: Vec::new(), // Don't clone dependencies to avoid infinite recursion
             output_var: self.output_var.clone(),
@@ -264,8 +264,8 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable for D
         })
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> std::sync::PlanNodeEnum {
-        std::sync::Arc::new(DummyPlanNode {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+        Arc::new(DummyPlanNode {
             id: new_id,
             dependencies: Vec::new(), // Don't clone dependencies to avoid infinite recursion
             output_var: self.output_var.clone(),
@@ -275,14 +275,14 @@ impl crate::query::planner::plan::core::plan_node_traits::PlanNodeClonable for D
     }
 }
 
-impl crate::query::planner::plan::core::plan_node_traits::PlanNodeVisitable for DummyPlanNode {
+impl crate::query::planner::plan::core::nodes::traits::PlanNodeVisitable for DummyPlanNode {
     fn accept(&self, _visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         // For the dummy node, we don't implement the visitor pattern
         Ok(())
     }
 }
 
-impl crate::query::planner::plan::core::plan_node_traits::PlanNode for DummyPlanNode {
+impl crate::query::planner::plan::core::nodes::traits::PlanNode for DummyPlanNode {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -292,7 +292,7 @@ impl Default for OptGroupNode {
     fn default() -> Self {
         Self {
             id: 0,
-            plan_node: std::sync::Arc::new(DummyPlanNode::default()),
+            plan_node: Arc::new(DummyPlanNode::default()),
             dependencies: Vec::new(),
             cost: 0.0,
             properties: PlanNodeProperties::default(),
@@ -303,7 +303,7 @@ impl Default for OptGroupNode {
 }
 
 impl OptGroupNode {
-    pub fn new(id: usize, plan_node: std::sync::PlanNodeEnum) -> Self {
+    pub fn new(id: usize, plan_node: PlanNodeEnum) -> Self {
         Self {
             id,
             plan_node,
@@ -362,7 +362,7 @@ pub struct MatchedResult {
 }
 
 impl MatchedResult {
-    pub fn plan_node(&self) -> &dyn PlanNode {
+    pub fn plan_node(&self) -> &PlanNodeEnum {
         self.node.plan_node
     }
 
@@ -389,7 +389,19 @@ pub enum MatchNode {
 }
 
 impl MatchNode {
-    pub fn matches(&self, node: &dyn PlanNode) -> bool {
+    pub fn matches(&self, node: &PlanNodeEnum) -> bool {
+        match self {
+            MatchNode::Single(kind) => node.kind() == *kind,
+            MatchNode::Multi(kinds) => kinds
+                .iter()
+                .any(|k| node.kind() == *k || *k == PlanNodeKind::Unknown),
+        }
+    }
+}
+
+// 为了向后兼容，添加一个接受 &dyn PlanNode 的方法
+impl MatchNode {
+    pub fn matches_dyn(&self, node: &dyn crate::query::planner::plan::core::nodes::traits::PlanNode) -> bool {
         match self {
             MatchNode::Single(kind) => node.kind() == *kind,
             MatchNode::Multi(kinds) => kinds
@@ -426,7 +438,7 @@ impl Pattern {
     }
 
     pub fn matches(&self, node: &OptGroupNode) -> bool {
-        if !self.node.matches(node.plan_node) {
+        if !self.node.matches(&node.plan_node) {
             return false;
         }
 
@@ -708,7 +720,7 @@ impl Optimizer {
 
     fn convert_node_to_group(
         &self,
-        node: &dyn PlanNode,
+        node: &PlanNodeEnum,
         group: &mut OptGroup,
         node_id: usize,
     ) -> Result<(), OptimizerError> {

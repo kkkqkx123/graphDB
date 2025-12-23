@@ -5,8 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-
-
+use crate::query::planner::plan::{PlanNodeKind, IndexScan};
 
 use std::sync::Arc;
 // 注释掉不存在的导入
@@ -131,7 +130,7 @@ impl PushDownRule for PushLimitDownRule {
                 PlanNodeKind::IndexScan => {
                     // 为IndexScan创建带有LIMIT的节点
                     if let Some(index_scan_plan_node) =
-                        child.plan_node.as_any().downcast_ref::<IndexScanPlanNode>()
+                        child.plan_node.as_any().downcast_ref::<IndexScan>()
                     {
                         // 克隆节点并设置限制和输出变量
                         let mut new_index_scan = index_scan_plan_node.clone();
@@ -721,7 +720,7 @@ impl PushDownRule for PushLimitDownIndexScanRule {
             .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
         ) {
             if let Some(index_scan_plan_node) =
-                child.plan_node.as_any().downcast_ref::<IndexScanPlanNode>()
+                child.plan_node.as_any().downcast_ref::<IndexScan>()
             {
                 // 创建新的带有限制的IndexScan节点
                 let mut new_index_scan = index_scan_plan_node.clone();

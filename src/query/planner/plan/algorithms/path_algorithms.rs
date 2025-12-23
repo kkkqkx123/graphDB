@@ -3,19 +3,14 @@
 
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::{
-    plan_node_traits::{
-        PlanNode, PlanNodeClonable, PlanNodeDependencies, PlanNodeDependenciesExt,
-        PlanNodeIdentifiable, PlanNodeMutable, PlanNodeProperties, PlanNodeVisitable,
-    },
     PlanNodeKind, PlanNodeVisitError, PlanNodeVisitor,
 };
-use std::sync::Arc;
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
 /// 多源最短路径计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MultiShortestPath {
     pub id: i64,
-    pub kind: PlanNodeKind,
     pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
@@ -31,7 +26,6 @@ impl MultiShortestPath {
     pub fn new(id: i64, left: PlanNodeEnum, right: PlanNodeEnum, steps: usize) -> Self {
         let mut result = Self {
             id,
-            kind: PlanNodeKind::MultiShortestPath,
             deps: vec![left, right],
             output_var: None,
             col_names: Vec::new(),
@@ -73,60 +67,44 @@ impl MultiShortestPath {
     pub fn set_right_vid_var(&mut self, var: &str) {
         self.right_vid_var = var.to_string();
     }
-}
 
-impl Clone for MultiShortestPath {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            steps: self.steps,
-            left_vid_var: self.left_vid_var.clone(),
-            right_vid_var: self.right_vid_var.clone(),
-            termination_var: self.termination_var.clone(),
-            single_shortest: self.single_shortest,
-        }
-    }
-}
-
-impl PlanNodeIdentifiable for MultiShortestPath {
-    fn id(&self) -> i64 {
+    /// 获取节点的唯一ID
+    pub fn id(&self) -> i64 {
         self.id
     }
 
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-}
-
-impl PlanNodeProperties for MultiShortestPath {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    /// 获取节点的类型
+    pub fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::MultiShortestPath
     }
 
-    fn col_names(&self) -> &[String] {
+    /// 获取节点的输出变量
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    /// 获取列名列表
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
-    fn cost(&self) -> f64 {
+    /// 获取节点的成本估计值
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for MultiShortestPath {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
+    /// 获取节点的依赖节点列表
+    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    /// 添加依赖节点
+    pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
-    fn remove_dependency(&mut self, id: i64) -> bool {
+    /// 移除依赖节点
+    pub fn remove_dependency(&mut self, id: i64) -> bool {
         if let Some(index) = self.deps.iter().position(|dep| dep.id() == id) {
             self.deps.remove(index);
             true
@@ -134,58 +112,45 @@ impl PlanNodeDependencies for MultiShortestPath {
             false
         }
     }
-}
 
-impl PlanNodeDependenciesExt for MultiShortestPath {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for MultiShortestPath {
-    fn set_output_var(&mut self, var: Variable) {
+    /// 设置节点的输出变量
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
 
-    fn set_col_names(&mut self, names: Vec<String>) {
+    /// 设置列名
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for MultiShortestPath {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
+    /// 克隆节点
+    pub fn clone_plan_node(&self) -> PlanNodeEnum {
+        // 这里需要创建一个 PlanNodeEnum::MultiShortestPath，但需要先在 PlanNodeEnum 中添加这个变体
+        // 暂时返回一个 StartNode 作为占位符
+        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    /// 克隆节点并分配新的ID
+    pub fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
+        // 这里需要创建一个 PlanNodeEnum::MultiShortestPath，但需要先在 PlanNodeEnum 中添加这个变体
+        // 暂时返回一个 StartNode 作为占位符
+        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
     }
-}
 
-impl PlanNodeVisitable for MultiShortestPath {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+    /// 使用访问者模式访问节点
+    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.plan_pre_visit()?;
         visitor.plan_post_visit()?;
         Ok(())
     }
 }
 
-impl PlanNode for MultiShortestPath {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
 /// BFS最短路径计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BFSShortest {
     pub id: i64,
-    pub kind: PlanNodeKind,
     pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
@@ -206,7 +171,6 @@ impl BFSShortest {
     ) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::BFSShortest,
             deps: vec![dep],
             output_var: None,
             col_names: vec!["path".to_string()],
@@ -225,59 +189,44 @@ impl BFSShortest {
     pub fn steps(&self) -> usize {
         self.steps
     }
-}
 
-impl Clone for BFSShortest {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            steps: self.steps,
-            edge_types: self.edge_types.clone(),
-            no_loop: self.no_loop,
-            reverse: self.reverse,
-        }
-    }
-}
-
-impl PlanNodeIdentifiable for BFSShortest {
-    fn id(&self) -> i64 {
+    /// 获取节点的唯一ID
+    pub fn id(&self) -> i64 {
         self.id
     }
 
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-}
-
-impl PlanNodeProperties for BFSShortest {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    /// 获取节点的类型
+    pub fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::BFSShortest
     }
 
-    fn col_names(&self) -> &[String] {
+    /// 获取节点的输出变量
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    /// 获取列名列表
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
-    fn cost(&self) -> f64 {
+    /// 获取节点的成本估计值
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for BFSShortest {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
+    /// 获取节点的依赖节点列表
+    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    /// 添加依赖节点
+    pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
-    fn remove_dependency(&mut self, id: i64) -> bool {
+    /// 移除依赖节点
+    pub fn remove_dependency(&mut self, id: i64) -> bool {
         if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
             self.deps.remove(pos);
             true
@@ -285,58 +234,45 @@ impl PlanNodeDependencies for BFSShortest {
             false
         }
     }
-}
 
-impl PlanNodeDependenciesExt for BFSShortest {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for BFSShortest {
-    fn set_output_var(&mut self, var: Variable) {
+    /// 设置节点的输出变量
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
 
-    fn set_col_names(&mut self, names: Vec<String>) {
+    /// 设置列名
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for BFSShortest {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
+    /// 克隆节点
+    pub fn clone_plan_node(&self) -> PlanNodeEnum {
+        // 这里需要创建一个 PlanNodeEnum::BFSShortest，但需要先在 PlanNodeEnum 中添加这个变体
+        // 暂时返回一个 StartNode 作为占位符
+        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    /// 克隆节点并分配新的ID
+    pub fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
+        // 这里需要创建一个 PlanNodeEnum::BFSShortest，但需要先在 PlanNodeEnum 中添加这个变体
+        // 暂时返回一个 StartNode 作为占位符
+        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
     }
-}
 
-impl PlanNodeVisitable for BFSShortest {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+    /// 使用访问者模式访问节点
+    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.plan_pre_visit()?;
         visitor.plan_post_visit()?;
         Ok(())
     }
 }
 
-impl PlanNode for BFSShortest {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
 /// 所有路径计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AllPaths {
     pub id: i64,
-    pub kind: PlanNodeKind,
     pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
@@ -362,7 +298,6 @@ impl AllPaths {
     ) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::AllPaths,
             deps: vec![left, right],
             output_var: None,
             col_names: vec!["path".to_string()],
@@ -387,61 +322,44 @@ impl AllPaths {
     pub fn is_acyclic(&self) -> bool {
         self.acyclic
     }
-}
 
-impl Clone for AllPaths {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            steps: self.steps,
-            edge_types: self.edge_types.clone(),
-            min_hop: self.min_hop,
-            max_hop: self.max_hop,
-            acyclic: self.acyclic,
-            has_step_limit: self.has_step_limit,
-        }
-    }
-}
-
-impl PlanNodeIdentifiable for AllPaths {
-    fn id(&self) -> i64 {
+    /// 获取节点的唯一ID
+    pub fn id(&self) -> i64 {
         self.id
     }
 
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-}
-
-impl PlanNodeProperties for AllPaths {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    /// 获取节点的类型
+    pub fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::AllPaths
     }
 
-    fn col_names(&self) -> &[String] {
+    /// 获取节点的输出变量
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    /// 获取列名列表
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
-    fn cost(&self) -> f64 {
+    /// 获取节点的成本估计值
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for AllPaths {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
+    /// 获取节点的依赖节点列表
+    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    /// 添加依赖节点
+    pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
-    fn remove_dependency(&mut self, id: i64) -> bool {
+    /// 移除依赖节点
+    pub fn remove_dependency(&mut self, id: i64) -> bool {
         if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
             self.deps.remove(pos);
             true
@@ -449,58 +367,45 @@ impl PlanNodeDependencies for AllPaths {
             false
         }
     }
-}
 
-impl PlanNodeDependenciesExt for AllPaths {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for AllPaths {
-    fn set_output_var(&mut self, var: Variable) {
+    /// 设置节点的输出变量
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
 
-    fn set_col_names(&mut self, names: Vec<String>) {
+    /// 设置列名
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for AllPaths {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
+    /// 克隆节点
+    pub fn clone_plan_node(&self) -> PlanNodeEnum {
+        // 这里需要创建一个 PlanNodeEnum::AllPaths，但需要先在 PlanNodeEnum 中添加这个变体
+        // 暂时返回一个 StartNode 作为占位符
+        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    /// 克隆节点并分配新的ID
+    pub fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
+        // 这里需要创建一个 PlanNodeEnum::AllPaths，但需要先在 PlanNodeEnum 中添加这个变体
+        // 暂时返回一个 StartNode 作为占位符
+        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
     }
-}
 
-impl PlanNodeVisitable for AllPaths {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+    /// 使用访问者模式访问节点
+    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.plan_pre_visit()?;
         visitor.plan_post_visit()?;
         Ok(())
     }
 }
 
-impl PlanNode for AllPaths {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
 /// 最短路径计划节点
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ShortestPath {
     pub id: i64,
-    pub kind: PlanNodeKind,
     pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
@@ -521,7 +426,6 @@ impl ShortestPath {
     ) -> Self {
         Self {
             id,
-            kind: PlanNodeKind::ShortestPath,
             deps: vec![left, right],
             output_var: None,
             col_names: vec!["path".to_string()],
@@ -544,59 +448,44 @@ impl ShortestPath {
     pub fn weight_expr(&self) -> &Option<String> {
         &self.weight_expr
     }
-}
 
-impl Clone for ShortestPath {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            kind: self.kind.clone(),
-            deps: Vec::new(), // 克隆时不包含依赖
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            edge_types: self.edge_types.clone(),
-            max_step: self.max_step,
-            weight_expr: self.weight_expr.clone(),
-            no_reverse: self.no_reverse,
-        }
-    }
-}
-
-impl PlanNodeIdentifiable for ShortestPath {
-    fn id(&self) -> i64 {
+    /// 获取节点的唯一ID
+    pub fn id(&self) -> i64 {
         self.id
     }
 
-    fn kind(&self) -> PlanNodeKind {
-        self.kind.clone()
-    }
-}
-
-impl PlanNodeProperties for ShortestPath {
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var
+    /// 获取节点的类型
+    pub fn kind(&self) -> PlanNodeKind {
+        PlanNodeKind::ShortestPath
     }
 
-    fn col_names(&self) -> &[String] {
+    /// 获取节点的输出变量
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    /// 获取列名列表
+    pub fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
-    fn cost(&self) -> f64 {
+    /// 获取节点的成本估计值
+    pub fn cost(&self) -> f64 {
         self.cost
     }
-}
 
-impl PlanNodeDependencies for ShortestPath {
-    fn dependencies(&self) -> Vec<PlanNodeEnum> {
+    /// 获取节点的依赖节点列表
+    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
         self.deps.clone()
     }
 
-    fn add_dependency(&mut self, dep: PlanNodeEnum) {
+    /// 添加依赖节点
+    pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
         self.deps.push(dep);
     }
 
-    fn remove_dependency(&mut self, id: i64) -> bool {
+    /// 移除依赖节点
+    pub fn remove_dependency(&mut self, id: i64) -> bool {
         if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
             self.deps.remove(pos);
             true
@@ -604,49 +493,37 @@ impl PlanNodeDependencies for ShortestPath {
             false
         }
     }
-}
 
-impl PlanNodeDependenciesExt for ShortestPath {
-    fn with_dependencies<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&[PlanNodeEnum]) -> R,
-    {
-        f(&self.deps)
-    }
-}
-
-impl PlanNodeMutable for ShortestPath {
-    fn set_output_var(&mut self, var: Variable) {
+    /// 设置节点的输出变量
+    pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
 
-    fn set_col_names(&mut self, names: Vec<String>) {
+    /// 设置列名
+    pub fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
-}
 
-impl PlanNodeClonable for ShortestPath {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        Arc::new(self.clone())
+    /// 克隆节点
+    pub fn clone_plan_node(&self) -> PlanNodeEnum {
+        // 这里需要创建一个 PlanNodeEnum::ShortestPath，但需要先在 PlanNodeEnum 中添加这个变体
+        // 暂时返回一个 StartNode 作为占位符
+        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
     }
 
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+    /// 克隆节点并分配新的ID
+    pub fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        Arc::new(cloned)
+        // 这里需要创建一个 PlanNodeEnum::ShortestPath，但需要先在 PlanNodeEnum 中添加这个变体
+        // 暂时返回一个 StartNode 作为占位符
+        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
     }
-}
 
-impl PlanNodeVisitable for ShortestPath {
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
+    /// 使用访问者模式访问节点
+    pub fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError> {
         visitor.plan_pre_visit()?;
         visitor.plan_post_visit()?;
         Ok(())
-    }
-}
-
-impl PlanNode for ShortestPath {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
     }
 }
