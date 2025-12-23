@@ -99,6 +99,20 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
             ))),
         }
     }
+
+    /// 执行执行计划
+    pub async fn execute_plan(
+        &self,
+        _query_context: &mut crate::core::context::query::QueryContext,
+        _plan: crate::query::planner::plan::ExecutionPlan,
+    ) -> Result<crate::query::executor::traits::ExecutionResult, QueryError> {
+        // 临时实现：返回成功结果
+        // 在实际实现中，这里应该：
+        // 1. 根据计划创建执行器
+        // 2. 执行执行器
+        // 3. 返回执行结果
+        Ok(crate::query::executor::traits::ExecutionResult::Success)
+    }
 }
 
 impl<S: StorageEngine + 'static + std::fmt::Debug> Default for ExecutorFactory<S> {

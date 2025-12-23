@@ -355,12 +355,18 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::LessThanOrEqual => write!(f, "<="),
             BinaryOp::GreaterThan => write!(f, ">"),
             BinaryOp::GreaterThanOrEqual => write!(f, ">="),
+            BinaryOp::StringConcat => write!(f, "||"),
+            BinaryOp::Subscript => write!(f, "[]"),
+            BinaryOp::Attribute => write!(f, "."),
             BinaryOp::Like => write!(f, "=~"),
             BinaryOp::In => write!(f, "IN"),
             BinaryOp::NotIn => write!(f, "NOT IN"),
             BinaryOp::Contains => write!(f, "CONTAINS"),
             BinaryOp::StartsWith => write!(f, "STARTS WITH"),
             BinaryOp::EndsWith => write!(f, "ENDS WITH"),
+            BinaryOp::Union => write!(f, "UNION"),
+            BinaryOp::Intersect => write!(f, "INTERSECT"),
+            BinaryOp::Except => write!(f, "EXCEPT"),
         }
     }
 }
@@ -375,6 +381,8 @@ impl std::fmt::Display for UnaryOp {
             UnaryOp::IsNotNull => write!(f, "IS NOT NULL"),
             UnaryOp::IsEmpty => write!(f, "IS EMPTY"),
             UnaryOp::IsNotEmpty => write!(f, "IS NOT EMPTY"),
+            UnaryOp::Increment => write!(f, "++"),
+            UnaryOp::Decrement => write!(f, "--"),
         }
     }
 }

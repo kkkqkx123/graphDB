@@ -28,7 +28,7 @@ pub struct QueryPipelineManager<S: StorageEngine + 'static> {
 impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
     /// 创建新的查询管道管理器
     pub fn new(storage: Arc<Mutex<S>>) -> Self {
-        let executor_factory = ExecutorFactory::new(Arc::clone(&storage));
+        let executor_factory = ExecutorFactory::new();
 
         Self {
             storage,
@@ -122,8 +122,16 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         let mut plan = crate::query::planner::plan::ExecutionPlan::new(None);
         let uuid = uuid::Uuid::new_v4();
         let uuid_bytes = uuid.as_bytes();
-        let id = i64::from_ne_bytes([uuid_bytes[0], uuid_bytes[1], uuid_bytes[2], uuid_bytes[3],
-                                      uuid_bytes[4], uuid_bytes[5], uuid_bytes[6], uuid_bytes[7]]);
+        let id = i64::from_ne_bytes([
+            uuid_bytes[0],
+            uuid_bytes[1],
+            uuid_bytes[2],
+            uuid_bytes[3],
+            uuid_bytes[4],
+            uuid_bytes[5],
+            uuid_bytes[6],
+            uuid_bytes[7],
+        ]);
         plan.set_id(id);
 
         Ok(plan)

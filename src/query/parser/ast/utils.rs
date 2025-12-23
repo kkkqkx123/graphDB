@@ -471,7 +471,7 @@ impl ExprOptimizer {
             Expr::Case(mut e) => {
                 if let Some(ref mut match_expr) = e.match_expr {
                     let cloned_match_expr = (*match_expr).clone();
-                    *match_expr = Box::new(Self::constant_folding(cloned_match_expr));
+                    *match_expr = Box::new(Self::constant_folding(*cloned_match_expr));
                 }
 
                 e.when_then_pairs = e
@@ -479,15 +479,15 @@ impl ExprOptimizer {
                     .into_iter()
                     .map(|(when, then)| {
                         (
-                            Box::new(Self::constant_folding(when)),
-                            Box::new(Self::constant_folding(then)),
+                            Box::new(Self::constant_folding(*when)),
+                            Box::new(Self::constant_folding(*then)),
                         )
                     })
                     .collect();
 
                 if let Some(ref mut default) = e.default {
                     let cloned_default = (*default).clone();
-                    *default = Box::new(Self::constant_folding(cloned_default));
+                    *default = Box::new(Self::constant_folding(*cloned_default));
                 }
 
                 Expr::Case(e)
@@ -589,7 +589,7 @@ impl ExprOptimizer {
                 }
 
                 // 简化：x * 1 -> x
-                if e.op == BinaryOp::Mul {
+                if e.op == BinaryOp::Multiply {
                     if let Expr::Constant(constant) = &right {
                         if matches!(constant.value, Value::Int(1) | Value::Float(1.0)) {
                             return left;
@@ -603,7 +603,7 @@ impl ExprOptimizer {
                 }
 
                 // 简化：x * 0 -> 0
-                if e.op == BinaryOp::Mul {
+                if e.op == BinaryOp::Multiply {
                     if let Expr::Constant(constant) = &right {
                         if matches!(constant.value, Value::Int(0) | Value::Float(0.0)) {
                             return right;
@@ -707,7 +707,7 @@ mod tests {
         // 测试 x * 1 -> x
         let x = ExprFactory::variable("x".to_string(), span);
         let one = ExprFactory::constant(Value::Int(1), span);
-        let expr = ExprFactory::binary(x.clone(), BinaryOp::Mul, one, span);
+        let expr = ExprFactory::binary(x.clone(), BinaryOp::Multiply, one, span);
 
         let simplified = ExprOptimizer::simplify(expr);
         assert_eq!(simplified, x);

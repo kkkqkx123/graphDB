@@ -109,7 +109,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                             );
 
                             // 评估过滤表达式
-                            match evaluator.evaluate(filter_expr, &context) {
+                            match evaluator.evaluate(filter_expr, &mut context) {
                                 Ok(value) => {
                                     // 将 Value 转换为 bool
                                     match value {

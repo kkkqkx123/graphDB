@@ -69,7 +69,7 @@ pub fn build_conditional_match_query() -> Stmt {
             "name".to_string(),
             span,
         )),
-        BinaryOp::Eq,
+        BinaryOp::Equal,
         Expr::Constant(ConstantExpr::new(Value::String("John".to_string()), span)),
         span,
     ));
@@ -238,7 +238,7 @@ pub fn build_lookup_query() -> Stmt {
             "name".to_string(),
             span,
         )),
-        BinaryOp::Eq,
+        BinaryOp::Equal,
         Expr::Constant(ConstantExpr::new(Value::String("John".to_string()), span)),
         span,
     ));
@@ -357,7 +357,7 @@ pub fn demonstrate_visitor_pattern() {
             Expr::Constant(ConstantExpr::new(Value::Int(5), span)),
             span,
         )),
-        BinaryOp::Mul,
+        BinaryOp::Multiply,
         Expr::Constant(ConstantExpr::new(Value::Int(2), span)),
         span,
     ));
@@ -392,7 +392,7 @@ pub fn demonstrate_expression_optimization() {
                 Expr::Constant(ConstantExpr::new(Value::Int(3), span)),
                 span,
             )),
-            BinaryOp::Mul,
+            BinaryOp::Multiply,
             Expr::Constant(ConstantExpr::new(Value::Int(1), span)),
             span,
         )),

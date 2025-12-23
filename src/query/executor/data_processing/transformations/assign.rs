@@ -69,7 +69,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
         for (var_name, expr) in &self.assign_items {
             // 计算表达式的值
             let evaluator = ExpressionEvaluator::new();
-            let value = evaluator.evaluate(expr, &expr_context).map_err(|e| {
+            let value = evaluator.evaluate(expr, &mut expr_context).map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(
                     e.to_string(),
                 ))

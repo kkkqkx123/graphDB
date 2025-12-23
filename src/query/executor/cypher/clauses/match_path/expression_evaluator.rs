@@ -34,11 +34,11 @@ impl ExpressionEvaluator {
         context: &CypherExecutionContext,
     ) -> Result<Value, DBError> {
         // 将CypherExecutionContext转换为graph/expression模块需要的上下文
-        let eval_context = self.convert_context(context);
+        let mut eval_context = self.convert_context(context);
 
         // 直接使用统一的表达式求值器
         self.inner
-            .evaluate_cypher(expr, &eval_context)
+            .evaluate_cypher(expr, &mut eval_context)
             .map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(
                     e.to_string(),
@@ -52,11 +52,11 @@ impl ExpressionEvaluator {
         exprs: &[Expression],
         context: &CypherExecutionContext,
     ) -> Result<Vec<Value>, DBError> {
-        let eval_context = self.convert_context(context);
+        let mut eval_context = self.convert_context(context);
 
         // 使用统一的批量评估功能
         self.inner
-            .evaluate_cypher_batch(exprs, &eval_context)
+            .evaluate_cypher_batch(exprs, &mut eval_context)
             .map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(
                     e.to_string(),
@@ -159,23 +159,23 @@ mod tests {
     #[test]
     fn test_evaluate_literal() {
         let evaluator = ExpressionEvaluator::new();
-        let context = CypherExecutionContext::new();
+        let mut context = CypherExecutionContext::new();
 
         let string_expr = Expression::Literal(Literal::String("test".to_string()));
         let result = evaluator
-            .evaluate(&string_expr, &context)
+            .evaluate(&string_expr, &mut context)
             .expect("Failed to evaluate string expression");
         assert_eq!(result, Value::String("test".to_string()));
 
         let int_expr = Expression::Literal(Literal::Integer(42));
         let result = evaluator
-            .evaluate(&int_expr, &context)
+            .evaluate(&int_expr, &mut context)
             .expect("Failed to evaluate int expression");
         assert_eq!(result, Value::Int(42));
 
         let bool_expr = Expression::Literal(Literal::Boolean(true));
         let result = evaluator
-            .evaluate(&bool_expr, &context)
+            .evaluate(&bool_expr, &mut context)
             .expect("Failed to evaluate bool expression");
         assert_eq!(result, Value::Bool(true));
     }
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn test_evaluate_binary_expression() {
         let evaluator = ExpressionEvaluator::new();
-        let context = CypherExecutionContext::new();
+        let mut context = CypherExecutionContext::new();
 
         // 测试相等比较
         let equal_expr = Expression::Binary(BinaryExpression {
@@ -192,7 +192,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Integer(42))),
         });
         let result = evaluator
-            .evaluate(&equal_expr, &context)
+            .evaluate(&equal_expr, &mut context)
             .expect("Failed to evaluate equal expression");
         assert_eq!(result, Value::Bool(true));
 
@@ -203,7 +203,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Integer(43))),
         });
         let result = evaluator
-            .evaluate(&not_equal_expr, &context)
+            .evaluate(&not_equal_expr, &mut context)
             .expect("Failed to evaluate not equal expression");
         assert_eq!(result, Value::Bool(true));
 
@@ -214,7 +214,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Boolean(true))),
         });
         let result = evaluator
-            .evaluate(&and_expr, &context)
+            .evaluate(&and_expr, &mut context)
             .expect("Failed to evaluate and expression");
         assert_eq!(result, Value::Bool(true));
     }
@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn test_evaluate_unary_expression() {
         let evaluator = ExpressionEvaluator::new();
-        let context = CypherExecutionContext::new();
+        let mut context = CypherExecutionContext::new();
 
         // 测试NOT操作
         let not_expr = Expression::Unary(UnaryExpression {
@@ -230,7 +230,7 @@ mod tests {
             expression: Box::new(Expression::Literal(Literal::Boolean(true))),
         });
         let result = evaluator
-            .evaluate(&not_expr, &context)
+            .evaluate(&not_expr, &mut context)
             .expect("Failed to evaluate not expression");
         assert_eq!(result, Value::Bool(false));
 
@@ -240,7 +240,7 @@ mod tests {
             expression: Box::new(Expression::Literal(Literal::Integer(42))),
         });
         let result = evaluator
-            .evaluate(&neg_expr, &context)
+            .evaluate(&neg_expr, &mut context)
             .expect("Failed to evaluate neg expression");
         assert_eq!(result, Value::Int(-42));
     }
@@ -248,7 +248,7 @@ mod tests {
     #[test]
     fn test_arithmetic_operations() {
         let evaluator = ExpressionEvaluator::new();
-        let context = CypherExecutionContext::new();
+        let mut context = CypherExecutionContext::new();
 
         // 测试加法
         let add_expr = Expression::Binary(BinaryExpression {
@@ -257,7 +257,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::Integer(5))),
         });
         let result = evaluator
-            .evaluate(&add_expr, &context)
+            .evaluate(&add_expr, &mut context)
             .expect("Failed to evaluate add expression");
         assert_eq!(result, Value::Int(15));
 
@@ -268,7 +268,7 @@ mod tests {
             right: Box::new(Expression::Literal(Literal::String(" World".to_string()))),
         });
         let result = evaluator
-            .evaluate(&concat_expr, &context)
+            .evaluate(&concat_expr, &mut context)
             .expect("Failed to evaluate concat expression");
         assert_eq!(result, Value::String("Hello World".to_string()));
     }
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn test_batch_evaluation() {
         let evaluator = ExpressionEvaluator::new();
-        let context = CypherExecutionContext::new();
+        let mut context = CypherExecutionContext::new();
 
         let exprs = vec![
             Expression::Literal(Literal::Integer(1)),

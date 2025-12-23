@@ -58,7 +58,7 @@ impl AggregateExpression {
     /// 计算聚合表达式的值
     pub fn evaluate<C: crate::core::expressions::ExpressionContext>(
         &self,
-        context: &C,
+        context: &mut C,
         state: &mut AggregateState,
     ) -> Result<Value, ExpressionError> {
         // 计算参数值

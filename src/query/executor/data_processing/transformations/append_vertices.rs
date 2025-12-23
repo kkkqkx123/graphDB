@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value, Vertex};
 use crate::core::expressions::DefaultExpressionContext;
+use crate::core::expressions::default_context::ExpressionContext;
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
@@ -328,7 +329,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                 let evaluator = ExpressionEvaluator::new();
                 let filter_result =
                     evaluator
-                        .evaluate(filter_expr, &row_context)
+                        .evaluate(filter_expr, &mut row_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),

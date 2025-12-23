@@ -8,8 +8,8 @@ use std::collections::BinaryHeap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::expressions::{DefaultExpressionContext, ExpressionContext};
 use crate::core::{DataSet, Value};
-use crate::core::expressions::{ExpressionContext, DefaultExpressionContext};
 use crate::core::{Expression, ExpressionEvaluator};
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{
@@ -230,7 +230,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
         let mut sort_values = Vec::new();
         for sort_key in &self.sort_keys {
             let value = evaluator
-                .evaluate(&sort_key.expression, &context)
+                .evaluate(&sort_key.expression, &mut context)
                 .map_err(|e| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
                         "Failed to evaluate sort expression: {}",
