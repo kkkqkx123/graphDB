@@ -8,7 +8,6 @@ use super::rule_traits::{
 };
 use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::PlanNodeKind;
 use crate::query::planner::plan::algorithms::IndexScan;
 use crate::query::planner::plan::core::nodes::FilterNode as FilterPlanNode;
 use crate::query::planner::plan::core::nodes::ExpandNode as Expand;
@@ -32,7 +31,7 @@ impl OptRule for FilterPushDownRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为过滤节点
-        if node.plan_node.kind() != PlanNodeKind::Filter {
+        if !node.plan_node.is_filter() {
             return Ok(None);
         }
 
@@ -48,8 +47,8 @@ impl OptRule for FilterPushDownRule {
                     let filter_condition = filter_plan_node.condition();
 
                     // 根据子节点类型确定是否可以下推过滤条件
-                    match child_node.plan_node().kind() {
-                        PlanNodeKind::ScanVertices => {
+                    match child_node.plan_node().name() {
+                        "ScanVertices" => {
                             // 对于扫描操作，我们可以将过滤条件下推到扫描操作
                             // 这通过在存储层而不是计算层应用过滤来减少从存储读取的记录数
                             let split_result = can_push_down_to_scan(filter_condition);
@@ -108,7 +107,7 @@ impl OptRule for FilterPushDownRule {
                                 Ok(None)
                             }
                         }
-                        PlanNodeKind::IndexScan => {
+                        "IndexScan" => {
                             // 类似于IndexScan的逻辑
                             let split_result = can_push_down_to_scan(filter_condition);
 
@@ -164,7 +163,7 @@ impl OptRule for FilterPushDownRule {
                                 Ok(None)
                             }
                         }
-                        PlanNodeKind::Traverse => {
+                        "Traverse" => {
                             // 对于遍历操作，将过滤条件下推到存储层
                             // 这减少遍历过程中检索的顶点或边数量
                             let split_result = can_push_down_to_traverse(filter_condition);
@@ -225,7 +224,7 @@ impl OptRule for FilterPushDownRule {
                                 Ok(None)
                             }
                         }
-                        PlanNodeKind::GetNeighbors | PlanNodeKind::GetVertices => {
+                        "GetNeighbors" | "GetVertices" => {
                             // 对于其他遍历操作，应用类似逻辑
                             // 目前，返回原始节点，因为没有进行转换
                             Ok(Some(node.clone()))
@@ -254,15 +253,15 @@ impl OptRule for FilterPushDownRule {
 impl BaseOptRule for FilterPushDownRule {}
 
 impl PushDownRule for FilterPushDownRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
         matches!(
-            child_kind,
-            PlanNodeKind::ScanVertices
-                | PlanNodeKind::ScanEdges
-                | PlanNodeKind::IndexScan
-                | PlanNodeKind::Traverse
-                | PlanNodeKind::GetNeighbors
-                | PlanNodeKind::GetVertices
+            child_node.name(),
+            "ScanVertices"
+                | "ScanEdges"
+                | "IndexScan"
+                | "Traverse"
+                | "GetNeighbors"
+                | "GetVertices"
         )
     }
 
@@ -293,7 +292,7 @@ impl OptRule for PushFilterDownTraverseRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为过滤节点后跟遍历操作
-        if node.plan_node.kind() != PlanNodeKind::Filter {
+        if !node.plan_node.is_filter() {
             return Ok(None);
         }
 
@@ -302,7 +301,7 @@ impl OptRule for PushFilterDownTraverseRule {
             if matched.dependencies.len() == 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::Traverse {
+                if child.plan_node().name() == "Traverse" {
                     // 将过滤条件下推到遍历操作
                     if let Some(filter_plan_node) =
                         node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
@@ -387,8 +386,8 @@ impl OptRule for PushFilterDownTraverseRule {
 impl BaseOptRule for PushFilterDownTraverseRule {}
 
 impl PushDownRule for PushFilterDownTraverseRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::Traverse
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "Traverse"
     }
 
     fn create_pushed_down_node(
@@ -418,7 +417,7 @@ impl OptRule for PushFilterDownExpandRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为过滤节点后跟扩展操作
-        if node.plan_node.kind() != PlanNodeKind::Filter {
+        if !node.plan_node.is_filter() {
             return Ok(None);
         }
 
@@ -427,7 +426,7 @@ impl OptRule for PushFilterDownExpandRule {
             if matched.dependencies.len() == 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::Expand {
+                if child.plan_node().name() == "Expand" {
                     // 将过滤条件下推到扩展操作
                     if let Some(filter_plan_node) =
                         node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
@@ -498,15 +497,15 @@ impl OptRule for PushFilterDownExpandRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::Filter, PlanNodeKind::Expand)
+        PatternBuilder::with_dependency("Filter", "Expand")
     }
 }
 
 impl BaseOptRule for PushFilterDownExpandRule {}
 
 impl PushDownRule for PushFilterDownExpandRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::Expand
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "Expand"
     }
 
     fn create_pushed_down_node(
@@ -536,7 +535,7 @@ impl OptRule for PushFilterDownHashInnerJoinRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为过滤操作在哈希内连接之上
-        if node.plan_node.kind() != PlanNodeKind::Filter {
+        if !node.plan_node.is_filter() {
             return Ok(None);
         }
 
@@ -545,7 +544,7 @@ impl OptRule for PushFilterDownHashInnerJoinRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::HashInnerJoin {
+                if child.plan_node().name() == "HashInnerJoin" {
                     // 在完整实现中，我们会将过滤条件下推到连接的一侧或两侧
                     // 这可以减少需要连接的元组数量
                     Ok(Some(node.clone()))
@@ -561,15 +560,15 @@ impl OptRule for PushFilterDownHashInnerJoinRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::Filter, PlanNodeKind::HashInnerJoin)
+        PatternBuilder::with_dependency("Filter", "HashInnerJoin")
     }
 }
 
 impl BaseOptRule for PushFilterDownHashInnerJoinRule {}
 
 impl PushDownRule for PushFilterDownHashInnerJoinRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::HashInnerJoin
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "HashInnerJoin"
     }
 
     fn create_pushed_down_node(
@@ -599,7 +598,7 @@ impl OptRule for PushFilterDownHashLeftJoinRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为过滤操作在哈希左连接之上
-        if node.plan_node.kind() != PlanNodeKind::Filter {
+        if !node.plan_node.is_filter() {
             return Ok(None);
         }
 
@@ -608,7 +607,7 @@ impl OptRule for PushFilterDownHashLeftJoinRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::HashLeftJoin {
+                if child.plan_node().name() == "HashLeftJoin" {
                     // 在完整实现中，我们会将过滤条件下推到连接的一侧或两侧
                     // 这可以减少需要连接的元组数量
                     Ok(Some(node.clone()))
@@ -624,15 +623,15 @@ impl OptRule for PushFilterDownHashLeftJoinRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::Filter, PlanNodeKind::HashLeftJoin)
+        PatternBuilder::with_dependency("Filter", "HashLeftJoin")
     }
 }
 
 impl BaseOptRule for PushFilterDownHashLeftJoinRule {}
 
 impl PushDownRule for PushFilterDownHashLeftJoinRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::HashLeftJoin
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "HashLeftJoin"
     }
 
     fn create_pushed_down_node(
@@ -662,7 +661,7 @@ impl OptRule for PushFilterDownInnerJoinRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为过滤操作在内连接之上
-        if node.plan_node.kind() != PlanNodeKind::Filter {
+        if !node.plan_node.is_filter() {
             return Ok(None);
         }
 
@@ -671,7 +670,7 @@ impl OptRule for PushFilterDownInnerJoinRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::InnerJoin {
+                if child.plan_node().name() == "InnerJoin" {
                     // 在完整实现中，我们会将过滤条件下推到连接的一侧或两侧
                     // 这可以减少需要连接的元组数量
                     Ok(Some(node.clone()))
@@ -687,15 +686,15 @@ impl OptRule for PushFilterDownInnerJoinRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::Filter, PlanNodeKind::InnerJoin)
+        PatternBuilder::with_dependency("Filter", "InnerJoin")
     }
 }
 
 impl BaseOptRule for PushFilterDownInnerJoinRule {}
 
 impl PushDownRule for PushFilterDownInnerJoinRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::InnerJoin
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "InnerJoin"
     }
 
     fn create_pushed_down_node(
@@ -725,7 +724,7 @@ impl OptRule for PredicatePushDownRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为可以下推到存储的过滤节点
-        if node.plan_node.kind() != PlanNodeKind::Filter {
+        if !node.plan_node.is_filter() {
             return Ok(None);
         }
 
@@ -734,8 +733,8 @@ impl OptRule for PredicatePushDownRule {
             if matched.dependencies.len() == 1 {
                 let child = &matched.dependencies[0];
 
-                match child.plan_node().kind() {
-                    PlanNodeKind::ScanVertices => {
+                match child.plan_node().name() {
+                    "ScanVertices" => {
                         // 将谓词下推到扫描操作
                         if let Some(filter_plan_node) =
                             node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
@@ -801,7 +800,7 @@ impl OptRule for PredicatePushDownRule {
                             Ok(None)
                         }
                     }
-                    PlanNodeKind::ScanEdges => {
+                    "ScanEdges" => {
                         // 类似地处理边扫描
                         if let Some(filter_plan_node) =
                             node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
@@ -870,7 +869,7 @@ impl OptRule for PredicatePushDownRule {
                             Ok(None)
                         }
                     }
-                    PlanNodeKind::IndexScan => {
+                    "IndexScan" => {
                         // 类似地处理索引扫描
                         if let Some(filter_plan_node) =
                             node.plan_node.as_any().downcast_ref::<FilterPlanNode>()
@@ -954,10 +953,10 @@ impl OptRule for PredicatePushDownRule {
 impl BaseOptRule for PredicatePushDownRule {}
 
 impl PushDownRule for PredicatePushDownRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
         matches!(
-            child_kind,
-            PlanNodeKind::ScanVertices | PlanNodeKind::ScanEdges | PlanNodeKind::IndexScan
+            child_node.name(),
+            "ScanVertices" | "ScanEdges" | "IndexScan"
         )
     }
 

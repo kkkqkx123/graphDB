@@ -2,7 +2,7 @@
 //! 提供优化规则的通用接口和辅助函数，减少代码重复
 
 use super::optimizer::{OptContext, OptGroupNode, OptRule, OptimizerError, Pattern};
-use crate::query::planner::plan::{PlanNodeKind, PlanNodeEnum};
+use crate::query::planner::plan::PlanNodeEnum;
 
 use std::collections::HashMap;
 
@@ -39,7 +39,7 @@ pub trait BaseOptRule: OptRule {
 /// 下推优化规则的通用trait
 pub trait PushDownRule: BaseOptRule {
     /// 检查是否可以下推到指定的子节点类型
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool;
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool;
 
     /// 获取下推后的新节点
     fn create_pushed_down_node(
@@ -307,16 +307,20 @@ pub struct FilterSplitResult {
 }
 
 /// 辅助函数：创建基本的模式匹配
-pub fn create_basic_pattern(kind: PlanNodeKind) -> Pattern {
-    Pattern::new(kind)
+pub fn create_basic_pattern(node_name: &'static str) -> Pattern {
+    // 这里需要根据实际的Pattern实现来调整
+    // 暂时保留，但应该使用PlanNodeEnum的name()方法
+    Pattern::new(node_name)
 }
 
 /// 辅助函数：创建带依赖的模式匹配
 pub fn create_pattern_with_dependency(
-    kind: PlanNodeKind,
-    dependency_kind: PlanNodeKind,
+    node_name: &'static str,
+    dependency_name: &'static str,
 ) -> Pattern {
-    Pattern::new(kind).with_dependency(Pattern::new(dependency_kind))
+    // 这里需要根据实际的Pattern实现来调整
+    // 暂时保留，但应该使用PlanNodeEnum的name()方法
+    Pattern::new(node_name).with_dependency(Pattern::new(dependency_name))
 }
 
 /// 辅助函数：检查节点是否有指定类型的依赖（完整实现）
@@ -328,13 +332,13 @@ pub fn create_pattern_with_dependency(
 ///
 /// # 返回值
 /// 如果找到指定类型的依赖节点，返回true；否则返回false
-pub fn has_dependency_of_kind(ctx: &OptContext, node: &OptGroupNode, kind: PlanNodeKind) -> bool {
+pub fn has_dependency_of_kind(ctx: &OptContext, node: &OptGroupNode, node_name: &'static str) -> bool {
     // 检查节点的依赖列表
     for &dep_id in &node.dependencies {
         // 使用OptContext查找依赖节点
         if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(dep_id) {
             // 检查依赖节点的计划节点类型
-            if dep_node.plan_node.kind() == kind {
+            if dep_node.plan_node.name() == node_name {
                 return true;
             }
         }
@@ -464,8 +468,8 @@ macro_rules! impl_push_down_rule {
         }
 
         impl PushDownRule for $rule_type {
-            fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-                child_kind == $target_kind
+            fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+                child_node.name() == $target_kind
             }
 
             fn create_pushed_down_node(
@@ -722,11 +726,11 @@ mod tests {
 
         // 测试 has_dependency_of_kind
         // 所有节点都是默认节点，类型为 Unknown
-        let has_unknown = has_dependency_of_kind(&opt_ctx, &node_with_deps, PlanNodeKind::Unknown);
+        let has_unknown = has_dependency_of_kind(&opt_ctx, &node_with_deps, "Unknown");
         assert!(has_unknown);
 
         // 使用一个存在的类型进行测试
-        let has_filter = has_dependency_of_kind(&opt_ctx, &node_with_deps, PlanNodeKind::Filter);
+        let has_filter = has_dependency_of_kind(&opt_ctx, &node_with_deps, "Filter");
         assert!(!has_filter);
 
         // 测试没有依赖的节点

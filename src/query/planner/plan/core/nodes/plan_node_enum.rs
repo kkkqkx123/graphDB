@@ -357,11 +357,8 @@ impl std::fmt::Display for PlanNodeEnum {
     }
 }
 
-// 导入操作实现
-mod plan_node_operations;
-
 // 使用操作实现
-use plan_node_operations::*;
+use super::plan_node_operations::*;
 
 /// PlanNode 访问者trait - 使用泛型避免动态分发
 pub trait PlanNodeVisitor {

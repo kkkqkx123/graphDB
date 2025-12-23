@@ -38,7 +38,7 @@ impl OptRule for PushLimitDownRule {
 
             if let Some(child_node) = child_node_opt {
                 // 根据子节点类型决定是否下推LIMIT
-                if self.can_push_down_to(child_node.plan_node.type_name()) {
+                if self.can_push_down_to(child_node.plan_node()) {
                     // 创建新的LIMIT下推节点
                     return self.create_pushed_down_node(ctx, node, &child_node);
                 }
@@ -55,9 +55,9 @@ impl OptRule for PushLimitDownRule {
 impl BaseOptRule for PushLimitDownRule {}
 
 impl PushDownRule for PushLimitDownRule {
-    fn can_push_down_to(&self, child_kind: &str) -> bool {
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
         matches!(
-            child_kind,
+            child_node.name(),
             "IndexScan"
                 | "GetVertices"
                 | "GetEdges"
@@ -80,8 +80,8 @@ impl PushDownRule for PushLimitDownRule {
             .downcast_ref::<crate::query::planner::plan::core::nodes::LimitNode>(
         ) {
             // 根据子节点类型创建新的带有LIMIT的节点
-            match child.plan_node.kind() {
-                PlanNodeKind::GetVertices => {
+            match child.plan_node.name() {
+                "GetVertices" => {
                     // 为GetVertices创建带有LIMIT的节点
                     if let Some(get_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::GetVerticesNode>() {
                         // 克隆节点并设置限制和输出变量
@@ -104,7 +104,7 @@ impl PushDownRule for PushLimitDownRule {
                         Ok(None)
                     }
                 }
-                PlanNodeKind::GetEdges => {
+                "GetEdges" => {
                     // 为GetEdges创建带有LIMIT的节点
                     if let Some(get_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::GetEdgesNode>() {
                         // 克隆节点并设置限制和输出变量
@@ -127,7 +127,7 @@ impl PushDownRule for PushLimitDownRule {
                         Ok(None)
                     }
                 }
-                PlanNodeKind::IndexScan => {
+                "IndexScan" => {
                     // 为IndexScan创建带有LIMIT的节点
                     if let Some(index_scan_plan_node) =
                         child.plan_node.as_any().downcast_ref::<IndexScan>()
@@ -152,7 +152,7 @@ impl PushDownRule for PushLimitDownRule {
                         Ok(None)
                     }
                 }
-                PlanNodeKind::ScanVertices => {
+                "ScanVertices" => {
                     // 为ScanVertices创建带有LIMIT的节点
                     if let Some(scan_vertices_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::ScanVerticesNode>() {
                         // 克隆节点并设置限制和输出变量
@@ -175,7 +175,7 @@ impl PushDownRule for PushLimitDownRule {
                         Ok(None)
                     }
                 }
-                PlanNodeKind::ScanEdges => {
+                "ScanEdges" => {
                     // 为ScanEdges创建带有LIMIT的节点
                     if let Some(scan_edges_plan_node) = child.plan_node.as_any().downcast_ref::<crate::query::planner::plan::core::nodes::ScanEdgesNode>() {
                         // 克隆节点并设置限制和输出变量
@@ -221,7 +221,7 @@ impl OptRule for PushLimitDownGetVerticesRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为LIMIT操作
-        if node.plan_node.kind() != PlanNodeKind::Limit {
+        if !node.plan_node.is_limit() {
             return Ok(None);
         }
 
@@ -231,7 +231,7 @@ impl OptRule for PushLimitDownGetVerticesRule {
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
-                if child_node.plan_node.kind() == PlanNodeKind::GetVertices {
+                if child_node.plan_node.is_get_vertices() {
                     // 将LIMIT下推到GetVertices操作
                     return self.create_pushed_down_node(ctx, node, &child_node);
                 }
@@ -241,15 +241,15 @@ impl OptRule for PushLimitDownGetVerticesRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::Limit, PlanNodeKind::GetVertices)
+        PatternBuilder::with_dependency("Limit", "GetVertices")
     }
 }
 
 impl BaseOptRule for PushLimitDownGetVerticesRule {}
 
 impl PushDownRule for PushLimitDownGetVerticesRule {
-    fn can_push_down_to(&self, child_kind: &str) -> bool {
-        child_kind == "GetVertices"
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "GetVertices"
     }
 
     fn create_pushed_down_node(
@@ -344,8 +344,8 @@ impl OptRule for PushLimitDownGetNeighborsRule {
 impl BaseOptRule for PushLimitDownGetNeighborsRule {}
 
 impl PushDownRule for PushLimitDownGetNeighborsRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::GetNeighbors
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "GetNeighbors"
     }
 
     fn create_pushed_down_node(
@@ -434,8 +434,8 @@ impl OptRule for PushLimitDownGetEdgesRule {
 impl BaseOptRule for PushLimitDownGetEdgesRule {}
 
 impl PushDownRule for PushLimitDownGetEdgesRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::GetEdges
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "GetEdges"
     }
 
     fn create_pushed_down_node(
@@ -524,8 +524,8 @@ impl OptRule for PushLimitDownScanVerticesRule {
 impl BaseOptRule for PushLimitDownScanVerticesRule {}
 
 impl PushDownRule for PushLimitDownScanVerticesRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::ScanVertices
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "ScanVertices"
     }
 
     fn create_pushed_down_node(
@@ -614,8 +614,8 @@ impl OptRule for PushLimitDownScanEdgesRule {
 impl BaseOptRule for PushLimitDownScanEdgesRule {}
 
 impl PushDownRule for PushLimitDownScanEdgesRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::ScanEdges
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "ScanEdges"
     }
 
     fn create_pushed_down_node(
@@ -704,8 +704,8 @@ impl OptRule for PushLimitDownIndexScanRule {
 impl BaseOptRule for PushLimitDownIndexScanRule {}
 
 impl PushDownRule for PushLimitDownIndexScanRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::IndexScan
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "IndexScan"
     }
 
     fn create_pushed_down_node(
@@ -791,8 +791,8 @@ impl OptRule for PushLimitDownProjectRule {
 impl BaseOptRule for PushLimitDownProjectRule {}
 
 impl PushDownRule for PushLimitDownProjectRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::Project
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "Project"
     }
 
     fn create_pushed_down_node(
@@ -853,7 +853,7 @@ impl OptRule for PushLimitDownAllPathsRule {
 
     fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为LIMIT操作
-        if node.plan_node.kind() != PlanNodeKind::Limit {
+        if !node.plan_node.is_limit() {
             return Ok(None);
         }
 
@@ -862,7 +862,7 @@ impl OptRule for PushLimitDownAllPathsRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::AllPaths {
+                if child.plan_node().type_name() == "AllPaths" {
                     // 在完整实现中，我们会将LIMIT下推到全路径操作
                     // 以限制计算的路径数量
                     Ok(Some(node.clone()))
@@ -878,15 +878,15 @@ impl OptRule for PushLimitDownAllPathsRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::Limit, PlanNodeKind::AllPaths)
+        PatternBuilder::with_dependency("Limit", "AllPaths")
     }
 }
 
 impl BaseOptRule for PushLimitDownAllPathsRule {}
 
 impl PushDownRule for PushLimitDownAllPathsRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::AllPaths
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "AllPaths"
     }
 
     fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
@@ -907,7 +907,7 @@ impl OptRule for PushLimitDownExpandAllRule {
 
     fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为LIMIT操作
-        if node.plan_node.kind() != PlanNodeKind::Limit {
+        if !node.plan_node.is_limit() {
             return Ok(None);
         }
 
@@ -916,7 +916,7 @@ impl OptRule for PushLimitDownExpandAllRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::ExpandAll {
+                if child.plan_node().type_name() == "ExpandAll" {
                     // 在完整实现中，我们会将LIMIT下推到全展开操作
                     // 以限制扩展的数量
                     Ok(Some(node.clone()))
@@ -932,15 +932,15 @@ impl OptRule for PushLimitDownExpandAllRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::Limit, PlanNodeKind::ExpandAll)
+        PatternBuilder::with_dependency("Limit", "ExpandAll")
     }
 }
 
 impl BaseOptRule for PushLimitDownExpandAllRule {}
 
 impl PushDownRule for PushLimitDownExpandAllRule {
-    fn can_push_down_to(&self, child_kind: PlanNodeKind) -> bool {
-        child_kind == PlanNodeKind::ExpandAll
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        child_node.name() == "ExpandAll"
     }
 
     fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {

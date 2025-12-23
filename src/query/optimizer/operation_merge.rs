@@ -5,7 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::{PlanNodeKind, FilterNode as FilterPlanNode};
+use crate::query::planner::plan::FilterNode as FilterPlanNode;
 
 
 
@@ -25,7 +25,7 @@ impl OptRule for CombineFilterRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为过滤节点
-        if node.plan_node.kind() != PlanNodeKind::Filter {
+        if !node.plan_node.is_filter() {
             return Ok(None);
         }
 
@@ -34,7 +34,7 @@ impl OptRule for CombineFilterRule {
             if matched.dependencies.len() == 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::Filter {
+                if child.plan_node().is_filter() {
                     // 将两个连续的过滤节点合并为一个
                     if let (Some(top_filter), Some(child_filter)) = (
                         node.plan_node.as_any().downcast_ref::<FilterPlanNode>(),
@@ -96,8 +96,7 @@ impl BaseOptRule for CombineFilterRule {}
 
 impl MergeRule for CombineFilterRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::Filter
-            && child.plan_node.kind() == PlanNodeKind::Filter
+        node.plan_node.is_filter() && child.plan_node().is_filter()
     }
 
     fn create_merged_node(
@@ -163,7 +162,7 @@ impl OptRule for CollapseProjectRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为投影节点
-        if node.plan_node.kind() != PlanNodeKind::Project {
+        if !node.plan_node.is_project() {
             return Ok(None);
         }
 
@@ -172,7 +171,7 @@ impl OptRule for CollapseProjectRule {
             if matched.dependencies.len() == 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::Project {
+                if child.plan_node().is_project() {
                     // 在完整实现中，我们会合并这两个投影操作
                     // 以减少中间数据存储
                     Ok(Some(node.clone()))
@@ -196,8 +195,7 @@ impl BaseOptRule for CollapseProjectRule {}
 
 impl MergeRule for CollapseProjectRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::Project
-            && child.plan_node.kind() == PlanNodeKind::Project
+        node.plan_node.is_project() && child.plan_node().is_project()
     }
 
     fn create_merged_node(
@@ -227,7 +225,7 @@ impl OptRule for MergeGetVerticesAndProjectRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为获取顶点操作
-        if node.plan_node.kind() != PlanNodeKind::GetVertices {
+        if !node.plan_node.is_get_vertices() {
             return Ok(None);
         }
 
@@ -236,7 +234,7 @@ impl OptRule for MergeGetVerticesAndProjectRule {
             if matched.dependencies.len() >= 1 {
                 // 检查子节点是否为可以合并的投影操作
                 let child = &matched.dependencies[0];
-                if child.plan_node().kind() == PlanNodeKind::Project {
+                if child.plan_node().is_project() {
                     // 在完整实现中，我们会合并这些操作
                     // 以减少中间步骤并直接获取所需的属性
                     Ok(Some(node.clone()))
@@ -252,7 +250,7 @@ impl OptRule for MergeGetVerticesAndProjectRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::GetVertices, PlanNodeKind::Project)
+        PatternBuilder::with_dependency("GetVertices", "Project")
     }
 }
 
@@ -260,8 +258,7 @@ impl BaseOptRule for MergeGetVerticesAndProjectRule {}
 
 impl MergeRule for MergeGetVerticesAndProjectRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::GetVertices
-            && child.plan_node.kind() == PlanNodeKind::Project
+        node.plan_node.is_get_vertices() && child.plan_node().is_project()
     }
 
     fn create_merged_node(
@@ -291,7 +288,7 @@ impl OptRule for MergeGetVerticesAndDedupRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为获取顶点操作
-        if node.plan_node.kind() != PlanNodeKind::GetVertices {
+        if !node.plan_node.is_get_vertices() {
             return Ok(None);
         }
 
@@ -300,7 +297,7 @@ impl OptRule for MergeGetVerticesAndDedupRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::Dedup {
+                if child.plan_node().is_dedup() {
                     // 在完整实现中，我们会合并这些操作
                     // 以避免中间数据存储并使执行更高效
                     Ok(Some(node.clone()))
@@ -316,7 +313,7 @@ impl OptRule for MergeGetVerticesAndDedupRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::GetVertices, PlanNodeKind::Dedup)
+        PatternBuilder::with_dependency("GetVertices", "Dedup")
     }
 }
 
@@ -324,8 +321,7 @@ impl BaseOptRule for MergeGetVerticesAndDedupRule {}
 
 impl MergeRule for MergeGetVerticesAndDedupRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::GetVertices
-            && child.plan_node.kind() == PlanNodeKind::Dedup
+        node.plan_node.is_get_vertices() && child.plan_node().is_dedup()
     }
 
     fn create_merged_node(
@@ -355,7 +351,7 @@ impl OptRule for MergeGetNbrsAndDedupRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为获取邻居操作
-        if node.plan_node.kind() != PlanNodeKind::GetNeighbors {
+        if !node.plan_node.is_get_neighbors() {
             return Ok(None);
         }
 
@@ -364,7 +360,7 @@ impl OptRule for MergeGetNbrsAndDedupRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::Dedup {
+                if child.plan_node().is_dedup() {
                     // 在完整实现中，我们会合并这些操作
                     // 以避免中间数据存储并使执行更高效
                     Ok(Some(node.clone()))
@@ -380,7 +376,7 @@ impl OptRule for MergeGetNbrsAndDedupRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::GetNeighbors, PlanNodeKind::Dedup)
+        PatternBuilder::with_dependency("GetNeighbors", "Dedup")
     }
 }
 
@@ -388,8 +384,7 @@ impl BaseOptRule for MergeGetNbrsAndDedupRule {}
 
 impl MergeRule for MergeGetNbrsAndDedupRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::GetNeighbors
-            && child.plan_node.kind() == PlanNodeKind::Dedup
+        node.plan_node.is_get_neighbors() && child.plan_node().is_dedup()
     }
 
     fn create_merged_node(
@@ -419,7 +414,7 @@ impl OptRule for MergeGetNbrsAndProjectRule {
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
         // 检查是否为获取邻居操作
-        if node.plan_node.kind() != PlanNodeKind::GetNeighbors {
+        if !node.plan_node.is_get_neighbors() {
             return Ok(None);
         }
 
@@ -428,7 +423,7 @@ impl OptRule for MergeGetNbrsAndProjectRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().kind() == PlanNodeKind::Project {
+                if child.plan_node().is_project() {
                     // 在完整实现中，我们会合并这些操作
                     // 以避免中间数据存储并直接获取所需的属性
                     Ok(Some(node.clone()))
@@ -444,7 +439,7 @@ impl OptRule for MergeGetNbrsAndProjectRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency(PlanNodeKind::GetNeighbors, PlanNodeKind::Project)
+        PatternBuilder::with_dependency("GetNeighbors", "Project")
     }
 }
 
@@ -452,8 +447,7 @@ impl BaseOptRule for MergeGetNbrsAndProjectRule {}
 
 impl MergeRule for MergeGetNbrsAndProjectRule {
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.kind() == PlanNodeKind::GetNeighbors
-            && child.plan_node.kind() == PlanNodeKind::Project
+        node.plan_node.is_get_neighbors() && child.plan_node().is_project()
     }
 
     fn create_merged_node(
