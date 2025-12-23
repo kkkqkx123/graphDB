@@ -1,6 +1,6 @@
 //! 依赖关系跟踪器模块 - 管理变量读写依赖关系
 
-use super::plan_node::{PlanNodeRef, PlanNodeType};
+use super::plan_node_ref::PlanNodeRef;
 use std::collections::{HashMap, HashSet};
 
 /// 依赖关系类型
@@ -391,8 +391,8 @@ mod tests {
         assert!(tracker.has_variable("test_var"));
 
         // 添加依赖
-        let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
-        let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
+        let node1 = PlanNodeRef::new("node1".to_string(), 1);
+        let node2 = PlanNodeRef::new("node2".to_string(), 2);
 
         tracker
             .add_read_dependency("test_var", node1.clone())
@@ -423,8 +423,8 @@ mod tests {
     fn test_variable_dependencies() {
         let mut deps = VariableDependencies::new("test_var".to_string());
 
-        let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
-        let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
+        let node1 = PlanNodeRef::new("node1".to_string(), 1);
+        let node2 = PlanNodeRef::new("node2".to_string(), 2);
 
         deps.add_reader(node1.clone());
         deps.add_writer(node2.clone());
@@ -448,8 +448,8 @@ mod tests {
 
         tracker.add_variable("conflict_var".to_string());
 
-        let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
-        let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
+        let node1 = PlanNodeRef::new("node1".to_string(), 1);
+        let node2 = PlanNodeRef::new("node2".to_string(), 2);
 
         // 多个节点写入同一变量
         tracker
@@ -471,8 +471,8 @@ mod tests {
 
         tracker.add_variable("stats_var".to_string());
 
-        let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
-        let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
+        let node1 = PlanNodeRef::new("node1".to_string(), 1);
+        let node2 = PlanNodeRef::new("node2".to_string(), 2);
 
         tracker
             .add_read_dependency("stats_var", node1)

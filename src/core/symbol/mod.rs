@@ -2,9 +2,9 @@
 //! 对应原C++中的context/Symbols.h
 
 pub mod dependency_tracker;
-pub mod plan_node;
+pub mod plan_node_ref;
 pub mod symbol_table;
 
 pub use dependency_tracker::*;
-pub use plan_node::*;
+pub use plan_node_ref::*;
 pub use symbol_table::*;

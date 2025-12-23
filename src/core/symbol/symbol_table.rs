@@ -2,7 +2,6 @@
 //! 对应原C++中的context/Symbols.h
 
 use crate::core::PlanNodeRef;
-use crate::core::symbol::plan_node::PlanNodeType;
 
 use super::dependency_tracker::DependencyTracker;
 
@@ -436,8 +435,8 @@ mod tests {
             .new_variable("var2")
             .expect("new_variable should succeed in test");
 
-        let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
-        let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
+        let node1 = PlanNodeRef::new("node1".to_string(), 1);
+        let node2 = PlanNodeRef::new("node2".to_string(), 2);
 
         // 设置依赖关系
         table
@@ -484,8 +483,8 @@ mod tests {
             .new_variable("conflict_var")
             .expect("new_variable should succeed in test");
 
-        let node1 = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
-        let node2 = PlanNodeRef::from_type("node2".to_string(), PlanNodeType::Filter);
+        let node1 = PlanNodeRef::new("node1".to_string(), 1);
+        let node2 = PlanNodeRef::new("node2".to_string(), 2);
 
         // 多个节点写入同一变量
         table
@@ -510,7 +509,7 @@ mod tests {
             .new_variable("old_var")
             .expect("new_variable should succeed in test");
 
-        let node = PlanNodeRef::from_type("node1".to_string(), PlanNodeType::Scan);
+        let node = PlanNodeRef::new("node1".to_string(), 1);
         table
             .read_by("old_var", node.clone())
             .expect("read_by should succeed in test");
