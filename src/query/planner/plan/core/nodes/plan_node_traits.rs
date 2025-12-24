@@ -21,9 +21,6 @@ pub trait PlanNode {
     /// 获取节点的成本估计值
     fn cost(&self) -> f64;
 
-    /// 获取节点的依赖节点列表
-    fn dependencies(&self) -> &[Box<PlanNodeEnum>];
-
     /// 设置节点的输出变量
     fn set_output_var(&mut self, var: Variable);
 
@@ -32,30 +29,72 @@ pub trait PlanNode {
 
     /// 转换为 PlanNodeEnum
     fn into_enum(self) -> PlanNodeEnum;
+}
 
-    /// 获取单个输入（适用于单输入节点）
-    fn input(&self) -> Option<&PlanNodeEnum> {
-        self.dependencies().first().map(|boxed| boxed.as_ref())
-    }
+/// 单输入节点特征
+///
+/// 适用于只有一个输入的节点
+pub trait SingleInputNode: PlanNode {
+    /// 获取输入节点
+    fn input(&self) -> &PlanNodeEnum;
 
-    /// 获取左输入（适用于双输入节点）
-    fn left_input(&self) -> Option<&PlanNodeEnum> {
-        self.dependencies().first().map(|boxed| boxed.as_ref())
-    }
+    /// 设置输入节点
+    fn set_input(&mut self, input: PlanNodeEnum);
 
-    /// 获取右输入（适用于双输入节点）
-    fn right_input(&self) -> Option<&PlanNodeEnum> {
-        self.dependencies().get(1).map(|boxed| boxed.as_ref())
+    /// 获取输入数量（始终为1）
+    fn input_count(&self) -> usize {
+        1
     }
+}
+
+/// 双输入节点特征
+///
+/// 适用于有两个输入的节点（如连接操作）
+pub trait BinaryInputNode: PlanNode {
+    /// 获取左输入节点
+    fn left_input(&self) -> &PlanNodeEnum;
+
+    /// 获取右输入节点
+    fn right_input(&self) -> &PlanNodeEnum;
+
+    /// 设置左输入节点
+    fn set_left_input(&mut self, input: PlanNodeEnum);
+
+    /// 设置右输入节点
+    fn set_right_input(&mut self, input: PlanNodeEnum);
+
+    /// 获取输入数量（始终为2）
+    fn input_count(&self) -> usize {
+        2
+    }
+}
+
+/// 多输入节点特征
+///
+/// 适用于有多个输入的节点（如Union）
+pub trait MultipleInputNode: PlanNode {
+    /// 获取所有输入节点
+    fn inputs(&self) -> &[Box<PlanNodeEnum>];
+
+    /// 添加输入节点
+    fn add_input(&mut self, input: PlanNodeEnum);
+
+    /// 移除指定ID的输入节点
+    fn remove_input(&mut self, id: i64) -> bool;
 
     /// 获取输入数量
     fn input_count(&self) -> usize {
-        self.dependencies().len()
+        self.inputs().len()
     }
+}
 
-    /// 获取指定索引的输入
-    fn get_input(&self, index: usize) -> Option<&PlanNodeEnum> {
-        self.dependencies().get(index).map(|boxed| boxed.as_ref())
+/// 无输入节点特征
+///
+/// 适用于没有输入的节点（如Start）
+pub trait ZeroInputNode: PlanNode {
+    /// 获取输入数量（始终为0）
+    fn input_count(&self) -> usize {
+        0
     }
 }
 

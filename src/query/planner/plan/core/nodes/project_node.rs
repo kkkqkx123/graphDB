@@ -136,6 +136,17 @@ impl super::plan_node_traits::PlanNode for ProjectNode {
     }
 }
 
+// 为 ProjectNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for ProjectNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(input);
+    }
+}
+
 // 为 ProjectNode 实现 PlanNodeClonable trait
 impl super::plan_node_traits::PlanNodeClonable for ProjectNode {
     fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {

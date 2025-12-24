@@ -146,6 +146,17 @@ impl super::plan_node_traits::PlanNode for FilterNode {
     }
 }
 
+// 为 FilterNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for FilterNode {
+    fn input(&self) -> &PlanNodeEnum {
+        &self.input
+    }
+
+    fn set_input(&mut self, input: PlanNodeEnum) {
+        self.input = Box::new(input);
+    }
+}
+
 // 为 FilterNode 实现 PlanNodeClonable trait
 impl super::plan_node_traits::PlanNodeClonable for FilterNode {
     fn clone_plan_node(&self) -> PlanNodeEnum {
