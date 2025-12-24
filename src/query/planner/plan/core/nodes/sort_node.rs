@@ -3,7 +3,6 @@
 //! SortNode 用于对输入数据进行排序操作
 
 use crate::query::context::validate::types::Variable;
-use std::sync::Arc;
 
 /// 排序节点
 ///

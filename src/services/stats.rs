@@ -11,7 +11,7 @@ pub struct Counter {
     pub name: String,
     pub description: String,
     value: Arc<Mutex<u64>>,
-    #[allow(dead_code)]
+    
     created_at: std::time::SystemTime,
 }
 
@@ -49,7 +49,7 @@ pub struct Gauge {
     pub name: String,
     pub description: String,
     value: Arc<Mutex<f64>>,
-    #[allow(dead_code)]
+    
     created_at: std::time::SystemTime,
 }
 
@@ -84,7 +84,7 @@ pub struct Histogram {
     buckets: Vec<f64>,
     counts: Arc<Mutex<Vec<u64>>>,
     sum: Arc<Mutex<f64>>,
-    #[allow(dead_code)]
+    
     created_at: std::time::SystemTime,
 }
 
@@ -146,7 +146,7 @@ pub struct Timer {
     pub name: String,
     pub description: String,
     value: Arc<Mutex<Vec<Duration>>>,
-    #[allow(dead_code)]
+    
     created_at: std::time::SystemTime,
 }
 
@@ -212,7 +212,7 @@ pub struct StatsRegistry {
     gauges: Arc<Mutex<HashMap<String, Gauge>>>,
     histograms: Arc<Mutex<HashMap<String, Histogram>>>,
     timers: Arc<Mutex<HashMap<String, Timer>>>,
-    #[allow(dead_code)]
+    
     created_at: std::time::SystemTime,
 }
 

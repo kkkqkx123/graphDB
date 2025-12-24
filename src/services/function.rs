@@ -94,7 +94,7 @@ impl FunctionManager {
     /// Get a singleton instance of the FunctionManager
     pub fn instance() -> Arc<Mutex<Self>> {
         // static mut INSTANCE: Option<Arc<Mutex<FunctionManager>>> = None; // 注释掉未使用的静态变量
-        #[allow(dead_code)]
+        
         static mut ONCE: std::sync::Once = std::sync::Once::new();
 
         // 为了线程安全，每个调用都创建一个新的实例
@@ -115,7 +115,7 @@ impl FunctionManager {
     /// Register all built-in functions
     fn register_builtin_functions(&mut self) {
         // String functions
-        self.register_function(
+        let _ = self.register_function(
             "strlen",
             FunctionAttributes {
                 min_arity: 1,
@@ -135,7 +135,7 @@ impl FunctionManager {
             },
         );
 
-        self.register_function(
+        let _ = self.register_function(
             "upper",
             FunctionAttributes {
                 min_arity: 1,
@@ -155,7 +155,7 @@ impl FunctionManager {
             },
         );
 
-        self.register_function(
+        let _ = self.register_function(
             "lower",
             FunctionAttributes {
                 min_arity: 1,
@@ -175,7 +175,7 @@ impl FunctionManager {
             },
         );
 
-        self.register_function(
+        let _ = self.register_function(
             "trim",
             FunctionAttributes {
                 min_arity: 1,
@@ -196,7 +196,7 @@ impl FunctionManager {
         );
 
         // Math functions
-        self.register_function(
+        let _ = self.register_function(
             "abs",
             FunctionAttributes {
                 min_arity: 1,
@@ -220,7 +220,7 @@ impl FunctionManager {
             },
         );
 
-        self.register_function(
+        let _ = self.register_function(
             "ceil",
             FunctionAttributes {
                 min_arity: 1,
@@ -248,7 +248,7 @@ impl FunctionManager {
             },
         );
 
-        self.register_function(
+        let _ = self.register_function(
             "floor",
             FunctionAttributes {
                 min_arity: 1,
@@ -277,7 +277,7 @@ impl FunctionManager {
         );
 
         // Type conversion functions
-        self.register_function(
+        let _ = self.register_function(
             "to_string",
             FunctionAttributes {
                 min_arity: 1,
@@ -305,7 +305,7 @@ impl FunctionManager {
             },
         );
 
-        self.register_function(
+        let _ = self.register_function(
             "to_int",
             FunctionAttributes {
                 min_arity: 1,
@@ -342,7 +342,7 @@ impl FunctionManager {
         );
 
         // Utility functions
-        self.register_function(
+        let _ = self.register_function(
             "hash",
             FunctionAttributes {
                 min_arity: 1,

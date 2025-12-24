@@ -1,7 +1,6 @@
 //! FETCH EDGES查询规划器
 //! 处理FETCH EDGES查询的规划
 
-use std::sync::Arc;
 
 use crate::query::context::ast::{AstContext, FetchEdgesContext};
 use crate::query::planner::plan::core::nodes::{

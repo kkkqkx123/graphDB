@@ -9,7 +9,6 @@ use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Patt
 use crate::query::planner::plan::algorithms::IndexScan;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
-use std::sync::Arc;
 
 /// 基于过滤条件优化边索引扫描的规则
 #[derive(Debug)]
@@ -658,7 +657,7 @@ fn create_index_limit(
 }
 
 /// 提取范围条件
-#[allow(dead_code)]
+
 fn extract_range_condition(condition: &str, op: &str) -> Option<(String, String)> {
     // 简单的字符串匹配，提取形如 "column op value" 的条件
     let trimmed_condition = condition.trim();

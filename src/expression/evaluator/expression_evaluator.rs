@@ -239,7 +239,7 @@ impl ExpressionEvaluator {
                 expr,
             } => {
                 let list_value = self.evaluate(list, context)?;
-                let mut acc = self.evaluate(initial, context)?;
+                let acc = self.evaluate(initial, context)?;
 
                 if let Value::List(items) = list_value {
                     for _item in items {
@@ -428,7 +428,7 @@ impl ExpressionEvaluator {
             _ => {
                 // 这里我们需要适配泛型 C 到 dyn ExpressionContext
                 // 创建一个临时的 dyn trait object 来处理剩余的表达式
-                let mut dyn_ctx: &mut dyn ExpressionContext = context;
+                let dyn_ctx: &mut dyn ExpressionContext = context;
                 self.eval_expression(expr, dyn_ctx)
             }
         }

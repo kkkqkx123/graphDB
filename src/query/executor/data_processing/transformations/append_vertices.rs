@@ -26,7 +26,7 @@ pub struct AppendVerticesExecutor<S: StorageEngine + Send + 'static> {
     /// 源表达式，用于获取顶点ID
     src_expr: Expression,
     /// 要获取的属性列表
-    #[allow(dead_code)]
+    
     props: Vec<String>,
     /// 顶点过滤表达式
     v_filter: Option<Expression>,
@@ -316,7 +316,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         let vertices = self.fetch_vertices(vids).await?;
 
         // 创建表达式上下文
-        let mut expr_context = DefaultExpressionContext::new();
+        let expr_context = DefaultExpressionContext::new();
 
         // 创建输出数据集
         let mut dataset = DataSet {

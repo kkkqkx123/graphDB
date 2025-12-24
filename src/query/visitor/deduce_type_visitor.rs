@@ -502,7 +502,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导属性表达式的类型
-    #[allow(dead_code)]
+    
     fn visit_property(&mut self, _property: &str) -> Result<(), TypeDeductionError> {
         // 属性访问的结果类型需要根据上下文来确定
         // 简化实现，返回Empty类型
@@ -653,7 +653,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导集合表达式的类型
-    #[allow(dead_code)]
+    
     fn visit_set(&mut self, _items: &[Expression]) -> Result<(), TypeDeductionError> {
         self.type_ = ValueTypeDef::Set;
         Ok(())
@@ -686,7 +686,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 将字符串解析为ValueTypeDef
-    #[allow(dead_code)]
+    
     fn parse_type_def(&self, type_str: &str) -> ValueTypeDef {
         match type_str.to_uppercase().as_str() {
             "INT" => ValueTypeDef::Int,

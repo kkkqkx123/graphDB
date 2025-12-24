@@ -3,7 +3,6 @@
 
 use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNodeEnum;
 use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
-use std::sync::Arc;
 
 /// 插入顶点计划节点
 #[derive(Debug, Clone)]

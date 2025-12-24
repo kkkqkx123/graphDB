@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
@@ -50,7 +49,6 @@ use crate::query::planner::match_planning::core::ClauseType;
 use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
 
 use crate::query::planner::plan::core::nodes::data_processing_node::UnwindNode;
-use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::plan::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
@@ -248,7 +246,7 @@ fn create_unwind_node(
 ///
 /// # 返回
 /// * `String` - 序列化后的字符串
-#[allow(dead_code)]
+
 fn serialize_expression(expr: &crate::core::Expression) -> String {
     // 这里应该实现完整的表达式序列化逻辑
     // 目前使用简化的实现，实际项目中可能需要更复杂的序列化

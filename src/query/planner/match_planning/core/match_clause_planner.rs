@@ -33,7 +33,7 @@ use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 /// 它可以包含多个路径，每个路径由节点和边组成。
 #[derive(Debug)]
 pub struct MatchClausePlanner {
-    #[allow(dead_code)]
+    
     paths: Vec<crate::query::validator::structs::Path>,
 }
 

@@ -194,7 +194,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
     }
 
     /// 创建填充NULL的右侧行
-    #[allow(dead_code)]
+    
     fn create_null_right_row(&self) -> Vec<Value> {
         vec![Value::Null(NullType::Null); self.right_col_size]
     }

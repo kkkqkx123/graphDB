@@ -7,7 +7,6 @@ use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
-use std::sync::Arc;
 // 注释掉不存在的导入
 // use crate::query::planner::plan::operations::AllPaths;
 // use crate::query::planner::plan::operations::ExpandAll;

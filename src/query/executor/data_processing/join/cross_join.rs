@@ -80,7 +80,7 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
     }
 
     /// 执行多表笛卡尔积
-    #[allow(dead_code)]
+    
     fn execute_multi_way_cartesian_product(&self) -> Result<DataSet, QueryError> {
         if self.input_vars.len() < 2 {
             return Err(QueryError::ExecutionError(

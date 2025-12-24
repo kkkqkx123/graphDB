@@ -202,7 +202,7 @@ impl Result {
     }
 
     /// 更新迭代器并调整值 - 用于 ResultBuilder
-    #[allow(dead_code)]
+    
     pub(crate) fn update_iterator_and_value(&mut self, iterator: Option<Arc<dyn ResultIterator>>) {
         if let Some(core) = Arc::get_mut(&mut self.core) {
             core.iterator = iterator;

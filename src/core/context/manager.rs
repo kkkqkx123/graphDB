@@ -772,7 +772,7 @@ impl ContextManager for DefaultContextManager {
 
 // Mock实现，用于RuntimeContext的创建
 #[derive(Debug, Clone)]
-pub(crate) struct MockStorageEngine;
+pub struct MockStorageEngine;
 
 impl super::runtime::StorageEngine for MockStorageEngine {
     fn insert_node(&mut self, _vertex: super::runtime::Vertex) -> Result<Value, String> {

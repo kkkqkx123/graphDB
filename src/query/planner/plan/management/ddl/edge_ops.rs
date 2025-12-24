@@ -2,10 +2,8 @@
 //! 包括创建/删除边等操作
 
 use super::space_ops::{Schema, SchemaField};
-use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNodeEnum;
 use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
-use std::sync::Arc;
 
 /// 创建边计划节点
 #[derive(Debug, Clone)]

@@ -2,7 +2,7 @@
 //! 处理FETCH VERTICES查询的规划
 
 use crate::query::context::ast::{AstContext, FetchVerticesContext};
-use crate::query::context::validate::types::{Column, Variable};
+use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::common::TagProp;
 use crate::query::planner::plan::core::nodes::{
     ArgumentNode, DedupNode, GetVerticesNode, PlanNodeEnum, ProjectNode,

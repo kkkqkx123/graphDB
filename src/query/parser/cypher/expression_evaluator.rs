@@ -3,7 +3,6 @@
 //! 提供对Cypher表达式的求值功能
 
 use crate::expression::ExpressionContext;
-use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::core::value::Value;
 use crate::core::error::ExpressionError;
 

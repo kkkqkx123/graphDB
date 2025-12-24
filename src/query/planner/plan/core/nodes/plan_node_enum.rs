@@ -2,7 +2,6 @@
 //!
 //! 简化的PlanNodeEnum定义，只包含枚举和基本方法
 
-use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::explain::PlanNodeDescription;
 use super::plan_node_traits::PlanNode;
 
@@ -743,7 +742,6 @@ impl std::fmt::Display for PlanNodeEnum {
 }
 
 // 使用操作实现
-use super::plan_node_operations::*;
 
 /// PlanNode 访问者trait - 使用泛型避免动态分发
 pub trait PlanNodeVisitor {

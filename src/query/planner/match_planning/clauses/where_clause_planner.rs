@@ -46,7 +46,7 @@ use std::collections::HashSet;
 /// 在上面的例子中，WHERE 子句会过滤出年龄大于25且姓名以'John'开头的人员。
 #[derive(Debug)]
 pub struct WhereClausePlanner {
-    #[allow(dead_code)]
+    
     need_stable_filter: bool, // 是否需要稳定的过滤器（用于ORDER BY场景）
 }
 

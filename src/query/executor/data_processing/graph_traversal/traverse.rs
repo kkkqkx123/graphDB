@@ -21,7 +21,7 @@ pub struct TraverseExecutor<S: StorageEngine> {
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>,
-    #[allow(dead_code)]
+    
     conditions: Option<String>, // 遍历条件
     input_executor: Option<Box<dyn Executor<S>>>,
     // 遍历状态

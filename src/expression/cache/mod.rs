@@ -9,7 +9,6 @@ use crate::core::types::expression::Expression;
 use crate::core::types::query::FieldValue;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use std::time::Duration;
 
 /// 表达式缓存管理器
 #[derive(Debug)]

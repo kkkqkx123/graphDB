@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 pub struct GraphService {
     session_manager: Arc<GraphSessionManager>,
     query_engine: Arc<Mutex<QueryEngine>>,
-    #[allow(dead_code)]
+    
     config: Config,
 }
 

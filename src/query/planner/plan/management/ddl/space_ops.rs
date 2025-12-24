@@ -3,7 +3,6 @@
 
 use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNodeEnum;
 use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
-use std::sync::Arc;
 
 // 元数据定义相关结构
 #[derive(Debug, Clone)]

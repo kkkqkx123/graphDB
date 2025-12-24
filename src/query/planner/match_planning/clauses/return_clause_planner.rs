@@ -211,7 +211,7 @@ impl DataFlowNode for ReturnClausePlanner {
 
 /// 获取 YIELD 子句中的列名
 /// 用于设置去重键
-#[allow(dead_code)]
+
 fn get_yield_columns(
     yield_clause: &crate::query::validator::structs::clause_structs::YieldClauseContext,
 ) -> Option<Vec<String>> {

@@ -28,7 +28,7 @@ pub struct BaseJoinExecutor<S: StorageEngine> {
     /// 描述
     description: String,
     /// 是否交换左右输入（优化用）
-    #[allow(dead_code)]
+    
     exchange: bool,
     /// 右侧输出列索引（用于自然连接）
     rhs_output_col_idxs: Option<Vec<usize>>,

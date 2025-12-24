@@ -286,7 +286,7 @@ impl GetNeighborsIter {
     }
 
     /// 检查列是否有效
-    #[allow(dead_code)]
+    
     fn col_valid(&self) -> bool {
         !self.no_edge && self.valid()
     }

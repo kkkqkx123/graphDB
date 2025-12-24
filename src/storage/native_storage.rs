@@ -10,7 +10,7 @@ pub struct NativeStorage {
     db: Db,
     nodes_tree: Tree,
     edges_tree: Tree,
-    #[allow(dead_code)]
+    
     schema_tree: Tree,
     node_edge_index: Tree, // Index: node_id -> [edge_id]
     db_path: String,       // Store the path for cloning
@@ -72,7 +72,7 @@ impl NativeStorage {
         serde_json::to_vec(value).map_err(|e| StorageError::SerializationError(e.to_string()))
     }
 
-    #[allow(dead_code)]
+    
     fn value_from_bytes(&self, bytes: &[u8]) -> Result<Value, StorageError> {
         serde_json::from_slice(bytes).map_err(|e| StorageError::SerializationError(e.to_string()))
     }

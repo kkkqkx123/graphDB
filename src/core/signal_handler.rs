@@ -49,9 +49,9 @@ pub struct SignalHandler {
     #[cfg(unix)]
     signals: Arc<Signals>,
     #[cfg(not(unix))]
-    #[allow(dead_code)]
+    
     signals: Arc<std::sync::Mutex<std::collections::HashMap<i32, Box<dyn Fn() + Send + Sync>>>>,
-    #[allow(dead_code)]
+    
     signal_info: Arc<std::sync::Mutex<Option<SignalInfo>>>,
 }
 

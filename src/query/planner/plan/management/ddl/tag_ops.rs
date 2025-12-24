@@ -5,7 +5,6 @@ use super::space_ops::Schema;
 use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNodeEnum;
 use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
 use super::space_ops::SchemaField;
-use std::sync::Arc;
 
 /// 创建标签计划节点
 #[derive(Debug, Clone)]

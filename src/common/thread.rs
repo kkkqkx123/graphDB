@@ -54,7 +54,7 @@ impl ThreadPool {
 }
 
 struct Worker {
-    #[allow(dead_code)]
+    
     id: usize,
 }
 
@@ -171,7 +171,7 @@ impl<T> Lazy<T> {
 /// A condition variable for thread synchronization
 #[derive(Debug)]
 pub struct ConditionVariable {
-    #[allow(dead_code)]
+    
     mutex: Mutex<()>,
     condvar: Condvar,
 }
