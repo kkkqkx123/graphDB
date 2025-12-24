@@ -2,9 +2,9 @@
 //!
 //! 在query层提供Cypher表达式评估功能，避免core层依赖query层
 
-use crate::core::expressions::ExpressionContext;
+use crate::expression::ExpressionContext;
 use crate::core::value::Value;
-use crate::core::expressions::ExpressionError;
+use crate::expression::ExpressionError;
 
 /// Cypher表达式评估器
 pub struct CypherExpressionEvaluator;
@@ -165,7 +165,7 @@ impl CypherExpressionEvaluator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::expressions::BasicExpressionContext;
+    use crate::expression::BasicExpressionContext;
     use crate::query::parser::cypher::ast::expressions::{
         Expression as CypherExpression, Literal as CypherLiteral,
     };

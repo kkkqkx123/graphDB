@@ -16,7 +16,7 @@ use super::runtime::{PlanContext, TestRuntimeContext};
 use super::session::SessionContext;
 use super::storage::StorageContext;
 use super::validation::ValidationContext;
-use crate::core::expressions::BasicExpressionContext;
+use crate::expression::BasicExpressionContext;
 use crate::core::Value;
 
 /// 事件监听器类型别名

@@ -7,9 +7,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::expressions::{DefaultExpressionContext, ExpressionContext};
+use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::core::{DataSet, List, Value};
-use crate::core::{Expression, ExpressionEvaluator};
+use crate::core::Expression;
+use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,

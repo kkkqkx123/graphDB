@@ -9,11 +9,12 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::core::expressions::default_context::ExpressionContext;
-use crate::core::expressions::DefaultExpressionContext;
+use crate::expression::evaluator::traits::ExpressionContext;
+use crate::expression::DefaultExpressionContext;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
-use crate::core::{Expression, ExpressionEvaluator};
+use crate::core::Expression;
+use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,

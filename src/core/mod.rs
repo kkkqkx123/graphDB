@@ -2,7 +2,6 @@ pub mod allocator;
 pub mod collect_n_succeeded;
 pub mod cord;
 pub mod error;
-pub mod expressions;
 pub mod murmur;
 pub mod result;
 pub mod schema;
@@ -17,7 +16,6 @@ pub mod visitor_state_enum;
 // 新增的子模块
 pub mod context;
 pub mod context_traits;
-pub mod evaluator;
 pub mod types;
 
 // 查询处理模块
@@ -48,15 +46,11 @@ pub use type_utils::TypeUtils;
 pub use visitor::*;
 pub use visitor_state_enum::*;
 
-// 表达式上下文
-pub use expressions::*;
-
 // 上下文特征
 pub use context_traits::*;
 
-// 上下文和求值器
+// 上下文
 pub use context::*;
-pub use evaluator::*;
 
 // 查询处理
 pub use query_pipeline_manager::*;

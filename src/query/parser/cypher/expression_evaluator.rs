@@ -2,10 +2,10 @@
 //!
 //! 提供对Cypher表达式的求值功能
 
-use crate::core::expressions::ExpressionContext;
+use crate::expression::ExpressionContext;
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::core::value::Value;
-use crate::core::ExpressionError;
+use crate::expression::context::error::ExpressionError;
 
 /// Cypher表达式求值器
 pub struct CypherEvaluator;
@@ -44,7 +44,7 @@ impl CypherEvaluator {
             }
             crate::query::parser::cypher::ast::expressions::Expression::FunctionCall(func_call) => {
                 // 暂时返回未实现的错误
-                Err(ExpressionError::not_implemented(format!(
+                Err(ExpressionError::runtime_error(format!(
                     "函数调用: {}",
                     func_call.function_name
                 )))
@@ -52,12 +52,12 @@ impl CypherEvaluator {
             crate::query::parser::cypher::ast::expressions::Expression::Binary(bin_expr) => {
                 let left_val = Self::evaluate_cypher(&bin_expr.left, context)?;
                 let right_val = Self::evaluate_cypher(&bin_expr.right, context)?;
-                crate::core::evaluator::ExpressionEvaluator::new()
+                crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::new()
                     .eval_binary_operation(&left_val, &bin_expr.operator, &right_val)
             }
             crate::query::parser::cypher::ast::expressions::Expression::Unary(unary_expr) => {
                 let operand_val = Self::evaluate_cypher(&unary_expr.expression, context)?;
-                crate::core::evaluator::ExpressionEvaluator::new()
+                crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::new()
                     .eval_unary_operation(&unary_expr.operator, &operand_val)
             }
             crate::query::parser::cypher::ast::expressions::Expression::List(list_expr) => {
@@ -91,7 +91,7 @@ impl CypherEvaluator {
                 }
             }
             crate::query::parser::cypher::ast::expressions::Expression::PatternExpression(_) => {
-                Err(ExpressionError::not_implemented(
+                Err(ExpressionError::runtime_error(
                     "模式表达式求值".to_string(),
                 ))
             }
@@ -125,7 +125,7 @@ impl CypherEvaluator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::expressions::BasicExpressionContext;
+    use crate::expression::BasicExpressionContext;
     use crate::query::parser::cypher::ast::expressions::{
         BinaryExpression, Expression as CypherExpression, Literal as CypherLiteral,
     };

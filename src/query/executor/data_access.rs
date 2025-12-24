@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use super::base::BaseExecutor;
-use crate::core::expressions::ExpressionContext;
+use crate::expression::ExpressionContext;
 use crate::core::Value;
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -96,13 +96,13 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
 
                 // 应用顶点过滤表达式
                 if let Some(ref filter_expr) = self.vertex_filter {
-                    let evaluator = crate::core::ExpressionEvaluator::new();
+                    let evaluator = crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::new();
                     all_vertices = all_vertices
                         .into_iter()
                         .filter(|vertex| {
                             // 创建评估上下文
                             let mut context =
-                                crate::core::expressions::DefaultExpressionContext::new();
+                                crate::expression::DefaultExpressionContext::new();
                             context.set_variable(
                                 "vertex".to_string(),
                                 crate::core::Value::Vertex(Box::new(vertex.clone())),

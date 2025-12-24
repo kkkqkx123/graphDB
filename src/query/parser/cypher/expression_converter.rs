@@ -3,7 +3,7 @@
 //! 提供Cypher表达式与统一表达式系统之间的转换功能
 
 use crate::core::types::expression::{Expression, LiteralValue};
-use crate::core::ExpressionError;
+use crate::expression::context::error::ExpressionError;
 
 /// Cypher表达式转换器
 pub struct ExpressionConverter;

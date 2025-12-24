@@ -4,26 +4,24 @@
 //! 提供完整的Cypher表达式评估功能
 
 use crate::core::error::DBError;
-use crate::core::expressions::ExpressionContext;
-use crate::core::ExpressionEvaluator as GraphExpressionEvaluator;
 use crate::core::Value;
 use crate::query::executor::cypher::context::CypherExecutionContext;
 use crate::query::parser::cypher::ast::expressions::Expression;
+use crate::query::executor::cypher::CypherExpressionEvaluator;
 
 /// 统一的表达式求值器
 ///
-/// 直接使用graph/expression模块的ExpressionEvaluator，提供完整的Cypher表达式评估功能
-/// 这个实现消除了表达式系统的重复，确保了统一性
+/// 使用CypherExpressionEvaluator提供完整的Cypher表达式评估功能
 #[derive(Debug)]
 pub struct ExpressionEvaluator {
-    inner: GraphExpressionEvaluator,
+    inner: CypherExpressionEvaluator,
 }
 
 impl ExpressionEvaluator {
     /// 创建新的表达式求值器
     pub fn new() -> Self {
         Self {
-            inner: GraphExpressionEvaluator::new(),
+            inner: CypherExpressionEvaluator,
         }
     }
 
@@ -33,10 +31,10 @@ impl ExpressionEvaluator {
         expr: &Expression,
         context: &CypherExecutionContext,
     ) -> Result<Value, DBError> {
-        // 将CypherExecutionContext转换为graph/expression模块需要的上下文
+        // 将CypherExecutionContext转换为ExpressionContext
         let mut eval_context = self.convert_context(context);
 
-        // 直接使用统一的表达式求值器
+        // 使用CypherExpressionEvaluator
         self.inner
             .evaluate_cypher(expr, &mut eval_context)
             .map_err(|e| {
@@ -54,7 +52,7 @@ impl ExpressionEvaluator {
     ) -> Result<Vec<Value>, DBError> {
         let mut eval_context = self.convert_context(context);
 
-        // 使用统一的批量评估功能
+        // 使用CypherExpressionEvaluator
         self.inner
             .evaluate_cypher_batch(exprs, &mut eval_context)
             .map_err(|e| {
@@ -68,9 +66,9 @@ impl ExpressionEvaluator {
     fn convert_context(
         &self,
         context: &CypherExecutionContext,
-    ) -> crate::core::expressions::BasicExpressionContext {
+    ) -> crate::expression::BasicExpressionContext {
         // 创建新的求值上下文
-        let mut eval_context = crate::core::expressions::BasicExpressionContext::default();
+        let mut eval_context = crate::expression::BasicExpressionContext::default();
 
         // 复制变量
         for (name, cypher_var) in context.variables() {
@@ -100,7 +98,7 @@ impl ExpressionEvaluator {
         }
 
         // 复制路径信息
-        for (name, path) in context.paths() {
+        for (name, _path) in context.paths() {
             // 将 Path 转换为 FieldValue
             let path_field_value =
                 crate::core::types::query::FieldValue::Path(crate::core::types::query::Path {
@@ -114,7 +112,7 @@ impl ExpressionEvaluator {
 
     /// 检查表达式是否为常量
     pub fn is_constant(&self, expr: &Expression) -> bool {
-        // 使用统一的常量检查功能
+        // 使用CypherExpressionEvaluator
         self.inner.is_cypher_constant(expr)
     }
 
@@ -132,11 +130,8 @@ impl ExpressionEvaluator {
 
     /// 优化表达式
     pub fn optimize_expression(&self, expr: &Expression) -> Expression {
-        // 使用统一的表达式优化功能
-        match self.inner.optimize_cypher_expression(expr) {
-            Ok(opt_expr) => opt_expr,
-            Err(_) => expr.clone(), // 如果优化失败，返回原始表达式
-        }
+        // 使用CypherExpressionEvaluator
+        self.inner.optimize_cypher_expression(expr)
     }
 }
 

@@ -1,6 +1,7 @@
 //! FindVisitor - 用于查找表达式中特定类型子表达式的访问器
 //! 对应 NebulaGraph FindVisitor.h/.cpp 的功能
 
+use crate::core::types::expression::DataType;
 use crate::expression::{Expression, ExpressionType, ExpressionVisitor, LiteralValue};
 use crate::query::visitor::QueryVisitor;
 use std::collections::HashSet;
@@ -11,32 +12,6 @@ pub struct FindVisitor {
     target_types: HashSet<ExpressionType>,
     /// 找到的表达式列表
     found_exprs: Vec<Expression>,
-}
-
-/// 表达式类型枚举，用于标识不同类型的表达式
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ExpressionType {
-    Literal,
-    Variable,
-    Property,
-    Binary,
-    Unary,
-    Function,
-    Aggregate,
-    List,
-    Map,
-    Case,
-    TypeCast,
-    Subscript,
-    Range,
-    Path,
-    Label,
-    TagProperty,
-    EdgeProperty,
-    InputProperty,
-    VariableProperty,
-    SourceProperty,
-    DestinationProperty,
 }
 
 impl FindVisitor {
@@ -227,7 +202,7 @@ impl ExpressionVisitor for FindVisitor {
         }
     }
 
-    fn visit_type_cast(&mut self, expr: &Expression, target_type: &crate::expression::types::DataType) -> Self::Result {
+    fn visit_type_cast(&mut self, expr: &Expression, target_type: &DataType) -> Self::Result {
         if self.target_types.contains(&ExpressionType::TypeCast) {
             self.found_exprs.push(Expression::TypeCast {
                 expr: Box::new(expr.clone()),

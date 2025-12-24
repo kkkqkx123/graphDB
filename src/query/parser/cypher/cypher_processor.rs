@@ -2,9 +2,9 @@
 //!
 //! 提供Cypher表达式处理的统一接口
 
-use crate::core::expressions::ExpressionContext;
+use crate::expression::ExpressionContext;
 use crate::core::value::Value;
-use crate::core::expressions::ExpressionError;
+use crate::expression::ExpressionError;
 
 /// Cypher表达式处理的统一接口
 ///
@@ -25,7 +25,7 @@ impl CypherProcessor {
         let unified_expr = super::expression_converter::ExpressionConverter::convert_cypher_to_unified(&optimized_expr)?;
 
         // 3. 评估统一表达式
-        crate::core::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
+        crate::expression::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
     }
 
     /// 处理Cypher表达式的优化流程：优化 -> 转换 -> 评估
@@ -56,7 +56,7 @@ impl CypherProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::expressions::BasicExpressionContext;
+    use crate::expression::BasicExpressionContext;
     use crate::query::parser::cypher::ast::expressions::{
         Expression as CypherExpression, Literal as CypherLiteral, UnaryExpression,
     };

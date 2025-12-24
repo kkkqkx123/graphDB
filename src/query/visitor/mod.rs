@@ -15,7 +15,7 @@ pub use deduce_props_visitor::{DeducePropsVisitor, ExpressionProps};
 pub use deduce_type_visitor::{DeduceTypeVisitor, TypeDeductionError};
 pub use evaluable_expr_visitor::EvaluableExprVisitor;
 pub use extract_filter_expr_visitor::ExtractFilterExprVisitor;
-pub use find_visitor::{ExpressionType, FindVisitor};
+pub use find_visitor::FindVisitor;
 pub use fold_constant_expr_visitor::FoldConstantExprVisitor;
 
 /// 查询访问器基础trait

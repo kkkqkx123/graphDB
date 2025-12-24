@@ -4,6 +4,7 @@
 use crate::core::{
     AggregateFunction, BinaryOperator, DataType, Expression, LiteralValue, UnaryOperator,
 };
+use crate::core::visitor::VisitorConfig;
 use crate::expression::ExpressionVisitor;
 use crate::query::visitor::QueryVisitor;
 use std::collections::{HashMap, HashSet};
@@ -216,6 +217,8 @@ pub struct DeducePropsVisitor {
     user_defined_vars: HashSet<String>,
     /// 错误状态
     error: Option<String>,
+    /// 访问者配置
+    config: VisitorConfig,
 }
 
 impl DeducePropsVisitor {
@@ -227,6 +230,19 @@ impl DeducePropsVisitor {
             edge_info: Vec::new(),
             user_defined_vars: HashSet::new(),
             error: None,
+            config: VisitorConfig::new(),
+        }
+    }
+
+    /// 创建带有配置的属性推导访问器
+    pub fn with_config(config: VisitorConfig) -> Self {
+        Self {
+            props: ExpressionProps::new(),
+            node_info: Vec::new(),
+            edge_info: Vec::new(),
+            user_defined_vars: HashSet::new(),
+            error: None,
+            config,
         }
     }
 
@@ -238,6 +254,7 @@ impl DeducePropsVisitor {
             edge_info: Vec::new(),
             user_defined_vars,
             error: None,
+            config: VisitorConfig::new(),
         }
     }
 

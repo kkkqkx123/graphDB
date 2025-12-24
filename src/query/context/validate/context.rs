@@ -5,7 +5,7 @@ use super::basic_context::BasicValidationContext;
 use super::generators::{AnonColGenerator, AnonVarGenerator, GeneratorFactory};
 use super::schema::{self, SchemaInfo, SchemaProvider};
 use super::types::{ColsDef, SpaceInfo, Variable};
-use crate::core::expressions::ExpressionContext;
+use crate::expression::ExpressionContext;
 use crate::core::symbol::SymbolTable;
 use crate::core::Value;
 use crate::query::validator::structs::{AliasType, QueryPart};

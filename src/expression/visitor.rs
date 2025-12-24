@@ -2,8 +2,8 @@
 //!
 //! 这个模块提供了表达式访问者模式的基础设施，专注于表达式树的遍历和转换
 
+use crate::core::types::expression::{DataType, Expression, ExpressionType, LiteralValue};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
-use crate::expression::types::{DataType, Expression, ExpressionType, LiteralValue};
 
 /// 表达式访问者 trait - 用于访问Expression类型的各个变体
 ///
@@ -215,7 +215,7 @@ impl ExpressionAcceptor for Expression {
 }
 
 /// 表达式类型过滤器 - 用于过滤特定类型的表达式
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExpressionTypeFilter {
     target_types: std::collections::HashSet<ExpressionType>,
 }

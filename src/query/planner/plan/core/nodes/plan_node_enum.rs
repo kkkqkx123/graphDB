@@ -6,22 +6,22 @@ use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::explain::PlanNodeDescription;
 use super::plan_node_traits::PlanNode;
 
-// 导入所有具体的节点类型
-use super::aggregate_node::AggregateNode;
-use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
-use super::data_processing_node::{
+// 导入并重新导出所有具体的节点类型
+pub use super::aggregate_node::AggregateNode;
+pub use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
+pub use super::data_processing_node::{
     DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
-use super::filter_node::FilterNode;
-use super::graph_scan_node::{
+pub use super::filter_node::FilterNode;
+pub use super::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
-use super::join_node::{CrossJoinNode, InnerJoinNode, LeftJoinNode};
-use super::project_node::ProjectNode;
-use super::sort_node::{LimitNode, SortNode, TopNNode};
-use super::start_node::StartNode;
-use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
-use crate::query::planner::plan::algorithms::{FulltextIndexScan, IndexScan, MultiShortestPath, BFSShortest, AllPaths, ShortestPath};
+pub use super::join_node::{CrossJoinNode, InnerJoinNode, LeftJoinNode};
+pub use super::project_node::ProjectNode;
+pub use super::sort_node::{LimitNode, SortNode, TopNNode};
+pub use super::start_node::StartNode;
+pub use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
+pub use crate::query::planner::plan::algorithms::{FulltextIndexScan, IndexScan, MultiShortestPath, BFSShortest, AllPaths, ShortestPath};
 
 /// PlanNode 枚举，包含所有可能的节点类型
 ///

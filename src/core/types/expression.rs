@@ -216,6 +216,12 @@ pub enum ExpressionType {
     Range,
     Path,
     Label,
+    TagProperty,
+    EdgeProperty,
+    InputProperty,
+    VariableProperty,
+    SourceProperty,
+    DestinationProperty,
 }
 
 impl Expression {

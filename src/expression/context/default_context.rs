@@ -3,10 +3,8 @@
 //! 包含默认上下文的实现
 
 use crate::core::{Edge, Value, Vertex};
+use crate::expression::evaluator::traits::ExpressionContext;
 use std::collections::HashMap;
-
-// 重新导出统一的ExpressionContext trait
-pub use crate::expression::evaluator::traits::ExpressionContext;
 
 /// 存储层表达式上下文trait
 ///

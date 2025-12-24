@@ -2,12 +2,11 @@
 //!
 //! 提供具体的表达式求值功能
 
-use crate::core::expressions::ExpressionContext;
 use crate::core::types::expression::{Expression, LiteralValue};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
-use crate::core::ExpressionError;
+use crate::expression::context::error::ExpressionError;
 use crate::core::Value;
-use crate::core::evaluator::traits::Evaluator;
+use crate::expression::evaluator::traits::{Evaluator, ExpressionContext};
 
 /// 表达式求值器实现
 #[derive(Debug)]
@@ -1077,7 +1076,7 @@ impl ExpressionEvaluator {
         &self,
         cases: &[(Expression, Expression)],
         default: Option<&Expression>,
-        context: &mut dyn crate::core::expressions::ExpressionContext,
+        context: &mut dyn crate::expression::ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         for (condition, value) in cases {
             let condition_result = self.evaluate(condition, context)?;
