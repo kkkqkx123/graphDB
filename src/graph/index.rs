@@ -1,20 +1,16 @@
 use crate::core::{Value, Vertex};
 use std::collections::{HashMap, HashSet};
-use std::fmt;
+use thiserror::Error;
 
-#[derive(Debug)]
+/// 索引错误类型
+/// 
+/// 涵盖索引创建和更新过程中的错误
+#[derive(Error, Debug)]
 pub enum IndexError {
+    #[error("索引创建错误: {0}")]
     IndexCreationError(String),
+    #[error("索引更新错误: {0}")]
     IndexUpdateError(String),
-}
-
-impl fmt::Display for IndexError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            IndexError::IndexCreationError(msg) => write!(f, "索引创建错误: {}", msg),
-            IndexError::IndexUpdateError(msg) => write!(f, "索引更新错误: {}", msg),
-        }
-    }
 }
 
 /// Index for node labels

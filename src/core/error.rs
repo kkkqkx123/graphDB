@@ -1,6 +1,16 @@
 //! 统一错误处理系统 for GraphDB
 //!
-//! 这个模块提供了统一的错误类型，整合了所有子系统的错误
+//! ## 设计理念
+//!
+//! 1. **按需设计**：根据错误复杂度选择合适的结构
+//!    - 核心错误（如表达式）使用结构化设计，保留完整错误链和位置信息
+//!    - 简单错误（如事务、索引）使用枚举设计，简洁高效
+//!
+//! 2. **分层转换**：
+//!    - 核心错误使用 `#[from]` 注解自动转换，保留完整错误信息
+//!    - 外部错误使用自定义 `From` 实现转换为字符串，降低模块耦合
+//!
+//! 3. **统一接口**：`DBResult<T>` 提供统一的返回类型，简化错误传播
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -49,7 +59,9 @@ pub enum DBError {
 /// 统一的结果类型
 pub type DBResult<T> = Result<T, DBError>;
 
-// 存储错误类型（从 storage/storage_error.rs 移动过来）
+/// 存储层错误类型
+/// 
+/// 涵盖数据库底层存储操作相关的错误
 #[derive(Error, Debug, Clone)]
 pub enum StorageError {
     #[error("数据库错误: {0}")]
@@ -64,7 +76,9 @@ pub enum StorageError {
     TransactionError(String),
 }
 
-// 查询错误类型（从 query/mod.rs 移动过来）
+/// 查询层错误类型
+/// 
+/// 涵盖查询解析、验证和执行过程中的错误
 #[derive(Error, Debug, Clone)]
 pub enum QueryError {
     #[error("存储错误: {0}")]
@@ -79,7 +93,10 @@ pub enum QueryError {
     ExpressionError(String),
 }
 
-/// 表达式错误
+/// 表达式错误（结构化设计）
+/// 
+/// 包含错误类型、错误消息和可选的位置信息
+/// 支持序列化/反序列化，用于跨模块传递
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExpressionError {
     /// 错误类型
@@ -90,7 +107,7 @@ pub struct ExpressionError {
     pub position: Option<ExpressionPosition>,
 }
 
-/// 表达式错误类型
+/// 表达式错误类型枚举
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ExpressionErrorType {
     /// 类型错误
@@ -125,7 +142,7 @@ pub enum ExpressionErrorType {
     RuntimeError,
 }
 
-/// 表达式位置
+/// 表达式错误位置信息
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExpressionPosition {
     /// 行号
@@ -265,7 +282,9 @@ impl fmt::Display for ExpressionError {
     }
 }
 
-// 计划节点访问错误类型（从 query/planner/plan/plan_node_visitor.rs 移动过来）
+/// 计划节点访问错误类型
+/// 
+/// 涵盖查询计划遍历和验证过程中的错误
 #[derive(Error, Debug, Clone)]
 pub enum PlanNodeVisitError {
     #[error("访问错误: {0}")]
@@ -276,7 +295,9 @@ pub enum PlanNodeVisitError {
     ValidationError(String),
 }
 
-// 锁操作错误类型
+/// 锁操作错误类型
+/// 
+/// 涵盖并发控制中锁相关的错误
 #[derive(Error, Debug, Clone)]
 pub enum LockError {
     #[error("Mutex锁被污染: {reason}")]
