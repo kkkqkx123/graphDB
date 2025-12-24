@@ -32,10 +32,7 @@ impl PatternParser {
                 // 变量模式或路径模式
                 self.parse_variable_or_path_pattern()
             }
-            _ => Err(ParseError::new(
-                format!("Expected pattern, found {:?}", token.kind),
-                self.current_span(),
-            )),
+            _ => Err(self.parse_error(format!("Expected pattern, found {:?}", token.kind))),
         }
     }
 
@@ -277,10 +274,7 @@ impl PatternParser {
                     RepetitionType::OneOrMore,
                 ))
             }
-            _ => Err(ParseError::new(
-                format!("Expected path element, found {:?}", token.kind),
-                self.current_span(),
-            )),
+            _ => Err(self.parse_error(format!("Expected path element, found {:?}", token.kind))),
         }
     }
 
@@ -338,10 +332,7 @@ impl PatternParser {
             self.lexer.advance();
             Ok(())
         } else {
-            Err(ParseError::new(
-                format!("Expected {:?}, found {:?}", expected, token.kind),
-                self.current_span(),
-            ))
+            Err(self.parse_error(format!("Expected {:?}, found {:?}", expected, token.kind)))
         }
     }
 
@@ -352,10 +343,7 @@ impl PatternParser {
             self.lexer.advance();
             Ok(text)
         } else {
-            Err(ParseError::new(
-                format!("Expected identifier, found {:?}", token.kind),
-                self.current_span(),
-            ))
+            Err(self.parse_error(format!("Expected identifier, found {:?}", token.kind)))
         }
     }
 
@@ -364,14 +352,9 @@ impl PatternParser {
         if let LexerToken::IntegerLiteral(_) = token.kind {
             let text = token.lexeme.clone();
             self.lexer.advance();
-            text.parse().map_err(|_| {
-                ParseError::new(format!("Invalid integer: {}", text), self.current_span())
-            })
+            text.parse().map_err(|_| self.parse_error(format!("Invalid integer: {}", text)))
         } else {
-            Err(ParseError::new(
-                format!("Expected integer, found {:?}", token.kind),
-                self.current_span(),
-            ))
+            Err(self.parse_error(format!("Expected integer, found {:?}", token.kind)))
         }
     }
 
@@ -417,5 +400,15 @@ impl PatternParser {
             Position::new(pos.line, pos.column),
             Position::new(pos.line, pos.column),
         )
+    }
+
+    fn current_position(&self) -> (usize, usize) {
+        let pos = self.lexer.current_position();
+        (pos.line, pos.column)
+    }
+
+    fn parse_error(&self, message: String) -> ParseError {
+        let (line, column) = self.current_position();
+        ParseError::new(message, line, column)
     }
 }

@@ -158,39 +158,5 @@ pub enum OrderDirection {
 // 聚合函数使用核心定义，但为了兼容性提供别名
 pub type AggregateFunction = CoreAggregateFunction;
 
-/// 错误类型
-#[derive(Debug, Clone, PartialEq)]
-pub struct ParseError {
-    pub message: String,
-    pub span: Span,
-}
-
-impl ParseError {
-    pub fn new(message: String, span: Span) -> Self {
-        Self { message, span }
-    }
-}
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Parse error at line {}, column {}: {}",
-            self.span.start.line, self.span.start.column, self.message
-        )
-    }
-}
-
-impl std::error::Error for ParseError {}
-
-impl From<String> for ParseError {
-    fn from(message: String) -> Self {
-        ParseError::new(message, Span::default())
-    }
-}
-
-impl From<crate::query::parser::core::error::ParseError> for ParseError {
-    fn from(error: crate::query::parser::core::error::ParseError) -> Self {
-        ParseError::new(error.message, Span::default())
-    }
-}
+// 使用核心ParseError定义
+pub use crate::query::parser::core::error::ParseError;

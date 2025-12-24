@@ -2,6 +2,7 @@
 //!
 //! 定义所有计划节点需要实现的基础特征
 
+use crate::core::error::PlanNodeVisitError;
 use crate::query::context::validate::types::Variable;
 
 /// PlanNode 基础特征
@@ -125,26 +126,6 @@ pub trait PlanNodeVisitor {
         Ok(())
     }
 }
-
-/// PlanNode 访问错误
-#[derive(Debug, Clone)]
-pub enum PlanNodeVisitError {
-    /// 访问失败
-    VisitFailed(String),
-    /// 节点类型不匹配
-    NodeTypeMismatch(String),
-}
-
-impl std::fmt::Display for PlanNodeVisitError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PlanNodeVisitError::VisitFailed(msg) => write!(f, "访问失败: {}", msg),
-            PlanNodeVisitError::NodeTypeMismatch(msg) => write!(f, "节点类型不匹配: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for PlanNodeVisitError {}
 
 // 前向声明
 use super::plan_node_enum::PlanNodeEnum;

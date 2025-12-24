@@ -212,10 +212,14 @@ impl super::Parser {
                 // 映射表达式
                 self.parse_map_expression()
             }
-            _ => Err(ParseError::new(
-                format!("Unexpected token: {:?}", token.kind),
-                self.parser_current_span(),
-            )),
+            _ => {
+                let span = self.parser_current_span();
+                Err(ParseError::new(
+                    format!("Unexpected token: {:?}", token.kind),
+                    span.start.line,
+                    span.start.column,
+                ))
+            }
         }
     }
 
@@ -352,9 +356,11 @@ impl super::Parser {
             self.next_token();
             Ok(value)
         } else {
+            let span = self.parser_current_span();
             Err(ParseError::new(
                 format!("Expected integer, found {:?}", self.current_token.kind),
-                self.parser_current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -366,9 +372,11 @@ impl super::Parser {
             self.next_token();
             Ok(value)
         } else {
+            let span = self.parser_current_span();
             Err(ParseError::new(
                 format!("Expected float, found {:?}", self.current_token.kind),
-                self.parser_current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -378,12 +386,13 @@ impl super::Parser {
         if let LexerToken::StringLiteral(s) = &self.current_token.kind {
             let text = s.clone();
             self.next_token();
-            // 移除引号
             Ok(text.trim_matches('"').to_string())
         } else {
+            let span = self.parser_current_span();
             Err(ParseError::new(
                 format!("Expected string, found {:?}", self.current_token.kind),
-                self.parser_current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -395,9 +404,11 @@ impl super::Parser {
             self.next_token();
             Ok(value)
         } else {
+            let span = self.parser_current_span();
             Err(ParseError::new(
                 format!("Expected boolean, found {:?}", self.current_token.kind),
-                self.parser_current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }

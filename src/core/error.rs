@@ -36,6 +36,12 @@ pub enum DBError {
     #[error("序列化错误: {0}")]
     Serialization(String),
 
+    #[error("索引错误: {0}")]
+    Index(String),
+
+    #[error("事务错误: {0}")]
+    Transaction(String),
+
     #[error("内部错误: {0}")]
     Internal(String),
 }
@@ -82,8 +88,6 @@ pub struct ExpressionError {
     pub message: String,
     /// 错误位置
     pub position: Option<ExpressionPosition>,
-    /// 相关表达式
-    pub expression: Option<crate::core::types::expression::Expression>,
 }
 
 /// 表达式错误类型
@@ -141,7 +145,6 @@ impl ExpressionError {
             error_type,
             message: message.into(),
             position: None,
-            expression: None,
         }
     }
 
@@ -159,15 +162,6 @@ impl ExpressionError {
             offset,
             length,
         });
-        self
-    }
-
-    /// 设置相关表达式
-    pub fn with_expression(
-        mut self,
-        expression: crate::core::types::expression::Expression,
-    ) -> Self {
-        self.expression = Some(expression);
         self
     }
 
@@ -298,35 +292,30 @@ pub enum LockError {
     LockTimeout { reason: String },
 }
 
-// 为现有错误类型实现转换
-impl From<crate::storage::StorageError> for DBError {
-    fn from(err: crate::storage::StorageError) -> Self {
-        match err {
-            crate::storage::StorageError::DbError(msg) => {
-                DBError::Storage(StorageError::DbError(msg.to_string()))
-            }
-            crate::storage::StorageError::SerializationError(msg) => {
-                DBError::Storage(StorageError::SerializationError(msg))
-            }
-            crate::storage::StorageError::NodeNotFound(value) => {
-                DBError::Storage(StorageError::NodeNotFound(value))
-            }
-            crate::storage::StorageError::EdgeNotFound(value) => {
-                DBError::Storage(StorageError::EdgeNotFound(value))
-            }
-            crate::storage::StorageError::InvalidOperation(msg) => {
-                DBError::Storage(StorageError::DbError(msg))
-            }
-        }
-    }
-}
-
 // ExpressionError 是本地定义，无需转换实现
 // PlanNodeVisitError 的 From 实现已通过 #[from] 属性自动生成（第22行）
 
 impl From<crate::query::visitor::TypeDeductionError> for DBError {
     fn from(err: crate::query::visitor::TypeDeductionError) -> Self {
         DBError::TypeDeduction(err.to_string())
+    }
+}
+
+impl From<crate::graph::IndexError> for DBError {
+    fn from(err: crate::graph::IndexError) -> Self {
+        DBError::Index(err.to_string())
+    }
+}
+
+impl From<crate::graph::TransactionError> for DBError {
+    fn from(err: crate::graph::TransactionError) -> Self {
+        DBError::Transaction(err.to_string())
+    }
+}
+
+impl From<crate::common::FsError> for DBError {
+    fn from(err: crate::common::FsError) -> Self {
+        DBError::Internal(err.to_string())
     }
 }
 

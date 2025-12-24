@@ -24,6 +24,7 @@ pub mod query_pipeline_manager;
 // 错误和结果类型
 pub use error::{
     DBError, DBResult, ExpressionError, ExpressionErrorType, ExpressionPosition, QueryError,
+    StorageError,
 };
 pub use result::*;
 

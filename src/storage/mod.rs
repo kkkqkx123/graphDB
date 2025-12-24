@@ -1,9 +1,7 @@
 pub mod iterator;
 pub mod native_storage;
 pub mod storage_engine;
-pub mod storage_error;
 
 pub use iterator::*;
 pub use native_storage::*;
 pub use storage_engine::*;
-pub use storage_error::*;

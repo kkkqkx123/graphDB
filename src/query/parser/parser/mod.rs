@@ -42,12 +42,14 @@ impl Parser {
     }
 
     /// 进入递归
-    pub fn enter_recursion(&mut self) -> Result<(), crate::query::parser::ast::types::ParseError> {
+    pub fn enter_recursion(&mut self) -> Result<(), crate::query::parser::core::error::ParseError> {
         self.recursion_depth += 1;
         if self.recursion_depth > self.max_recursion_depth {
-            Err(crate::query::parser::ast::types::ParseError::new(
+            let pos = self.lexer.current_position();
+            Err(crate::query::parser::core::error::ParseError::new(
                 "Recursion limit exceeded".to_string(),
-                self.parser_current_span(),
+                pos.line,
+                pos.column,
             ))
         } else {
             Ok(())

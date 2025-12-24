@@ -197,10 +197,7 @@ impl ExprParser {
                 // 映射表达式
                 self.parse_map_expression()
             }
-            _ => Err(ParseError::new(
-                format!("Unexpected token: {:?}", token.kind),
-                self.current_span(),
-            )),
+            _ => Err(self.parse_error(format!("Unexpected token: {:?}", token.kind))),
         }
     }
 
@@ -308,10 +305,7 @@ impl ExprParser {
             self.lexer.advance();
             Ok(())
         } else {
-            Err(ParseError::new(
-                format!("Expected {:?}, found {:?}", expected, token.kind),
-                self.current_span(),
-            ))
+            Err(self.parse_error(format!("Expected {:?}, found {:?}", expected, token.kind)))
         }
     }
 
@@ -322,9 +316,11 @@ impl ExprParser {
             self.lexer.advance();
             Ok(text)
         } else {
+            let span = self.current_span();
             Err(ParseError::new(
                 format!("Expected identifier, found {:?}", token.kind),
-                self.current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -335,12 +331,15 @@ impl ExprParser {
             let text = token.lexeme.clone();
             self.lexer.advance();
             text.parse().map_err(|_| {
-                ParseError::new(format!("Invalid integer: {}", text), self.current_span())
+                let span = self.current_span();
+                ParseError::new(format!("Invalid integer: {}", text), span.start.line, span.start.column)
             })
         } else {
+            let span = self.current_span();
             Err(ParseError::new(
                 format!("Expected integer, found {:?}", token.kind),
-                self.current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -351,12 +350,15 @@ impl ExprParser {
             let text = token.lexeme.clone();
             self.lexer.advance();
             text.parse().map_err(|_| {
-                ParseError::new(format!("Invalid float: {}", text), self.current_span())
+                let span = self.current_span();
+                ParseError::new(format!("Invalid float: {}", text), span.start.line, span.start.column)
             })
         } else {
+            let span = self.current_span();
             Err(ParseError::new(
                 format!("Expected float, found {:?}", token.kind),
-                self.current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -366,12 +368,13 @@ impl ExprParser {
         if let LexerToken::String = token.kind {
             let text = token.lexeme.clone();
             self.lexer.advance();
-            // 移除引号
             Ok(text.trim_matches('"').to_string())
         } else {
+            let span = self.current_span();
             Err(ParseError::new(
                 format!("Expected string, found {:?}", token.kind),
-                self.current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -382,12 +385,15 @@ impl ExprParser {
             let text = token.lexeme.clone();
             self.lexer.advance();
             text.parse().map_err(|_| {
-                ParseError::new(format!("Invalid boolean: {}", text), self.current_span())
+                let span = self.current_span();
+                ParseError::new(format!("Invalid boolean: {}", text), span.start.line, span.start.column)
             })
         } else {
+            let span = self.current_span();
             Err(ParseError::new(
                 format!("Expected boolean, found {:?}", token.kind),
-                self.current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -438,6 +444,16 @@ impl ExprParser {
             Position::new(pos.line, pos.column),
             Position::new(pos.line, pos.column),
         )
+    }
+
+    fn current_position(&self) -> (usize, usize) {
+        let pos = self.lexer.current_position();
+        (pos.line, pos.column)
+    }
+
+    fn parse_error(&self, message: String) -> ParseError {
+        let (line, column) = self.current_position();
+        ParseError::new(message, line, column)
     }
 }
 

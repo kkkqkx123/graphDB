@@ -1,5 +1,4 @@
-use super::StorageError;
-use crate::core::{Direction, Edge, Value, Vertex};
+use crate::core::{Direction, Edge, StorageError, Value, Vertex};
 
 /// Transaction identifier
 pub type TransactionId = u64;

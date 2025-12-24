@@ -38,17 +38,16 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
+impl From<String> for ParseError {
+    fn from(message: String) -> Self {
+        ParseError::new(message, 0, 0)
+    }
+}
+
 // Convert ParseError to the main QueryError
 impl From<ParseError> for QueryError {
     fn from(parse_error: ParseError) -> Self {
         QueryError::ParseError(parse_error.to_string())
-    }
-}
-
-// Convert ast::types::ParseError to core::error::ParseError
-impl From<crate::query::parser::ast::types::ParseError> for ParseError {
-    fn from(ast_error: crate::query::parser::ast::types::ParseError) -> Self {
-        ParseError::new(ast_error.message, 0, 0)
     }
 }
 

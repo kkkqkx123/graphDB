@@ -1,5 +1,5 @@
-use super::{StorageEngine, StorageError, TransactionId};
-use crate::core::{Direction, Edge, Value, Vertex};
+use super::{StorageEngine, TransactionId};
+use crate::core::{Direction, Edge, StorageError, Value, Vertex};
 use serde_json;
 use sled::{Db, Tree};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -34,11 +34,11 @@ impl Clone for NativeStorage {
 impl NativeStorage {
     pub fn new<P: AsRef<std::path::Path>>(path: P) -> Result<Self, StorageError> {
         let db_path = path.as_ref().to_string_lossy().to_string();
-        let db = sled::open(&db_path)?;
-        let nodes_tree = db.open_tree("nodes")?;
-        let edges_tree = db.open_tree("edges")?;
-        let schema_tree = db.open_tree("schema")?;
-        let node_edge_index = db.open_tree("node_edge_index")?;
+        let db = sled::open(&db_path).map_err(|e| StorageError::DbError(e.to_string()))?;
+        let nodes_tree = db.open_tree("nodes").map_err(|e| StorageError::DbError(e.to_string()))?;
+        let edges_tree = db.open_tree("edges").map_err(|e| StorageError::DbError(e.to_string()))?;
+        let schema_tree = db.open_tree("schema").map_err(|e| StorageError::DbError(e.to_string()))?;
+        let node_edge_index = db.open_tree("node_edge_index").map_err(|e| StorageError::DbError(e.to_string()))?;
 
         Ok(Self {
             db,
@@ -48,6 +48,10 @@ impl NativeStorage {
             node_edge_index,
             db_path,
         })
+    }
+
+    fn sled_error_to_storage_error(e: sled::Error) -> StorageError {
+        StorageError::DbError(e.to_string())
     }
 
     // Get the database path for cloning
@@ -80,7 +84,7 @@ impl NativeStorage {
         add: bool,
     ) -> Result<(), StorageError> {
         let node_id_bytes = self.value_to_bytes(node_id)?;
-        let mut edge_list = match self.node_edge_index.get(&node_id_bytes)? {
+        let mut edge_list = match self.node_edge_index.get(&node_id_bytes).map_err(Self::sled_error_to_storage_error)? {
             Some(list_bytes) => {
                 let result: Vec<Vec<u8>> = serde_json::from_slice(&list_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
@@ -100,14 +104,14 @@ impl NativeStorage {
         let list_bytes = serde_json::to_vec(&edge_list)
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
-        self.node_edge_index.insert(&node_id_bytes, list_bytes)?;
+        self.node_edge_index.insert(&node_id_bytes, list_bytes).map_err(Self::sled_error_to_storage_error)?;
 
         Ok(())
     }
 
     fn get_node_edge_keys(&self, node_id: &Value) -> Result<Vec<Vec<u8>>, StorageError> {
         let node_id_bytes = self.value_to_bytes(node_id)?;
-        match self.node_edge_index.get(&node_id_bytes)? {
+        match self.node_edge_index.get(&node_id_bytes).map_err(Self::sled_error_to_storage_error)? {
             Some(list_bytes) => {
                 let edge_key_list: Vec<Vec<u8>> = serde_json::from_slice(&list_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
@@ -128,15 +132,15 @@ impl StorageEngine for NativeStorage {
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         let id_bytes = self.value_to_bytes(&id)?;
-        self.nodes_tree.insert(id_bytes, vertex_bytes)?;
-        self.db.flush()?;
+        self.nodes_tree.insert(id_bytes, vertex_bytes).map_err(Self::sled_error_to_storage_error)?;
+        self.db.flush().map_err(Self::sled_error_to_storage_error)?;
 
         Ok(id)
     }
 
     fn get_node(&self, id: &Value) -> Result<Option<Vertex>, StorageError> {
         let id_bytes = self.value_to_bytes(id)?;
-        match self.nodes_tree.get(id_bytes)? {
+        match self.nodes_tree.get(id_bytes).map_err(Self::sled_error_to_storage_error)? {
             Some(vertex_bytes) => {
                 let vertex: Vertex = serde_json::from_slice(&vertex_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
@@ -156,8 +160,8 @@ impl StorageEngine for NativeStorage {
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         let id_bytes = self.value_to_bytes(&vertex.vid)?;
-        self.nodes_tree.insert(id_bytes, vertex_bytes)?;
-        self.db.flush()?;
+        self.nodes_tree.insert(id_bytes, vertex_bytes).map_err(Self::sled_error_to_storage_error)?;
+        self.db.flush().map_err(Self::sled_error_to_storage_error)?;
 
         Ok(())
     }
@@ -171,12 +175,12 @@ impl StorageEngine for NativeStorage {
 
         // 然后删除顶点
         let id_bytes = self.value_to_bytes(id)?;
-        self.nodes_tree.remove(&id_bytes)?;
+        self.nodes_tree.remove(&id_bytes).map_err(Self::sled_error_to_storage_error)?;
 
         // 从节点边索引中删除
-        self.node_edge_index.remove(&id_bytes)?;
+        self.node_edge_index.remove(&id_bytes).map_err(Self::sled_error_to_storage_error)?;
 
-        self.db.flush()?;
+        self.db.flush().map_err(Self::sled_error_to_storage_error)?;
         Ok(())
     }
 
@@ -186,7 +190,7 @@ impl StorageEngine for NativeStorage {
         // 遍历nodes_tree中的所有顶点
         for item in self.nodes_tree.iter() {
             let (_, vertex_bytes) =
-                item.map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                item.map_err(Self::sled_error_to_storage_error)?;
             let vertex: Vertex = serde_json::from_slice(&vertex_bytes)
                 .map_err(|e| StorageError::SerializationError(e.to_string()))?;
             vertices.push(vertex);
@@ -214,13 +218,13 @@ impl StorageEngine for NativeStorage {
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         // 存储边
-        self.edges_tree.insert(&edge_key_bytes, edge_bytes)?;
+        self.edges_tree.insert(&edge_key_bytes, edge_bytes).map_err(Self::sled_error_to_storage_error)?;
 
         // 更新索引
         self.update_node_edge_index(&edge.src, &edge_key_bytes, true)?;
         self.update_node_edge_index(&edge.dst, &edge_key_bytes, true)?;
 
-        self.db.flush()?;
+        self.db.flush().map_err(Self::sled_error_to_storage_error)?;
 
         Ok(())
     }
@@ -234,7 +238,7 @@ impl StorageEngine for NativeStorage {
         let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
-        match self.edges_tree.get(&edge_key_bytes)? {
+        match self.edges_tree.get(&edge_key_bytes).map_err(Self::sled_error_to_storage_error)? {
             Some(edge_bytes) => {
                 let edge: Edge = serde_json::from_slice(&edge_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
@@ -253,7 +257,7 @@ impl StorageEngine for NativeStorage {
         let mut edges = Vec::new();
 
         for edge_key_bytes in edge_keys {
-            if let Some(edge_bytes) = self.edges_tree.get(&edge_key_bytes)? {
+            if let Some(edge_bytes) = self.edges_tree.get(&edge_key_bytes).map_err(Self::sled_error_to_storage_error)? {
                 let edge: Edge = serde_json::from_slice(&edge_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
@@ -278,15 +282,15 @@ impl StorageEngine for NativeStorage {
         let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
-        if self.edges_tree.get(&edge_key_bytes)?.is_some() {
+        if self.edges_tree.get(&edge_key_bytes).map_err(Self::sled_error_to_storage_error)?.is_some() {
             // 从边存储中删除
-            self.edges_tree.remove(&edge_key_bytes)?;
+            self.edges_tree.remove(&edge_key_bytes).map_err(Self::sled_error_to_storage_error)?;
 
             // 更新节点边索引
             self.update_node_edge_index(src, &edge_key_bytes, false)?;
             self.update_node_edge_index(dst, &edge_key_bytes, false)?;
 
-            self.db.flush()?;
+            self.db.flush().map_err(Self::sled_error_to_storage_error)?;
             Ok(())
         } else {
             Err(StorageError::EdgeNotFound(Value::String(edge_key)))
@@ -304,7 +308,7 @@ impl StorageEngine for NativeStorage {
 
     fn commit_transaction(&mut self, _tx_id: TransactionId) -> Result<(), StorageError> {
         // TODO: 实现实际的事务支持
-        self.db.flush()?;
+        self.db.flush().map_err(Self::sled_error_to_storage_error)?;
         Ok(())
     }
 

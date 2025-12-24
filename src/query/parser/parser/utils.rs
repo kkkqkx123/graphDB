@@ -32,12 +32,14 @@ impl super::Parser {
             self.next_token();
             Ok(())
         } else {
+            let span = self.parser_current_span();
             Err(ParseError::new(
                 format!(
                     "Expected {:?}, found {:?}",
                     expected, self.current_token.kind
                 ),
-                self.parser_current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -52,9 +54,11 @@ impl super::Parser {
             self.next_token();
             Ok(text)
         } else {
+            let span = self.parser_current_span();
             Err(ParseError::new(
                 format!("Expected identifier, found {:?}", self.current_token.kind),
-                self.parser_current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -90,7 +94,8 @@ impl super::Parser {
             }
             _ => Err(ParseError::new(
                 format!("Expected identifier, found {:?}", self.current_token.kind),
-                self.parser_current_span(),
+                self.current_token.line,
+                self.current_token.column,
             )),
         }
     }

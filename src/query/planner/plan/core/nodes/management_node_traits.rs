@@ -4,6 +4,7 @@
 
 use super::management_node_enum::ManagementNodeEnum;
 use super::plan_node_enum::PlanNodeEnum;
+use crate::core::error::PlanNodeVisitError;
 
 /// 管理节点基础特征
 ///
@@ -40,38 +41,18 @@ pub trait ManagementNodeClonable {
 /// 管理节点可访问特征
 pub trait ManagementNodeVisitable {
     /// 接受访问者
-    fn accept(&self, visitor: &mut dyn ManagementNodeVisitor) -> Result<(), ManagementNodeVisitError>;
+    fn accept(&self, visitor: &mut dyn ManagementNodeVisitor) -> Result<(), PlanNodeVisitError>;
 }
 
 /// 管理节点访问者特征
 pub trait ManagementNodeVisitor {
     /// 访问前处理
-    fn pre_visit(&mut self) -> Result<(), ManagementNodeVisitError> {
+    fn pre_visit(&mut self) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 
     /// 访问后处理
-    fn post_visit(&mut self) -> Result<(), ManagementNodeVisitError> {
+    fn post_visit(&mut self) -> Result<(), PlanNodeVisitError> {
         Ok(())
     }
 }
-
-/// 管理节点访问错误
-#[derive(Debug, Clone)]
-pub enum ManagementNodeVisitError {
-    /// 访问失败
-    VisitFailed(String),
-    /// 节点类型不匹配
-    NodeTypeMismatch(String),
-}
-
-impl std::fmt::Display for ManagementNodeVisitError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ManagementNodeVisitError::VisitFailed(msg) => write!(f, "访问失败: {}", msg),
-            ManagementNodeVisitError::NodeTypeMismatch(msg) => write!(f, "节点类型不匹配: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for ManagementNodeVisitError {}

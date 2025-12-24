@@ -1,10 +1,20 @@
 use crate::core::{Value, Vertex};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 
 #[derive(Debug)]
 pub enum IndexError {
     IndexCreationError(String),
     IndexUpdateError(String),
+}
+
+impl fmt::Display for IndexError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IndexError::IndexCreationError(msg) => write!(f, "索引创建错误: {}", msg),
+            IndexError::IndexUpdateError(msg) => write!(f, "索引更新错误: {}", msg),
+        }
+    }
 }
 
 /// Index for node labels

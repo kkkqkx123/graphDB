@@ -283,9 +283,11 @@ impl StmtParser {
         } else if self.match_token(LexerToken::Roles) {
             ShowTarget::Roles
         } else {
+            let span = self.current_span();
             return Err(ParseError::new(
                 "Expected SHOW target".to_string(),
-                self.current_span(),
+                span.start.line,
+                span.start.column,
             ));
         };
 
@@ -323,9 +325,11 @@ impl StmtParser {
                 LookupTarget::Tag(name)
             }
         } else {
+            let span = self.current_span();
             return Err(ParseError::new(
                 "Expected LOOKUP target".to_string(),
-                self.current_span(),
+                span.start.line,
+                span.start.column,
             ));
         };
 
@@ -906,9 +910,11 @@ impl StmtParser {
             self.lexer.advance();
             Ok(())
         } else {
+            let span = self.current_span();
             Err(ParseError::new(
                 format!("Expected {:?}, found {:?}", expected, token.kind),
-                self.current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -920,9 +926,11 @@ impl StmtParser {
             let _ = self.lexer.advance();
             Ok(text)
         } else {
+            let span = self.current_span();
             Err(ParseError::new(
                 format!("Expected identifier, found {:?}", token.kind),
-                self.current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -933,9 +941,11 @@ impl StmtParser {
             let _ = self.lexer.advance();
             Ok(value)
         } else {
+            let span = self.current_span();
             Err(ParseError::new(
                 format!("Expected integer, found {:?}", token.kind),
-                self.current_span(),
+                span.start.line,
+                span.start.column,
             ))
         }
     }
@@ -971,9 +981,11 @@ impl StmtParser {
             LexerToken::List => DataType::List,
             LexerToken::Map => DataType::Map,
             _ => {
+                let span = self.current_span();
                 return Err(ParseError::new(
                     format!("Expected data type, found {:?}", token.kind),
-                    self.current_span(),
+                    span.start.line,
+                    span.start.column,
                 ));
             }
         };

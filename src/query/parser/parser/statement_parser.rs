@@ -11,6 +11,17 @@ use crate::query::parser::ast::types::*;
 use crate::query::parser::lexer::TokenKind as LexerToken;
 
 impl super::Parser {
+    /// 获取当前位置的行和列
+    fn current_position(&self) -> (usize, usize) {
+        let pos = self.lexer.current_position();
+        (pos.line, pos.column)
+    }
+
+    /// 创建ParseError
+    fn parse_error(&self, message: String) -> ParseError {
+        let (line, column) = self.current_position();
+        ParseError::new(message, line, column)
+    }
     /// 解析完整的查询
     pub fn parse_query(&mut self) -> Result<QueryStmt, ParseError> {
         let start_pos = self.lexer.current_position();
@@ -42,91 +53,70 @@ impl super::Parser {
             LexerToken::Match => {
                 self.next_token();
                 self.parse_match_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse MATCH statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse MATCH statement".to_string())
                         })
                     })
             }
             LexerToken::Create => {
                 self.next_token();
                 self.parse_create_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse CREATE statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse CREATE statement".to_string())
                         })
                     })
             }
             LexerToken::Delete => {
                 self.next_token();
                 self.parse_delete_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse DELETE statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse DELETE statement".to_string())
                         })
                     })
             }
             LexerToken::Update => {
                 self.next_token();
                 self.parse_update_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse UPDATE statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse UPDATE statement".to_string())
                         })
                     })
             }
             LexerToken::Use => {
                 self.next_token();
                 self.parse_use_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse USE statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse USE statement".to_string())
                         })
                     })
             }
             LexerToken::Show => {
                 self.next_token();
                 self.parse_show_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse SHOW statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse SHOW statement".to_string())
                         })
                     })
             }
             LexerToken::Explain => {
                 self.next_token();
                 self.parse_explain_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse EXPLAIN statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse EXPLAIN statement".to_string())
                         })
                     })
             }
@@ -147,91 +137,70 @@ impl super::Parser {
             LexerToken::Match => {
                 self.next_token();
                 self.parse_match_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse MATCH statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse MATCH statement".to_string())
                         })
                     })
             }
             LexerToken::Create => {
                 self.next_token();
                 self.parse_create_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse CREATE statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse CREATE statement".to_string())
                         })
                     })
             }
             LexerToken::Delete => {
                 self.next_token();
                 self.parse_delete_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse DELETE statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse DELETE statement".to_string())
                         })
                     })
             }
             LexerToken::Update => {
                 self.next_token();
                 self.parse_update_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse UPDATE statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse UPDATE statement".to_string())
                         })
                     })
             }
             LexerToken::Use => {
                 self.next_token();
                 self.parse_use_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse USE statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse USE statement".to_string())
                         })
                     })
             }
             LexerToken::Show => {
                 self.next_token();
                 self.parse_show_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse SHOW statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse SHOW statement".to_string())
                         })
                     })
             }
             LexerToken::Explain => {
                 self.next_token();
                 self.parse_explain_statement()
-                    .map_err(|e| ParseError::new(e.message, self.parser_current_span()))
+                    .map_err(|e| self.parse_error(e.message))
                     .and_then(|opt| {
                         opt.ok_or_else(|| {
-                            ParseError::new(
-                                "Failed to parse EXPLAIN statement".to_string(),
-                                self.parser_current_span(),
-                            )
+                            self.parse_error("Failed to parse EXPLAIN statement".to_string())
                         })
                     })
             }
@@ -256,12 +225,14 @@ impl super::Parser {
                 self.parse_create_edge_statement()
             }
             _ => {
+                let span = self.parser_current_span();
                 let error = ParseError::new(
                     format!(
                         "Expected VERTEX or EDGE after CREATE, got {:?}",
                         self.current_token.kind
                     ),
-                    self.parser_current_span(),
+                    span.start.line,
+                    span.start.column,
                 );
                 Err(error)
             }
@@ -338,17 +309,17 @@ impl super::Parser {
 
         // Parse edge pattern -> or <-
         let direction = if self.current_token.kind == LexerToken::Arrow {
-            // ->
             self.next_token();
             EdgeDirection::Out
         } else if self.current_token.kind == LexerToken::BackArrow {
-            // <-
             self.next_token();
             EdgeDirection::In
         } else {
+            let span = self.parser_current_span();
             return Err(ParseError::new(
                 format!("Expected -> or <-, got {:?}", self.current_token.kind),
-                self.parser_current_span(),
+                span.start.line,
+                span.start.column,
             ));
         };
 
@@ -606,12 +577,14 @@ impl super::Parser {
                 ShowTarget::Roles
             }
             _ => {
+                let span = self.parser_current_span();
                 return Err(ParseError::new(
                     format!(
                         "Unexpected token in SHOW statement: {:?}",
                         self.current_token.kind
                     ),
-                    self.parser_current_span(),
+                    span.start.line,
+                    span.start.column,
                 ));
             }
         };
