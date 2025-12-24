@@ -878,11 +878,7 @@ fn create_plan_node_with_output_var(
             PlanNodeEnum::Filter(new_node)
         }
         PlanNodeEnum::Project(project_node) => {
-            let input = *project_node
-                .dependencies()
-                .get(0)
-                .expect("Project should have at least one dependency")
-                .clone();
+            let input = project_node.input().clone();
             let columns = project_node.columns().to_vec();
             let mut new_node = ProjectNode::new(input, columns)
                 .expect("ProjectNode creation should succeed with valid input");
@@ -901,12 +897,7 @@ fn create_plan_node_with_output_var(
             PlanNodeEnum::Dedup(new_node)
         }
         PlanNodeEnum::Sort(sort_node) => {
-            // 创建新的排序节点，需要使用正确的构造函数
-            let input = *sort_node
-                .dependencies()
-                .get(0)
-                .expect("Sort should have at least one dependency")
-                .clone();
+            let input = sort_node.input().clone();
             let sort_items = sort_node.sort_items().to_vec();
             let mut new_node = SortNode::new(input, sort_items)
                 .expect("SortNode creation should succeed with valid input");
@@ -914,12 +905,7 @@ fn create_plan_node_with_output_var(
             PlanNodeEnum::Sort(new_node)
         }
         PlanNodeEnum::Limit(limit_node) => {
-            // 创建新的限制节点，需要使用正确的构造函数
-            let input = *limit_node
-                .dependencies()
-                .get(0)
-                .expect("Limit should have at least one dependency")
-                .clone();
+            let input = limit_node.input().clone();
             let offset = limit_node.offset();
             let count = limit_node.count();
             let mut new_node = LimitNode::new(input, offset, count)

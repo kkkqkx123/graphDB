@@ -119,6 +119,65 @@ impl SortNode {
     }
 }
 
+// 为 SortNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for SortNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Sort(self)
+    }
+}
+
+// 为 SortNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for SortNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(input.clone());
+        self.deps.clear();
+        self.deps.push(Box::new(input));
+    }
+}
+
+// 为 SortNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for SortNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
 /// 限制节点
 ///
 /// 对输入数据进行分页限制
@@ -231,6 +290,65 @@ impl LimitNode {
     }
 }
 
+// 为 LimitNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for LimitNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Limit(self)
+    }
+}
+
+// 为 LimitNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for LimitNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(input.clone());
+        self.deps.clear();
+        self.deps.push(Box::new(input));
+    }
+}
+
+// 为 LimitNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for LimitNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
 /// TopN节点
 ///
 /// 对输入数据进行排序并返回前N个结果
@@ -340,6 +458,65 @@ impl TopNNode {
         let mut cloned = self.clone();
         cloned.id = new_id;
         super::plan_node_enum::PlanNodeEnum::TopN(cloned)
+    }
+}
+
+// 为 TopNNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for TopNNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::TopN(self)
+    }
+}
+
+// 为 TopNNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for TopNNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(input.clone());
+        self.deps.clear();
+        self.deps.push(Box::new(input));
+    }
+}
+
+// 为 TopNNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for TopNNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
     }
 }
 

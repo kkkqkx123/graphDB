@@ -3,6 +3,7 @@
 
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::{PlanNode, PlanNodeClonable, ZeroInputNode};
 
 #[derive(Debug, Clone)]
 pub struct IndexLimit {
@@ -81,50 +82,9 @@ impl IndexScan {
         self.cost
     }
 
-    /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
-        &self.deps
-    }
-
-    /// 添加依赖节点
-    pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(Box::new(dep));
-    }
-
-    /// 移除依赖节点
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(index) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(index);
-            true
-        } else {
-            false
-        }
-    }
-
     /// 设置节点的输出变量
     pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
-    }
-
-    /// 设置列名
-    pub fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    /// 克隆节点
-    pub fn clone_plan_node(&self) -> PlanNodeEnum {
-        // 这里需要创建一个 PlanNodeEnum::IndexScan，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
-    }
-
-    /// 克隆节点并分配新的ID
-    pub fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        // 这里需要创建一个 PlanNodeEnum::IndexScan，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
     }
 
     /// 使用访问者模式访问节点
@@ -133,6 +93,54 @@ impl IndexScan {
         V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
     {
         visitor.visit_index_scan(self)
+    }
+}
+
+impl ZeroInputNode for IndexScan {}
+
+impl PlanNodeClonable for IndexScan {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
+        PlanNodeEnum::IndexScan(self.clone())
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        PlanNodeEnum::IndexScan(cloned)
+    }
+}
+
+impl PlanNode for IndexScan {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "IndexScan"
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::IndexScan(self)
     }
 }
 
@@ -190,50 +198,9 @@ impl FulltextIndexScan {
         self.cost
     }
 
-    /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
-        &self.deps
-    }
-
-    /// 添加依赖节点
-    pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(Box::new(dep));
-    }
-
-    /// 移除依赖节点
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(index) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(index);
-            true
-        } else {
-            false
-        }
-    }
-
     /// 设置节点的输出变量
     pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
-    }
-
-    /// 设置列名
-    pub fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    /// 克隆节点
-    pub fn clone_plan_node(&self) -> PlanNodeEnum {
-        // 这里需要创建一个 PlanNodeEnum::FulltextIndexScan，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
-    }
-
-    /// 克隆节点并分配新的ID
-    pub fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        // 这里需要创建一个 PlanNodeEnum::FulltextIndexScan，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
     }
 
     /// 使用访问者模式访问节点
@@ -242,5 +209,53 @@ impl FulltextIndexScan {
         V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
     {
         visitor.visit_fulltext_index_scan(self)
+    }
+}
+
+impl ZeroInputNode for FulltextIndexScan {}
+
+impl PlanNodeClonable for FulltextIndexScan {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
+        PlanNodeEnum::FulltextIndexScan(self.clone())
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        PlanNodeEnum::FulltextIndexScan(cloned)
+    }
+}
+
+impl PlanNode for FulltextIndexScan {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "FulltextIndexScan"
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::FulltextIndexScan(self)
     }
 }

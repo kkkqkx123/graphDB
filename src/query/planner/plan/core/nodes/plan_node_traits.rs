@@ -79,8 +79,8 @@ pub trait MultipleInputNode: PlanNode {
     /// 添加输入节点
     fn add_input(&mut self, input: PlanNodeEnum);
 
-    /// 移除指定ID的输入节点
-    fn remove_input(&mut self, id: i64) -> bool;
+    /// 移除指定索引的输入节点
+    fn remove_input(&mut self, index: usize) -> Result<(), String>;
 
     /// 获取输入数量
     fn input_count(&self) -> usize {

@@ -3,6 +3,7 @@
 
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::{PlanNode, PlanNodeClonable, PlanNodeEnum};
+use crate::query::planner::plan::core::nodes::plan_node_traits::ZeroInputNode;
 
 /// 创建用户计划节点
 #[derive(Debug, Clone)]
@@ -65,10 +66,6 @@ impl PlanNode for CreateUser {
         self.cost
     }
 
-    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
-        &self.deps
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -81,6 +78,8 @@ impl PlanNode for CreateUser {
         PlanNodeEnum::CreateUser(self)
     }
 }
+
+impl ZeroInputNode for CreateUser {}
 
 /// 删除用户计划节点
 #[derive(Debug, Clone)]
@@ -141,10 +140,6 @@ impl PlanNode for DropUser {
         self.cost
     }
 
-    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
-        &self.deps
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -157,6 +152,8 @@ impl PlanNode for DropUser {
         PlanNodeEnum::DropUser(self)
     }
 }
+
+impl ZeroInputNode for DropUser {}
 
 /// 修改用户密码计划节点
 #[derive(Debug, Clone)]
@@ -217,10 +214,6 @@ impl PlanNode for UpdateUser {
         self.cost
     }
 
-    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
-        &self.deps
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -233,6 +226,8 @@ impl PlanNode for UpdateUser {
         PlanNodeEnum::UpdateUser(self)
     }
 }
+
+impl ZeroInputNode for UpdateUser {}
 
 /// 修改密码计划节点
 #[derive(Debug, Clone)]
@@ -307,10 +302,6 @@ impl PlanNode for ChangePassword {
         self.cost
     }
 
-    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
-        &self.deps
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -323,6 +314,8 @@ impl PlanNode for ChangePassword {
         PlanNodeEnum::ChangePassword(self)
     }
 }
+
+impl ZeroInputNode for ChangePassword {}
 
 /// 列出用户计划节点
 #[derive(Debug, Clone)]
@@ -379,10 +372,6 @@ impl PlanNode for ListUsers {
         self.cost
     }
 
-    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
-        &self.deps
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -395,6 +384,8 @@ impl PlanNode for ListUsers {
         PlanNodeEnum::ListUsers(self)
     }
 }
+
+impl ZeroInputNode for ListUsers {}
 
 /// 列出用户角色计划节点
 #[derive(Debug, Clone)]
@@ -461,10 +452,6 @@ impl PlanNode for ListUserRoles {
         self.cost
     }
 
-    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
-        &self.deps
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -477,6 +464,8 @@ impl PlanNode for ListUserRoles {
         PlanNodeEnum::ListUserRoles(self)
     }
 }
+
+impl ZeroInputNode for ListUserRoles {}
 
 /// 描述用户计划节点
 #[derive(Debug, Clone)]
@@ -544,10 +533,6 @@ impl PlanNode for DescribeUser {
         self.cost
     }
 
-    fn dependencies(&self) -> &[Box<PlanNodeEnum>] {
-        &self.deps
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -560,3 +545,5 @@ impl PlanNode for DescribeUser {
         PlanNodeEnum::DescribeUser(self)
     }
 }
+
+impl ZeroInputNode for DescribeUser {}

@@ -3,6 +3,7 @@
 
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::{BinaryInputNode, SingleInputNode};
 
 /// 多源最短路径计划节点
 #[derive(Debug, Clone)]
@@ -90,58 +91,30 @@ impl MultiShortestPath {
         self.cost
     }
 
-    /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> &[PlanNodeEnum] {
-        &self.deps
-    }
-
-    /// 添加依赖节点
-    pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    /// 移除依赖节点
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(index) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(index);
-            true
-        } else {
-            false
-        }
-    }
-
-    /// 设置节点的输出变量
-    pub fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    /// 设置列名
-    pub fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    /// 克隆节点
-    pub fn clone_plan_node(&self) -> PlanNodeEnum {
-        // 这里需要创建一个 PlanNodeEnum::MultiShortestPath，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
-    }
-
-    /// 克隆节点并分配新的ID
-    pub fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        // 这里需要创建一个 PlanNodeEnum::MultiShortestPath，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
-    }
-
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
         V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
     {
         visitor.visit_multi_shortest_path(self)
+    }
+}
+
+impl BinaryInputNode for MultiShortestPath {
+    fn left_input(&self) -> &PlanNodeEnum {
+        &self.deps[0]
+    }
+
+    fn right_input(&self) -> &PlanNodeEnum {
+        &self.deps[1]
+    }
+
+    fn set_left_input(&mut self, input: PlanNodeEnum) {
+        self.deps[0] = input;
+    }
+
+    fn set_right_input(&mut self, input: PlanNodeEnum) {
+        self.deps[1] = input;
     }
 }
 
@@ -213,58 +186,22 @@ impl BFSShortest {
         self.cost
     }
 
-    /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> &[PlanNodeEnum] {
-        &self.deps
-    }
-
-    /// 添加依赖节点
-    pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    /// 移除依赖节点
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    /// 设置节点的输出变量
-    pub fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    /// 设置列名
-    pub fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    /// 克隆节点
-    pub fn clone_plan_node(&self) -> PlanNodeEnum {
-        // 这里需要创建一个 PlanNodeEnum::BFSShortest，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
-    }
-
-    /// 克隆节点并分配新的ID
-    pub fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        // 这里需要创建一个 PlanNodeEnum::BFSShortest，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
-    }
-
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
         V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
     {
         visitor.visit_bfs_shortest(self)
+    }
+}
+
+impl SingleInputNode for BFSShortest {
+    fn input(&self) -> &PlanNodeEnum {
+        &self.deps[0]
+    }
+
+    fn set_input(&mut self, input: PlanNodeEnum) {
+        self.deps[0] = input;
     }
 }
 
@@ -347,58 +284,30 @@ impl AllPaths {
         self.cost
     }
 
-    /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> &[PlanNodeEnum] {
-        &self.deps
-    }
-
-    /// 添加依赖节点
-    pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    /// 移除依赖节点
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    /// 设置节点的输出变量
-    pub fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    /// 设置列名
-    pub fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    /// 克隆节点
-    pub fn clone_plan_node(&self) -> PlanNodeEnum {
-        // 这里需要创建一个 PlanNodeEnum::AllPaths，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
-    }
-
-    /// 克隆节点并分配新的ID
-    pub fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        // 这里需要创建一个 PlanNodeEnum::AllPaths，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
-    }
-
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
         V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
     {
         visitor.visit_all_paths(self)
+    }
+}
+
+impl BinaryInputNode for AllPaths {
+    fn left_input(&self) -> &PlanNodeEnum {
+        &self.deps[0]
+    }
+
+    fn right_input(&self) -> &PlanNodeEnum {
+        &self.deps[1]
+    }
+
+    fn set_left_input(&mut self, input: PlanNodeEnum) {
+        self.deps[0] = input;
+    }
+
+    fn set_right_input(&mut self, input: PlanNodeEnum) {
+        self.deps[1] = input;
     }
 }
 
@@ -474,57 +383,29 @@ impl ShortestPath {
         self.cost
     }
 
-    /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> &[PlanNodeEnum] {
-        &self.deps
-    }
-
-    /// 添加依赖节点
-    pub fn add_dependency(&mut self, dep: PlanNodeEnum) {
-        self.deps.push(dep);
-    }
-
-    /// 移除依赖节点
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.deps.iter().position(|dep| dep.id() == id) {
-            self.deps.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    /// 设置节点的输出变量
-    pub fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    /// 设置列名
-    pub fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    /// 克隆节点
-    pub fn clone_plan_node(&self) -> PlanNodeEnum {
-        // 这里需要创建一个 PlanNodeEnum::ShortestPath，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
-    }
-
-    /// 克隆节点并分配新的ID
-    pub fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        // 这里需要创建一个 PlanNodeEnum::ShortestPath，但需要先在 PlanNodeEnum 中添加这个变体
-        // 暂时返回一个 StartNode 作为占位符
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new())
-    }
-
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
         V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
     {
         visitor.visit_shortest_path(self)
+    }
+}
+
+impl BinaryInputNode for ShortestPath {
+    fn left_input(&self) -> &PlanNodeEnum {
+        &self.deps[0]
+    }
+
+    fn right_input(&self) -> &PlanNodeEnum {
+        &self.deps[1]
+    }
+
+    fn set_left_input(&mut self, input: PlanNodeEnum) {
+        self.deps[0] = input;
+    }
+
+    fn set_right_input(&mut self, input: PlanNodeEnum) {
+        self.deps[1] = input;
     }
 }

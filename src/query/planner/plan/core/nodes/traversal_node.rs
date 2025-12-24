@@ -128,6 +128,76 @@ impl ExpandNode {
     }
 }
 
+// 为 ExpandNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for ExpandNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Expand(self)
+    }
+}
+
+// 为 ExpandNode 实现 MultipleInputNode trait
+impl super::plan_node_traits::MultipleInputNode for ExpandNode {
+    fn inputs(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        &self.dependencies
+    }
+
+    fn add_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.dependencies.push(Box::new(input));
+    }
+
+    fn remove_input(&mut self, index: usize) -> Result<(), String> {
+        if index < self.dependencies.len() {
+            self.dependencies.remove(index);
+            Ok(())
+        } else {
+            Err(format!("索引 {} 超出范围", index))
+        }
+    }
+
+    fn input_count(&self) -> usize {
+        self.dependencies.len()
+    }
+}
+
+// 为 ExpandNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for ExpandNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
 /// 扩展全部节点
 #[derive(Debug)]
 pub struct ExpandAllNode {
@@ -253,6 +323,76 @@ impl ExpandAllNode {
         let mut cloned = self.clone();
         cloned.id = new_id;
         super::plan_node_enum::PlanNodeEnum::ExpandAll(cloned)
+    }
+}
+
+// 为 ExpandAllNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for ExpandAllNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::ExpandAll(self)
+    }
+}
+
+// 为 ExpandAllNode 实现 MultipleInputNode trait
+impl super::plan_node_traits::MultipleInputNode for ExpandAllNode {
+    fn inputs(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        &self.dependencies
+    }
+
+    fn add_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.dependencies.push(Box::new(input));
+    }
+
+    fn remove_input(&mut self, index: usize) -> Result<(), String> {
+        if index < self.dependencies.len() {
+            self.dependencies.remove(index);
+            Ok(())
+        } else {
+            Err(format!("索引 {} 超出范围", index))
+        }
+    }
+
+    fn input_count(&self) -> usize {
+        self.dependencies.len()
+    }
+}
+
+// 为 ExpandAllNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for ExpandAllNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
     }
 }
 
@@ -384,6 +524,76 @@ impl TraverseNode {
     }
 }
 
+// 为 TraverseNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for TraverseNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Traverse(self)
+    }
+}
+
+// 为 TraverseNode 实现 MultipleInputNode trait
+impl super::plan_node_traits::MultipleInputNode for TraverseNode {
+    fn inputs(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        &self.dependencies
+    }
+
+    fn add_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.dependencies.push(Box::new(input));
+    }
+
+    fn remove_input(&mut self, index: usize) -> Result<(), String> {
+        if index < self.dependencies.len() {
+            self.dependencies.remove(index);
+            Ok(())
+        } else {
+            Err(format!("索引 {} 超出范围", index))
+        }
+    }
+
+    fn input_count(&self) -> usize {
+        self.dependencies.len()
+    }
+}
+
+// 为 TraverseNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for TraverseNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
 /// 追加顶点节点
 #[derive(Debug)]
 pub struct AppendVerticesNode {
@@ -505,6 +715,76 @@ impl AppendVerticesNode {
         let mut cloned = self.clone();
         cloned.id = new_id;
         super::plan_node_enum::PlanNodeEnum::AppendVertices(cloned)
+    }
+}
+
+// 为 AppendVerticesNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for AppendVerticesNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::AppendVertices(self)
+    }
+}
+
+// 为 AppendVerticesNode 实现 MultipleInputNode trait
+impl super::plan_node_traits::MultipleInputNode for AppendVerticesNode {
+    fn inputs(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        &self.dependencies
+    }
+
+    fn add_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.dependencies.push(Box::new(input));
+    }
+
+    fn remove_input(&mut self, index: usize) -> Result<(), String> {
+        if index < self.dependencies.len() {
+            self.dependencies.remove(index);
+            Ok(())
+        } else {
+            Err(format!("索引 {} 超出范围", index))
+        }
+    }
+
+    fn input_count(&self) -> usize {
+        self.dependencies.len()
+    }
+}
+
+// 为 AppendVerticesNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for AppendVerticesNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
     }
 }
 

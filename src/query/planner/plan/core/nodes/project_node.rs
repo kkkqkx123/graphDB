@@ -119,10 +119,6 @@ impl super::plan_node_traits::PlanNode for ProjectNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        std::slice::from_ref(&self.input)
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.set_output_var(var);
     }

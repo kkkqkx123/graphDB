@@ -3,6 +3,8 @@
 //! StartNode 用于表示执行计划的起始点
 
 use crate::query::context::validate::types::Variable;
+use super::plan_node_traits::{PlanNode, ZeroInputNode, PlanNodeClonable};
+use super::plan_node_enum::PlanNodeEnum;
 
 /// 起始节点
 ///
@@ -13,7 +15,7 @@ pub struct StartNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies_vec: Vec<super::plan_node_enum::PlanNodeEnum>, // 添加依赖向量
+    dependencies_vec: Vec<PlanNodeEnum>,
 }
 
 impl StartNode {
@@ -27,50 +29,47 @@ impl StartNode {
             dependencies_vec: vec![],
         }
     }
+}
 
-    /// 获取节点ID
-    pub fn id(&self) -> i64 {
+impl PlanNode for StartNode {
+    fn id(&self) -> i64 {
         self.id
     }
 
-    /// 获取类型名称
-    pub fn type_name(&self) -> &'static str {
+    fn name(&self) -> &'static str {
         "Start"
     }
 
-    /// 获取输出变量
-    pub fn output_var(&self) -> Option<&Variable> {
+    fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
 
-    /// 获取列名
-    pub fn col_names(&self) -> &[String] {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
-    /// 获取成本
-    pub fn cost(&self) -> f64 {
+    fn cost(&self) -> f64 {
         self.cost
     }
 
-    /// 获取依赖
-    pub fn dependencies(&self) -> &[super::plan_node_enum::PlanNodeEnum] {
-        &self.dependencies_vec
-    }
-
-    /// 设置输出变量
-    pub fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
 
-    /// 设置列名
-    pub fn set_col_names(&mut self, names: Vec<String>) {
+    fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
 
-    /// 克隆节点
-    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
-        super::plan_node_enum::PlanNodeEnum::Start(Self {
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::Start(self)
+    }
+}
+
+impl ZeroInputNode for StartNode {}
+
+impl PlanNodeClonable for StartNode {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
+        PlanNodeEnum::Start(Self {
             id: self.id,
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
@@ -79,9 +78,8 @@ impl StartNode {
         })
     }
 
-    /// 使用新ID克隆节点
-    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
-        super::plan_node_enum::PlanNodeEnum::Start(Self {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
+        PlanNodeEnum::Start(Self {
             id: new_id,
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
@@ -99,8 +97,8 @@ mod tests {
     fn test_start_node_creation() {
         let start_node = StartNode::new();
 
-        assert_eq!(start_node.type_name(), "Start");
-        assert_eq!(start_node.dependencies().len(), 0);
+        assert_eq!(start_node.name(), "Start");
+        assert_eq!(start_node.input_count(), 0);
         assert_eq!(start_node.col_names().len(), 0);
     }
 
@@ -108,9 +106,30 @@ mod tests {
     fn test_start_node_mutable() {
         let mut start_node = StartNode::new();
 
-        // 测试设置属性
         start_node.set_col_names(vec!["test".to_string()]);
         assert_eq!(start_node.col_names().len(), 1);
         assert_eq!(start_node.col_names()[0], "test");
+    }
+
+    #[test]
+    fn test_start_node_traits() {
+        let start_node = StartNode::new();
+
+        assert_eq!(start_node.id(), -1);
+        assert_eq!(start_node.cost(), 0.0);
+        assert!(start_node.output_var().is_none());
+    }
+
+    #[test]
+    fn test_start_node_clone() {
+        let mut start_node = StartNode::new();
+        start_node.set_col_names(vec!["col1".to_string(), "col2".to_string()]);
+
+        let cloned = start_node.clone_plan_node();
+        assert_eq!(cloned.name(), "Start");
+        assert_eq!(cloned.col_names().len(), 2);
+
+        let cloned_with_id = start_node.clone_with_new_id(100);
+        assert_eq!(cloned_with_id.id(), 100);
     }
 }

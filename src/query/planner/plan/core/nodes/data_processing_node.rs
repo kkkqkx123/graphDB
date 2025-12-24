@@ -297,7 +297,64 @@ impl DedupNode {
     }
 }
 
-// 为 DedupNode 实现 PlanNode trait
+// 为 UnionNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for UnionNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Union(self)
+    }
+}
+
+// 为 UnionNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for UnionNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(input.clone());
+        self.deps.clear();
+        self.deps.push(Box::new(input));
+    }
+}
+
+// 为 UnionNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for UnionNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
 impl super::plan_node_traits::PlanNode for DedupNode {
     fn id(&self) -> i64 {
         self.id()
@@ -319,10 +376,6 @@ impl super::plan_node_traits::PlanNode for DedupNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        std::slice::from_ref(&self.input)
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.set_output_var(var);
     }
@@ -336,8 +389,257 @@ impl super::plan_node_traits::PlanNode for DedupNode {
     }
 }
 
+// 为 DedupNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for DedupNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(input.clone());
+        self.deps.clear();
+        self.deps.push(Box::new(input));
+    }
+}
+
 // 为 DedupNode 实现 PlanNodeClonable trait
 impl super::plan_node_traits::PlanNodeClonable for DedupNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
+// 为 UnwindNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for UnwindNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Unwind(self)
+    }
+}
+
+// 为 UnwindNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for UnwindNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(input.clone());
+        self.deps.clear();
+        self.deps.push(Box::new(input));
+    }
+}
+
+// 为 UnwindNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for UnwindNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
+// 为 RollUpApplyNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for RollUpApplyNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::RollUpApply(self)
+    }
+}
+
+// 为 RollUpApplyNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for RollUpApplyNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(input.clone());
+        self.deps.clear();
+        self.deps.push(Box::new(input));
+    }
+}
+
+// 为 RollUpApplyNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for RollUpApplyNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
+// 为 PatternApplyNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for PatternApplyNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::PatternApply(self)
+    }
+}
+
+// 为 PatternApplyNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for PatternApplyNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(input.clone());
+        self.deps.clear();
+        self.deps.push(Box::new(input));
+    }
+}
+
+// 为 PatternApplyNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for PatternApplyNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
+// 为 DataCollectNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for DataCollectNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::DataCollect(self)
+    }
+}
+
+// 为 DataCollectNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for DataCollectNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(input.clone());
+        self.deps.clear();
+        self.deps.push(Box::new(input));
+    }
+}
+
+// 为 DataCollectNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for DataCollectNode {
     fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
         self.clone_plan_node()
     }

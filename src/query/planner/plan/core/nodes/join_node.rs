@@ -140,6 +140,73 @@ impl InnerJoinNode {
     }
 }
 
+// 为 InnerJoinNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for InnerJoinNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::InnerJoin(self)
+    }
+}
+
+// 为 InnerJoinNode 实现 BinaryInputNode trait
+impl super::plan_node_traits::BinaryInputNode for InnerJoinNode {
+    fn left_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.left
+    }
+
+    fn right_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.right
+    }
+
+    fn set_left_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.left = Box::new(input);
+        self.inner_deps[0] = self.left.clone();
+    }
+
+    fn set_right_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.right = Box::new(input);
+        self.inner_deps[1] = self.right.clone();
+    }
+}
+
+// 为 InnerJoinNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for InnerJoinNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
 /// 左连接节点
 ///
 /// 根据指定的连接键对两个输入进行左连接
@@ -271,6 +338,73 @@ impl LeftJoinNode {
     }
 }
 
+// 为 LeftJoinNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for LeftJoinNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::LeftJoin(self)
+    }
+}
+
+// 为 LeftJoinNode 实现 BinaryInputNode trait
+impl super::plan_node_traits::BinaryInputNode for LeftJoinNode {
+    fn left_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.left
+    }
+
+    fn right_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.right
+    }
+
+    fn set_left_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.left = Box::new(input);
+        self.inner_deps[0] = self.left.clone();
+    }
+
+    fn set_right_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.right = Box::new(input);
+        self.inner_deps[1] = self.right.clone();
+    }
+}
+
+// 为 LeftJoinNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for LeftJoinNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
 /// 交叉连接节点
 ///
 /// 对两个输入进行笛卡尔积连接
@@ -381,6 +515,73 @@ impl CrossJoinNode {
         let mut cloned = self.clone();
         cloned.id = new_id;
         super::plan_node_enum::PlanNodeEnum::CrossJoin(cloned)
+    }
+}
+
+// 为 CrossJoinNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for CrossJoinNode {
+    fn id(&self) -> i64 {
+        self.id()
+    }
+
+    fn name(&self) -> &'static str {
+        self.type_name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        self.col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost()
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.set_output_var(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.set_col_names(names);
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::CrossJoin(self)
+    }
+}
+
+// 为 CrossJoinNode 实现 BinaryInputNode trait
+impl super::plan_node_traits::BinaryInputNode for CrossJoinNode {
+    fn left_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.left
+    }
+
+    fn right_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.right
+    }
+
+    fn set_left_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.left = Box::new(input);
+        self.inner_deps[0] = self.left.clone();
+    }
+
+    fn set_right_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.right = Box::new(input);
+        self.inner_deps[1] = self.right.clone();
+    }
+}
+
+// 为 CrossJoinNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for CrossJoinNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
     }
 }
 

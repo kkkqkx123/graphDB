@@ -20,7 +20,6 @@ pub struct GetVerticesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 GetVerticesNode 实现 Clone
@@ -38,7 +37,6 @@ impl Clone for GetVerticesNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -57,7 +55,6 @@ impl GetVerticesNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Vec::new(),
         }
     }
 
@@ -106,23 +103,6 @@ impl GetVerticesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        &self.dependencies
-    }
-
-    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies.push(Box::new(dep));
-    }
-
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
-            self.dependencies.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
     pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -164,10 +144,6 @@ impl super::plan_node_traits::PlanNode for GetVerticesNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        self.dependencies()
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.set_output_var(var);
     }
@@ -180,6 +156,8 @@ impl super::plan_node_traits::PlanNode for GetVerticesNode {
         super::plan_node_enum::PlanNodeEnum::GetVertices(self)
     }
 }
+
+impl super::plan_node_traits::ZeroInputNode for GetVerticesNode {}
 
 // 为 GetVerticesNode 实现 PlanNodeClonable trait
 impl super::plan_node_traits::PlanNodeClonable for GetVerticesNode {
@@ -213,7 +191,6 @@ pub struct GetEdgesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 GetEdgesNode 实现 Clone
@@ -234,7 +211,6 @@ impl Clone for GetEdgesNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -256,7 +232,6 @@ impl GetEdgesNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Vec::new(),
         }
     }
 
@@ -315,23 +290,6 @@ impl GetEdgesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        &self.dependencies
-    }
-
-    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies.push(Box::new(dep));
-    }
-
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
-            self.dependencies.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
     pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -373,10 +331,6 @@ impl super::plan_node_traits::PlanNode for GetEdgesNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        self.dependencies()
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.set_output_var(var);
     }
@@ -389,6 +343,8 @@ impl super::plan_node_traits::PlanNode for GetEdgesNode {
         super::plan_node_enum::PlanNodeEnum::GetEdges(self)
     }
 }
+
+impl super::plan_node_traits::ZeroInputNode for GetEdgesNode {}
 
 // 为 GetEdgesNode 实现 PlanNodeClonable trait
 impl super::plan_node_traits::PlanNodeClonable for GetEdgesNode {
@@ -423,7 +379,6 @@ pub struct GetNeighborsNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 GetNeighborsNode 实现 Clone
@@ -442,7 +397,6 @@ impl Clone for GetNeighborsNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -462,7 +416,6 @@ impl GetNeighborsNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Vec::new(),
         }
     }
 
@@ -494,23 +447,6 @@ impl GetNeighborsNode {
 
     pub fn cost(&self) -> f64 {
         self.cost
-    }
-
-    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        &self.dependencies
-    }
-
-    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies.push(Box::new(dep));
-    }
-
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
-            self.dependencies.remove(pos);
-            true
-        } else {
-            false
-        }
     }
 
     pub fn set_output_var(&mut self, var: Variable) {
@@ -554,10 +490,6 @@ impl super::plan_node_traits::PlanNode for GetNeighborsNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        self.dependencies()
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.set_output_var(var);
     }
@@ -570,6 +502,8 @@ impl super::plan_node_traits::PlanNode for GetNeighborsNode {
         super::plan_node_enum::PlanNodeEnum::GetNeighbors(self)
     }
 }
+
+impl super::plan_node_traits::ZeroInputNode for GetNeighborsNode {}
 
 // 为 GetNeighborsNode 实现 PlanNodeClonable trait
 impl super::plan_node_traits::PlanNodeClonable for GetNeighborsNode {
@@ -593,7 +527,6 @@ pub struct ScanVerticesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 ScanVerticesNode 实现 Clone
@@ -608,7 +541,6 @@ impl Clone for ScanVerticesNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -624,7 +556,6 @@ impl ScanVerticesNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Vec::new(),
         }
     }
 
@@ -678,23 +609,6 @@ impl ScanVerticesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        &self.dependencies
-    }
-
-    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies.push(Box::new(dep));
-    }
-
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
-            self.dependencies.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
     pub fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
@@ -736,10 +650,6 @@ impl super::plan_node_traits::PlanNode for ScanVerticesNode {
         self.cost()
     }
 
-    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        self.dependencies()
-    }
-
     fn set_output_var(&mut self, var: Variable) {
         self.set_output_var(var);
     }
@@ -752,6 +662,8 @@ impl super::plan_node_traits::PlanNode for ScanVerticesNode {
         super::plan_node_enum::PlanNodeEnum::ScanVertices(self)
     }
 }
+
+impl super::plan_node_traits::ZeroInputNode for ScanVerticesNode {}
 
 // 为 ScanVerticesNode 实现 PlanNodeClonable trait
 impl super::plan_node_traits::PlanNodeClonable for ScanVerticesNode {
@@ -920,10 +832,6 @@ impl super::plan_node_traits::PlanNode for ScanEdgesNode {
 
     fn cost(&self) -> f64 {
         self.cost()
-    }
-
-    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        self.dependencies()
     }
 
     fn set_output_var(&mut self, var: Variable) {
