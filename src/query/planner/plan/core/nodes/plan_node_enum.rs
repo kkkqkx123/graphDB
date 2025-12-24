@@ -20,44 +20,6 @@ use super::sort_node::{LimitNode, SortNode, TopNNode};
 use super::start_node::StartNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
 
-// 导入管理节点类型
-use crate::query::planner::plan::management::admin::config_ops::{
-    GetConfig, SetConfig, ShowConfigs,
-};
-use crate::query::planner::plan::management::admin::host_ops::{
-    AddHosts, DropHosts, ShowHosts, ShowHostsStatus,
-};
-use crate::query::planner::plan::management::admin::index_ops::{
-    CreateIndex, DescIndex, DropIndex, ShowIndexes,
-};
-use crate::query::planner::plan::management::admin::system_ops::{
-    CreateSnapshot, DropSnapshot, ShowSnapshots, SubmitJob,
-};
-use crate::query::planner::plan::management::ddl::edge_ops::{
-    CreateEdge, DropEdge, ShowCreateEdge, ShowEdges,
-};
-use crate::query::planner::plan::management::ddl::space_ops::{
-    AlterSpace, ClearSpace, CreateSpace, DescSpace, DropSpace, ShowCreateSpace, ShowSpaces,
-    SwitchSpace,
-};
-use crate::query::planner::plan::management::ddl::tag_ops::{
-    CreateTag, DescTag, DropTag, ShowCreateTag, ShowTags,
-};
-use crate::query::planner::plan::management::dml::data_constructors::{
-    NewEdge, NewProp, NewTag, NewVertex,
-};
-use crate::query::planner::plan::management::dml::delete_ops::{
-    DeleteEdges, DeleteTags, DeleteVertices,
-};
-use crate::query::planner::plan::management::dml::insert_ops::{InsertEdges, InsertVertices};
-use crate::query::planner::plan::management::dml::update_ops::{UpdateEdge, UpdateVertex};
-use crate::query::planner::plan::management::security::role_ops::{
-    CreateRole, DropRole, GrantRole, RevokeRole, ShowRoles,
-};
-use crate::query::planner::plan::management::security::user_ops::{
-    ChangePassword, CreateUser, DescribeUser, DropUser, ListUserRoles, ListUsers, UpdateUser,
-};
-
 /// PlanNode 枚举，包含所有可能的节点类型
 ///
 /// 这个枚举避免了动态分发的性能开销
@@ -129,82 +91,6 @@ pub enum PlanNodeEnum {
     Union(UnionNode),
     /// 展开节点
     Unwind(UnwindNode),
-
-    // 管理节点类型
-    /// 用户管理节点
-    CreateUser(CreateUser),
-    DropUser(DropUser),
-    UpdateUser(UpdateUser),
-    ChangePassword(ChangePassword),
-    ListUsers(ListUsers),
-    ListUserRoles(ListUserRoles),
-    DescribeUser(DescribeUser),
-
-    /// 角色管理节点
-    CreateRole(CreateRole),
-    DropRole(DropRole),
-    GrantRole(GrantRole),
-    RevokeRole(RevokeRole),
-    ShowRoles(ShowRoles),
-
-    /// DML操作节点
-    UpdateVertex(UpdateVertex),
-    UpdateEdge(UpdateEdge),
-    InsertVertices(InsertVertices),
-    InsertEdges(InsertEdges),
-    DeleteVertices(DeleteVertices),
-    DeleteTags(DeleteTags),
-    DeleteEdges(DeleteEdges),
-    NewVertex(NewVertex),
-    NewTag(NewTag),
-    NewProp(NewProp),
-    NewEdge(NewEdge),
-
-    /// DDL操作节点 - 标签
-    CreateTag(CreateTag),
-    DescTag(DescTag),
-    DropTag(DropTag),
-    ShowTags(ShowTags),
-    ShowCreateTag(ShowCreateTag),
-
-    /// DDL操作节点 - 空间
-    CreateSpace(CreateSpace),
-    DescSpace(DescSpace),
-    ShowCreateSpace(ShowCreateSpace),
-    ShowSpaces(ShowSpaces),
-    SwitchSpace(SwitchSpace),
-    DropSpace(DropSpace),
-    ClearSpace(ClearSpace),
-    AlterSpace(AlterSpace),
-
-    /// DDL操作节点 - 边
-    CreateEdge(CreateEdge),
-    DropEdge(DropEdge),
-    ShowEdges(ShowEdges),
-    ShowCreateEdge(ShowCreateEdge),
-
-    /// 系统管理节点
-    SubmitJob(SubmitJob),
-    CreateSnapshot(CreateSnapshot),
-    DropSnapshot(DropSnapshot),
-    ShowSnapshots(ShowSnapshots),
-
-    /// 索引管理节点
-    CreateIndex(CreateIndex),
-    DropIndex(DropIndex),
-    ShowIndexes(ShowIndexes),
-    DescIndex(DescIndex),
-
-    /// 主机管理节点
-    AddHosts(AddHosts),
-    DropHosts(DropHosts),
-    ShowHosts(ShowHosts),
-    ShowHostsStatus(ShowHostsStatus),
-
-    /// 配置管理节点
-    ShowConfigs(ShowConfigs),
-    SetConfig(SetConfig),
-    GetConfig(GetConfig),
 }
 
 impl PlanNodeEnum {
@@ -328,62 +214,6 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(_) => "RollUpApply",
             PlanNodeEnum::Union(_) => "Union",
             PlanNodeEnum::Unwind(_) => "Unwind",
-            // 管理节点类型
-            PlanNodeEnum::CreateUser(_) => "CreateUser",
-            PlanNodeEnum::DropUser(_) => "DropUser",
-            PlanNodeEnum::UpdateUser(_) => "UpdateUser",
-            PlanNodeEnum::ChangePassword(_) => "ChangePassword",
-            PlanNodeEnum::ListUsers(_) => "ListUsers",
-            PlanNodeEnum::ListUserRoles(_) => "ListUserRoles",
-            PlanNodeEnum::DescribeUser(_) => "DescribeUser",
-            PlanNodeEnum::CreateRole(_) => "CreateRole",
-            PlanNodeEnum::DropRole(_) => "DropRole",
-            PlanNodeEnum::GrantRole(_) => "GrantRole",
-            PlanNodeEnum::RevokeRole(_) => "RevokeRole",
-            PlanNodeEnum::ShowRoles(_) => "ShowRoles",
-            PlanNodeEnum::UpdateVertex(_) => "UpdateVertex",
-            PlanNodeEnum::UpdateEdge(_) => "UpdateEdge",
-            PlanNodeEnum::InsertVertices(_) => "InsertVertices",
-            PlanNodeEnum::InsertEdges(_) => "InsertEdges",
-            PlanNodeEnum::DeleteVertices(_) => "DeleteVertices",
-            PlanNodeEnum::DeleteTags(_) => "DeleteTags",
-            PlanNodeEnum::DeleteEdges(_) => "DeleteEdges",
-            PlanNodeEnum::NewVertex(_) => "NewVertex",
-            PlanNodeEnum::NewTag(_) => "NewTag",
-            PlanNodeEnum::NewProp(_) => "NewProp",
-            PlanNodeEnum::NewEdge(_) => "NewEdge",
-            PlanNodeEnum::CreateTag(_) => "CreateTag",
-            PlanNodeEnum::DescTag(_) => "DescTag",
-            PlanNodeEnum::DropTag(_) => "DropTag",
-            PlanNodeEnum::ShowTags(_) => "ShowTags",
-            PlanNodeEnum::ShowCreateTag(_) => "ShowCreateTag",
-            PlanNodeEnum::CreateSpace(_) => "CreateSpace",
-            PlanNodeEnum::DescSpace(_) => "DescSpace",
-            PlanNodeEnum::ShowCreateSpace(_) => "ShowCreateSpace",
-            PlanNodeEnum::ShowSpaces(_) => "ShowSpaces",
-            PlanNodeEnum::SwitchSpace(_) => "SwitchSpace",
-            PlanNodeEnum::DropSpace(_) => "DropSpace",
-            PlanNodeEnum::ClearSpace(_) => "ClearSpace",
-            PlanNodeEnum::AlterSpace(_) => "AlterSpace",
-            PlanNodeEnum::CreateEdge(_) => "CreateEdge",
-            PlanNodeEnum::DropEdge(_) => "DropEdge",
-            PlanNodeEnum::ShowEdges(_) => "ShowEdges",
-            PlanNodeEnum::ShowCreateEdge(_) => "ShowCreateEdge",
-            PlanNodeEnum::SubmitJob(_) => "SubmitJob",
-            PlanNodeEnum::CreateSnapshot(_) => "CreateSnapshot",
-            PlanNodeEnum::DropSnapshot(_) => "DropSnapshot",
-            PlanNodeEnum::ShowSnapshots(_) => "ShowSnapshots",
-            PlanNodeEnum::CreateIndex(_) => "CreateIndex",
-            PlanNodeEnum::DropIndex(_) => "DropIndex",
-            PlanNodeEnum::ShowIndexes(_) => "ShowIndexes",
-            PlanNodeEnum::DescIndex(_) => "DescIndex",
-            PlanNodeEnum::AddHosts(_) => "AddHosts",
-            PlanNodeEnum::DropHosts(_) => "DropHosts",
-            PlanNodeEnum::ShowHosts(_) => "ShowHosts",
-            PlanNodeEnum::ShowHostsStatus(_) => "ShowHostsStatus",
-            PlanNodeEnum::ShowConfigs(_) => "ShowConfigs",
-            PlanNodeEnum::SetConfig(_) => "SetConfig",
-            PlanNodeEnum::GetConfig(_) => "GetConfig",
         }
     }
 

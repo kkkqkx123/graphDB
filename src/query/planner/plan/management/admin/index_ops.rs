@@ -1,12 +1,14 @@
 //! 索引操作相关的计划节点
 //! 包括创建/删除索引等操作
 
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::management_node_traits::{ManagementNode, ManagementNodeEnum};
 use std::sync::Arc;
 
 /// 创建索引计划节点
 #[derive(Debug, Clone)]
 pub struct CreateIndex {
+    pub id: i64,
+    pub cost: f64,
     pub if_not_exists: bool,
     pub index_name: String,
     pub schema_name: String, // 标签或边的名称
@@ -15,12 +17,16 @@ pub struct CreateIndex {
 
 impl CreateIndex {
     pub fn new(
+        id: i64,
+        cost: f64,
         if_not_exists: bool,
         index_name: &str,
         schema_name: &str,
         fields: Vec<String>,
     ) -> Self {
         Self {
+            id,
+            cost,
             if_not_exists,
             index_name: index_name.to_string(),
             schema_name: schema_name.to_string(),
@@ -45,22 +51,38 @@ impl CreateIndex {
     }
 }
 
-impl From<CreateIndex> for PlanNodeEnum {
-    fn from(index: CreateIndex) -> Self {
-        PlanNodeEnum::CreateIndex(index)
+impl ManagementNode for CreateIndex {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "CreateIndex"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::CreateIndex(self)
     }
 }
 
 /// 删除索引计划节点
 #[derive(Debug, Clone)]
 pub struct DropIndex {
+    pub id: i64,
+    pub cost: f64,
     pub if_exists: bool,
     pub index_name: String,
 }
 
 impl DropIndex {
-    pub fn new(if_exists: bool, index_name: &str) -> Self {
+    pub fn new(id: i64, cost: f64, if_exists: bool, index_name: &str) -> Self {
         Self {
+            id,
+            cost,
             if_exists,
             index_name: index_name.to_string(),
         }
@@ -75,21 +97,35 @@ impl DropIndex {
     }
 }
 
-impl From<DropIndex> for PlanNodeEnum {
-    fn from(index: DropIndex) -> Self {
-        PlanNodeEnum::DropIndex(index)
+impl ManagementNode for DropIndex {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "DropIndex"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::DropIndex(self)
     }
 }
 
 /// 显示索引计划节点
 #[derive(Debug, Clone)]
 pub struct ShowIndexes {
+    pub id: i64,
+    pub cost: f64,
     pub schema_name: Option<String>, // 可选的标签或边名称
 }
 
 impl ShowIndexes {
-    pub fn new(schema_name: Option<String>) -> Self {
-        Self { schema_name }
+    pub fn new(id: i64, cost: f64, schema_name: Option<String>) -> Self {
+        Self { id, cost, schema_name }
     }
 
     pub fn schema_name(&self) -> Option<&str> {
@@ -97,21 +133,37 @@ impl ShowIndexes {
     }
 }
 
-impl From<ShowIndexes> for PlanNodeEnum {
-    fn from(indexes: ShowIndexes) -> Self {
-        PlanNodeEnum::ShowIndexes(indexes)
+impl ManagementNode for ShowIndexes {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "ShowIndexes"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::ShowIndexes(self)
     }
 }
 
 /// 描述索引计划节点
 #[derive(Debug, Clone)]
 pub struct DescIndex {
+    pub id: i64,
+    pub cost: f64,
     pub index_name: String,
 }
 
 impl DescIndex {
-    pub fn new(index_name: &str) -> Self {
+    pub fn new(id: i64, cost: f64, index_name: &str) -> Self {
         Self {
+            id,
+            cost,
             index_name: index_name.to_string(),
         }
     }
@@ -121,8 +173,20 @@ impl DescIndex {
     }
 }
 
-impl From<DescIndex> for PlanNodeEnum {
-    fn from(index: DescIndex) -> Self {
-        PlanNodeEnum::DescIndex(index)
+impl ManagementNode for DescIndex {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "DescIndex"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::DescIndex(self)
     }
 }

@@ -1,7 +1,7 @@
 //! 主机操作相关的计划节点
 //! 包括添加/删除主机等操作
 
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::management_node_traits::{ManagementNode, ManagementNodeEnum};
 use std::sync::Arc;
 
 // 主机信息结构
@@ -17,12 +17,14 @@ pub struct HostInfo {
 /// 添加主机计划节点
 #[derive(Debug, Clone)]
 pub struct AddHosts {
+    pub id: i64,
+    pub cost: f64,
     pub hosts: Vec<HostInfo>,
 }
 
 impl AddHosts {
-    pub fn new(hosts: Vec<HostInfo>) -> Self {
-        Self { hosts }
+    pub fn new(id: i64, cost: f64, hosts: Vec<HostInfo>) -> Self {
+        Self { id, cost, hosts }
     }
 
     pub fn hosts(&self) -> &[HostInfo] {
@@ -30,21 +32,35 @@ impl AddHosts {
     }
 }
 
-impl From<AddHosts> for PlanNodeEnum {
-    fn from(hosts: AddHosts) -> Self {
-        PlanNodeEnum::AddHosts(hosts)
+impl ManagementNode for AddHosts {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "AddHosts"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::AddHosts(self)
     }
 }
 
 /// 删除主机计划节点
 #[derive(Debug, Clone)]
 pub struct DropHosts {
+    pub id: i64,
+    pub cost: f64,
     pub hosts: Vec<HostInfo>,
 }
 
 impl DropHosts {
-    pub fn new(hosts: Vec<HostInfo>) -> Self {
-        Self { hosts }
+    pub fn new(id: i64, cost: f64, hosts: Vec<HostInfo>) -> Self {
+        Self { id, cost, hosts }
     }
 
     pub fn hosts(&self) -> &[HostInfo] {
@@ -52,40 +68,82 @@ impl DropHosts {
     }
 }
 
-impl From<DropHosts> for PlanNodeEnum {
-    fn from(hosts: DropHosts) -> Self {
-        PlanNodeEnum::DropHosts(hosts)
+impl ManagementNode for DropHosts {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "DropHosts"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::DropHosts(self)
     }
 }
 
 /// 显示主机计划节点
 #[derive(Debug, Clone)]
-pub struct ShowHosts;
+pub struct ShowHosts {
+    pub id: i64,
+    pub cost: f64,
+}
 
 impl ShowHosts {
-    pub fn new() -> Self {
-        Self
+    pub fn new(id: i64, cost: f64) -> Self {
+        Self { id, cost }
     }
 }
 
-impl From<ShowHosts> for PlanNodeEnum {
-    fn from(hosts: ShowHosts) -> Self {
-        PlanNodeEnum::ShowHosts(hosts)
+impl ManagementNode for ShowHosts {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "ShowHosts"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::ShowHosts(self)
     }
 }
 
 /// 显示主机状态计划节点
 #[derive(Debug, Clone)]
-pub struct ShowHostsStatus;
+pub struct ShowHostsStatus {
+    pub id: i64,
+    pub cost: f64,
+}
 
 impl ShowHostsStatus {
-    pub fn new() -> Self {
-        Self
+    pub fn new(id: i64, cost: f64) -> Self {
+        Self { id, cost }
     }
 }
 
-impl From<ShowHostsStatus> for PlanNodeEnum {
-    fn from(status: ShowHostsStatus) -> Self {
-        PlanNodeEnum::ShowHostsStatus(status)
+impl ManagementNode for ShowHostsStatus {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "ShowHostsStatus"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::ShowHostsStatus(self)
     }
 }

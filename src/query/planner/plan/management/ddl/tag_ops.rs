@@ -2,20 +2,25 @@
 //! 包括创建/删除标签等操作
 
 use super::space_ops::Schema;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNodeEnum;
+use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
 use std::sync::Arc;
 
 /// 创建标签计划节点
 #[derive(Debug, Clone)]
 pub struct CreateTag {
+    pub id: i64,
+    pub cost: f64,
     pub name: String,
     pub schema: Schema,
     pub if_not_exists: bool,
 }
 
 impl CreateTag {
-    pub fn new(name: &str, schema: Schema, if_not_exists: bool) -> Self {
+    pub fn new(id: i64, cost: f64, name: &str, schema: Schema, if_not_exists: bool) -> Self {
         Self {
+            id,
+            cost,
             name: name.to_string(),
             schema,
             if_not_exists,
@@ -35,21 +40,37 @@ impl CreateTag {
     }
 }
 
-impl From<CreateTag> for PlanNodeEnum {
-    fn from(tag: CreateTag) -> Self {
-        PlanNodeEnum::CreateTag(tag)
+impl ManagementNode for CreateTag {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "CreateTag"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::CreateTag(self)
     }
 }
 
 /// 描述标签计划节点
 #[derive(Debug, Clone)]
 pub struct DescTag {
+    pub id: i64,
+    pub cost: f64,
     pub tag_name: String,
 }
 
 impl DescTag {
-    pub fn new(tag_name: &str) -> Self {
+    pub fn new(id: i64, cost: f64, tag_name: &str) -> Self {
         Self {
+            id,
+            cost,
             tag_name: tag_name.to_string(),
         }
     }
@@ -59,22 +80,38 @@ impl DescTag {
     }
 }
 
-impl From<DescTag> for PlanNodeEnum {
-    fn from(tag: DescTag) -> Self {
-        PlanNodeEnum::DescTag(tag)
+impl ManagementNode for DescTag {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "DescTag"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::DescTag(self)
     }
 }
 
 /// 删除标签计划节点
 #[derive(Debug, Clone)]
 pub struct DropTag {
+    pub id: i64,
+    pub cost: f64,
     pub if_exists: bool,
     pub tag_name: String,
 }
 
 impl DropTag {
-    pub fn new(if_exists: bool, tag_name: &str) -> Self {
+    pub fn new(id: i64, cost: f64, if_exists: bool, tag_name: &str) -> Self {
         Self {
+            id,
+            cost,
             if_exists,
             tag_name: tag_name.to_string(),
         }
@@ -89,37 +126,68 @@ impl DropTag {
     }
 }
 
-impl From<DropTag> for PlanNodeEnum {
-    fn from(tag: DropTag) -> Self {
-        PlanNodeEnum::DropTag(tag)
+impl ManagementNode for DropTag {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "DropTag"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::DropTag(self)
     }
 }
 
 /// 显示标签列表计划节点
 #[derive(Debug, Clone)]
-pub struct ShowTags;
+pub struct ShowTags {
+    pub id: i64,
+    pub cost: f64,
+}
 
 impl ShowTags {
-    pub fn new() -> Self {
-        Self
+    pub fn new(id: i64, cost: f64) -> Self {
+        Self { id, cost }
     }
 }
 
-impl From<ShowTags> for PlanNodeEnum {
-    fn from(tags: ShowTags) -> Self {
-        PlanNodeEnum::ShowTags(tags)
+impl ManagementNode for ShowTags {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "ShowTags"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::ShowTags(self)
     }
 }
 
 /// 显示创建标签计划节点
 #[derive(Debug, Clone)]
 pub struct ShowCreateTag {
+    pub id: i64,
+    pub cost: f64,
     pub tag_name: String,
 }
 
 impl ShowCreateTag {
-    pub fn new(tag_name: &str) -> Self {
+    pub fn new(id: i64, cost: f64, tag_name: &str) -> Self {
         Self {
+            id,
+            cost,
             tag_name: tag_name.to_string(),
         }
     }
@@ -129,8 +197,20 @@ impl ShowCreateTag {
     }
 }
 
-impl From<ShowCreateTag> for PlanNodeEnum {
-    fn from(tag: ShowCreateTag) -> Self {
-        PlanNodeEnum::ShowCreateTag(tag)
+impl ManagementNode for ShowCreateTag {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "ShowCreateTag"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::ShowCreateTag(self)
     }
 }

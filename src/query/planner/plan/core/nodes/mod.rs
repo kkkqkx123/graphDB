@@ -5,6 +5,8 @@ pub mod factory;
 pub mod filter_node;
 pub mod graph_scan_node;
 pub mod join_node;
+pub mod management_node_enum;
+pub mod management_node_traits;
 pub mod plan_node_enum;
 pub mod plan_node_operations;
 pub mod plan_node_traits;
@@ -24,6 +26,8 @@ pub use graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
 pub use join_node::{CrossJoinNode, InnerJoinNode, LeftJoinNode};
+pub use management_node_enum::ManagementNodeEnum;
+pub use management_node_traits::*;
 pub use plan_node_enum::PlanNodeEnum;
 pub use plan_node_operations::*;
 pub use plan_node_traits::*;
