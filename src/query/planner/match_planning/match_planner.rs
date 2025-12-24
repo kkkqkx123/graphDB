@@ -120,7 +120,7 @@ impl Planner for MatchPlanner {
 
         // 验证查询的数据流 - 使用新的 DataFlowManager
         let clause_planner_refs: Vec<&dyn CypherClausePlanner> =
-            clause_planners.iter().map(|p| p).collect();
+            clause_planners.iter().map(|p| p.as_ref()).collect();
         DataFlowManager::validate_clause_sequence(&clause_planner_refs)?;
 
         // 创建上下文传播器
@@ -134,7 +134,7 @@ impl Planner for MatchPlanner {
             let _clause_context =
                 context_propagator.propagate_to_clause(&context, planner.clause_type());
 
-            let input_plan = current_plan;
+            let input_plan = current_plan.as_ref();
             let plan = planner.transform(&clauses[i], input_plan, &mut context)?;
             current_plan = Some(plan);
         }

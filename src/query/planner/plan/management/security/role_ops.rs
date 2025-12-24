@@ -90,7 +90,7 @@ impl GrantRole {
 
 impl From<GrantRole> for PlanNodeEnum {
     fn from(role: GrantRole) -> Self {
-        PlanNodeEnum::GrantRole(Arc::new(role))
+        PlanNodeEnum::GrantRole(role)
     }
 }
 
@@ -120,7 +120,7 @@ impl RevokeRole {
 
 impl From<RevokeRole> for PlanNodeEnum {
     fn from(role: RevokeRole) -> Self {
-        PlanNodeEnum::RevokeRole(Arc::new(role))
+        PlanNodeEnum::RevokeRole(role)
     }
 }
 

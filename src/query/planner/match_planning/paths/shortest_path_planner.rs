@@ -5,6 +5,7 @@
 use crate::core::ValueTypeDef;
 
 use crate::query::planner::plan::factory::PlanNodeFactory;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::{MatchClauseContext, Path, PathType, WhereClauseContext};
@@ -155,8 +156,8 @@ impl ShortestPathPlanner {
     /// 创建最短路径节点 - 对照 nebula-graph 实现
     fn create_shortest_path_node(
         &self,
-        shortest_path_node: std::sync::Arc<dyn crate::query::planner::plan::core::PlanNode>,
-    ) -> Result<std::sync::Arc<dyn crate::query::planner::plan::core::PlanNode>, PlannerError> {
+        shortest_path_node: PlanNodeEnum,
+    ) -> Result<PlanNodeEnum, PlannerError> {
         let _edge_info = &self.path.edge_infos[0];
 
         // 根据路径类型创建不同的最短路径节点

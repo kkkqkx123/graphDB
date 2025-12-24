@@ -228,7 +228,7 @@ fn create_unwind_node(
         PlannerError::PlanGenerationFailed("UNWIND clause requires input plan".to_string())
     })?;
 
-    let list_expr_str = ctx.unwind_expr.to_string();
+    let list_expr_str = serialize_expression(&ctx.unwind_expr);
     let unwind_node = UnwindNode::new(input_root, &ctx.alias, &list_expr_str)?;
 
     // 设置 UNWIND 节点的属性

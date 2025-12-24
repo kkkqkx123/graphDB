@@ -91,7 +91,7 @@ impl DropTag {
 
 impl From<DropTag> for PlanNodeEnum {
     fn from(tag: DropTag) -> Self {
-        PlanNodeEnum::DropTag(Arc::new(tag))
+        PlanNodeEnum::DropTag(tag)
     }
 }
 

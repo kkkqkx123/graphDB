@@ -7,6 +7,7 @@ use super::rule_traits::{combine_conditions, BaseOptRule, FilterSplitResult};
 use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::algorithms::IndexScan;
+use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 use std::sync::Arc;
 
@@ -77,9 +78,6 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                                         split_result.remaining_condition
                                     {
                                         let new_filter_node = filter_node.clone();
-                                        // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
-                                        // 这里简化处理，直接返回原节点
-
                                         let mut new_filter_opt_node = dep_node.clone();
                                         new_filter_opt_node.plan_node = PlanNodeEnum::Filter(new_filter_node);
                                         new_filter_opt_node.dependencies =

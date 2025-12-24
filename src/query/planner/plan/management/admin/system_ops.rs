@@ -40,7 +40,7 @@ impl SubmitJob {
 
 impl From<SubmitJob> for PlanNodeEnum {
     fn from(job: SubmitJob) -> Self {
-        PlanNodeEnum::SubmitJob(Arc::new(job))
+        PlanNodeEnum::SubmitJob(job)
     }
 }
 

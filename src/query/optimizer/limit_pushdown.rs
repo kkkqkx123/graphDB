@@ -5,7 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 use std::sync::Arc;
 // 注释掉不存在的导入
@@ -755,7 +755,7 @@ impl PushDownRule for PushLimitDownProjectRule {
 
                 // 创建新的组节点
                 let mut new_node = child.clone();
-                new_node.plan_node = Arc::new(new_project);
+                new_node.plan_node = PlanNodeEnum::Project(new_project);
 
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();

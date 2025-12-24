@@ -99,7 +99,7 @@ impl ShowIndexes {
 
 impl From<ShowIndexes> for PlanNodeEnum {
     fn from(indexes: ShowIndexes) -> Self {
-        PlanNodeEnum::ShowIndexes(Arc::new(indexes))
+        PlanNodeEnum::ShowIndexes(indexes)
     }
 }
 

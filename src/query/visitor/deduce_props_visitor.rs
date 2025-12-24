@@ -462,7 +462,7 @@ impl ExpressionVisitor for DeducePropsVisitor {
     fn visit_case(
         &mut self,
         conditions: &[(Expression, Expression)],
-        default: &Option<Expression>,
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
         for (condition, value) in conditions {
             condition.accept(self)?;
@@ -492,8 +492,8 @@ impl ExpressionVisitor for DeducePropsVisitor {
     fn visit_range(
         &mut self,
         collection: &Expression,
-        start: &Option<Expression>,
-        end: &Option<Expression>,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         collection.accept(self)?;
         if let Some(start_expr) = start {

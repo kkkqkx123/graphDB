@@ -4,7 +4,7 @@
 use super::optimizer::{OptContext, OptGroupNode, OptRule, OptimizerError, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 /// 转换Limit-Sort为TopN的规则
 #[derive(Debug)]
@@ -53,7 +53,7 @@ impl OptRule for TopNRule {
                                 topn_node.set_output_var(output_var.clone());
                             }
 
-                            new_node.plan_node = std::sync::Arc::new(PlanNodeEnum::TopN(topn_node));
+                            new_node.plan_node = PlanNodeEnum::TopN(topn_node);
 
                             // 保持原始Sort节点的依赖（即TopN的输入）
                             if !child_node.dependencies.is_empty() {

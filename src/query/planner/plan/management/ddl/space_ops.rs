@@ -61,7 +61,7 @@ impl CreateSpace {
 
 impl From<CreateSpace> for PlanNodeEnum {
     fn from(space: CreateSpace) -> Self {
-        PlanNodeEnum::CreateSpace(Arc::new(space))
+        PlanNodeEnum::CreateSpace(space)
     }
 }
 

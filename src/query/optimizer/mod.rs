@@ -18,6 +18,7 @@ pub mod scan_optimization;
 pub mod transformation_rules;
 
 // Re-export all rule structs for convenient access
+pub use rule_traits::{BaseOptRule, EliminationRule, MergeRule, PushDownRule};
 pub use elimination_rules::{
     DedupEliminationRule, EliminateAppendVerticesRule, EliminateFilterRule,
     RemoveAppendVerticesBelowJoinRule, RemoveNoopProjectRule,

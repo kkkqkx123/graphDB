@@ -2,7 +2,7 @@
 //! 处理Nebula GO查询的规划
 
 use crate::query::context::ast::{AstContext, GoContext};
-use crate::query::planner::plan::core::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::PlanNodeEnum;
 use crate::query::planner::plan::core::{
     ArgumentNode, DedupNode, ExpandAllNode, ExpandNode, FilterNode, InnerJoinNode, ProjectNode,
 };
@@ -119,7 +119,7 @@ impl Planner for GoPlanner {
             PlanNodeEnum::ExpandAll(expand_all_node)
         };
 
-        let project_node_enum = match ProjectNode::new(last_node, yield_columns) {
+        let project_node_enum = match ProjectNode::new(last_node, yield_columns.clone()) {
             Ok(project) => PlanNodeEnum::Project(project),
             Err(_) => {
                 let fallback_project = ProjectNode::new(
@@ -127,7 +127,7 @@ impl Planner for GoPlanner {
                         1,
                         &go_ctx.from.user_defined_var_name,
                     )),
-                    yield_columns,
+                    yield_columns.clone(),
                 )
                 .expect("Fallback ProjectNode creation should succeed");
                 PlanNodeEnum::Project(fallback_project)

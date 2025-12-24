@@ -92,7 +92,7 @@ impl Planner for FetchVerticesPlanner {
 
         // 4. 如果需要去重，创建去重节点
         let final_node: PlanNodeEnum = if fetch_ctx.distinct {
-            let dedup_node = DedupNode::new(project_node_enum.clone())?;
+            let mut dedup_node = DedupNode::new(project_node_enum.clone())?;
             dedup_node.set_output_var(Variable {
                 name: "dedup_result".to_string(),
                 columns: vec![],
@@ -103,7 +103,7 @@ impl Planner for FetchVerticesPlanner {
         };
 
         // 创建SubPlan
-        let sub_plan = SubPlan::new(Some(final_node), Some(arg_node));
+        let sub_plan = SubPlan::new(Some(final_node), Some(arg_node_enum));
 
         Ok(sub_plan)
     }

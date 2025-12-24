@@ -222,7 +222,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for FilterExecutor<S>
     }
 
     fn get_input(&self) -> Option<&ExecutionResult> {
-        self.base.input
+        self.base.input.as_ref()
     }
 
     fn context(&self) -> &ResultProcessorContext {
@@ -308,7 +308,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for FilterExecutor<S> {
     }
 
     fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor
+        self.input_executor.as_ref()
     }
 }
 

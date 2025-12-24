@@ -266,7 +266,7 @@ pub trait ExpressionVisitor: VisitorCore<crate::core::Expression> {
     fn visit_case(
         &mut self,
         conditions: &[(crate::core::Expression, crate::core::Expression)],
-        default: &Option<crate::core::Expression>,
+        default: &Option<Box<crate::core::Expression>>,
     ) -> Self::Result;
     fn visit_type_cast(
         &mut self,
@@ -281,8 +281,8 @@ pub trait ExpressionVisitor: VisitorCore<crate::core::Expression> {
     fn visit_range(
         &mut self,
         collection: &crate::core::Expression,
-        start: &Option<crate::core::Expression>,
-        end: &Option<crate::core::Expression>,
+        start: &Option<Box<crate::core::Expression>>,
+        end: &Option<Box<crate::core::Expression>>,
     ) -> Self::Result;
     fn visit_path(&mut self, items: &[crate::core::Expression]) -> Self::Result;
     fn visit_label(&mut self, name: &str) -> Self::Result;
@@ -322,8 +322,7 @@ impl ExpressionAcceptor for crate::core::Expression {
                 conditions,
                 default,
             } => {
-                let default_cloned = default.as_ref().map(|b| b.as_ref().clone());
-                visitor.visit_case(conditions, &default_cloned)
+                visitor.visit_case(conditions, default)
             }
             Expression::TypeCast { expr, target_type } => {
                 visitor.visit_type_cast(expr, target_type)
@@ -336,9 +335,7 @@ impl ExpressionAcceptor for crate::core::Expression {
                 start,
                 end,
             } => {
-                let start_cloned = start.as_ref().map(|b| b.as_ref().clone());
-                let end_cloned = end.as_ref().map(|b| b.as_ref().clone());
-                visitor.visit_range(collection, &start_cloned, &end_cloned)
+                visitor.visit_range(collection, start, end)
             }
             Expression::Path(items) => visitor.visit_path(items),
             Expression::Label(name) => visitor.visit_label(name),
@@ -391,8 +388,8 @@ impl ExpressionAcceptor for crate::core::Expression {
             } => {
                 // 简化为函数调用
                 let cond_expr = condition
-                    .as_ref()
-                    .map(|c| c.as_ref().clone())
+                    .as_deref()
+                    .cloned()
                     .unwrap_or_else(|| crate::core::Expression::bool(true));
                 visitor.visit_function(
                     "list_comprehension",
@@ -401,7 +398,7 @@ impl ExpressionAcceptor for crate::core::Expression {
             }
             Expression::Predicate { list, condition } => visitor.visit_function(
                 "predicate",
-                &[list.as_ref().clone(), condition.as_ref().clone()],
+                &[*list.clone(), *condition.clone()],
             ),
             Expression::Reduce {
                 list,
@@ -411,9 +408,9 @@ impl ExpressionAcceptor for crate::core::Expression {
             } => visitor.visit_function(
                 "reduce",
                 &[
-                    list.as_ref().clone(),
-                    initial.as_ref().clone(),
-                    expr.as_ref().clone(),
+                    *list.clone(),
+                    *initial.clone(),
+                    *expr.clone(),
                 ],
             ),
             Expression::PathBuild(items) => visitor.visit_path(items),
@@ -426,8 +423,8 @@ impl ExpressionAcceptor for crate::core::Expression {
                 start,
                 end,
             } => {
-                let start_cloned = start.as_ref().map(|b| b.as_ref().clone());
-                let end_cloned = end.as_ref().map(|b| b.as_ref().clone());
+                let start_cloned = start.as_ref().map(|b| Box::new(b.as_ref().clone()));
+                let end_cloned = end.as_ref().map(|b| Box::new(b.as_ref().clone()));
                 visitor.visit_range(collection.as_ref(), &start_cloned, &end_cloned)
             }
             Expression::MatchPathPattern { patterns, .. } => visitor.visit_list(patterns),

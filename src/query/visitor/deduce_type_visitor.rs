@@ -85,7 +85,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
 
     /// 获取当前状态
     pub fn status(&self) -> Option<&TypeDeductionError> {
-        self.status
+        self.status.as_ref()
     }
 
     /// 获取推导出的类型

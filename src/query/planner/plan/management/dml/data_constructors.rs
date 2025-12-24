@@ -54,7 +54,7 @@ impl NewTag {
 
 impl From<NewTag> for PlanNodeEnum {
     fn from(tag: NewTag) -> Self {
-        PlanNodeEnum::NewTag(Arc::new(tag))
+        PlanNodeEnum::NewTag(tag)
     }
 }
 

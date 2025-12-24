@@ -5,6 +5,7 @@
 use crate::query::parser::ast::expr::Expr;
 
 use crate::query::planner::plan::factory::PlanNodeFactory;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 
@@ -453,7 +454,7 @@ impl MatchPathPlanner {
     /// 配置遍历节点
     fn configure_traverse_node(
         &self,
-        _traverse_node: std::sync::Arc<dyn crate::query::planner::plan::core::PlanNode>,
+        _traverse_node: PlanNodeEnum,
         node: &crate::query::validator::structs::path_structs::NodeInfo,
         edge: &crate::query::validator::structs::path_structs::EdgeInfo,
         _track_prev_path: bool,

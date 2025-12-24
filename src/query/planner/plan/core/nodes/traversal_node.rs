@@ -5,7 +5,6 @@
 use super::super::common::{EdgeProp, TagProp};
 use crate::core::Value;
 use crate::query::context::validate::types::Variable;
-use std::sync::{Arc, Mutex};
 
 /// 扩展节点
 #[derive(Debug)]
@@ -19,7 +18,7 @@ pub struct ExpandNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
+    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 ExpandNode 实现 Clone
@@ -34,7 +33,7 @@ impl Clone for ExpandNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Mutex::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -50,7 +49,7 @@ impl ExpandNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Mutex::new(Vec::new()),
+            dependencies: Vec::new(),
         }
     }
 }
@@ -93,28 +92,17 @@ impl ExpandNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
-        let deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        deps.clone()
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        &self.dependencies
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned")
-            .push(Box::new(dep));
+        self.dependencies.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
-        let mut deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
-            deps.remove(pos);
+        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
+            self.dependencies.remove(pos);
             true
         } else {
             false
@@ -156,7 +144,7 @@ pub struct ExpandAllNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
+    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 ExpandAllNode 实现 Clone
@@ -173,7 +161,7 @@ impl Clone for ExpandAllNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Mutex::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -191,7 +179,7 @@ impl ExpandAllNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Mutex::new(Vec::new()),
+            dependencies: Vec::new(),
         }
     }
 
@@ -232,28 +220,17 @@ impl ExpandAllNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
-        let deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        deps.clone()
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        &self.dependencies
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned")
-            .push(Box::new(dep));
+        self.dependencies.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
-        let mut deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
-            deps.remove(pos);
+        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
+            self.dependencies.remove(pos);
             true
         } else {
             false
@@ -292,7 +269,7 @@ pub struct TraverseNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
+    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 TraverseNode 实现 Clone
@@ -308,7 +285,7 @@ impl Clone for TraverseNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Mutex::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -325,7 +302,7 @@ impl TraverseNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Mutex::new(Vec::new()),
+            dependencies: Vec::new(),
         }
     }
 
@@ -346,7 +323,7 @@ impl TraverseNode {
 
     /// 获取过滤条件
     pub fn filter(&self) -> Option<&String> {
-        self.filter
+        self.filter.as_ref()
     }
 }
 
@@ -371,28 +348,17 @@ impl TraverseNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
-        let deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        deps.clone()
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        &self.dependencies
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned")
-            .push(Box::new(dep));
+        self.dependencies.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
-        let mut deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
-            deps.remove(pos);
+        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
+            self.dependencies.remove(pos);
             true
         } else {
             false
@@ -429,7 +395,7 @@ pub struct AppendVerticesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Mutex<Vec<Box<super::plan_node_enum::PlanNodeEnum>>>,
+    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 AppendVerticesNode 实现 Clone
@@ -444,7 +410,7 @@ impl Clone for AppendVerticesNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Mutex::new(Vec::new()), // 依赖关系不复制，因为它们在新的上下文中无效
+            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -460,7 +426,7 @@ impl AppendVerticesNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Mutex::new(Vec::new()),
+            dependencies: Vec::new(),
         }
     }
 
@@ -481,7 +447,7 @@ impl AppendVerticesNode {
 
     /// 获取过滤条件
     pub fn filter(&self) -> Option<&String> {
-        self.filter
+        self.filter.as_ref()
     }
 }
 
@@ -506,28 +472,17 @@ impl AppendVerticesNode {
         self.cost
     }
 
-    pub fn dependencies(&self) -> Vec<Box<super::plan_node_enum::PlanNodeEnum>> {
-        let deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        deps.clone()
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        &self.dependencies
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned")
-            .push(Box::new(dep));
+        self.dependencies.push(Box::new(dep));
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
-        let mut deps = self
-            .dependencies
-            .lock()
-            .expect("PlanNode dependencies lock should not be poisoned");
-        if let Some(pos) = deps.iter().position(|dep| dep.id() == id) {
-            deps.remove(pos);
+        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
+            self.dependencies.remove(pos);
             true
         } else {
             false

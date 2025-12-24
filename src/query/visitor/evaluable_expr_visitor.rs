@@ -76,7 +76,7 @@ impl EvaluableExprVisitor {
     }
 
     pub fn get_error(&self) -> Option<&String> {
-        self.error
+        self.error.as_ref()
     }
 
     fn visit(&mut self, expr: &Expression) -> Result<(), String> {
@@ -143,7 +143,7 @@ impl VisitorCore<Expression> for EvaluableExprVisitor {
                 conditions,
                 default,
             } => {
-                let default_cloned = default.map(|b| (**b).clone());
+                let default_cloned = default.as_ref().map(|b| Box::new(b.as_ref().clone()));
                 self.visit_case(conditions, &default_cloned)
             }
             Expression::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
@@ -153,8 +153,8 @@ impl VisitorCore<Expression> for EvaluableExprVisitor {
                 start,
                 end,
             } => {
-                let start_cloned = start.map(|b| (**b).clone());
-                let end_cloned = end.map(|b| (**b).clone());
+                let start_cloned = start.as_ref().map(|b| Box::new(b.as_ref().clone()));
+                let end_cloned = end.as_ref().map(|b| Box::new(b.as_ref().clone()));
                 self.visit_range(collection, &start_cloned, &end_cloned)
             }
             Expression::Path(items) => self.visit_path(items),
@@ -212,8 +212,8 @@ impl VisitorCore<Expression> for EvaluableExprVisitor {
                 start,
                 end,
             } => {
-                let start_cloned = start.map(|b| (**b).clone());
-                let end_cloned = end.map(|b| (**b).clone());
+                let start_cloned = start.as_ref().map(|b| Box::new(b.as_ref().clone()));
+                let end_cloned = end.as_ref().map(|b| Box::new(b.as_ref().clone()));
                 self.visit_range(collection, &start_cloned, &end_cloned)
             }
             Expression::MatchPathPattern { patterns, .. } => self.visit_list(patterns),
@@ -305,7 +305,7 @@ impl ExpressionVisitor for EvaluableExprVisitor {
     fn visit_case(
         &mut self,
         conditions: &[(Expression, Expression)],
-        default: &Option<Expression>,
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
         for (condition, value) in conditions {
             self.visit(condition)?;
@@ -331,8 +331,8 @@ impl ExpressionVisitor for EvaluableExprVisitor {
     fn visit_range(
         &mut self,
         collection: &Expression,
-        start: &Option<Expression>,
-        end: &Option<Expression>,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit(collection)?;
         if let Some(start_expr) = start {

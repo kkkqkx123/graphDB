@@ -1,10 +1,13 @@
 //! FETCH EDGES查询规划器
 //! 处理FETCH EDGES查询的规划
 
+use std::sync::Arc;
+
 use crate::query::context::ast::{AstContext, FetchEdgesContext};
 use crate::query::planner::plan::core::nodes::{
-    ArgumentNode, DedupNode, FilterNode, GetEdgesNode, PlanNodeEnum, ProjectNode,
+    ArgumentNode, DedupNode, FilterNode, GetEdgesNode, ProjectNode,
 };
+use crate::query::planner::plan::core::PlanNodeEnum;
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 
@@ -51,20 +54,20 @@ impl Planner for FetchEdgesPlanner {
         let arg_node = ArgumentNode::new(1, &fetch_ctx.input_var_name);
 
         // 2. 创建获取边的节点
-        let get_edges_node = GetEdgesNode::new(
+        let get_edges_node = PlanNodeEnum::GetEdges(GetEdgesNode::new(
             1, // space_id
             &fetch_ctx.src.clone().unwrap_or_default(),
             &fetch_ctx.edge_type.clone().unwrap_or_default(),
             &fetch_ctx.rank.clone().unwrap_or_default(),
             &fetch_ctx.dst.clone().unwrap_or_default(),
-        );
+        ));
 
         // 3. 创建过滤空边的节点
         let filter_node = match FilterNode::new(
             get_edges_node.clone(),
             crate::core::Expression::Variable(format!("{} IS NOT EMPTY", fetch_ctx.edge_name)),
         ) {
-            Ok(node) => Arc::new(node),
+            Ok(node) => PlanNodeEnum::Filter(node),
             Err(_) => get_edges_node.clone(),
         };
 
@@ -80,7 +83,7 @@ impl Planner for FetchEdgesPlanner {
         // 5. 如果需要去重，创建去重节点
         let final_node = if fetch_ctx.distinct {
             match DedupNode::new(project_node.clone()) {
-                Ok(node) => Arc::new(node),
+                Ok(node) => PlanNodeEnum::Dedup(node),
                 Err(_) => project_node.clone(),
             }
         } else {
@@ -88,6 +91,7 @@ impl Planner for FetchEdgesPlanner {
         };
 
         // 创建SubPlan
+        let arg_node = PlanNodeEnum::Argument(arg_node);
         let sub_plan = SubPlan::new(Some(final_node), Some(arg_node));
 
         Ok(sub_plan)

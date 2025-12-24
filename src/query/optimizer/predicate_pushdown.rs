@@ -8,7 +8,6 @@ use super::rule_traits::{
 };
 use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::core::nodes::{ScanVerticesNode, TraverseNode};
 use crate::query::planner::plan::PlanNodeEnum;
 
 /// 通用过滤条件下推规则
@@ -48,11 +47,7 @@ impl OptRule for FilterPushDownRule {
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有过滤条件的新扫描节点
-                                if let Some(scan_node) = child_node
-                                    .plan_node()
-                                    .as_any()
-                                    .downcast_ref::<ScanVerticesNode>()
-                                {
+                                if let Some(scan_node) = child_node.plan_node().as_scan_vertices() {
                                     let new_scan_node = scan_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
@@ -163,11 +158,7 @@ impl OptRule for FilterPushDownRule {
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
                                 // 创建带有过滤条件的新遍历节点
-                                if let Some(traverse_node) = child_node
-                                    .plan_node()
-                                    .as_any()
-                                    .downcast_ref::<TraverseNode>()
-                                {
+                                if let Some(traverse_node) = child_node.plan_node().as_traverse() {
                                     let new_traverse_node = traverse_node.clone();
 
                                     // 如果需要，合并现有过滤条件和新的过滤条件
@@ -187,7 +178,7 @@ impl OptRule for FilterPushDownRule {
                                     // 创建带有修改后遍历节点的新OptGroupNode
                                     let mut new_traverse_opt_node = child_node.node.clone();
                                     new_traverse_opt_node.plan_node =
-                                        std::sync::Arc::new(new_traverse_node);
+                                        PlanNodeEnum::Traverse(new_traverse_node);
 
                                     // 如果有剩余条件，创建新的过滤节点
                                     if let Some(_remaining_condition) =
