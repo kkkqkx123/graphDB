@@ -5,7 +5,7 @@ use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNo
 use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
 use std::sync::Arc;
 
-// 任务类型枚举
+/// 任务类型枚举
 #[derive(Debug, Clone)]
 pub enum JobType {
     Compaction,
@@ -20,8 +20,8 @@ pub enum JobType {
 pub struct SubmitJob {
     pub id: i64,
     pub cost: f64,
-    pub job_type: JobType,       // 任务类型
-    pub parameters: Vec<String>, // 任务参数
+    pub job_type: JobType,
+    pub parameters: Vec<String>,
 }
 
 impl SubmitJob {
@@ -66,8 +66,8 @@ impl ManagementNode for SubmitJob {
 pub struct CreateSnapshot {
     pub id: i64,
     pub cost: f64,
-    pub name: String,            // 快照名称
-    pub comment: Option<String>, // 快照说明
+    pub name: String,
+    pub comment: Option<String>,
 }
 
 impl CreateSnapshot {
@@ -112,7 +112,7 @@ impl ManagementNode for CreateSnapshot {
 pub struct DropSnapshot {
     pub id: i64,
     pub cost: f64,
-    pub name: String, // 快照名称
+    pub name: String,
 }
 
 impl DropSnapshot {
@@ -175,5 +175,103 @@ impl ManagementNode for ShowSnapshots {
 
     fn into_enum(self) -> ManagementNodeEnum {
         ManagementNodeEnum::ShowSnapshots(self)
+    }
+}
+
+/// 显示统计信息计划节点
+#[derive(Debug, Clone)]
+pub struct ShowStats {
+    pub id: i64,
+    pub cost: f64,
+    pub space_name: Option<String>,
+}
+
+impl ShowStats {
+    pub fn new(id: i64, cost: f64, space_name: Option<String>) -> Self {
+        Self { id, cost, space_name }
+    }
+
+    pub fn space_name(&self) -> Option<&str> {
+        self.space_name.as_deref()
+    }
+}
+
+impl ManagementNode for ShowStats {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "ShowStats"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::ShowStats(self)
+    }
+}
+
+/// 显示字符集计划节点
+#[derive(Debug, Clone)]
+pub struct ShowCharset {
+    pub id: i64,
+    pub cost: f64,
+}
+
+impl ShowCharset {
+    pub fn new(id: i64, cost: f64) -> Self {
+        Self { id, cost }
+    }
+}
+
+impl ManagementNode for ShowCharset {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "ShowCharset"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::ShowCharset(self)
+    }
+}
+
+/// 显示排序规则计划节点
+#[derive(Debug, Clone)]
+pub struct ShowCollation {
+    pub id: i64,
+    pub cost: f64,
+}
+
+impl ShowCollation {
+    pub fn new(id: i64, cost: f64) -> Self {
+        Self { id, cost }
+    }
+}
+
+impl ManagementNode for ShowCollation {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "ShowCollation"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::ShowCollation(self)
     }
 }

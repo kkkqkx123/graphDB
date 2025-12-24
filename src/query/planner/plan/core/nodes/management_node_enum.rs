@@ -10,20 +10,22 @@ use crate::query::planner::plan::management::admin::host_ops::{
     AddHosts, DropHosts, ShowHosts, ShowHostsStatus,
 };
 use crate::query::planner::plan::management::admin::index_ops::{
-    CreateIndex, DescIndex, DropIndex, ShowIndexes,
+    CreateIndex, CreateEdgeIndex, CreateTagIndex, DescIndex, DropEdgeIndex, DropIndex, DropTagIndex,
+    ShowEdgeIndexes, ShowIndexStatus, ShowIndexes, ShowTagIndexes,
 };
 use crate::query::planner::plan::management::admin::system_ops::{
-    CreateSnapshot, DropSnapshot, ShowSnapshots, SubmitJob,
+    CreateSnapshot, DropSnapshot, ShowCharset, ShowCollation, ShowSnapshots,
+    ShowStats, SubmitJob,
 };
 use crate::query::planner::plan::management::ddl::edge_ops::{
-    CreateEdge, DropEdge, ShowCreateEdge, ShowEdges,
+    AlterEdge, CreateEdge, DropEdge, ShowCreateEdge, ShowEdges,
 };
 use crate::query::planner::plan::management::ddl::space_ops::{
     AlterSpace, ClearSpace, CreateSpace, DescSpace, DropSpace, ShowCreateSpace, ShowSpaces,
     SwitchSpace,
 };
 use crate::query::planner::plan::management::ddl::tag_ops::{
-    CreateTag, DescTag, DropTag, ShowCreateTag, ShowTags,
+    AlterTag, CreateTag, DescTag, DropTag, ShowCreateTag, ShowTags,
 };
 use crate::query::planner::plan::management::dml::data_constructors::{
     NewEdge, NewProp, NewTag, NewVertex,
@@ -78,6 +80,7 @@ pub enum ManagementNodeEnum {
     DropTag(DropTag),
     ShowTags(ShowTags),
     ShowCreateTag(ShowCreateTag),
+    AlterTag(AlterTag),
 
     /// DDL操作节点 - 空间
     CreateSpace(CreateSpace),
@@ -94,18 +97,31 @@ pub enum ManagementNodeEnum {
     DropEdge(DropEdge),
     ShowEdges(ShowEdges),
     ShowCreateEdge(ShowCreateEdge),
+    AlterEdge(AlterEdge),
 
     /// 系统管理节点
     SubmitJob(SubmitJob),
     CreateSnapshot(CreateSnapshot),
     DropSnapshot(DropSnapshot),
     ShowSnapshots(ShowSnapshots),
+    // ShowMetaLeader(ShowMetaLeader),
+    // ShowParts(ShowParts),
+    ShowStats(ShowStats),
+    ShowCharset(ShowCharset),
+    ShowCollation(ShowCollation),
 
     /// 索引管理节点
-    CreateIndex(CreateIndex),
+    CreateTagIndex(CreateTagIndex),
+    CreateEdgeIndex(CreateEdgeIndex),
     DropIndex(DropIndex),
+    DropTagIndex(DropTagIndex),
+    DropEdgeIndex(DropEdgeIndex),
     ShowIndexes(ShowIndexes),
+    ShowTagIndexes(ShowTagIndexes),
+    ShowEdgeIndexes(ShowEdgeIndexes),
+    ShowIndexStatus(ShowIndexStatus),
     DescIndex(DescIndex),
+    CreateIndex(CreateIndex),
 
     /// 主机管理节点
     AddHosts(AddHosts),
@@ -151,6 +167,7 @@ impl ManagementNodeEnum {
             ManagementNodeEnum::DropTag(_) => "DropTag",
             ManagementNodeEnum::ShowTags(_) => "ShowTags",
             ManagementNodeEnum::ShowCreateTag(_) => "ShowCreateTag",
+            ManagementNodeEnum::AlterTag(_) => "AlterTag",
             ManagementNodeEnum::CreateSpace(_) => "CreateSpace",
             ManagementNodeEnum::DescSpace(_) => "DescSpace",
             ManagementNodeEnum::ShowCreateSpace(_) => "ShowCreateSpace",
@@ -163,14 +180,27 @@ impl ManagementNodeEnum {
             ManagementNodeEnum::DropEdge(_) => "DropEdge",
             ManagementNodeEnum::ShowEdges(_) => "ShowEdges",
             ManagementNodeEnum::ShowCreateEdge(_) => "ShowCreateEdge",
+            ManagementNodeEnum::AlterEdge(_) => "AlterEdge",
             ManagementNodeEnum::SubmitJob(_) => "SubmitJob",
             ManagementNodeEnum::CreateSnapshot(_) => "CreateSnapshot",
             ManagementNodeEnum::DropSnapshot(_) => "DropSnapshot",
             ManagementNodeEnum::ShowSnapshots(_) => "ShowSnapshots",
-            ManagementNodeEnum::CreateIndex(_) => "CreateIndex",
+            // ManagementNodeEnum::ShowMetaLeader(_) => "ShowMetaLeader",
+            // ManagementNodeEnum::ShowParts(_) => "ShowParts",
+            ManagementNodeEnum::ShowStats(_) => "ShowStats",
+            ManagementNodeEnum::ShowCharset(_) => "ShowCharset",
+            ManagementNodeEnum::ShowCollation(_) => "ShowCollation",
+            ManagementNodeEnum::CreateTagIndex(_) => "CreateTagIndex",
+            ManagementNodeEnum::CreateEdgeIndex(_) => "CreateEdgeIndex",
             ManagementNodeEnum::DropIndex(_) => "DropIndex",
+            ManagementNodeEnum::DropTagIndex(_) => "DropTagIndex",
+            ManagementNodeEnum::DropEdgeIndex(_) => "DropEdgeIndex",
             ManagementNodeEnum::ShowIndexes(_) => "ShowIndexes",
+            ManagementNodeEnum::ShowTagIndexes(_) => "ShowTagIndexes",
+            ManagementNodeEnum::ShowEdgeIndexes(_) => "ShowEdgeIndexes",
+            ManagementNodeEnum::ShowIndexStatus(_) => "ShowIndexStatus",
             ManagementNodeEnum::DescIndex(_) => "DescIndex",
+            ManagementNodeEnum::CreateIndex(_) => "CreateIndex",
             ManagementNodeEnum::AddHosts(_) => "AddHosts",
             ManagementNodeEnum::DropHosts(_) => "DropHosts",
             ManagementNodeEnum::ShowHosts(_) => "ShowHosts",

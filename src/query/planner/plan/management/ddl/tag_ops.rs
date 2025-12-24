@@ -4,6 +4,7 @@
 use super::space_ops::Schema;
 use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNodeEnum;
 use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
+use super::space_ops::SchemaField;
 use std::sync::Arc;
 
 /// 创建标签计划节点
@@ -194,6 +195,69 @@ impl ShowCreateTag {
 
     pub fn tag_name(&self) -> &str {
         &self.tag_name
+    }
+}
+
+/// 标签修改操作类型
+#[derive(Debug, Clone)]
+pub enum TagAlterOperation {
+    AddField(SchemaField),
+    DropField(String),
+    ModifyField(String, SchemaField), // 字段名, 新字段定义
+    SetTtlDuration(i64), // 设置 TTL 时长
+    SetTtlCol(String),   // 设置 TTL 列
+    DropTtl,             // 删除 TTL 设置
+}
+
+/// 修改标签计划节点
+#[derive(Debug, Clone)]
+pub struct AlterTag {
+    pub id: i64,
+    pub cost: f64,
+    pub if_exists: bool,
+    pub tag_name: String,
+    pub operations: Vec<TagAlterOperation>,
+}
+
+impl AlterTag {
+    pub fn new(id: i64, cost: f64, if_exists: bool, tag_name: &str, operations: Vec<TagAlterOperation>) -> Self {
+        Self {
+            id,
+            cost,
+            if_exists,
+            tag_name: tag_name.to_string(),
+            operations,
+        }
+    }
+
+    pub fn if_exists(&self) -> bool {
+        self.if_exists
+    }
+
+    pub fn tag_name(&self) -> &str {
+        &self.tag_name
+    }
+
+    pub fn operations(&self) -> &[TagAlterOperation] {
+        &self.operations
+    }
+}
+
+impl ManagementNode for AlterTag {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "AlterTag"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::AlterTag(self)
     }
 }
 

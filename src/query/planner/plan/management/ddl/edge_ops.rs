@@ -1,7 +1,7 @@
 //! 边操作相关的计划节点
 //! 包括创建/删除边等操作
 
-use super::space_ops::Schema;
+use super::space_ops::{Schema, SchemaField};
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNodeEnum;
 use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
@@ -133,6 +133,69 @@ impl ManagementNode for ShowEdges {
 
     fn into_enum(self) -> ManagementNodeEnum {
         ManagementNodeEnum::ShowEdges(self)
+    }
+}
+
+/// 边修改操作类型
+#[derive(Debug, Clone)]
+pub enum EdgeAlterOperation {
+    AddField(SchemaField),
+    DropField(String),
+    ModifyField(String, SchemaField), // 字段名, 新字段定义
+    SetTtlDuration(i64), // 设置 TTL 时长
+    SetTtlCol(String),   // 设置 TTL 列
+    DropTtl,             // 删除 TTL 设置
+}
+
+/// 修改边计划节点
+#[derive(Debug, Clone)]
+pub struct AlterEdge {
+    pub id: i64,
+    pub cost: f64,
+    pub if_exists: bool,
+    pub edge_name: String,
+    pub operations: Vec<EdgeAlterOperation>,
+}
+
+impl AlterEdge {
+    pub fn new(id: i64, cost: f64, if_exists: bool, edge_name: &str, operations: Vec<EdgeAlterOperation>) -> Self {
+        Self {
+            id,
+            cost,
+            if_exists,
+            edge_name: edge_name.to_string(),
+            operations,
+        }
+    }
+
+    pub fn if_exists(&self) -> bool {
+        self.if_exists
+    }
+
+    pub fn edge_name(&self) -> &str {
+        &self.edge_name
+    }
+
+    pub fn operations(&self) -> &[EdgeAlterOperation] {
+        &self.operations
+    }
+}
+
+impl ManagementNode for AlterEdge {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "AlterEdge"
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn into_enum(self) -> ManagementNodeEnum {
+        ManagementNodeEnum::AlterEdge(self)
     }
 }
 
