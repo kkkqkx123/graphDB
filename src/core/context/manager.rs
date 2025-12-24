@@ -826,7 +826,7 @@ impl super::runtime::StorageEngine for MockStorageEngine {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct MockSchemaManager;
+pub struct MockSchemaManager;
 
 impl super::runtime::SchemaManager for MockSchemaManager {
     fn get_schema(&self, _name: &str) -> Option<super::runtime::Schema> {
@@ -847,7 +847,7 @@ impl super::runtime::SchemaManager for MockSchemaManager {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct MockIndexManager;
+pub struct MockIndexManager;
 
 impl super::runtime::IndexManager for MockIndexManager {
     fn create_index(

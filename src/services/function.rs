@@ -93,12 +93,6 @@ pub struct FunctionManager {
 impl FunctionManager {
     /// Get a singleton instance of the FunctionManager
     pub fn instance() -> Arc<Mutex<Self>> {
-        // static mut INSTANCE: Option<Arc<Mutex<FunctionManager>>> = None; // 注释掉未使用的静态变量
-        
-        static mut ONCE: std::sync::Once = std::sync::Once::new();
-
-        // 为了线程安全，每个调用都创建一个新的实例
-        // 正确的单例实现需要更复杂的生命周期管理
         Arc::new(Mutex::new(FunctionManager::new()))
     }
 
