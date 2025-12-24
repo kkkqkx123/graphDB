@@ -19,6 +19,7 @@ use super::project_node::ProjectNode;
 use super::sort_node::{LimitNode, SortNode, TopNNode};
 use super::start_node::StartNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
+use crate::query::planner::plan::algorithms::{FulltextIndexScan, IndexScan, MultiShortestPath, BFSShortest, AllPaths, ShortestPath};
 
 /// PlanNode 枚举，包含所有可能的节点类型
 ///
@@ -58,7 +59,9 @@ pub enum PlanNodeEnum {
     /// 笛卡尔积节点
     CartesianProduct(CrossJoinNode),
     /// 索引扫描节点
-    IndexScan(crate::query::planner::plan::algorithms::IndexScan),
+    IndexScan(IndexScan),
+    /// 全文索引扫描节点
+    FulltextIndexScan(FulltextIndexScan),
     /// 扩展节点
     Expand(ExpandNode),
     /// 全扩展节点
@@ -91,6 +94,14 @@ pub enum PlanNodeEnum {
     Union(UnionNode),
     /// 展开节点
     Unwind(UnwindNode),
+    /// 多源最短路径节点
+    MultiShortestPath(MultiShortestPath),
+    /// BFS最短路径节点
+    BFSShortest(BFSShortest),
+    /// 所有路径节点
+    AllPaths(AllPaths),
+    /// 最短路径节点
+    ShortestPath(ShortestPath),
 }
 
 impl PlanNodeEnum {
@@ -198,6 +209,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashLeftJoin(_) => "HashLeftJoin",
             PlanNodeEnum::CartesianProduct(_) => "CartesianProduct",
             PlanNodeEnum::IndexScan(_) => "IndexScan",
+            PlanNodeEnum::FulltextIndexScan(_) => "FulltextIndexScan",
             PlanNodeEnum::Expand(_) => "Expand",
             PlanNodeEnum::ExpandAll(_) => "ExpandAll",
             PlanNodeEnum::Traverse(_) => "Traverse",
@@ -214,6 +226,10 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(_) => "RollUpApply",
             PlanNodeEnum::Union(_) => "Union",
             PlanNodeEnum::Unwind(_) => "Unwind",
+            PlanNodeEnum::MultiShortestPath(_) => "MultiShortestPath",
+            PlanNodeEnum::BFSShortest(_) => "BFSShortest",
+            PlanNodeEnum::AllPaths(_) => "AllPaths",
+            PlanNodeEnum::ShortestPath(_) => "ShortestPath",
         }
     }
 
@@ -507,6 +523,24 @@ pub trait PlanNodeVisitor {
 
     /// 访问Unwind节点 - 编译时分发
     fn visit_unwind(&mut self, node: &UnwindNode) -> Self::Result;
+
+    /// 访问IndexScan节点 - 编译时分发
+    fn visit_index_scan(&mut self, node: &IndexScan) -> Self::Result;
+
+    /// 访问FulltextIndexScan节点 - 编译时分发
+    fn visit_fulltext_index_scan(&mut self, node: &FulltextIndexScan) -> Self::Result;
+
+    /// 访问MultiShortestPath节点 - 编译时分发
+    fn visit_multi_shortest_path(&mut self, node: &MultiShortestPath) -> Self::Result;
+
+    /// 访问BFSShortest节点 - 编译时分发
+    fn visit_bfs_shortest(&mut self, node: &BFSShortest) -> Self::Result;
+
+    /// 访问AllPaths节点 - 编译时分发
+    fn visit_all_paths(&mut self, node: &AllPaths) -> Self::Result;
+
+    /// 访问ShortestPath节点 - 编译时分发
+    fn visit_shortest_path(&mut self, node: &ShortestPath) -> Self::Result;
 }
 
 impl PlanNodeEnum {
@@ -545,6 +579,12 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(node) => visitor.visit_roll_up_apply(node),
             PlanNodeEnum::Union(node) => visitor.visit_union(node),
             PlanNodeEnum::Unwind(node) => visitor.visit_unwind(node),
+            PlanNodeEnum::IndexScan(node) => visitor.visit_index_scan(node),
+            PlanNodeEnum::FulltextIndexScan(node) => visitor.visit_fulltext_index_scan(node),
+            PlanNodeEnum::MultiShortestPath(node) => visitor.visit_multi_shortest_path(node),
+            PlanNodeEnum::BFSShortest(node) => visitor.visit_bfs_shortest(node),
+            PlanNodeEnum::AllPaths(node) => visitor.visit_all_paths(node),
+            PlanNodeEnum::ShortestPath(node) => visitor.visit_shortest_path(node),
 
             // 管理节点类型 - 暂时使用默认处理
             _ => unimplemented!("管理节点的访问者模式尚未实现"),

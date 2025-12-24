@@ -23,6 +23,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashLeftJoin(node) => node.id(),
             PlanNodeEnum::CartesianProduct(node) => node.id(),
             PlanNodeEnum::IndexScan(node) => node.id(),
+            PlanNodeEnum::FulltextIndexScan(node) => node.id(),
             PlanNodeEnum::GetVertices(node) => node.id(),
             PlanNodeEnum::GetEdges(node) => node.id(),
             PlanNodeEnum::GetNeighbors(node) => node.id(),
@@ -44,6 +45,10 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(node) => node.id(),
             PlanNodeEnum::Union(node) => node.id(),
             PlanNodeEnum::Unwind(node) => node.id(),
+            PlanNodeEnum::MultiShortestPath(node) => node.id(),
+            PlanNodeEnum::BFSShortest(node) => node.id(),
+            PlanNodeEnum::AllPaths(node) => node.id(),
+            PlanNodeEnum::ShortestPath(node) => node.id(),
         }
     }
 
@@ -63,6 +68,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashLeftJoin(_) => "HashLeftJoin",
             PlanNodeEnum::CartesianProduct(_) => "CartesianProduct",
             PlanNodeEnum::IndexScan(_) => "IndexScan",
+            PlanNodeEnum::FulltextIndexScan(_) => "FulltextIndexScan",
             PlanNodeEnum::GetVertices(_) => "GetVertices",
             PlanNodeEnum::GetEdges(_) => "GetEdges",
             PlanNodeEnum::GetNeighbors(_) => "GetNeighbors",
@@ -84,6 +90,10 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(_) => "RollUpApply",
             PlanNodeEnum::Union(_) => "Union",
             PlanNodeEnum::Unwind(_) => "Unwind",
+            PlanNodeEnum::MultiShortestPath(_) => "MultiShortestPath",
+            PlanNodeEnum::BFSShortest(_) => "BFSShortest",
+            PlanNodeEnum::AllPaths(_) => "AllPaths",
+            PlanNodeEnum::ShortestPath(_) => "ShortestPath",
         }
     }
 
@@ -103,6 +113,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashLeftJoin(node) => node.output_var(),
             PlanNodeEnum::CartesianProduct(node) => node.output_var(),
             PlanNodeEnum::IndexScan(node) => node.output_var(),
+            PlanNodeEnum::FulltextIndexScan(node) => node.output_var(),
             PlanNodeEnum::GetVertices(node) => node.output_var(),
             PlanNodeEnum::GetEdges(node) => node.output_var(),
             PlanNodeEnum::GetNeighbors(node) => node.output_var(),
@@ -124,6 +135,10 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(node) => node.output_var(),
             PlanNodeEnum::Union(node) => node.output_var(),
             PlanNodeEnum::Unwind(node) => node.output_var(),
+            PlanNodeEnum::MultiShortestPath(node) => node.output_var(),
+            PlanNodeEnum::BFSShortest(node) => node.output_var(),
+            PlanNodeEnum::AllPaths(node) => node.output_var(),
+            PlanNodeEnum::ShortestPath(node) => node.output_var(),
         }
     }
 
@@ -143,6 +158,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashLeftJoin(node) => node.col_names(),
             PlanNodeEnum::CartesianProduct(node) => node.col_names(),
             PlanNodeEnum::IndexScan(node) => node.col_names(),
+            PlanNodeEnum::FulltextIndexScan(node) => node.col_names(),
             PlanNodeEnum::GetVertices(node) => node.col_names(),
             PlanNodeEnum::GetEdges(node) => node.col_names(),
             PlanNodeEnum::GetNeighbors(node) => node.col_names(),
@@ -164,6 +180,10 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(node) => node.col_names(),
             PlanNodeEnum::Union(node) => node.col_names(),
             PlanNodeEnum::Unwind(node) => node.col_names(),
+            PlanNodeEnum::MultiShortestPath(node) => node.col_names(),
+            PlanNodeEnum::BFSShortest(node) => node.col_names(),
+            PlanNodeEnum::AllPaths(node) => node.col_names(),
+            PlanNodeEnum::ShortestPath(node) => node.col_names(),
         }
     }
 
@@ -183,6 +203,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashLeftJoin(node) => node.cost(),
             PlanNodeEnum::CartesianProduct(node) => node.cost(),
             PlanNodeEnum::IndexScan(node) => node.cost(),
+            PlanNodeEnum::FulltextIndexScan(node) => node.cost(),
             PlanNodeEnum::GetVertices(node) => node.cost(),
             PlanNodeEnum::GetEdges(node) => node.cost(),
             PlanNodeEnum::GetNeighbors(node) => node.cost(),
@@ -204,63 +225,10 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(node) => node.cost(),
             PlanNodeEnum::Union(node) => node.cost(),
             PlanNodeEnum::Unwind(node) => node.cost(),
-
-            // 管理节点类型 - 默认返回 1.0
-            PlanNodeEnum::CreateUser(_) => 1.0,
-            PlanNodeEnum::DropUser(_) => 1.0,
-            PlanNodeEnum::UpdateUser(_) => 1.0,
-            PlanNodeEnum::ChangePassword(_) => 1.0,
-            PlanNodeEnum::ListUsers(_) => 1.0,
-            PlanNodeEnum::ListUserRoles(_) => 1.0,
-            PlanNodeEnum::DescribeUser(_) => 1.0,
-            PlanNodeEnum::CreateRole(_) => 1.0,
-            PlanNodeEnum::DropRole(_) => 1.0,
-            PlanNodeEnum::GrantRole(_) => 1.0,
-            PlanNodeEnum::RevokeRole(_) => 1.0,
-            PlanNodeEnum::ShowRoles(_) => 1.0,
-            PlanNodeEnum::UpdateVertex(_) => 1.0,
-            PlanNodeEnum::UpdateEdge(_) => 1.0,
-            PlanNodeEnum::InsertVertices(_) => 1.0,
-            PlanNodeEnum::InsertEdges(_) => 1.0,
-            PlanNodeEnum::DeleteVertices(_) => 1.0,
-            PlanNodeEnum::DeleteTags(_) => 1.0,
-            PlanNodeEnum::DeleteEdges(_) => 1.0,
-            PlanNodeEnum::NewVertex(_) => 1.0,
-            PlanNodeEnum::NewTag(_) => 1.0,
-            PlanNodeEnum::NewProp(_) => 1.0,
-            PlanNodeEnum::NewEdge(_) => 1.0,
-            PlanNodeEnum::CreateTag(_) => 1.0,
-            PlanNodeEnum::DescTag(_) => 1.0,
-            PlanNodeEnum::DropTag(_) => 1.0,
-            PlanNodeEnum::ShowTags(_) => 1.0,
-            PlanNodeEnum::ShowCreateTag(_) => 1.0,
-            PlanNodeEnum::CreateSpace(_) => 1.0,
-            PlanNodeEnum::DescSpace(_) => 1.0,
-            PlanNodeEnum::ShowCreateSpace(_) => 1.0,
-            PlanNodeEnum::ShowSpaces(_) => 1.0,
-            PlanNodeEnum::SwitchSpace(_) => 1.0,
-            PlanNodeEnum::DropSpace(_) => 1.0,
-            PlanNodeEnum::ClearSpace(_) => 1.0,
-            PlanNodeEnum::AlterSpace(_) => 1.0,
-            PlanNodeEnum::CreateEdge(_) => 1.0,
-            PlanNodeEnum::DropEdge(_) => 1.0,
-            PlanNodeEnum::ShowEdges(_) => 1.0,
-            PlanNodeEnum::ShowCreateEdge(_) => 1.0,
-            PlanNodeEnum::SubmitJob(_) => 1.0,
-            PlanNodeEnum::CreateSnapshot(_) => 1.0,
-            PlanNodeEnum::DropSnapshot(_) => 1.0,
-            PlanNodeEnum::ShowSnapshots(_) => 1.0,
-            PlanNodeEnum::CreateIndex(_) => 1.0,
-            PlanNodeEnum::DropIndex(_) => 1.0,
-            PlanNodeEnum::ShowIndexes(_) => 1.0,
-            PlanNodeEnum::DescIndex(_) => 1.0,
-            PlanNodeEnum::AddHosts(_) => 1.0,
-            PlanNodeEnum::DropHosts(_) => 1.0,
-            PlanNodeEnum::ShowHosts(_) => 1.0,
-            PlanNodeEnum::ShowHostsStatus(_) => 1.0,
-            PlanNodeEnum::ShowConfigs(_) => 1.0,
-            PlanNodeEnum::SetConfig(_) => 1.0,
-            PlanNodeEnum::GetConfig(_) => 1.0,
+            PlanNodeEnum::MultiShortestPath(node) => node.cost(),
+            PlanNodeEnum::BFSShortest(node) => node.cost(),
+            PlanNodeEnum::AllPaths(node) => node.cost(),
+            PlanNodeEnum::ShortestPath(node) => node.cost(),
         }
     }
 
@@ -304,73 +272,16 @@ impl PlanNodeEnum {
             PlanNodeEnum::CartesianProduct(node) => vec![Box::new(node.left_input().clone()), Box::new(node.right_input().clone())],
 
             // 多输入节点
-            PlanNodeEnum::Expand(node) => node.inputs().iter().map(|input| input.as_ref().clone()).collect(),
-            PlanNodeEnum::ExpandAll(node) => node.inputs().iter().map(|input| input.as_ref().clone()).collect(),
-            PlanNodeEnum::Traverse(node) => node.inputs().iter().map(|input| input.as_ref().clone()).collect(),
-            PlanNodeEnum::AppendVertices(node) => node.inputs().iter().map(|input| input.as_ref().clone()).collect(),
+            PlanNodeEnum::Expand(node) => node.inputs().iter().map(|input| input.clone()).collect(),
+            PlanNodeEnum::ExpandAll(node) => node.inputs().iter().map(|input| input.clone()).collect(),
+            PlanNodeEnum::Traverse(node) => node.inputs().iter().map(|input| input.clone()).collect(),
+            PlanNodeEnum::AppendVertices(node) => node.inputs().iter().map(|input| input.clone()).collect(),
 
             // 其他节点
             PlanNodeEnum::Argument(_node) => vec![],
             PlanNodeEnum::Loop(_node) => vec![],
             PlanNodeEnum::PassThrough(_node) => vec![],
             PlanNodeEnum::Select(_node) => vec![],
-
-            // 管理节点类型 - 默认返回空列表
-            PlanNodeEnum::CreateUser(_) => vec![],
-            PlanNodeEnum::DropUser(_) => vec![],
-            PlanNodeEnum::UpdateUser(_) => vec![],
-            PlanNodeEnum::ChangePassword(_) => vec![],
-            PlanNodeEnum::ListUsers(_) => vec![],
-            PlanNodeEnum::ListUserRoles(_) => vec![],
-            PlanNodeEnum::DescribeUser(_) => vec![],
-            PlanNodeEnum::CreateRole(_) => vec![],
-            PlanNodeEnum::DropRole(_) => vec![],
-            PlanNodeEnum::GrantRole(_) => vec![],
-            PlanNodeEnum::RevokeRole(_) => vec![],
-            PlanNodeEnum::ShowRoles(_) => vec![],
-            PlanNodeEnum::UpdateVertex(_) => vec![],
-            PlanNodeEnum::UpdateEdge(_) => vec![],
-            PlanNodeEnum::InsertVertices(_) => vec![],
-            PlanNodeEnum::InsertEdges(_) => vec![],
-            PlanNodeEnum::DeleteVertices(_) => vec![],
-            PlanNodeEnum::DeleteTags(_) => vec![],
-            PlanNodeEnum::DeleteEdges(_) => vec![],
-            PlanNodeEnum::NewVertex(_) => vec![],
-            PlanNodeEnum::NewTag(_) => vec![],
-            PlanNodeEnum::NewProp(_) => vec![],
-            PlanNodeEnum::NewEdge(_) => vec![],
-            PlanNodeEnum::CreateTag(_) => vec![],
-            PlanNodeEnum::DescTag(_) => vec![],
-            PlanNodeEnum::DropTag(_) => vec![],
-            PlanNodeEnum::ShowTags(_) => vec![],
-            PlanNodeEnum::ShowCreateTag(_) => vec![],
-            PlanNodeEnum::CreateSpace(_) => vec![],
-            PlanNodeEnum::DescSpace(_) => vec![],
-            PlanNodeEnum::ShowCreateSpace(_) => vec![],
-            PlanNodeEnum::ShowSpaces(_) => vec![],
-            PlanNodeEnum::SwitchSpace(_) => vec![],
-            PlanNodeEnum::DropSpace(_) => vec![],
-            PlanNodeEnum::ClearSpace(_) => vec![],
-            PlanNodeEnum::AlterSpace(_) => vec![],
-            PlanNodeEnum::CreateEdge(_) => vec![],
-            PlanNodeEnum::DropEdge(_) => vec![],
-            PlanNodeEnum::ShowEdges(_) => vec![],
-            PlanNodeEnum::ShowCreateEdge(_) => vec![],
-            PlanNodeEnum::SubmitJob(_) => vec![],
-            PlanNodeEnum::CreateSnapshot(_) => vec![],
-            PlanNodeEnum::DropSnapshot(_) => vec![],
-            PlanNodeEnum::ShowSnapshots(_) => vec![],
-            PlanNodeEnum::CreateIndex(_) => vec![],
-            PlanNodeEnum::DropIndex(_) => vec![],
-            PlanNodeEnum::ShowIndexes(_) => vec![],
-            PlanNodeEnum::DescIndex(_) => vec![],
-            PlanNodeEnum::AddHosts(_) => vec![],
-            PlanNodeEnum::DropHosts(_) => vec![],
-            PlanNodeEnum::ShowHosts(_) => vec![],
-            PlanNodeEnum::ShowHostsStatus(_) => vec![],
-            PlanNodeEnum::ShowConfigs(_) => vec![],
-            PlanNodeEnum::SetConfig(_) => vec![],
-            PlanNodeEnum::GetConfig(_) => vec![],
         }
     }
 
@@ -390,6 +301,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashLeftJoin(node) => node.set_output_var(var),
             PlanNodeEnum::CartesianProduct(node) => node.set_output_var(var),
             PlanNodeEnum::IndexScan(node) => node.set_output_var(var),
+            PlanNodeEnum::FulltextIndexScan(node) => node.set_output_var(var),
             PlanNodeEnum::GetVertices(node) => node.set_output_var(var),
             PlanNodeEnum::GetEdges(node) => node.set_output_var(var),
             PlanNodeEnum::GetNeighbors(node) => node.set_output_var(var),
@@ -411,63 +323,10 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(node) => node.set_output_var(var),
             PlanNodeEnum::Union(node) => node.set_output_var(var),
             PlanNodeEnum::Unwind(node) => node.set_output_var(var),
-
-            // 管理节点类型 - 默认不执行任何操作
-            PlanNodeEnum::CreateUser(_) => {}
-            PlanNodeEnum::DropUser(_) => {}
-            PlanNodeEnum::UpdateUser(_) => {}
-            PlanNodeEnum::ChangePassword(_) => {}
-            PlanNodeEnum::ListUsers(_) => {}
-            PlanNodeEnum::ListUserRoles(_) => {}
-            PlanNodeEnum::DescribeUser(_) => {}
-            PlanNodeEnum::CreateRole(_) => {}
-            PlanNodeEnum::DropRole(_) => {}
-            PlanNodeEnum::GrantRole(_) => {}
-            PlanNodeEnum::RevokeRole(_) => {}
-            PlanNodeEnum::ShowRoles(_) => {}
-            PlanNodeEnum::UpdateVertex(_) => {}
-            PlanNodeEnum::UpdateEdge(_) => {}
-            PlanNodeEnum::InsertVertices(_) => {}
-            PlanNodeEnum::InsertEdges(_) => {}
-            PlanNodeEnum::DeleteVertices(_) => {}
-            PlanNodeEnum::DeleteTags(_) => {}
-            PlanNodeEnum::DeleteEdges(_) => {}
-            PlanNodeEnum::NewVertex(_) => {}
-            PlanNodeEnum::NewTag(_) => {}
-            PlanNodeEnum::NewProp(_) => {}
-            PlanNodeEnum::NewEdge(_) => {}
-            PlanNodeEnum::CreateTag(_) => {}
-            PlanNodeEnum::DescTag(_) => {}
-            PlanNodeEnum::DropTag(_) => {}
-            PlanNodeEnum::ShowTags(_) => {}
-            PlanNodeEnum::ShowCreateTag(_) => {}
-            PlanNodeEnum::CreateSpace(_) => {}
-            PlanNodeEnum::DescSpace(_) => {}
-            PlanNodeEnum::ShowCreateSpace(_) => {}
-            PlanNodeEnum::ShowSpaces(_) => {}
-            PlanNodeEnum::SwitchSpace(_) => {}
-            PlanNodeEnum::DropSpace(_) => {}
-            PlanNodeEnum::ClearSpace(_) => {}
-            PlanNodeEnum::AlterSpace(_) => {}
-            PlanNodeEnum::CreateEdge(_) => {}
-            PlanNodeEnum::DropEdge(_) => {}
-            PlanNodeEnum::ShowEdges(_) => {}
-            PlanNodeEnum::ShowCreateEdge(_) => {}
-            PlanNodeEnum::SubmitJob(_) => {}
-            PlanNodeEnum::CreateSnapshot(_) => {}
-            PlanNodeEnum::DropSnapshot(_) => {}
-            PlanNodeEnum::ShowSnapshots(_) => {}
-            PlanNodeEnum::CreateIndex(_) => {}
-            PlanNodeEnum::DropIndex(_) => {}
-            PlanNodeEnum::ShowIndexes(_) => {}
-            PlanNodeEnum::DescIndex(_) => {}
-            PlanNodeEnum::AddHosts(_) => {}
-            PlanNodeEnum::DropHosts(_) => {}
-            PlanNodeEnum::ShowHosts(_) => {}
-            PlanNodeEnum::ShowHostsStatus(_) => {}
-            PlanNodeEnum::ShowConfigs(_) => {}
-            PlanNodeEnum::SetConfig(_) => {}
-            PlanNodeEnum::GetConfig(_) => {}
+            PlanNodeEnum::MultiShortestPath(node) => node.set_output_var(var),
+            PlanNodeEnum::BFSShortest(node) => node.set_output_var(var),
+            PlanNodeEnum::AllPaths(node) => node.set_output_var(var),
+            PlanNodeEnum::ShortestPath(node) => node.set_output_var(var),
         }
     }
 
@@ -487,6 +346,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashLeftJoin(node) => node.set_col_names(names),
             PlanNodeEnum::CartesianProduct(node) => node.set_col_names(names),
             PlanNodeEnum::IndexScan(node) => node.set_col_names(names),
+            PlanNodeEnum::FulltextIndexScan(node) => node.set_col_names(names),
             PlanNodeEnum::GetVertices(node) => node.set_col_names(names),
             PlanNodeEnum::GetEdges(node) => node.set_col_names(names),
             PlanNodeEnum::GetNeighbors(node) => node.set_col_names(names),
@@ -508,63 +368,10 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(node) => node.set_col_names(names),
             PlanNodeEnum::Union(node) => node.set_col_names(names),
             PlanNodeEnum::Unwind(node) => node.set_col_names(names),
-
-            // 管理节点类型 - 默认不执行任何操作
-            PlanNodeEnum::CreateUser(_) => {}
-            PlanNodeEnum::DropUser(_) => {}
-            PlanNodeEnum::UpdateUser(_) => {}
-            PlanNodeEnum::ChangePassword(_) => {}
-            PlanNodeEnum::ListUsers(_) => {}
-            PlanNodeEnum::ListUserRoles(_) => {}
-            PlanNodeEnum::DescribeUser(_) => {}
-            PlanNodeEnum::CreateRole(_) => {}
-            PlanNodeEnum::DropRole(_) => {}
-            PlanNodeEnum::GrantRole(_) => {}
-            PlanNodeEnum::RevokeRole(_) => {}
-            PlanNodeEnum::ShowRoles(_) => {}
-            PlanNodeEnum::UpdateVertex(_) => {}
-            PlanNodeEnum::UpdateEdge(_) => {}
-            PlanNodeEnum::InsertVertices(_) => {}
-            PlanNodeEnum::InsertEdges(_) => {}
-            PlanNodeEnum::DeleteVertices(_) => {}
-            PlanNodeEnum::DeleteTags(_) => {}
-            PlanNodeEnum::DeleteEdges(_) => {}
-            PlanNodeEnum::NewVertex(_) => {}
-            PlanNodeEnum::NewTag(_) => {}
-            PlanNodeEnum::NewProp(_) => {}
-            PlanNodeEnum::NewEdge(_) => {}
-            PlanNodeEnum::CreateTag(_) => {}
-            PlanNodeEnum::DescTag(_) => {}
-            PlanNodeEnum::DropTag(_) => {}
-            PlanNodeEnum::ShowTags(_) => {}
-            PlanNodeEnum::ShowCreateTag(_) => {}
-            PlanNodeEnum::CreateSpace(_) => {}
-            PlanNodeEnum::DescSpace(_) => {}
-            PlanNodeEnum::ShowCreateSpace(_) => {}
-            PlanNodeEnum::ShowSpaces(_) => {}
-            PlanNodeEnum::SwitchSpace(_) => {}
-            PlanNodeEnum::DropSpace(_) => {}
-            PlanNodeEnum::ClearSpace(_) => {}
-            PlanNodeEnum::AlterSpace(_) => {}
-            PlanNodeEnum::CreateEdge(_) => {}
-            PlanNodeEnum::DropEdge(_) => {}
-            PlanNodeEnum::ShowEdges(_) => {}
-            PlanNodeEnum::ShowCreateEdge(_) => {}
-            PlanNodeEnum::SubmitJob(_) => {}
-            PlanNodeEnum::CreateSnapshot(_) => {}
-            PlanNodeEnum::DropSnapshot(_) => {}
-            PlanNodeEnum::ShowSnapshots(_) => {}
-            PlanNodeEnum::CreateIndex(_) => {}
-            PlanNodeEnum::DropIndex(_) => {}
-            PlanNodeEnum::ShowIndexes(_) => {}
-            PlanNodeEnum::DescIndex(_) => {}
-            PlanNodeEnum::AddHosts(_) => {}
-            PlanNodeEnum::DropHosts(_) => {}
-            PlanNodeEnum::ShowHosts(_) => {}
-            PlanNodeEnum::ShowHostsStatus(_) => {}
-            PlanNodeEnum::ShowConfigs(_) => {}
-            PlanNodeEnum::SetConfig(_) => {}
-            PlanNodeEnum::GetConfig(_) => {}
+            PlanNodeEnum::MultiShortestPath(node) => node.set_col_names(names),
+            PlanNodeEnum::BFSShortest(node) => node.set_col_names(names),
+            PlanNodeEnum::AllPaths(node) => node.set_col_names(names),
+            PlanNodeEnum::ShortestPath(node) => node.set_col_names(names),
         }
     }
 }

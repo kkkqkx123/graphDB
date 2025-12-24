@@ -2,6 +2,7 @@
 //!
 //! 定义所有管理节点需要实现的基础特征
 
+use super::management_node_enum::ManagementNodeEnum;
 use super::plan_node_enum::PlanNodeEnum;
 
 /// 管理节点基础特征
@@ -74,6 +75,3 @@ impl std::fmt::Display for ManagementNodeVisitError {
 }
 
 impl std::error::Error for ManagementNodeVisitError {}
-
-// 前向声明
-use super::management_node_enum::ManagementNodeEnum;

@@ -20,6 +20,7 @@ pub struct GetVerticesNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
+    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 GetVerticesNode 实现 Clone
@@ -37,6 +38,7 @@ impl Clone for GetVerticesNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
+            dependencies: Vec::new(),
         }
     }
 }
@@ -55,6 +57,7 @@ impl GetVerticesNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
+            dependencies: Vec::new(),
         }
     }
 
@@ -101,6 +104,23 @@ impl GetVerticesNode {
 
     pub fn cost(&self) -> f64 {
         self.cost
+    }
+
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        &self.dependencies
+    }
+
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
+        self.dependencies.push(Box::new(dep));
+    }
+
+    pub fn remove_dependency(&mut self, id: i64) -> bool {
+        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
+            self.dependencies.remove(pos);
+            true
+        } else {
+            false
+        }
     }
 
     pub fn set_output_var(&mut self, var: Variable) {

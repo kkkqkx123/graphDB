@@ -363,7 +363,7 @@ impl FunctionManager {
             },
         );
 
-        self.register_function(
+        let _ = self.register_function(
             "range",
             FunctionAttributes {
                 min_arity: 2,
@@ -414,7 +414,7 @@ impl FunctionManager {
         );
 
         // Time functions
-        self.register_function(
+        let _ = self.register_function(
             "now",
             FunctionAttributes {
                 min_arity: 0,
@@ -434,7 +434,7 @@ impl FunctionManager {
             },
         );
 
-        self.register_function(
+        let _ = self.register_function(
             "timestamp",
             FunctionAttributes {
                 min_arity: 0,

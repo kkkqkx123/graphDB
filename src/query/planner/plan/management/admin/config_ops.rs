@@ -1,7 +1,8 @@
 //! 配置操作相关的计划节点
 //! 包括显示、设置和获取配置等操作
 
-use crate::query::planner::plan::core::nodes::management_node_traits::{ManagementNode, ManagementNodeEnum};
+use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNodeEnum;
+use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
 use std::sync::Arc;
 
 /// 配置参数类型

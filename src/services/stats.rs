@@ -173,7 +173,7 @@ impl Timer {
         let start = std::time::Instant::now();
         let result = f();
         let duration = start.elapsed();
-        self.record(duration);
+        let _ = self.record(duration);
         result
     }
 

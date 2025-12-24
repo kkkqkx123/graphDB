@@ -1,7 +1,8 @@
 //! 主机操作相关的计划节点
 //! 包括添加/删除主机等操作
 
-use crate::query::planner::plan::core::nodes::management_node_traits::{ManagementNode, ManagementNodeEnum};
+use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNodeEnum;
+use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
 use std::sync::Arc;
 
 // 主机信息结构

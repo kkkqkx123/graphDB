@@ -1,7 +1,8 @@
 //! 索引操作相关的计划节点
 //! 包括创建/删除索引等操作
 
-use crate::query::planner::plan::core::nodes::management_node_traits::{ManagementNode, ManagementNodeEnum};
+use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNodeEnum;
+use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
 use std::sync::Arc;
 
 /// 创建索引计划节点

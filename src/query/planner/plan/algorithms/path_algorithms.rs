@@ -3,7 +3,7 @@
 
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::{BinaryInputNode, SingleInputNode};
+use crate::query::planner::plan::core::nodes::plan_node_traits::{BinaryInputNode, PlanNode, SingleInputNode};
 
 /// 多源最短路径计划节点
 #[derive(Debug, Clone)]
@@ -97,6 +97,40 @@ impl MultiShortestPath {
         V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
     {
         visitor.visit_multi_shortest_path(self)
+    }
+}
+
+impl PlanNode for MultiShortestPath {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "MultiShortestPath"
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::MultiShortestPath(self)
     }
 }
 
@@ -202,6 +236,40 @@ impl SingleInputNode for BFSShortest {
 
     fn set_input(&mut self, input: PlanNodeEnum) {
         self.deps[0] = input;
+    }
+}
+
+impl PlanNode for BFSShortest {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "BFSShortest"
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::BFSShortest(self)
     }
 }
 
@@ -311,6 +379,40 @@ impl BinaryInputNode for AllPaths {
     }
 }
 
+impl PlanNode for AllPaths {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "AllPaths"
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::AllPaths(self)
+    }
+}
+
 /// 最短路径计划节点
 #[derive(Debug, Clone)]
 pub struct ShortestPath {
@@ -407,5 +509,39 @@ impl BinaryInputNode for ShortestPath {
 
     fn set_right_input(&mut self, input: PlanNodeEnum) {
         self.deps[1] = input;
+    }
+}
+
+impl PlanNode for ShortestPath {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "ShortestPath"
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::ShortestPath(self)
     }
 }
