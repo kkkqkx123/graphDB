@@ -31,7 +31,7 @@ pub use cache::{ExpressionCacheManager, ExpressionCacheStats};
 pub use context::{EvaluationOptions, EvaluationStatistics};
 
 // Re-export error types
-pub use context::error::{ExpressionError, ExpressionErrorType, ExpressionPosition};
+pub use crate::core::error::{ExpressionError, ExpressionErrorType, ExpressionPosition};
 
 // Re-export storage module types for convenience
 pub use storage::{ColumnDef, FieldDef, FieldType, RowReaderWrapper, Schema};

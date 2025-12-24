@@ -5,7 +5,7 @@
 use crate::expression::ExpressionContext;
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::core::value::Value;
-use crate::expression::context::error::ExpressionError;
+use crate::core::error::ExpressionError;
 
 /// Cypher表达式求值器
 pub struct CypherEvaluator;
@@ -31,7 +31,7 @@ impl CypherEvaluator {
                 match obj_value {
                     Value::Vertex(vertex) => {
                         // 尝试从顶点获取属性
-                        if let Some(prop_value) = vertex.props.get(&prop_expr.property_name) {
+                        if let Some(prop_value) = vertex.properties.get(&prop_expr.property_name) {
                             Ok(prop_value.clone())
                         } else {
                             Ok(Value::Null(crate::core::NullType::UnknownProp))

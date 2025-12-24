@@ -7,6 +7,7 @@ use crate::core::value::Value;
 use crate::expression::ExpressionError;
 
 /// Cypher表达式评估器
+#[derive(Debug)]
 pub struct CypherExpressionEvaluator;
 
 impl CypherExpressionEvaluator {

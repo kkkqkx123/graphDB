@@ -327,11 +327,7 @@ impl BasicExpressionContext {
         args: &[FieldValue],
     ) -> Result<FieldValue, crate::core::ExpressionError> {
         // 缓存功能暂时禁用，因为需要修复生命周期问题
-
-        // 执行函数
-        let result = function_ref.execute(args);
-
-        result
+        function_ref.execute(args)
     }
 
     /// 将参数转换为哈希值用于缓存键
@@ -415,7 +411,7 @@ impl HierarchicalContext for BasicExpressionContext {
 }
 
 // 为BasicExpressionContext实现统一的ExpressionContext trait
-impl crate::expression::context::default_context::ExpressionContext for BasicExpressionContext {
+impl crate::expression::evaluator::traits::ExpressionContext for BasicExpressionContext {
     fn get_variable(&self, name: &str) -> Option<crate::core::Value> {
         // 将FieldValue转换为Value
         ExpressionContextCoreExtended::get_variable(self, name).map(|fv| {

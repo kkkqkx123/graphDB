@@ -4,7 +4,7 @@
 
 use crate::core::types::expression::{Expression, LiteralValue};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
-use crate::expression::context::error::ExpressionError;
+use crate::core::error::ExpressionError;
 use crate::core::Value;
 use crate::expression::evaluator::traits::{Evaluator, ExpressionContext};
 

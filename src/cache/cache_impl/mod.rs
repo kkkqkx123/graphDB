@@ -11,7 +11,7 @@ pub mod ttl;
 pub mod unbounded;
 
 // 重新导出主要的缓存实现
-pub use adaptive::AdaptiveCache;
+pub use adaptive::{AdaptiveCache, ConcurrentAdaptiveCache};
 pub use fifo::{ConcurrentFifoCache, FifoCache};
 pub use lfu::{ConcurrentLfuCache, LfuCache};
 pub use lru::{ConcurrentLruCache, LruCache};

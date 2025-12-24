@@ -49,7 +49,7 @@ pub struct EvaluationStatistics {
     /// 最大递归深度
     pub max_recursion_depth: usize,
     /// 详细的缓存统计信息
-    pub cache_stats: Option<super::cache::ExpressionCacheStats>,
+    pub cache_stats: Option<crate::expression::cache::ExpressionCacheStats>,
 }
 
 impl EvaluationStatistics {
@@ -98,7 +98,7 @@ impl EvaluationStatistics {
     }
 
     /// 更新缓存统计信息
-    pub fn update_cache_stats(&mut self, cache_stats: Option<super::cache::ExpressionCacheStats>) {
+    pub fn update_cache_stats(&mut self, cache_stats: Option<ExpressionCacheStats>) {
         self.cache_stats = cache_stats;
     }
 

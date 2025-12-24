@@ -1,9 +1,13 @@
 //! 缓存工厂
 //!
 //! 负责创建不同类型的缓存实例，提供统一的缓存创建接口
+//!
+//! 优化说明：
+//! - 移除了 CacheType 和 StatsCacheType 枚举，避免不必要的运行时开销
+//! - 保留核心创建方法和配置验证功能
+//! - 推荐直接使用具体类型以获得零运行时开销
 
 use super::cache_impl::*;
-use super::config::CachePolicy;
 use super::stats_marker::{StatsDisabled, StatsEnabled};
 use super::traits::{Cache, StatsCache};
 use std::hash::Hash;
@@ -13,28 +17,37 @@ use std::time::Duration;
 /// 缓存工厂
 ///
 /// 负责创建各种类型的缓存实例，提供统一的创建接口
+/// 包含配置验证功能，确保缓存参数的有效性
 pub struct CacheFactory;
 
 impl CacheFactory {
     /// 创建LRU缓存
+    ///
+    /// 带配置验证，确保容量参数有效
     pub fn create_lru_cache<K, V>(capacity: usize) -> Arc<ConcurrentLruCache<K, V>>
     where
         K: 'static + Send + Sync + Hash + Eq + Clone,
         V: 'static + Send + Sync + Clone,
     {
+        Self::validate_capacity(capacity).expect("Invalid LRU cache capacity");
         Arc::new(ConcurrentLruCache::new(capacity))
     }
 
     /// 创建LFU缓存
+    ///
+    /// 带配置验证，确保容量参数有效
     pub fn create_lfu_cache<K, V>(capacity: usize) -> Arc<ConcurrentLfuCache<K, V>>
     where
         K: 'static + Send + Sync + Hash + Eq + Clone,
         V: 'static + Send + Sync + Clone,
     {
+        Self::validate_capacity(capacity).expect("Invalid LFU cache capacity");
         Arc::new(ConcurrentLfuCache::new(capacity))
     }
 
     /// 创建TTL缓存
+    ///
+    /// 带配置验证，确保容量和TTL参数有效
     pub fn create_ttl_cache<K, V>(
         capacity: usize,
         default_ttl: Duration,
@@ -43,24 +56,32 @@ impl CacheFactory {
         K: 'static + Send + Sync + Hash + Eq + Clone,
         V: 'static + Send + Sync + Clone,
     {
+        Self::validate_capacity(capacity).expect("Invalid TTL cache capacity");
+        Self::validate_ttl(default_ttl).expect("Invalid TTL value");
         Arc::new(ConcurrentTtlCache::new(capacity, default_ttl))
     }
 
     /// 创建FIFO缓存
+    ///
+    /// 带配置验证，确保容量参数有效
     pub fn create_fifo_cache<K, V>(capacity: usize) -> Arc<ConcurrentFifoCache<K, V>>
     where
         K: 'static + Send + Sync + Hash + Eq + Clone,
         V: 'static + Send + Sync + Clone,
     {
+        Self::validate_capacity(capacity).expect("Invalid FIFO cache capacity");
         Arc::new(ConcurrentFifoCache::new(capacity))
     }
 
     /// 创建自适应缓存
+    ///
+    /// 带配置验证，确保容量参数有效
     pub fn create_adaptive_cache<K, V>(capacity: usize) -> Arc<AdaptiveCache<K, V>>
     where
         K: 'static + Send + Sync + Hash + Eq + Clone,
         V: 'static + Send + Sync + Clone,
     {
+        Self::validate_capacity(capacity).expect("Invalid Adaptive cache capacity");
         Arc::new(AdaptiveCache::new(capacity))
     }
 
@@ -73,62 +94,9 @@ impl CacheFactory {
         Arc::new(ConcurrentUnboundedCache::new())
     }
 
-    /// 根据策略创建缓存
-    pub fn create_cache_by_policy<K, V>(policy: &CachePolicy, capacity: usize) -> CacheType<K, V>
-    where
-        K: 'static + Send + Sync + Hash + Eq + Clone,
-        V: 'static + Send + Sync + Clone,
-    {
-        match policy {
-            CachePolicy::LRU => CacheType::Lru(Self::create_lru_cache(capacity)),
-            CachePolicy::LFU => CacheType::Lfu(Self::create_lfu_cache(capacity)),
-            CachePolicy::TTL(ttl) => CacheType::Ttl(Self::create_ttl_cache(capacity, *ttl)),
-            CachePolicy::FIFO => CacheType::Fifo(Self::create_fifo_cache(capacity)),
-            CachePolicy::Adaptive => CacheType::Adaptive(Self::create_adaptive_cache(capacity)),
-            CachePolicy::None => CacheType::Unbounded(Self::create_unbounded_cache()),
-        }
-    }
-
-    /// 根据策略创建带统计的缓存
-    ///
-    /// 所有返回的缓存均为 StatsEnabled 版本，提供完整的统计功能
-    pub fn create_stats_cache_by_policy<K, V>(
-        policy: &CachePolicy,
-        capacity: usize,
-    ) -> StatsCacheType<K, V>
-    where
-        K: 'static + Send + Sync + Hash + Eq + Clone,
-        V: 'static + Send + Sync + Clone,
-    {
-        match policy {
-            CachePolicy::LRU => {
-                let cache = Self::create_lru_cache(capacity);
-                StatsCacheType::Lru(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
-            }
-            CachePolicy::LFU => {
-                let cache = Self::create_lfu_cache(capacity);
-                StatsCacheType::Lfu(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
-            }
-            CachePolicy::TTL(ttl) => {
-                let cache = Self::create_ttl_cache(capacity, *ttl);
-                StatsCacheType::Ttl(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
-            }
-            CachePolicy::FIFO => {
-                let cache = Self::create_fifo_cache(capacity);
-                StatsCacheType::Fifo(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
-            }
-            CachePolicy::Adaptive => {
-                let cache = Self::create_adaptive_cache(capacity);
-                StatsCacheType::Adaptive(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
-            }
-            CachePolicy::None => {
-                let cache = Self::create_unbounded_cache();
-                StatsCacheType::Unbounded(Arc::new(StatsCacheWrapper::new_with_stats(cache)))
-            }
-        }
-    }
-
     /// 创建带统计的缓存包装器
+    ///
+    /// 将基础缓存包装为带统计功能的缓存
     pub fn create_stats_wrapper<K, V, C>(
         cache: Arc<C>,
     ) -> Arc<StatsCacheWrapper<K, V, C, StatsEnabled>>
@@ -141,6 +109,8 @@ impl CacheFactory {
     }
 
     /// 创建无统计的缓存包装器
+    ///
+    /// 将基础缓存包装为不带统计功能的缓存
     pub fn create_stats_wrapper_no_stats<K, V, C>(
         cache: Arc<C>,
     ) -> Arc<StatsCacheWrapper<K, V, C, StatsDisabled>>
@@ -153,6 +123,8 @@ impl CacheFactory {
     }
 
     /// 验证缓存容量
+    ///
+    /// 确保容量大于0且不超过最大限制
     pub fn validate_capacity(capacity: usize) -> Result<(), String> {
         if capacity == 0 {
             return Err("缓存容量必须大于0".to_string());
@@ -164,6 +136,8 @@ impl CacheFactory {
     }
 
     /// 验证TTL
+    ///
+    /// 确保TTL大于0
     pub fn validate_ttl(ttl: Duration) -> Result<(), String> {
         if ttl.is_zero() {
             return Err("TTL必须大于0".to_string());

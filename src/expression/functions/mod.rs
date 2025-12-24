@@ -4,7 +4,7 @@
 
 use crate::core::types::operators::AggregateFunction;
 use crate::core::types::query::FieldValue;
-use crate::expression::context::error::ExpressionError;
+use crate::core::error::ExpressionError;
 
 /// 函数引用枚举，避免动态分发
 #[derive(Debug, Clone)]

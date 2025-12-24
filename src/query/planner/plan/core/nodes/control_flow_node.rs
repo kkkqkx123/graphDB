@@ -3,6 +3,8 @@
 //! 包含Start、Argument、Select、Loop等控制流相关的计划节点
 
 use crate::query::context::validate::types::Variable;
+use super::plan_node_traits::{PlanNode, PlanNodeClonable};
+use super::plan_node_enum::PlanNodeEnum;
 
 /// Argument节点 - 用于从另一个已执行的操作中获取命名别名
 #[derive(Debug)]
@@ -46,60 +48,49 @@ impl ArgumentNode {
     }
 }
 
-impl ArgumentNode {
-    pub fn id(&self) -> i64 {
+impl PlanNode for ArgumentNode {
+    fn id(&self) -> i64 {
         self.id
     }
 
-    pub fn type_name(&self) -> &'static str {
+    fn name(&self) -> &'static str {
         "Argument"
     }
 
-    pub fn output_var(&self) -> Option<&Variable> {
+    fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
 
-    pub fn col_names(&self) -> &[String] {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
-    pub fn cost(&self) -> f64 {
+    fn cost(&self) -> f64 {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        &self.dependencies
-    }
-
-    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies.push(Box::new(dep));
-    }
-
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
-            self.dependencies.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
 
-    pub fn set_col_names(&mut self, names: Vec<String>) {
+    fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
 
-    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
-        super::plan_node_enum::PlanNodeEnum::Argument(self.clone())
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::Argument(self)
+    }
+}
+
+impl PlanNodeClonable for ArgumentNode {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
+        PlanNodeEnum::Argument(self.clone())
     }
 
-    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        super::plan_node_enum::PlanNodeEnum::Argument(cloned)
+        PlanNodeEnum::Argument(cloned)
     }
 }
 
@@ -167,69 +158,49 @@ impl SelectNode {
     }
 }
 
-impl SelectNode {
-    pub fn id(&self) -> i64 {
+impl PlanNode for SelectNode {
+    fn id(&self) -> i64 {
         self.id
     }
 
-    pub fn type_name(&self) -> &'static str {
+    fn name(&self) -> &'static str {
         "Select"
     }
 
-    pub fn output_var(&self) -> Option<&Variable> {
+    fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
 
-    pub fn col_names(&self) -> &[String] {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
-    pub fn cost(&self) -> f64 {
+    fn cost(&self) -> f64 {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        &self.dependencies
-    }
-
-    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies.push(Box::new(dep));
-    }
-
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
-            self.dependencies.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
 
-    pub fn set_col_names(&mut self, names: Vec<String>) {
+    fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
 
-    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
-        super::plan_node_enum::PlanNodeEnum::Select(Self {
-            id: self.id,
-            condition: self.condition.clone(),
-            if_branch: self.if_branch.clone(),
-            else_branch: self.else_branch.clone(),
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            dependencies: Vec::new(),
-        })
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::Select(self)
+    }
+}
+
+impl PlanNodeClonable for SelectNode {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
+        PlanNodeEnum::Select(self.clone())
     }
 
-    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        super::plan_node_enum::PlanNodeEnum::Select(cloned)
+        PlanNodeEnum::Select(cloned)
     }
 }
 
@@ -286,68 +257,49 @@ impl LoopNode {
     }
 }
 
-impl LoopNode {
-    pub fn id(&self) -> i64 {
+impl PlanNode for LoopNode {
+    fn id(&self) -> i64 {
         self.id
     }
 
-    pub fn type_name(&self) -> &'static str {
+    fn name(&self) -> &'static str {
         "Loop"
     }
 
-    pub fn output_var(&self) -> Option<&Variable> {
+    fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
 
-    pub fn col_names(&self) -> &[String] {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
-    pub fn cost(&self) -> f64 {
+    fn cost(&self) -> f64 {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        &self.dependencies
-    }
-
-    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies.push(Box::new(dep));
-    }
-
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
-            self.dependencies.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
 
-    pub fn set_col_names(&mut self, names: Vec<String>) {
+    fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
 
-    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
-        super::plan_node_enum::PlanNodeEnum::Loop(Self {
-            id: self.id,
-            condition: self.condition.clone(),
-            body: self.body.clone(),
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-            dependencies: Vec::new(),
-        })
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::Loop(self)
+    }
+}
+
+impl PlanNodeClonable for LoopNode {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
+        PlanNodeEnum::Loop(self.clone())
     }
 
-    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        super::plan_node_enum::PlanNodeEnum::Loop(cloned)
+        PlanNodeEnum::Loop(cloned)
     }
 }
 
@@ -386,60 +338,49 @@ impl PassThroughNode {
     }
 }
 
-impl PassThroughNode {
-    pub fn id(&self) -> i64 {
+impl PlanNode for PassThroughNode {
+    fn id(&self) -> i64 {
         self.id
     }
 
-    pub fn type_name(&self) -> &'static str {
+    fn name(&self) -> &'static str {
         "PassThrough"
     }
 
-    pub fn output_var(&self) -> Option<&Variable> {
+    fn output_var(&self) -> Option<&Variable> {
         self.output_var.as_ref()
     }
 
-    pub fn col_names(&self) -> &[String] {
+    fn col_names(&self) -> &[String] {
         &self.col_names
     }
 
-    pub fn cost(&self) -> f64 {
+    fn cost(&self) -> f64 {
         self.cost
     }
 
-    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        &self.dependencies
-    }
-
-    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.dependencies.push(Box::new(dep));
-    }
-
-    pub fn remove_dependency(&mut self, id: i64) -> bool {
-        if let Some(pos) = self.dependencies.iter().position(|dep| dep.id() == id) {
-            self.dependencies.remove(pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: Variable) {
         self.output_var = Some(var);
     }
 
-    pub fn set_col_names(&mut self, names: Vec<String>) {
+    fn set_col_names(&mut self, names: Vec<String>) {
         self.col_names = names;
     }
 
-    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
-        super::plan_node_enum::PlanNodeEnum::PassThrough(self.clone())
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::PassThrough(self)
+    }
+}
+
+impl PlanNodeClonable for PassThroughNode {
+    fn clone_plan_node(&self) -> PlanNodeEnum {
+        PlanNodeEnum::PassThrough(self.clone())
     }
 
-    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        super::plan_node_enum::PlanNodeEnum::PassThrough(cloned)
+        PlanNodeEnum::PassThrough(cloned)
     }
 }
 

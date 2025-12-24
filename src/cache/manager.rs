@@ -9,9 +9,9 @@ use super::factory::*;
 use super::registry::*;
 use super::stats_collector::*;
 use super::stats_marker::StatsEnabled;
-use crate::cache::config;
 use crate::cache::{
-    Cache, ConcurrentLfuCache, ConcurrentLruCache, ConcurrentTtlCache, StatsCacheWrapper,
+    Cache, ConcurrentAdaptiveCache, ConcurrentFifoCache, ConcurrentLfuCache, ConcurrentLruCache,
+    ConcurrentTtlCache, ConcurrentUnboundedCache, StatsCacheWrapper,
 };
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
@@ -216,17 +216,6 @@ impl CacheManager {
     }
 }
 
-/// 缓存策略枚举
-#[derive(Debug, Clone)]
-pub enum CachePolicy {
-    LRU,
-    LFU,
-    FIFO,
-    TTL(Duration),
-    Adaptive,
-    None,
-}
-
 /// 缓存策略枚举 - 用于统计信息
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CacheStrategy {
@@ -239,11 +228,14 @@ pub enum CacheStrategy {
 }
 
 /// 缓存构建器
+///
+/// 提供链式API构建缓存实例，支持配置容量、TTL和统计功能
+///
+/// 设计原则：避免使用动态分发 (dyn)，为每个缓存策略提供独立的构建方法
+/// 这样可以在编译时确定类型，避免运行时的动态分发开销
 pub struct CacheBuilder<K, V> {
     capacity: usize,
     ttl: Option<Duration>,
-    policy: CachePolicy,
-    collect_stats: bool,
     _phantom: std::marker::PhantomData<(K, V)>,
 }
 
@@ -256,50 +248,92 @@ where
         Self {
             capacity,
             ttl: None,
-            policy: CachePolicy::LRU,
-            collect_stats: false,
             _phantom: std::marker::PhantomData,
         }
     }
 
     pub fn with_ttl(mut self, ttl: Duration) -> Self {
         self.ttl = Some(ttl);
-        self.policy = CachePolicy::TTL(ttl);
         self
     }
 
-    pub fn with_policy(mut self, policy: CachePolicy) -> Self {
-        self.policy = policy;
-        self
+    /// 构建LRU缓存
+    pub fn build_lru(self) -> Arc<ConcurrentLruCache<K, V>> {
+        CacheFactory::create_lru_cache(self.capacity)
     }
 
-    pub fn with_stats(mut self, collect_stats: bool) -> Self {
-        self.collect_stats = collect_stats;
-        self
+    /// 构建LFU缓存
+    pub fn build_lfu(self) -> Arc<ConcurrentLfuCache<K, V>> {
+        CacheFactory::create_lfu_cache(self.capacity)
     }
 
-    pub fn build(self) -> CacheType<K, V> {
-        let policy = match self.policy {
-            CachePolicy::LRU => config::CachePolicy::LRU,
-            CachePolicy::LFU => config::CachePolicy::LFU,
-            CachePolicy::FIFO => config::CachePolicy::FIFO,
-            CachePolicy::TTL(ttl) => config::CachePolicy::TTL(ttl),
-            CachePolicy::Adaptive => config::CachePolicy::Adaptive,
-            CachePolicy::None => config::CachePolicy::None,
-        };
-        CacheFactory::create_cache_by_policy(&policy, self.capacity)
+    /// 构建FIFO缓存
+    pub fn build_fifo(self) -> Arc<crate::cache::ConcurrentFifoCache<K, V>> {
+        CacheFactory::create_fifo_cache(self.capacity)
     }
 
-    pub fn build_with_stats(self) -> StatsCacheType<K, V> {
-        let policy = match self.policy {
-            CachePolicy::LRU => config::CachePolicy::LRU,
-            CachePolicy::LFU => config::CachePolicy::LFU,
-            CachePolicy::FIFO => config::CachePolicy::FIFO,
-            CachePolicy::TTL(ttl) => config::CachePolicy::TTL(ttl),
-            CachePolicy::Adaptive => config::CachePolicy::Adaptive,
-            CachePolicy::None => config::CachePolicy::None,
-        };
-        CacheFactory::create_stats_cache_by_policy(&policy, self.capacity)
+    /// 构建TTL缓存
+    pub fn build_ttl(self) -> Arc<ConcurrentTtlCache<K, V>> {
+        let ttl = self.ttl.expect("TTL cache requires TTL duration");
+        CacheFactory::create_ttl_cache(self.capacity, ttl)
+    }
+
+    /// 构建自适应缓存
+    pub fn build_adaptive(self) -> Arc<ConcurrentAdaptiveCache<K, V>> {
+        CacheFactory::create_adaptive_cache(self.capacity).into()
+    }
+
+    /// 构建无界缓存
+    pub fn build_unbounded(self) -> Arc<ConcurrentUnboundedCache<K, V>> {
+        CacheFactory::create_unbounded_cache()
+    }
+
+    /// 构建带统计的LRU缓存
+    pub fn build_lru_with_stats(
+        self,
+    ) -> Arc<StatsCacheWrapper<K, V, ConcurrentLruCache<K, V>, StatsEnabled>> {
+        let cache = self.build_lru();
+        CacheFactory::create_stats_wrapper(cache)
+    }
+
+    /// 构建带统计的LFU缓存
+    pub fn build_lfu_with_stats(
+        self,
+    ) -> Arc<StatsCacheWrapper<K, V, ConcurrentLfuCache<K, V>, StatsEnabled>> {
+        let cache = self.build_lfu();
+        CacheFactory::create_stats_wrapper(cache)
+    }
+
+    /// 构建带统计的FIFO缓存
+    pub fn build_fifo_with_stats(
+        self,
+    ) -> Arc<StatsCacheWrapper<K, V, ConcurrentFifoCache<K, V>, StatsEnabled>> {
+        let cache = self.build_fifo();
+        CacheFactory::create_stats_wrapper(cache)
+    }
+
+    /// 构建带统计的TTL缓存
+    pub fn build_ttl_with_stats(
+        self,
+    ) -> Arc<StatsCacheWrapper<K, V, ConcurrentTtlCache<K, V>, StatsEnabled>> {
+        let cache = self.build_ttl();
+        CacheFactory::create_stats_wrapper(cache)
+    }
+
+    /// 构建带统计的自适应缓存
+    pub fn build_adaptive_with_stats(
+        self,
+    ) -> Arc<StatsCacheWrapper<K, V, ConcurrentAdaptiveCache<K, V>, StatsEnabled>> {
+        let cache = self.build_adaptive();
+        CacheFactory::create_stats_wrapper(cache)
+    }
+
+    /// 构建带统计的无界缓存
+    pub fn build_unbounded_with_stats(
+        self,
+    ) -> Arc<StatsCacheWrapper<K, V, ConcurrentUnboundedCache<K, V>, StatsEnabled>> {
+        let cache = self.build_unbounded();
+        CacheFactory::create_stats_wrapper(cache)
     }
 }
 
@@ -320,7 +354,7 @@ mod tests {
     fn test_cache_builder() {
         let cache = CacheBuilder::new(100)
             .with_ttl(Duration::from_secs(60))
-            .build();
+            .build_ttl();
 
         cache.put("key".to_string(), "value".to_string());
         assert_eq!(cache.get(&"key".to_string()), Some("value".to_string()));
@@ -330,8 +364,59 @@ mod tests {
     fn test_cache_builder_with_stats() {
         let cache = CacheBuilder::new(100)
             .with_ttl(Duration::from_secs(60))
-            .build_with_stats();
+            .build_ttl_with_stats();
 
+        cache.put("key".to_string(), "value".to_string());
+        assert_eq!(cache.get(&"key".to_string()), Some("value".to_string()));
+        assert_eq!(cache.hits(), 1);
+    }
+
+    #[test]
+    fn test_cache_builder_lru() {
+        let cache = CacheBuilder::new(100).build_lru();
+        cache.put("key".to_string(), "value".to_string());
+        assert_eq!(cache.get(&"key".to_string()), Some("value".to_string()));
+    }
+
+    #[test]
+    fn test_cache_builder_lfu() {
+        let cache = CacheBuilder::new(100).build_lfu();
+        cache.put("key".to_string(), "value".to_string());
+        assert_eq!(cache.get(&"key".to_string()), Some("value".to_string()));
+    }
+
+    #[test]
+    fn test_cache_builder_fifo() {
+        let cache = CacheBuilder::new(100).build_fifo();
+        cache.put("key".to_string(), "value".to_string());
+        assert_eq!(cache.get(&"key".to_string()), Some("value".to_string()));
+    }
+
+    #[test]
+    fn test_cache_builder_adaptive() {
+        let cache = CacheBuilder::new(100).build_adaptive();
+        cache.put("key".to_string(), "value".to_string());
+        assert_eq!(cache.get(&"key".to_string()), Some("value".to_string()));
+    }
+
+    #[test]
+    fn test_cache_builder_unbounded() {
+        let cache = CacheBuilder::new(100).build_unbounded();
+        cache.put("key".to_string(), "value".to_string());
+        assert_eq!(cache.get(&"key".to_string()), Some("value".to_string()));
+    }
+
+    #[test]
+    fn test_cache_builder_lru_with_stats() {
+        let cache = CacheBuilder::new(100).build_lru_with_stats();
+        cache.put("key".to_string(), "value".to_string());
+        assert_eq!(cache.get(&"key".to_string()), Some("value".to_string()));
+        assert_eq!(cache.hits(), 1);
+    }
+
+    #[test]
+    fn test_cache_builder_lfu_with_stats() {
+        let cache = CacheBuilder::new(100).build_lfu_with_stats();
         cache.put("key".to_string(), "value".to_string());
         assert_eq!(cache.get(&"key".to_string()), Some("value".to_string()));
         assert_eq!(cache.hits(), 1);

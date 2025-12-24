@@ -16,12 +16,12 @@ pub mod traits;
 // 重新导出主要类型
 pub use cache_impl::*;
 pub use config::*;
-pub use factory::{CacheFactory, CacheType, StatsCacheType};
+pub use factory::CacheFactory;
 pub use global_manager::{
     global_cache_manager, global_cache_registry, global_stats_collector, init_global_cache_manager,
     is_global_cache_manager_initialized, GlobalCacheManager,
 };
-pub use manager::{CacheBuilder, CacheManager, CachePolicy, CacheStrategy};
+pub use manager::{CacheBuilder, CacheManager, CacheStrategy};
 pub use parser_cache::*;
 pub use registry::{CacheRegistry, CacheRegistryInfo};
 pub use stats_collector::{CacheStats, CacheStatsCollector};

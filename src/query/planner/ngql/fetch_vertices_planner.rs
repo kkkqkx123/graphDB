@@ -7,6 +7,7 @@ use crate::query::planner::plan::core::common::TagProp;
 use crate::query::planner::plan::core::nodes::{
     ArgumentNode, DedupNode, GetVerticesNode, PlanNodeEnum, ProjectNode,
 };
+use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};

@@ -4,6 +4,7 @@ use super::super::traits::*;
 use crate::cache::cache_impl::lfu::ConcurrentLfuCache;
 use crate::cache::cache_impl::lru::ConcurrentLruCache;
 use std::hash::Hash;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 enum AdaptiveStrategy {
@@ -21,6 +22,11 @@ pub struct AdaptiveCache<K, V> {
     lfu_cache: ConcurrentLfuCache<K, V>,
     strategy: AdaptiveStrategy,
 }
+
+/// 并发自适应缓存
+///
+/// 使用Arc包装AdaptiveCache，实现线程安全的并发访问
+pub type ConcurrentAdaptiveCache<K, V> = Arc<AdaptiveCache<K, V>>;
 
 impl<K, V> AdaptiveCache<K, V>
 where
@@ -107,5 +113,40 @@ where
             AdaptiveStrategy::LFU => self.lfu_cache.is_empty(),
             AdaptiveStrategy::Hybrid => self.lru_cache.is_empty() && self.lfu_cache.is_empty(),
         }
+    }
+}
+
+/// 为Arc<AdaptiveCache>实现Cache trait
+impl<K, V> Cache<K, V> for Arc<AdaptiveCache<K, V>>
+where
+    K: Eq + Hash + Clone + Send + Sync,
+    V: Clone + Send + Sync,
+{
+    fn get(&self, key: &K) -> Option<V> {
+        self.as_ref().get(key)
+    }
+
+    fn put(&self, key: K, value: V) {
+        self.as_ref().put(key, value);
+    }
+
+    fn contains(&self, key: &K) -> bool {
+        self.as_ref().contains(key)
+    }
+
+    fn remove(&self, key: &K) -> Option<V> {
+        self.as_ref().remove(key)
+    }
+
+    fn clear(&self) {
+        self.as_ref().clear();
+    }
+
+    fn len(&self) -> usize {
+        self.as_ref().len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.as_ref().is_empty()
     }
 }

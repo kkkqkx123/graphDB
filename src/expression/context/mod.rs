@@ -4,7 +4,6 @@
 
 pub mod basic_context;
 pub mod default_context;
-pub mod error;
 pub mod evaluation;
 
 // 重新导出默认上下文类型
@@ -19,8 +18,8 @@ pub use basic_context::{BasicExpressionContext, ExpressionContextType};
 // 重新导出求值相关类型
 pub use evaluation::{EvaluationOptions, EvaluationStatistics};
 
-// 重新导出错误相关类型
-pub use error::{ExpressionError, ExpressionErrorType, ExpressionPosition};
+// 重新导出错误相关类型（从 core::error）
+pub use crate::core::error::{ExpressionError, ExpressionErrorType, ExpressionPosition};
 
 // 重新导出扩展trait
 pub use basic_context::ExpressionContextCoreExtended;
