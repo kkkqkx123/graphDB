@@ -40,7 +40,7 @@ impl CypherProcessor {
         let unified_expr = super::expression_converter::ExpressionConverter::convert_cypher_to_unified(&optimized_expr)?;
 
         // 3. 评估统一表达式
-        crate::core::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
+        crate::expression::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
     }
 
     /// 直接评估Cypher表达式（不进行转换）
