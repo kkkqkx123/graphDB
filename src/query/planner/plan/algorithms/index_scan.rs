@@ -2,7 +2,7 @@
 //! 包含索引扫描、全文索引扫描等搜索相关操作
 
 use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_enum::{PlanNodeEnum, PlanNodeVisitor};
 use crate::query::planner::plan::core::nodes::plan_node_traits::{PlanNode, PlanNodeClonable, ZeroInputNode};
 
 #[derive(Debug, Clone)]
@@ -90,7 +90,7 @@ impl IndexScan {
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+        V: PlanNodeVisitor,
     {
         visitor.visit_index_scan(self)
     }
@@ -206,7 +206,7 @@ impl FulltextIndexScan {
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+        V: PlanNodeVisitor,
     {
         visitor.visit_fulltext_index_scan(self)
     }

@@ -28,7 +28,7 @@ pub use graph_scan_node::{
 pub use join_node::{CrossJoinNode, InnerJoinNode, LeftJoinNode};
 pub use management_node_enum::ManagementNodeEnum;
 pub use management_node_traits::*;
-pub use plan_node_enum::PlanNodeEnum;
+pub use plan_node_enum::{PlanNodeEnum, PlanNodeVisitor};
 pub use plan_node_operations::*;
 pub use plan_node_traits::*;
 pub use project_node::ProjectNode;

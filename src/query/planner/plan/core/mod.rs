@@ -1,8 +1,10 @@
 pub mod common;
+pub mod explain;
 pub mod nodes;
 
 pub use common::{EdgeProp, TagProp};
-pub use nodes::plan_node_enum::PlanNodeEnum;
+pub use explain::{DescribeVisitor, Pair, PlanDescription, PlanNodeBranchInfo, PlanNodeDescription, ProfilingStats};
+pub use nodes::plan_node_enum::{PlanNodeEnum, PlanNodeVisitor};
 pub use nodes::plan_node_traits::PlanNode;
 pub use nodes::{
     AggregateNode, AppendVerticesNode, ArgumentNode, CrossJoinNode, DataCollectNode, DedupNode,
