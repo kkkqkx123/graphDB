@@ -186,6 +186,126 @@ impl ExpressionVisitor for EvaluableExprVisitor {
         self.evaluable = false;
         Ok(())
     }
+
+    fn visit_unary_plus(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)?;
+        Ok(())
+    }
+
+    fn visit_unary_negate(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)?;
+        Ok(())
+    }
+
+    fn visit_unary_not(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)?;
+        Ok(())
+    }
+
+    fn visit_unary_incr(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)?;
+        Ok(())
+    }
+
+    fn visit_unary_decr(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)?;
+        Ok(())
+    }
+
+    fn visit_is_null(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)?;
+        Ok(())
+    }
+
+    fn visit_is_not_null(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)?;
+        Ok(())
+    }
+
+    fn visit_is_empty(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)?;
+        Ok(())
+    }
+
+    fn visit_is_not_empty(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)?;
+        Ok(())
+    }
+
+    fn visit_type_casting(&mut self, expr: &Expression, _target_type: &str) -> Self::Result {
+        self.visit(expr)?;
+        Ok(())
+    }
+
+    fn visit_list_comprehension(
+        &mut self,
+        generator: &Expression,
+        condition: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        self.visit(generator)?;
+        if let Some(cond) = condition {
+            self.visit(cond)?;
+        }
+        Ok(())
+    }
+
+    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Self::Result {
+        self.visit(list)?;
+        self.visit(condition)?;
+        Ok(())
+    }
+
+    fn visit_reduce(
+        &mut self,
+        list: &Expression,
+        _var: &str,
+        initial: &Expression,
+        expr: &Expression,
+    ) -> Self::Result {
+        self.visit(list)?;
+        self.visit(initial)?;
+        self.visit(expr)?;
+        Ok(())
+    }
+
+    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            self.visit(item)?;
+        }
+        Ok(())
+    }
+
+    fn visit_es_query(&mut self, _query: &str) -> Self::Result {
+        self.evaluable = false;
+        Ok(())
+    }
+
+    fn visit_uuid(&mut self) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_subscript_range(
+        &mut self,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        self.visit(collection)?;
+        if let Some(start_expr) = start {
+            self.visit(start_expr)?;
+        }
+        if let Some(end_expr) = end {
+            self.visit(end_expr)?;
+        }
+        Ok(())
+    }
+
+    fn visit_match_path_pattern(&mut self, _path_alias: &str, patterns: &[Expression]) -> Self::Result {
+        for pattern in patterns {
+            self.visit(pattern)?;
+        }
+        Ok(())
+    }
 }
 
 impl QueryVisitor for EvaluableExprVisitor {

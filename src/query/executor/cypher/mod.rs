@@ -13,11 +13,13 @@ use async_trait::async_trait;
 pub mod base;
 pub mod clauses;
 pub mod context;
+pub mod expression_evaluator;
 pub mod factory;
 
 // 重新导出主要类型
 pub use base::CypherExecutor;
 pub use context::CypherExecutionContext;
+pub use expression_evaluator::CypherExpressionEvaluator;
 pub use factory::CypherExecutorFactory;
 
 /// Cypher执行器特征

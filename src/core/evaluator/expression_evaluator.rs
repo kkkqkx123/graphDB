@@ -2,7 +2,6 @@
 //!
 //! 提供具体的表达式求值功能
 
-use super::traits::Evaluator;
 use crate::core::expressions::ExpressionContext;
 use crate::core::types::expression::{Expression, LiteralValue};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
@@ -1094,73 +1093,6 @@ impl ExpressionEvaluator {
         }
     }
 
-    /// 评估Cypher表达式
-    pub fn evaluate_cypher(
-        &self,
-        cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-        context: &mut dyn crate::core::expressions::ExpressionContext,
-    ) -> Result<Value, ExpressionError> {
-        // 将Cypher表达式转换为统一表达式，然后评估
-        let unified_expr = crate::expression::cypher::expression_converter::ExpressionConverter::convert_cypher_to_unified(cypher_expr)?;
-        self.evaluate(&unified_expr, context)
-    }
-
-    /// 批量评估Cypher表达式
-    pub fn evaluate_cypher_batch(
-        &self,
-        cypher_exprs: &[crate::query::parser::cypher::ast::expressions::Expression],
-        context: &mut dyn crate::core::expressions::ExpressionContext,
-    ) -> Result<Vec<Value>, ExpressionError> {
-        let mut results = Vec::new();
-        for expr in cypher_exprs {
-            results.push(self.evaluate_cypher(expr, context)?);
-        }
-        Ok(results)
-    }
-
-    /// 检查Cypher表达式是否为常量
-    pub fn is_cypher_constant(
-        &self,
-        cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-    ) -> bool {
-        crate::expression::cypher::expression_optimizer::CypherExpressionOptimizer::is_cypher_constant(cypher_expr)
-    }
-
-    /// 获取Cypher表达式中使用的所有变量
-    pub fn get_cypher_variables(
-        &self,
-        cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-    ) -> Vec<String> {
-        let mut variables = Vec::new();
-        crate::expression::cypher::cypher_evaluator::CypherEvaluator::collect_cypher_variables(
-            cypher_expr,
-            &mut variables,
-        );
-        variables.sort();
-        variables.dedup();
-        variables
-    }
-
-    /// 检查Cypher表达式是否包含聚合函数
-    pub fn contains_cypher_aggregate(
-        &self,
-        cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-    ) -> bool {
-        crate::expression::cypher::cypher_evaluator::CypherEvaluator::contains_cypher_aggregate(
-            cypher_expr,
-        )
-    }
-
-    /// 优化Cypher表达式
-    pub fn optimize_cypher_expression(
-        &self,
-        cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-    ) -> Result<crate::query::parser::cypher::ast::expressions::Expression, ExpressionError> {
-        // 使用Cypher表达式优化器
-        crate::expression::cypher::expression_optimizer::CypherExpressionOptimizer::optimize_cypher(
-            cypher_expr,
-        )
-    }
 }
 
 impl Default for ExpressionEvaluator {

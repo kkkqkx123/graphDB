@@ -1,5 +1,4 @@
 pub mod aggregate_functions;
-pub mod cypher;
 pub mod storage;
 pub mod visitor;
 pub mod types;
@@ -15,11 +14,6 @@ pub use types::{DataType, Expression, ExpressionType, LiteralValue};
 
 // Re-export Core evaluator
 pub use crate::core::evaluator::ExpressionEvaluator;
-
-// Re-export cypher module types for convenience
-pub use cypher::{
-    CypherEvaluator, CypherExpressionOptimizer, CypherProcessor, ExpressionConverter,
-};
 
 // Re-export storage module types for convenience
 pub use storage::{ColumnDef, FieldDef, FieldType, RowReaderWrapper, Schema};
