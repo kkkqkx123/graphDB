@@ -1,9 +1,10 @@
 //! DeducePropsVisitor - 用于推导表达式属性的访问器
 //! 对应 NebulaGraph DeducePropsVisitor.h/.cpp 的功能
 
-use crate::core::visitor::ExpressionAcceptor;
-use crate::core::visitor::{VisitorConfig, VisitorContext, VisitorCore};
-use crate::core::{Expression, ExpressionVisitor, LiteralValue};
+use crate::core::{
+    AggregateFunction, BinaryOperator, DataType, Expression, LiteralValue, UnaryOperator,
+};
+use crate::expression::ExpressionVisitor;
 use crate::query::visitor::QueryVisitor;
 use std::collections::{HashMap, HashSet};
 
@@ -205,8 +206,6 @@ impl ExpressionProps {
 /// 用于递归遍历表达式树，收集所有涉及的属性信息
 #[derive(Debug)]
 pub struct DeducePropsVisitor {
-    context: VisitorContext,
-    state: crate::core::visitor::visitor_state_enum::VisitorStateEnum,
     /// 推导出的表达式属性集合
     props: ExpressionProps,
     /// 收集的节点信息
@@ -223,47 +222,6 @@ impl DeducePropsVisitor {
     /// 创建新的属性推导访问器
     pub fn new() -> Self {
         Self {
-            context: VisitorContext::new(VisitorConfig::new()),
-            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
-            props: ExpressionProps::new(),
-            node_info: Vec::new(),
-            edge_info: Vec::new(),
-            user_defined_vars: HashSet::new(),
-            error: None,
-        }
-    }
-
-    /// 创建带初始深度的属性推导访问器
-    pub fn with_depth(depth: usize) -> Self {
-        Self {
-            context: VisitorContext::new(VisitorConfig::new()),
-            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
-            props: ExpressionProps::new(),
-            node_info: Vec::new(),
-            edge_info: Vec::new(),
-            user_defined_vars: HashSet::new(),
-            error: None,
-        }
-    }
-
-    /// 创建带配置的属性推导访问器
-    pub fn with_config(config: VisitorConfig) -> Self {
-        Self {
-            context: VisitorContext::new(config),
-            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
-            props: ExpressionProps::new(),
-            node_info: Vec::new(),
-            edge_info: Vec::new(),
-            user_defined_vars: HashSet::new(),
-            error: None,
-        }
-    }
-
-    /// 创建带配置和初始深度的属性推导访问器
-    pub fn with_config_and_depth(config: VisitorConfig, depth: usize) -> Self {
-        Self {
-            context: VisitorContext::new(config),
-            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
             props: ExpressionProps::new(),
             node_info: Vec::new(),
             edge_info: Vec::new(),
@@ -275,21 +233,6 @@ impl DeducePropsVisitor {
     /// 创建带有用户定义变量列表的访问器
     pub fn with_user_vars(user_defined_vars: HashSet<String>) -> Self {
         Self {
-            context: VisitorContext::new(VisitorConfig::new()),
-            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
-            props: ExpressionProps::new(),
-            node_info: Vec::new(),
-            edge_info: Vec::new(),
-            user_defined_vars,
-            error: None,
-        }
-    }
-
-    /// 创建带有用户定义变量列表和初始深度的访问器
-    pub fn with_user_vars_and_depth(user_defined_vars: HashSet<String>, depth: usize) -> Self {
-        Self {
-            context: VisitorContext::new(VisitorConfig::new()),
-            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
             props: ExpressionProps::new(),
             node_info: Vec::new(),
             edge_info: Vec::new(),
@@ -360,101 +303,62 @@ impl Default for DeducePropsVisitor {
     }
 }
 
-impl VisitorCore<Expression> for DeducePropsVisitor {
+impl ExpressionVisitor for DeducePropsVisitor {
     type Result = Result<(), String>;
 
-    fn visit(&mut self, target: &Expression) -> Self::Result {
-        // 使用表达式接受器模式进行访问
-        target.accept(self)
-    }
-
-    fn context(&self) -> &VisitorContext {
-        &self.context
-    }
-
-    fn context_mut(&mut self) -> &mut VisitorContext {
-        &mut self.context
-    }
-
-    fn state(&self) -> &crate::core::visitor::visitor_state_enum::VisitorStateEnum {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut crate::core::visitor::visitor_state_enum::VisitorStateEnum {
-        &mut self.state
-    }
-}
-
-impl ExpressionVisitor for DeducePropsVisitor {
     fn visit_literal(&mut self, _value: &LiteralValue) -> Self::Result {
-        // 常量表达式不包含属性
         Ok(())
     }
 
     fn visit_variable(&mut self, name: &str) -> Self::Result {
-        // 处理属性表达式 - 作为输入属性
         self.props.insert_input_prop(name);
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
-        // 递归访问对象
-        object.accept(self)?;
-        // 属性访问返回Empty类型（实际类型应该查询Schema）
-        Ok(())
+    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
+        self.visit(object)
     }
 
     fn visit_binary(
         &mut self,
         left: &Expression,
-        _op: &crate::core::BinaryOperator,
+        _op: &BinaryOperator,
         right: &Expression,
     ) -> Self::Result {
-        // 二元操作符，递归访问左右操作数
-        left.accept(self)?;
-        right.accept(self)?;
-        Ok(())
+        self.visit(left)?;
+        self.visit(right)
     }
 
-    fn visit_unary(
-        &mut self,
-        _op: &crate::core::UnaryOperator,
-        operand: &Expression,
-    ) -> Self::Result {
-        // 一元操作符，递归访问操作数
-        operand.accept(self)?;
-        Ok(())
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
+        self.visit(operand)
     }
 
     fn visit_function(&mut self, _name: &str, args: &[Expression]) -> Self::Result {
-        // 函数调用，递归访问所有参数
         for arg in args {
-            arg.accept(self)?;
+            self.visit(arg)?;
         }
         Ok(())
     }
 
     fn visit_aggregate(
         &mut self,
-        _func: &crate::core::AggregateFunction,
+        _func: &AggregateFunction,
         arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
-        // 聚合函数，递归访问参数
-        arg.accept(self)?;
-        Ok(())
+        self.visit(arg)
     }
 
     fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
         for item in items {
-            item.accept(self)?;
+            self.visit(item)?;
         }
         Ok(())
     }
 
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
         for (_, value) in pairs {
-            value.accept(self)?;
+            self.visit(value)?;
         }
         Ok(())
     }
@@ -465,28 +369,22 @@ impl ExpressionVisitor for DeducePropsVisitor {
         default: &Option<Box<Expression>>,
     ) -> Self::Result {
         for (condition, value) in conditions {
-            condition.accept(self)?;
-            value.accept(self)?;
+            self.visit(condition)?;
+            self.visit(value)?;
         }
         if let Some(default_expr) = default {
-            default_expr.accept(self)?;
+            self.visit(default_expr)?;
         }
         Ok(())
     }
 
-    fn visit_type_cast(
-        &mut self,
-        expr: &Expression,
-        _target_type: &crate::core::DataType,
-    ) -> Self::Result {
-        expr.accept(self)?;
-        Ok(())
+    fn visit_type_cast(&mut self, expr: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit(expr)
     }
 
     fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
-        collection.accept(self)?;
-        index.accept(self)?;
-        Ok(())
+        self.visit(collection)?;
+        self.visit(index)
     }
 
     fn visit_range(
@@ -495,25 +393,24 @@ impl ExpressionVisitor for DeducePropsVisitor {
         start: &Option<Box<Expression>>,
         end: &Option<Box<Expression>>,
     ) -> Self::Result {
-        collection.accept(self)?;
+        self.visit(collection)?;
         if let Some(start_expr) = start {
-            start_expr.accept(self)?;
+            self.visit(start_expr)?;
         }
         if let Some(end_expr) = end {
-            end_expr.accept(self)?;
+            self.visit(end_expr)?;
         }
         Ok(())
     }
 
     fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
         for item in items {
-            item.accept(self)?;
+            self.visit(item)?;
         }
         Ok(())
     }
 
     fn visit_label(&mut self, name: &str) -> Self::Result {
-        // 标签表达式
         if !name.is_empty() {
             self.user_defined_vars.insert(name.to_string());
         }
@@ -521,26 +418,22 @@ impl ExpressionVisitor for DeducePropsVisitor {
     }
 
     fn visit_tag_property(&mut self, tag: &str, prop: &str) -> Self::Result {
-        // 处理标签属性表达式（tagName.prop）
         self.props.insert_tag_name_id(tag, tag);
         self.props.insert_tag_prop(tag, prop);
         Ok(())
     }
 
     fn visit_edge_property(&mut self, edge: &str, prop: &str) -> Self::Result {
-        // 处理边属性表达式（edgeName.prop）
         self.props.insert_edge_prop(edge, prop);
         Ok(())
     }
 
     fn visit_input_property(&mut self, prop: &str) -> Self::Result {
-        // 处理输入属性表达式（$-.prop）
         self.props.insert_input_prop(prop);
         Ok(())
     }
 
     fn visit_variable_property(&mut self, var: &str, prop: &str) -> Self::Result {
-        // 处理变量属性表达式（$var.prop）
         if !var.is_empty() {
             self.props.insert_var_prop(var, prop);
             self.user_defined_vars.insert(var.to_string());
@@ -549,16 +442,121 @@ impl ExpressionVisitor for DeducePropsVisitor {
     }
 
     fn visit_source_property(&mut self, tag: &str, prop: &str) -> Self::Result {
-        // 处理源属性表达式（$^.tag.prop）
         self.props.insert_tag_name_id(tag, tag);
         self.props.insert_src_tag_prop(tag, prop);
         Ok(())
     }
 
     fn visit_destination_property(&mut self, tag: &str, prop: &str) -> Self::Result {
-        // 处理目标属性表达式（$$.tag.prop）
         self.props.insert_tag_name_id(tag, tag);
         self.props.insert_dst_tag_prop(tag, prop);
+        Ok(())
+    }
+
+    fn visit_unary_plus(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)
+    }
+
+    fn visit_unary_negate(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)
+    }
+
+    fn visit_unary_not(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)
+    }
+
+    fn visit_unary_incr(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)
+    }
+
+    fn visit_unary_decr(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)
+    }
+
+    fn visit_is_null(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)
+    }
+
+    fn visit_is_not_null(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)
+    }
+
+    fn visit_is_empty(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)
+    }
+
+    fn visit_is_not_empty(&mut self, expr: &Expression) -> Self::Result {
+        self.visit(expr)
+    }
+
+    fn visit_type_casting(&mut self, expr: &Expression, _target_type: &str) -> Self::Result {
+        self.visit(expr)
+    }
+
+    fn visit_list_comprehension(
+        &mut self,
+        generator: &Expression,
+        condition: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        self.visit(generator)?;
+        if let Some(cond) = condition {
+            self.visit(cond)?;
+        }
+        Ok(())
+    }
+
+    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Self::Result {
+        self.visit(list)?;
+        self.visit(condition)
+    }
+
+    fn visit_reduce(
+        &mut self,
+        list: &Expression,
+        _var: &str,
+        initial: &Expression,
+        expr: &Expression,
+    ) -> Self::Result {
+        self.visit(list)?;
+        self.visit(initial)?;
+        self.visit(expr)
+    }
+
+    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            self.visit(item)?;
+        }
+        Ok(())
+    }
+
+    fn visit_es_query(&mut self, _query: &str) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_uuid(&mut self) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_subscript_range(
+        &mut self,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        self.visit(collection)?;
+        if let Some(start_expr) = start {
+            self.visit(start_expr)?;
+        }
+        if let Some(end_expr) = end {
+            self.visit(end_expr)?;
+        }
+        Ok(())
+    }
+
+    fn visit_match_path_pattern(&mut self, _path_alias: &str, patterns: &[Expression]) -> Self::Result {
+        for pattern in patterns {
+            self.visit(pattern)?;
+        }
         Ok(())
     }
 }

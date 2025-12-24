@@ -1,11 +1,7 @@
 //! FindVisitor - 用于查找表达式中特定类型子表达式的访问器
 //! 对应 NebulaGraph FindVisitor.h/.cpp 的功能
 
-use crate::core::visitor::{VisitorContext, VisitorCore, VisitorResult};
-use crate::core::{
-    AggregateFunction, BinaryOperator, DataType, Expression, ExpressionVisitor, LiteralValue,
-    UnaryOperator,
-};
+use crate::expression::{Expression, ExpressionType, ExpressionVisitor, LiteralValue};
 use crate::query::visitor::QueryVisitor;
 use std::collections::HashSet;
 
@@ -15,10 +11,6 @@ pub struct FindVisitor {
     target_types: HashSet<ExpressionType>,
     /// 找到的表达式列表
     found_exprs: Vec<Expression>,
-    /// 访问器上下文
-    context: VisitorContext,
-    /// 访问器状态
-    state: crate::core::visitor::visitor_state_enum::VisitorStateEnum,
 }
 
 /// 表达式类型枚举，用于标识不同类型的表达式
@@ -52,41 +44,6 @@ impl FindVisitor {
         Self {
             target_types: HashSet::new(),
             found_exprs: Vec::new(),
-            context: VisitorContext::new(crate::core::visitor::VisitorConfig::new()),
-            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
-        }
-    }
-
-    /// 创建带初始深度的 FindVisitor
-    pub fn with_depth(depth: usize) -> Self {
-        Self {
-            target_types: HashSet::new(),
-            found_exprs: Vec::new(),
-            context: VisitorContext::new(crate::core::visitor::VisitorConfig::new()),
-            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
-        }
-    }
-
-    /// 创建带配置的 FindVisitor
-    pub fn with_config(config: crate::core::visitor::VisitorConfig) -> Self {
-        Self {
-            target_types: HashSet::new(),
-            found_exprs: Vec::new(),
-            context: VisitorContext::new(config),
-            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::new(),
-        }
-    }
-
-    /// 创建带配置和初始深度的 FindVisitor
-    pub fn with_config_and_depth(
-        config: crate::core::visitor::VisitorConfig,
-        depth: usize,
-    ) -> Self {
-        Self {
-            target_types: HashSet::new(),
-            found_exprs: Vec::new(),
-            context: VisitorContext::new(config),
-            state: crate::core::visitor::visitor_state_enum::VisitorStateEnum::with_depth(depth),
         }
     }
 
@@ -119,206 +76,6 @@ impl FindVisitor {
         !self.found_exprs.is_empty()
     }
 
-    fn visit(&mut self, expr: &Expression) {
-        // 检查当前表达式是否匹配目标类型
-        if self.target_types.contains(&Self::get_expression_type(expr)) {
-            self.found_exprs.push(expr.clone());
-        }
-
-        // 递归访问子表达式
-        self.visit_children(expr);
-    }
-
-    fn visit_children(&mut self, expr: &Expression) {
-        match expr {
-            Expression::Literal(_) => {}
-            Expression::Variable(_) => {}
-            Expression::Property { object, .. } => {
-                self.visit(object);
-            }
-            Expression::Binary { left, right, .. } => {
-                self.visit(left);
-                self.visit(right);
-            }
-            Expression::Unary { operand, .. } => {
-                self.visit(operand);
-            }
-            Expression::Function { args, .. } => {
-                for arg in args {
-                    self.visit(arg);
-                }
-            }
-            Expression::Aggregate { arg, .. } => {
-                self.visit(arg);
-            }
-            Expression::List(elements) => {
-                for elem in elements {
-                    self.visit(elem);
-                }
-            }
-            Expression::Map(pairs) => {
-                for (_, value) in pairs {
-                    self.visit(value);
-                }
-            }
-            Expression::Case {
-                conditions,
-                default,
-            } => {
-                for (condition, value) in conditions {
-                    self.visit(condition);
-                    self.visit(value);
-                }
-                if let Some(default_expr) = default {
-                    self.visit(default_expr);
-                }
-            }
-            Expression::TypeCast { expr, .. } => {
-                self.visit(expr);
-            }
-            Expression::Subscript { collection, index } => {
-                self.visit(collection);
-                self.visit(index);
-            }
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => {
-                self.visit(collection);
-                if let Some(start_expr) = start {
-                    self.visit(start_expr);
-                }
-                if let Some(end_expr) = end {
-                    self.visit(end_expr);
-                }
-            }
-            Expression::Path(elements) => {
-                for elem in elements {
-                    self.visit(elem);
-                }
-            }
-            Expression::Label(_) => {}
-            Expression::TagProperty { .. } => {}
-            Expression::EdgeProperty { .. } => {}
-            Expression::InputProperty(_) => {}
-            Expression::VariableProperty { .. } => {}
-            Expression::SourceProperty { .. } => {}
-            Expression::DestinationProperty { .. } => {}
-
-            // 新增表达式类型的处理
-            Expression::UnaryPlus(expr)
-            | Expression::UnaryNegate(expr)
-            | Expression::UnaryNot(expr)
-            | Expression::UnaryIncr(expr)
-            | Expression::UnaryDecr(expr)
-            | Expression::IsNull(expr)
-            | Expression::IsNotNull(expr)
-            | Expression::IsEmpty(expr)
-            | Expression::IsNotEmpty(expr) => {
-                self.visit(expr);
-            }
-            Expression::TypeCasting { expr, .. } => {
-                self.visit(expr);
-            }
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                self.visit(generator);
-                if let Some(cond) = condition {
-                    self.visit(cond);
-                }
-            }
-            Expression::Predicate { list, condition } => {
-                self.visit(list);
-                self.visit(condition);
-            }
-            Expression::Reduce {
-                list,
-                initial,
-                expr,
-                ..
-            } => {
-                self.visit(list);
-                self.visit(initial);
-                self.visit(expr);
-            }
-            Expression::PathBuild(elements) => {
-                for elem in elements {
-                    self.visit(elem);
-                }
-            }
-            Expression::ESQuery(_) => {}
-            Expression::UUID => {}
-            Expression::SubscriptRange {
-                collection,
-                start,
-                end,
-            } => {
-                self.visit(collection);
-                if let Some(start_expr) = start {
-                    self.visit(start_expr);
-                }
-                if let Some(end_expr) = end {
-                    self.visit(end_expr);
-                }
-            }
-            Expression::MatchPathPattern { patterns, .. } => {
-                for pattern in patterns {
-                    self.visit(pattern);
-                }
-            }
-        }
-    }
-
-    /// 获取表达式的类型
-    fn get_expression_type(expr: &Expression) -> ExpressionType {
-        match expr {
-            Expression::Literal(_) => ExpressionType::Literal,
-            Expression::Variable(_) => ExpressionType::Variable,
-            Expression::Property { .. } => ExpressionType::Property,
-            Expression::Binary { .. } => ExpressionType::Binary,
-            Expression::Unary { .. } => ExpressionType::Unary,
-            Expression::Function { .. } => ExpressionType::Function,
-            Expression::Aggregate { .. } => ExpressionType::Aggregate,
-            Expression::List(_) => ExpressionType::List,
-            Expression::Map(_) => ExpressionType::Map,
-            Expression::Case { .. } => ExpressionType::Case,
-            Expression::TypeCast { .. } => ExpressionType::TypeCast,
-            Expression::Subscript { .. } => ExpressionType::Subscript,
-            Expression::Range { .. } => ExpressionType::Range,
-            Expression::Path(_) => ExpressionType::Path,
-            Expression::Label(_) => ExpressionType::Label,
-            Expression::TagProperty { .. } => ExpressionType::TagProperty,
-            Expression::EdgeProperty { .. } => ExpressionType::EdgeProperty,
-            Expression::InputProperty(_) => ExpressionType::InputProperty,
-            Expression::VariableProperty { .. } => ExpressionType::VariableProperty,
-            Expression::SourceProperty { .. } => ExpressionType::SourceProperty,
-            Expression::DestinationProperty { .. } => ExpressionType::DestinationProperty,
-
-            // 新增表达式类型的处理
-            Expression::UnaryPlus(_)
-            | Expression::UnaryNegate(_)
-            | Expression::UnaryNot(_)
-            | Expression::UnaryIncr(_)
-            | Expression::UnaryDecr(_)
-            | Expression::IsNull(_)
-            | Expression::IsNotNull(_)
-            | Expression::IsEmpty(_)
-            | Expression::IsNotEmpty(_) => ExpressionType::Unary,
-            Expression::TypeCasting { .. } => ExpressionType::TypeCast,
-            Expression::ListComprehension { .. } => ExpressionType::List,
-            Expression::Predicate { .. } => ExpressionType::Property,
-            Expression::Reduce { .. } => ExpressionType::Aggregate,
-            Expression::PathBuild(_) => ExpressionType::Path,
-            Expression::ESQuery(_) => ExpressionType::Function,
-            Expression::UUID => ExpressionType::Literal,
-            Expression::SubscriptRange { .. } => ExpressionType::Subscript,
-            Expression::MatchPathPattern { .. } => ExpressionType::Path,
-        }
-    }
-
     /// 搜索表达式中匹配特定条件的子表达式
     pub fn find_if<F>(&mut self, expr: &Expression, predicate: F) -> Vec<Expression>
     where
@@ -341,269 +98,15 @@ impl FindVisitor {
             results.push(expr.clone());
         }
 
-        // 递归访问子表达式
-        match expr {
-            Expression::Literal(_) => {}
-            Expression::Variable(_) => {}
-            Expression::Property { object, .. } => {
-                self.visit_with_predicate(object, predicate, results);
-            }
-            Expression::Binary { left, right, .. } => {
-                self.visit_with_predicate(left, predicate, results);
-                self.visit_with_predicate(right, predicate, results);
-            }
-            Expression::Unary { operand, .. } => {
-                self.visit_with_predicate(operand, predicate, results);
-            }
-            Expression::Function { args, .. } => {
-                for arg in args {
-                    self.visit_with_predicate(arg, predicate, results);
-                }
-            }
-            Expression::Aggregate { arg, .. } => {
-                self.visit_with_predicate(arg, predicate, results);
-            }
-            Expression::List(elements) => {
-                for elem in elements {
-                    self.visit_with_predicate(elem, predicate, results);
-                }
-            }
-            Expression::Map(pairs) => {
-                for (_, value) in pairs {
-                    self.visit_with_predicate(value, predicate, results);
-                }
-            }
-            Expression::Case {
-                conditions,
-                default,
-            } => {
-                for (condition, value) in conditions {
-                    self.visit_with_predicate(condition, predicate, results);
-                    self.visit_with_predicate(value, predicate, results);
-                }
-                if let Some(default_expr) = default {
-                    self.visit_with_predicate(default_expr, predicate, results);
-                }
-            }
-            Expression::TypeCast { expr, .. } => {
-                self.visit_with_predicate(expr, predicate, results);
-            }
-            Expression::Subscript { collection, index } => {
-                self.visit_with_predicate(collection, predicate, results);
-                self.visit_with_predicate(index, predicate, results);
-            }
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => {
-                self.visit_with_predicate(collection, predicate, results);
-                if let Some(start_expr) = start {
-                    self.visit_with_predicate(start_expr, predicate, results);
-                }
-                if let Some(end_expr) = end {
-                    self.visit_with_predicate(end_expr, predicate, results);
-                }
-            }
-            Expression::Path(elements) => {
-                for elem in elements {
-                    self.visit_with_predicate(elem, predicate, results);
-                }
-            }
-            Expression::Label(_) => {}
-            Expression::TagProperty { .. } => {}
-            Expression::EdgeProperty { .. } => {}
-            Expression::InputProperty(_) => {}
-            Expression::VariableProperty { .. } => {}
-            Expression::SourceProperty { .. } => {}
-            Expression::DestinationProperty { .. } => {}
-
-            // 新增表达式类型的处理
-            Expression::UnaryPlus(expr)
-            | Expression::UnaryNegate(expr)
-            | Expression::UnaryNot(expr)
-            | Expression::UnaryIncr(expr)
-            | Expression::UnaryDecr(expr)
-            | Expression::IsNull(expr)
-            | Expression::IsNotNull(expr)
-            | Expression::IsEmpty(expr)
-            | Expression::IsNotEmpty(expr) => {
-                self.visit_with_predicate(expr, predicate, results);
-            }
-            Expression::TypeCasting { expr, .. } => {
-                self.visit_with_predicate(expr, predicate, results);
-            }
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                self.visit_with_predicate(generator, predicate, results);
-                if let Some(cond) = condition {
-                    self.visit_with_predicate(cond, predicate, results);
-                }
-            }
-            Expression::Predicate { list, condition } => {
-                self.visit_with_predicate(list, predicate, results);
-                self.visit_with_predicate(condition, predicate, results);
-            }
-            Expression::Reduce {
-                list,
-                initial,
-                expr,
-                ..
-            } => {
-                self.visit_with_predicate(list, predicate, results);
-                self.visit_with_predicate(initial, predicate, results);
-                self.visit_with_predicate(expr, predicate, results);
-            }
-            Expression::PathBuild(elements) => {
-                for elem in elements {
-                    self.visit_with_predicate(elem, predicate, results);
-                }
-            }
-            Expression::ESQuery(_) => {}
-            Expression::UUID => {}
-            Expression::SubscriptRange {
-                collection,
-                start,
-                end,
-            } => {
-                self.visit_with_predicate(collection, predicate, results);
-                if let Some(start_expr) = start {
-                    self.visit_with_predicate(start_expr, predicate, results);
-                }
-                if let Some(end_expr) = end {
-                    self.visit_with_predicate(end_expr, predicate, results);
-                }
-            }
-            Expression::MatchPathPattern { patterns, .. } => {
-                for pattern in patterns {
-                    self.visit_with_predicate(pattern, predicate, results);
-                }
-            }
+        for child in expr.children() {
+            self.visit_with_predicate(child, predicate, results);
         }
-    }
-}
-
-impl VisitorCore<Expression> for FindVisitor {
-    type Result = ();
-
-    fn visit(&mut self, target: &Expression) -> Self::Result {
-        // 使用表达式访问器模式进行访问
-        match target {
-            Expression::Literal(value) => self.visit_literal(value),
-            Expression::Variable(name) => self.visit_variable(name),
-            Expression::Property { object, property } => self.visit_property(object, property),
-            Expression::Binary { left, op, right } => self.visit_binary(left, op, right),
-            Expression::Unary { op, operand } => self.visit_unary(op, operand),
-            Expression::Function { name, args } => self.visit_function(name, args),
-            Expression::Aggregate {
-                func,
-                arg,
-                distinct,
-            } => self.visit_aggregate(func, arg, *distinct),
-            Expression::List(items) => self.visit_list(items),
-            Expression::Map(pairs) => self.visit_map(pairs),
-            Expression::Case {
-                conditions,
-                default,
-            } => {
-                let default_cloned = default.as_ref().map(|b| Box::new(b.as_ref().clone()));
-                self.visit_case(conditions, &default_cloned)
-            }
-            Expression::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
-            Expression::Subscript { collection, index } => self.visit_subscript(collection, index),
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => {
-                let start_cloned = start.as_ref().map(|b| Box::new(b.as_ref().clone()));
-                let end_cloned = end.as_ref().map(|b| Box::new(b.as_ref().clone()));
-                self.visit_range(collection, &start_cloned, &end_cloned)
-            }
-            Expression::Path(items) => self.visit_path(items),
-            Expression::Label(name) => self.visit_label(name),
-            Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
-            Expression::EdgeProperty { edge, prop } => self.visit_edge_property(edge, prop),
-            Expression::InputProperty(prop) => self.visit_input_property(prop),
-            Expression::VariableProperty { var, prop } => self.visit_variable_property(var, prop),
-            Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
-            Expression::DestinationProperty { tag, prop } => {
-                self.visit_destination_property(tag, prop)
-            }
-
-            // 处理新增的表达式类型
-            Expression::UnaryPlus(expr) => self.visit_unary(&UnaryOperator::Plus, expr),
-            Expression::UnaryNegate(expr) => self.visit_unary(&UnaryOperator::Minus, expr),
-            Expression::UnaryNot(expr) => self.visit_unary(&UnaryOperator::Not, expr),
-            Expression::UnaryIncr(expr) => self.visit_unary(&UnaryOperator::Increment, expr),
-            Expression::UnaryDecr(expr) => self.visit_unary(&UnaryOperator::Decrement, expr),
-            Expression::IsNull(expr) => self.visit_unary(&UnaryOperator::IsNull, expr),
-            Expression::IsNotNull(expr) => self.visit_unary(&UnaryOperator::IsNotNull, expr),
-            Expression::IsEmpty(expr) => self.visit_unary(&UnaryOperator::IsEmpty, expr),
-            Expression::IsNotEmpty(expr) => self.visit_unary(&UnaryOperator::IsNotEmpty, expr),
-
-            Expression::TypeCasting { expr, .. } => self.visit_type_cast(expr, &DataType::String),
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                // 简化为函数调用
-                let cond_expr = condition
-                    .as_ref()
-                    .map(|c| c.as_ref().clone())
-                    .unwrap_or(Expression::bool(true));
-                self.visit_function("list_comprehension", &[(**generator).clone(), cond_expr])
-            }
-            Expression::Predicate { list, condition } => {
-                self.visit_function("predicate", &[(**list).clone(), (**condition).clone()])
-            }
-            Expression::Reduce {
-                list,
-                initial,
-                expr,
-                ..
-            } => self.visit_function(
-                "reduce",
-                &[(**list).clone(), (**initial).clone(), (**expr).clone()],
-            ),
-            Expression::PathBuild(items) => self.visit_path(items),
-            Expression::ESQuery(query) => {
-                self.visit_function("es_query", &[Expression::string(query)])
-            }
-            Expression::UUID => self.visit_function("uuid", &[]),
-            Expression::SubscriptRange {
-                collection,
-                start,
-                end,
-            } => {
-                let start_cloned = start.as_ref().map(|b| Box::new(b.as_ref().clone()));
-                let end_cloned = end.as_ref().map(|b| Box::new(b.as_ref().clone()));
-                self.visit_range(collection, &start_cloned, &end_cloned)
-            }
-            Expression::MatchPathPattern { patterns, .. } => self.visit_list(patterns),
-        }
-    }
-
-    fn context(&self) -> &VisitorContext {
-        &self.context
-    }
-
-    fn context_mut(&mut self) -> &mut VisitorContext {
-        &mut self.context
-    }
-
-    fn state(&self) -> &crate::core::visitor::visitor_state_enum::VisitorStateEnum {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut crate::core::visitor::visitor_state_enum::VisitorStateEnum {
-        &mut self.state
     }
 }
 
 impl ExpressionVisitor for FindVisitor {
+    type Result = ();
+
     fn visit_literal(&mut self, value: &LiteralValue) -> Self::Result {
         if self.target_types.contains(&ExpressionType::Literal) {
             self.found_exprs.push(Expression::Literal(value.clone()));
@@ -630,7 +133,7 @@ impl ExpressionVisitor for FindVisitor {
     fn visit_binary(
         &mut self,
         left: &Expression,
-        op: &BinaryOperator,
+        op: &crate::core::types::operators::BinaryOperator,
         right: &Expression,
     ) -> Self::Result {
         if self.target_types.contains(&ExpressionType::Binary) {
@@ -644,7 +147,11 @@ impl ExpressionVisitor for FindVisitor {
         self.visit(right);
     }
 
-    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expression) -> Self::Result {
+    fn visit_unary(
+        &mut self,
+        op: &crate::core::types::operators::UnaryOperator,
+        operand: &Expression,
+    ) -> Self::Result {
         if self.target_types.contains(&ExpressionType::Unary) {
             self.found_exprs.push(Expression::Unary {
                 op: op.clone(),
@@ -668,7 +175,7 @@ impl ExpressionVisitor for FindVisitor {
 
     fn visit_aggregate(
         &mut self,
-        func: &AggregateFunction,
+        func: &crate::core::types::operators::AggregateFunction,
         arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
@@ -720,7 +227,7 @@ impl ExpressionVisitor for FindVisitor {
         }
     }
 
-    fn visit_type_cast(&mut self, expr: &Expression, target_type: &DataType) -> Self::Result {
+    fn visit_type_cast(&mut self, expr: &Expression, target_type: &crate::expression::types::DataType) -> Self::Result {
         if self.target_types.contains(&ExpressionType::TypeCast) {
             self.found_exprs.push(Expression::TypeCast {
                 expr: Box::new(expr.clone()),
@@ -835,6 +342,182 @@ impl ExpressionVisitor for FindVisitor {
             });
         }
     }
+
+    fn visit_unary_plus(&mut self, expr: &Expression) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Unary) {
+            self.found_exprs.push(Expression::UnaryPlus(Box::new(expr.clone())));
+        }
+        self.visit(expr);
+    }
+
+    fn visit_unary_negate(&mut self, expr: &Expression) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Unary) {
+            self.found_exprs.push(Expression::UnaryNegate(Box::new(expr.clone())));
+        }
+        self.visit(expr);
+    }
+
+    fn visit_unary_not(&mut self, expr: &Expression) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Unary) {
+            self.found_exprs.push(Expression::UnaryNot(Box::new(expr.clone())));
+        }
+        self.visit(expr);
+    }
+
+    fn visit_unary_incr(&mut self, expr: &Expression) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Unary) {
+            self.found_exprs.push(Expression::UnaryIncr(Box::new(expr.clone())));
+        }
+        self.visit(expr);
+    }
+
+    fn visit_unary_decr(&mut self, expr: &Expression) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Unary) {
+            self.found_exprs.push(Expression::UnaryDecr(Box::new(expr.clone())));
+        }
+        self.visit(expr);
+    }
+
+    fn visit_is_null(&mut self, expr: &Expression) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Unary) {
+            self.found_exprs.push(Expression::IsNull(Box::new(expr.clone())));
+        }
+        self.visit(expr);
+    }
+
+    fn visit_is_not_null(&mut self, expr: &Expression) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Unary) {
+            self.found_exprs.push(Expression::IsNotNull(Box::new(expr.clone())));
+        }
+        self.visit(expr);
+    }
+
+    fn visit_is_empty(&mut self, expr: &Expression) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Unary) {
+            self.found_exprs.push(Expression::IsEmpty(Box::new(expr.clone())));
+        }
+        self.visit(expr);
+    }
+
+    fn visit_is_not_empty(&mut self, expr: &Expression) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Unary) {
+            self.found_exprs.push(Expression::IsNotEmpty(Box::new(expr.clone())));
+        }
+        self.visit(expr);
+    }
+
+    fn visit_type_casting(&mut self, expr: &Expression, target_type: &str) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::TypeCast) {
+            self.found_exprs.push(Expression::TypeCasting {
+                expr: Box::new(expr.clone()),
+                target_type: target_type.to_string(),
+            });
+        }
+        self.visit(expr);
+    }
+
+    fn visit_list_comprehension(
+        &mut self,
+        generator: &Expression,
+        condition: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::List) {
+            self.found_exprs.push(Expression::ListComprehension {
+                generator: Box::new(generator.clone()),
+                condition: condition.clone(),
+            });
+        }
+        self.visit(generator);
+        if let Some(cond) = condition {
+            self.visit(cond);
+        }
+    }
+
+    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Property) {
+            self.found_exprs.push(Expression::Predicate {
+                list: Box::new(list.clone()),
+                condition: Box::new(condition.clone()),
+            });
+        }
+        self.visit(list);
+        self.visit(condition);
+    }
+
+    fn visit_reduce(
+        &mut self,
+        list: &Expression,
+        var: &str,
+        initial: &Expression,
+        expr: &Expression,
+    ) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Aggregate) {
+            self.found_exprs.push(Expression::Reduce {
+                list: Box::new(list.clone()),
+                var: var.to_string(),
+                initial: Box::new(initial.clone()),
+                expr: Box::new(expr.clone()),
+            });
+        }
+        self.visit(list);
+        self.visit(initial);
+        self.visit(expr);
+    }
+
+    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Path) {
+            self.found_exprs.push(Expression::PathBuild(items.to_vec()));
+        }
+        for item in items {
+            self.visit(item);
+        }
+    }
+
+    fn visit_es_query(&mut self, query: &str) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Function) {
+            self.found_exprs.push(Expression::ESQuery(query.to_string()));
+        }
+    }
+
+    fn visit_uuid(&mut self) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Literal) {
+            self.found_exprs.push(Expression::UUID);
+        }
+    }
+
+    fn visit_subscript_range(
+        &mut self,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Subscript) {
+            self.found_exprs.push(Expression::SubscriptRange {
+                collection: Box::new(collection.clone()),
+                start: start.as_ref().map(|e| Box::new(e.as_ref().clone())),
+                end: end.as_ref().map(|e| Box::new(e.as_ref().clone())),
+            });
+        }
+        self.visit(collection);
+        if let Some(start_expr) = start {
+            self.visit(start_expr);
+        }
+        if let Some(end_expr) = end {
+            self.visit(end_expr);
+        }
+    }
+
+    fn visit_match_path_pattern(&mut self, path_alias: &str, patterns: &[Expression]) -> Self::Result {
+        if self.target_types.contains(&ExpressionType::Path) {
+            self.found_exprs.push(Expression::MatchPathPattern {
+                path_alias: path_alias.to_string(),
+                patterns: patterns.to_vec(),
+            });
+        }
+        for pattern in patterns {
+            self.visit(pattern);
+        }
+    }
 }
 
 impl QueryVisitor for FindVisitor {
@@ -849,20 +532,19 @@ impl QueryVisitor for FindVisitor {
     }
 
     fn is_success(&self) -> bool {
-        true // FindVisitor 总是成功，即使没有找到任何表达式
+        true
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{BinaryOperator, LiteralValue};
+    use crate::core::types::operators::BinaryOperator;
 
     #[test]
     fn test_find_literals() {
         let mut visitor = FindVisitor::new();
 
-        // 创建一个包含字面量的表达式: 1 + 2 * 3
         let expr = Expression::Binary {
             left: Box::new(Expression::Literal(LiteralValue::Int(1))),
             op: BinaryOperator::Add,
@@ -875,7 +557,6 @@ mod tests {
 
         let literals = visitor.add_target_type(ExpressionType::Literal).find(&expr);
 
-        // 应该找到3个字面量
         assert_eq!(literals.len(), 3);
     }
 
@@ -883,7 +564,6 @@ mod tests {
     fn test_find_with_predicate() {
         let mut visitor = FindVisitor::new();
 
-        // 创建一个包含整数字面量的表达式: 1 + 2 * 3
         let expr = Expression::Binary {
             left: Box::new(Expression::Literal(LiteralValue::Int(1))),
             op: BinaryOperator::Add,
@@ -898,7 +578,6 @@ mod tests {
             matches!(e, Expression::Literal(LiteralValue::Int(_)))
         });
 
-        // 应该找到3个整数字面量
         assert_eq!(literals.len(), 3);
     }
 }
