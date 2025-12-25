@@ -1,7 +1,7 @@
 //! 查询执行上下文 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
-use crate::core::context::{QueryExecutionContext, RequestContext, ValidationContext};
+use crate::core::context::{FieldValue, QueryExecutionContext, RequestContext, ValidationContext};
 use crate::core::{SymbolTable, Value};
 use crate::graph::utils::IdGenerator;
 use crate::query::context::managers::{
@@ -164,7 +164,7 @@ impl QueryContext {
 
         // 将请求参数复制到执行上下文中
         for (name, value) in &rctx.request_params().parameters {
-            let _ = ctx.ectx.set_value(name, value.clone());
+            let _ = ctx.ectx.set_value(name, FieldValue::Scalar(value.clone()));
         }
 
         ctx
@@ -324,8 +324,14 @@ impl QueryContext {
     /// 这仅在构建阶段有效！用于检查查询参数是否已设置
     pub fn exist_parameter(&self, param: &str) -> bool {
         match self.ectx.get_value(param) {
-            Ok(value) => !matches!(value, Value::Empty), // 检查参数值是否为空
-            Err(_) => false,                             // 如果参数不存在，返回false
+            Ok(field_value) => {
+                // 检查参数值是否为空
+                match field_value {
+                    FieldValue::Scalar(Value::Empty) => false,
+                    _ => true,
+                }
+            }
+            Err(_) => false, // 如果参数不存在，返回false
         }
     }
 
@@ -584,13 +590,13 @@ mod tests {
         // 测试执行上下文
         let value = crate::core::Value::Int(42);
         ctx.ectx()
-            .set_value("test_val", value.clone())
+            .set_value("test_val", FieldValue::Scalar(value.clone()))
             .expect("Failed to set value");
         let retrieved = ctx
             .ectx()
             .get_value("test_val")
             .expect("Failed to get value");
-        assert_eq!(retrieved, value);
+        assert_eq!(retrieved, FieldValue::Scalar(value));
     }
 
     #[test]

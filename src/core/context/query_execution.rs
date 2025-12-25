@@ -2,7 +2,7 @@
 //!
 //! 提供查询执行期间的变量管理和结果历史记录功能
 
-use crate::core::{Result, Value};
+use crate::core::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -15,8 +15,8 @@ use std::sync::{Arc, RwLock};
 /// - QueryExecutionContext: 查询级，管理查询变量的多版本
 #[derive(Debug, Clone)]
 pub struct QueryExecutionContext {
-    // name -> 多版本结果列表 (最新版本在前，最老版本在后)
-    value_map: Arc<RwLock<HashMap<String, Vec<Result>>>>,
+    // name -> 多版本值列表 (最新版本在前，最老版本在后)
+    value_map: Arc<RwLock<HashMap<String, Vec<Value>>>>,
 }
 
 impl QueryExecutionContext {
@@ -43,47 +43,29 @@ impl QueryExecutionContext {
             .read()
             .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
 
-        if let Some(results) = value_map.get(name) {
-            if let Some(result) = results.first() {
-                return Ok(result.value().clone());
+        if let Some(values) = value_map.get(name) {
+            if let Some(value) = values.first() {
+                return Ok(value.clone());
             } else {
-                return Err("No results found for variable".to_string());
+                return Err("No values found for variable".to_string());
             }
         } else {
             Err("Variable not found".to_string())
         }
     }
 
-    /// 获取变量的最新结果
-    pub fn get_result(&self, name: &str) -> std::result::Result<Result, String> {
-        let value_map = self
-            .value_map
-            .read()
-            .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
-
-        if let Some(results) = value_map.get(name) {
-            if let Some(result) = results.first() {
-                return Ok(result.clone());
-            } else {
-                return Err("No results found for variable".to_string());
-            }
-        } else {
-            Err("Variable not found".to_string())
-        }
-    }
-
-    /// 获取变量的指定版本结果
-    pub fn get_versioned_result(
+    /// 获取变量的指定版本值
+    pub fn get_versioned_value(
         &self,
         name: &str,
         version: i64,
-    ) -> std::result::Result<Result, String> {
+    ) -> std::result::Result<Value, String> {
         let value_map = self
             .value_map
             .read()
             .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
 
-        if let Some(results) = value_map.get(name) {
+        if let Some(values) = value_map.get(name) {
             // 版本处理：0是最新的，1是第二个最新，等等；-n表示第n个元素（与正索引访问相同元素）
             let index = if version >= 0 {
                 // 从最新开始计数，0是最新，1是第二个最新，等等
@@ -94,12 +76,12 @@ impl QueryExecutionContext {
             };
 
             // 检查索引范围
-            if index >= results.len() {
+            if index >= values.len() {
                 return Err("Version index out of range".to_string());
             }
 
-            if let Some(result) = results.get(index) {
-                Ok(result.clone())
+            if let Some(value) = values.get(index) {
+                Ok(value.clone())
             } else {
                 Err("Version index out of range".to_string())
             }
@@ -108,11 +90,11 @@ impl QueryExecutionContext {
         }
     }
 
-    /// 设置变量的指定版本结果
-    pub fn set_versioned_result(
+    /// 设置变量的指定版本值
+    pub fn set_versioned_value(
         &self,
         name: &str,
-        result: Result,
+        value: Value,
         version: i64,
     ) -> std::result::Result<(), String> {
         let mut value_map = self
@@ -120,7 +102,7 @@ impl QueryExecutionContext {
             .write()
             .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
 
-        let results = value_map.entry(name.to_string()).or_insert_with(Vec::new);
+        let values = value_map.entry(name.to_string()).or_insert_with(Vec::new);
 
         // 版本处理：0是最新的，-1是前一个，依此类推；1是最老的，2是第二个老的，依此类推
         let index = if version >= 0 {
@@ -128,17 +110,17 @@ impl QueryExecutionContext {
             version as usize
         } else {
             // 从末尾开始计数
-            if results.len() as i64 >= (-version) {
-                results.len() - (-version) as usize
+            if values.len() as i64 >= (-version) {
+                values.len() - (-version) as usize
             } else {
                 return Err("Version index out of range".to_string());
             }
         };
 
-        if index < results.len() {
-            results[index] = result;
-        } else if index == results.len() {
-            results.push(result);
+        if index < values.len() {
+            values[index] = value;
+        } else if index == values.len() {
+            values.push(value);
         } else {
             return Err("Version index out of range".to_string());
         }
@@ -160,15 +142,15 @@ impl QueryExecutionContext {
         }
     }
 
-    /// 获取变量的所有历史结果（最新的在前，最老的在后）
-    pub fn get_history(&self, name: &str) -> std::result::Result<Vec<Result>, String> {
+    /// 获取变量的所有历史值（最新的在前，最老的在后）
+    pub fn get_history(&self, name: &str) -> std::result::Result<Vec<Value>, String> {
         let value_map = self
             .value_map
             .read()
             .map_err(|e| format!("Failed to acquire read lock: {}", e))?;
 
-        if let Some(results) = value_map.get(name) {
-            Ok(results.clone())
+        if let Some(values) = value_map.get(name) {
+            Ok(values.clone())
         } else {
             Err("Variable not found".to_string())
         }
@@ -181,22 +163,8 @@ impl QueryExecutionContext {
             .write()
             .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
 
-        let results = value_map.entry(name.to_string()).or_insert_with(Vec::new);
-        let result = Result::new(value, crate::core::result::ResultState::Success);
-        results.insert(0, result); // 插入到最前面（最新位置）
-
-        Ok(())
-    }
-
-    /// 设置变量的最新结果
-    pub fn set_result(&self, name: &str, result: Result) -> std::result::Result<(), String> {
-        let mut value_map = self
-            .value_map
-            .write()
-            .map_err(|e| format!("Failed to acquire write lock: {}", e))?;
-
-        let results = value_map.entry(name.to_string()).or_insert_with(Vec::new);
-        results.insert(0, result); // 插入到最前面（最新位置）
+        let values = value_map.entry(name.to_string()).or_insert_with(Vec::new);
+        values.insert(0, value); // 插入到最前面（最新位置）
 
         Ok(())
     }
@@ -280,35 +248,23 @@ mod tests {
             .get_value("test_var")
             .expect("Expected successful retrieval of test value");
         assert_eq!(retrieved_value, value);
-
-        // 测试结果操作
-        let result = Result::new(
-            Value::String("test_result".to_string()),
-            crate::core::result::ResultState::Success,
-        );
-        ctx.set_result("result_var", result.clone())
-            .expect("Expected successful setting of result variable");
-        let retrieved_result = ctx
-            .get_result("result_var")
-            .expect("Expected successful retrieval of result");
-        assert_eq!(retrieved_result, result);
     }
 
     #[test]
     fn test_versioned_operations() {
         let ctx = QueryExecutionContext::new();
 
-        // 创建一些测试结果
-        let result1 = Result::new(Value::Int(1), crate::core::result::ResultState::Success);
-        let result2 = Result::new(Value::Int(2), crate::core::result::ResultState::Success);
-        let result3 = Result::new(Value::Int(3), crate::core::result::ResultState::Success);
+        // 创建一些测试值
+        let value1 = Value::Int(1);
+        let value2 = Value::Int(2);
+        let value3 = Value::Int(3);
 
-        // 设置不同版本的结果
-        ctx.set_result("versioned_var", result1.clone())
+        // 设置不同版本的值
+        ctx.set_value("versioned_var", value1.clone())
             .expect("Expected successful setting of version 1");
-        ctx.set_result("versioned_var", result2.clone())
+        ctx.set_value("versioned_var", value2.clone())
             .expect("Expected successful setting of version 2");
-        ctx.set_result("versioned_var", result3.clone())
+        ctx.set_value("versioned_var", value3.clone())
             .expect("Expected successful setting of version 3");
 
         // 检查版本数量
@@ -324,30 +280,30 @@ mod tests {
             .expect("Expected successful history retrieval");
         assert_eq!(history.len(), 3);
         // 注意：历史记录是最新在前
-        assert_eq!(history[0], result3); // 最新
-        assert_eq!(history[1], result2);
-        assert_eq!(history[2], result1); // 最老
+        assert_eq!(history[0], value3); // 最新
+        assert_eq!(history[1], value2);
+        assert_eq!(history[2], value1); // 最老
 
         // 获取指定版本（0是最新的）
         assert_eq!(
-            ctx.get_versioned_result("versioned_var", 0)
+            ctx.get_versioned_value("versioned_var", 0)
                 .expect("Expected successful retrieval of version 0"),
-            result3
+            value3
         );
         assert_eq!(
-            ctx.get_versioned_result("versioned_var", -1)
+            ctx.get_versioned_value("versioned_var", -1)
                 .expect("Expected successful retrieval of version -1"),
-            result2
+            value2
         );
         assert_eq!(
-            ctx.get_versioned_result("versioned_var", 1)
+            ctx.get_versioned_value("versioned_var", 1)
                 .expect("Expected successful retrieval of version 1"),
-            result2
+            value2
         );
         assert_eq!(
-            ctx.get_versioned_result("versioned_var", 2)
+            ctx.get_versioned_value("versioned_var", 2)
                 .expect("Expected successful retrieval of version 2"),
-            result1
+            value1
         );
 
         // 版本截断

@@ -4,7 +4,7 @@
 
 use crate::cache::CacheConfig;
 use crate::core::context_traits::{ContextBase, ContextType, HierarchicalContext, MutableContext};
-use crate::core::types::query::FieldValue;
+use crate::core::Value;
 use crate::expression::cache::{ExpressionCacheManager, ExpressionCacheStats};
 use crate::expression::functions::{BuiltinFunction, CustomFunction, ExpressionFunction, FunctionRef};
 use std::collections::HashMap;
@@ -20,7 +20,7 @@ pub enum ExpressionContextType {
 /// 表达式上下文特征
 pub trait ExpressionContextCoreExtended {
     /// 获取变量值
-    fn get_variable(&self, name: &str) -> Option<&FieldValue>;
+    fn get_variable(&self, name: &str) -> Option<&Value>;
 
     /// 获取函数
     fn get_function(&self, name: &str) -> Option<FunctionRef>;
@@ -42,7 +42,7 @@ pub trait ExpressionContextCoreExtended {
 #[derive(Debug)]
 pub struct BasicExpressionContext {
     /// 变量绑定
-    pub variables: HashMap<String, FieldValue>,
+    pub variables: HashMap<String, Value>,
     /// 函数注册表
     pub functions: HashMap<String, BuiltinFunction>,
     /// 自定义函数注册表
@@ -251,12 +251,12 @@ impl BasicExpressionContext {
     }
 
     /// 设置变量
-    pub fn set_variable(&mut self, name: impl Into<String>, value: FieldValue) {
+    pub fn set_variable(&mut self, name: impl Into<String>, value: Value) {
         self.variables.insert(name.into(), value);
     }
 
     /// 批量设置变量
-    pub fn set_variables(&mut self, variables: HashMap<String, FieldValue>) {
+    pub fn set_variables(&mut self, variables: HashMap<String, Value>) {
         self.variables = variables;
     }
 
@@ -282,7 +282,7 @@ impl BasicExpressionContext {
     }
 
     /// 移除变量
-    pub fn remove_variable(&mut self, name: &str) -> Option<FieldValue> {
+    pub fn remove_variable(&mut self, name: &str) -> Option<Value> {
         self.variables.remove(name)
     }
 
@@ -324,14 +324,14 @@ impl BasicExpressionContext {
     pub fn execute_function_with_cache(
         &self,
         function_ref: &FunctionRef,
-        args: &[FieldValue],
-    ) -> Result<FieldValue, crate::core::ExpressionError> {
+        args: &[Value],
+    ) -> Result<Value, crate::core::ExpressionError> {
         // 缓存功能暂时禁用，因为需要修复生命周期问题
         function_ref.execute(args)
     }
 
     /// 将参数转换为哈希值用于缓存键
-    fn args_to_hash(&self, args: &[FieldValue]) -> String {
+    fn args_to_hash(&self, args: &[Value]) -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 
@@ -413,19 +413,11 @@ impl HierarchicalContext for BasicExpressionContext {
 // 为BasicExpressionContext实现统一的ExpressionContext trait
 impl crate::expression::evaluator::traits::ExpressionContext for BasicExpressionContext {
     fn get_variable(&self, name: &str) -> Option<crate::core::Value> {
-        ExpressionContextCoreExtended::get_variable(self, name).map(|fv| {
-            match fv {
-                crate::core::types::query::FieldValue::Scalar(value) => value.clone(),
-                _ => {
-                    crate::core::Value::Null(crate::core::NullType::Null)
-                }
-            }
-        })
+        ExpressionContextCoreExtended::get_variable(self, name).cloned()
     }
 
     fn set_variable(&mut self, name: String, value: crate::core::Value) {
-        let field_value = crate::core::types::query::FieldValue::Scalar(value);
-        self.set_variable(name, field_value);
+        self.set_variable(name, value);
     }
 
     fn get_vertex(&self) -> Option<&crate::core::Vertex> {
@@ -447,18 +439,15 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
     }
 
     fn set_vertex(&mut self, vertex: crate::core::Vertex) {
-        let field_value = crate::core::types::query::FieldValue::Vertex(vertex);
-        self.set_variable("_vertex".to_string(), field_value);
+        self.set_variable("_vertex".to_string(), crate::core::Value::Vertex(Box::new(vertex)));
     }
 
     fn set_edge(&mut self, edge: crate::core::Edge) {
-        let field_value = crate::core::types::query::FieldValue::Edge(edge);
-        self.set_variable("_edge".to_string(), field_value);
+        self.set_variable("_edge".to_string(), crate::core::Value::Edge(edge));
     }
 
     fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path) {
-        let field_value = crate::core::types::query::FieldValue::Path(path);
-        self.set_variable(name, field_value);
+        self.set_variable(name, crate::core::Value::Path(path));
     }
 
     fn is_empty(&self) -> bool {

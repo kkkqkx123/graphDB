@@ -7,7 +7,6 @@
 //! - 其他模块保持不变
 
 pub mod ast;
-pub mod execution_context;
 pub mod request_context;
 pub mod runtime_context;
 pub mod validate;
@@ -18,9 +17,11 @@ pub mod managers;
 
 // 重新导出主要类型
 pub use ast::*;
-pub use execution_context::QueryExecutionContext;
 pub use request_context::RequestContext;
 pub use validate::*;
 
 // 导出新的模块结构
 pub use execution::*;
+
+// 使用 core::context 中的 QueryExecutionContext
+pub use crate::core::context::QueryExecutionContext;
