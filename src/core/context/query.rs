@@ -4,9 +4,23 @@
 
 use super::base::{ContextBase, ContextType, MutableContext};
 use super::session::SessionInfo;
-use crate::core::types::query::QueryType;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+/// 查询类型
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum QueryType {
+    /// 数据查询
+    DataQuery,
+    /// DDL 查询
+    DDLQuery,
+    /// DML 查询
+    DMLQuery,
+    /// 管理查询
+    AdminQuery,
+    /// 统计查询
+    StatsQuery,
+}
 
 /// 查询上下文
 #[derive(Debug, Clone)]

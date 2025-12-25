@@ -74,41 +74,35 @@ impl ExpressionEvaluator {
         // 复制变量
         for (name, cypher_var) in context.variables() {
             if let Some(value) = &cypher_var.value {
-                // 将 Value 转换为 FieldValue
-                let field_value = convert_value_to_field_value(value.clone());
-                eval_context.set_variable(name.clone(), field_value);
+                eval_context.set_variable(name.clone(), value.clone());
             }
         }
 
         // 复制基础上下文中的变量
         for (name, value) in &context.base_context().variables {
             if eval_context.get_variable(name).is_none() {
-                // 将 Value 转换为 FieldValue
-                let field_value = convert_value_to_field_value(value.clone());
-                eval_context.set_variable(name.clone(), field_value);
+                eval_context.set_variable(name.clone(), value.clone());
             }
         }
 
         // 复制参数作为变量
         for (name, value) in context.parameters() {
             if eval_context.get_variable(&format!("${}", name)).is_none() {
-                // 将 Value 转换为 FieldValue
-                let field_value = convert_value_to_field_value(value.clone());
-                eval_context.set_variable(format!("${}", name), field_value);
+                eval_context.set_variable(format!("${}", name), value.clone());
             }
         }
 
         // 复制路径信息
         for (name, _path) in context.paths() {
-            // 将 Path 转换为 FieldValue
+            // 将 Path 转换为 Value
             // 简化实现：创建一个空的Path对象
             let empty_vertex = crate::core::vertex_edge_path::Vertex::default();
             let empty_path = crate::core::vertex_edge_path::Path {
                 src: Box::new(empty_vertex),
                 steps: Vec::new(),
             };
-            let path_field_value = crate::core::types::query::FieldValue::Path(empty_path);
-            eval_context.set_variable(name.clone(), path_field_value);
+            let path_value = crate::core::Value::Path(empty_path);
+            eval_context.set_variable(name.clone(), path_value);
         }
 
         eval_context
@@ -337,9 +331,4 @@ mod tests {
         assert_eq!(results[1], Value::Int(2));
         assert_eq!(results[2], Value::Int(3));
     }
-}
-
-/// 将 Value 转换为 FieldValue
-fn convert_value_to_field_value(value: Value) -> crate::core::types::query::FieldValue {
-    crate::core::types::query::FieldValue::Scalar(value)
 }

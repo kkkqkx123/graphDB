@@ -126,7 +126,7 @@ mod tests {
         );
         let query_context = QueryContext::new(
             "test_query",
-            crate::core::types::query::QueryType::DataQuery,
+            crate::core::context::query::QueryType::DataQuery,
             "TEST QUERY",
             session_info,
         );

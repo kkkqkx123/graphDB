@@ -88,10 +88,8 @@ mod tests {
     #[test]
     fn test_cypher_processor_evaluate_direct() {
         let mut context = BasicExpressionContext::default();
-        let field_value = crate::core::types::query::FieldValue::Scalar(
-            crate::core::value::Value::Int(100),
-        );
-        context.set_variable("x".to_string(), field_value);
+        let value = crate::core::value::Value::Int(100);
+        context.set_variable("x".to_string(), value);
 
         let cypher_expr = CypherExpression::Variable("x".to_string());
         let result = CypherProcessor::evaluate_direct(&cypher_expr, &mut context)

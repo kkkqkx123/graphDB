@@ -354,7 +354,7 @@ impl DefaultContextManager {
         let id = self.generate_context_id(ContextType::Query);
         let context = QueryContext::new(
             id.clone(),
-            crate::core::types::query::QueryType::DataQuery,
+            super::query::QueryType::DataQuery,
             query,
             session_info,
         );

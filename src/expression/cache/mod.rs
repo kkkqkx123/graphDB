@@ -6,7 +6,7 @@ use crate::cache::{Cache, CacheConfig, CacheFactory, StatsCache, StatsCacheWrapp
 use crate::cache::cache_impl::*;
 use crate::cache::stats_marker::StatsEnabled;
 use crate::core::types::expression::Expression;
-use crate::core::types::query::FieldValue;
+use crate::core::Value;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -14,11 +14,11 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct ExpressionCacheManager {
     /// 函数执行结果缓存
-    function_cache: Arc<StatsCacheWrapper<String, FieldValue, ConcurrentLruCache<String, FieldValue>, StatsEnabled>>,
+    function_cache: Arc<StatsCacheWrapper<String, Value, ConcurrentLruCache<String, Value>, StatsEnabled>>,
     /// 表达式解析结果缓存
     expression_cache: Arc<StatsCacheWrapper<String, Expression, ConcurrentLruCache<String, Expression>, StatsEnabled>>,
     /// 变量查找缓存
-    variable_cache: Arc<StatsCacheWrapper<String, FieldValue, ConcurrentLruCache<String, FieldValue>, StatsEnabled>>,
+    variable_cache: Arc<StatsCacheWrapper<String, Value, ConcurrentLruCache<String, Value>, StatsEnabled>>,
     /// 缓存配置
     config: CacheConfig,
 }
@@ -44,7 +44,7 @@ impl ExpressionCacheManager {
     }
 
     /// 获取函数执行结果
-    pub fn get_function_result(&self, key: &str) -> Option<FieldValue> {
+    pub fn get_function_result(&self, key: &str) -> Option<Value> {
         if self.config.enabled {
             self.function_cache.get(&key.to_string())
         } else {
@@ -53,7 +53,7 @@ impl ExpressionCacheManager {
     }
 
     /// 缓存函数执行结果
-    pub fn cache_function_result(&self, key: &str, result: FieldValue) {
+    pub fn cache_function_result(&self, key: &str, result: Value) {
         if self.config.enabled {
             self.function_cache.put(key.to_string(), result);
         }
@@ -76,7 +76,7 @@ impl ExpressionCacheManager {
     }
 
     /// 获取变量查找结果
-    pub fn get_variable(&self, key: &str) -> Option<FieldValue> {
+    pub fn get_variable(&self, key: &str) -> Option<Value> {
         if self.config.enabled {
             self.variable_cache.get(&key.to_string())
         } else {
@@ -85,7 +85,7 @@ impl ExpressionCacheManager {
     }
 
     /// 缓存变量查找结果
-    pub fn cache_variable(&self, key: &str, value: FieldValue) {
+    pub fn cache_variable(&self, key: &str, value: Value) {
         if self.config.enabled {
             self.variable_cache.put(key.to_string(), value);
         }

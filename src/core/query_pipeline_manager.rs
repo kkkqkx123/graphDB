@@ -77,7 +77,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         );
         Ok(QueryContext::new(
             uuid::Uuid::new_v4().to_string(),
-            crate::core::types::query::QueryType::DataQuery,
+            crate::core::context::query::QueryType::DataQuery,
             query_text,
             session_info,
         ))

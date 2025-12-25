@@ -4,7 +4,6 @@
 
 pub mod expression;
 pub mod operators;
-pub mod query;
 
 // 重新导出常用类型
 pub use expression::{DataType, Expression, ExpressionType};

@@ -3,7 +3,7 @@
 //! 提供表达式求值过程中的函数定义和实现，包括内置函数和自定义函数
 
 use crate::core::types::operators::AggregateFunction;
-use crate::core::types::query::FieldValue;
+use crate::core::Value;
 use crate::core::error::ExpressionError;
 
 /// 函数引用枚举，避免动态分发
@@ -27,7 +27,7 @@ pub trait ExpressionFunction: Send + Sync {
     fn is_variadic(&self) -> bool;
 
     /// 执行函数
-    fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError>;
+    fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError>;
 
     /// 获取函数描述
     fn description(&self) -> &str;
@@ -151,7 +151,7 @@ impl ExpressionFunction for BuiltinFunction {
         }
     }
 
-    fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError> {
         match self {
             BuiltinFunction::Math(f) => f.execute(args),
             BuiltinFunction::String(f) => f.execute(args),
@@ -209,7 +209,7 @@ impl ExpressionFunction for MathFunction {
         false
     }
 
-    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
         // 实现数学函数的具体逻辑
         // 这里暂时返回错误，等待后续实现
         Err(ExpressionError::runtime_error(format!(
@@ -270,7 +270,7 @@ impl ExpressionFunction for StringFunction {
         matches!(self, StringFunction::Concat)
     }
 
-    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
         Err(ExpressionError::runtime_error(format!(
             "字符串函数 {:?} 尚未实现",
             self
@@ -314,7 +314,7 @@ impl ExpressionFunction for AggregateFunction {
         false
     }
 
-    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
         Err(ExpressionError::runtime_error(format!(
             "聚合函数 {:?} 尚未实现",
             self
@@ -352,7 +352,7 @@ impl ExpressionFunction for ConversionFunction {
         false
     }
 
-    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
         Err(ExpressionError::runtime_error(format!(
             "类型转换函数 {:?} 尚未实现",
             self
@@ -401,7 +401,7 @@ impl ExpressionFunction for DateTimeFunction {
         false
     }
 
-    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
         Err(ExpressionError::runtime_error(format!(
             "日期时间函数 {:?} 尚未实现",
             self
@@ -436,7 +436,7 @@ impl ExpressionFunction for CustomFunction {
         self.is_variadic
     }
 
-    fn execute(&self, _args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
         // 这里应该根据function_id调用具体的函数实现
         // 暂时返回错误，等待后续实现
         Err(ExpressionError::runtime_error(format!(
@@ -476,7 +476,7 @@ impl FunctionRef<'_> {
     }
 
     /// 执行函数
-    pub fn execute(&self, args: &[FieldValue]) -> Result<FieldValue, ExpressionError> {
+    pub fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError> {
         match self {
             FunctionRef::Builtin(f) => f.execute(args),
             FunctionRef::Custom(f) => f.execute(args),

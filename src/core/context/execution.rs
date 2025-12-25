@@ -4,14 +4,14 @@
 
 use super::base::{ContextBase, ContextType, MutableContext};
 use crate::core::context::query::QueryContext;
-use crate::core::types::query::FieldValue;
+use crate::core::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// 记录类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Record {
-    pub fields: HashMap<String, FieldValue>,
+    pub fields: HashMap<String, Value>,
 }
 
 impl Record {
@@ -21,11 +21,11 @@ impl Record {
         }
     }
 
-    pub fn add_field(&mut self, name: String, value: FieldValue) {
+    pub fn add_field(&mut self, name: String, value: Value) {
         self.fields.insert(name, value);
     }
 
-    pub fn get_field(&self, name: &str) -> Option<&FieldValue> {
+    pub fn get_field(&self, name: &str) -> Option<&Value> {
         self.fields.get(name)
     }
 }
@@ -44,7 +44,7 @@ pub struct ExecutionContext {
     /// 执行状态
     pub execution_state: ExecutionState,
     /// 变量绑定
-    pub variable_bindings: HashMap<String, FieldValue>,
+    pub variable_bindings: HashMap<String, Value>,
     /// 中间结果
     pub intermediate_results: Vec<Record>,
     /// 执行统计
@@ -121,12 +121,12 @@ impl ExecutionContext {
     }
 
     /// 绑定变量
-    pub fn bind_variable(&mut self, name: impl Into<String>, value: FieldValue) {
+    pub fn bind_variable(&mut self, name: impl Into<String>, value: Value) {
         self.variable_bindings.insert(name.into(), value);
     }
 
     /// 获取变量值
-    pub fn get_variable(&self, name: &str) -> Option<&FieldValue> {
+    pub fn get_variable(&self, name: &str) -> Option<&Value> {
         self.variable_bindings.get(name)
     }
 

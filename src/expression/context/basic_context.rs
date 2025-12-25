@@ -56,7 +56,7 @@ pub struct BasicExpressionContext {
 }
 
 impl ExpressionContextCoreExtended for BasicExpressionContext {
-    fn get_variable(&self, name: &str) -> Option<&FieldValue> {
+    fn get_variable(&self, name: &str) -> Option<&Value> {
         // 在当前上下文中查找
         if let Some(value) = self.variables.get(name) {
             // 缓存查找结果
@@ -131,7 +131,7 @@ impl ExpressionContextCoreExtended for BasicExpressionContext {
 }
 
 impl ExpressionContextCoreExtended for Box<BasicExpressionContext> {
-    fn get_variable(&self, name: &str) -> Option<&FieldValue> {
+    fn get_variable(&self, name: &str) -> Option<&Value> {
         (**self).get_variable(name)
     }
 
@@ -157,7 +157,7 @@ impl ExpressionContextCoreExtended for Box<BasicExpressionContext> {
 }
 
 impl ExpressionContextCoreExtended for ExpressionContextType {
-    fn get_variable(&self, name: &str) -> Option<&FieldValue> {
+    fn get_variable(&self, name: &str) -> Option<&Value> {
         match self {
             ExpressionContextType::Basic(ctx) => {
                 ExpressionContextCoreExtended::get_variable(ctx, name)
@@ -464,14 +464,8 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
 
     fn get_all_variables(&self) -> Option<std::collections::HashMap<String, crate::core::Value>> {
         let mut value_map = std::collections::HashMap::new();
-        for (name, field_value) in &self.variables {
-            let value = match field_value {
-                crate::core::types::query::FieldValue::Scalar(value) => value.clone(),
-                _ => {
-                    crate::core::Value::Null(crate::core::NullType::Null)
-                }
-            };
-            value_map.insert(name.clone(), value);
+        for (name, value) in &self.variables {
+            value_map.insert(name.clone(), value.clone());
         }
         Some(value_map)
     }
