@@ -28,7 +28,7 @@ pub struct QueryPipelineManager<S: StorageEngine + 'static> {
 impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
     /// 创建新的查询管道管理器
     pub fn new(storage: Arc<Mutex<S>>) -> Self {
-        let executor_factory = ExecutorFactory::new();
+        let executor_factory = ExecutorFactory::with_storage(storage.clone());
 
         Self {
             _storage: storage,

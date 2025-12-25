@@ -66,6 +66,17 @@ impl<S: StorageEngine> LoopExecutor<S> {
 }
 
 impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
+    /// 验证循环执行器是否存在自引用
+    pub fn validate_no_self_reference(&self) -> Result<(), DBError> {
+        // 检查body_executor是否指向自身
+        if self.body_executor.id() == self.base.id {
+            return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
+                "循环执行器不能自引用".to_string()
+            )));
+        }
+        Ok(())
+    }
+
     /// 评估循环条件
     async fn evaluate_condition(&mut self) -> DBResult<bool> {
         match &self.condition {
@@ -244,6 +255,9 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ExecutorCore for LoopExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        // 验证自引用 - 防止无限递归
+        self.validate_no_self_reference()?;
+        
         self.loop_state = LoopState::Running;
         self.results.clear();
         self.current_iteration = 0;

@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use super::base::{ContextBase, ContextType, MutableContext};
 use crate::common::base::id::{EdgeType, TagId};
-use crate::core::Value;
+use crate::core::{Context, Value};
 
 /// 结果状态枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -410,3 +410,34 @@ pub type TestRuntimeContext = RuntimeContext<
     crate::core::context::manager::MockSchemaManager,
     crate::core::context::manager::MockIndexManager,
 >;
+
+impl<S, M, I> Context for RuntimeContext<S, M, I>
+where
+    S: StorageEngine,
+    M: SchemaManager,
+    I: IndexManager,
+{
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn context_type(&self) -> ContextType {
+        ContextType::Runtime
+    }
+
+    fn created_at(&self) -> std::time::SystemTime {
+        self.created_at
+    }
+
+    fn updated_at(&self) -> std::time::SystemTime {
+        self.updated_at
+    }
+
+    fn is_valid(&self) -> bool {
+        self.valid
+    }
+
+    fn touch(&mut self) {
+        self.updated_at = std::time::SystemTime::now();
+    }
+}

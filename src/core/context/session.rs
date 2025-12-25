@@ -3,6 +3,7 @@
 //! 提供会话级别的上下文管理
 
 use super::base::{ContextBase, ContextType, MutableContext};
+use crate::core::context::{Context, ContextExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
@@ -229,6 +230,32 @@ impl ContextBase for SessionContext {
 
     fn is_valid(&self) -> bool {
         !self.is_expired() && self.session_state != SessionState::Terminated
+    }
+}
+
+impl Context for SessionContext {
+    fn id(&self) -> &str {
+        &self.session_id
+    }
+
+    fn context_type(&self) -> ContextType {
+        ContextType::Session
+    }
+
+    fn created_at(&self) -> std::time::SystemTime {
+        self.created_at
+    }
+
+    fn updated_at(&self) -> std::time::SystemTime {
+        self.last_activity
+    }
+
+    fn is_valid(&self) -> bool {
+        !self.is_expired() && self.session_state != SessionState::Terminated
+    }
+
+    fn touch(&mut self) {
+        self.update_activity();
     }
 }
 

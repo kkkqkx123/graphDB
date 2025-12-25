@@ -18,6 +18,8 @@ pub mod visitor_state_enum;
 pub mod context;
 pub mod context_traits;
 pub mod types;
+pub mod unified_visitor;
+pub mod expression_visitor;
 
 // 查询处理模块
 pub mod query_pipeline_manager;

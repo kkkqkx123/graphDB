@@ -10,88 +10,248 @@ use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
 
+// 导入已实现的执行器
+use crate::query::executor::data_access::GetVerticesExecutor;
+use crate::query::executor::result_processing::{
+    FilterExecutor, ProjectExecutor, LimitExecutor, SortExecutor, AggregateExecutor, DedupExecutor
+};
+use crate::query::executor::data_processing::{
+    ExpandExecutor, InnerJoinExecutor, LeftJoinExecutor, CrossJoinExecutor,
+    UnwindExecutor, AssignExecutor
+};
+use crate::query::executor::base::{StartExecutor, ExecutionContext};
+
 /// 执行器工厂
 ///
 /// 负责根据计划节点类型创建对应的执行器实例
 /// 采用直接匹配模式，避免过度抽象
 #[derive(Debug)]
 pub struct ExecutorFactory<S: StorageEngine + 'static> {
-    _phantom: std::marker::PhantomData<S>,
+    storage: Option<Arc<Mutex<S>>>,
 }
 
 impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
     /// 创建新的执行器工厂
     pub fn new() -> Self {
         Self {
-            _phantom: std::marker::PhantomData,
+            storage: None,
         }
+    }
+    
+    /// 设置存储引擎
+    pub fn with_storage(storage: Arc<Mutex<S>>) -> Self {
+        Self {
+            storage: Some(storage),
+        }
+    }
+
+    /// 验证计划节点是否有效
+    fn validate_plan_node(&self, plan_node: &PlanNodeEnum) -> Result<(), QueryError> {
+        // 检查节点配置是否有效
+        match plan_node {
+            PlanNodeEnum::Limit(node) => {
+                if node.limit == 0 {
+                    return Err(QueryError::ExecutionError("LIMIT值不能为0".to_string()));
+                }
+            }
+            PlanNodeEnum::Loop(node) => {
+                if let Some(max_iter) = node.max_iterations {
+                    if max_iter == 0 {
+                        return Err(QueryError::ExecutionError("最大迭代次数不能为0".to_string()));
+                    }
+                    if max_iter > 10000 {
+                        return Err(QueryError::ExecutionError("最大迭代次数不能超过10000".to_string()));
+                    }
+                }
+            }
+            PlanNodeEnum::Expand(node) => {
+                if let Some(max_depth) = node.max_depth {
+                    if max_depth == 0 {
+                        return Err(QueryError::ExecutionError("扩展深度不能为0".to_string()));
+                    }
+                    if max_depth > 100 {
+                        return Err(QueryError::ExecutionError("扩展深度不能超过100".to_string()));
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
     /// 根据计划节点创建执行器
     pub fn create_executor(
         &self,
         plan_node: &PlanNodeEnum,
-        _storage: Arc<Mutex<S>>,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
+        // ✅ 添加执行计划验证
+        self.validate_plan_node(plan_node)?;
+        
         match plan_node {
             // 基础执行器
-            PlanNodeEnum::Start(_) => {
-                // TODO: 实现开始执行器
-                Err(QueryError::ExecutionError("开始执行器尚未实现".to_string()))
+            PlanNodeEnum::Start(node) => {
+                Ok(Box::new(StartExecutor::new(node.id, storage)))
             }
 
             // 数据访问执行器
-            PlanNodeEnum::ScanVertices(_) => {
-                // TODO: 实现扫描顶点执行器
-                Err(QueryError::ExecutionError(
-                    "扫描顶点执行器尚未实现".to_string(),
-                ))
+            PlanNodeEnum::ScanVertices(node) => {
+                // 创建扫描顶点执行器
+                let executor = GetVerticesExecutor::new(
+                    node.id,
+                    storage,
+                    None, // vertex_ids - 扫描所有顶点
+                    node.tag_filter.clone(),
+                    node.vertex_filter.clone(),
+                    node.limit,
+                );
+                Ok(Box::new(executor))
             }
             PlanNodeEnum::ScanEdges(_) => {
-                // TODO: 实现扫描边执行器
+                // TODO: 需要实现扫描边执行器
                 Err(QueryError::ExecutionError(
                     "扫描边执行器尚未实现".to_string(),
                 ))
             }
+            PlanNodeEnum::GetVertices(node) => {
+                // 创建获取顶点执行器
+                let executor = GetVerticesExecutor::new(
+                    node.id,
+                    storage,
+                    node.vertex_ids.clone(),
+                    node.tag_filter.clone(),
+                    node.vertex_filter.clone(),
+                    node.limit,
+                );
+                Ok(Box::new(executor))
+            }
 
             // 结果处理执行器
-            PlanNodeEnum::Filter(_) => {
-                // TODO: 实现过滤执行器
-                Err(QueryError::ExecutionError("过滤执行器尚未实现".to_string()))
+            PlanNodeEnum::Filter(node) => {
+                let executor = FilterExecutor::new(
+                    node.id,
+                    storage,
+                    node.filter_expression.clone(),
+                );
+                Ok(Box::new(executor))
             }
-            PlanNodeEnum::Project(_) => {
-                // TODO: 实现投影执行器
-                Err(QueryError::ExecutionError("投影执行器尚未实现".to_string()))
+            PlanNodeEnum::Project(node) => {
+                let executor = ProjectExecutor::new(
+                    node.id,
+                    storage,
+                    node.projections.clone(),
+                );
+                Ok(Box::new(executor))
             }
-            PlanNodeEnum::Limit(_) => {
-                // TODO: 实现限制执行器
-                Err(QueryError::ExecutionError("限制执行器尚未实现".to_string()))
+            PlanNodeEnum::Limit(node) => {
+                let executor = LimitExecutor::new(
+                    node.id,
+                    storage,
+                    node.limit,
+                    node.offset,
+                );
+                Ok(Box::new(executor))
             }
-            PlanNodeEnum::Sort(_) => {
-                // TODO: 实现排序执行器
-                Err(QueryError::ExecutionError("排序执行器尚未实现".to_string()))
+            PlanNodeEnum::Sort(node) => {
+                let executor = SortExecutor::new(
+                    node.id,
+                    storage,
+                    node.sort_keys.clone(),
+                    node.sort_orders.clone(),
+                );
+                Ok(Box::new(executor))
             }
-            PlanNodeEnum::Aggregate(_) => {
-                // TODO: 实现聚合执行器
-                Err(QueryError::ExecutionError("聚合执行器尚未实现".to_string()))
+            PlanNodeEnum::Aggregate(node) => {
+                let executor = AggregateExecutor::new(
+                    node.id,
+                    storage,
+                    node.aggregate_functions.clone(),
+                    node.group_by_expressions.clone(),
+                    node.having_expression.clone(),
+                );
+                Ok(Box::new(executor))
+            }
+            PlanNodeEnum::Dedup(node) => {
+                let executor = DedupExecutor::new(
+                    node.id,
+                    storage,
+                    node.dedup_keys.clone(),
+                    node.dedup_strategy.clone(),
+                );
+                Ok(Box::new(executor))
             }
 
             // 数据处理执行器
-            PlanNodeEnum::HashInnerJoin(_)
-            | PlanNodeEnum::HashLeftJoin(_)
-            | PlanNodeEnum::CartesianProduct(_) => {
-                // TODO: 实现连接执行器
-                Err(QueryError::ExecutionError("连接执行器尚未实现".to_string()))
+            PlanNodeEnum::InnerJoin(node) | PlanNodeEnum::HashInnerJoin(node) => {
+                let executor = InnerJoinExecutor::new(
+                    node.id,
+                    storage,
+                    node.join_condition.clone(),
+                    node.join_type.clone(),
+                );
+                Ok(Box::new(executor))
+            }
+            PlanNodeEnum::LeftJoin(node) | PlanNodeEnum::HashLeftJoin(node) => {
+                let executor = LeftJoinExecutor::new(
+                    node.id,
+                    storage,
+                    node.join_condition.clone(),
+                    node.join_type.clone(),
+                );
+                Ok(Box::new(executor))
+            }
+            PlanNodeEnum::CrossJoin(node) | PlanNodeEnum::CartesianProduct(node) => {
+                let executor = CrossJoinExecutor::new(
+                    node.id,
+                    storage,
+                    node.join_type.clone(),
+                );
+                Ok(Box::new(executor))
             }
 
             // 图遍历执行器
-            PlanNodeEnum::Expand(_) => {
-                // TODO: 实现扩展执行器
-                Err(QueryError::ExecutionError("扩展执行器尚未实现".to_string()))
+            PlanNodeEnum::Expand(node) => {
+                let executor = ExpandExecutor::new(
+                    node.id,
+                    storage,
+                    node.edge_direction.clone(),
+                    node.edge_types.clone(),
+                    node.max_depth,
+                );
+                Ok(Box::new(executor))
+            }
+            
+            // 数据转换执行器
+            PlanNodeEnum::Unwind(node) => {
+                let executor = UnwindExecutor::new(
+                    node.id,
+                    storage,
+                    node.unwind_expression.clone(),
+                    node.unwind_variable.clone(),
+                );
+                Ok(Box::new(executor))
+            }
+            PlanNodeEnum::Assign(node) => {
+                let executor = AssignExecutor::new(
+                    node.id,
+                    storage,
+                    node.assignments.clone(),
+                );
+                Ok(Box::new(executor))
+            }
+            
+            // 循环执行器
+            PlanNodeEnum::Loop(node) => {
+                // 注意：循环执行器需要body_executor，这里暂时返回错误
+                // 在实际使用中，需要在构建循环执行器时传入body_executor
+                Err(QueryError::ExecutionError(
+                    "循环执行器需要body_executor，请在构建时传入".to_string()
+                ))
             }
 
             _ => Err(QueryError::ExecutionError(format!(
-                "未知的执行器类型: {:?}",
+                "暂不支持执行器类型: {:?}",
                 plan_node.type_name()
             ))),
         }
@@ -101,14 +261,41 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
     pub async fn execute_plan(
         &self,
         _query_context: &mut crate::core::context::query::QueryContext,
-        _plan: crate::query::planner::plan::ExecutionPlan,
+        plan: crate::query::planner::plan::ExecutionPlan,
     ) -> Result<crate::query::executor::traits::ExecutionResult, QueryError> {
-        // 临时实现：返回成功结果
-        // 在实际实现中，这里应该：
-        // 1. 根据计划创建执行器
-        // 2. 执行执行器
-        // 3. 返回执行结果
-        Ok(crate::query::executor::traits::ExecutionResult::Success)
+        // 获取存储引擎
+        let storage = match &self.storage {
+            Some(storage) => storage.clone(),
+            None => return Err(QueryError::ExecutionError("存储引擎未设置".to_string())),
+        };
+        
+        // 创建执行上下文
+        let execution_context = ExecutionContext::new();
+        
+        // 设置会话和数据库信息到执行上下文中
+        // 注意：ExecutionContext 结构可能需要扩展以支持这些字段
+        // 目前我们使用基本的执行上下文，后续可以根据需要扩展
+        
+        // 获取根节点
+        let root_node = match plan.root() {
+            Some(node) => node,
+            None => return Err(QueryError::ExecutionError("执行计划没有根节点".to_string())),
+        };
+        
+        // 创建根执行器
+        let mut executor = self.create_executor(
+            root_node,
+            storage,
+            &execution_context,
+        )?;
+        
+        // 执行根执行器
+        let result = executor.execute().await.map_err(|e| {
+            QueryError::ExecutionError(format!("执行器执行失败: {}", e))
+        })?;
+        
+        // 返回执行结果
+        Ok(result)
     }
 }
 

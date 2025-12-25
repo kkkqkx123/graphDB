@@ -4,7 +4,7 @@
 
 use super::base::{ContextBase, ContextType, MutableContext};
 use crate::core::context::query::QueryContext;
-use crate::core::Value;
+use crate::core::{Context, Value};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -431,5 +431,31 @@ impl ExecutionProgress {
 impl Default for ExecutionProgress {
     fn default() -> Self {
         Self::new(6) // 默认6个阶段
+    }
+}
+
+impl Context for ExecutionContext {
+    fn id(&self) -> &str {
+        &self.query_context.query_id
+    }
+
+    fn context_type(&self) -> ContextType {
+        ContextType::Execution
+    }
+
+    fn created_at(&self) -> std::time::SystemTime {
+        std::time::SystemTime::now()
+    }
+
+    fn updated_at(&self) -> std::time::SystemTime {
+        std::time::SystemTime::now()
+    }
+
+    fn is_valid(&self) -> bool {
+        !self.should_cancel() && !self.has_error()
+    }
+
+    fn touch(&mut self) {
+        self.update_execution_stats();
     }
 }

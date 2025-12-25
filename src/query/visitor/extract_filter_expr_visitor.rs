@@ -5,8 +5,7 @@ use crate::core::{
     AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator,
 };
 use crate::core::Value;
-use crate::expression::ExpressionVisitor;
-use crate::query::visitor::QueryVisitor;
+use crate::core::visitor::{Visitor, VisitorState};
 
 #[derive(Debug)]
 pub struct ExtractFilterExprVisitor {
@@ -120,532 +119,7 @@ fn is_filter_function(func_name: &str) -> bool {
     )
 }
 
-impl ExpressionVisitor for ExtractFilterExprVisitor {
-    type Result = Result<(), String>;
 
-    fn visit_literal(&mut self, _value: &Value) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_variable(&mut self, _name: &str) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::Property {
-                object: Box::new(object.clone()),
-                property: property.to_string(),
-            });
-        }
-        self.visit(object)?;
-        Ok(())
-    }
-
-    fn visit_binary(
-        &mut self,
-        left: &Expression,
-        op: &BinaryOperator,
-        right: &Expression,
-    ) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::Binary {
-                left: Box::new(left.clone()),
-                op: op.clone(),
-                right: Box::new(right.clone()),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(left)?;
-        self.visit(right)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::Unary {
-                op: op.clone(),
-                operand: Box::new(operand.clone()),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(operand)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_function(&mut self, name: &str, args: &[Expression]) -> Self::Result {
-        if is_filter_function(name) && (self.is_top_level || !self.top_level_only) {
-            self.filter_exprs.push(Expression::Function {
-                name: name.to_string(),
-                args: args.to_vec(),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        for arg in args {
-            self.visit(arg)?;
-        }
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_aggregate(
-        &mut self,
-        _func: &AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) -> Self::Result {
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(arg)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        for item in items {
-            self.visit(item)?;
-        }
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        for (_, value) in pairs {
-            self.visit(value)?;
-        }
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_case(
-        &mut self,
-        conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
-    ) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::Case {
-                conditions: conditions.to_vec(),
-                default: default.as_ref().map(|e| Box::new(e.as_ref().clone())),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        for (condition, value) in conditions {
-            self.visit(condition)?;
-            self.visit(value)?;
-        }
-        if let Some(default_expr) = default {
-            self.visit(default_expr)?;
-        }
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_type_cast(&mut self, expr: &Expression, target_type: &DataType) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::TypeCast {
-                expr: Box::new(expr.clone()),
-                target_type: target_type.clone(),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::Subscript {
-                collection: Box::new(collection.clone()),
-                index: Box::new(index.clone()),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(collection)?;
-        self.visit(index)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_range(
-        &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
-    ) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::Range {
-                collection: Box::new(collection.clone()),
-                start: start.as_ref().map(|e| Box::new(e.as_ref().clone())),
-                end: end.as_ref().map(|e| Box::new(e.as_ref().clone())),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(collection)?;
-        if let Some(start_expr) = start {
-            self.visit(start_expr)?;
-        }
-        if let Some(end_expr) = end {
-            self.visit(end_expr)?;
-        }
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::Path(items.to_vec()));
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        for item in items {
-            self.visit(item)?;
-        }
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_label(&mut self, _name: &str) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_tag_property(&mut self, tag: &str, prop: &str) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::TagProperty {
-                tag: tag.to_string(),
-                prop: prop.to_string(),
-            });
-        }
-        Ok(())
-    }
-
-    fn visit_edge_property(&mut self, edge: &str, prop: &str) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::EdgeProperty {
-                edge: edge.to_string(),
-                prop: prop.to_string(),
-            });
-        }
-        Ok(())
-    }
-
-    fn visit_input_property(&mut self, prop: &str) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs
-                .push(Expression::InputProperty(prop.to_string()));
-        }
-        Ok(())
-    }
-
-    fn visit_variable_property(&mut self, var: &str, prop: &str) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::VariableProperty {
-                var: var.to_string(),
-                prop: prop.to_string(),
-            });
-        }
-        Ok(())
-    }
-
-    fn visit_source_property(&mut self, tag: &str, prop: &str) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::SourceProperty {
-                tag: tag.to_string(),
-                prop: prop.to_string(),
-            });
-        }
-        Ok(())
-    }
-
-    fn visit_destination_property(&mut self, tag: &str, prop: &str) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::DestinationProperty {
-                tag: tag.to_string(),
-                prop: prop.to_string(),
-            });
-        }
-        Ok(())
-    }
-
-    fn visit_unary_plus(&mut self, expr: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::UnaryPlus(Box::new(expr.clone())));
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_unary_negate(&mut self, expr: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::UnaryNegate(Box::new(expr.clone())));
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_unary_not(&mut self, expr: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::UnaryNot(Box::new(expr.clone())));
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_unary_incr(&mut self, expr: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::UnaryIncr(Box::new(expr.clone())));
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_unary_decr(&mut self, expr: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::UnaryDecr(Box::new(expr.clone())));
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_is_null(&mut self, expr: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::IsNull(Box::new(expr.clone())));
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_is_not_null(&mut self, expr: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::IsNotNull(Box::new(expr.clone())));
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_is_empty(&mut self, expr: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::IsEmpty(Box::new(expr.clone())));
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_is_not_empty(&mut self, expr: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::IsNotEmpty(Box::new(expr.clone())));
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_type_casting(&mut self, expr: &Expression, target_type: &str) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::TypeCasting {
-                expr: Box::new(expr.clone()),
-                target_type: target_type.to_string(),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_list_comprehension(
-        &mut self,
-        generator: &Expression,
-        condition: &Option<Box<Expression>>,
-    ) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::ListComprehension {
-                generator: Box::new(generator.clone()),
-                condition: condition.as_ref().map(|e| Box::new(e.as_ref().clone())),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(generator)?;
-        if let Some(cond) = condition {
-            self.visit(cond)?;
-        }
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::Predicate {
-                list: Box::new(list.clone()),
-                condition: Box::new(condition.clone()),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(list)?;
-        self.visit(condition)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_reduce(
-        &mut self,
-        list: &Expression,
-        var: &str,
-        initial: &Expression,
-        expr: &Expression,
-    ) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::Reduce {
-                list: Box::new(list.clone()),
-                var: var.to_string(),
-                initial: Box::new(initial.clone()),
-                expr: Box::new(expr.clone()),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(list)?;
-        self.visit(initial)?;
-        self.visit(expr)?;
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::PathBuild(items.to_vec()));
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        for item in items {
-            self.visit(item)?;
-        }
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_es_query(&mut self, query: &str) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::ESQuery(query.to_string()));
-        }
-        Ok(())
-    }
-
-    fn visit_uuid(&mut self) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::UUID);
-        }
-        Ok(())
-    }
-
-    fn visit_subscript_range(
-        &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
-    ) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::SubscriptRange {
-                collection: Box::new(collection.clone()),
-                start: start.as_ref().map(|e| Box::new(e.as_ref().clone())),
-                end: end.as_ref().map(|e| Box::new(e.as_ref().clone())),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        self.visit(collection)?;
-        if let Some(start_expr) = start {
-            self.visit(start_expr)?;
-        }
-        if let Some(end_expr) = end {
-            self.visit(end_expr)?;
-        }
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-
-    fn visit_match_path_pattern(&mut self, path_alias: &str, patterns: &[Expression]) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.filter_exprs.push(Expression::MatchPathPattern {
-                path_alias: path_alias.to_string(),
-                patterns: patterns.to_vec(),
-            });
-        }
-
-        let old_top_level = self.is_top_level;
-        self.is_top_level = false;
-        for pattern in patterns {
-            self.visit(pattern)?;
-        }
-        self.is_top_level = old_top_level;
-        Ok(())
-    }
-}
 
 impl QueryVisitor for ExtractFilterExprVisitor {
     type QueryResult = Vec<Expression>;
@@ -661,6 +135,82 @@ impl QueryVisitor for ExtractFilterExprVisitor {
 
     fn is_success(&self) -> bool {
         true // ExtractFilterExprVisitor 总是成功，即使没有找到任何过滤表达式
+    }
+}
+
+impl<'a> Visitor<Expression> for ExtractFilterExprVisitor {
+    type Result = Result<(), String>;
+
+    fn visit(&mut self, target: &Expression) -> <Self as Visitor<Expression>>::Result {
+        // 避免递归调用，直接调用内部方法
+        match target {
+            Expression::Literal(value) => self.visit_literal(value),
+            Expression::Variable(name) => self.visit_variable(name),
+            Expression::Property {
+                object,
+                property,
+            } => self.visit_property(object, property),
+            Expression::Binary { left, op, right } => self.visit_binary(left, op, right),
+            Expression::Unary { op, operand } => self.visit_unary(op, operand),
+            Expression::Function { name, args } => self.visit_function(name, args),
+            Expression::Aggregate { func, arg, distinct } => {
+                self.visit_aggregate(func, arg, *distinct)
+            }
+            Expression::List(items) => self.visit_list(items),
+            Expression::Map(pairs) => self.visit_map(pairs),
+            Expression::Case { conditions, default } => self.visit_case(conditions, default),
+            Expression::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
+            Expression::Subscript { collection, index } => self.visit_subscript(collection, index),
+            Expression::Range { collection, start, end } => self.visit_range(collection, start, end),
+            Expression::Path(items) => self.visit_path(items),
+            Expression::Label(name) => self.visit_label(name),
+            Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
+            Expression::EdgeProperty { edge, prop } => self.visit_edge_property(edge, prop),
+            Expression::InputProperty(prop) => self.visit_input_property(prop),
+            Expression::VariableProperty { var, prop } => self.visit_variable_property(var, prop),
+            Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
+            Expression::DestinationProperty { tag, prop } => {
+                self.visit_destination_property(tag, prop)
+            }
+            Expression::UnaryPlus(expr) => self.visit_unary_plus(expr),
+            Expression::UnaryNegate(expr) => self.visit_unary_negate(expr),
+            Expression::UnaryNot(expr) => self.visit_unary_not(expr),
+            Expression::UnaryIncr(expr) => self.visit_unary_incr(expr),
+            Expression::UnaryDecr(expr) => self.visit_unary_decr(expr),
+            Expression::IsNull(expr) => self.visit_is_null(expr),
+            Expression::IsNotNull(expr) => self.visit_is_not_null(expr),
+            Expression::IsEmpty(expr) => self.visit_is_empty(expr),
+            Expression::IsNotEmpty(expr) => self.visit_is_not_empty(expr),
+            Expression::TypeCasting { expr, target_type } => {
+                self.visit_type_casting(expr, target_type)
+            }
+            Expression::ListComprehension { generator, condition } => {
+                self.visit_list_comprehension(generator, condition)
+            }
+            Expression::Predicate { list, condition } => self.visit_predicate(list, condition),
+            Expression::Reduce { list, var, initial, expr } => {
+                self.visit_reduce(list, var, initial, expr)
+            }
+            Expression::PathBuild(items) => self.visit_path_build(items),
+            Expression::ESQuery(query) => self.visit_es_query(query),
+            Expression::UUID => self.visit_uuid(),
+            Expression::SubscriptRange { collection, start, end } => {
+                self.visit_subscript_range(collection, start, end)
+            }
+            Expression::MatchPathPattern { path_alias, patterns } => {
+                self.visit_match_path_pattern(path_alias, patterns)
+            }
+        }
+    }
+
+    fn state(&self) -> &VisitorState {
+        static EMPTY_STATE: VisitorState = VisitorState::new();
+        &EMPTY_STATE
+    }
+
+    fn state_mut(&mut self) -> &mut VisitorState {
+        static mut MUTABLE_STATE: VisitorState = VisitorState::new();
+        unsafe { &mut MUTABLE_STATE }
     }
 }
 

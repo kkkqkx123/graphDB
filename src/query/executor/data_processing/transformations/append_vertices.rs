@@ -316,7 +316,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         let vertices = self.fetch_vertices(vids).await?;
 
         // 创建表达式上下文
-        let expr_context = DefaultExpressionContext::new();
+        let _expr_context = DefaultExpressionContext::new();
 
         // 创建输出数据集
         let mut dataset = DataSet {

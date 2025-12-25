@@ -1,9 +1,7 @@
 //! DeduceTypeVisitor - 用于推导表达式类型的访问器
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
-use crate::core::Expression;
-use crate::core::TypeUtils;
-use crate::core::ValueTypeDef;
+use crate::core::{visitor::{Visitor, VisitorState}, Expression, TypeUtils, ValueTypeDef};
 use crate::core::{BinaryOperator, UnaryOperator, Value};
 use crate::query::validator::ValidationContext;
 use crate::query::visitor::QueryVisitor;
@@ -100,12 +98,12 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
 
     /// 主推导方法 - 推导表达式的类型
     pub fn deduce_type(&mut self, expr: &Expression) -> Result<ValueTypeDef, TypeDeductionError> {
-        self.visit(expr)?;
+        self.visit_expr(expr)?;
         Ok(self.type_.clone())
     }
 
     /// 递归访问表达式树
-    fn visit(&mut self, expr: &Expression) -> Result<(), TypeDeductionError> {
+    fn visit_expr(&mut self, expr: &Expression) -> Result<(), TypeDeductionError> {
         match expr {
             Expression::Literal(value) => self.visit_literal(value),
             Expression::Variable(name) => self.visit_variable(name),
@@ -113,21 +111,21 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 object,
                 property: _,
             } => {
-                self.visit(object)?;
+                self.visit_expr(object)?;
                 // 属性访问返回Empty类型（实际类型应该查询Schema）
                 self.type_ = ValueTypeDef::Empty;
                 Ok(())
             }
             Expression::Function { name, args } => self.visit_function_call(name, args),
             Expression::Binary { left, op, right } => {
-                self.visit(left)?;
+                self.visit_expr(left)?;
                 let left_type = self.type_.clone();
-                self.visit(right)?;
+                self.visit_expr(right)?;
                 let right_type = self.type_.clone();
                 self.visit_binary(op, left_type, right_type)
             }
             Expression::Unary { op, operand } => {
-                self.visit(operand)?;
+                self.visit_expr(operand)?;
                 self.visit_unary(op)
             }
             Expression::List(items) => self.visit_list(items),
@@ -137,12 +135,12 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 start,
                 end,
             } => {
-                self.visit(collection)?;
+                self.visit_expr(collection)?;
                 if let Some(start_expr) = start {
-                    self.visit(start_expr)?;
+                    self.visit_expr(start_expr)?;
                 }
                 if let Some(end_expr) = end {
-                    self.visit(end_expr)?;
+                    self.visit_expr(end_expr)?;
                 }
                 // 范围访问始终返回列表
                 self.type_ = ValueTypeDef::List;
@@ -150,7 +148,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             }
             Expression::Path(items) => {
                 for item in items {
-                    self.visit(item)?;
+                    self.visit_expr(item)?;
                 }
                 self.type_ = ValueTypeDef::Path;
                 Ok(())
@@ -162,11 +160,11 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
             Expression::DestinationProperty { tag, prop } => self.visit_dest_property(tag, prop),
             Expression::UnaryPlus(operand) => {
-                self.visit(operand)?;
+                self.visit_expr(operand)?;
                 Ok(())
             }
             Expression::UnaryNegate(operand) => {
-                self.visit(operand)?;
+                self.visit_expr(operand)?;
                 // 检查是否可以取反
                 match &self.type_ {
                     ValueTypeDef::Int
@@ -181,12 +179,12 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 }
             }
             Expression::UnaryNot(operand) => {
-                self.visit(operand)?;
+                self.visit_expr(operand)?;
                 self.type_ = ValueTypeDef::Bool;
                 Ok(())
             }
             Expression::UnaryIncr(operand) => {
-                self.visit(operand)?;
+                self.visit_expr(operand)?;
                 // 自增后类型保持不变（如果是数字类型）
                 match &self.type_ {
                     ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
@@ -198,7 +196,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 }
             }
             Expression::UnaryDecr(operand) => {
-                self.visit(operand)?;
+                self.visit_expr(operand)?;
                 // 自减后类型保持不变（如果是数字类型）
                 match &self.type_ {
                     ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
@@ -210,27 +208,27 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 }
             }
             Expression::IsNull(operand) => {
-                self.visit(operand)?;
+                self.visit_expr(operand)?;
                 self.type_ = ValueTypeDef::Bool;
                 Ok(())
             }
             Expression::IsNotNull(operand) => {
-                self.visit(operand)?;
+                self.visit_expr(operand)?;
                 self.type_ = ValueTypeDef::Bool;
                 Ok(())
             }
             Expression::IsEmpty(operand) => {
-                self.visit(operand)?;
+                self.visit_expr(operand)?;
                 self.type_ = ValueTypeDef::Bool;
                 Ok(())
             }
             Expression::IsNotEmpty(operand) => {
-                self.visit(operand)?;
+                self.visit_expr(operand)?;
                 self.type_ = ValueTypeDef::Bool;
                 Ok(())
             }
             Expression::TypeCast { expr, target_type } => {
-                self.visit(expr)?;
+                self.visit_expr(expr)?;
                 self.type_ = self.parse_data_type(target_type);
                 Ok(())
             }
@@ -242,8 +240,8 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 let mut result_type: Option<ValueTypeDef> = None;
 
                 for (condition_expr, then_expr) in conditions {
-                    self.visit(condition_expr)?;
-                    self.visit(then_expr)?;
+                    self.visit_expr(condition_expr)?;
+                    self.visit_expr(then_expr)?;
                     let then_type = self.type_.clone();
 
                     if let Some(ref existing_type) = result_type {
@@ -262,7 +260,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 }
 
                 if let Some(default_expr) = default {
-                    self.visit(default_expr)?;
+                    self.visit_expr(default_expr)?;
                     let default_type = self.type_.clone();
                     if let Some(ref existing_type) = result_type {
                         if !self.are_types_compatible(existing_type, &default_type) {
@@ -288,24 +286,24 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 arg,
                 distinct: _,
             } => {
-                self.visit(arg)?;
+                self.visit_expr(arg)?;
                 self.visit_aggregate_func(func)
             }
             Expression::ListComprehension {
                 generator,
                 condition,
             } => {
-                self.visit(generator)?;
+                self.visit_expr(generator)?;
                 if let Some(condition_expr) = condition {
-                    self.visit(condition_expr)?;
+                    self.visit_expr(condition_expr)?;
                 }
                 // 列表推导始终返回列表类型
                 self.type_ = ValueTypeDef::List;
                 Ok(())
             }
             Expression::Predicate { list, condition } => {
-                self.visit(list)?;
-                self.visit(condition)?;
+                self.visit_expr(list)?;
+                self.visit_expr(condition)?;
                 // 谓词表达式返回布尔值
                 self.type_ = ValueTypeDef::Bool;
                 Ok(())
@@ -316,10 +314,10 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 initial,
                 expr,
             } => {
-                self.visit(initial)?;
+                self.visit_expr(initial)?;
                 let accumulator_type = self.type_.clone();
-                self.visit(list)?;
-                self.visit(expr)?;
+                self.visit_expr(list)?;
+                self.visit_expr(expr)?;
                 // 归约结果类型为累加器类型
                 self.type_ = accumulator_type;
                 Ok(())
@@ -336,9 +334,9 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 Ok(())
             }
             Expression::Subscript { collection, index } => {
-                self.visit(collection)?;
+                self.visit_expr(collection)?;
                 let container_type = self.type_.clone();
-                self.visit(index)?;
+                self.visit_expr(index)?;
                 // 下标访问的结果类型取决于容器类型
                 self.type_ = match container_type {
                     ValueTypeDef::List => ValueTypeDef::Empty, // 列表元素类型未知
@@ -352,12 +350,12 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 start,
                 end,
             } => {
-                self.visit(collection)?;
+                self.visit_expr(collection)?;
                 if let Some(start_idx) = start {
-                    self.visit(start_idx)?;
+                    self.visit_expr(start_idx)?;
                 }
                 if let Some(end_idx) = end {
-                    self.visit(end_idx)?;
+                    self.visit_expr(end_idx)?;
                 }
                 // 范围下标始终返回列表
                 self.type_ = ValueTypeDef::List;
@@ -369,13 +367,13 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 Ok(())
             }
             Expression::TypeCasting { expr, .. } => {
-                self.visit(expr)?;
+                self.visit_expr(expr)?;
                 // 类型转换后返回转换后的类型
                 Ok(())
             }
             Expression::MatchPathPattern { patterns, .. } => {
                 for pattern in patterns {
-                    self.visit(pattern)?;
+                    self.visit_expr(pattern)?;
                 }
                 // 路径匹配返回路径类型
                 self.type_ = ValueTypeDef::Path;
@@ -757,6 +755,283 @@ impl<'a, S: StorageEngine> QueryVisitor for DeduceTypeVisitor<'a, S> {
     }
 }
 
+impl<'a, S: StorageEngine> Visitor<Expression> for DeduceTypeVisitor<'a, S> {
+    type Result = Result<(), TypeDeductionError>;
+
+    fn visit(&mut self, target: &Expression) -> <Self as Visitor<Expression>>::Result {
+        // 避免递归调用，直接调用内部方法
+        match target {
+            Expression::Literal(value) => self.visit_literal(value),
+            Expression::Variable(name) => self.visit_variable(name),
+            Expression::Property {
+                object,
+                property: _,
+            } => {
+                self.visit(object)?;
+                self.type_ = ValueTypeDef::Empty;
+                Ok(())
+            }
+            Expression::Function { name, args } => self.visit_function_call(name, args),
+            Expression::Binary { left, op, right } => {
+                self.visit(left)?;
+                let left_type = self.type_.clone();
+                self.visit(right)?;
+                let right_type = self.type_.clone();
+                self.visit_binary(op, left_type, right_type)
+            }
+            Expression::Unary { op, operand } => {
+                self.visit(operand)?;
+                self.visit_unary(op)
+            }
+            Expression::List(items) => self.visit_list(items),
+            Expression::Map(pairs) => self.visit_map_items(pairs),
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
+                self.visit(collection)?;
+                if let Some(start_expr) = start {
+                    self.visit(start_expr)?;
+                }
+                if let Some(end_expr) = end {
+                    self.visit(end_expr)?;
+                }
+                self.type_ = ValueTypeDef::List;
+                Ok(())
+            }
+            Expression::Path(items) => {
+                for item in items {
+                    self.visit(item)?;
+                }
+                self.type_ = ValueTypeDef::Path;
+                Ok(())
+            }
+            Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
+            Expression::EdgeProperty { edge, prop } => self.visit_edge_property(edge, prop),
+            Expression::InputProperty(prop) => self.visit_input_property(prop),
+            Expression::VariableProperty { var, prop } => self.visit_variable_property(var, prop),
+            Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
+            Expression::DestinationProperty { tag, prop } => self.visit_dest_property(tag, prop),
+            Expression::UnaryPlus(operand) => {
+                self.visit(operand)?;
+                Ok(())
+            }
+            Expression::UnaryNegate(operand) => {
+                self.visit(operand)?;
+                match &self.type_ {
+                    ValueTypeDef::Int
+                    | ValueTypeDef::Float
+                    | ValueTypeDef::Empty
+                    | ValueTypeDef::Null => Ok(()),
+                    _ => {
+                        let msg = format!("无法对类型 {:?} 执行取反操作", self.type_);
+                        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
+                        Err(TypeDeductionError::SemanticError(msg))
+                    }
+                }
+            }
+            Expression::UnaryNot(operand) => {
+                self.visit(operand)?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::UnaryIncr(operand) => {
+                self.visit(operand)?;
+                match &self.type_ {
+                    ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
+                    _ => {
+                        let msg = format!("无法对类型 {:?} 执行自增操作", self.type_);
+                        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
+                        Err(TypeDeductionError::SemanticError(msg))
+                    }
+                }
+            }
+            Expression::UnaryDecr(operand) => {
+                self.visit(operand)?;
+                match &self.type_ {
+                    ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
+                    _ => {
+                        let msg = format!("无法对类型 {:?} 执行自减操作", self.type_);
+                        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
+                        Err(TypeDeductionError::SemanticError(msg))
+                    }
+                }
+            }
+            Expression::IsNull(operand) => {
+                self.visit(operand)?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::IsNotNull(operand) => {
+                self.visit(operand)?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::IsEmpty(operand) => {
+                self.visit(operand)?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::IsNotEmpty(operand) => {
+                self.visit(operand)?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::TypeCast { expr, target_type } => {
+                self.visit(expr)?;
+                self.type_ = self.parse_data_type(target_type);
+                Ok(())
+            }
+            Expression::Case {
+                conditions,
+                default,
+            } => {
+                let mut result_type: Option<ValueTypeDef> = None;
+
+                for (condition_expr, then_expr) in conditions {
+                    self.visit(condition_expr)?;
+                    self.visit(then_expr)?;
+                    let then_type = self.type_.clone();
+
+                    if let Some(ref existing_type) = result_type {
+                        if !self.are_types_compatible(existing_type, &then_type) {
+                            let msg = format!(
+                                "CASE表达式分支类型不一致: {:?} vs {:?}",
+                                existing_type, then_type
+                            );
+                            self.status = Some(TypeDeductionError::TypeMismatch(msg.clone()));
+                            return Err(TypeDeductionError::TypeMismatch(msg));
+                        }
+                    } else {
+                        result_type = Some(then_type);
+                    }
+                }
+
+                if let Some(default_expr) = default {
+                    self.visit(default_expr)?;
+                    let default_type = self.type_.clone();
+                    if let Some(ref existing_type) = result_type {
+                        if !self.are_types_compatible(existing_type, &default_type) {
+                            let msg = format!(
+                                "CASE表达式DEFAULT分支类型不一致: {:?} vs {:?}",
+                                existing_type, default_type
+                            );
+                            self.status = Some(TypeDeductionError::TypeMismatch(msg.clone()));
+                            return Err(TypeDeductionError::TypeMismatch(msg));
+                        }
+                    } else {
+                        result_type = Some(default_type);
+                    }
+                }
+
+                if let Some(result_type) = result_type {
+                    self.type_ = result_type;
+                }
+                Ok(())
+            }
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct: _,
+            } => {
+                self.visit(arg)?;
+                self.visit_aggregate_func(func)
+            }
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => {
+                self.visit(generator)?;
+                if let Some(condition_expr) = condition {
+                    self.visit(condition_expr)?;
+                }
+                self.type_ = ValueTypeDef::List;
+                Ok(())
+            }
+            Expression::Predicate { list, condition } => {
+                self.visit(list)?;
+                self.visit(condition)?;
+                self.type_ = ValueTypeDef::Bool;
+                Ok(())
+            }
+            Expression::Reduce {
+                list,
+                var: _,
+                initial,
+                expr,
+            } => {
+                self.visit(initial)?;
+                let accumulator_type = self.type_.clone();
+                self.visit(list)?;
+                self.visit(expr)?;
+                self.type_ = accumulator_type;
+                Ok(())
+            }
+            Expression::PathBuild(items) => self.visit_path_build(items),
+            Expression::ESQuery(_) => {
+                self.type_ = ValueTypeDef::String;
+                Ok(())
+            }
+            Expression::UUID => {
+                self.type_ = ValueTypeDef::String;
+                Ok(())
+            }
+            Expression::Subscript { collection, index } => {
+                self.visit(collection)?;
+                let container_type = self.type_.clone();
+                self.visit(index)?;
+                self.type_ = match container_type {
+                    ValueTypeDef::List => ValueTypeDef::Empty,
+                    ValueTypeDef::Map => ValueTypeDef::Empty,
+                    _ => ValueTypeDef::Empty,
+                };
+                Ok(())
+            }
+            Expression::SubscriptRange {
+                collection,
+                start,
+                end,
+            } => {
+                self.visit(collection)?;
+                if let Some(start_idx) = start {
+                    self.visit(start_idx)?;
+                }
+                if let Some(end_idx) = end {
+                    self.visit(end_idx)?;
+                }
+                self.type_ = ValueTypeDef::List;
+                Ok(())
+            }
+            Expression::Label(_name) => {
+                self.type_ = ValueTypeDef::String;
+                Ok(())
+            }
+            Expression::TypeCasting { expr, .. } => {
+                self.visit(expr)?;
+                Ok(())
+            }
+            Expression::MatchPathPattern { patterns, .. } => {
+                for pattern in patterns {
+                    self.visit(pattern)?;
+                }
+                self.type_ = ValueTypeDef::Path;
+                Ok(())
+            }
+        }
+    }
+
+    fn state(&self) -> &VisitorState {
+        static EMPTY_STATE: VisitorState = VisitorState::new();
+        &EMPTY_STATE
+    }
+
+    fn state_mut(&mut self) -> &mut VisitorState {
+        static mut MUTABLE_STATE: VisitorState = VisitorState::new();
+        unsafe { &mut MUTABLE_STATE }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -900,5 +1175,82 @@ mod tests {
             TypeUtils::get_common_type(&ValueTypeDef::Null, &ValueTypeDef::String),
             ValueTypeDef::String
         );
+    }
+}
+
+/// DeduceTypeVisitor构建器
+///
+/// 提供链式API构建DeduceTypeVisitor实例
+pub struct DeduceTypeVisitorBuilder<'a, S: StorageEngine> {
+    storage: Option<&'a S>,
+    validate_context: Option<&'a ValidationContext>,
+    inputs: Vec<(String, ValueTypeDef)>,
+    space: Option<String>,
+    vid_type: ValueTypeDef,
+}
+
+impl<'a, S: StorageEngine> DeduceTypeVisitorBuilder<'a, S> {
+    /// 创建新的构建器
+    pub fn new() -> Self {
+        Self {
+            storage: None,
+            validate_context: None,
+            inputs: Vec::new(),
+            space: None,
+            vid_type: ValueTypeDef::String,
+        }
+    }
+
+    /// 设置存储引擎
+    pub fn with_storage(mut self, storage: &'a S) -> Self {
+        self.storage = Some(storage);
+        self
+    }
+
+    /// 设置验证上下文
+    pub fn with_validate_context(mut self, validate_context: &'a ValidationContext) -> Self {
+        self.validate_context = Some(validate_context);
+        self
+    }
+
+    /// 设置输入列定义
+    pub fn with_inputs(mut self, inputs: Vec<(String, ValueTypeDef)>) -> Self {
+        self.inputs = inputs;
+        self
+    }
+
+    /// 添加输入列定义
+    pub fn add_input(mut self, name: String, type_: ValueTypeDef) -> Self {
+        self.inputs.push((name, type_));
+        self
+    }
+
+    /// 设置图空间
+    pub fn with_space(mut self, space: String) -> Self {
+        self.space = Some(space);
+        self
+    }
+
+    /// 设置VID类型
+    pub fn with_vid_type(mut self, vid_type: ValueTypeDef) -> Self {
+        self.vid_type = vid_type;
+        self
+    }
+
+    /// 构建DeduceTypeVisitor实例
+    pub fn build(self) -> DeduceTypeVisitor<'a, S> {
+        let storage = self.storage.expect("存储引擎必须设置");
+        let validate_context = self.validate_context.expect("验证上下文必须设置");
+        let space = self.space.unwrap_or_else(|| "default".to_string());
+
+        let mut visitor = DeduceTypeVisitor::new(storage, validate_context, self.inputs, space);
+        visitor.set_vid_type(self.vid_type);
+        visitor
+    }
+}
+
+impl<'a, S: StorageEngine> Default for DeduceTypeVisitorBuilder<'a, S> {
+    fn default() -> Self {
+        Self::new()
     }
 }

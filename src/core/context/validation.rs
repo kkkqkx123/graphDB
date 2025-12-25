@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use super::base::{ContextBase, ContextType, MutableContext};
+use crate::core::context::{Context, ContextExt};
 use crate::core::Value;
 
 /// 验证上下文
@@ -355,6 +356,32 @@ impl ContextBase for ValidationContext {
     }
 }
 
+impl Context for ValidationContext {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn context_type(&self) -> ContextType {
+        ContextType::Validation
+    }
+
+    fn created_at(&self) -> std::time::SystemTime {
+        self.created_at
+    }
+
+    fn updated_at(&self) -> std::time::SystemTime {
+        self.updated_at
+    }
+
+    fn is_valid(&self) -> bool {
+        self.valid
+    }
+
+    fn touch(&mut self) {
+        self.updated_at = std::time::SystemTime::now();
+    }
+}
+
 impl MutableContext for ValidationContext {
     fn touch(&mut self) {
         self.updated_at = std::time::SystemTime::now();
@@ -366,7 +393,6 @@ impl MutableContext for ValidationContext {
     }
 
     fn revalidate(&mut self) -> bool {
-        // 重新验证逻辑
         self.valid = !self.has_errors();
         self.touch();
         self.valid

@@ -3,6 +3,7 @@
 //! 提供表达式求值过程中的基础上下文实现
 
 use crate::cache::CacheConfig;
+use crate::core::context::{Context, ContextExt};
 use crate::core::context_traits::{ContextBase, ContextType, HierarchicalContext, MutableContext};
 use crate::core::Value;
 use crate::expression::cache::{ExpressionCacheManager, ExpressionCacheStats};
@@ -364,8 +365,6 @@ impl Clone for BasicExpressionContext {
 
 impl ContextBase for BasicExpressionContext {
     fn id(&self) -> &str {
-        // 使用深度作为ID的一部分，但需要返回一个引用
-        // 这里使用一个静态字符串作为ID
         "expression_context"
     }
 
@@ -374,29 +373,52 @@ impl ContextBase for BasicExpressionContext {
     }
 
     fn created_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now() // 使用当前时间作为创建时间
+        std::time::SystemTime::now()
     }
 
     fn updated_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now() // 使用当前时间作为更新时间
+        std::time::SystemTime::now()
     }
 
     fn is_valid(&self) -> bool {
-        true // 表达式上下文总是有效的
+        true
+    }
+}
+
+impl Context for BasicExpressionContext {
+    fn id(&self) -> &str {
+        "expression_context"
+    }
+
+    fn context_type(&self) -> ContextType {
+        ContextType::Expression
+    }
+
+    fn created_at(&self) -> std::time::SystemTime {
+        std::time::SystemTime::now()
+    }
+
+    fn updated_at(&self) -> std::time::SystemTime {
+        std::time::SystemTime::now()
+    }
+
+    fn is_valid(&self) -> bool {
+        true
+    }
+
+    fn touch(&mut self) {
     }
 }
 
 impl MutableContext for BasicExpressionContext {
     fn touch(&mut self) {
-        // 更新时间戳
     }
 
     fn invalidate(&mut self) {
-        // 表达式上下文不支持无效化
     }
 
     fn revalidate(&mut self) -> bool {
-        true // 表达式上下文总是有效的
+        true
     }
 }
 
