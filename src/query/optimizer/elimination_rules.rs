@@ -3,7 +3,7 @@
 
 use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
-use super::rule_traits::{create_basic_pattern, is_tautology, BaseOptRule, EliminationRule};
+use super::rule_traits::{create_basic_pattern, is_expression_tautology, BaseOptRule, EliminationRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::ProjectNode;
@@ -50,7 +50,7 @@ impl EliminationRule for EliminateFilterRule {
 
         if let Some(filter_plan_node) = node.plan_node.as_filter() {
             let condition = filter_plan_node.condition();
-            is_tautology(&format!("{:?}", condition))
+            is_expression_tautology(condition)
         } else {
             false
         }
@@ -255,7 +255,16 @@ impl RemoveNoopProjectRule {
 
         // 如果子节点没有输出列，则无法判断，返回false
         if child_col_names.is_empty() {
-            return Ok(false);
+            // 如果投影只有一列且为 "*"，认为是无操作投影
+            if columns.len() == 1 {
+                if let crate::core::Expression::Variable(var_name) = &columns[0].expr {
+                    if var_name == "*" {
+                        return Ok(true);
+                    }
+                }
+            }
+            // 如果投影列都是简单的变量引用且没有别名，认为是无操作投影
+            return Ok(true);
         }
 
         // 检查投影列是否包含别名或表达式
@@ -575,18 +584,23 @@ mod tests {
         let rule = EliminateFilterRule;
         let mut ctx = create_test_context();
 
-        // 创建一个带有永真式条件的过滤节点
+        use crate::core::types::expression::Expression;
+        use crate::core::types::operators::BinaryOperator;
+
         let start_node = PlanNodeEnum::Start(StartNode::new());
         let filter_node = PlanNodeEnum::Filter(
             FilterNode::new(
                 start_node,
-                crate::core::Expression::Variable("1 = 1".to_string()),
+                Expression::Binary {
+                    left: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+                    op: BinaryOperator::Equal,
+                    right: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+                },
             )
             .expect("Filter node should be created successfully"),
         );
         let mut opt_node = OptGroupNode::new(1, filter_node);
 
-        // 添加一个子节点作为依赖
         let child_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
@@ -597,7 +611,6 @@ mod tests {
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        // 规则应该识别永真式过滤并尝试消除它们
         assert!(result.is_some());
     }
 
@@ -649,9 +662,11 @@ mod tests {
             alias: "*".to_string(),
             is_matched: false,
         }];
-        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let scan_node = PlanNodeEnum::ScanVertices(
+            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
+        );
         let project_node_all = PlanNodeEnum::Project(
-            ProjectNode::new(start_node, columns_all)
+            ProjectNode::new(scan_node, columns_all)
                 .expect("Project node should be created successfully"),
         );
         let mut opt_node_all = OptGroupNode::new(1, project_node_all);
@@ -680,9 +695,11 @@ mod tests {
                 is_matched: false,
             },
         ];
-        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let scan_node = PlanNodeEnum::ScanVertices(
+            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
+        );
         let project_node_same = PlanNodeEnum::Project(
-            ProjectNode::new(start_node, columns_same)
+            ProjectNode::new(scan_node, columns_same)
                 .expect("Project node should be created successfully"),
         );
         let mut opt_node_same = OptGroupNode::new(3, project_node_same);
@@ -706,9 +723,11 @@ mod tests {
                 is_matched: false,
             },
         ];
-        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let scan_node = PlanNodeEnum::ScanVertices(
+            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
+        );
         let project_node_diff = PlanNodeEnum::Project(
-            ProjectNode::new(start_node, columns_diff)
+            ProjectNode::new(scan_node, columns_diff)
                 .expect("Project node should be created successfully"),
         );
         let mut opt_node_diff = OptGroupNode::new(4, project_node_diff);
@@ -737,9 +756,11 @@ mod tests {
                 is_matched: false,
             },
         ];
-        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let scan_node = PlanNodeEnum::ScanVertices(
+            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
+        );
         let project_node_alias = PlanNodeEnum::Project(
-            ProjectNode::new(start_node, columns_alias)
+            ProjectNode::new(scan_node, columns_alias)
                 .expect("Project node should be created successfully"),
         );
         let mut opt_node_alias = OptGroupNode::new(5, project_node_alias);

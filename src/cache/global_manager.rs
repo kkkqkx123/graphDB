@@ -2,7 +2,6 @@
 //!
 //! 负责管理全局缓存管理器实例，提供安全的全局访问接口
 
-use super::manager::CacheStrategy;
 use super::registry::CacheRegistry;
 use super::stats_collector::CacheStatsCollector;
 use crate::cache::CacheConfig;

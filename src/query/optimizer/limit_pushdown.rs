@@ -6,7 +6,6 @@ use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
-use std::sync::Arc;
 
 /// 通用LIMIT下推规则
 #[derive(Debug)]
@@ -880,15 +879,17 @@ impl PushDownRule for PushLimitDownExpandAllRule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::Expression;
     use crate::core::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
-    use crate::query::planner::plan::core::nodes::{
-        GetEdgesNode, GetNeighborsNode, GetVerticesNode, LimitNode, ProjectNode, ScanEdgesNode,
-        ScanVerticesNode, StartNode,
-    };
+    use crate::query::planner::plan::core::nodes::graph_scan_node::{GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode};
     use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
     use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
+    use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
+    use crate::query::planner::plan::core::nodes::sort_node::LimitNode;
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::validator::YieldColumn;
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
@@ -910,15 +911,18 @@ mod tests {
         let rule = PushLimitDownRule;
         let mut ctx = create_test_context();
 
-        let start_node = PlanNodeEnum::Start(StartNode::new());
-        let limit_node = LimitNode::new(start_node, 10, 0)
+        let get_vertices_node = GetVerticesNode::new(1, "test_vids");
+        let get_vertices_opt_node = OptGroupNode::new(2, get_vertices_node.into_enum());
+        ctx.add_plan_node_and_group_node(2, &get_vertices_opt_node);
+
+        let limit_node = LimitNode::new(get_vertices_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
-        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        opt_node.dependencies = vec![2];
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        // 规则应该匹配LIMIT节点并尝试下推
         assert!(result.is_some());
     }
 
@@ -927,15 +931,18 @@ mod tests {
         let rule = PushLimitDownGetVerticesRule;
         let mut ctx = create_test_context();
 
-        let start_node = PlanNodeEnum::Start(StartNode::new());
-        let limit_node = LimitNode::new(start_node, 10, 0)
+        let get_vertices_node = GetVerticesNode::new(1, "test_vids");
+        let get_vertices_opt_node = OptGroupNode::new(2, get_vertices_node.into_enum());
+        ctx.add_plan_node_and_group_node(2, &get_vertices_opt_node);
+
+        let limit_node = LimitNode::new(get_vertices_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
-        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        opt_node.dependencies = vec![2];
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        // 规则应该匹配LIMIT节点并尝试下推到获取顶点操作
         assert!(result.is_some());
     }
 
@@ -944,15 +951,18 @@ mod tests {
         let rule = PushLimitDownGetNeighborsRule;
         let mut ctx = create_test_context();
 
-        let start_node = PlanNodeEnum::Start(StartNode::new());
-        let limit_node = LimitNode::new(start_node, 10, 0)
+        let get_neighbors_node = GetNeighborsNode::new(1, "test_src");
+        let get_neighbors_opt_node = OptGroupNode::new(2, get_neighbors_node.into_enum());
+        ctx.add_plan_node_and_group_node(2, &get_neighbors_opt_node);
+
+        let limit_node = LimitNode::new(get_neighbors_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
-        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        opt_node.dependencies = vec![2];
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        // 规则应该匹配LIMIT节点并尝试下推到获取邻居操作
         assert!(result.is_some());
     }
 
@@ -961,15 +971,18 @@ mod tests {
         let rule = PushLimitDownGetEdgesRule;
         let mut ctx = create_test_context();
 
-        let start_node = PlanNodeEnum::Start(StartNode::new());
-        let limit_node = LimitNode::new(start_node, 10, 0)
+        let get_edges_node = GetEdgesNode::new(1, "src", "edge_type", "0", "dst");
+        let get_edges_opt_node = OptGroupNode::new(2, get_edges_node.into_enum());
+        ctx.add_plan_node_and_group_node(2, &get_edges_opt_node);
+
+        let limit_node = LimitNode::new(get_edges_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
-        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        opt_node.dependencies = vec![2];
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        // 规则应该匹配LIMIT节点并尝试下推到获取边操作
         assert!(result.is_some());
     }
 
@@ -978,15 +991,18 @@ mod tests {
         let rule = PushLimitDownScanVerticesRule;
         let mut ctx = create_test_context();
 
-        let start_node = PlanNodeEnum::Start(StartNode::new());
-        let limit_node = LimitNode::new(start_node, 10, 0)
+        let scan_vertices_node = ScanVerticesNode::new(1);
+        let scan_vertices_opt_node = OptGroupNode::new(2, scan_vertices_node.into_enum());
+        ctx.add_plan_node_and_group_node(2, &scan_vertices_opt_node);
+
+        let limit_node = LimitNode::new(scan_vertices_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
-        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        opt_node.dependencies = vec![2];
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        // 规则应该匹配LIMIT节点并尝试下推到扫描顶点操作
         assert!(result.is_some());
     }
 
@@ -995,15 +1011,18 @@ mod tests {
         let rule = PushLimitDownScanEdgesRule;
         let mut ctx = create_test_context();
 
-        let start_node = PlanNodeEnum::Start(StartNode::new());
-        let limit_node = LimitNode::new(start_node, 10, 0)
+        let scan_edges_node = ScanEdgesNode::new(1, "edge_type");
+        let scan_edges_opt_node = OptGroupNode::new(2, scan_edges_node.into_enum());
+        ctx.add_plan_node_and_group_node(2, &scan_edges_opt_node);
+
+        let limit_node = LimitNode::new(scan_edges_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
-        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        opt_node.dependencies = vec![2];
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        // 规则应该匹配LIMIT节点并尝试下推到扫描边操作
         assert!(result.is_some());
     }
 
@@ -1012,15 +1031,18 @@ mod tests {
         let rule = PushLimitDownIndexScanRule;
         let mut ctx = create_test_context();
 
-        let start_node = PlanNodeEnum::Start(StartNode::new());
-        let limit_node = LimitNode::new(start_node, 10, 0)
+        let index_scan_node = IndexScan::new(-1, 1, 1, 1, "RANGE");
+        let index_scan_opt_node = OptGroupNode::new(2, index_scan_node.into_enum());
+        ctx.add_plan_node_and_group_node(2, &index_scan_opt_node);
+
+        let limit_node = LimitNode::new(index_scan_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
-        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        opt_node.dependencies = vec![2];
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        // 规则应该匹配LIMIT节点并尝试下推到索引扫描操作
         assert!(result.is_some());
     }
 
@@ -1029,15 +1051,24 @@ mod tests {
         let rule = PushLimitDownProjectRule;
         let mut ctx = create_test_context();
 
-        let start_node = PlanNodeEnum::Start(StartNode::new());
-        let limit_node = LimitNode::new(start_node, 10, 0)
+        let start_node = StartNode::new();
+        let start_opt_node = OptGroupNode::new(2, start_node.into_enum());
+        ctx.add_plan_node_and_group_node(2, &start_opt_node);
+
+        let columns = vec![YieldColumn::new(Expression::Variable("test_var".to_string()), "test_alias".to_string())];
+        let project_node = ProjectNode::new(start_opt_node.plan_node.clone(), columns)
+            .expect("Project node should be created successfully");
+        let project_opt_node = OptGroupNode::new(3, project_node.into_enum());
+        ctx.add_plan_node_and_group_node(3, &project_opt_node);
+
+        let limit_node = LimitNode::new(project_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
-        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        opt_node.dependencies = vec![3];
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        // 规则应该匹配LIMIT节点并尝试下推到投影操作
         assert!(result.is_some());
     }
 

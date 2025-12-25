@@ -225,6 +225,11 @@ impl RuntimeContext {
         self.props = Some(props);
     }
 
+    /// 设置属性上下文（引用版本）
+    pub fn set_props_ref(&mut self, props: &[PropContext]) {
+        self.props = Some(props.to_vec());
+    }
+
     /// 设置插入标志
     pub fn set_insert(&mut self, insert: bool) {
         self.insert = insert;
@@ -441,8 +446,8 @@ mod tests {
             prop_type: "string".to_string(),
             nullable: false,
         }];
-        runtime_ctx.set_props(props.clone());
-        assert_eq!(runtime_ctx.props.expect("Props should exist").len(), 1);
+        runtime_ctx.set_props_ref(&props);
+        assert_eq!(runtime_ctx.props.as_ref().expect("Props should exist").len(), 1);
 
         // 设置标志
         runtime_ctx.set_insert(true);

@@ -122,17 +122,16 @@ mod tests {
     fn test_safe_lock_poisoned() {
         let mutex = Mutex::new(42);
 
-        // 故意污染锁
-        {
+        // 故意污染锁 - 通过在持有锁时 panic 来污染
+        let result = std::panic::catch_unwind(|| {
             let _guard = mutex.lock().expect("mutex.lock should succeed");
-            std::panic::catch_unwind(|| {
-                let _guard = mutex.lock().expect("mutex.lock should succeed");
-                panic!("Intentional panic to poison the lock");
-            })
-            .unwrap_err();
-        }
+            panic!("Intentional panic to poison the lock");
+        });
 
-        // 测试安全锁获取
+        // 确认确实发生了 panic
+        assert!(result.is_err());
+
+        // 测试安全锁获取 - 应该返回错误
         let result = safe_lock(&mutex);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), DBError::Lock(_)));

@@ -886,7 +886,7 @@ impl ExpressionEvaluator {
         &self,
         func: &AggregateFunction,
         arg: &Value,
-        distinct: bool,
+        _distinct: bool,
     ) -> Result<Value, ExpressionError> {
         match func {
             AggregateFunction::Count => {

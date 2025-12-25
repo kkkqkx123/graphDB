@@ -10,7 +10,6 @@ use super::traits::*;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::parser::cypher::lexer::{Token, TokenType};
 use std::sync::Arc;
-use std::time::Duration;
 
 // 定义统计缓存类型 - 统一使用 StatsEnabled 版本
 type KeywordStatsType =
@@ -114,7 +113,7 @@ impl ParserCache {
 
     /// 批量预取标记
     pub fn prefetch_tokens(&self, tokens: &[Token], start_position: usize) {
-        if !self.config.prefetch_window > 0 {
+        if self.config.prefetch_window == 0 {
             return;
         }
 

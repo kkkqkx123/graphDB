@@ -330,9 +330,6 @@ impl PlanNodeFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
-    use crate::query::parser::ast::expr::{Expr, VariableExpr};
-    use crate::query::parser::ast::types::Span;
 
     #[test]
     fn test_create_start_node() {

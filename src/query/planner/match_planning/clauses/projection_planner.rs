@@ -321,7 +321,7 @@ mod tests {
         let order_by = Some(create_test_order_by());
         let pagination = Some(create_test_pagination());
 
-        let result = planner.build_return_projection(&yield_clause, order_by, pagination, true);
+        let result = planner.build_return_projection(&yield_clause, order_by.as_ref(), pagination.as_ref(), true);
         if let Err(e) = &result {
             println!("Error in test_build_return_projection: {:?}", e);
         }
@@ -337,7 +337,7 @@ mod tests {
         let where_clause = Some(create_test_where());
 
         let result =
-            planner.build_with_projection(&yield_clause, order_by, pagination, where_clause);
+            planner.build_with_projection(&yield_clause, order_by.as_ref(), pagination.as_ref(), where_clause.as_ref());
         if let Err(e) = &result {
             println!("Error in test_build_with_projection: {:?}", e);
         }
@@ -387,7 +387,7 @@ mod tests {
         let where_clause = Some(create_test_where());
 
         let cost =
-            ProjectionPlanner::estimate_projection_cost(order_by, pagination, where_clause, true);
+            ProjectionPlanner::estimate_projection_cost(order_by.as_ref(), pagination.as_ref(), where_clause.as_ref(), true);
 
         // 预期成本 = 100 (ORDER BY) + 10 (分页) + 50 (WHERE) + 80 (去重) = 240
         assert_eq!(cost, 240.0);
@@ -409,9 +409,9 @@ mod tests {
 
         let result = planner.build_projection_plan(
             &yield_clause,
-            order_by,
-            pagination,
-            where_clause,
+            order_by.as_ref(),
+            pagination.as_ref(),
+            where_clause.as_ref(),
             true,
             true,
         );

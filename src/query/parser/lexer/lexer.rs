@@ -8,11 +8,12 @@ use crate::query::parser::{Token, TokenKind};
 #[derive(Clone)]
 pub struct Lexer {
     input: Vec<char>,
-    position: usize,      // Current position in input
-    read_position: usize, // Next position to read
-    ch: Option<char>,     // Current character
-    line: usize,          // Current line number
-    column: usize,        // Current column number
+    position: usize,
+    read_position: usize,
+    ch: Option<char>,
+    line: usize,
+    column: usize,
+    current_token: Token,
 }
 
 impl Lexer {
@@ -24,8 +25,10 @@ impl Lexer {
             ch: None,
             line: 1,
             column: 0,
+            current_token: Token::new(TokenKind::Eof, String::new(), 0, 0),
         };
         lexer.read_char();
+        lexer.current_token = lexer.next_token();
         lexer
     }
 
@@ -633,18 +636,17 @@ impl Lexer {
 
     /// 查看下一个令牌
     pub fn peek(&mut self) -> Result<Token, String> {
-        Ok(self.next_token())
+        Ok(self.current_token.clone())
     }
 
     /// 推进到下一个字符
     pub fn advance(&mut self) {
-        self.read_char();
+        self.current_token = self.next_token();
     }
 
     /// 检查当前令牌是否匹配类型
     pub fn check(&mut self, kind: TokenKind) -> bool {
-        let token = self.next_token();
-        token.kind == kind
+        self.current_token.kind == kind
     }
 }
 

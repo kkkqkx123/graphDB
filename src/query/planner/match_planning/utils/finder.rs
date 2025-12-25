@@ -291,15 +291,13 @@ mod tests {
     use crate::core::Expression;
     use crate::query::validator::structs::{
         AliasType, CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
-        ReturnClauseContext, UnwindClauseContext, WhereClauseContext, WithClauseContext,
-        YieldClauseContext,
     };
 
     /// 创建测试用的节点信息
     fn create_test_node_info(alias: &str, anonymous: bool) -> NodeInfo {
         NodeInfo {
             alias: alias.to_string(),
-            labels: vec!["Person".to_string()],
+            labels: if anonymous { vec![] } else { vec!["Person".to_string()] },
             props: None,
             anonymous,
             filter: None,

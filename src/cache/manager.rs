@@ -227,9 +227,76 @@ pub enum CacheStrategy {
     None,
 }
 
+/// 为 Arc<T> 实现 Cache trait
+///
+/// 这是一个 blanket implementation（通用实现），允许在 Arc 包装的缓存上直接调用 Cache trait 方法。
+///
+/// # 性能特性
+/// - **零运行时开销**：编译器会将这些方法调用完全内联，等同于直接调用底层实现
+/// - **静态分发**：编译期确定具体类型，没有动态分派的开销
+///
+/// # 使用场景
+/// 当缓存需要被多个所有者共享时，通常会使用 Arc 包装。这个实现允许：
+/// ```rust
+/// let cache: Arc<ConcurrentLruCache<K, V>> = ...;
+/// cache.get(&key);  // 直接调用，无需 cache.as_ref().get(&key)
+/// ```
+///
+/// # 设计理由
+/// 这种模式是 Rust 社区的标准做法（类似于标准库中 String 对 Deref 的实现），
+/// 提供更好的 API 体验，同时保持零成本抽象。
+impl<K, V, T> Cache<K, V> for Arc<T>
+where
+    T: Cache<K, V>,
+{
+    fn get(&self, key: &K) -> Option<V> {
+        self.as_ref().get(key)
+    }
+
+    fn put(&self, key: K, value: V) {
+        self.as_ref().put(key, value)
+    }
+
+    fn contains(&self, key: &K) -> bool {
+        self.as_ref().contains(key)
+    }
+
+    fn remove(&self, key: &K) -> Option<V> {
+        self.as_ref().remove(key)
+    }
+
+    fn clear(&self) {
+        self.as_ref().clear()
+    }
+
+    fn len(&self) -> usize {
+        self.as_ref().len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.as_ref().is_empty()
+    }
+}
+
 /// 为 Arc<T> 实现 StatsCache trait
 ///
-/// 当 T: StatsCache<K, V> 时，Arc<T> 也实现 StatsCache<K, V>
+/// 这是一个 blanket implementation（通用实现），允许在 Arc 包装的统计缓存上直接调用 StatsCache trait 方法。
+///
+/// # 性能特性
+/// - **零运行时开销**：编译器会将这些方法调用完全内联，等同于直接调用底层实现
+/// - **静态分发**：编译期确定具体类型，没有动态分派的开销
+///
+/// # 使用场景
+/// 当统计缓存需要被多个所有者共享时，通常会使用 Arc 包装。这个实现允许：
+/// ```rust
+/// let cache: Arc<StatsCacheWrapper<...>> = ...;
+/// cache.hits();  // 直接调用，无需 cache.as_ref().hits()
+/// ```
+///
+/// # 设计理由
+/// 这种模式是 Rust 社区的标准做法，提供更好的 API 体验，同时保持零成本抽象。
+/// 特别是在 `StatsCacheWrapper` 被包装在 `Arc` 中时（如 `parser_cache.rs` 中的使用），
+/// 这个实现可以显著提高代码的可读性。
 impl<K, V, T> StatsCache<K, V> for Arc<T>
 where
     T: StatsCache<K, V>,

@@ -27,7 +27,7 @@ pub trait Evaluator<C: ExpressionContext> {
     }
 
     /// 检查表达式是否可以求值
-    fn can_evaluate(&self, expr: &Expression, context: &C) -> bool {
+    fn can_evaluate(&self, _expr: &Expression, _context: &C) -> bool {
         true // 默认实现：所有表达式都可以求值
     }
 

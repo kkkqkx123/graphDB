@@ -2,6 +2,8 @@
 //! 提供优化规则的通用接口和辅助函数，减少代码重复
 
 use super::optimizer::{OptContext, OptGroupNode, OptRule, OptimizerError, Pattern};
+use crate::core::{Expression, Value};
+use crate::core::types::operators::BinaryOperator;
 use crate::query::planner::plan::PlanNodeEnum;
 
 use std::collections::HashMap;
@@ -274,6 +276,39 @@ pub fn is_tautology(condition: &str) -> bool {
             EXPRESSION_PARSER
                 .with(|parser| parser.borrow_mut().parse_and_check_tautology(condition))
         }
+    }
+}
+
+/// 辅助函数：检查Expression是否为永真式
+pub fn is_expression_tautology(expr: &Expression) -> bool {
+    match expr {
+        // 检查布尔字面量
+        Expression::Literal(Value::Bool(true)) => true,
+        Expression::Literal(Value::Bool(false)) => false,
+
+        // 检查二元表达式
+        Expression::Binary { left, op, right } => {
+            match (left.as_ref(), op, right.as_ref()) {
+                // 检查 1 = 1
+                (Expression::Literal(Value::Int(1)), BinaryOperator::Equal, Expression::Literal(Value::Int(1))) => true,
+                // 检查 0 = 0
+                (Expression::Literal(Value::Int(0)), BinaryOperator::Equal, Expression::Literal(Value::Int(0))) => true,
+                // 检查 a = a
+                (Expression::Variable(a), BinaryOperator::Equal, Expression::Variable(b)) if a == b => true,
+                // 检查逻辑或的永真式：a OR NOT a
+                (Expression::Variable(a), BinaryOperator::Or, Expression::Unary { op, operand }) 
+                    if matches!(op, crate::core::types::operators::UnaryOperator::Not) 
+                        && matches!(operand.as_ref(), Expression::Variable(b) if b == a) => true,
+                // 检查逻辑或的永真式：NOT a OR a
+                (Expression::Unary { op, operand }, BinaryOperator::Or, Expression::Variable(b))
+                    if matches!(op, crate::core::types::operators::UnaryOperator::Not)
+                        && matches!(operand.as_ref(), Expression::Variable(a) if a == b) => true,
+                _ => false,
+            }
+        }
+
+        // 其他表达式类型暂时不认为是永真式
+        _ => false,
     }
 }
 

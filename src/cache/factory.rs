@@ -9,7 +9,7 @@
 
 use super::cache_impl::*;
 use super::stats_marker::{StatsDisabled, StatsEnabled};
-use super::traits::{Cache, StatsCache};
+use super::traits::Cache;
 use std::hash::Hash;
 use std::sync::Arc;
 use std::time::Duration;
