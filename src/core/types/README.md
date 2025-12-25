@@ -63,7 +63,6 @@
 - `QueryType` - 查询类型枚举（数据查询、数据操作、数据定义等）
 - `QueryResult` - 查询结果类型
 - `QueryData` - 查询数据（标量值、记录集合、图数据、路径集合等）
-- `ScalarValue` - 标量值类型
 - `Record` - 记录类型
 - `FieldValue` - 字段值类型
 - `Vertex` - 顶点类型
@@ -93,7 +92,6 @@ expression.rs
     │   ├── UnaryOperator (来自 operators.rs)
     │   └── AggregateFunction (来自 operators.rs)
     └── LiteralValue
-        └── 可转换为 ScalarValue (来自 query.rs)
 
 operators.rs
     ├── BinaryOperator
@@ -105,7 +103,6 @@ query.rs
     │   └── QueryData
     │       ├── Record
     │       │   └── FieldValue
-    │       │       ├── ScalarValue
     │       │       ├── Vertex
     │       │       ├── Edge
     │       │       └── Path
@@ -163,7 +160,7 @@ if let Some(op) = registry.find_by_name("+") {
 ### 处理查询结果
 
 ```rust
-use crate::core::types::query::{QueryResult, QueryData, Record, FieldValue, ScalarValue};
+use crate::core::types::query::{QueryResult, QueryData, Record, FieldValue};
 
 // 创建成功结果
 let result = QueryResult::success(

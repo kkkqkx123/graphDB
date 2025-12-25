@@ -33,7 +33,7 @@ pub use value::*;
 pub use vertex_edge_path::{Direction, Edge, Path, Step, Tag, Vertex};
 
 // 表达式系统类型
-pub use types::expression::{DataType, Expression, ExpressionType, LiteralValue};
+pub use types::expression::{DataType, Expression, ExpressionType};
 
 // 操作符系统类型
 pub use types::operators::{

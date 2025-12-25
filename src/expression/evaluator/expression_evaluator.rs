@@ -2,7 +2,7 @@
 //!
 //! 提供具体的表达式求值功能
 
-use crate::core::types::expression::{Expression, LiteralValue};
+use crate::core::types::expression::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::error::ExpressionError;
 use crate::core::Value;
@@ -36,15 +36,9 @@ impl ExpressionEvaluator {
         context: &mut dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
         match expr {
-            Expression::Literal(literal_value) => {
-                // 将 LiteralValue 转换为 Value
-                match literal_value {
-                    LiteralValue::Bool(b) => Ok(Value::Bool(*b)),
-                    LiteralValue::Int(i) => Ok(Value::Int(*i)),
-                    LiteralValue::Float(f) => Ok(Value::Float(*f)),
-                    LiteralValue::String(s) => Ok(Value::String(s.clone())),
-                    LiteralValue::Null => Ok(Value::Null(crate::core::NullType::Null)),
-                }
+            Expression::Literal(value) => {
+                // 直接返回 Value，无需转换
+                Ok(value.clone())
             }
             Expression::TypeCast { expr, target_type } => {
                 let value = self.evaluate(expr, context)?;
@@ -321,13 +315,7 @@ impl ExpressionEvaluator {
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
         match expr {
-            Expression::Literal(literal_value) => match literal_value {
-                LiteralValue::Bool(b) => Ok(Value::Bool(*b)),
-                LiteralValue::Int(i) => Ok(Value::Int(*i)),
-                LiteralValue::Float(f) => Ok(Value::Float(*f)),
-                LiteralValue::String(s) => Ok(Value::String(s.clone())),
-                LiteralValue::Null => Ok(Value::Null(crate::core::NullType::Null)),
-            },
+            Expression::Literal(value) => Ok(value.clone()),
             Expression::TypeCast { expr, target_type } => {
                 let value = self.eval_expression_generic(expr, context)?;
                 self.eval_type_cast(&value, target_type)

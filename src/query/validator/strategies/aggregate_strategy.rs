@@ -360,18 +360,16 @@ mod tests {
 
         // 测试没有聚合函数的表达式
         let non_agg_expr =
-            Expression::Literal(crate::core::types::expression::LiteralValue::Int(1));
+            Expression::Literal(crate::core::Value::Int(1));
         assert_eq!(strategy.has_aggregate_expr(&non_agg_expr), false);
 
-        // 测试包含聚合函数的表达式
-        // 注意：这里需要一个聚合表达式实例，具体实现可能依赖Expression的定义
         let binary_expr = Expression::Binary {
             left: Box::new(Expression::Literal(
-                crate::core::types::expression::LiteralValue::Int(1),
+                crate::core::Value::Int(1),
             )),
             op: BinaryOperator::Add,
             right: Box::new(Expression::Literal(
-                crate::core::types::expression::LiteralValue::Int(2),
+                crate::core::Value::Int(2),
             )),
         };
         assert_eq!(strategy.has_aggregate_expr(&binary_expr), false);
@@ -400,12 +398,12 @@ mod tests {
             left: Box::new(Expression::Unary {
                 op: crate::core::types::operators::UnaryOperator::Minus,
                 operand: Box::new(Expression::Literal(
-                    crate::core::types::expression::LiteralValue::Int(5),
+                    crate::core::Value::Int(5),
                 )),
             }),
             op: crate::core::types::operators::BinaryOperator::Add,
             right: Box::new(Expression::Literal(
-                crate::core::types::expression::LiteralValue::Int(10),
+                crate::core::Value::Int(10),
             )),
         };
 
@@ -418,7 +416,7 @@ mod tests {
         let expr = Expression::Aggregate {
             func: AggregateFunction::Count,
             arg: Box::new(Expression::Literal(
-                crate::core::types::expression::LiteralValue::Int(1),
+                crate::core::Value::Int(1),
             )),
             distinct: false,
         };
@@ -435,7 +433,7 @@ mod tests {
         let inner_agg = Expression::Aggregate {
             func: AggregateFunction::Count,
             arg: Box::new(Expression::Literal(
-                crate::core::types::expression::LiteralValue::Int(1),
+                crate::core::Value::Int(1),
             )),
             distinct: false,
         };
@@ -517,7 +515,7 @@ mod tests {
             let expr = Expression::Aggregate {
                 func,
                 arg: Box::new(Expression::Literal(
-                    crate::core::types::expression::LiteralValue::Int(1),
+                    crate::core::Value::Int(1),
                 )),
                 distinct: false,
             };
@@ -535,7 +533,7 @@ mod tests {
         let expr = Expression::Aggregate {
             func: AggregateFunction::Count,
             arg: Box::new(Expression::Literal(
-                crate::core::types::expression::LiteralValue::Int(1),
+                crate::core::Value::Int(1),
             )),
             distinct: true,
         };
@@ -570,7 +568,7 @@ mod tests {
             }),
             op: BinaryOperator::Add,
             right: Box::new(Expression::Literal(
-                crate::core::types::expression::LiteralValue::Int(1),
+                crate::core::Value::Int(1),
             )),
         };
         assert!(strategy.has_wildcard_property(&expr3));
@@ -580,7 +578,6 @@ mod tests {
     fn test_validate_expression_in_aggregate_binary_op() {
         let strategy = AggregateValidationStrategy::new();
 
-        // 测试二元操作在聚合参数中的验证
         let expr = Expression::Binary {
             left: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
@@ -588,11 +585,10 @@ mod tests {
             }),
             op: BinaryOperator::Add,
             right: Box::new(Expression::Literal(
-                crate::core::types::expression::LiteralValue::Int(10),
+                crate::core::Value::Int(10),
             )),
         };
 
-        // 应该通过验证
         assert!(strategy.validate_expression_in_aggregate(&expr).is_ok());
     }
 
@@ -627,17 +623,16 @@ mod tests {
                     }),
                     op: BinaryOperator::Equal,
                     right: Box::new(Expression::Literal(
-                        crate::core::types::expression::LiteralValue::String("active".to_string()),
+                        crate::core::Value::String("active".to_string()),
                     )),
                 },
-                Expression::Literal(crate::core::types::expression::LiteralValue::Int(1)),
+                Expression::Literal(crate::core::Value::Int(1)),
             )],
             default: Some(Box::new(Expression::Literal(
-                crate::core::types::expression::LiteralValue::Int(0),
+                crate::core::Value::Int(0),
             ))),
         };
 
-        // 应该通过验证
         assert!(strategy.validate_expression_in_aggregate(&expr).is_ok());
     }
 
@@ -645,10 +640,9 @@ mod tests {
     fn test_validate_expression_in_aggregate_list() {
         let strategy = AggregateValidationStrategy::new();
 
-        // 测试列表在聚合参数中的验证
         let expr = Expression::List(vec![
-            Expression::Literal(crate::core::types::expression::LiteralValue::Int(1)),
-            Expression::Literal(crate::core::types::expression::LiteralValue::Int(2)),
+            Expression::Literal(crate::core::Value::Int(1)),
+            Expression::Literal(crate::core::Value::Int(2)),
             Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "value".to_string(),
@@ -701,7 +695,7 @@ mod tests {
         let expr = Expression::Aggregate {
             func: AggregateFunction::Count,
             arg: Box::new(Expression::Literal(
-                crate::core::types::expression::LiteralValue::Int(1),
+                crate::core::Value::Int(1),
             )),
             distinct: false,
         };

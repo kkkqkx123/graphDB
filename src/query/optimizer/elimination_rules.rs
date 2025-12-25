@@ -767,7 +767,7 @@ mod tests {
                     left: Box::new(crate::core::Expression::Variable("age".to_string())),
                     op: crate::core::BinaryOperator::Add,
                     right: Box::new(crate::core::Expression::Literal(
-                        crate::core::LiteralValue::String("1".to_string()),
+                        crate::core::Value::String("1".to_string()),
                     )),
                 },
                 alias: "age_plus_1".to_string(),

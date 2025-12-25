@@ -338,27 +338,5 @@ mod tests {
 
 /// 将 Value 转换为 FieldValue
 fn convert_value_to_field_value(value: Value) -> crate::core::types::query::FieldValue {
-    match value {
-        Value::Bool(b) => crate::core::types::query::FieldValue::Scalar(
-            crate::core::types::query::ScalarValue::Bool(b),
-        ),
-        Value::Int(i) => crate::core::types::query::FieldValue::Scalar(
-            crate::core::types::query::ScalarValue::Int(i),
-        ),
-        Value::Float(f) => crate::core::types::query::FieldValue::Scalar(
-            crate::core::types::query::ScalarValue::Float(f),
-        ),
-        Value::String(s) => crate::core::types::query::FieldValue::Scalar(
-            crate::core::types::query::ScalarValue::String(s),
-        ),
-        Value::Null(_) => crate::core::types::query::FieldValue::Scalar(
-            crate::core::types::query::ScalarValue::Null,
-        ),
-        _ => {
-            // 对于复杂类型，暂时返回空值
-            crate::core::types::query::FieldValue::Scalar(
-                crate::core::types::query::ScalarValue::Null,
-            )
-        }
-    }
+    crate::core::types::query::FieldValue::Scalar(value)
 }

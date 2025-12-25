@@ -7,7 +7,7 @@ pub mod operators;
 pub mod query;
 
 // 重新导出常用类型
-pub use expression::{DataType, Expression, ExpressionType, LiteralValue};
+pub use expression::{DataType, Expression, ExpressionType};
 pub use operators::{
     AggregateFunction, BinaryOperator, Operator, OperatorCategory, OperatorInstance,
     OperatorRegistry, UnaryOperator,

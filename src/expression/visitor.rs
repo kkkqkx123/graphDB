@@ -2,8 +2,9 @@
 //!
 //! 这个模块提供了表达式访问者模式的基础设施，专注于表达式树的遍历和转换
 
-use crate::core::types::expression::{DataType, Expression, ExpressionType, LiteralValue};
+use crate::core::types::expression::{DataType, Expression, ExpressionType};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
+use crate::core::Value;
 
 /// 表达式访问者 trait - 用于访问Expression类型的各个变体
 ///
@@ -88,7 +89,7 @@ pub trait ExpressionVisitor {
         }
     }
 
-    fn visit_literal(&mut self, value: &LiteralValue) -> Self::Result;
+    fn visit_literal(&mut self, value: &Value) -> Self::Result;
 
     fn visit_variable(&mut self, name: &str) -> Self::Result;
 

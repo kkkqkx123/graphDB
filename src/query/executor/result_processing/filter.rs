@@ -445,7 +445,7 @@ mod tests {
                 property: "age".to_string(),
             }),
             op: crate::core::BinaryOperator::GreaterThan,
-            right: Box::new(Expression::Literal(crate::core::LiteralValue::Int(25))),
+            right: Box::new(Expression::Literal(crate::core::Value::Int(25))),
         };
 
         let mut executor = FilterExecutor::new(1, storage, condition);

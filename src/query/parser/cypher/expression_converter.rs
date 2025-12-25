@@ -2,7 +2,7 @@
 //!
 //! 提供Cypher表达式与统一表达式系统之间的转换功能
 
-use crate::core::types::expression::{Expression, LiteralValue};
+use crate::core::types::expression::Expression;
 use crate::core::error::ExpressionError;
 
 /// Cypher表达式转换器
@@ -15,21 +15,8 @@ impl ExpressionConverter {
     ) -> Result<Expression, ExpressionError> {
         match cypher_expr {
             crate::query::parser::cypher::ast::expressions::Expression::Literal(literal) => {
-                // 使用共享的字面量转换逻辑
                 let value = super::expression_evaluator::CypherEvaluator::cypher_literal_to_value(literal)?;
-                let unified_literal = match value {
-                    crate::core::value::Value::String(s) => LiteralValue::String(s),
-                    crate::core::value::Value::Int(i) => LiteralValue::Int(i),
-                    crate::core::value::Value::Float(f) => LiteralValue::Float(f),
-                    crate::core::value::Value::Bool(b) => LiteralValue::Bool(b),
-                    crate::core::value::Value::Null(_) => LiteralValue::Null,
-                    _ => {
-                        return Err(ExpressionError::invalid_operation(
-                            "Unsupported literal type".to_string(),
-                        ))
-                    }
-                };
-                Ok(Expression::Literal(unified_literal))
+                Ok(Expression::Literal(value))
             }
             crate::query::parser::cypher::ast::expressions::Expression::Variable(name) => {
                 Ok(Expression::Variable(name.clone()))
@@ -90,8 +77,7 @@ impl ExpressionConverter {
                 Ok(Expression::Map(pairs?))
             }
             crate::query::parser::cypher::ast::expressions::Expression::PatternExpression(_) => {
-                // 将模式表达式转换为占位符
-                Ok(Expression::Literal(LiteralValue::String("Pattern".to_string())))
+                Ok(Expression::Literal(crate::core::Value::String("Pattern".to_string())))
             }
             crate::query::parser::cypher::ast::expressions::Expression::Case(case_expr) => {
                 let mut conditions = Vec::new();

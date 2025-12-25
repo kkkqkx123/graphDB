@@ -56,7 +56,7 @@ impl PaginationValidationStrategy {
     ) -> Result<(), ValidationError> {
         // 简化验证：直接检查表达式是否为整数常量
         match expr {
-            Expression::Literal(crate::core::LiteralValue::Int(_)) => Ok(()),
+            Expression::Literal(crate::core::Value::Int(_)) => Ok(()),
             Expression::Literal(_) => Err(ValidationError::new(
                 format!("{}表达式必须求值为整数类型", clause_name),
                 ValidationErrorType::PaginationError,
@@ -214,8 +214,8 @@ mod tests {
         let strategy = PaginationValidationStrategy::new();
 
         // 测试有效的分页表达式
-        let skip_expr = Expression::Literal(crate::core::LiteralValue::Int(1));
-        let limit_expr = Expression::Literal(crate::core::LiteralValue::Int(10));
+        let skip_expr = Expression::Literal(crate::core::Value::Int(1));
+        let limit_expr = Expression::Literal(crate::core::Value::Int(10));
         let pagination_ctx = PaginationContext { skip: 0, limit: 10 };
 
         assert!(strategy
@@ -257,11 +257,11 @@ mod tests {
         // 创建测试数据
         let yield_columns = vec![
             YieldColumn::new(
-                Expression::Literal(crate::core::LiteralValue::Int(1)),
+                Expression::Literal(crate::core::Value::Int(1)),
                 "col1".to_string(),
             ),
             YieldColumn::new(
-                Expression::Literal(crate::core::LiteralValue::Int(2)),
+                Expression::Literal(crate::core::Value::Int(2)),
                 "col2".to_string(),
             ),
         ];
@@ -289,14 +289,13 @@ mod tests {
         let strategy = PaginationValidationStrategy::new();
 
         // 测试有效的整数表达式
-        let int_expr = Expression::Literal(crate::core::LiteralValue::Int(10));
+        let int_expr = Expression::Literal(crate::core::Value::Int(10));
         assert!(strategy
             .validate_pagination_expr(&int_expr, "LIMIT")
             .is_ok());
 
-        // 测试无效的字符串表达式
         let string_expr =
-            Expression::Literal(crate::core::LiteralValue::String("invalid".to_string()));
+            Expression::Literal(crate::core::Value::String("invalid".to_string()));
         assert!(strategy
             .validate_pagination_expr(&string_expr, "LIMIT")
             .is_err());

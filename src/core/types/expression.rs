@@ -3,6 +3,7 @@
 //! 使用枚举变体减少装箱，优化内存使用和性能
 
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
+use crate::core::{NullType, Value};
 use serde::{Deserialize, Serialize};
 
 /// 优化后的表达式类型
@@ -11,7 +12,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Expression {
     // 字面量
-    Literal(LiteralValue),
+    Literal(Value),
 
     // 变量和属性
     Variable(String),
@@ -164,18 +165,6 @@ pub enum Expression {
     },
 }
 
-/// 字面量值
-///
-/// 使用独立的枚举来表示字面量，避免嵌套的 Value 类型
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum LiteralValue {
-    Bool(bool),
-    Int(i64),
-    Float(f64),
-    String(String),
-    Null,
-}
-
 // 二元操作符、一元操作符和聚合函数现在从 crate::core::types::operators 导入
 // 以避免重复定义，参见 operators.rs
 
@@ -226,7 +215,7 @@ pub enum ExpressionType {
 
 impl Expression {
     /// 创建字面量表达式
-    pub fn literal(value: impl Into<LiteralValue>) -> Self {
+    pub fn literal(value: impl Into<Value>) -> Self {
         Expression::Literal(value.into())
     }
 
@@ -570,68 +559,31 @@ impl Expression {
     }
 }
 
-// 从各种类型到 LiteralValue 的转换
-impl From<bool> for LiteralValue {
-    fn from(value: bool) -> Self {
-        LiteralValue::Bool(value)
-    }
-}
-
-impl From<i64> for LiteralValue {
-    fn from(value: i64) -> Self {
-        LiteralValue::Int(value)
-    }
-}
-
-impl From<f64> for LiteralValue {
-    fn from(value: f64) -> Self {
-        LiteralValue::Float(value)
-    }
-}
-
-impl From<String> for LiteralValue {
-    fn from(value: String) -> Self {
-        LiteralValue::String(value)
-    }
-}
-
-impl From<&str> for LiteralValue {
-    fn from(value: &str) -> Self {
-        LiteralValue::String(value.to_string())
-    }
-}
-
-impl From<LiteralValue> for Expression {
-    fn from(value: LiteralValue) -> Self {
-        Expression::Literal(value)
-    }
-}
-
 // 便捷的构建器方法
 impl Expression {
     /// 创建布尔字面量
     pub fn bool(value: bool) -> Self {
-        Expression::Literal(LiteralValue::Bool(value))
+        Expression::Literal(Value::Bool(value))
     }
 
     /// 创建整数字面量
     pub fn int(value: i64) -> Self {
-        Expression::Literal(LiteralValue::Int(value))
+        Expression::Literal(Value::Int(value))
     }
 
     /// 创建浮点数字面量
     pub fn float(value: f64) -> Self {
-        Expression::Literal(LiteralValue::Float(value))
+        Expression::Literal(Value::Float(value))
     }
 
     /// 创建字符串字面量
     pub fn string(value: impl Into<String>) -> Self {
-        Expression::Literal(LiteralValue::String(value.into()))
+        Expression::Literal(Value::String(value.into()))
     }
 
     /// 创建空值
     pub fn null() -> Self {
-        Expression::Literal(LiteralValue::Null)
+        Expression::Literal(Value::Null(NullType::Unknown))
     }
 
     /// 创建等于比较

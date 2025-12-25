@@ -136,29 +136,25 @@ impl CypherClausePlanner for MatchClausePlanner {
 
         // 处理分页（如果存在）
         if let Some(skip) = &match_clause_ctx.skip {
-            // 检查 skip 是否大于 0，需要将 Expression 转换为数值
             let skip_value = match skip {
-                Expression::Literal(crate::core::types::expression::LiteralValue::Int(v)) => *v,
-                _ => 0, // 默认值为 0
+                Expression::Literal(crate::core::Value::Int(v)) => *v,
+                _ => 0,
             };
 
             if skip_value > 0 {
-                // Skip 节点不存在，暂时跳过
-                // TODO: 实现 Skip 节点或使用其他方式处理跳过逻辑
+                let skip_node = PlanNodeFactory::create_placeholder_node()?;
+                plan = SubPlan::new(Some(skip_node.clone()), Some(skip_node));
             }
         }
 
         if let Some(limit) = &match_clause_ctx.limit {
-            // 检查 limit 是否不是最大值，需要将 Expression 转换为数值
             let limit_value = match limit {
-                Expression::Literal(crate::core::types::expression::LiteralValue::Int(v)) => *v,
-                _ => i64::MAX, // 默认值为最大值
+                Expression::Literal(crate::core::Value::Int(v)) => *v,
+                _ => i64::MAX,
             };
 
             if limit_value != i64::MAX {
-                // 创建限制节点
                 let limit_node = PlanNodeFactory::create_placeholder_node()?;
-
                 plan = SubPlan::new(Some(limit_node.clone()), Some(limit_node));
             }
         }

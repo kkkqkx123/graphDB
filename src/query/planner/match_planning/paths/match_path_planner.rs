@@ -723,7 +723,7 @@ mod tests {
 
         let mut path = create_test_path("p", false, vec!["n"]);
         path.node_infos[0].props = Some(crate::core::Expression::Literal(
-            crate::core::types::expression::LiteralValue::String("test".to_string()),
+            crate::core::Value::String("test".to_string()),
         ));
 
         let mut planner = MatchPathPlanner::new(match_clause_ctx, path);

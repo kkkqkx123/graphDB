@@ -603,10 +603,10 @@ fn extract_column_and_value(
     };
 
     let value = match right {
-        Expression::Literal(crate::core::LiteralValue::String(s)) => Some(s.clone()),
-        Expression::Literal(crate::core::LiteralValue::Int(i)) => Some(i.to_string()),
-        Expression::Literal(crate::core::LiteralValue::Float(f)) => Some(f.to_string()),
-        Expression::Literal(crate::core::LiteralValue::Bool(b)) => Some(b.to_string()),
+        Expression::Literal(crate::core::Value::String(s)) => Some(s.clone()),
+        Expression::Literal(crate::core::Value::Int(i)) => Some(i.to_string()),
+        Expression::Literal(crate::core::Value::Float(f)) => Some(f.to_string()),
+        Expression::Literal(crate::core::Value::Bool(b)) => Some(b.to_string()),
         _ => None,
     };
 

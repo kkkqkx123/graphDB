@@ -13,7 +13,7 @@ pub use visitor::{ExpressionAcceptor, ExpressionVisitor, ExpressionDepthFirstVis
 pub use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
 // Re-export Core expression types
-pub use crate::core::types::expression::{DataType, Expression, ExpressionType, LiteralValue};
+pub use crate::core::types::expression::{DataType, Expression, ExpressionType};
 
 // Re-export evaluator module
 pub use evaluator::{ExpressionEvaluator, Evaluator, ExpressionContext};

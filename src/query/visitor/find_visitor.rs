@@ -2,7 +2,7 @@
 //! 对应 NebulaGraph FindVisitor.h/.cpp 的功能
 
 use crate::core::types::expression::DataType;
-use crate::expression::{Expression, ExpressionType, ExpressionVisitor, LiteralValue};
+use crate::expression::{Expression, ExpressionType, ExpressionVisitor};
 use crate::query::visitor::QueryVisitor;
 use std::collections::HashSet;
 

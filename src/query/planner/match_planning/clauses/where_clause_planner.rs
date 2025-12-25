@@ -241,13 +241,12 @@ fn convert_expression_to_expr(expr: &crate::core::Expression) -> Expr {
         crate::core::Expression::Literal(val) => {
             use crate::core::Value;
             let const_val = match val {
-                crate::core::types::expression::LiteralValue::String(s) => Value::String(s.clone()),
-                crate::core::types::expression::LiteralValue::Int(i) => Value::Int(*i),
-                crate::core::types::expression::LiteralValue::Float(f) => Value::Float(*f),
-                crate::core::types::expression::LiteralValue::Bool(b) => Value::Bool(*b),
-                crate::core::types::expression::LiteralValue::Null => {
-                    Value::Null(crate::core::NullType::Null)
-                }
+                Value::String(s) => Value::String(s.clone()),
+                Value::Int(i) => Value::Int(*i),
+                Value::Float(f) => Value::Float(*f),
+                Value::Bool(b) => Value::Bool(*b),
+                Value::Null(nt) => Value::Null(nt.clone()),
+                _ => Value::Null(crate::core::NullType::Null),
             };
             Expr::Constant(ConstantExpr::new(const_val, Span::default()))
         }

@@ -413,26 +413,10 @@ impl HierarchicalContext for BasicExpressionContext {
 // 为BasicExpressionContext实现统一的ExpressionContext trait
 impl crate::expression::evaluator::traits::ExpressionContext for BasicExpressionContext {
     fn get_variable(&self, name: &str) -> Option<crate::core::Value> {
-        // 将FieldValue转换为Value
         ExpressionContextCoreExtended::get_variable(self, name).map(|fv| {
-            // 这里需要实现FieldValue到Value的转换
-            // 暂时返回一个简单的值，实际实现需要完整的转换逻辑
             match fv {
-                crate::core::types::query::FieldValue::Scalar(scalar) => match scalar {
-                    crate::core::types::query::ScalarValue::Bool(b) => crate::core::Value::Bool(*b),
-                    crate::core::types::query::ScalarValue::Int(i) => crate::core::Value::Int(*i),
-                    crate::core::types::query::ScalarValue::Float(f) => {
-                        crate::core::Value::Float(*f)
-                    }
-                    crate::core::types::query::ScalarValue::String(s) => {
-                        crate::core::Value::String(s.clone())
-                    }
-                    crate::core::types::query::ScalarValue::Null => {
-                        crate::core::Value::Null(crate::core::NullType::Null)
-                    }
-                },
+                crate::core::types::query::FieldValue::Scalar(value) => value.clone(),
                 _ => {
-                    // 对于复杂类型，暂时返回空值
                     crate::core::Value::Null(crate::core::NullType::Null)
                 }
             }
@@ -440,31 +424,7 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
     }
 
     fn set_variable(&mut self, name: String, value: crate::core::Value) {
-        // 将Value转换为FieldValue
-        let field_value = match value {
-            crate::core::Value::Bool(b) => crate::core::types::query::FieldValue::Scalar(
-                crate::core::types::query::ScalarValue::Bool(b),
-            ),
-            crate::core::Value::Int(i) => crate::core::types::query::FieldValue::Scalar(
-                crate::core::types::query::ScalarValue::Int(i),
-            ),
-            crate::core::Value::Float(f) => crate::core::types::query::FieldValue::Scalar(
-                crate::core::types::query::ScalarValue::Float(f),
-            ),
-            crate::core::Value::String(s) => crate::core::types::query::FieldValue::Scalar(
-                crate::core::types::query::ScalarValue::String(s),
-            ),
-            crate::core::Value::Null(_) => crate::core::types::query::FieldValue::Scalar(
-                crate::core::types::query::ScalarValue::Null,
-            ),
-            _ => {
-                // 对于复杂类型，暂时返回空值
-                crate::core::types::query::FieldValue::Scalar(
-                    crate::core::types::query::ScalarValue::Null,
-                )
-            }
-        };
-
+        let field_value = crate::core::types::query::FieldValue::Scalar(value);
         self.set_variable(name, field_value);
     }
 
@@ -487,37 +447,13 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
     }
 
     fn set_vertex(&mut self, vertex: crate::core::Vertex) {
-        // 将vertex存储为变量
-        // 将vertex_edge_path::Vertex转换为types::query::Vertex
         let query_vertex = crate::core::types::query::Vertex {
-            id: vertex.vid.to_string(), // 将 Box<Value> 转换为 String
+            id: vertex.vid.to_string(),
             tags: vertex.tags.iter().map(|tag| tag.name.clone()).collect(),
             properties: vertex
                 .properties
                 .iter()
-                .map(|(k, v)| {
-                    (
-                        k.clone(),
-                        match v {
-                            crate::core::value::Value::Bool(b) => {
-                                crate::core::types::query::ScalarValue::Bool(*b)
-                            }
-                            crate::core::value::Value::Int(i) => {
-                                crate::core::types::query::ScalarValue::Int(*i)
-                            }
-                            crate::core::value::Value::Float(f) => {
-                                crate::core::types::query::ScalarValue::Float(*f)
-                            }
-                            crate::core::value::Value::String(s) => {
-                                crate::core::types::query::ScalarValue::String(s.clone())
-                            }
-                            crate::core::value::Value::Null(_) => {
-                                crate::core::types::query::ScalarValue::Null
-                            }
-                            _ => crate::core::types::query::ScalarValue::Null,
-                        },
-                    )
-                })
+                .map(|(k, v)| (k.clone(), v.clone()))
                 .collect(),
         };
         let field_value = crate::core::types::query::FieldValue::Vertex(query_vertex);
@@ -525,8 +461,6 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
     }
 
     fn set_edge(&mut self, edge: crate::core::Edge) {
-        // 将edge存储为变量
-        // 将vertex_edge_path::Edge转换为types::query::Edge
         let src_str = match &*edge.src {
             crate::core::value::Value::String(s) => s.clone(),
             v => v.to_string(),
@@ -543,29 +477,7 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
             properties: edge
                 .properties()
                 .iter()
-                .map(|(k, v)| {
-                    (
-                        k.clone(),
-                        match v {
-                            crate::core::value::Value::Bool(b) => {
-                                crate::core::types::query::ScalarValue::Bool(*b)
-                            }
-                            crate::core::value::Value::Int(i) => {
-                                crate::core::types::query::ScalarValue::Int(*i)
-                            }
-                            crate::core::value::Value::Float(f) => {
-                                crate::core::types::query::ScalarValue::Float(*f)
-                            }
-                            crate::core::value::Value::String(s) => {
-                                crate::core::types::query::ScalarValue::String(s.clone())
-                            }
-                            crate::core::value::Value::Null(_) => {
-                                crate::core::types::query::ScalarValue::Null
-                            }
-                            _ => crate::core::types::query::ScalarValue::Null,
-                        },
-                    )
-                })
+                .map(|(k, v)| (k.clone(), v.clone()))
                 .collect(),
             ranking: Some(edge.ranking),
         };
@@ -597,25 +509,11 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
     }
 
     fn get_all_variables(&self) -> Option<std::collections::HashMap<String, crate::core::Value>> {
-        // 将FieldValue转换为Value
         let mut value_map = std::collections::HashMap::new();
         for (name, field_value) in &self.variables {
             let value = match field_value {
-                crate::core::types::query::FieldValue::Scalar(scalar) => match scalar {
-                    crate::core::types::query::ScalarValue::Bool(b) => crate::core::Value::Bool(*b),
-                    crate::core::types::query::ScalarValue::Int(i) => crate::core::Value::Int(*i),
-                    crate::core::types::query::ScalarValue::Float(f) => {
-                        crate::core::Value::Float(*f)
-                    }
-                    crate::core::types::query::ScalarValue::String(s) => {
-                        crate::core::Value::String(s.clone())
-                    }
-                    crate::core::types::query::ScalarValue::Null => {
-                        crate::core::Value::Null(crate::core::NullType::Null)
-                    }
-                },
+                crate::core::types::query::FieldValue::Scalar(value) => value.clone(),
                 _ => {
-                    // 对于复杂类型，暂时返回空值
                     crate::core::Value::Null(crate::core::NullType::Null)
                 }
             };

@@ -3,6 +3,7 @@
 //! 定义图数据库查询系统中的核心类型
 
 use crate::core::error::{DBError, QueryError as CoreQueryError};
+use crate::core::Value;
 use serde::{Deserialize, Serialize};
 
 /// 查询类型枚举
@@ -45,7 +46,7 @@ pub enum QueryResult {
 #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub enum QueryData {
     /// 标量值
-    Scalar(ScalarValue),
+    Scalar(Value),
     /// 记录集合
     Records(Vec<Record>),
     /// 图数据
@@ -54,52 +55,6 @@ pub enum QueryData {
     Paths(Vec<Path>),
     /// 统计信息
     Statistics(Statistics),
-}
-
-/// 标量值
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ScalarValue {
-    Bool(bool),
-    Int(i64),
-    Float(f64),
-    String(String),
-    Null,
-}
-
-/// f64 类型不实现 Hash trait(浮点数有 NaN 值)
-///
-/// 实现说明：
-/// 1. 使用类型标识符确保不同类型不会产生相同的哈希值
-/// 2. 对于浮点数，使用 to_bits() 获取位模式表示，确保相同位模式的浮点数产生相同哈希
-/// 3. NaN 值的位模式会被保留，但不同的 NaN 位模式会产生不同的哈希值
-/// 4. 这种实现保证了哈希一致性，但需要注意 NaN 的特殊性质
-impl std::hash::Hash for ScalarValue {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        match self {
-            ScalarValue::Bool(b) => {
-                0u8.hash(state);
-                b.hash(state);
-            }
-            ScalarValue::Int(i) => {
-                1u8.hash(state);
-                i.hash(state);
-            }
-            ScalarValue::Float(f) => {
-                2u8.hash(state);
-                // 将 f64 转换为 u64 的位表示进行哈希
-                // 这种方法保留了 NaN 的位模式，确保相同位模式的值产生相同哈希
-                // 注意：不同的 NaN 位模式会产生不同的哈希值，这是符合 IEEE 754 标准的行为
-                f.to_bits().hash(state);
-            }
-            ScalarValue::String(s) => {
-                3u8.hash(state);
-                s.hash(state);
-            }
-            ScalarValue::Null => {
-                4u8.hash(state);
-            }
-        }
-    }
 }
 
 /// 记录
@@ -112,7 +67,7 @@ pub struct Record {
 /// 字段值
 #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub enum FieldValue {
-    Scalar(ScalarValue),
+    Scalar(Value),
     List(Vec<FieldValue>),
     Map(Vec<(String, FieldValue)>),
     Vertex(Vertex),
@@ -128,7 +83,7 @@ pub struct Vertex {
     /// 标签
     pub tags: Vec<String>,
     /// 属性
-    pub properties: Vec<(String, ScalarValue)>,
+    pub properties: Vec<(String, Value)>,
 }
 
 /// 边
@@ -143,7 +98,7 @@ pub struct Edge {
     /// 目标顶点ID
     pub dst: String,
     /// 属性
-    pub properties: Vec<(String, ScalarValue)>,
+    pub properties: Vec<(String, Value)>,
     /// 排名
     pub ranking: Option<i64>,
 }
@@ -179,7 +134,7 @@ pub struct Statistics {
     /// 边数量
     pub edge_count: usize,
     /// 其他统计信息
-    pub metadata: Vec<(String, ScalarValue)>,
+    pub metadata: Vec<(String, Value)>,
 }
 
 /// 查询错误
@@ -341,12 +296,12 @@ impl Vertex {
     }
 
     /// 添加属性
-    pub fn add_property(&mut self, name: impl Into<String>, value: ScalarValue) {
+    pub fn add_property(&mut self, name: impl Into<String>, value: Value) {
         self.properties.push((name.into(), value));
     }
 
     /// 获取属性值
-    pub fn get_property(&self, name: &str) -> Option<&ScalarValue> {
+    pub fn get_property(&self, name: &str) -> Option<&Value> {
         self.properties
             .iter()
             .find(|(n, _)| n == name)
@@ -373,7 +328,7 @@ impl Edge {
     }
 
     /// 添加属性
-    pub fn add_property(&mut self, name: impl Into<String>, value: ScalarValue) {
+    pub fn add_property(&mut self, name: impl Into<String>, value: Value) {
         self.properties.push((name.into(), value));
     }
 
@@ -383,7 +338,7 @@ impl Edge {
     }
 
     /// 获取属性值
-    pub fn get_property(&self, name: &str) -> Option<&ScalarValue> {
+    pub fn get_property(&self, name: &str) -> Option<&Value> {
         self.properties
             .iter()
             .find(|(n, _)| n == name)

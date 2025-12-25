@@ -1,4 +1,4 @@
-use crate::core::{Expression, LiteralValue};
+use crate::core::{Expression, Value};
 /// 扫描查找规划器
 /// 进行全表扫描操作的规划
 /// 负责规划全表扫描操作
@@ -79,7 +79,7 @@ impl ScanSeek {
             name: "hasLabel".to_string(),
             args: vec![
                 Expression::Variable(self.node_info.alias.clone()),
-                Expression::Literal(LiteralValue::String(label_name.to_string())),
+                Expression::Literal(Value::String(label_name.to_string())),
             ],
         })
     }
