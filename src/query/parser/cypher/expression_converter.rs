@@ -109,30 +109,21 @@ impl ExpressionConverter {
         expr: &Expression,
     ) -> Result<crate::query::parser::cypher::ast::expressions::Expression, ExpressionError> {
         match expr {
-            Expression::Literal(literal) => {
-                // 使用共享的字面量转换逻辑
-                let value = match literal {
-                    LiteralValue::String(s) => crate::core::value::Value::String(s.clone()),
-                    LiteralValue::Int(i) => crate::core::value::Value::Int(*i),
-                    LiteralValue::Float(f) => crate::core::value::Value::Float(*f),
-                    LiteralValue::Bool(b) => crate::core::value::Value::Bool(*b),
-                    LiteralValue::Null => crate::core::value::Value::Null(crate::core::NullType::Null),
-                };
-
+            Expression::Literal(value) => {
                 let cypher_literal = match value {
-                    crate::core::value::Value::String(s) => {
-                        crate::query::parser::cypher::ast::expressions::Literal::String(s)
+                    crate::core::Value::String(s) => {
+                        crate::query::parser::cypher::ast::expressions::Literal::String(s.clone())
                     }
-                    crate::core::value::Value::Int(i) => {
-                        crate::query::parser::cypher::ast::expressions::Literal::Integer(i)
+                    crate::core::Value::Int(i) => {
+                        crate::query::parser::cypher::ast::expressions::Literal::Integer(*i)
                     }
-                    crate::core::value::Value::Float(f) => {
-                        crate::query::parser::cypher::ast::expressions::Literal::Float(f)
+                    crate::core::Value::Float(f) => {
+                        crate::query::parser::cypher::ast::expressions::Literal::Float(*f)
                     }
-                    crate::core::value::Value::Bool(b) => {
-                        crate::query::parser::cypher::ast::expressions::Literal::Boolean(b)
+                    crate::core::Value::Bool(b) => {
+                        crate::query::parser::cypher::ast::expressions::Literal::Boolean(*b)
                     }
-                    crate::core::value::Value::Null(_) => {
+                    crate::core::Value::Null(_) => {
                         crate::query::parser::cypher::ast::expressions::Literal::Null
                     }
                     _ => {
@@ -287,7 +278,7 @@ mod tests {
             .expect("Conversion from cypher to unified should succeed for literals");
 
         match unified_expr {
-            UnifiedExpression::Literal(LiteralValue::Int(i)) => assert_eq!(i, 42),
+            UnifiedExpression::Literal(crate::core::Value::Int(i)) => assert_eq!(i, 42),
             _ => panic!("Expected integer literal"),
         }
     }

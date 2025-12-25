@@ -4,14 +4,14 @@
 use crate::core::Expression;
 use crate::core::TypeUtils;
 use crate::core::ValueTypeDef;
-use crate::core::{BinaryOperator, UnaryOperator};
+use crate::core::{BinaryOperator, UnaryOperator, Value};
 use crate::query::validator::ValidationContext;
 use crate::query::visitor::QueryVisitor;
 use crate::storage::StorageEngine;
 use thiserror::Error;
 
 #[cfg(test)]
-use crate::core::{Direction, Edge, Value, Vertex};
+use crate::core::{Direction, Edge, Vertex};
 #[cfg(test)]
 use crate::storage::StorageError;
 
@@ -387,15 +387,27 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     /// 推导字面量表达式的类型
     fn visit_literal(
         &mut self,
-        value: &crate::core::LiteralValue,
+        value: &crate::core::Value,
     ) -> Result<(), TypeDeductionError> {
-        use crate::core::LiteralValue;
         self.type_ = match value {
-            LiteralValue::Bool(_) => ValueTypeDef::Bool,
-            LiteralValue::Int(_) => ValueTypeDef::Int,
-            LiteralValue::Float(_) => ValueTypeDef::Float,
-            LiteralValue::String(_) => ValueTypeDef::String,
-            LiteralValue::Null => ValueTypeDef::Null,
+            Value::Bool(_) => ValueTypeDef::Bool,
+            Value::Int(_) => ValueTypeDef::Int,
+            Value::Float(_) => ValueTypeDef::Float,
+            Value::String(_) => ValueTypeDef::String,
+            Value::Null(_) => ValueTypeDef::Null,
+            Value::Empty => ValueTypeDef::Empty,
+            Value::Date(_) => ValueTypeDef::Date,
+            Value::Time(_) => ValueTypeDef::Time,
+            Value::DateTime(_) => ValueTypeDef::DateTime,
+            Value::Vertex(_) => ValueTypeDef::Vertex,
+            Value::Edge(_) => ValueTypeDef::Edge,
+            Value::Path(_) => ValueTypeDef::Path,
+            Value::List(_) => ValueTypeDef::List,
+            Value::Map(_) => ValueTypeDef::Map,
+            Value::Set(_) => ValueTypeDef::Set,
+            Value::Geography(_) => ValueTypeDef::Geography,
+            Value::Duration(_) => ValueTypeDef::Duration,
+            Value::DataSet(_) => ValueTypeDef::DataSet,
         };
         Ok(())
     }

@@ -2,8 +2,9 @@
 //! 对应 NebulaGraph DeducePropsVisitor.h/.cpp 的功能
 
 use crate::core::{
-    AggregateFunction, BinaryOperator, DataType, Expression, LiteralValue, UnaryOperator,
+    AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator,
 };
+use crate::core::Value;
 use crate::core::visitor::VisitorConfig;
 use crate::expression::ExpressionVisitor;
 use crate::query::visitor::QueryVisitor;
@@ -323,7 +324,7 @@ impl Default for DeducePropsVisitor {
 impl ExpressionVisitor for DeducePropsVisitor {
     type Result = Result<(), String>;
 
-    fn visit_literal(&mut self, _value: &LiteralValue) -> Self::Result {
+    fn visit_literal(&mut self, _value: &Value) -> Self::Result {
         Ok(())
     }
 
@@ -651,7 +652,7 @@ mod tests {
     #[test]
     fn test_deduce_visitor_constant() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expression::Literal(crate::core::LiteralValue::Int(42));
+        let expr = Expression::Literal(crate::core::Value::Int(42));
 
         assert!(visitor.deduce(&expr).is_ok());
         assert!(visitor.get_props().is_all_props_empty());

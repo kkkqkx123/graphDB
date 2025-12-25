@@ -4,9 +4,37 @@
 
 use super::base::{ContextBase, ContextType, MutableContext};
 use crate::core::context::query::QueryContext;
-use crate::core::types::query::{FieldValue, Record};
+use crate::core::types::query::FieldValue;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+/// 记录类型
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Record {
+    pub fields: HashMap<String, FieldValue>,
+}
+
+impl Record {
+    pub fn new() -> Self {
+        Self {
+            fields: HashMap::new(),
+        }
+    }
+
+    pub fn add_field(&mut self, name: String, value: FieldValue) {
+        self.fields.insert(name, value);
+    }
+
+    pub fn get_field(&self, name: &str) -> Option<&FieldValue> {
+        self.fields.get(name)
+    }
+}
+
+impl Default for Record {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// 执行上下文
 #[derive(Debug, Clone)]

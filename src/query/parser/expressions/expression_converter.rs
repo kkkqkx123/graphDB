@@ -1,7 +1,7 @@
 //! 表达式转换器
 //! 将AST表达式转换为graph表达式
 
-use crate::core::types::expression::{Expression, LiteralValue};
+use crate::core::types::expression::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use crate::query::parser::ast::{
@@ -28,15 +28,15 @@ pub fn convert_ast_to_graph_expression(ast_expr: &Expr) -> Result<Expression, St
 
 /// 转换常量表达式
 fn convert_constant_expr(expr: &ConstantExpr) -> Result<Expression, String> {
-    let literal_value = match &expr.value {
-        Value::Bool(b) => LiteralValue::Bool(*b),
-        Value::Int(i) => LiteralValue::Int(*i),
-        Value::Float(f) => LiteralValue::Float(*f),
-        Value::String(s) => LiteralValue::String(s.clone()),
-        Value::Null(_) => LiteralValue::Null,
+    let value = match &expr.value {
+        Value::Bool(b) => Value::Bool(*b),
+        Value::Int(i) => Value::Int(*i),
+        Value::Float(f) => Value::Float(*f),
+        Value::String(s) => Value::String(s.clone()),
+        Value::Null(nt) => Value::Null(nt.clone()),
         _ => return Err(format!("不支持的常量值类型: {:?}", expr.value)),
     };
-    Ok(Expression::Literal(literal_value))
+    Ok(Expression::Literal(value))
 }
 
 /// 转换变量表达式
@@ -313,7 +313,7 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of constant expression");
 
-        if let Expression::Literal(LiteralValue::Int(value)) = result {
+        if let Expression::Literal(Value::Int(value)) = result {
             assert_eq!(value, 42);
         } else {
             panic!("Expected Literal(Int(42)), got {:?}", result);
@@ -357,9 +357,9 @@ mod tests {
             .expect("Expected successful conversion of binary expression");
 
         if let Expression::Binary { left, op, right } = result {
-            assert_eq!(*left, Expression::Literal(LiteralValue::Int(5)));
+            assert_eq!(*left, Expression::Literal(Value::Int(5)));
             assert_eq!(op, BinaryOperator::Add);
-            assert_eq!(*right, Expression::Literal(LiteralValue::Int(3)));
+            assert_eq!(*right, Expression::Literal(Value::Int(3)));
         } else {
             panic!("Expected Binary expression, got {:?}", result);
         }
@@ -382,7 +382,7 @@ mod tests {
 
         if let Expression::Unary { op, operand } = result {
             assert_eq!(op, UnaryOperator::Not);
-            assert_eq!(*operand, Expression::Literal(LiteralValue::Bool(true)));
+            assert_eq!(*operand, Expression::Literal(Value::Bool(true)));
         } else {
             panic!("Expected Unary expression, got {:?}", result);
         }

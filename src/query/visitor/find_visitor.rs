@@ -2,6 +2,7 @@
 //! 对应 NebulaGraph FindVisitor.h/.cpp 的功能
 
 use crate::core::types::expression::DataType;
+use crate::core::Value;
 use crate::expression::{Expression, ExpressionType, ExpressionVisitor};
 use crate::query::visitor::QueryVisitor;
 use std::collections::HashSet;
@@ -82,7 +83,7 @@ impl FindVisitor {
 impl ExpressionVisitor for FindVisitor {
     type Result = ();
 
-    fn visit_literal(&mut self, value: &LiteralValue) -> Self::Result {
+    fn visit_literal(&mut self, value: &Value) -> Self::Result {
         if self.target_types.contains(&ExpressionType::Literal) {
             self.found_exprs.push(Expression::Literal(value.clone()));
         }
@@ -521,12 +522,12 @@ mod tests {
         let mut visitor = FindVisitor::new();
 
         let expr = Expression::Binary {
-            left: Box::new(Expression::Literal(LiteralValue::Int(1))),
+            left: Box::new(Expression::Literal(Value::Int(1))),
             op: BinaryOperator::Add,
             right: Box::new(Expression::Binary {
-                left: Box::new(Expression::Literal(LiteralValue::Int(2))),
+                left: Box::new(Expression::Literal(Value::Int(2))),
                 op: BinaryOperator::Multiply,
-                right: Box::new(Expression::Literal(LiteralValue::Int(3))),
+                right: Box::new(Expression::Literal(Value::Int(3))),
             }),
         };
 
@@ -540,17 +541,17 @@ mod tests {
         let mut visitor = FindVisitor::new();
 
         let expr = Expression::Binary {
-            left: Box::new(Expression::Literal(LiteralValue::Int(1))),
+            left: Box::new(Expression::Literal(Value::Int(1))),
             op: BinaryOperator::Add,
             right: Box::new(Expression::Binary {
-                left: Box::new(Expression::Literal(LiteralValue::Int(2))),
+                left: Box::new(Expression::Literal(Value::Int(2))),
                 op: BinaryOperator::Multiply,
-                right: Box::new(Expression::Literal(LiteralValue::Int(3))),
+                right: Box::new(Expression::Literal(Value::Int(3))),
             }),
         };
 
         let literals = visitor.find_if(&expr, |e| {
-            matches!(e, Expression::Literal(LiteralValue::Int(_)))
+            matches!(e, Expression::Literal(Value::Int(_)))
         });
 
         assert_eq!(literals.len(), 3);

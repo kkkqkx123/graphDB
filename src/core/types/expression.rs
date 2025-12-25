@@ -583,7 +583,7 @@ impl Expression {
 
     /// 创建空值
     pub fn null() -> Self {
-        Expression::Literal(Value::Null(NullType::Unknown))
+        Expression::Literal(Value::Null(NullType::Null))
     }
 
     /// 创建等于比较

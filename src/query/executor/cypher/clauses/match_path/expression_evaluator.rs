@@ -101,10 +101,13 @@ impl ExpressionEvaluator {
         // 复制路径信息
         for (name, _path) in context.paths() {
             // 将 Path 转换为 FieldValue
-            let path_field_value =
-                crate::core::types::query::FieldValue::Path(crate::core::types::query::Path {
-                    segments: Vec::new(), // 简化实现，实际需要完整转换
-                });
+            // 简化实现：创建一个空的Path对象
+            let empty_vertex = crate::core::vertex_edge_path::Vertex::default();
+            let empty_path = crate::core::vertex_edge_path::Path {
+                src: Box::new(empty_vertex),
+                steps: Vec::new(),
+            };
+            let path_field_value = crate::core::types::query::FieldValue::Path(empty_path);
             eval_context.set_variable(name.clone(), path_field_value);
         }
 

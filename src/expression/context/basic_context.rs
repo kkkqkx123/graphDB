@@ -447,52 +447,17 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
     }
 
     fn set_vertex(&mut self, vertex: crate::core::Vertex) {
-        let query_vertex = crate::core::types::query::Vertex {
-            id: vertex.vid.to_string(),
-            tags: vertex.tags.iter().map(|tag| tag.name.clone()).collect(),
-            properties: vertex
-                .properties
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect(),
-        };
-        let field_value = crate::core::types::query::FieldValue::Vertex(query_vertex);
+        let field_value = crate::core::types::query::FieldValue::Vertex(vertex);
         self.set_variable("_vertex".to_string(), field_value);
     }
 
     fn set_edge(&mut self, edge: crate::core::Edge) {
-        let src_str = match &*edge.src {
-            crate::core::value::Value::String(s) => s.clone(),
-            v => v.to_string(),
-        };
-        let dst_str = match &*edge.dst {
-            crate::core::value::Value::String(s) => s.clone(),
-            v => v.to_string(),
-        };
-        let query_edge = crate::core::types::query::Edge {
-            id: format!("{}_{}", src_str, dst_str),
-            edge_type: edge.edge_type.clone(),
-            src: src_str,
-            dst: dst_str,
-            properties: edge
-                .properties()
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect(),
-            ranking: Some(edge.ranking),
-        };
-        let field_value = crate::core::types::query::FieldValue::Edge(query_edge);
+        let field_value = crate::core::types::query::FieldValue::Edge(edge);
         self.set_variable("_edge".to_string(), field_value);
     }
 
-    fn add_path(&mut self, name: String, _path: crate::core::vertex_edge_path::Path) {
-        // 将path存储为变量
-        // 简化实现：跳过复杂的Path转换
-        // TODO: 实现完整的vertex_edge_path::Path到types::query::Path的转换
-        let field_value =
-            crate::core::types::query::FieldValue::Path(crate::core::types::query::Path {
-                segments: Vec::new(),
-            });
+    fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path) {
+        let field_value = crate::core::types::query::FieldValue::Path(path);
         self.set_variable(name, field_value);
     }
 

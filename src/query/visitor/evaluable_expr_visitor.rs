@@ -2,8 +2,9 @@
 //! 对应 NebulaGraph EvaluableExprVisitor.h/.cpp 的功能
 
 use crate::core::{
-    AggregateFunction, BinaryOperator, DataType, Expression, LiteralValue, UnaryOperator,
+    AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator,
 };
+use crate::core::Value;
 use crate::expression::ExpressionVisitor;
 use crate::query::visitor::QueryVisitor;
 
@@ -43,7 +44,7 @@ impl EvaluableExprVisitor {
 impl ExpressionVisitor for EvaluableExprVisitor {
     type Result = Result<(), String>;
 
-    fn visit_literal(&mut self, _value: &LiteralValue) -> Self::Result {
+    fn visit_literal(&mut self, _value: &Value) -> Self::Result {
         Ok(())
     }
 
