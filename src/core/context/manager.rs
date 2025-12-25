@@ -108,7 +108,7 @@ impl DefaultContextManager {
             config,
             statistics: Arc::new(RwLock::new(ContextStatistics::new())),
             event_listeners: Arc::new(RwLock::new(Vec::new())),
-            created_at: std::time::SystemTime::now(),
+            _created_at: std::time::SystemTime::now(),
         }
     }
 

@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_sequential_planner() {
-        let planner = SequentialPlanner::new();
+        let _planner = SequentialPlanner::new();
         assert!(SequentialPlanner::match_ast_ctx(&AstContext::new(
             "test", "test"
         )));

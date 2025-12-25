@@ -82,7 +82,7 @@ pub struct ValidatedSymbol {
     /// 符号名称
     pub name: String,
     /// 符号类型
-    pub symbol_type: SymbolType,
+    pub symbol_type: ValidationSymbolType,
     /// 数据类型
     pub data_type: DataType,
     /// 定义位置
@@ -95,9 +95,9 @@ pub struct ValidatedSymbol {
     pub is_nullable: bool,
 }
 
-/// 符号类型
+/// 验证符号类型
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum SymbolType {
+pub enum ValidationSymbolType {
     /// 变量
     Variable,
     /// 函数

@@ -2,10 +2,6 @@
 //! 这些规则负责将LIMIT操作下推到计划树的底层，以减少数据处理量
 
 use super::optimizer::OptimizerError;
-use super::rule_patterns::PatternBuilder;
-use super::rule_traits::{BaseOptRule, PushDownRule};
-use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 /// 通用LIMIT下推规则
 #[derive(Debug)]

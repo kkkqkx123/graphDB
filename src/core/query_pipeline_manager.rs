@@ -17,11 +17,11 @@ use std::sync::{Arc, Mutex};
 /// 3. 处理错误和异常
 /// 4. 管理查询上下文
 pub struct QueryPipelineManager<S: StorageEngine + 'static> {
-    storage: Arc<Mutex<S>>,
-    parser: Parser,
-    validator: Validator,
-    planner: Box<dyn Planner>,
-    optimizer: Optimizer,
+    _storage: Arc<Mutex<S>>,
+    _parser: Parser,
+    _validator: Validator,
+    _planner: Box<dyn Planner>,
+    _optimizer: Optimizer,
     executor_factory: ExecutorFactory<S>,
 }
 
@@ -31,11 +31,11 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         let executor_factory = ExecutorFactory::new();
 
         Self {
-            storage,
-            parser: Parser::new(""),
-            validator: Validator::new(crate::query::validator::ValidationContext::new()),
-            planner: Box::new(crate::query::planner::SequentialPlanner::new()),
-            optimizer: Optimizer::default(),
+            _storage: storage,
+            _parser: Parser::new(""),
+            _validator: Validator::new(crate::query::validator::ValidationContext::new()),
+            _planner: Box::new(crate::query::planner::SequentialPlanner::new()),
+            _optimizer: Optimizer::default(),
             executor_factory,
         }
     }
@@ -114,7 +114,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
     /// 生成执行计划
     fn generate_execution_plan(
         &mut self,
-        query_context: &mut QueryContext,
+        _query_context: &mut QueryContext,
         _ast: &crate::query::context::ast::QueryAstContext,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
         // 临时实现：创建一个空的执行计划

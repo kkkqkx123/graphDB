@@ -1134,9 +1134,7 @@ mod tests {
     use super::*;
     use crate::core::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::core::nodes::{
-        ExpandNode, FilterNode, ScanVerticesNode, StartNode, TraverseNode,
-    };
+    use crate::query::planner::plan::core::nodes::{FilterNode, StartNode};
     use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
     use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 

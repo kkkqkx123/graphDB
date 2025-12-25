@@ -282,8 +282,9 @@ impl<S: StorageEngine> AggregateExecutor<S> {
             // 构建表达式上下文
             let mut context = DefaultExpressionContext::new();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
-                // Note: row[i] is Value, but context expects to be built differently
-                // For now, skipping variable assignment to avoid type mismatch
+                if i < row.len() {
+                    context.set_variable(col_name.clone(), row[i].clone());
+                }
             }
 
             // 计算分组键

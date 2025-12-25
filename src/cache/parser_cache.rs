@@ -518,7 +518,7 @@ mod tests {
         let expression_cache = ExpressionCache::new(cache);
 
         // 测试 get_or_compute
-        let expr = expression_cache.get_or_compute("n.name", || {
+        let _expr = expression_cache.get_or_compute("n.name", || {
             // 返回一个真实的常量表达式
             Expr::Constant(crate::query::parser::ast::ConstantExpr::new(
                 crate::core::Value::String("test".to_string()),
@@ -527,7 +527,7 @@ mod tests {
         });
 
         // 第二次调用应该从缓存获取
-        let cached_expr = expression_cache.get_or_compute("n.name", || {
+        let _cached_expr = expression_cache.get_or_compute("n.name", || {
             panic!("不应该调用这个函数，因为应该从缓存获取");
         });
 

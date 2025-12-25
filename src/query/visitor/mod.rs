@@ -8,14 +8,12 @@ mod deduce_type_visitor;
 mod evaluable_expr_visitor;
 mod extract_filter_expr_visitor;
 mod find_visitor;
-mod fold_constant_expr_visitor;
 
 pub use deduce_props_visitor::{DeducePropsVisitor, ExpressionProps};
 pub use deduce_type_visitor::{DeduceTypeVisitor, TypeDeductionError};
 pub use evaluable_expr_visitor::EvaluableExprVisitor;
 pub use extract_filter_expr_visitor::ExtractFilterExprVisitor;
 pub use find_visitor::FindVisitor;
-pub use fold_constant_expr_visitor::FoldConstantExprVisitor;
 
 /// 查询访问器基础trait
 /// 提供查询特定的访问功能
@@ -88,14 +86,6 @@ impl QueryVisitorBuilder {
     /// 构建查找访问器
     pub fn build_find(self) -> FindVisitor {
         FindVisitor::new()
-    }
-
-    /// 构建常量折叠访问器
-    pub fn build_fold_constant(
-        self,
-        parameters: std::collections::HashMap<String, crate::core::Value>,
-    ) -> FoldConstantExprVisitor {
-        FoldConstantExprVisitor::new(parameters)
     }
 }
 

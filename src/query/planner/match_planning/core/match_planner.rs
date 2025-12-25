@@ -86,9 +86,7 @@ mod tests {
     use super::*;
     use crate::query::context::ast::AstContext;
 
-    use crate::query::validator::structs::{
-        AliasType, CypherClauseContext, MatchClauseContext, NodeInfo, Path, PathType,
-    };
+    use crate::query::validator::structs::{MatchClauseContext, NodeInfo, Path, PathType};
     use std::collections::HashMap;
 
     /// 创建测试用的 AST 上下文

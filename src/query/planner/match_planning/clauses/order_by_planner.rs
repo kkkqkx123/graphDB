@@ -145,7 +145,6 @@ impl DataFlowNode for OrderByClausePlanner {
 mod tests {
     use super::*;
     use crate::query::validator::structs::clause_structs::OrderByClauseContext;
-    use std::collections::HashMap;
 
     #[test]
     fn test_order_by_planner_creation() {

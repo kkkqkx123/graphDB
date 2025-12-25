@@ -265,11 +265,11 @@ mod tests {
     use super::*;
     use crate::core::types::expression::Expression as UnifiedExpression;
     use crate::query::parser::cypher::ast::expressions::{
-        BinaryExpression, CaseAlternative, CaseExpression, Expression as CypherExpression,
+        BinaryExpression, Expression as CypherExpression,
         FunctionCall, ListExpression, Literal as CypherLiteral, MapExpression, PropertyExpression,
         UnaryExpression,
     };
-    use crate::query::parser::cypher::ast::{BinaryOperator, UnaryOperator};
+    use crate::query::parser::cypher::ast::BinaryOperator;
 
     #[test]
     fn test_convert_literal() {

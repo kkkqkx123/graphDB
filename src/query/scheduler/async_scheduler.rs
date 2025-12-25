@@ -59,8 +59,8 @@ pub struct AsyncMsgNotifyBasedScheduler<S: StorageEngine> {
 impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     pub fn new(storage: Arc<Mutex<S>>) -> Self {
         Self {
-            storage,
-            execution_context: Arc::new(Mutex::new(ExecutionContext::new())),
+            _storage: storage,
+            _execution_context: Arc::new(Mutex::new(ExecutionContext::new())),
             execution_state: Arc::new(Mutex::new(ExecutionState::new())),
             completion_notifier: Arc::new((Mutex::new(false), Condvar::new())),
         }
