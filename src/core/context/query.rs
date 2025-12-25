@@ -5,7 +5,6 @@
 use super::base::{ContextBase, ContextType, MutableContext};
 use super::session::SessionInfo;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// 查询类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -31,24 +30,12 @@ pub struct QueryContext {
     pub query_type: QueryType,
     /// 查询语句
     pub query_text: String,
-    /// 查询参数
-    pub parameters: HashMap<String, QueryParameter>,
     /// 查询选项
     pub options: QueryOptions,
     /// 会话信息
     pub session_info: SessionInfo,
     /// 开始时间
     pub start_time: std::time::Instant,
-}
-
-/// 查询参数
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum QueryParameter {
-    String(String),
-    Integer(i64),
-    Float(f64),
-    Boolean(bool),
-    Null,
 }
 
 /// 查询选项
@@ -68,15 +55,6 @@ pub struct QueryOptions {
 
 // SessionInfo 现在从 session 模块导入
 
-// 会话变量（简化版本）
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum SessionVariable {
-    String(String),
-    Integer(i64),
-    Float(f64),
-    Boolean(bool),
-}
-
 impl QueryContext {
     /// 创建新的查询上下文
     pub fn new(
@@ -89,21 +67,10 @@ impl QueryContext {
             query_id: query_id.into(),
             query_type,
             query_text: query_text.into(),
-            parameters: HashMap::new(),
             options: QueryOptions::default(),
             session_info,
             start_time: std::time::Instant::now(),
         }
-    }
-
-    /// 添加查询参数
-    pub fn add_parameter(&mut self, name: impl Into<String>, value: QueryParameter) {
-        self.parameters.insert(name.into(), value);
-    }
-
-    /// 获取查询参数
-    pub fn get_parameter(&self, name: &str) -> Option<&QueryParameter> {
-        self.parameters.get(name)
     }
 
     /// 设置查询选项
@@ -118,16 +85,7 @@ impl QueryContext {
 
     /// 检查是否超时
     pub fn is_timeout(&self) -> bool {
-        if let Some(timeout_ms) = self.options.timeout_ms {
-            self.elapsed_ms() > timeout_ms
-        } else {
-            false
-        }
-    }
-
-    /// 检查用户是否有指定角色
-    pub fn has_role(&self, role: &str) -> bool {
-        self.session_info.roles.contains(&role.to_string())
+        self.options.timeout_ms.map_or(false, |timeout| self.elapsed_ms() > timeout)
     }
 }
 
@@ -224,53 +182,19 @@ pub struct QueryStatistics {
 impl QueryStatistics {
     /// 创建新的查询统计信息
     pub fn new() -> Self {
-        Self {
-            status: QueryStatus::Preparing,
-            start_time: std::time::SystemTime::now(),
-            end_time: None,
-            execution_plan: None,
-            vertices_scanned: 0,
-            edges_scanned: 0,
-            rows_returned: 0,
-            memory_used_bytes: 0,
-            error_message: None,
-        }
+        Self::default()
     }
 
     /// 设置状态
     pub fn set_status(&mut self, status: QueryStatus) {
-        self.status = status.clone();
-        if matches!(
+        let is_terminal = matches!(
             status,
             QueryStatus::Completed | QueryStatus::Cancelled | QueryStatus::Error
-        ) {
+        );
+        self.status = status;
+        if is_terminal {
             self.end_time = Some(std::time::SystemTime::now());
         }
-    }
-
-    /// 设置执行计划
-    pub fn set_execution_plan(&mut self, plan: impl Into<String>) {
-        self.execution_plan = Some(plan.into());
-    }
-
-    /// 增加扫描的顶点数
-    pub fn add_vertices_scanned(&mut self, count: usize) {
-        self.vertices_scanned += count;
-    }
-
-    /// 增加扫描的边数
-    pub fn add_edges_scanned(&mut self, count: usize) {
-        self.edges_scanned += count;
-    }
-
-    /// 设置返回的行数
-    pub fn set_rows_returned(&mut self, count: usize) {
-        self.rows_returned = count;
-    }
-
-    /// 设置内存使用量
-    pub fn set_memory_used(&mut self, bytes: usize) {
-        self.memory_used_bytes = bytes;
     }
 
     /// 设置错误信息
@@ -299,6 +223,16 @@ impl QueryStatistics {
 
 impl Default for QueryStatistics {
     fn default() -> Self {
-        Self::new()
+        Self {
+            status: QueryStatus::Preparing,
+            start_time: std::time::SystemTime::now(),
+            end_time: None,
+            execution_plan: None,
+            vertices_scanned: 0,
+            edges_scanned: 0,
+            rows_returned: 0,
+            memory_used_bytes: 0,
+            error_message: None,
+        }
     }
 }

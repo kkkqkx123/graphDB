@@ -3,6 +3,7 @@ pub mod collect_n_succeeded;
 pub mod cord;
 pub mod error;
 pub mod murmur;
+pub mod plan_node_ref;
 pub mod result;
 pub mod schema;
 pub mod signal_handler;
@@ -46,6 +47,9 @@ pub use symbol::*;
 pub use type_utils::TypeUtils;
 pub use visitor::*;
 pub use visitor_state_enum::*;
+
+// 计划节点引用
+pub use plan_node_ref::*;
 
 // 上下文特征
 pub use context_traits::*;

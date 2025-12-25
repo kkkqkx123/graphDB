@@ -1,6 +1,6 @@
 //! 依赖关系跟踪器模块 - 管理变量读写依赖关系
 
-use super::plan_node_ref::PlanNodeRef;
+use crate::core::PlanNodeRef;
 use std::collections::{HashMap, HashSet};
 
 /// 依赖关系类型

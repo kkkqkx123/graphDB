@@ -1,9 +1,7 @@
 //! 符号表模块 - 管理查询中的变量和别名
 //! 对应原C++中的context/Symbols.h
 
-use crate::core::PlanNodeRef;
-
-use super::dependency_tracker::DependencyTracker;
+use crate::core::{DependencyTracker, PlanNodeRef};
 
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -40,8 +38,6 @@ impl Symbol {
 pub struct SymbolTable {
     symbols: Arc<RwLock<HashMap<String, Symbol>>>,
     dependency_tracker: Arc<RwLock<DependencyTracker>>,
-    // 对象池引用（简化版）
-    obj_pool: Arc<RwLock<HashMap<String, Vec<u8>>>>,
 }
 
 impl SymbolTable {
@@ -50,7 +46,6 @@ impl SymbolTable {
         Self {
             symbols: Arc::new(RwLock::new(HashMap::new())),
             dependency_tracker: Arc::new(RwLock::new(DependencyTracker::new())),
-            obj_pool: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -335,33 +330,6 @@ impl SymbolTable {
         Ok(tracker.get_all_stats())
     }
 
-    /// 获取对象池引用
-    pub fn obj_pool(&self) -> Arc<RwLock<HashMap<String, Vec<u8>>>> {
-        self.obj_pool.clone()
-    }
-
-    /// 从对象池分配对象
-    pub fn allocate_from_pool(&self, key: &str, size: usize) -> Result<Vec<u8>, String> {
-        let mut pool = self
-            .obj_pool
-            .write()
-            .map_err(|e| format!("Failed to acquire write lock on pool: {}", e))?;
-
-        let data = vec![0u8; size];
-        pool.insert(key.to_string(), data.clone());
-        Ok(data)
-    }
-
-    /// 释放对象池中的对象
-    pub fn deallocate_from_pool(&self, key: &str) -> Result<bool, String> {
-        let mut pool = self
-            .obj_pool
-            .write()
-            .map_err(|e| format!("Failed to acquire write lock on pool: {}", e))?;
-
-        Ok(pool.remove(key).is_some())
-    }
-
     /// 生成符号表的字符串表示
     pub fn to_string(&self) -> Result<String, String> {
         let symbols = self
@@ -530,19 +498,6 @@ mod tests {
         assert_eq!(new_var_readers[0].id(), "node1");
     }
 
-    #[test]
-    fn test_object_pool() {
-        let table = SymbolTable::new();
-
-        let data = table
-            .allocate_from_pool("test_key", 100)
-            .expect("allocate_from_pool should succeed in test");
-        assert_eq!(data.len(), 100);
-
-        assert!(table
-            .deallocate_from_pool("test_key")
-            .expect("deallocate_from_pool should succeed in test"));
-    }
 
     #[test]
     fn test_to_string() {

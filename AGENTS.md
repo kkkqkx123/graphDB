@@ -78,16 +78,16 @@ The graphDB project utilises Cargo as its build system. To build the project:
 
 3. **Type check and compile check**
 
-analyze_cargo is a cli tool that automatically runs `cargo check`, categorizes the errors/warnings, and generates a detailed Markdown report.
+analyze_cargo is a cli tool that automatically runs `cargo test --lib`, categorizes the errors/warnings, and generates a detailed Markdown report.
 default output file is `cargo_errors_report.md` in pwd.
-You can use it instead of `cargo check`. You can also use `cargo check`.
+You can use it instead of `cargo test --lib` or `cargo check`. 
 
 **Usage**
 ```bash
 analyze_cargo
 ```
 
-### Options
+**Options**
 - `--output <file>`: Specify output file path (default: cargo_errors_report.md)
 - `--filter-warnings`: Filter warnings, only show errors
 - `--filter-paths <paths>`: Filter errors by file paths (comma-separated)
@@ -98,17 +98,11 @@ analyze_cargo
 # Default usage
 analyze_cargo
 
-# Specify output file
-analyze_cargo --output report.md
-
 # Filter warnings only
 analyze_cargo --filter-warnings
 
 # Filter by specific paths(folder or file)
-analyze_cargo --filter-paths src/main.rs,src/lib.rs
-
-# Combine filters
-analyze_cargo --filter-warnings --output errors_only.md
+analyze_cargo --filter-paths src/main.rs,src/core
 ```
 
 4. **Run commands**:
