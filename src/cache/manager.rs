@@ -11,7 +11,7 @@ use super::stats_collector::*;
 use super::stats_marker::StatsEnabled;
 use crate::cache::{
     Cache, ConcurrentAdaptiveCache, ConcurrentFifoCache, ConcurrentLfuCache, ConcurrentLruCache,
-    ConcurrentTtlCache, ConcurrentUnboundedCache, StatsCacheWrapper,
+    ConcurrentTtlCache, ConcurrentUnboundedCache, StatsCache, StatsCacheWrapper,
 };
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
@@ -225,6 +225,34 @@ pub enum CacheStrategy {
     TTL,
     Adaptive,
     None,
+}
+
+/// 为 Arc<T> 实现 StatsCache trait
+///
+/// 当 T: StatsCache<K, V> 时，Arc<T> 也实现 StatsCache<K, V>
+impl<K, V, T> StatsCache<K, V> for Arc<T>
+where
+    T: StatsCache<K, V>,
+{
+    fn hits(&self) -> u64 {
+        self.as_ref().hits()
+    }
+
+    fn misses(&self) -> u64 {
+        self.as_ref().misses()
+    }
+
+    fn hit_rate(&self) -> f64 {
+        self.as_ref().hit_rate()
+    }
+
+    fn evictions(&self) -> u64 {
+        self.as_ref().evictions()
+    }
+
+    fn reset_stats(&self) {
+        self.as_ref().reset_stats()
+    }
 }
 
 /// 缓存构建器

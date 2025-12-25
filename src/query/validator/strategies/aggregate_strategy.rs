@@ -381,7 +381,7 @@ mod tests {
 
         // 测试没有聚合函数的UNWIND表达式
         let non_agg_expr =
-            Expression::Literal(crate::core::types::expression::LiteralValue::Int(1));
+            Expression::Literal(crate::core::Value::Int(1));
         assert!(strategy.validate_unwind_aggregate(&non_agg_expr).is_ok());
 
         // 测试包含聚合函数的UNWIND表达式

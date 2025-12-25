@@ -1135,8 +1135,10 @@ mod tests {
     use crate::core::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::{
-        ExpandNode, FilterNode, ScanVerticesNode, TraverseNode,
+        ExpandNode, FilterNode, ScanVerticesNode, StartNode, TraverseNode,
     };
+    use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+    use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
@@ -1158,15 +1160,10 @@ mod tests {
         let rule = FilterPushDownRule;
         let mut ctx = create_test_context();
 
-        // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(
-            FilterNode::new(
-                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::core::Expression::Variable("col1 > 100".to_string()),
-            )
-            .expect("Filter node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, filter_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
+            .expect("Filter node should be created successfully");
+        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -1180,15 +1177,10 @@ mod tests {
         let rule = PushFilterDownTraverseRule;
         let mut ctx = create_test_context();
 
-        // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(
-            FilterNode::new(
-                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::core::Expression::Variable("col1 > 100".to_string()),
-            )
-            .expect("Filter node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, filter_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
+            .expect("Filter node should be created successfully");
+        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -1202,15 +1194,10 @@ mod tests {
         let rule = PushFilterDownExpandRule;
         let mut ctx = create_test_context();
 
-        // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(
-            FilterNode::new(
-                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::core::Expression::Variable("col1 > 100".to_string()),
-            )
-            .expect("Filter node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, filter_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
+            .expect("Filter node should be created successfully");
+        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -1224,15 +1211,10 @@ mod tests {
         let rule = PushFilterDownHashInnerJoinRule;
         let mut ctx = create_test_context();
 
-        // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(
-            FilterNode::new(
-                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::core::Expression::Variable("col1 > 100".to_string()),
-            )
-            .expect("Filter node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, filter_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
+            .expect("Filter node should be created successfully");
+        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -1247,14 +1229,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(
-            FilterNode::new(
-                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::core::Expression::Variable("col1 > 100".to_string()),
-            )
-            .expect("Filter node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, filter_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
+            .expect("Filter node should be created successfully");
+        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -1269,14 +1247,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(
-            FilterNode::new(
-                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::core::Expression::Variable("col1 > 100".to_string()),
-            )
-            .expect("Filter node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, filter_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
+            .expect("Filter node should be created successfully");
+        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -1291,14 +1265,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个过滤节点
-        let filter_node = std::sync::Arc::new(
-            FilterNode::new(
-                std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::core::Expression::Variable("col1 > 100".to_string()),
-            )
-            .expect("Filter node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, filter_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
+            .expect("Filter node should be created successfully");
+        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)

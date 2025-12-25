@@ -464,8 +464,10 @@ mod tests {
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::{
         DedupNode as Dedup, FilterNode as Filter, GetNeighborsNode as GetNeighbors,
-        GetVerticesNode as GetVertices, ProjectNode as Project,
+        GetVerticesNode as GetVertices, ProjectNode as Project, StartNode,
     };
+    use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+    use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
@@ -487,17 +489,12 @@ mod tests {
         let rule = CombineFilterRule;
         let mut ctx = create_test_context();
 
-        // 创建一个过滤节点
-        let start_node =
-            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new());
-        let filter_node = match Filter::new(
-            start_node,
-            crate::core::Expression::Variable("col1 > 100".to_string()),
-        ) {
-            Ok(node) => std::sync::Arc::new(node),
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let filter_node = match Filter::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string())) {
+            Ok(node) => node,
             Err(_) => return,
         };
-        let opt_node = OptGroupNode::new(1, filter_node);
+        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -511,14 +508,12 @@ mod tests {
         let rule = CollapseProjectRule;
         let mut ctx = create_test_context();
 
-        // 创建一个投影节点
-        let start_node =
-            std::sync::Arc::new(crate::query::planner::plan::core::nodes::StartNode::new());
+        let start_node = PlanNodeEnum::Start(StartNode::new());
         let project_node = match Project::new(start_node, vec![]) {
-            Ok(node) => std::sync::Arc::new(node),
+            Ok(node) => node,
             Err(_) => return,
         };
-        let opt_node = OptGroupNode::new(1, project_node);
+        let opt_node = OptGroupNode::new(1, project_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -533,7 +528,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取顶点节点
-        let get_vertices_node = std::sync::Arc::new(GetVertices::new(1, ""));
+        let get_vertices_node = PlanNodeEnum::GetVertices(GetVertices::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_vertices_node);
 
         let result = rule
@@ -549,7 +544,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取顶点节点
-        let get_vertices_node = std::sync::Arc::new(GetVertices::new(1, ""));
+        let get_vertices_node = PlanNodeEnum::GetVertices(GetVertices::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_vertices_node);
 
         let result = rule
@@ -565,7 +560,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取邻居节点
-        let get_nbrs_node = std::sync::Arc::new(GetNeighbors::new(1, ""));
+        let get_nbrs_node = PlanNodeEnum::GetNeighbors(GetNeighbors::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_nbrs_node);
 
         let result = rule
@@ -581,7 +576,7 @@ mod tests {
         let mut ctx = create_test_context();
 
         // 创建一个获取邻居节点
-        let get_nbrs_node = std::sync::Arc::new(GetNeighbors::new(1, ""));
+        let get_nbrs_node = PlanNodeEnum::GetNeighbors(GetNeighbors::new(1, ""));
         let opt_node = OptGroupNode::new(1, get_nbrs_node);
 
         let result = rule

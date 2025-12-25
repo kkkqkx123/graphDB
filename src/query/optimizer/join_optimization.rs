@@ -5,6 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
+use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 /// 转换连接以获得更好性能的规则
 #[derive(Debug)]
@@ -143,7 +144,7 @@ mod tests {
         .expect("内连接节点应该创建成功");
 
         let join_node = PlanNodeEnum::InnerJoin(inner_join);
-        let opt_node = OptGroupNode::new(1, std::sync::Arc::new(join_node));
+        let opt_node = OptGroupNode::new(1, join_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)

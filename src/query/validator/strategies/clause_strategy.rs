@@ -303,7 +303,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    Expression::Literal(crate::core::types::expression::LiteralValue::Int(1)),
+                    Expression::Literal(crate::core::Value::Int(1)),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -336,7 +336,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    Expression::Literal(crate::core::types::expression::LiteralValue::Int(1)),
+                    Expression::Literal(crate::core::Value::Int(1)),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -369,7 +369,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    Expression::Literal(crate::core::types::expression::LiteralValue::Int(1)),
+                    Expression::Literal(crate::core::Value::Int(1)),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -429,7 +429,7 @@ mod tests {
 
         let mut yield_context = YieldClauseContext {
             yield_columns: vec![YieldColumn::new(
-                Expression::Literal(crate::core::types::expression::LiteralValue::Int(1)),
+                Expression::Literal(crate::core::Value::Int(1)),
                 "col1".to_string(),
             )],
             aliases_available: HashMap::new(),

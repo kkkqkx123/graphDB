@@ -115,38 +115,3 @@ where
         }
     }
 }
-
-/// 为Arc<AdaptiveCache>实现Cache trait
-impl<K, V> Cache<K, V> for Arc<AdaptiveCache<K, V>>
-where
-    K: Eq + Hash + Clone + Send + Sync,
-    V: Clone + Send + Sync,
-{
-    fn get(&self, key: &K) -> Option<V> {
-        self.as_ref().get(key)
-    }
-
-    fn put(&self, key: K, value: V) {
-        self.as_ref().put(key, value);
-    }
-
-    fn contains(&self, key: &K) -> bool {
-        self.as_ref().contains(key)
-    }
-
-    fn remove(&self, key: &K) -> Option<V> {
-        self.as_ref().remove(key)
-    }
-
-    fn clear(&self) {
-        self.as_ref().clear();
-    }
-
-    fn len(&self) -> usize {
-        self.as_ref().len()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.as_ref().is_empty()
-    }
-}

@@ -6,10 +6,7 @@ use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
-
-// 注释掉不存在的导入
-// use crate::query::planner::plan::operations::AllPaths;
-// use crate::query::planner::plan::operations::ExpandAll;
+use std::sync::Arc;
 
 /// 通用LIMIT下推规则
 #[derive(Debug)]
@@ -888,8 +885,10 @@ mod tests {
     use crate::query::planner::plan::algorithms::IndexScan;
     use crate::query::planner::plan::core::nodes::{
         GetEdgesNode, GetNeighborsNode, GetVerticesNode, LimitNode, ProjectNode, ScanEdgesNode,
-        ScanVerticesNode,
+        ScanVerticesNode, StartNode,
     };
+    use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+    use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
@@ -911,16 +910,10 @@ mod tests {
         let rule = PushLimitDownRule;
         let mut ctx = create_test_context();
 
-        // 创建一个LIMIT节点
-        let limit_node = Arc::new(
-            LimitNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                10,
-                0,
-            )
-            .expect("Limit node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, limit_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let limit_node = LimitNode::new(start_node, 10, 0)
+            .expect("Limit node should be created successfully");
+        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -934,16 +927,10 @@ mod tests {
         let rule = PushLimitDownGetVerticesRule;
         let mut ctx = create_test_context();
 
-        // 创建一个LIMIT节点
-        let limit_node = Arc::new(
-            LimitNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                10,
-                0,
-            )
-            .expect("Limit node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, limit_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let limit_node = LimitNode::new(start_node, 10, 0)
+            .expect("Limit node should be created successfully");
+        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -957,16 +944,10 @@ mod tests {
         let rule = PushLimitDownGetNeighborsRule;
         let mut ctx = create_test_context();
 
-        // 创建一个LIMIT节点
-        let limit_node = Arc::new(
-            LimitNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                10,
-                0,
-            )
-            .expect("Limit node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, limit_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let limit_node = LimitNode::new(start_node, 10, 0)
+            .expect("Limit node should be created successfully");
+        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -980,16 +961,10 @@ mod tests {
         let rule = PushLimitDownGetEdgesRule;
         let mut ctx = create_test_context();
 
-        // 创建一个LIMIT节点
-        let limit_node = Arc::new(
-            LimitNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                10,
-                0,
-            )
-            .expect("Limit node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, limit_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let limit_node = LimitNode::new(start_node, 10, 0)
+            .expect("Limit node should be created successfully");
+        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -1003,16 +978,10 @@ mod tests {
         let rule = PushLimitDownScanVerticesRule;
         let mut ctx = create_test_context();
 
-        // 创建一个LIMIT节点
-        let limit_node = Arc::new(
-            LimitNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                10,
-                0,
-            )
-            .expect("Limit node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, limit_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let limit_node = LimitNode::new(start_node, 10, 0)
+            .expect("Limit node should be created successfully");
+        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -1026,16 +995,10 @@ mod tests {
         let rule = PushLimitDownScanEdgesRule;
         let mut ctx = create_test_context();
 
-        // 创建一个LIMIT节点
-        let limit_node = Arc::new(
-            LimitNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                10,
-                0,
-            )
-            .expect("Limit node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, limit_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let limit_node = LimitNode::new(start_node, 10, 0)
+            .expect("Limit node should be created successfully");
+        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -1049,16 +1012,10 @@ mod tests {
         let rule = PushLimitDownIndexScanRule;
         let mut ctx = create_test_context();
 
-        // 创建一个LIMIT节点
-        let limit_node = Arc::new(
-            LimitNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                10,
-                0,
-            )
-            .expect("Limit node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, limit_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let limit_node = LimitNode::new(start_node, 10, 0)
+            .expect("Limit node should be created successfully");
+        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -1072,16 +1029,10 @@ mod tests {
         let rule = PushLimitDownProjectRule;
         let mut ctx = create_test_context();
 
-        // 创建一个LIMIT节点
-        let limit_node = Arc::new(
-            LimitNode::new(
-                Arc::new(crate::query::planner::plan::core::nodes::StartNode::new()),
-                10,
-                0,
-            )
-            .expect("Limit node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, limit_node);
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let limit_node = LimitNode::new(start_node, 10, 0)
+            .expect("Limit node should be created successfully");
+        let opt_node = OptGroupNode::new(1, limit_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)

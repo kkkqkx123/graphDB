@@ -46,6 +46,10 @@ impl ArgumentNode {
     pub fn var(&self) -> &str {
         &self.var
     }
+
+    pub fn type_name(&self) -> &'static str {
+        "Argument"
+    }
 }
 
 impl PlanNode for ArgumentNode {
@@ -156,6 +160,10 @@ impl SelectNode {
     pub fn condition(&self) -> &str {
         &self.condition
     }
+
+    pub fn type_name(&self) -> &'static str {
+        "Select"
+    }
 }
 
 impl PlanNode for SelectNode {
@@ -255,6 +263,10 @@ impl LoopNode {
     pub fn condition(&self) -> &str {
         &self.condition
     }
+
+    pub fn type_name(&self) -> &'static str {
+        "Loop"
+    }
 }
 
 impl PlanNode for LoopNode {
@@ -335,6 +347,10 @@ impl PassThroughNode {
             cost: 0.0,
             dependencies: Vec::new(),
         }
+    }
+
+    pub fn type_name(&self) -> &'static str {
+        "PassThrough"
     }
 }
 

@@ -146,7 +146,7 @@ mod tests {
             )
             .expect("Node should be created successfully"),
         );
-        let opt_node = OptGroupNode::new(1, std::sync::Arc::new(project_node));
+        let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -168,7 +168,7 @@ mod tests {
             )
             .expect("Node should be created successfully"),
         );
-        let opt_node = OptGroupNode::new(1, std::sync::Arc::new(project_node));
+        let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)

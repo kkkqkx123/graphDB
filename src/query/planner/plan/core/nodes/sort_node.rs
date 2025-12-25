@@ -523,6 +523,7 @@ impl super::plan_node_traits::PlanNodeClonable for TopNNode {
 mod tests {
     use super::*;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
     #[test]
     fn test_sort_node_creation() {

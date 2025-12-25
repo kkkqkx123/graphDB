@@ -115,7 +115,7 @@ mod tests {
             )
             .expect("Sort node should be created successfully"),
         );
-        let opt_node = OptGroupNode::new(1, std::sync::Arc::new(sort_node));
+        let opt_node = OptGroupNode::new(1, sort_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)
