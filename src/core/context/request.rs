@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use super::base::{ContextBase, ContextType, MutableContext};
+use super::base::ContextType;
+use super::traits::Context;
 use crate::core::Value;
 
 /// 会话信息
@@ -441,7 +442,7 @@ impl RequestContext {
     }
 }
 
-impl ContextBase for RequestContext {
+impl Context for RequestContext {
     fn id(&self) -> &str {
         &self.id
     }
@@ -461,27 +462,30 @@ impl ContextBase for RequestContext {
     fn is_valid(&self) -> bool {
         self.valid
     }
-}
 
-impl MutableContext for RequestContext {
     fn touch(&mut self) {
         self.updated_at = std::time::SystemTime::now();
     }
 
     fn invalidate(&mut self) {
         self.valid = false;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     fn revalidate(&mut self) -> bool {
-        // 简单的重新验证逻辑
         self.valid = true;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
         true
     }
-}
 
-impl super::base::AttributeSupport for RequestContext {
+    fn parent_id(&self) -> Option<&str> {
+        None
+    }
+
+    fn depth(&self) -> usize {
+        1
+    }
+
     fn get_attribute(&self, key: &str) -> Option<Value> {
         if let Ok(attributes) = self.attributes.read() {
             attributes.get(key).cloned()
@@ -491,12 +495,11 @@ impl super::base::AttributeSupport for RequestContext {
     }
 
     fn set_attribute(&mut self, key: String, value: Value) {
-        // 临时分离 self 的引用以避免借用冲突
         let attributes_ref = &self.attributes;
         if let Ok(mut attributes) = attributes_ref.write() {
             attributes.insert(key, value);
         }
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     fn attribute_keys(&self) -> Vec<String> {
@@ -513,7 +516,7 @@ impl super::base::AttributeSupport for RequestContext {
         } else {
             None
         };
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
         removed
     }
 
@@ -521,17 +524,7 @@ impl super::base::AttributeSupport for RequestContext {
         if let Ok(mut attributes) = self.attributes.write() {
             attributes.clear();
         }
-        self.touch();
-    }
-}
-
-impl super::base::HierarchicalContext for RequestContext {
-    fn parent_id(&self) -> Option<&str> {
-        None // 请求上下文通常是根上下文
-    }
-
-    fn depth(&self) -> usize {
-        1 // 请求上下文深度为1
+        self.updated_at = std::time::SystemTime::now();
     }
 }
 

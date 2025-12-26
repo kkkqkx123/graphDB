@@ -9,13 +9,13 @@ use super::plan_node_traits::PlanNode;
 pub use super::aggregate_node::AggregateNode;
 pub use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
 pub use super::data_processing_node::{
-    DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
+    DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode, AssignNode,
 };
 pub use super::filter_node::FilterNode;
 pub use super::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
-pub use super::join_node::{CrossJoinNode, InnerJoinNode, LeftJoinNode};
+pub use super::join_node::{CrossJoinNode, InnerJoinNode, LeftJoinNode, HashInnerJoinNode, HashLeftJoinNode};
 pub use super::project_node::ProjectNode;
 pub use super::sort_node::{LimitNode, SortNode, TopNNode};
 pub use super::start_node::StartNode;
@@ -54,9 +54,9 @@ pub enum PlanNodeEnum {
     /// 扫描边节点
     ScanEdges(ScanEdgesNode),
     /// 哈希内连接节点
-    HashInnerJoin(InnerJoinNode),
+    HashInnerJoin(HashInnerJoinNode),
     /// 哈希左连接节点
-    HashLeftJoin(LeftJoinNode),
+    HashLeftJoin(HashLeftJoinNode),
     /// 笛卡尔积节点
     CartesianProduct(CrossJoinNode),
     /// 索引扫描节点
@@ -95,6 +95,8 @@ pub enum PlanNodeEnum {
     Union(UnionNode),
     /// 展开节点
     Unwind(UnwindNode),
+    /// 赋值节点
+    Assign(AssignNode),
     /// 多源最短路径节点
     MultiShortestPath(MultiShortestPath),
     /// BFS最短路径节点
@@ -227,6 +229,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(_) => "RollUpApply",
             PlanNodeEnum::Union(_) => "Union",
             PlanNodeEnum::Unwind(_) => "Unwind",
+            PlanNodeEnum::Assign(_) => "Assign",
             PlanNodeEnum::MultiShortestPath(_) => "MultiShortestPath",
             PlanNodeEnum::BFSShortest(_) => "BFSShortest",
             PlanNodeEnum::AllPaths(_) => "AllPaths",
@@ -834,6 +837,9 @@ pub trait PlanNodeVisitor {
     /// 访问Unwind节点 - 编译时分发
     fn visit_unwind(&mut self, node: &UnwindNode) -> Self::Result;
 
+    /// 访问Assign节点 - 编译时分发
+    fn visit_assign(&mut self, node: &AssignNode) -> Self::Result;
+
     /// 访问IndexScan节点 - 编译时分发
     fn visit_index_scan(&mut self, node: &IndexScan) -> Self::Result;
 
@@ -889,6 +895,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(node) => visitor.visit_roll_up_apply(node),
             PlanNodeEnum::Union(node) => visitor.visit_union(node),
             PlanNodeEnum::Unwind(node) => visitor.visit_unwind(node),
+            PlanNodeEnum::Assign(node) => visitor.visit_assign(node),
             PlanNodeEnum::IndexScan(node) => visitor.visit_index_scan(node),
             PlanNodeEnum::FulltextIndexScan(node) => visitor.visit_fulltext_index_scan(node),
             PlanNodeEnum::MultiShortestPath(node) => visitor.visit_multi_shortest_path(node),

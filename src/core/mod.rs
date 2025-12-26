@@ -15,7 +15,6 @@ pub mod visitor;
 
 // 新增的子模块
 pub mod context;
-pub mod context_traits;
 pub mod types;
 pub mod expression_visitor;
 
@@ -49,9 +48,6 @@ pub use visitor::*;
 
 // 计划节点引用
 pub use plan_node_ref::*;
-
-// 上下文特征
-pub use context_traits::*;
 
 // 上下文
 pub use context::*;

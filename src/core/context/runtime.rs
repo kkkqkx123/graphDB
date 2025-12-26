@@ -9,7 +9,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use super::base::{ContextBase, ContextType, MutableContext};
+use super::base::ContextType;
 use crate::common::base::id::{EdgeType, TagId};
 use crate::core::{Context, Value};
 
@@ -252,7 +252,7 @@ where
         self.tag_id = tag_id;
         self.tag_name = tag_name;
         self.tag_schema = tag_schema;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     /// 设置边信息
@@ -265,31 +265,31 @@ where
         self.edge_type = edge_type;
         self.edge_name = edge_name;
         self.edge_schema = edge_schema;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     /// 设置属性上下文
     pub fn set_props(&mut self, props: Vec<PropContext>) {
         self.props = Some(props);
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     /// 设置插入标志
     pub fn set_insert(&mut self, insert: bool) {
         self.insert = insert;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     /// 设置过滤标志
     pub fn set_filter_invalid_result_out(&mut self, filter: bool) {
         self.filter_invalid_result_out = filter;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     /// 设置结果状态
     pub fn set_result_stat(&mut self, stat: ResultStatus) {
         self.result_stat = stat;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     /// 重置运行时状态（保留计划上下文）
@@ -305,11 +305,11 @@ where
         self.insert = false;
         self.filter_invalid_result_out = false;
         self.result_stat = ResultStatus::Normal;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 }
 
-impl<S, M, I> ContextBase for RuntimeContext<S, M, I>
+impl<S, M, I> Context for RuntimeContext<S, M, I>
 where
     S: StorageEngine,
     M: SchemaManager,
@@ -334,43 +334,28 @@ where
     fn is_valid(&self) -> bool {
         self.valid
     }
-}
 
-impl<S, M, I> MutableContext for RuntimeContext<S, M, I>
-where
-    S: StorageEngine,
-    M: SchemaManager,
-    I: IndexManager,
-{
     fn touch(&mut self) {
         self.updated_at = std::time::SystemTime::now();
     }
 
     fn invalidate(&mut self) {
         self.valid = false;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     fn revalidate(&mut self) -> bool {
-        // 简单的重新验证逻辑
         self.valid = true;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
         true
     }
-}
 
-impl<S, M, I> super::base::HierarchicalContext for RuntimeContext<S, M, I>
-where
-    S: StorageEngine,
-    M: SchemaManager,
-    I: IndexManager,
-{
     fn parent_id(&self) -> Option<&str> {
-        None // 运行时上下文通常是独立的
+        None
     }
 
     fn depth(&self) -> usize {
-        2 // 运行时上下文深度为2
+        2
     }
 }
 
@@ -410,34 +395,3 @@ pub type TestRuntimeContext = RuntimeContext<
     crate::core::context::manager::MockSchemaManager,
     crate::core::context::manager::MockIndexManager,
 >;
-
-impl<S, M, I> Context for RuntimeContext<S, M, I>
-where
-    S: StorageEngine,
-    M: SchemaManager,
-    I: IndexManager,
-{
-    fn id(&self) -> &str {
-        &self.id
-    }
-
-    fn context_type(&self) -> ContextType {
-        ContextType::Runtime
-    }
-
-    fn created_at(&self) -> std::time::SystemTime {
-        self.created_at
-    }
-
-    fn updated_at(&self) -> std::time::SystemTime {
-        self.updated_at
-    }
-
-    fn is_valid(&self) -> bool {
-        self.valid
-    }
-
-    fn touch(&mut self) {
-        self.updated_at = std::time::SystemTime::now();
-    }
-}

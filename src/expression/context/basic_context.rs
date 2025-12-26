@@ -4,7 +4,7 @@
 
 use crate::cache::CacheConfig;
 use crate::core::context::traits::{Context, ContextExt};
-use crate::core::context_traits::{ContextBase, ContextType, HierarchicalContext, MutableContext};
+use crate::core::context::ContextType;
 use crate::core::Value;
 use crate::expression::cache::{ExpressionCacheManager, ExpressionCacheStats};
 use crate::expression::functions::{BuiltinFunction, CustomFunction, ExpressionFunction, FunctionRef};
@@ -363,28 +363,6 @@ impl Clone for BasicExpressionContext {
     }
 }
 
-impl ContextBase for BasicExpressionContext {
-    fn id(&self) -> &str {
-        "expression_context"
-    }
-
-    fn context_type(&self) -> ContextType {
-        ContextType::Expression
-    }
-
-    fn created_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now()
-    }
-
-    fn updated_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now()
-    }
-
-    fn is_valid(&self) -> bool {
-        true
-    }
-}
-
 impl Context for BasicExpressionContext {
     fn id(&self) -> &str {
         "expression_context"
@@ -408,11 +386,6 @@ impl Context for BasicExpressionContext {
 
     fn touch(&mut self) {
     }
-}
-
-impl MutableContext for BasicExpressionContext {
-    fn touch(&mut self) {
-    }
 
     fn invalidate(&mut self) {
     }
@@ -420,9 +393,7 @@ impl MutableContext for BasicExpressionContext {
     fn revalidate(&mut self) -> bool {
         true
     }
-}
 
-impl HierarchicalContext for BasicExpressionContext {
     fn parent_id(&self) -> Option<&str> {
         self.parent.as_ref().map(|_| "parent_expression")
     }

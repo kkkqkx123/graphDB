@@ -1,11 +1,11 @@
 //! 上下文基础定义
 //!
-//! 重新导出上下文特征，并提供上下文管理器等高级功能
+//! 提供上下文管理器等高级功能
 
 use crate::core::Value;
 
-// 重新导出上下文特征
-pub use crate::core::context_traits::*;
+// 重新导出上下文类型
+pub use super::ContextType;
 
 /// 上下文管理器特征
 ///

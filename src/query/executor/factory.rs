@@ -6,6 +6,7 @@
 use crate::core::error::QueryError;
 use crate::query::executor::traits::Executor;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::{PlanNode, JoinNode};
 
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
@@ -45,6 +46,61 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
         }
     }
 
+    /// 提取连接操作的变量名
+    fn extract_join_vars<N: JoinNode>(node: &N) -> (String, String) {
+        let left_var = node.left_input().output_var()
+            .map(|v| v.name.clone())
+            .unwrap_or_else(|| format!("left_{}", node.id()));
+        let right_var = node.right_input().output_var()
+            .map(|v| v.name.clone())
+            .unwrap_or_else(|| format!("right_{}", node.id()));
+        (left_var, right_var)
+    }
+
+    /// 创建内连接执行器（通用方法）
+    fn create_inner_join_executor<N>(
+        &self,
+        node: &N,
+        storage: Arc<Mutex<S>>,
+    ) -> Result<Box<dyn Executor<S>>, QueryError>
+    where
+        N: JoinNode,
+    {
+        let (left_var, right_var) = Self::extract_join_vars(node);
+        let executor = InnerJoinExecutor::new(
+            node.id(),
+            storage,
+            left_var,
+            right_var,
+            node.hash_keys().to_vec(),
+            node.probe_keys().to_vec(),
+            node.col_names().to_vec(),
+        );
+        Ok(Box::new(executor))
+    }
+
+    /// 创建左连接执行器（通用方法）
+    fn create_left_join_executor<N>(
+        &self,
+        node: &N,
+        storage: Arc<Mutex<S>>,
+    ) -> Result<Box<dyn Executor<S>>, QueryError>
+    where
+        N: JoinNode,
+    {
+        let (left_var, right_var) = Self::extract_join_vars(node);
+        let executor = LeftJoinExecutor::new(
+            node.id(),
+            storage,
+            left_var,
+            right_var,
+            node.hash_keys().to_vec(),
+            node.probe_keys().to_vec(),
+            node.col_names().to_vec(),
+        );
+        Ok(Box::new(executor))
+    }
+
     /// 根据计划节点创建执行器
     pub fn create_executor(
         &self,
@@ -55,19 +111,18 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
         match plan_node {
             // 基础执行器
             PlanNodeEnum::Start(node) => {
-                Ok(Box::new(StartExecutor::new(node.id, storage)))
+                Ok(Box::new(StartExecutor::new(node.id(), storage)))
             }
 
             // 数据访问执行器
             PlanNodeEnum::ScanVertices(node) => {
-                // 创建扫描顶点执行器
                 let executor = GetVerticesExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
-                    None, // vertex_ids - 扫描所有顶点
-                    node.tag_filter.clone(),
-                    node.vertex_filter.clone(),
-                    node.limit,
+                    None,
+                    node.tag_filter().as_ref().and_then(|f| crate::query::parser::expressions::parse_expression_from_string(f).ok()),
+                    node.vertex_filter().as_ref().and_then(|f| crate::query::parser::expressions::parse_expression_from_string(f).ok()),
+                    node.limit().map(|l| l as usize),
                 );
                 Ok(Box::new(executor))
             }
@@ -78,14 +133,13 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
                 ))
             }
             PlanNodeEnum::GetVertices(node) => {
-                // 创建获取顶点执行器
                 let executor = GetVerticesExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
-                    node.vertex_ids.clone(),
-                    node.tag_filter.clone(),
-                    node.vertex_filter.clone(),
-                    node.limit,
+                    Some(vec![crate::core::Value::String(node.src_vids().to_string())]),
+                    None,
+                    node.expr().and_then(|e| crate::query::parser::expressions::parse_expression_from_string(e).ok()),
+                    node.limit().map(|l| l as usize),
                 );
                 Ok(Box::new(executor))
             }
@@ -93,82 +147,101 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
             // 结果处理执行器
             PlanNodeEnum::Filter(node) => {
                 let executor = FilterExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
-                    node.filter_expression.clone(),
+                    node.condition().clone(),
                 );
                 Ok(Box::new(executor))
             }
             PlanNodeEnum::Project(node) => {
+                let columns = node.columns().iter().map(|col| {
+                    crate::query::executor::result_processing::ProjectionColumn::new(
+                        col.alias.clone(),
+                        col.expr.clone(),
+                    )
+                }).collect();
                 let executor = ProjectExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
-                    node.projections.clone(),
+                    columns,
                 );
                 Ok(Box::new(executor))
             }
             PlanNodeEnum::Limit(node) => {
                 let executor = LimitExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
-                    node.limit,
-                    node.offset,
+                    Some(node.count() as usize),
+                    node.offset() as usize,
                 );
                 Ok(Box::new(executor))
             }
             PlanNodeEnum::Sort(node) => {
+                let sort_keys = node.sort_items().iter().map(|item| {
+                    crate::query::executor::result_processing::SortKey::new(
+                        crate::core::Expression::Variable(item.clone()),
+                        crate::query::executor::result_processing::SortOrder::Asc,
+                    )
+                }).collect();
                 let executor = SortExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
-                    node.sort_keys.clone(),
-                    node.sort_orders.clone(),
+                    sort_keys,
+                    node.limit().map(|l| l as usize),
                 );
                 Ok(Box::new(executor))
             }
             PlanNodeEnum::Aggregate(node) => {
+                let aggregate_functions = node.agg_exprs().iter().map(|expr| {
+                    crate::query::executor::result_processing::AggregateFunctionSpec::new(
+                        crate::core::types::operators::AggregateFunction::Count,
+                    )
+                }).collect();
+                let group_by_expressions = node.group_keys().iter().map(|key| {
+                    crate::core::Expression::Variable(key.clone())
+                }).collect();
                 let executor = AggregateExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
-                    node.aggregate_functions.clone(),
-                    node.group_by_expressions.clone(),
-                    node.having_expression.clone(),
+                    aggregate_functions,
+                    group_by_expressions,
                 );
                 Ok(Box::new(executor))
             }
             PlanNodeEnum::Dedup(node) => {
                 let executor = DedupExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
-                    node.dedup_keys.clone(),
-                    node.dedup_strategy.clone(),
+                    crate::query::executor::result_processing::DedupStrategy::Full,
+                    None,
                 );
                 Ok(Box::new(executor))
             }
 
             // 数据处理执行器
-            PlanNodeEnum::InnerJoin(node) | PlanNodeEnum::HashInnerJoin(node) => {
-                let executor = InnerJoinExecutor::new(
-                    node.id,
-                    storage,
-                    node.join_condition.clone(),
-                    node.join_type.clone(),
-                );
-                Ok(Box::new(executor))
+            PlanNodeEnum::InnerJoin(node) => {
+                self.create_inner_join_executor(node.as_ref(), storage)
             }
-            PlanNodeEnum::LeftJoin(node) | PlanNodeEnum::HashLeftJoin(node) => {
-                let executor = LeftJoinExecutor::new(
-                    node.id,
-                    storage,
-                    node.join_condition.clone(),
-                    node.join_type.clone(),
-                );
-                Ok(Box::new(executor))
+            PlanNodeEnum::HashInnerJoin(node) => {
+                self.create_inner_join_executor(node.as_ref(), storage)
+            }
+            PlanNodeEnum::LeftJoin(node) => {
+                self.create_left_join_executor(node.as_ref(), storage)
+            }
+            PlanNodeEnum::HashLeftJoin(node) => {
+                self.create_left_join_executor(node.as_ref(), storage)
             }
             PlanNodeEnum::CrossJoin(node) | PlanNodeEnum::CartesianProduct(node) => {
+                let left_var = node.left_input().output_var()
+                    .map(|v| v.name().to_string())
+                    .unwrap_or_else(|| format!("left_{}", node.id()));
+                let right_var = node.right_input().output_var()
+                    .map(|v| v.name().to_string())
+                    .unwrap_or_else(|| format!("right_{}", node.id()));
                 let executor = CrossJoinExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
-                    vec![], // 输入变量列表需要从节点的输出变量中获取
+                    vec![left_var, right_var],
                     node.col_names().to_vec(),
                 );
                 Ok(Box::new(executor))
@@ -177,30 +250,40 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
             // 图遍历执行器
             PlanNodeEnum::Expand(node) => {
                 let executor = ExpandExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
-                    node.edge_direction.clone(),
-                    node.edge_types.clone(),
-                    node.max_depth,
+                    node.direction().to_string(),
+                    node.edge_types().to_vec(),
+                    node.step_limit(),
                 );
                 Ok(Box::new(executor))
             }
             
             // 数据转换执行器
             PlanNodeEnum::Unwind(node) => {
+                let unwind_expr = crate::query::parser::expressions::parse_expression_from_string(&node.list_expr)
+                    .map_err(|e| QueryError::ExecutionError(format!("解析表达式失败: {}", e)))?;
                 let executor = UnwindExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
-                    node.unwind_expression.clone(),
-                    node.unwind_variable.clone(),
+                    node.alias.clone(),
+                    unwind_expr,
+                    node.col_names.clone(),
+                    false,
                 );
                 Ok(Box::new(executor))
             }
             PlanNodeEnum::Assign(node) => {
+                let mut parsed_assignments = Vec::new();
+                for (var_name, expr_str) in &node.assignments {
+                    let expr = crate::query::parser::expressions::parse_expression_from_string(expr_str)
+                        .map_err(|e| QueryError::ExecutionError(format!("解析表达式失败: {}", e)))?;
+                    parsed_assignments.push((var_name.clone(), expr));
+                }
                 let executor = AssignExecutor::new(
                     node.id,
                     storage,
-                    node.assignments.clone(),
+                    parsed_assignments,
                 );
                 Ok(Box::new(executor))
             }

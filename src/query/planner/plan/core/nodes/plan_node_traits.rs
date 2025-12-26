@@ -3,6 +3,7 @@
 //! 定义所有计划节点需要实现的基础特征
 
 use crate::core::error::PlanNodeVisitError;
+use crate::core::Expression;
 use crate::query::context::validate::types::Variable;
 
 /// PlanNode 基础特征
@@ -68,6 +69,18 @@ pub trait BinaryInputNode: PlanNode {
     fn input_count(&self) -> usize {
         2
     }
+}
+
+/// 连接节点特征
+///
+/// 适用于所有类型的连接操作（内连接、左连接、交叉连接等）
+/// 统一了连接节点的接口，便于在执行器工厂中统一处理
+pub trait JoinNode: BinaryInputNode {
+    /// 获取哈希键（用于构建哈希表）
+    fn hash_keys(&self) -> &[Expression];
+
+    /// 获取探测键（用于探测哈希表）
+    fn probe_keys(&self) -> &[Expression];
 }
 
 /// 多输入节点特征

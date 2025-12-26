@@ -2,7 +2,7 @@
 //!
 //! 提供查询执行过程中的上下文管理
 
-use super::base::{ContextBase, ContextType, MutableContext};
+use super::base::ContextType;
 use super::session::SessionInfo;
 use crate::core::Context;
 use serde::{Deserialize, Serialize};
@@ -90,7 +90,7 @@ impl QueryContext {
     }
 }
 
-impl ContextBase for QueryContext {
+impl Context for QueryContext {
     fn id(&self) -> &str {
         &self.query_id
     }
@@ -100,29 +100,33 @@ impl ContextBase for QueryContext {
     }
 
     fn created_at(&self) -> std::time::SystemTime {
-        std::time::UNIX_EPOCH + std::time::Duration::from_millis(0) // 使用固定时间作为创建时间
+        std::time::UNIX_EPOCH + std::time::Duration::from_millis(0)
     }
 
     fn updated_at(&self) -> std::time::SystemTime {
-        std::time::UNIX_EPOCH + std::time::Duration::from_millis(0) // 使用固定时间作为更新时间
+        std::time::UNIX_EPOCH + std::time::Duration::from_millis(0)
     }
 
     fn is_valid(&self) -> bool {
         !self.is_timeout()
     }
-}
 
-impl MutableContext for QueryContext {
     fn touch(&mut self) {
-        // 更新时间戳
     }
 
     fn invalidate(&mut self) {
-        // 标记为无效
     }
 
     fn revalidate(&mut self) -> bool {
         !self.is_timeout()
+    }
+
+    fn parent_id(&self) -> Option<&str> {
+        None
+    }
+
+    fn depth(&self) -> usize {
+        1
     }
 }
 
@@ -235,30 +239,5 @@ impl Default for QueryStatistics {
             memory_used_bytes: 0,
             error_message: None,
         }
-    }
-}
-
-impl Context for QueryContext {
-    fn id(&self) -> &str {
-        &self.query_id
-    }
-
-    fn context_type(&self) -> ContextType {
-        ContextType::Query
-    }
-
-    fn created_at(&self) -> std::time::SystemTime {
-        std::time::UNIX_EPOCH + std::time::Duration::from_millis(0)
-    }
-
-    fn updated_at(&self) -> std::time::SystemTime {
-        std::time::UNIX_EPOCH + std::time::Duration::from_millis(0)
-    }
-
-    fn is_valid(&self) -> bool {
-        !self.is_timeout()
-    }
-
-    fn touch(&mut self) {
     }
 }

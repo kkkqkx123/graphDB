@@ -4,8 +4,8 @@
 
 use std::collections::HashMap;
 
-use super::base::{ContextBase, ContextType, MutableContext};
-use super::traits::{Context, ContextExt};
+use super::base::ContextType;
+use super::traits::Context;
 use crate::core::Value;
 
 /// 验证上下文
@@ -181,13 +181,13 @@ impl ValidationContext {
     /// 进入下一个验证阶段
     pub fn next_phase(&mut self, phase: ValidationPhase) {
         self.phase = phase;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     /// 添加已验证的符号
     pub fn add_validated_symbol(&mut self, symbol: ValidatedSymbol) {
         self.validated_symbols.insert(symbol.name.clone(), symbol);
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     /// 获取已验证的符号
@@ -198,28 +198,6 @@ impl ValidationContext {
     /// 检查符号是否已验证
     pub fn is_symbol_validated(&self, name: &str) -> bool {
         self.validated_symbols.contains_key(name)
-    }
-}
-
-impl ContextBase for ValidationContext {
-    fn id(&self) -> &str {
-        &self.id
-    }
-
-    fn context_type(&self) -> ContextType {
-        ContextType::Validation
-    }
-
-    fn created_at(&self) -> std::time::SystemTime {
-        self.created_at
-    }
-
-    fn updated_at(&self) -> std::time::SystemTime {
-        self.updated_at
-    }
-
-    fn is_valid(&self) -> bool {
-        self.valid
     }
 }
 
@@ -247,33 +225,33 @@ impl Context for ValidationContext {
     fn touch(&mut self) {
         self.updated_at = std::time::SystemTime::now();
     }
-}
-
-impl MutableContext for ValidationContext {
-    fn touch(&mut self) {
-        self.updated_at = std::time::SystemTime::now();
-    }
 
     fn invalidate(&mut self) {
         self.valid = false;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     fn revalidate(&mut self) -> bool {
         self.valid = true;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
         self.valid
     }
-}
 
-impl super::base::AttributeSupport for ValidationContext {
+    fn parent_id(&self) -> Option<&str> {
+        None
+    }
+
+    fn depth(&self) -> usize {
+        2
+    }
+
     fn get_attribute(&self, key: &str) -> Option<Value> {
         self.attributes.get(key).cloned()
     }
 
     fn set_attribute(&mut self, key: String, value: Value) {
         self.attributes.insert(key, value);
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     fn attribute_keys(&self) -> Vec<String> {
@@ -282,23 +260,13 @@ impl super::base::AttributeSupport for ValidationContext {
 
     fn remove_attribute(&mut self, key: &str) -> Option<Value> {
         let removed = self.attributes.remove(key);
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
         removed
     }
 
     fn clear_attributes(&mut self) {
         self.attributes.clear();
-        self.touch();
-    }
-}
-
-impl super::base::HierarchicalContext for ValidationContext {
-    fn parent_id(&self) -> Option<&str> {
-        None // 验证上下文通常是独立的
-    }
-
-    fn depth(&self) -> usize {
-        2 // 验证上下文深度为2
+        self.updated_at = std::time::SystemTime::now();
     }
 }
 

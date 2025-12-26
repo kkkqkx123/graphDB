@@ -30,7 +30,7 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
     ) -> Self {
         Self {
             base: BaseJoinExecutor::with_description(
-                id,
+                id as i64,
                 storage,
                 left_var,
                 right_var,
@@ -102,19 +102,24 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
 
             // 根据连接键提取值
             for key_idx in 0..self.base.hash_keys().len() {
-                if let Some(key_pos) = left_dataset
-                    .col_names
-                    .iter()
-                    .position(|r| r == &self.base.hash_keys()[key_idx])
-                {
-                    if key_pos < row.len() {
-                        key_parts.push(row[key_pos].clone());
-                    } else {
-                        key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                    }
-                } else if let Ok(key_pos) = self.base.hash_keys()[key_idx].parse::<usize>() {
-                    if key_pos < row.len() {
-                        key_parts.push(row[key_pos].clone());
+                let key_expr = &self.base.hash_keys()[key_idx];
+                if let Expression::Variable(key_name) = key_expr {
+                    if let Some(key_pos) = left_dataset
+                        .col_names
+                        .iter()
+                        .position(|r| r == key_name)
+                    {
+                        if key_pos < row.len() {
+                            key_parts.push(row[key_pos].clone());
+                        } else {
+                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
+                        }
+                    } else if let Ok(key_pos) = key_name.parse::<usize>() {
+                        if key_pos < row.len() {
+                            key_parts.push(row[key_pos].clone());
+                        } else {
+                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
+                        }
                     } else {
                         key_parts.push(Value::Null(crate::core::value::NullType::Null));
                     }
@@ -138,19 +143,24 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
 
             // 根据连接键提取值
             for key_idx in 0..self.base.probe_keys().len() {
-                if let Some(key_pos) = right_dataset
-                    .col_names
-                    .iter()
-                    .position(|r| r == &self.base.probe_keys()[key_idx])
-                {
-                    if key_pos < row.len() {
-                        key_parts.push(row[key_pos].clone());
-                    } else {
-                        key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                    }
-                } else if let Ok(key_pos) = self.base.probe_keys()[key_idx].parse::<usize>() {
-                    if key_pos < row.len() {
-                        key_parts.push(row[key_pos].clone());
+                let key_expr = &self.base.probe_keys()[key_idx];
+                if let Expression::Variable(key_name) = key_expr {
+                    if let Some(key_pos) = right_dataset
+                        .col_names
+                        .iter()
+                        .position(|r| r == key_name)
+                    {
+                        if key_pos < row.len() {
+                            key_parts.push(row[key_pos].clone());
+                        } else {
+                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
+                        }
+                    } else if let Ok(key_pos) = key_name.parse::<usize>() {
+                        if key_pos < row.len() {
+                            key_parts.push(row[key_pos].clone());
+                        } else {
+                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
+                        }
                     } else {
                         key_parts.push(Value::Null(crate::core::value::NullType::Null));
                     }
@@ -178,19 +188,24 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
 
             // 根据连接键提取值
             for key_idx in 0..self.base.hash_keys().len() {
-                if let Some(key_pos) = left_dataset
-                    .col_names
-                    .iter()
-                    .position(|r| r == &self.base.hash_keys()[key_idx])
-                {
-                    if key_pos < row.len() {
-                        key_parts.push(row[key_pos].clone());
-                    } else {
-                        key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                    }
-                } else if let Ok(key_pos) = self.base.hash_keys()[key_idx].parse::<usize>() {
-                    if key_pos < row.len() {
-                        key_parts.push(row[key_pos].clone());
+                let key_expr = &self.base.hash_keys()[key_idx];
+                if let Expression::Variable(key_name) = key_expr {
+                    if let Some(key_pos) = left_dataset
+                        .col_names
+                        .iter()
+                        .position(|r| r == key_name)
+                    {
+                        if key_pos < row.len() {
+                            key_parts.push(row[key_pos].clone());
+                        } else {
+                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
+                        }
+                    } else if let Ok(key_pos) = key_name.parse::<usize>() {
+                        if key_pos < row.len() {
+                            key_parts.push(row[key_pos].clone());
+                        } else {
+                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
+                        }
                     } else {
                         key_parts.push(Value::Null(crate::core::value::NullType::Null));
                     }

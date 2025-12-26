@@ -140,6 +140,14 @@ impl GetVerticesNode {
         cloned.id = new_id;
         super::plan_node_enum::PlanNodeEnum::GetVertices(cloned)
     }
+
+    pub fn expr(&self) -> Option<&String> {
+        self.expr.as_ref()
+    }
+
+    pub fn limit(&self) -> Option<i64> {
+        self.limit
+    }
 }
 
 // 为 GetVerticesNode 实现 PlanNode trait

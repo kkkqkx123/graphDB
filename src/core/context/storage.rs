@@ -5,7 +5,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::base::{ContextBase, ContextType, MutableContext};
+use super::base::ContextType;
+use super::traits::Context;
 use crate::core::Value;
 
 /// 存储上下文
@@ -326,7 +327,7 @@ impl StorageContext {
     }
 }
 
-impl ContextBase for StorageContext {
+impl Context for StorageContext {
     fn id(&self) -> &str {
         &self.id
     }
@@ -346,34 +347,37 @@ impl ContextBase for StorageContext {
     fn is_valid(&self) -> bool {
         self.valid
     }
-}
 
-impl MutableContext for StorageContext {
     fn touch(&mut self) {
         self.updated_at = std::time::SystemTime::now();
     }
 
     fn invalidate(&mut self) {
         self.valid = false;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     fn revalidate(&mut self) -> bool {
-        // 简单的重新验证逻辑
         self.valid = true;
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
         true
     }
-}
 
-impl super::base::AttributeSupport for StorageContext {
+    fn parent_id(&self) -> Option<&str> {
+        None
+    }
+
+    fn depth(&self) -> usize {
+        1
+    }
+
     fn get_attribute(&self, key: &str) -> Option<Value> {
         self.attributes.get(key).cloned()
     }
 
     fn set_attribute(&mut self, key: String, value: Value) {
         self.attributes.insert(key, value);
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 
     fn attribute_keys(&self) -> Vec<String> {
@@ -382,13 +386,13 @@ impl super::base::AttributeSupport for StorageContext {
 
     fn remove_attribute(&mut self, key: &str) -> Option<Value> {
         let removed = self.attributes.remove(key);
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
         removed
     }
 
     fn clear_attributes(&mut self) {
         self.attributes.clear();
-        self.touch();
+        self.updated_at = std::time::SystemTime::now();
     }
 }
 

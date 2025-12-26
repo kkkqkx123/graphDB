@@ -2,7 +2,7 @@
 //!
 //! 提供查询执行过程中的执行上下文管理
 
-use super::base::{ContextBase, ContextType, MutableContext};
+use super::base::ContextType;
 use super::query::QueryContext;
 use super::traits::Context;
 use crate::core::Value;
@@ -239,7 +239,7 @@ impl ExecutionContext {
     }
 }
 
-impl ContextBase for ExecutionContext {
+impl Context for ExecutionContext {
     fn id(&self) -> &str {
         &self.query_context.query_id
     }
@@ -249,21 +249,18 @@ impl ContextBase for ExecutionContext {
     }
 
     fn created_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now() // 使用当前时间作为创建时间
+        std::time::SystemTime::now()
     }
 
     fn updated_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now() // 使用当前时间作为更新时间
+        std::time::SystemTime::now()
     }
 
     fn is_valid(&self) -> bool {
         !self.should_cancel() && !self.has_error()
     }
-}
 
-impl MutableContext for ExecutionContext {
     fn touch(&mut self) {
-        // 更新执行统计
         self.update_execution_stats();
     }
 
@@ -284,15 +281,13 @@ impl MutableContext for ExecutionContext {
             true
         }
     }
-}
 
-impl super::base::HierarchicalContext for ExecutionContext {
     fn parent_id(&self) -> Option<&str> {
         Some(&self.query_context.query_id)
     }
 
     fn depth(&self) -> usize {
-        2 // 执行上下文深度为2
+        2
     }
 }
 
@@ -432,31 +427,5 @@ impl ExecutionProgress {
 impl Default for ExecutionProgress {
     fn default() -> Self {
         Self::new(6) // 默认6个阶段
-    }
-}
-
-impl Context for ExecutionContext {
-    fn id(&self) -> &str {
-        &self.query_context.query_id
-    }
-
-    fn context_type(&self) -> ContextType {
-        ContextType::Execution
-    }
-
-    fn created_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now()
-    }
-
-    fn updated_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now()
-    }
-
-    fn is_valid(&self) -> bool {
-        !self.should_cancel() && !self.has_error()
-    }
-
-    fn touch(&mut self) {
-        self.update_execution_stats();
     }
 }
