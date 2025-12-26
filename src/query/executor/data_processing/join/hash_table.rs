@@ -2,6 +2,7 @@
 //!
 //! 提供高效的哈希表用于join操作，支持单键和多键连接
 
+use crate::core::types::expression::Expression;
 use crate::core::Value;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -157,6 +158,81 @@ pub struct HashTableStats {
     pub unique_keys: usize,
     pub avg_bucket_size: f64,
     pub max_bucket_size: usize,
+}
+
+/// 从行中提取连接键的值（优化版本）
+///
+/// # 参数
+/// - `row`: 数据行
+/// - `col_names`: 列名列表
+/// - `key_exprs`: 连接键表达式列表
+/// - `col_map`: 列名到索引的映射
+///
+/// # 返回
+/// 提取的键值列表
+pub fn extract_key_values(
+    row: &[Value],
+    col_names: &[String],
+    key_exprs: &[Expression],
+    col_map: &std::collections::HashMap<&str, usize>,
+) -> Vec<Value> {
+    let mut key_parts = Vec::new();
+
+    for key_expr in key_exprs {
+        if let Expression::Variable(key_name) = key_expr {
+            if let Some(&key_pos) = col_map.get(key_name.as_str()) {
+                if key_pos < row.len() {
+                    key_parts.push(row[key_pos].clone());
+                } else {
+                    key_parts.push(Value::Null(crate::core::NullType::Null));
+                }
+            } else if let Ok(key_pos) = key_name.parse::<usize>() {
+                if key_pos < row.len() {
+                    key_parts.push(row[key_pos].clone());
+                } else {
+                    key_parts.push(Value::Null(crate::core::NullType::Null));
+                }
+            } else {
+                key_parts.push(Value::Null(crate::core::NullType::Null));
+            }
+        } else {
+            key_parts.push(Value::Null(crate::core::NullType::Null));
+        }
+    }
+
+    key_parts
+}
+
+/// 构建哈希表（优化版本）
+///
+/// # 参数
+/// - `dataset`: 数据集
+/// - `key_exprs`: 连接键表达式列表
+///
+/// # 返回
+/// 哈希表，键为JoinKey，值为行索引列表
+pub fn build_hash_table(
+    dataset: &crate::core::DataSet,
+    key_exprs: &[Expression],
+) -> Result<std::collections::HashMap<JoinKey, Vec<usize>>, String> {
+    let col_map: std::collections::HashMap<&str, usize> = dataset
+        .col_names
+        .iter()
+        .enumerate()
+        .map(|(i, name)| (name.as_str(), i))
+        .collect();
+
+    let mut hash_table = std::collections::HashMap::new();
+
+    for (idx, row) in dataset.rows.iter().enumerate() {
+        let key_values =
+            extract_key_values(row, &dataset.col_names, key_exprs, &col_map);
+        let key = JoinKey::new(key_values);
+
+        hash_table.entry(key).or_insert_with(Vec::new).push(idx);
+    }
+
+    Ok(hash_table)
 }
 
 impl HashTableStats {

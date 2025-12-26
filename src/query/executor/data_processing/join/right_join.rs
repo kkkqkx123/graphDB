@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, Value};
 use crate::query::executor::data_processing::join::{
-    base_join::BaseJoinExecutor, hash_table::JoinKey,
+    base_join::BaseJoinExecutor, hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -96,46 +96,22 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
             }
         };
 
+        // 预先构建列名到索引的映射
+        let right_col_map: HashMap<&str, usize> = right_dataset
+            .col_names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| (name.as_str(), i))
+            .collect();
+
         // 构建左表哈希表：以左表连接键作为键，行索引作为值
-        let mut left_hash_table: HashMap<JoinKey, Vec<usize>> = HashMap::new();
-
-        for (idx, row) in left_dataset.rows.iter().enumerate() {
-            let mut key_parts = Vec::new();
-
-            // 根据连接键提取值
-            for key_idx in 0..self.base.hash_keys().len() {
-                let key_expr = &self.base.hash_keys()[key_idx];
-                if let Expression::Variable(key_name) = key_expr {
-                    if let Some(key_pos) = left_dataset
-                        .col_names
-                        .iter()
-                        .position(|r| r == key_name)
-                    {
-                        if key_pos < row.len() {
-                            key_parts.push(row[key_pos].clone());
-                        } else {
-                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                        }
-                    } else if let Ok(key_pos) = key_name.parse::<usize>() {
-                        if key_pos < row.len() {
-                            key_parts.push(row[key_pos].clone());
-                        } else {
-                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                        }
-                    } else {
-                        key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                    }
-                } else {
-                    key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                }
-            }
-
-            let key = JoinKey::new(key_parts);
-            left_hash_table
-                .entry(key)
-                .or_insert_with(Vec::new)
-                .push(idx);
-        }
+        let left_hash_table =
+            build_hash_table(&left_dataset, self.base.hash_keys()).map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "Failed to build hash table: {}",
+                    e
+                )))
+            })?;
 
         // 构建结果数据集
         let mut result_dataset = DataSet {
@@ -145,34 +121,12 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
 
         // 处理右表的每一行
         for (_right_idx, right_row) in right_dataset.rows.iter().enumerate() {
-            let mut right_key_parts = Vec::new();
-
-            for key_idx in 0..self.base.probe_keys().len() {
-                let key_expr = &self.base.probe_keys()[key_idx];
-                if let Expression::Variable(key_name) = key_expr {
-                    if let Some(key_pos) = right_dataset
-                        .col_names
-                        .iter()
-                        .position(|r| r == key_name)
-                    {
-                        if key_pos < right_row.len() {
-                            right_key_parts.push(right_row[key_pos].clone());
-                        } else {
-                            right_key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                        }
-                    } else if let Ok(key_pos) = key_name.parse::<usize>() {
-                        if key_pos < right_row.len() {
-                            right_key_parts.push(right_row[key_pos].clone());
-                        } else {
-                            right_key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                        }
-                    } else {
-                        right_key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                    }
-                } else {
-                    right_key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                }
-            }
+            let right_key_parts = extract_key_values(
+                right_row,
+                &right_dataset.col_names,
+                self.base.probe_keys(),
+                &right_col_map,
+            );
 
             let right_key = JoinKey::new(right_key_parts);
 

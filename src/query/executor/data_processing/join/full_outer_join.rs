@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, Value};
 use crate::query::executor::data_processing::join::{
-    base_join::BaseJoinExecutor, hash_table::JoinKey,
+    base_join::BaseJoinExecutor, hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -96,86 +96,55 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
             }
         };
 
-        // 构建左表哈希表：以左表连接键作为键，(行索引, 已匹配标志)作为值
+        // 预先构建列名到索引的映射
+        let left_col_map: HashMap<&str, usize> = left_dataset
+            .col_names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| (name.as_str(), i))
+            .collect();
+
+        let right_col_map: HashMap<&str, usize> = right_dataset
+            .col_names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| (name.as_str(), i))
+            .collect();
+
+        // 构建左表哈希表：以左表连接键作为键，行索引作为值
+        let left_hash_table_indices =
+            build_hash_table(&left_dataset, self.base.hash_keys()).map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "Failed to build left hash table: {}",
+                    e
+                )))
+            })?;
+
+        // 转换为带匹配标志的哈希表
         let mut left_hash_table: HashMap<JoinKey, Vec<(usize, bool)>> = HashMap::new();
-
-        for (idx, row) in left_dataset.rows.iter().enumerate() {
-            let mut key_parts = Vec::new();
-
-            // 根据连接键提取值
-            for key_idx in 0..self.base.hash_keys().len() {
-                let key_expr = &self.base.hash_keys()[key_idx];
-                if let Expression::Variable(key_name) = key_expr {
-                    if let Some(key_pos) = left_dataset
-                        .col_names
-                        .iter()
-                        .position(|r| r == key_name)
-                    {
-                        if key_pos < row.len() {
-                            key_parts.push(row[key_pos].clone());
-                        } else {
-                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                        }
-                    } else if let Ok(key_pos) = key_name.parse::<usize>() {
-                        if key_pos < row.len() {
-                            key_parts.push(row[key_pos].clone());
-                        } else {
-                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                        }
-                    } else {
-                        key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                    }
-                } else {
-                    key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                }
-            }
-
-            let key = JoinKey::new(key_parts);
+        for (key, indices) in left_hash_table_indices {
             left_hash_table
                 .entry(key)
                 .or_insert_with(Vec::new)
-                .push((idx, false));
+                .extend(indices.into_iter().map(|idx| (idx, false)));
         }
 
-        // 构建右表哈希表：以右表连接键作为键，(行索引, 已匹配标志)作为值
+        // 构建右表哈希表：以右表连接键作为键，行索引作为值
+        let right_hash_table_indices =
+            build_hash_table(&right_dataset, self.base.probe_keys()).map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "Failed to build right hash table: {}",
+                    e
+                )))
+            })?;
+
+        // 转换为带匹配标志的哈希表
         let mut right_hash_table: HashMap<JoinKey, Vec<(usize, bool)>> = HashMap::new();
-
-        for (idx, row) in right_dataset.rows.iter().enumerate() {
-            let mut key_parts = Vec::new();
-
-            // 根据连接键提取值
-            for key_idx in 0..self.base.probe_keys().len() {
-                let key_expr = &self.base.probe_keys()[key_idx];
-                if let Expression::Variable(key_name) = key_expr {
-                    if let Some(key_pos) = right_dataset
-                        .col_names
-                        .iter()
-                        .position(|r| r == key_name)
-                    {
-                        if key_pos < row.len() {
-                            key_parts.push(row[key_pos].clone());
-                        } else {
-                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                        }
-                    } else if let Ok(key_pos) = key_name.parse::<usize>() {
-                        if key_pos < row.len() {
-                            key_parts.push(row[key_pos].clone());
-                        } else {
-                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                        }
-                    } else {
-                        key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                    }
-                } else {
-                    key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                }
-            }
-
-            let key = JoinKey::new(key_parts);
+        for (key, indices) in right_hash_table_indices {
             right_hash_table
                 .entry(key)
                 .or_insert_with(Vec::new)
-                .push((idx, false));
+                .extend(indices.into_iter().map(|idx| (idx, false)));
         }
 
         // 构建结果数据集
@@ -186,35 +155,12 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
 
         // 处理左表的每一行
         for (_idx, row) in left_dataset.rows.iter().enumerate() {
-            let mut key_parts = Vec::new();
-
-            // 根据连接键提取值
-            for key_idx in 0..self.base.hash_keys().len() {
-                let key_expr = &self.base.hash_keys()[key_idx];
-                if let Expression::Variable(key_name) = key_expr {
-                    if let Some(key_pos) = left_dataset
-                        .col_names
-                        .iter()
-                        .position(|r| r == key_name)
-                    {
-                        if key_pos < row.len() {
-                            key_parts.push(row[key_pos].clone());
-                        } else {
-                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                        }
-                    } else if let Ok(key_pos) = key_name.parse::<usize>() {
-                        if key_pos < row.len() {
-                            key_parts.push(row[key_pos].clone());
-                        } else {
-                            key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                        }
-                    } else {
-                        key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                    }
-                } else {
-                    key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                }
-            }
+            let key_parts = extract_key_values(
+                row,
+                &left_dataset.col_names,
+                self.base.hash_keys(),
+                &left_col_map,
+            );
 
             let key = JoinKey::new(key_parts);
 

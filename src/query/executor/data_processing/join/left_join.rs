@@ -9,9 +9,8 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, NullType, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
-use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
-use crate::query::executor::data_processing::join::hash_table::{
-    HashTableBuilder, HashTableProbe, MultiKeyHashTable, SingleKeyHashTable,
+use crate::query::executor::data_processing::join::{
+    base_join::BaseJoinExecutor, hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
 use crate::query::executor::traits::{
     ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -23,10 +22,6 @@ pub struct LeftJoinExecutor<S: StorageEngine> {
     base_executor: BaseJoinExecutor<S>,
     /// 右侧数据集的列数（用于填充NULL值）
     right_col_size: usize,
-    /// 哈希表（用于单键连接）
-    single_key_hash_table: Option<SingleKeyHashTable>,
-    /// 多键哈希表（用于多键连接）
-    multi_key_hash_table: Option<MultiKeyHashTable>,
     /// 是否使用多键连接
     use_multi_key: bool,
 }
@@ -47,8 +42,6 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
                 id, storage, left_var, right_var, hash_keys, probe_keys, col_names,
             ),
             right_col_size: 0,
-            single_key_hash_table: None,
-            multi_key_hash_table: None,
             use_multi_key,
         }
     }
@@ -64,22 +57,25 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
 
         // 左外连接总是以左表为驱动表，右表构建哈希表
         let build_dataset = right_dataset;
-        let probe_dataset = left_dataset;
-        let build_key_idx = 0; // 右表键索引
-        let probe_key_idx = 0; // 左表键索引
 
         // 构建哈希表
-        let hash_table = HashTableBuilder::build_single_key_table(build_dataset, build_key_idx)
-            .map_err(|e| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                    "构建哈希表失败: {}",
-                    e
-                )))
-            })?;
+        let hash_table =
+            build_hash_table(build_dataset, self.base_executor.get_probe_keys()).map_err(
+                |e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                        "构建哈希表失败: {}",
+                        e
+                    )))
+                },
+            )?;
 
-        // 探测哈希表
-        let probe_results =
-            HashTableProbe::probe_single_key(&hash_table, probe_dataset, probe_key_idx);
+        // 构建列名到索引的映射
+        let left_col_map: std::collections::HashMap<&str, usize> = left_dataset
+            .col_names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| (name.as_str(), i))
+            .collect();
 
         // 构建结果集
         let mut result = DataSet::new();
@@ -88,20 +84,35 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         // 记录已匹配的左表行索引
         let mut matched_rows = std::collections::HashSet::new();
 
-        // 处理匹配的行
-        for (probe_row, matching_rows) in probe_results {
-            matched_rows.insert(probe_row.clone()); // 标记为已匹配
+        // 处理左表的每一行
+        for left_row in &left_dataset.rows {
+            let left_key_parts = extract_key_values(
+                left_row,
+                &left_dataset.col_names,
+                self.base_executor.get_hash_keys(),
+                &left_col_map,
+            );
 
-            for build_row in matching_rows {
-                let new_row = self.base_executor.new_row(probe_row.clone(), build_row);
-                result.rows.push(new_row);
+            let left_key = JoinKey::new(left_key_parts);
+
+            // 查找匹配的右表行
+            if let Some(right_indices) = hash_table.get(&left_key) {
+                matched_rows.insert(left_row.clone()); // 标记为已匹配
+
+                for &right_idx in right_indices {
+                    if right_idx < build_dataset.rows.len() {
+                        let right_row = &build_dataset.rows[right_idx];
+                        let new_row = self.base_executor.new_row(left_row.clone(), right_row.clone());
+                        result.rows.push(new_row);
+                    }
+                }
             }
         }
 
         // 处理未匹配的左表行（填充NULL）
-        for probe_row in &probe_dataset.rows {
-            if !matched_rows.contains(probe_row) {
-                let mut new_row = probe_row.clone();
+        for left_row in &left_dataset.rows {
+            if !matched_rows.contains(left_row) {
+                let mut new_row = left_row.clone();
                 // 为右侧列填充NULL值
                 for _ in 0..self.right_col_size {
                     new_row.push(Value::Null(NullType::Null));
@@ -122,38 +133,27 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         // 记录右侧数据集的列数
         self.right_col_size = right_dataset.col_names.len();
 
-        // 使用表达式求值器评估键表达式
-        let evaluator = ExpressionEvaluator::new();
-        
-        // 由于 ExpressionContext 需要具体的实现，这里暂时保留原有的字符串解析逻辑
-        // 在后续实现中，需要将 Expression 转换为列索引或直接求值
-        
-        // 解析键索引（临时方案，需要后续重构为表达式求值）
-        let mut left_key_indices = Vec::new();
-        let mut right_key_indices = Vec::new();
-
-        // 暂时使用固定索引，实际需要根据表达式求值
-        left_key_indices.push(0);
-        right_key_indices.push(0);
-
         // 左外连接总是以左表为驱动表，右表构建哈希表
         let build_dataset = right_dataset;
-        let probe_dataset = left_dataset;
-        let build_key_indices = &right_key_indices;
-        let probe_key_indices = &left_key_indices;
 
         // 构建哈希表
-        let hash_table = HashTableBuilder::build_multi_key_table(build_dataset, build_key_indices)
-            .map_err(|e| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                    "构建多键哈希表失败: {}",
-                    e
-                )))
-            })?;
+        let hash_table =
+            build_hash_table(build_dataset, self.base_executor.get_probe_keys()).map_err(
+                |e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                        "构建多键哈希表失败: {}",
+                        e
+                    )))
+                },
+            )?;
 
-        // 探测哈希表
-        let probe_results =
-            HashTableProbe::probe_multi_key(&hash_table, probe_dataset, probe_key_indices);
+        // 构建列名到索引的映射
+        let left_col_map: std::collections::HashMap<&str, usize> = left_dataset
+            .col_names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| (name.as_str(), i))
+            .collect();
 
         // 构建结果集
         let mut result = DataSet::new();
@@ -162,20 +162,35 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         // 记录已匹配的左表行索引
         let mut matched_rows = std::collections::HashSet::new();
 
-        // 处理匹配的行
-        for (probe_row, matching_rows) in probe_results {
-            matched_rows.insert(probe_row.clone()); // 标记为已匹配
+        // 处理左表的每一行
+        for left_row in &left_dataset.rows {
+            let left_key_parts = extract_key_values(
+                left_row,
+                &left_dataset.col_names,
+                self.base_executor.get_hash_keys(),
+                &left_col_map,
+            );
 
-            for build_row in matching_rows {
-                let new_row = self.base_executor.new_row(probe_row.clone(), build_row);
-                result.rows.push(new_row);
+            let left_key = JoinKey::new(left_key_parts);
+
+            // 查找匹配的右表行
+            if let Some(right_indices) = hash_table.get(&left_key) {
+                matched_rows.insert(left_row.clone()); // 标记为已匹配
+
+                for &right_idx in right_indices {
+                    if right_idx < build_dataset.rows.len() {
+                        let right_row = &build_dataset.rows[right_idx];
+                        let new_row = self.base_executor.new_row(left_row.clone(), right_row.clone());
+                        result.rows.push(new_row);
+                    }
+                }
             }
         }
 
         // 处理未匹配的左表行（填充NULL）
-        for probe_row in &probe_dataset.rows {
-            if !matched_rows.contains(probe_row) {
-                let mut new_row = probe_row.clone();
+        for left_row in &left_dataset.rows {
+            if !matched_rows.contains(left_row) {
+                let mut new_row = left_row.clone();
                 // 为右侧列填充NULL值
                 for _ in 0..self.right_col_size {
                     new_row.push(Value::Null(NullType::Null));
@@ -245,8 +260,6 @@ impl<S: StorageEngine> ExecutorLifecycle for LeftJoinExecutor<S> {
 
     fn close(&mut self) -> DBResult<()> {
         // 清理资源
-        self.single_key_hash_table = None;
-        self.multi_key_hash_table = None;
         Ok(())
     }
 
