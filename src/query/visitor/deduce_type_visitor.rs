@@ -4,7 +4,6 @@
 use crate::core::{visitor::{Visitor, VisitorState}, Expression, TypeUtils, ValueTypeDef};
 use crate::core::{BinaryOperator, UnaryOperator, Value};
 use crate::query::validator::ValidationContext;
-use crate::query::visitor::QueryVisitor;
 use crate::storage::StorageEngine;
 use thiserror::Error;
 
@@ -40,6 +39,8 @@ pub struct DeduceTypeVisitor<'a, S: StorageEngine> {
     type_: ValueTypeDef,
     /// VID(顶点ID)类型
     vid_type: ValueTypeDef,
+    /// 访问者状态
+    state: VisitorState,
 }
 
 impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
@@ -60,6 +61,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             status: None,
             type_: ValueTypeDef::Empty,
             vid_type,
+            state: VisitorState::new(),
         }
     }
 
@@ -738,20 +740,13 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 }
 
-impl<'a, S: StorageEngine> QueryVisitor for DeduceTypeVisitor<'a, S> {
-    type QueryResult = ValueTypeDef;
-
-    fn get_result(&self) -> Self::QueryResult {
-        self.type_.clone()
-    }
-
-    fn reset(&mut self) {
-        self.status = None;
-        self.type_ = ValueTypeDef::Empty;
-    }
-
-    fn is_success(&self) -> bool {
-        self.status.is_none()
+impl<'a, S: StorageEngine> std::fmt::Debug for DeduceTypeVisitor<'a, S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DeduceTypeVisitor")
+            .field("status", &self.status)
+            .field("type_", &self.type_)
+            .field("vid_type", &self.vid_type)
+            .finish()
     }
 }
 
@@ -1022,13 +1017,11 @@ impl<'a, S: StorageEngine> Visitor<Expression> for DeduceTypeVisitor<'a, S> {
     }
 
     fn state(&self) -> &VisitorState {
-        static EMPTY_STATE: VisitorState = VisitorState::new();
-        &EMPTY_STATE
+        &self.state
     }
 
     fn state_mut(&mut self) -> &mut VisitorState {
-        static mut MUTABLE_STATE: VisitorState = VisitorState::new();
-        unsafe { &mut MUTABLE_STATE }
+        &mut self.state
     }
 }
 

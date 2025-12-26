@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use super::base::{ContextBase, ContextType, MutableContext};
-use crate::core::context::{Context, ContextExt};
+use super::traits::{Context, ContextExt};
 use crate::core::Value;
 
 /// 验证上下文

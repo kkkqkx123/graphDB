@@ -396,13 +396,13 @@ impl<T: std::fmt::Debug> DefaultVisitor<T> {
     }
 }
 
-impl<T: std::fmt::Debug> Default for DefaultVisitor<T> {
+impl<T: std::fmt::Debug + Send + Sync> Default for DefaultVisitor<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: std::fmt::Debug> Visitor<T> for DefaultVisitor<T> {
+impl<T: std::fmt::Debug + Send + Sync> Visitor<T> for DefaultVisitor<T> {
     type Result = ();
 
     fn visit(&mut self, _target: &T) -> Self::Result {}

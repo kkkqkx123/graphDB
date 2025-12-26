@@ -308,7 +308,7 @@ impl ExpressionVisitorState {
     }
 
     /// 获取访问计数
-    pub fn visit_count(&self) -> self.visit_count {
+    pub fn visit_count(&self) -> usize {
         self.visit_count
     }
 

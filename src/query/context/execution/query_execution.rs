@@ -1,7 +1,8 @@
 //! 查询执行上下文 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
-use crate::core::context::{QueryExecutionContext, RequestContext, ValidationContext};
+use crate::core::context::{QueryExecutionContext, ValidationContext};
+use crate::core::context::request::RequestContext;
 use crate::core::{SymbolTable, Value};
 use crate::graph::utils::IdGenerator;
 use crate::query::context::managers::{

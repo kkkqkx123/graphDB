@@ -5,27 +5,6 @@
 
 use crate::core::Value;
 
-/// 上下文类型枚举
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ContextType {
-    /// 会话上下文
-    Session,
-    /// 查询上下文
-    Query,
-    /// 执行上下文
-    Execution,
-    /// 表达式上下文
-    Expression,
-    /// 请求上下文
-    Request,
-    /// 运行时上下文
-    Runtime,
-    /// 验证上下文
-    Validation,
-    /// 存储上下文
-    Storage,
-}
-
 /// 统一上下文特征
 ///
 /// 这个trait合并了原有的ContextBase、MutableContext、HierarchicalContext和AttributeSupport
@@ -41,7 +20,7 @@ pub trait Context: std::fmt::Debug + Send + Sync {
     fn id(&self) -> &str;
 
     /// 获取上下文类型
-    fn context_type(&self) -> ContextType;
+    fn context_type(&self) -> super::ContextType;
 
     /// 获取创建时间
     fn created_at(&self) -> std::time::SystemTime;

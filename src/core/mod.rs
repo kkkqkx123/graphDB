@@ -12,13 +12,11 @@ pub mod type_utils;
 pub mod value;
 pub mod vertex_edge_path;
 pub mod visitor;
-pub mod visitor_state_enum;
 
 // 新增的子模块
 pub mod context;
 pub mod context_traits;
 pub mod types;
-pub mod unified_visitor;
 pub mod expression_visitor;
 
 // 查询处理模块
@@ -48,7 +46,6 @@ pub use types::operators::{
 pub use symbol::*;
 pub use type_utils::TypeUtils;
 pub use visitor::*;
-pub use visitor_state_enum::*;
 
 // 计划节点引用
 pub use plan_node_ref::*;
@@ -59,5 +56,5 @@ pub use context_traits::*;
 // 上下文
 pub use context::*;
 
-// 查询处理
-pub use query_pipeline_manager::*;
+// 查询管道管理器
+pub use query_pipeline_manager::QueryPipelineManager;

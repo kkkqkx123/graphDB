@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex};
 pub struct QueryPipelineManager<S: StorageEngine + 'static> {
     _storage: Arc<Mutex<S>>,
     _parser: Parser,
-    _validator: Validator,
+    validator: Validator,
     _planner: Box<dyn Planner>,
     _optimizer: Optimizer,
     executor_factory: ExecutorFactory<S>,
@@ -33,7 +33,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
         Self {
             _storage: storage,
             _parser: Parser::new(""),
-            _validator: Validator::new(crate::query::validator::ValidationContext::new()),
+            validator: Validator::new(crate::query::validator::ValidationContext::new()),
             _planner: Box::new(crate::query::planner::SequentialPlanner::new()),
             _optimizer: Optimizer::default(),
             executor_factory,

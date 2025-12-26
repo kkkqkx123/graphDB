@@ -6,7 +6,8 @@ use crate::core::{
 };
 use crate::core::Value;
 use crate::core::visitor::VisitorConfig;
-use crate::core::visitor::{Visitor, VisitorState};
+use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
+use crate::query::parser::ast::expr::*;
 use std::collections::{HashMap, HashSet};
 
 /// 属性定义
@@ -219,6 +220,8 @@ pub struct DeducePropsVisitor {
     error: Option<String>,
     /// 访问者配置
     config: VisitorConfig,
+    /// 访问者状态
+    state: ExpressionVisitorState,
 }
 
 impl DeducePropsVisitor {
@@ -231,6 +234,7 @@ impl DeducePropsVisitor {
             user_defined_vars: HashSet::new(),
             error: None,
             config: VisitorConfig::new(),
+            state: ExpressionVisitorState::new(),
         }
     }
 
@@ -243,6 +247,7 @@ impl DeducePropsVisitor {
             user_defined_vars: HashSet::new(),
             error: None,
             config,
+            state: ExpressionVisitorState::new(),
         }
     }
 
@@ -255,12 +260,13 @@ impl DeducePropsVisitor {
             user_defined_vars,
             error: None,
             config: VisitorConfig::new(),
+            state: ExpressionVisitorState::new(),
         }
     }
 
     /// 执行属性推导
     pub fn deduce(&mut self, expr: &Expression) -> Result<(), String> {
-        self.visit(expr)
+        self.visit_expression(expr)
     }
 
     /// 获取推导出的表达式属性
@@ -320,80 +326,335 @@ impl Default for DeducePropsVisitor {
     }
 }
 
-
-impl<'a> Visitor<Expression> for DeducePropsVisitor {
+impl ExpressionVisitor for DeducePropsVisitor {
     type Result = Result<(), String>;
 
-    fn visit(&mut self, target: &Expression) -> <Self as Visitor<Expression>>::Result {
-        // 避免递归调用，直接调用内部方法
-        match target {
-            Expression::Literal(value) => self.visit_literal(value),
-            Expression::Variable(name) => self.visit_variable(name),
-            Expression::Property {
-                object,
-                property,
-            } => self.visit_property(object, property),
-            Expression::Binary { left, op, right } => self.visit_binary(left, op, right),
-            Expression::Unary { op, operand } => self.visit_unary(op, operand),
-            Expression::Function { name, args } => self.visit_function(name, args),
-            Expression::Aggregate { func, arg, distinct } => {
-                self.visit_aggregate(func, arg, *distinct)
-            }
-            Expression::List(items) => self.visit_list(items),
-            Expression::Map(pairs) => self.visit_map(pairs),
-            Expression::Case { conditions, default } => self.visit_case(conditions, default),
-            Expression::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
-            Expression::Subscript { collection, index } => self.visit_subscript(collection, index),
-            Expression::Range { collection, start, end } => self.visit_range(collection, start, end),
-            Expression::Path(items) => self.visit_path(items),
-            Expression::Label(name) => self.visit_label(name),
-            Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
-            Expression::EdgeProperty { edge, prop } => self.visit_edge_property(edge, prop),
-            Expression::InputProperty(prop) => self.visit_input_property(prop),
-            Expression::VariableProperty { var, prop } => self.visit_variable_property(var, prop),
-            Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
-            Expression::DestinationProperty { tag, prop } => {
-                self.visit_destination_property(tag, prop)
-            }
-            Expression::UnaryPlus(expr) => self.visit_unary_plus(expr),
-            Expression::UnaryNegate(expr) => self.visit_unary_negate(expr),
-            Expression::UnaryNot(expr) => self.visit_unary_not(expr),
-            Expression::UnaryIncr(expr) => self.visit_unary_incr(expr),
-            Expression::UnaryDecr(expr) => self.visit_unary_decr(expr),
-            Expression::IsNull(expr) => self.visit_is_null(expr),
-            Expression::IsNotNull(expr) => self.visit_is_not_null(expr),
-            Expression::IsEmpty(expr) => self.visit_is_empty(expr),
-            Expression::IsNotEmpty(expr) => self.visit_is_not_empty(expr),
-            Expression::TypeCasting { expr, target_type } => {
-                self.visit_type_casting(expr, target_type)
-            }
-            Expression::ListComprehension { generator, condition } => {
-                self.visit_list_comprehension(generator, condition)
-            }
-            Expression::Predicate { list, condition } => self.visit_predicate(list, condition),
-            Expression::Reduce { list, var, initial, expr } => {
-                self.visit_reduce(list, var, initial, expr)
-            }
-            Expression::PathBuild(items) => self.visit_path_build(items),
-            Expression::ESQuery(query) => self.visit_es_query(query),
-            Expression::UUID => self.visit_uuid(),
-            Expression::SubscriptRange { collection, start, end } => {
-                self.visit_subscript_range(collection, start, end)
-            }
-            Expression::MatchPathPattern { path_alias, patterns } => {
-                self.visit_match_path_pattern(path_alias, patterns)
-            }
+    fn visit_literal(&mut self, _value: &Value) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_variable(&mut self, name: &str) -> Self::Result {
+        self.props.insert_input_prop(name);
+        Ok(())
+    }
+
+    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
+        self.visit_expression(object)?;
+        self.props.insert_input_prop(property);
+        Ok(())
+    }
+
+    fn visit_binary(
+        &mut self,
+        left: &Expression,
+        _op: &BinaryOperator,
+        right: &Expression,
+    ) -> Self::Result {
+        self.visit_expression(left)?;
+        self.visit_expression(right)?;
+        Ok(())
+    }
+
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
+        self.visit_expression(operand)
+    }
+
+    fn visit_function(&mut self, _name: &str, args: &[Expression]) -> Self::Result {
+        for arg in args {
+            self.visit_expression(arg)?;
         }
+        Ok(())
     }
 
-    fn state(&self) -> &VisitorState {
-        static EMPTY_STATE: VisitorState = VisitorState::new();
-        &EMPTY_STATE
+    fn visit_aggregate(
+        &mut self,
+        _func: &AggregateFunction,
+        arg: &Expression,
+        _distinct: bool,
+    ) -> Self::Result {
+        self.visit_expression(arg)
     }
 
-    fn state_mut(&mut self) -> &mut VisitorState {
-        static mut MUTABLE_STATE: VisitorState = VisitorState::new();
-        unsafe { &mut MUTABLE_STATE }
+    fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            self.visit_expression(item)?;
+        }
+        Ok(())
+    }
+
+    fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
+        for (_, expr) in pairs {
+            self.visit_expression(expr)?;
+        }
+        Ok(())
+    }
+
+    fn visit_case(
+        &mut self,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        for (cond, expr) in conditions {
+            self.visit_expression(cond)?;
+            self.visit_expression(expr)?;
+        }
+        if let Some(default_expr) = default {
+            self.visit_expression(default_expr)?;
+        }
+        Ok(())
+    }
+
+    fn visit_type_cast(&mut self, expr: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
+        self.visit_expression(collection)?;
+        self.visit_expression(index)?;
+        Ok(())
+    }
+
+    fn visit_range(
+        &mut self,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        self.visit_expression(collection)?;
+        if let Some(start_expr) = start {
+            self.visit_expression(start_expr)?;
+        }
+        if let Some(end_expr) = end {
+            self.visit_expression(end_expr)?;
+        }
+        Ok(())
+    }
+
+    fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            self.visit_expression(item)?;
+        }
+        Ok(())
+    }
+
+    fn visit_label(&mut self, _name: &str) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_tag_property(&mut self, tag: &str, prop: &str) -> Self::Result {
+        self.props.insert_tag_prop(tag, prop);
+        Ok(())
+    }
+
+    fn visit_edge_property(&mut self, edge: &str, prop: &str) -> Self::Result {
+        self.props.insert_edge_prop(edge, prop);
+        Ok(())
+    }
+
+    fn visit_input_property(&mut self, prop: &str) -> Self::Result {
+        self.props.insert_input_prop(prop);
+        Ok(())
+    }
+
+    fn visit_variable_property(&mut self, var: &str, prop: &str) -> Self::Result {
+        self.props.insert_var_prop(var, prop);
+        Ok(())
+    }
+
+    fn visit_source_property(&mut self, tag: &str, prop: &str) -> Self::Result {
+        self.props.insert_src_tag_prop(tag, prop);
+        Ok(())
+    }
+
+    fn visit_destination_property(&mut self, tag: &str, prop: &str) -> Self::Result {
+        self.props.insert_dst_tag_prop(tag, prop);
+        Ok(())
+    }
+
+    fn visit_unary_plus(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_unary_negate(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_unary_not(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_unary_incr(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_unary_decr(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_is_null(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_is_not_null(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_is_empty(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_is_not_empty(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_type_casting(&mut self, expr: &Expression, _target_type: &str) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_list_comprehension(
+        &mut self,
+        generator: &Expression,
+        condition: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        self.visit_expression(generator)?;
+        if let Some(cond) = condition {
+            self.visit_expression(cond)?;
+        }
+        Ok(())
+    }
+
+    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Self::Result {
+        self.visit_expression(list)?;
+        self.visit_expression(condition)?;
+        Ok(())
+    }
+
+    fn visit_reduce(
+        &mut self,
+        list: &Expression,
+        _var: &str,
+        initial: &Expression,
+        expr: &Expression,
+    ) -> Self::Result {
+        self.visit_expression(list)?;
+        self.visit_expression(initial)?;
+        self.visit_expression(expr)?;
+        Ok(())
+    }
+
+    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            self.visit_expression(item)?;
+        }
+        Ok(())
+    }
+
+    fn visit_es_query(&mut self, _query: &str) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_uuid(&mut self) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_subscript_range(
+        &mut self,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        self.visit_expression(collection)?;
+        if let Some(start_expr) = start {
+            self.visit_expression(start_expr)?;
+        }
+        if let Some(end_expr) = end {
+            self.visit_expression(end_expr)?;
+        }
+        Ok(())
+    }
+
+    fn visit_match_path_pattern(&mut self, _path_alias: &str, patterns: &[Expression]) -> Self::Result {
+        for pattern in patterns {
+            self.visit_expression(pattern)?;
+        }
+        Ok(())
+    }
+
+    fn visit_constant_expr(&mut self, _expr: &ConstantExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_variable_expr(&mut self, expr: &VariableExpr) -> Self::Result {
+        self.props.insert_input_prop(&expr.name);
+        Ok(())
+    }
+
+    fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> Self::Result {
+        self.visit_expr(&expr.left)?;
+        self.visit_expr(&expr.right)?;
+        Ok(())
+    }
+
+    fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> Self::Result {
+        self.visit_expr(&expr.operand)
+    }
+
+    fn visit_function_call_expr(&mut self, expr: &FunctionCallExpr) -> Self::Result {
+        for arg in &expr.args {
+            self.visit_expr(arg)?;
+        }
+        Ok(())
+    }
+
+    fn visit_property_access_expr(&mut self, expr: &PropertyAccessExpr) -> Self::Result {
+        self.visit_expr(&expr.object)?;
+        self.props.insert_input_prop(&expr.property);
+        Ok(())
+    }
+
+    fn visit_list_expr(&mut self, expr: &ListExpr) -> Self::Result {
+        for item in &expr.elements {
+            self.visit_expr(item)?;
+        }
+        Ok(())
+    }
+
+    fn visit_map_expr(&mut self, expr: &MapExpr) -> Self::Result {
+        for (_, value) in &expr.pairs {
+            self.visit_expr(value)?;
+        }
+        Ok(())
+    }
+
+    fn visit_case_expr(&mut self, expr: &CaseExpr) -> Self::Result {
+        for (cond, val) in &expr.when_then_pairs {
+            self.visit_expr(cond)?;
+            self.visit_expr(val)?;
+        }
+        if let Some(default_val) = &expr.default {
+            self.visit_expr(default_val)?;
+        }
+        Ok(())
+    }
+
+    fn visit_subscript_expr(&mut self, expr: &SubscriptExpr) -> Self::Result {
+        self.visit_expr(&expr.collection)?;
+        self.visit_expr(&expr.index)?;
+        Ok(())
+    }
+
+    fn visit_predicate_expr(&mut self, expr: &PredicateExpr) -> Self::Result {
+        self.visit_expr(&expr.list)?;
+        self.visit_expr(&expr.condition)?;
+        Ok(())
+    }
+
+    fn state(&self) -> &ExpressionVisitorState {
+        &self.state
+    }
+
+    fn state_mut(&mut self) -> &mut ExpressionVisitorState {
+        &mut self.state
     }
 }
 

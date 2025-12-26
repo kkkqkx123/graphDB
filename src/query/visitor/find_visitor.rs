@@ -12,6 +12,8 @@ pub struct FindVisitor {
     target_types: HashSet<ExpressionType>,
     /// 找到的表达式列表
     found_exprs: Vec<Expression>,
+    /// 访问者状态
+    state: VisitorState,
 }
 
 impl FindVisitor {
@@ -19,6 +21,7 @@ impl FindVisitor {
         Self {
             target_types: HashSet::new(),
             found_exprs: Vec::new(),
+            state: VisitorState::new(),
         }
     }
 
@@ -144,7 +147,7 @@ impl Visitor<Expression> for FindVisitor {
             Expression::Property { object, property } => {
                 if self.target_types.contains(&ExpressionType::Property) {
                     self.found_exprs.push(Expression::Property {
-                        object: Box::new(object.clone()),
+                        object: object.clone(),
                         property: property.to_string(),
                     });
                 }
@@ -153,9 +156,9 @@ impl Visitor<Expression> for FindVisitor {
             Expression::Binary { left, op, right } => {
                 if self.target_types.contains(&ExpressionType::Binary) {
                     self.found_exprs.push(Expression::Binary {
-                        left: Box::new(left.clone()),
+                        left: left.clone(),
                         op: op.clone(),
-                        right: Box::new(right.clone()),
+                        right: right.clone(),
                     });
                 }
                 self.visit(left);
@@ -165,7 +168,7 @@ impl Visitor<Expression> for FindVisitor {
                 if self.target_types.contains(&ExpressionType::Unary) {
                     self.found_exprs.push(Expression::Unary {
                         op: op.clone(),
-                        operand: Box::new(operand.clone()),
+                        operand: operand.clone(),
                     });
                 }
                 self.visit(operand);
@@ -185,7 +188,7 @@ impl Visitor<Expression> for FindVisitor {
                 if self.target_types.contains(&ExpressionType::Aggregate) {
                     self.found_exprs.push(Expression::Aggregate {
                         func: func.clone(),
-                        arg: Box::new(arg.clone()),
+                        arg: arg.clone(),
                         distinct: *distinct,
                     });
                 }
@@ -211,7 +214,7 @@ impl Visitor<Expression> for FindVisitor {
                 if self.target_types.contains(&ExpressionType::Case) {
                     self.found_exprs.push(Expression::Case {
                         conditions: conditions.to_vec(),
-                        default: default.as_ref().map(|e| Box::new(e.as_ref().clone())),
+                        default: default.as_ref().map(|e| e.clone()),
                     });
                 }
                 for (condition, value) in conditions {
@@ -225,7 +228,7 @@ impl Visitor<Expression> for FindVisitor {
             Expression::TypeCast { expr, target_type } => {
                 if self.target_types.contains(&ExpressionType::TypeCast) {
                     self.found_exprs.push(Expression::TypeCast {
-                        expr: Box::new(expr.clone()),
+                        expr: expr.clone(),
                         target_type: target_type.clone(),
                     });
                 }
@@ -234,8 +237,8 @@ impl Visitor<Expression> for FindVisitor {
             Expression::Subscript { collection, index } => {
                 if self.target_types.contains(&ExpressionType::Subscript) {
                     self.found_exprs.push(Expression::Subscript {
-                        collection: Box::new(collection.clone()),
-                        index: Box::new(index.clone()),
+                        collection: collection.clone(),
+                        index: index.clone(),
                     });
                 }
                 self.visit(collection);
@@ -244,9 +247,9 @@ impl Visitor<Expression> for FindVisitor {
             Expression::Range { collection, start, end } => {
                 if self.target_types.contains(&ExpressionType::Range) {
                     self.found_exprs.push(Expression::Range {
-                        collection: Box::new(collection.clone()),
-                        start: start.as_ref().map(|e| Box::new(e.as_ref().clone())),
-                        end: end.as_ref().map(|e| Box::new(e.as_ref().clone())),
+                        collection: collection.clone(),
+                        start: start.as_ref().map(|e| e.clone()),
+                        end: end.as_ref().map(|e| e.clone()),
                     });
                 }
                 self.visit(collection);
@@ -317,62 +320,62 @@ impl Visitor<Expression> for FindVisitor {
             }
             Expression::UnaryPlus(expr) => {
                 if self.target_types.contains(&ExpressionType::Unary) {
-                    self.found_exprs.push(Expression::UnaryPlus(Box::new(expr.clone())));
+                    self.found_exprs.push(Expression::UnaryPlus(expr.clone()));
                 }
                 self.visit(expr);
             }
             Expression::UnaryNegate(expr) => {
                 if self.target_types.contains(&ExpressionType::Unary) {
-                    self.found_exprs.push(Expression::UnaryNegate(Box::new(expr.clone())));
+                    self.found_exprs.push(Expression::UnaryNegate(expr.clone()));
                 }
                 self.visit(expr);
             }
             Expression::UnaryNot(expr) => {
                 if self.target_types.contains(&ExpressionType::Unary) {
-                    self.found_exprs.push(Expression::UnaryNot(Box::new(expr.clone())));
+                    self.found_exprs.push(Expression::UnaryNot(expr.clone()));
                 }
                 self.visit(expr);
             }
             Expression::UnaryIncr(expr) => {
                 if self.target_types.contains(&ExpressionType::Unary) {
-                    self.found_exprs.push(Expression::UnaryIncr(Box::new(expr.clone())));
+                    self.found_exprs.push(Expression::UnaryIncr(expr.clone()));
                 }
                 self.visit(expr);
             }
             Expression::UnaryDecr(expr) => {
                 if self.target_types.contains(&ExpressionType::Unary) {
-                    self.found_exprs.push(Expression::UnaryDecr(Box::new(expr.clone())));
+                    self.found_exprs.push(Expression::UnaryDecr(expr.clone()));
                 }
                 self.visit(expr);
             }
             Expression::IsNull(expr) => {
                 if self.target_types.contains(&ExpressionType::Unary) {
-                    self.found_exprs.push(Expression::IsNull(Box::new(expr.clone())));
+                    self.found_exprs.push(Expression::IsNull(expr.clone()));
                 }
                 self.visit(expr);
             }
             Expression::IsNotNull(expr) => {
                 if self.target_types.contains(&ExpressionType::Unary) {
-                    self.found_exprs.push(Expression::IsNotNull(Box::new(expr.clone())));
+                    self.found_exprs.push(Expression::IsNotNull(expr.clone()));
                 }
                 self.visit(expr);
             }
             Expression::IsEmpty(expr) => {
                 if self.target_types.contains(&ExpressionType::Unary) {
-                    self.found_exprs.push(Expression::IsEmpty(Box::new(expr.clone())));
+                    self.found_exprs.push(Expression::IsEmpty(expr.clone()));
                 }
                 self.visit(expr);
             }
             Expression::IsNotEmpty(expr) => {
                 if self.target_types.contains(&ExpressionType::Unary) {
-                    self.found_exprs.push(Expression::IsNotEmpty(Box::new(expr.clone())));
+                    self.found_exprs.push(Expression::IsNotEmpty(expr.clone()));
                 }
                 self.visit(expr);
             }
             Expression::TypeCasting { expr, target_type } => {
                 if self.target_types.contains(&ExpressionType::TypeCast) {
                     self.found_exprs.push(Expression::TypeCasting {
-                        expr: Box::new(expr.clone()),
+                        expr: expr.clone(),
                         target_type: target_type.to_string(),
                     });
                 }
@@ -381,7 +384,7 @@ impl Visitor<Expression> for FindVisitor {
             Expression::ListComprehension { generator, condition } => {
                 if self.target_types.contains(&ExpressionType::List) {
                     self.found_exprs.push(Expression::ListComprehension {
-                        generator: Box::new(generator.clone()),
+                        generator: generator.clone(),
                         condition: condition.clone(),
                     });
                 }
@@ -393,8 +396,8 @@ impl Visitor<Expression> for FindVisitor {
             Expression::Predicate { list, condition } => {
                 if self.target_types.contains(&ExpressionType::Property) {
                     self.found_exprs.push(Expression::Predicate {
-                        list: Box::new(list.clone()),
-                        condition: Box::new(condition.clone()),
+                        list: list.clone(),
+                        condition: condition.clone(),
                     });
                 }
                 self.visit(list);
@@ -403,10 +406,10 @@ impl Visitor<Expression> for FindVisitor {
             Expression::Reduce { list, var, initial, expr } => {
                 if self.target_types.contains(&ExpressionType::Aggregate) {
                     self.found_exprs.push(Expression::Reduce {
-                        list: Box::new(list.clone()),
+                        list: list.clone(),
                         var: var.to_string(),
-                        initial: Box::new(initial.clone()),
-                        expr: Box::new(expr.clone()),
+                        initial: initial.clone(),
+                        expr: expr.clone(),
                     });
                 }
                 self.visit(list);
@@ -434,9 +437,9 @@ impl Visitor<Expression> for FindVisitor {
             Expression::SubscriptRange { collection, start, end } => {
                 if self.target_types.contains(&ExpressionType::Subscript) {
                     self.found_exprs.push(Expression::SubscriptRange {
-                        collection: Box::new(collection.clone()),
-                        start: start.as_ref().map(|e| Box::new(e.as_ref().clone())),
-                        end: end.as_ref().map(|e| Box::new(e.as_ref().clone())),
+                        collection: collection.clone(),
+                        start: start.as_ref().map(|e| e.clone()),
+                        end: end.as_ref().map(|e| e.clone()),
                     });
                 }
                 self.visit(collection);
@@ -462,12 +465,10 @@ impl Visitor<Expression> for FindVisitor {
     }
 
     fn state(&self) -> &VisitorState {
-        static EMPTY_STATE: VisitorState = VisitorState::new();
-        &EMPTY_STATE
+        &self.state
     }
 
     fn state_mut(&mut self) -> &mut VisitorState {
-        static mut MUTABLE_STATE: VisitorState = VisitorState::new();
-        unsafe { &mut MUTABLE_STATE }
+        &mut self.state
     }
 }

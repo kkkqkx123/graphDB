@@ -3,8 +3,9 @@
 //! 提供查询执行过程中的执行上下文管理
 
 use super::base::{ContextBase, ContextType, MutableContext};
-use crate::core::context::query::QueryContext;
-use crate::core::{Context, Value};
+use super::query::QueryContext;
+use super::traits::Context;
+use crate::core::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

@@ -3,7 +3,7 @@
 //! 提供会话级别的上下文管理
 
 use super::base::{ContextBase, ContextType, MutableContext};
-use crate::core::context::{Context, ContextExt};
+use super::traits::{Context, ContextExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};

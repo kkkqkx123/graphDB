@@ -13,6 +13,8 @@ pub struct EvaluableExprVisitor {
     evaluable: bool,
     /// 错误信息
     error: Option<String>,
+    /// 访问者状态
+    state: VisitorState,
 }
 
 impl EvaluableExprVisitor {
@@ -20,6 +22,7 @@ impl EvaluableExprVisitor {
         Self {
             evaluable: true,
             error: None,
+            state: VisitorState::new(),
         }
     }
 
@@ -374,12 +377,10 @@ impl<'a> Visitor<Expression> for EvaluableExprVisitor {
     }
 
     fn state(&self) -> &VisitorState {
-        static EMPTY_STATE: VisitorState = VisitorState::new();
-        &EMPTY_STATE
+        &self.state
     }
 
     fn state_mut(&mut self) -> &mut VisitorState {
-        static mut MUTABLE_STATE: VisitorState = VisitorState::new();
-        unsafe { &mut MUTABLE_STATE }
+        &mut self.state
     }
 }
