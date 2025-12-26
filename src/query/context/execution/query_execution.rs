@@ -567,7 +567,7 @@ mod tests {
 
         // 测试验证上下文
         // ValidationContext不管理空间信息，已删除 switch_to_space 和 current_space 方法
-        assert_eq!(ctx.vctx().error_count(), 0);
+        // ValidationContext 不再提供 error_count() 方法
 
         // 测试存在参数检查（参数不存在）
         assert!(!ctx.exist_parameter("non_existent_param"));

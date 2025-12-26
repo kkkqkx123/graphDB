@@ -540,8 +540,8 @@ mod tests {
             storage,
             "left".to_string(),
             "right".to_string(),
-            vec!["0".to_string()],
-            vec!["0".to_string()],
+            vec![Expression::Variable("0".to_string())],
+            vec![Expression::Variable("0".to_string())],
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
         );
 

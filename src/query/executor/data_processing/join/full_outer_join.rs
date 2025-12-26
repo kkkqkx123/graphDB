@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{DataSet, Value};
+use crate::core::{DataSet, Expression, Value};
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor, hash_table::JoinKey,
 };
@@ -20,7 +20,7 @@ pub struct FullOuterJoinExecutor<S: StorageEngine + Send + 'static> {
 
 impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         left_var: String,
         right_var: String,
@@ -28,14 +28,16 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
         right_keys: Vec<String>,
         output_columns: Vec<String>,
     ) -> Self {
+        let hash_keys: Vec<Expression> = left_keys.into_iter().map(Expression::Variable).collect();
+        let probe_keys: Vec<Expression> = right_keys.into_iter().map(Expression::Variable).collect();
         Self {
             base: BaseJoinExecutor::with_description(
-                id as i64,
+                id,
                 storage,
                 left_var,
                 right_var,
-                left_keys,
-                right_keys,
+                hash_keys,
+                probe_keys,
                 output_columns,
                 "Full outer join executor - performs full outer join".to_string(),
             ),

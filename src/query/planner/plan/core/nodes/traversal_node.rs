@@ -5,6 +5,7 @@
 use super::super::common::{EdgeProp, TagProp};
 use crate::core::Value;
 use crate::query::context::validate::types::Variable;
+use crate::query::executor::base::EdgeDirection;
 
 /// 扩展节点
 #[derive(Debug)]
@@ -13,7 +14,7 @@ pub struct ExpandNode {
     
     space_id: i32,
     edge_types: Vec<String>,
-    direction: String,
+    direction: EdgeDirection,
     step_limit: Option<u32>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
@@ -28,23 +29,23 @@ impl Clone for ExpandNode {
             id: self.id,
             space_id: self.space_id,
             edge_types: self.edge_types.clone(),
-            direction: self.direction.clone(),
+            direction: self.direction,
             step_limit: self.step_limit,
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
+            dependencies: Vec::new(),
         }
     }
 }
 
 impl ExpandNode {
-    pub fn new(space_id: i32, edge_types: Vec<String>, direction: &str) -> Self {
+    pub fn new(space_id: i32, edge_types: Vec<String>, direction: EdgeDirection) -> Self {
         Self {
             id: -1,
             space_id,
             edge_types,
-            direction: direction.to_string(),
+            direction,
             step_limit: None,
             output_var: None,
             col_names: Vec::new(),
@@ -56,8 +57,8 @@ impl ExpandNode {
 
 impl ExpandNode {
     /// 获取方向
-    pub fn direction(&self) -> &str {
-        &self.direction
+    pub fn direction(&self) -> EdgeDirection {
+        self.direction
     }
 
     /// 获取边类型
@@ -795,10 +796,10 @@ mod tests {
     #[test]
     fn test_expand_node_creation() {
         let edge_types = vec!["edge1".to_string(), "edge2".to_string()];
-        let node = ExpandNode::new(1, edge_types, "OUT");
+        let node = ExpandNode::new(1, edge_types, EdgeDirection::Out);
         assert_eq!(node.type_name(), "Expand");
         assert_eq!(node.space_id, 1);
-        assert_eq!(node.direction, "OUT");
+        assert_eq!(node.direction, EdgeDirection::Out);
         assert_eq!(node.edge_types.len(), 2);
     }
 

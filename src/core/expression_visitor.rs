@@ -483,16 +483,19 @@ pub trait ExpressionDepthFirstVisitor: ExpressionVisitor {
 
     /// 带深度控制的访问
     fn visit_with_depth(&mut self, expr: &Expression) -> VisitorResult<Self::Result> {
-        let state = self.state_mut();
-        state.increment_depth();
+        {
+            let state = self.state_mut();
+            state.increment_depth();
 
-        if state.exceeds_max_depth() {
-            state.decrement_depth();
-            return Err(VisitorError::MaxDepthExceeded);
+            if state.exceeds_max_depth() {
+                state.decrement_depth();
+                return Err(VisitorError::MaxDepthExceeded);
+            }
         }
 
         let result = Ok(self.visit_expression(expr));
 
+        let state = self.state_mut();
         state.decrement_depth();
         result
     }
@@ -638,8 +641,8 @@ impl ExprAcceptor for Expr {
 /// 表达式访问者辅助trait - 提供额外的实用方法
 pub trait ExpressionVisitorExt: ExpressionVisitor {
     /// 检查表达式是否包含特定类型
-    fn contains_expression_type(&mut self, expr: &Expression, expr_type: ExpressionType) -> bool {
-        if expr.expression_type() == expr_type {
+    fn contains_expression_type(&mut self, expr: &Expression, expr_type: &ExpressionType) -> bool {
+        if &expr.expression_type() == expr_type {
             return true;
         }
 

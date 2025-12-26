@@ -15,6 +15,7 @@ use super::sort_node::{LimitNode, SortNode};
 use super::start_node::StartNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
 use crate::core::Value;
+use crate::query::executor::base::EdgeDirection;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::parser::expressions::convert_ast_to_graph_expression;
 use crate::query::planner::plan::PlanNodeEnum;
@@ -184,7 +185,7 @@ impl PlanNodeFactory {
     pub fn create_expand(
         space_id: i32,
         edge_types: Vec<String>,
-        direction: &str,
+        direction: EdgeDirection,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         Ok(PlanNodeEnum::Expand(ExpandNode::new(
             space_id, edge_types, direction,

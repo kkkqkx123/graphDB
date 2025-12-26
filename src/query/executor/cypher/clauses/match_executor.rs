@@ -193,7 +193,7 @@ impl<S: StorageEngine> MatchClauseExecutor<S> {
     }
 
     /// 获取执行器ID
-    pub fn id(&self) -> usize {
+    pub fn id(&self) -> i64 {
         self.id
     }
 

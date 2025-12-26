@@ -6,7 +6,7 @@
 use crate::core::error::QueryError;
 use crate::query::executor::traits::Executor;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::{PlanNode, JoinNode};
+use crate::query::planner::plan::core::nodes::plan_node_traits::{PlanNode, JoinNode, BinaryInputNode};
 
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
@@ -220,23 +220,23 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
 
             // 数据处理执行器
             PlanNodeEnum::InnerJoin(node) => {
-                self.create_inner_join_executor(node.as_ref(), storage)
+                self.create_inner_join_executor(&node, storage)
             }
             PlanNodeEnum::HashInnerJoin(node) => {
-                self.create_inner_join_executor(node.as_ref(), storage)
+                self.create_inner_join_executor(&node, storage)
             }
             PlanNodeEnum::LeftJoin(node) => {
-                self.create_left_join_executor(node.as_ref(), storage)
+                self.create_left_join_executor(&node, storage)
             }
             PlanNodeEnum::HashLeftJoin(node) => {
-                self.create_left_join_executor(node.as_ref(), storage)
+                self.create_left_join_executor(&node, storage)
             }
             PlanNodeEnum::CrossJoin(node) | PlanNodeEnum::CartesianProduct(node) => {
                 let left_var = node.left_input().output_var()
-                    .map(|v| v.name().to_string())
+                    .map(|v| v.name.to_string())
                     .unwrap_or_else(|| format!("left_{}", node.id()));
                 let right_var = node.right_input().output_var()
-                    .map(|v| v.name().to_string())
+                    .map(|v| v.name.to_string())
                     .unwrap_or_else(|| format!("right_{}", node.id()));
                 let executor = CrossJoinExecutor::new(
                     node.id(),
@@ -252,36 +252,40 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
                 let executor = ExpandExecutor::new(
                     node.id(),
                     storage,
-                    node.direction().to_string(),
-                    node.edge_types().to_vec(),
-                    node.step_limit(),
+                    node.direction(),
+                    if node.edge_types().is_empty() {
+                        None
+                    } else {
+                        Some(node.edge_types().to_vec())
+                    },
+                    node.step_limit().and_then(|s| usize::try_from(s).ok()),
                 );
                 Ok(Box::new(executor))
             }
             
             // 数据转换执行器
             PlanNodeEnum::Unwind(node) => {
-                let unwind_expr = crate::query::parser::expressions::parse_expression_from_string(&node.list_expr)
+                let unwind_expr = crate::query::parser::expressions::parse_expression_from_string(node.list_expr())
                     .map_err(|e| QueryError::ExecutionError(format!("解析表达式失败: {}", e)))?;
                 let executor = UnwindExecutor::new(
                     node.id(),
                     storage,
-                    node.alias.clone(),
+                    node.alias().to_string(),
                     unwind_expr,
-                    node.col_names.clone(),
+                    node.col_names().to_vec(),
                     false,
                 );
                 Ok(Box::new(executor))
             }
             PlanNodeEnum::Assign(node) => {
                 let mut parsed_assignments = Vec::new();
-                for (var_name, expr_str) in &node.assignments {
+                for (var_name, expr_str) in node.assignments() {
                     let expr = crate::query::parser::expressions::parse_expression_from_string(expr_str)
                         .map_err(|e| QueryError::ExecutionError(format!("解析表达式失败: {}", e)))?;
                     parsed_assignments.push((var_name.clone(), expr));
                 }
                 let executor = AssignExecutor::new(
-                    node.id,
+                    node.id(),
                     storage,
                     parsed_assignments,
                 );
@@ -469,8 +473,9 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage));
         let plan_node =
             PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
+        let context = ExecutionContext::new();
 
-        let result = factory.create_executor(&plan_node, storage);
+        let result = factory.create_executor(&plan_node, storage, &context);
         match result {
             Err(e) => assert!(e.to_string().contains("尚未实现")),
             Ok(_) => panic!("Expected error but got Ok"),

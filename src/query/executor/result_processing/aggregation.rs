@@ -569,7 +569,7 @@ pub struct GroupByExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> GroupByExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         aggregate_functions: Vec<AggregateFunctionSpec>,
         group_keys: Vec<Expression>,

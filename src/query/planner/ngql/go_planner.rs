@@ -8,6 +8,7 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::executor::base::EdgeDirection;
 
 /// GO查询规划器
 /// 负责将GO语句转换为执行计划
@@ -55,7 +56,8 @@ impl Planner for GoPlanner {
             edge_types = edge_types.iter().map(|et| format!("-{}", et)).collect();
         }
 
-        let expand_node = ExpandNode::new(1, edge_types.clone(), "out");
+        let expand_direction = EdgeDirection::Out;
+        let expand_node = ExpandNode::new(1, edge_types.clone(), expand_direction);
 
         let direction = if go_ctx.over.direction == "both" {
             "both"

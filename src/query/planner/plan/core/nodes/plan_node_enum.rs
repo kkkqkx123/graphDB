@@ -734,6 +734,14 @@ impl PlanNodeEnum {
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
+            PlanNodeEnum::Assign(node) => {
+                let mut desc = PlanNodeDescription::new("Assign", node.id());
+                if let Some(var) = node.output_var() {
+                    desc = desc.with_output_var(var.name.clone());
+                }
+                desc.add_description("cost", format!("{:.2}", node.cost()));
+                desc
+            }
         }
     }
 }

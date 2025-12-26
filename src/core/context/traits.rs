@@ -184,11 +184,6 @@ pub trait ContextValidation: Context {
             (false, vec!["上下文无效".to_string()])
         }
     }
-
-    /// 检查上下文是否满足特定条件
-    fn check_condition(&self, condition: &dyn Fn(&dyn Context) -> bool) -> bool {
-        condition(self)
-    }
 }
 
 /// 为所有实现了Context的类型自动实现ContextValidation

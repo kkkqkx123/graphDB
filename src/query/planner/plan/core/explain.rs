@@ -334,6 +334,10 @@ impl PlanNodeVisitor for DescribeVisitor {
         self.create_description("Unwind", node);
     }
 
+    fn visit_assign(&mut self, node: &AssignNode) {
+        self.create_description("Assign", node);
+    }
+
     fn visit_index_scan(&mut self, node: &IndexScan) {
         self.create_description("IndexScan", node);
     }

@@ -163,7 +163,7 @@ pub trait ChainableExecutor<S: StorageEngine + Send + 'static>:
 }
 
 // Edge direction enum for neighbor queries
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EdgeDirection {
     In,
     Out,

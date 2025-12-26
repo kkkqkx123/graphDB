@@ -7,6 +7,8 @@
 //!
 //! 基于nebula-graph的join实现，使用哈希连接算法优化性能
 
+use crate::core::Expression;
+
 pub mod base_join;
 pub mod cross_join;
 pub mod full_outer_join;
@@ -142,21 +144,24 @@ pub struct JoinExecutorFactory;
 impl JoinExecutorFactory {
     /// 根据配置创建相应的join执行器
     pub fn create_executor<S: crate::storage::StorageEngine + Send + 'static>(
-        id: usize,
+        id: i64,
         storage: std::sync::Arc<std::sync::Mutex<S>>,
         config: JoinConfig,
     ) -> Result<Box<dyn crate::query::executor::traits::Executor<S>>, crate::query::QueryError>
     {
         match config.join_type {
             JoinType::Inner => {
+                let hash_keys: Vec<Expression> = config.left_keys.into_iter().map(Expression::Variable).collect();
+                let probe_keys: Vec<Expression> = config.right_keys.into_iter().map(Expression::Variable).collect();
+                
                 if config.enable_parallel {
                     Ok(Box::new(HashInnerJoinExecutor::new(
                         id,
                         storage,
                         config.left_var,
                         config.right_var,
-                        config.left_keys,
-                        config.right_keys,
+                        hash_keys,
+                        probe_keys,
                         config.output_columns,
                     )))
                 } else {
@@ -165,21 +170,24 @@ impl JoinExecutorFactory {
                         storage,
                         config.left_var,
                         config.right_var,
-                        config.left_keys,
-                        config.right_keys,
+                        hash_keys,
+                        probe_keys,
                         config.output_columns,
                     )))
                 }
             }
             JoinType::Left => {
+                let hash_keys: Vec<Expression> = config.left_keys.into_iter().map(Expression::Variable).collect();
+                let probe_keys: Vec<Expression> = config.right_keys.into_iter().map(Expression::Variable).collect();
+                
                 if config.enable_parallel {
                     Ok(Box::new(HashLeftJoinExecutor::new(
                         id,
                         storage,
                         config.left_var,
                         config.right_var,
-                        config.left_keys,
-                        config.right_keys,
+                        hash_keys,
+                        probe_keys,
                         config.output_columns,
                     )))
                 } else {
@@ -188,14 +196,13 @@ impl JoinExecutorFactory {
                         storage,
                         config.left_var,
                         config.right_var,
-                        config.left_keys,
-                        config.right_keys,
+                        hash_keys,
+                        probe_keys,
                         config.output_columns,
                     )))
                 }
             }
             JoinType::Right => {
-                // 右外连接
                 Ok(Box::new(RightJoinExecutor::new(
                     id,
                     storage,
@@ -207,7 +214,6 @@ impl JoinExecutorFactory {
                 )))
             }
             JoinType::Full => {
-                // 全外连接
                 Ok(Box::new(FullOuterJoinExecutor::new(
                     id,
                     storage,
@@ -219,20 +225,10 @@ impl JoinExecutorFactory {
                 )))
             }
             JoinType::Cross => {
-                // 笛卡尔积需要特殊处理，因为可能有多个输入
-                let input_vars = if config.left_var.is_empty() && config.right_var.is_empty() {
-                    // 从配置中无法获取，需要外部提供
-                    return Err(crate::query::QueryError::ExecutionError(
-                        "笛卡尔积需要提供输入变量列表".to_string(),
-                    ));
-                } else {
-                    vec![config.left_var, config.right_var]
-                };
-
                 Ok(Box::new(CrossJoinExecutor::new(
                     id,
                     storage,
-                    input_vars,
+                    vec![config.left_var, config.right_var],
                     config.output_columns,
                 )))
             }

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{DataSet, Value};
+use crate::core::{DataSet, Expression, Value};
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor, hash_table::JoinKey,
 };
@@ -20,7 +20,7 @@ pub struct RightJoinExecutor<S: StorageEngine + Send + 'static> {
 
 impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         left_var: String,
         right_var: String,
@@ -28,14 +28,16 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
         right_keys: Vec<String>,
         output_columns: Vec<String>,
     ) -> Self {
+        let hash_keys: Vec<Expression> = left_keys.into_iter().map(Expression::Variable).collect();
+        let probe_keys: Vec<Expression> = right_keys.into_iter().map(Expression::Variable).collect();
         Self {
             base: BaseJoinExecutor::with_description(
-                id as i64,
+                id,
                 storage,
                 left_var,
                 right_var,
-                left_keys,
-                right_keys,
+                hash_keys,
+                probe_keys,
                 output_columns,
                 "Right join executor - performs right outer join".to_string(),
             ),
@@ -145,21 +147,25 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
         for (_right_idx, right_row) in right_dataset.rows.iter().enumerate() {
             let mut right_key_parts = Vec::new();
 
-            // 根据连接键提取值
             for key_idx in 0..self.base.probe_keys().len() {
-                if let Some(key_pos) = right_dataset
-                    .col_names
-                    .iter()
-                    .position(|r| r == &self.base.probe_keys()[key_idx])
-                {
-                    if key_pos < right_row.len() {
-                        right_key_parts.push(right_row[key_pos].clone());
-                    } else {
-                        right_key_parts.push(Value::Null(crate::core::value::NullType::Null));
-                    }
-                } else if let Ok(key_pos) = self.base.probe_keys()[key_idx].parse::<usize>() {
-                    if key_pos < right_row.len() {
-                        right_key_parts.push(right_row[key_pos].clone());
+                let key_expr = &self.base.probe_keys()[key_idx];
+                if let Expression::Variable(key_name) = key_expr {
+                    if let Some(key_pos) = right_dataset
+                        .col_names
+                        .iter()
+                        .position(|r| r == key_name)
+                    {
+                        if key_pos < right_row.len() {
+                            right_key_parts.push(right_row[key_pos].clone());
+                        } else {
+                            right_key_parts.push(Value::Null(crate::core::value::NullType::Null));
+                        }
+                    } else if let Ok(key_pos) = key_name.parse::<usize>() {
+                        if key_pos < right_row.len() {
+                            right_key_parts.push(right_row[key_pos].clone());
+                        } else {
+                            right_key_parts.push(Value::Null(crate::core::value::NullType::Null));
+                        }
                     } else {
                         right_key_parts.push(Value::Null(crate::core::value::NullType::Null));
                     }

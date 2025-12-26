@@ -63,11 +63,3 @@ pub enum CypherExecutorError {
     #[error("存储错误: {0}")]
     StorageError(#[from] DBError),
 }
-
-impl From<CypherExecutorError> for DBError {
-    fn from(err: CypherExecutorError) -> Self {
-        DBError::Query(crate::core::error::QueryError::ExecutionError(
-            err.to_string(),
-        ))
-    }
-}

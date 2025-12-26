@@ -8,6 +8,7 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::executor::base::EdgeDirection;
 
 /// PATH查询规划器
 /// 负责将PATH查询转换为执行计划
@@ -58,11 +59,11 @@ impl Planner for PathPlanner {
 
         // 3. 创建扩展节点进行路径搜索
         let expand_direction = if path_ctx.over.direction == "both" {
-            "both"
+            EdgeDirection::Both
         } else if path_ctx.over.direction == "in" {
-            "in"
+            EdgeDirection::In
         } else {
-            "out"
+            EdgeDirection::Out
         };
 
         let mut edge_types = path_ctx.over.edge_types.clone();

@@ -33,6 +33,41 @@ pub trait PlanNode {
     fn into_enum(self) -> PlanNodeEnum;
 }
 
+/// 为引用类型实现 PlanNode trait
+impl<T: PlanNode + ?Sized> PlanNode for &T {
+    fn id(&self) -> i64 {
+        (**self).id()
+    }
+
+    fn name(&self) -> &'static str {
+        (**self).name()
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        (**self).output_var()
+    }
+
+    fn col_names(&self) -> &[String] {
+        (**self).col_names()
+    }
+
+    fn cost(&self) -> f64 {
+        (**self).cost()
+    }
+
+    fn set_output_var(&mut self, _var: Variable) {
+        panic!("无法通过引用修改输出变量")
+    }
+
+    fn set_col_names(&mut self, _names: Vec<String>) {
+        panic!("无法通过引用修改列名")
+    }
+
+    fn into_enum(self) -> PlanNodeEnum {
+        panic!("无法将引用转换为 PlanNodeEnum")
+    }
+}
+
 /// 单输入节点特征
 ///
 /// 适用于只有一个输入的节点
@@ -71,6 +106,25 @@ pub trait BinaryInputNode: PlanNode {
     }
 }
 
+/// 为引用类型实现 BinaryInputNode trait
+impl<T: BinaryInputNode + ?Sized> BinaryInputNode for &T {
+    fn left_input(&self) -> &PlanNodeEnum {
+        (**self).left_input()
+    }
+
+    fn right_input(&self) -> &PlanNodeEnum {
+        (**self).right_input()
+    }
+
+    fn set_left_input(&mut self, _input: PlanNodeEnum) {
+        panic!("无法通过引用修改输入节点")
+    }
+
+    fn set_right_input(&mut self, _input: PlanNodeEnum) {
+        panic!("无法通过引用修改输入节点")
+    }
+}
+
 /// 连接节点特征
 ///
 /// 适用于所有类型的连接操作（内连接、左连接、交叉连接等）
@@ -81,6 +135,17 @@ pub trait JoinNode: BinaryInputNode {
 
     /// 获取探测键（用于探测哈希表）
     fn probe_keys(&self) -> &[Expression];
+}
+
+/// 为引用类型实现 JoinNode trait
+impl<T: JoinNode + ?Sized> JoinNode for &T {
+    fn hash_keys(&self) -> &[Expression] {
+        (**self).hash_keys()
+    }
+
+    fn probe_keys(&self) -> &[Expression] {
+        (**self).probe_keys()
+    }
 }
 
 /// 多输入节点特征

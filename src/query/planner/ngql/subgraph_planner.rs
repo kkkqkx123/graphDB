@@ -8,6 +8,7 @@ use crate::query::planner::plan::core::nodes::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::executor::base::EdgeDirection;
 
 /// SUBGRAPH查询规划器
 /// 负责将SUBGRAPH查询转换为执行计划
@@ -48,7 +49,7 @@ impl Planner for SubgraphPlanner {
 
         let arg_node = Argument::new(1, &subgraph_ctx.from.user_defined_var_name);
 
-        let expand_node = Expand::new(1, subgraph_ctx.edge_types.clone(), "out");
+        let expand_node = Expand::new(1, subgraph_ctx.edge_types.clone(), EdgeDirection::Out);
 
         let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAll::new(2, subgraph_ctx.edge_types.clone(), "out"));
 
