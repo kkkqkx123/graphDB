@@ -43,7 +43,7 @@ impl ExecutionContext {
 // Base executor with common functionality
 #[derive(Debug)]
 pub struct BaseExecutor<S: StorageEngine> {
-    pub id: usize,
+    pub id: i64,
     pub name: String,
     pub description: String,
     pub storage: Arc<Mutex<S>>,
@@ -52,7 +52,7 @@ pub struct BaseExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> BaseExecutor<S> {
-    pub fn new(id: usize, name: String, storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(id: i64, name: String, storage: Arc<Mutex<S>>) -> Self {
         Self {
             id,
             name,
@@ -64,7 +64,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
     }
 
     pub fn with_context(
-        id: usize,
+        id: i64,
         name: String,
         storage: Arc<Mutex<S>>,
         context: ExecutionContext,
@@ -80,7 +80,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
     }
 
     pub fn with_description(
-        id: usize,
+        id: i64,
         name: String,
         description: String,
         storage: Arc<Mutex<S>>,
@@ -96,7 +96,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
     }
 
     pub fn with_context_and_description(
-        id: usize,
+        id: i64,
         name: String,
         description: String,
         storage: Arc<Mutex<S>>,
@@ -130,7 +130,7 @@ impl<S: StorageEngine> ExecutorLifecycle for BaseExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for BaseExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.id
     }
 
@@ -177,7 +177,7 @@ pub struct StartExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> StartExecutor<S> {
-    pub fn new(id: usize, storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
         Self {
             base: BaseExecutor::with_description(
                 id,

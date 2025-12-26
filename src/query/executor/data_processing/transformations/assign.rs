@@ -27,7 +27,7 @@ pub struct AssignExecutor<S: StorageEngine + Send + 'static> {
 
 impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
     /// 创建新的AssignExecutor
-    pub fn new(id: usize, storage: Arc<Mutex<S>>, assign_items: Vec<(String, Expression)>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, assign_items: Vec<(String, Expression)>) -> Self {
         Self {
             base: BaseExecutor::with_description(
                 id,
@@ -41,7 +41,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
 
     /// 带上下文创建AssignExecutor
     pub fn with_context(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         assign_items: Vec<(String, Expression)>,
         context: crate::query::executor::base::ExecutionContext,

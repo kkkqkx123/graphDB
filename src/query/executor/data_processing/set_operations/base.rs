@@ -26,7 +26,7 @@ pub struct SetExecutor<S: StorageEngine> {
 impl<S: StorageEngine> SetExecutor<S> {
     /// 创建新的集合操作执行器
     pub fn new(
-        id: usize,
+        id: i64,
         name: String,
         storage: Arc<Mutex<S>>,
         left_input_var: String,
@@ -228,7 +228,7 @@ impl<S: StorageEngine> crate::query::executor::traits::ExecutorLifecycle for Set
 }
 
 impl<S: StorageEngine> crate::query::executor::traits::ExecutorMetadata for SetExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

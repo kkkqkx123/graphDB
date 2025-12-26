@@ -247,7 +247,7 @@ impl<S: StorageEngine> ExecutorLifecycle for ExpandExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for ExpandExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

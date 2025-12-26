@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::core::{DataSet, Value};
+use crate::core::{DataSet, Expression, Value};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::data_processing::join::hash_table::JoinKey;
 use crate::query::executor::traits::ExecutionResult;
@@ -20,9 +20,9 @@ pub struct BaseJoinExecutor<S: StorageEngine> {
     /// 右侧输入变量名
     right_var: String,
     /// 连接键表达式列表
-    hash_keys: Vec<String>,
+    hash_keys: Vec<Expression>,
     /// 探测键表达式列表
-    probe_keys: Vec<String>,
+    probe_keys: Vec<Expression>,
     /// 输出列名
     col_names: Vec<String>,
     /// 描述
@@ -36,12 +36,12 @@ pub struct BaseJoinExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> BaseJoinExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         left_var: String,
         right_var: String,
-        hash_keys: Vec<String>,
-        probe_keys: Vec<String>,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
         col_names: Vec<String>,
     ) -> Self {
         Self::with_description(
@@ -57,12 +57,12 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     }
 
     pub fn with_description(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         left_var: String,
         right_var: String,
-        hash_keys: Vec<String>,
-        probe_keys: Vec<String>,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
         col_names: Vec<String>,
         description: String,
     ) -> Self {
@@ -270,12 +270,12 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     }
 
     /// 获取哈希键
-    pub fn get_hash_keys(&self) -> &Vec<String> {
+    pub fn get_hash_keys(&self) -> &Vec<Expression> {
         &self.hash_keys
     }
 
     /// 获取探测键
-    pub fn get_probe_keys(&self) -> &Vec<String> {
+    pub fn get_probe_keys(&self) -> &Vec<Expression> {
         &self.probe_keys
     }
 
@@ -290,7 +290,7 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     }
 
     /// 获取执行器ID
-    pub fn id(&self) -> usize {
+    pub fn id(&self) -> i64 {
         self.base.id
     }
 
@@ -315,12 +315,12 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     }
 
     /// 获取哈希键列表
-    pub fn hash_keys(&self) -> &Vec<String> {
+    pub fn hash_keys(&self) -> &Vec<Expression> {
         &self.hash_keys
     }
 
     /// 获取探测键列表
-    pub fn probe_keys(&self) -> &Vec<String> {
+    pub fn probe_keys(&self) -> &Vec<Expression> {
         &self.probe_keys
     }
 

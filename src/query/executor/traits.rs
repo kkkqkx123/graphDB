@@ -30,7 +30,7 @@ pub trait ExecutorLifecycle {
 /// 元数据 trait - 提供执行器的元信息
 pub trait ExecutorMetadata {
     /// 获取执行器ID
-    fn id(&self) -> usize;
+    fn id(&self) -> i64;
 
     /// 获取执行器名称
     fn name(&self) -> &str;
@@ -92,7 +92,7 @@ pub type DBResult<T> = Result<T, DBError>;
 #[derive(Debug)]
 pub struct BaseExecutor<S: StorageEngine> {
     storage: Arc<Mutex<S>>,
-    id: usize,
+    id: i64,
     name: String,
     description: String,
     is_open: bool,
@@ -100,7 +100,7 @@ pub struct BaseExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> BaseExecutor<S> {
     /// 创建新的基础执行器
-    pub fn new(storage: Arc<Mutex<S>>, id: usize, name: &str, description: &str) -> Self {
+    pub fn new(storage: Arc<Mutex<S>>, id: i64, name: &str, description: &str) -> Self {
         Self {
             storage,
             id,
@@ -133,7 +133,7 @@ impl<S: StorageEngine> ExecutorLifecycle for BaseExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for BaseExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.id
     }
 
@@ -176,7 +176,7 @@ macro_rules! impl_executor_for {
         }
 
         impl $crate::query::executor::traits::ExecutorMetadata for $type {
-            fn id(&self) -> usize {
+            fn id(&self) -> i64 {
                 self.id()
             }
 

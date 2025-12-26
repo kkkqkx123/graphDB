@@ -26,7 +26,7 @@ pub struct IntersectExecutor<S: StorageEngine> {
 impl<S: StorageEngine> IntersectExecutor<S> {
     /// 创建新的Intersect执行器
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         left_input_var: String,
         right_input_var: String,
@@ -124,7 +124,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for IntersectExecutor<
 }
 
 impl<S: StorageEngine + Send + 'static> ExecutorMetadata for IntersectExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.set_executor.id()
     }
 

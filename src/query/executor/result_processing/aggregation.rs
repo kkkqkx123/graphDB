@@ -650,7 +650,7 @@ pub struct HavingExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> HavingExecutor<S> {
-    pub fn new(id: usize, storage: Arc<Mutex<S>>, condition: Expression) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, condition: Expression) -> Self {
         let base = BaseResultProcessor::new(
             id,
             "HavingExecutor".to_string(),

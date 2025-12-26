@@ -45,7 +45,7 @@ pub struct MatchClauseExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> MatchClauseExecutor<S> {
     /// 创建新的MATCH执行器
-    pub fn new(id: usize, storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
         Self {
             id,
             pattern_matcher: PatternMatcher::new(storage.clone()),

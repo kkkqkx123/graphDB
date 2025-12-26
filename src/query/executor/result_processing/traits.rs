@@ -102,7 +102,7 @@ pub struct BaseResultProcessor<S: StorageEngine> {
 
 impl<S: StorageEngine> BaseResultProcessor<S> {
     /// 创建新的基础结果处理器
-    pub fn new(id: usize, name: String, description: String, storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(id: i64, name: String, description: String, storage: Arc<Mutex<S>>) -> Self {
         Self {
             id,
             name,

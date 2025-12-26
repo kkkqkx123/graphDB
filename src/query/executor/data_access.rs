@@ -23,7 +23,7 @@ pub struct GetVerticesExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> GetVerticesExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         vertex_ids: Option<Vec<Value>>,
         tag_filter: Option<crate::core::Expression>,
@@ -177,7 +177,7 @@ impl<S: StorageEngine> ExecutorLifecycle for GetVerticesExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for GetVerticesExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 
@@ -206,7 +206,7 @@ pub struct GetEdgesExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> GetEdgesExecutor<S> {
-    pub fn new(id: usize, storage: Arc<Mutex<S>>, edge_type: Option<String>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, edge_type: Option<String>) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetEdgesExecutor".to_string(), storage),
             edge_type,
@@ -242,7 +242,7 @@ impl<S: StorageEngine> ExecutorLifecycle for GetEdgesExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for GetEdgesExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 
@@ -276,7 +276,7 @@ pub struct GetNeighborsExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> GetNeighborsExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         vertex_ids: Vec<Value>,
         edge_direction: super::base::EdgeDirection,
@@ -319,7 +319,7 @@ impl<S: StorageEngine> ExecutorLifecycle for GetNeighborsExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for GetNeighborsExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 
@@ -353,7 +353,7 @@ pub struct GetPropExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> GetPropExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         vertex_ids: Option<Vec<Value>>,
         edge_ids: Option<Vec<Value>>,
@@ -396,7 +396,7 @@ impl<S: StorageEngine> ExecutorLifecycle for GetPropExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for GetPropExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

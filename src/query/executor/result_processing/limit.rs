@@ -29,7 +29,7 @@ pub struct LimitExecutor<S: StorageEngine + Send + 'static> {
 }
 
 impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
-    pub fn new(id: usize, storage: Arc<Mutex<S>>, limit: Option<usize>, offset: usize) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, limit: Option<usize>, offset: usize) -> Self {
         let base = BaseResultProcessor::new(
             id,
             "LimitExecutor".to_string(),
@@ -46,12 +46,12 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
     }
 
     /// 仅设置LIMIT
-    pub fn with_limit(id: usize, storage: Arc<Mutex<S>>, limit: usize) -> Self {
+    pub fn with_limit(id: i64, storage: Arc<Mutex<S>>, limit: usize) -> Self {
         Self::new(id, storage, Some(limit), 0)
     }
 
     /// 仅设置OFFSET
-    pub fn with_offset(id: usize, storage: Arc<Mutex<S>>, offset: usize) -> Self {
+    pub fn with_offset(id: i64, storage: Arc<Mutex<S>>, offset: usize) -> Self {
         Self::new(id, storage, None, offset)
     }
 

@@ -45,7 +45,7 @@ impl<S: StorageEngine> std::fmt::Debug for ExpandAllExecutor<S> {
 
 impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
@@ -356,7 +356,7 @@ impl<S: StorageEngine> ExecutorLifecycle for ExpandAllExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for ExpandAllExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

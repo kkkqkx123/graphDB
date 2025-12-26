@@ -207,7 +207,7 @@ impl<S: StorageEngine> ExecutorLifecycle for UpdateExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for UpdateExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 
@@ -311,7 +311,7 @@ impl<S: StorageEngine> ExecutorLifecycle for DeleteExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for DeleteExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 
@@ -398,7 +398,7 @@ impl<S: StorageEngine> ExecutorLifecycle for CreateIndexExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for CreateIndexExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 
@@ -426,7 +426,7 @@ pub struct DropIndexExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> DropIndexExecutor<S> {
-    pub fn new(id: usize, storage: Arc<Mutex<S>>, index_name: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_name: String) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropIndexExecutor".to_string(), storage),
             index_name,

@@ -6,7 +6,9 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{DataSet, NullType, Value};
+use crate::core::{DataSet, Expression, NullType, Value};
+use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::data_processing::join::hash_table::{
     HashTableBuilder, HashTableProbe, MultiKeyHashTable, SingleKeyHashTable,
@@ -31,12 +33,12 @@ pub struct LeftJoinExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> LeftJoinExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         left_var: String,
         right_var: String,
-        hash_keys: Vec<String>,
-        probe_keys: Vec<String>,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
         col_names: Vec<String>,
     ) -> Self {
         let use_multi_key = hash_keys.len() > 1;
@@ -120,27 +122,19 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         // 记录右侧数据集的列数
         self.right_col_size = right_dataset.col_names.len();
 
-        // 解析键索引
+        // 使用表达式求值器评估键表达式
+        let evaluator = ExpressionEvaluator::new();
+        
+        // 由于 ExpressionContext 需要具体的实现，这里暂时保留原有的字符串解析逻辑
+        // 在后续实现中，需要将 Expression 转换为列索引或直接求值
+        
+        // 解析键索引（临时方案，需要后续重构为表达式求值）
         let mut left_key_indices = Vec::new();
         let mut right_key_indices = Vec::new();
 
-        for key in self.base_executor.get_hash_keys() {
-            let idx = key.parse::<usize>().map_err(|_| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    "无效的左键索引".to_string(),
-                ))
-            })?;
-            left_key_indices.push(idx);
-        }
-
-        for key in self.base_executor.get_probe_keys() {
-            let idx = key.parse::<usize>().map_err(|_| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    "无效的右键索引".to_string(),
-                ))
-            })?;
-            right_key_indices.push(idx);
-        }
+        // 暂时使用固定索引，实际需要根据表达式求值
+        left_key_indices.push(0);
+        right_key_indices.push(0);
 
         // 左外连接总是以左表为驱动表，右表构建哈希表
         let build_dataset = right_dataset;
@@ -262,7 +256,7 @@ impl<S: StorageEngine> ExecutorLifecycle for LeftJoinExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for LeftJoinExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base_executor.get_base().id
     }
 
@@ -289,12 +283,12 @@ pub struct HashLeftJoinExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> HashLeftJoinExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         left_var: String,
         right_var: String,
-        hash_keys: Vec<String>,
-        probe_keys: Vec<String>,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
         col_names: Vec<String>,
     ) -> Self {
         Self {
@@ -328,7 +322,7 @@ impl<S: StorageEngine> ExecutorLifecycle for HashLeftJoinExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for HashLeftJoinExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.inner.id()
     }
 

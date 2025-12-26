@@ -26,7 +26,7 @@ pub struct MinusExecutor<S: StorageEngine> {
 impl<S: StorageEngine> MinusExecutor<S> {
     /// 创建新的Minus执行器
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         left_input_var: String,
         right_input_var: String,
@@ -132,7 +132,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for MinusExecutor<S> {
 }
 
 impl<S: StorageEngine + Send + 'static> ExecutorMetadata for MinusExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.set_executor.id()
     }
 

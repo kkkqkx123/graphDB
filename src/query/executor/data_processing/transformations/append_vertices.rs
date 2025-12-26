@@ -41,19 +41,19 @@ pub struct AppendVerticesExecutor<S: StorageEngine + Send + 'static> {
 }
 
 impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
-    /// 创建新的AppendVerticesExecutor
-    pub fn new(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        input_var: String,
-        src_expr: Expression,
-        props: Vec<String>,
-        v_filter: Option<Expression>,
-        col_names: Vec<String>,
-        dedup: bool,
-        track_prev_path: bool,
-        need_fetch_prop: bool,
-    ) -> Self {
+            /// 创建新的AppendVerticesExecutor
+            pub fn new(
+                id: i64,
+                storage: Arc<Mutex<S>>,
+                input_var: String,
+                src_expr: Expression,
+                props: Vec<String>,
+                v_filter: Option<Expression>,
+                col_names: Vec<String>,
+                dedup: bool,
+                track_prev_path: bool,
+                need_fetch_prop: bool,
+            ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AppendVerticesExecutor".to_string(), storage),
             input_var,
@@ -68,19 +68,19 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
     }
 
     /// 带上下文创建AppendVerticesExecutor
-    pub fn with_context(
-        id: usize,
-        storage: Arc<Mutex<S>>,
-        input_var: String,
-        src_expr: Expression,
-        props: Vec<String>,
-        v_filter: Option<Expression>,
-        col_names: Vec<String>,
-        dedup: bool,
-        track_prev_path: bool,
-        need_fetch_prop: bool,
-        context: crate::query::executor::base::ExecutionContext,
-    ) -> Self {
+            pub fn with_context(
+                id: i64,
+                storage: Arc<Mutex<S>>,
+                input_var: String,
+                src_expr: Expression,
+                props: Vec<String>,
+                v_filter: Option<Expression>,
+                col_names: Vec<String>,
+                dedup: bool,
+                track_prev_path: bool,
+                need_fetch_prop: bool,
+                context: crate::query::executor::base::ExecutionContext,
+            ) -> Self {
         Self {
             base: BaseExecutor::with_context(
                 id,

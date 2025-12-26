@@ -39,7 +39,7 @@ pub struct ProjectExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> ProjectExecutor<S> {
-    pub fn new(id: usize, storage: Arc<Mutex<S>>, columns: Vec<ProjectionColumn>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, columns: Vec<ProjectionColumn>) -> Self {
         Self {
             base: BaseExecutor::new(id, "ProjectExecutor".to_string(), storage),
             columns,

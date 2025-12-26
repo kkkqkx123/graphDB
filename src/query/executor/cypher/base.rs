@@ -38,7 +38,7 @@ pub struct CypherExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> CypherExecutor<S> {
     /// 创建新的Cypher执行器
-    pub fn new(id: usize, storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
         Self {
             id,
             name: "CypherExecutor".to_string(),
@@ -50,7 +50,7 @@ impl<S: StorageEngine> CypherExecutor<S> {
     }
 
     /// 带名称创建执行器
-    pub fn with_name(id: usize, name: String, storage: Arc<Mutex<S>>) -> Self {
+    pub fn with_name(id: i64, name: String, storage: Arc<Mutex<S>>) -> Self {
         Self {
             id,
             name,
@@ -63,7 +63,7 @@ impl<S: StorageEngine> CypherExecutor<S> {
 
     /// 带名称和描述创建执行器
     pub fn with_description(
-        id: usize,
+        id: i64,
         name: String,
         description: String,
         storage: Arc<Mutex<S>>,

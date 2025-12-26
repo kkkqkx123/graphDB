@@ -17,7 +17,7 @@ pub struct CypherExecutorFactory<S: StorageEngine> {
     /// 存储引擎引用
     storage: Arc<Mutex<S>>,
     /// 执行器ID计数器
-    next_id: usize,
+    next_id: i64,
 }
 
 impl<S: StorageEngine + Send + 'static> CypherExecutorFactory<S> {

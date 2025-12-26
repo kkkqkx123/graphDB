@@ -281,7 +281,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for FullOuterJoinExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> ExecutorMetadata for FullOuterJoinExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id()
     }
 

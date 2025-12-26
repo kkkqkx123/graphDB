@@ -45,7 +45,7 @@ pub struct LoopExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> LoopExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         condition: Option<Expression>,
         body_executor: Box<dyn Executor<S>>,

@@ -34,7 +34,7 @@ pub struct FilterExecutor<S: StorageEngine + Send + 'static> {
 }
 
 impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
-    pub fn new(id: usize, storage: Arc<Mutex<S>>, condition: Expression) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, condition: Expression) -> Self {
         let base = BaseResultProcessor::new(
             id,
             "FilterExecutor".to_string(),

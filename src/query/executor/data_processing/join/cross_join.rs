@@ -33,7 +33,7 @@ impl<S: StorageEngine> std::fmt::Debug for CrossJoinExecutor<S> {
 
 impl<S: StorageEngine> CrossJoinExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         input_vars: Vec<String>,
         col_names: Vec<String>,
@@ -348,7 +348,7 @@ impl<S: StorageEngine> ExecutorLifecycle for CrossJoinExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for CrossJoinExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base_executor.get_base().id
     }
 

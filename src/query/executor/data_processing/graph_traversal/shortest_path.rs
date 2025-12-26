@@ -64,7 +64,7 @@ impl<S: StorageEngine> std::fmt::Debug for ShortestPathExecutor<S> {
 
 impl<S: StorageEngine> ShortestPathExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         start_vertex_ids: Vec<Value>,
         end_vertex_ids: Vec<Value>,

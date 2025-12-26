@@ -45,40 +45,6 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
         }
     }
 
-    /// 验证计划节点是否有效
-    fn validate_plan_node(&self, plan_node: &PlanNodeEnum) -> Result<(), QueryError> {
-        // 检查节点配置是否有效
-        match plan_node {
-            PlanNodeEnum::Limit(node) => {
-                if node.limit == 0 {
-                    return Err(QueryError::ExecutionError("LIMIT值不能为0".to_string()));
-                }
-            }
-            PlanNodeEnum::Loop(node) => {
-                if let Some(max_iter) = node.max_iterations {
-                    if max_iter == 0 {
-                        return Err(QueryError::ExecutionError("最大迭代次数不能为0".to_string()));
-                    }
-                    if max_iter > 10000 {
-                        return Err(QueryError::ExecutionError("最大迭代次数不能超过10000".to_string()));
-                    }
-                }
-            }
-            PlanNodeEnum::Expand(node) => {
-                if let Some(max_depth) = node.max_depth {
-                    if max_depth == 0 {
-                        return Err(QueryError::ExecutionError("扩展深度不能为0".to_string()));
-                    }
-                    if max_depth > 100 {
-                        return Err(QueryError::ExecutionError("扩展深度不能超过100".to_string()));
-                    }
-                }
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
     /// 根据计划节点创建执行器
     pub fn create_executor(
         &self,
@@ -86,9 +52,6 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        // ✅ 添加执行计划验证
-        self.validate_plan_node(plan_node)?;
-        
         match plan_node {
             // 基础执行器
             PlanNodeEnum::Start(node) => {
@@ -205,7 +168,8 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
                 let executor = CrossJoinExecutor::new(
                     node.id,
                     storage,
-                    node.join_type.clone(),
+                    vec![], // 输入变量列表需要从节点的输出变量中获取
+                    node.col_names().to_vec(),
                 );
                 Ok(Box::new(executor))
             }
