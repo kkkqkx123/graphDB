@@ -2,7 +2,6 @@
 //!
 //! 提供查询验证过程中的上下文管理，整合自query/context/validate/
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use super::base::{ContextBase, ContextType, MutableContext};
@@ -26,13 +25,6 @@ pub struct ValidationContext {
     /// 已验证的符号表
     pub validated_symbols: HashMap<String, ValidatedSymbol>,
 
-    /// 验证错误列表
-    pub errors: Vec<ValidationError>,
-
-    /// 验证警告列表
-    pub warnings: Vec<ValidationWarning>,
-
-    /// 自定义属性
     pub attributes: HashMap<String, Value>,
 
     /// 创建时间
@@ -46,7 +38,7 @@ pub struct ValidationContext {
 }
 
 /// 验证阶段
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ValidationPhase {
     /// 语法验证
     Syntax,
@@ -63,7 +55,7 @@ pub enum ValidationPhase {
 }
 
 /// 验证选项
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ValidationOptions {
     /// 是否启用严格模式
     pub strict_mode: bool,
@@ -78,7 +70,7 @@ pub struct ValidationOptions {
 }
 
 /// 已验证的符号
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ValidatedSymbol {
     /// 符号名称
     pub name: String,
@@ -97,7 +89,7 @@ pub struct ValidatedSymbol {
 }
 
 /// 验证符号类型
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ValidationSymbolType {
     /// 变量
     Variable,
@@ -116,7 +108,7 @@ pub enum ValidationSymbolType {
 }
 
 /// 数据类型
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DataType {
     /// 未知类型
     Unknown,
@@ -143,7 +135,7 @@ pub enum DataType {
 }
 
 /// 位置信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     /// 行号
     pub line: usize,
@@ -155,68 +147,8 @@ pub struct Position {
     pub length: usize,
 }
 
-/// 验证错误
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ValidationError {
-    /// 错误代码
-    pub code: String,
-    /// 错误消息
-    pub message: String,
-    /// 错误位置
-    pub position: Option<Position>,
-    /// 错误严重程度
-    pub severity: ErrorSeverity,
-    /// 错误类型
-    pub error_type: ValidationErrorType,
-}
-
-/// 验证警告
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ValidationWarning {
-    /// 警告代码
-    pub code: String,
-    /// 警告消息
-    pub message: String,
-    /// 警告位置
-    pub position: Option<Position>,
-    /// 警告类型
-    pub warning_type: ValidationWarningType,
-}
-
-/// 错误严重程度
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ErrorSeverity {
-    /// 错误
-    Error,
-    /// 警告
-    Warning,
-    /// 信息
-    Info,
-}
-
-/// 验证错误类型
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ValidationErrorType {
-    /// 语法错误
-    SyntaxError,
-    /// 语义错误
-    SemanticError,
-    /// 类型错误
-    TypeError,
-    /// 未定义符号
-    UndefinedSymbol,
-    /// 重复定义
-    DuplicateDefinition,
-    /// 权限错误
-    PermissionError,
-    /// 递归深度超限
-    RecursionDepthExceeded,
-    /// 超时
-    Timeout,
-}
-
 /// 验证警告类型
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ValidationWarningType {
     /// 未使用的变量
     UnusedVariable,
@@ -239,8 +171,6 @@ impl ValidationContext {
             phase: ValidationPhase::Syntax,
             options: ValidationOptions::default(),
             validated_symbols: HashMap::new(),
-            errors: Vec::new(),
-            warnings: Vec::new(),
             attributes: HashMap::new(),
             created_at: now,
             updated_at: now,
@@ -268,69 +198,6 @@ impl ValidationContext {
     /// 检查符号是否已验证
     pub fn is_symbol_validated(&self, name: &str) -> bool {
         self.validated_symbols.contains_key(name)
-    }
-
-    /// 添加验证错误
-    pub fn add_error(&mut self, error: ValidationError) {
-        self.errors.push(error);
-        self.touch();
-    }
-
-    /// 添加验证警告
-    pub fn add_warning(&mut self, warning: ValidationWarning) {
-        self.warnings.push(warning);
-        self.touch();
-    }
-
-    /// 获取错误数量
-    pub fn error_count(&self) -> usize {
-        self.errors.len()
-    }
-
-    /// 获取警告数量
-    pub fn warning_count(&self) -> usize {
-        self.warnings.len()
-    }
-
-    /// 检查是否有错误
-    pub fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
-    }
-
-    /// 检查是否有警告
-    pub fn has_warnings(&self) -> bool {
-        !self.warnings.is_empty()
-    }
-
-    /// 检查验证是否通过
-    pub fn is_validated(&self) -> bool {
-        self.phase == ValidationPhase::Completed && !self.has_errors()
-    }
-
-    /// 清空错误和警告
-    pub fn clear_diagnostics(&mut self) {
-        self.errors.clear();
-        self.warnings.clear();
-        self.touch();
-    }
-
-    /// 获取指定类型的错误
-    pub fn get_errors_by_type(&self, error_type: ValidationErrorType) -> Vec<&ValidationError> {
-        self.errors
-            .iter()
-            .filter(|e| e.error_type == error_type)
-            .collect()
-    }
-
-    /// 获取指定类型的警告
-    pub fn get_warnings_by_type(
-        &self,
-        warning_type: ValidationWarningType,
-    ) -> Vec<&ValidationWarning> {
-        self.warnings
-            .iter()
-            .filter(|w| w.warning_type == warning_type)
-            .collect()
     }
 }
 
@@ -393,7 +260,7 @@ impl MutableContext for ValidationContext {
     }
 
     fn revalidate(&mut self) -> bool {
-        self.valid = !self.has_errors();
+        self.valid = true;
         self.touch();
         self.valid
     }

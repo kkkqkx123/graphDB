@@ -6,8 +6,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Expression, Value};
+use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::data_processing::join::hash_table::JoinKey;
+use crate::query::executor::data_processing::join::join_key_evaluator::JoinKeyEvaluator;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -164,6 +166,101 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         Ok((left_dataset, right_dataset))
     }
 
+    /// 构建单键哈希表（使用JoinKeyEvaluator）
+    pub fn build_single_key_hash_table_with_evaluator<C: ExpressionContext>(
+        &self,
+        dataset: &DataSet,
+        hash_key_expr: &Expression,
+        evaluator: &JoinKeyEvaluator,
+        context: &mut C,
+    ) -> Result<HashMap<Value, Vec<Vec<Value>>>, QueryError> {
+        let mut hash_table = HashMap::new();
+
+        for row in &dataset.rows {
+            let key = evaluator.evaluate_key(hash_key_expr, context)
+                .map_err(|e| QueryError::ExecutionError(format!("键求值失败: {}", e)))?;
+
+            hash_table
+                .entry(key)
+                .or_insert_with(Vec::new)
+                .push(row.clone());
+        }
+
+        Ok(hash_table)
+    }
+
+    /// 构建多键哈希表（使用JoinKeyEvaluator）
+    pub fn build_multi_key_hash_table_with_evaluator<C: ExpressionContext>(
+        &self,
+        dataset: &DataSet,
+        hash_key_exprs: &[Expression],
+        evaluator: &JoinKeyEvaluator,
+        context: &mut C,
+    ) -> Result<HashMap<JoinKey, Vec<Vec<Value>>>, QueryError> {
+        let mut hash_table = HashMap::new();
+
+        for row in &dataset.rows {
+            let key_values = evaluator.evaluate_keys(hash_key_exprs, context)
+                .map_err(|e| QueryError::ExecutionError(format!("键求值失败: {}", e)))?;
+
+            let join_key = JoinKey::new(key_values);
+            hash_table
+                .entry(join_key)
+                .or_insert_with(Vec::new)
+                .push(row.clone());
+        }
+
+        Ok(hash_table)
+    }
+
+    /// 探测单键哈希表（使用JoinKeyEvaluator）
+    pub fn probe_single_key_hash_table_with_evaluator<C: ExpressionContext>(
+        &self,
+        probe_dataset: &DataSet,
+        hash_table: &HashMap<Value, Vec<Vec<Value>>>,
+        probe_key_expr: &Expression,
+        evaluator: &JoinKeyEvaluator,
+        context: &mut C,
+    ) -> Result<Vec<(Vec<Value>, Vec<Vec<Value>>)>, QueryError> {
+        let mut results = Vec::new();
+
+        for probe_row in &probe_dataset.rows {
+            let key = evaluator.evaluate_key(probe_key_expr, context)
+                .map_err(|e| QueryError::ExecutionError(format!("探测键求值失败: {}", e)))?;
+
+            if let Some(matching_rows) = hash_table.get(&key) {
+                results.push((probe_row.clone(), matching_rows.clone()));
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// 探测多键哈希表（使用JoinKeyEvaluator）
+    pub fn probe_multi_key_hash_table_with_evaluator<C: ExpressionContext>(
+        &self,
+        probe_dataset: &DataSet,
+        hash_table: &HashMap<JoinKey, Vec<Vec<Value>>>,
+        probe_key_exprs: &[Expression],
+        evaluator: &JoinKeyEvaluator,
+        context: &mut C,
+    ) -> Result<Vec<(Vec<Value>, Vec<Vec<Value>>)>, QueryError> {
+        let mut results = Vec::new();
+
+        for probe_row in &probe_dataset.rows {
+            let key_values = evaluator.evaluate_keys(probe_key_exprs, context)
+                .map_err(|e| QueryError::ExecutionError(format!("探测键求值失败: {}", e)))?;
+
+            let join_key = JoinKey::new(key_values);
+
+            if let Some(matching_rows) = hash_table.get(&join_key) {
+                results.push((probe_row.clone(), matching_rows.clone()));
+            }
+        }
+
+        Ok(results)
+    }
+
     /// 构建单键哈希表
     pub fn build_single_key_hash_table(
         hash_key: &str,
@@ -171,7 +268,6 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         hash_table: &mut HashMap<Value, Vec<Vec<Value>>>,
     ) -> Result<(), QueryError> {
         for row in &dataset.rows {
-            // 简化实现：假设hash_key是列索引
             let key_idx = hash_key
                 .parse::<usize>()
                 .map_err(|_| QueryError::ExecutionError("无效的键索引".to_string()))?;

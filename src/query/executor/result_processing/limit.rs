@@ -261,7 +261,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LimitExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> ExecutorMetadata for LimitExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

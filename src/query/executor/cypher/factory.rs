@@ -136,7 +136,7 @@ impl<S: StorageEngine + Send + 'static> CypherExecutorFactory<S> {
     }
 
     /// 获取下一个执行器ID
-    pub fn next_id(&self) -> usize {
+    pub fn next_id(&self) -> i64 {
         self.next_id
     }
 

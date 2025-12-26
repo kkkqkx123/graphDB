@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug)]
 pub struct CypherExecutor<S: StorageEngine> {
     /// 执行器ID
-    id: usize,
+    id: i64,
     /// 执行器名称
     name: String,
     /// 执行器描述
@@ -267,7 +267,7 @@ impl<S: StorageEngine> ExecutorLifecycle for CypherExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for CypherExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.id
     }
 

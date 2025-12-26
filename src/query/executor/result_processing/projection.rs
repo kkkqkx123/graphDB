@@ -315,7 +315,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for ProjectExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for ProjectExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 
@@ -467,7 +467,7 @@ mod tests {
     }
 
     impl crate::query::executor::traits::ExecutorMetadata for MockInputExecutor {
-        fn id(&self) -> usize {
+        fn id(&self) -> i64 {
             0
         }
 

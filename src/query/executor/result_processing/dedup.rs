@@ -47,7 +47,7 @@ pub struct DedupExecutor<S: StorageEngine + Send + 'static> {
 
 impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         strategy: DedupStrategy,
         memory_limit: Option<usize>,
@@ -459,7 +459,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for DedupExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> ExecutorMetadata for DedupExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 
@@ -637,7 +637,7 @@ mod tests {
         }
 
         impl ExecutorMetadata for MockInputExecutor {
-            fn id(&self) -> usize {
+            fn id(&self) -> i64 {
                 0
             }
             fn name(&self) -> &str {

@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug)]
 pub struct MatchClauseExecutor<S: StorageEngine> {
     /// 执行器ID
-    id: usize,
+    id: i64,
     /// 模式匹配器
     pattern_matcher: PatternMatcher<S>,
     /// 图遍历引擎

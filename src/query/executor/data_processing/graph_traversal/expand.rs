@@ -45,7 +45,7 @@ impl<S: StorageEngine> std::fmt::Debug for ExpandExecutor<S> {
 
 impl<S: StorageEngine> ExpandExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,

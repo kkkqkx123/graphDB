@@ -341,7 +341,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for LoopExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 
@@ -370,7 +370,7 @@ pub struct WhileLoopExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine + Send + 'static> WhileLoopExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         condition: Expression,
         body_executor: Box<dyn Executor<S>>,
@@ -404,7 +404,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for WhileLoopExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for WhileLoopExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.inner.id()
     }
 
@@ -437,7 +437,7 @@ pub struct ForLoopExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine + Send + 'static> ForLoopExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         loop_var: String,
         start: i64,
@@ -513,7 +513,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for ForLoopExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for ForLoopExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.inner.id()
     }
 
@@ -670,7 +670,7 @@ mod tests {
     }
 
     impl ExecutorMetadata for CountExecutor {
-        fn id(&self) -> usize {
+        fn id(&self) -> i64 {
             0
         }
         fn name(&self) -> &str {

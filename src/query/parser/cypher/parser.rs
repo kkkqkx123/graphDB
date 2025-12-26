@@ -177,89 +177,6 @@ pub struct ParserInfo {
     pub current_token: Option<Token>,
 }
 
-/// 解析错误类型
-#[derive(Debug, Clone)]
-pub enum ParseError {
-    /// 语法错误
-    SyntaxError {
-        message: String,
-        position: usize,
-        line: usize,
-        column: usize,
-    },
-    /// 语义错误
-    SemanticError { message: String, position: usize },
-    /// 词法错误
-    LexicalError { message: String, position: usize },
-}
-
-impl ParseError {
-    /// 创建语法错误
-    pub fn syntax_error(message: String, position: usize, line: usize, column: usize) -> Self {
-        ParseError::SyntaxError {
-            message,
-            position,
-            line,
-            column,
-        }
-    }
-
-    /// 创建语义错误
-    pub fn semantic_error(message: String, position: usize) -> Self {
-        ParseError::SemanticError { message, position }
-    }
-
-    /// 创建词法错误
-    pub fn lexical_error(message: String, position: usize) -> Self {
-        ParseError::LexicalError { message, position }
-    }
-
-    /// 获取错误消息
-    pub fn message(&self) -> &str {
-        match self {
-            ParseError::SyntaxError { message, .. } => message,
-            ParseError::SemanticError { message, .. } => message,
-            ParseError::LexicalError { message, .. } => message,
-        }
-    }
-
-    /// 获取错误位置
-    pub fn position(&self) -> usize {
-        match self {
-            ParseError::SyntaxError { position, .. } => *position,
-            ParseError::SemanticError { position, .. } => *position,
-            ParseError::LexicalError { position, .. } => *position,
-        }
-    }
-}
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParseError::SyntaxError {
-                message,
-                position,
-                line,
-                column,
-            } => {
-                write!(
-                    f,
-                    "语法错误 (行: {}, 列: {}, 位置: {}): {}",
-                    line, column, position, message
-                )
-            }
-            ParseError::SemanticError { message, position } => {
-                write!(f, "语义错误 (位置: {}): {}", position, message)
-            }
-            ParseError::LexicalError { message, position } => {
-                write!(f, "词法错误 (位置: {}): {}", position, message)
-            }
-        }
-    }
-}
-
-impl std::error::Error for ParseError {}
-
 /// 解析结果
 #[derive(Debug, Clone)]
 pub struct ParseResult<T> {
@@ -369,17 +286,6 @@ mod tests {
         // 获取剩余输入
         let remaining = parser.get_remaining_input();
         assert!(!remaining.is_empty());
-    }
-
-    #[test]
-    fn test_parse_error_display() {
-        let error = ParseError::syntax_error("Unexpected token".to_string(), 10, 2, 5);
-        let display = format!("{}", error);
-        assert!(display.contains("语法错误"));
-        assert!(display.contains("行: 2"));
-        assert!(display.contains("列: 5"));
-        assert!(display.contains("位置: 10"));
-        assert!(display.contains("Unexpected token"));
     }
 
     #[test]

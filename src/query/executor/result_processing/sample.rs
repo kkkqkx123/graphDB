@@ -48,7 +48,7 @@ pub struct SampleExecutor<S: StorageEngine + Send + 'static> {
 
 impl<S: StorageEngine + Send + 'static> SampleExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         method: SampleMethod,
         count: usize,
@@ -468,7 +468,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for SampleExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> ExecutorMetadata for SampleExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

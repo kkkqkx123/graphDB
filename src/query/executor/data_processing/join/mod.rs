@@ -12,6 +12,7 @@ pub mod cross_join;
 pub mod full_outer_join;
 pub mod hash_table;
 pub mod inner_join;
+pub mod join_key_evaluator;
 pub mod left_join;
 pub mod right_join;
 
@@ -27,6 +28,7 @@ pub use hash_table::{
     SingleKeyHashTable,
 };
 pub use inner_join::{HashInnerJoinExecutor, InnerJoinExecutor};
+pub use join_key_evaluator::JoinKeyEvaluator;
 pub use left_join::{HashLeftJoinExecutor, LeftJoinExecutor};
 pub use right_join::RightJoinExecutor;
 

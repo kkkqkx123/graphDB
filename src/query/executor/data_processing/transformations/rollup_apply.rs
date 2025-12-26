@@ -38,7 +38,7 @@ pub struct RollUpApplyExecutor<S: StorageEngine + Send + 'static> {
 impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     /// 创建新的RollUpApplyExecutor
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         left_input_var: String,
         right_input_var: String,
@@ -59,7 +59,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
 
     /// 带上下文创建RollUpApplyExecutor
     pub fn with_context(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         left_input_var: String,
         right_input_var: String,
@@ -503,7 +503,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for RollUpApplyExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> ExecutorMetadata for RollUpApplyExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

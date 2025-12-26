@@ -227,7 +227,7 @@ pub struct AggregateExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> AggregateExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         aggregate_functions: Vec<AggregateFunctionSpec>,
         group_keys: Vec<Expression>,
@@ -530,7 +530,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for AggregateExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> ExecutorMetadata for AggregateExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 
@@ -617,7 +617,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for GroupByExecutor<S>
 }
 
 impl<S: StorageEngine + Send + 'static> ExecutorMetadata for GroupByExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.aggregate_executor.id()
     }
 

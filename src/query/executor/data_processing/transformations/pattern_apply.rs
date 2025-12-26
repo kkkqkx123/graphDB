@@ -78,7 +78,7 @@ pub struct PatternApplyExecutor<S: StorageEngine + Send + 'static> {
 impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     /// 创建新的PatternApplyExecutor
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         input_var: String,
         pattern: PatternType,
@@ -96,7 +96,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
 
     /// 带上下文创建PatternApplyExecutor
     pub fn with_context(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         input_var: String,
         pattern: PatternType,
@@ -436,7 +436,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for PatternApplyExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> ExecutorMetadata for PatternApplyExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

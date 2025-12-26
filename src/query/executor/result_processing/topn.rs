@@ -42,7 +42,7 @@ pub struct TopNExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> TopNExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         n: usize,
         sort_columns: Vec<String>,
@@ -485,7 +485,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for TopNExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for TopNExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

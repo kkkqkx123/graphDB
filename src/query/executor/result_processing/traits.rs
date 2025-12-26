@@ -85,7 +85,7 @@ pub trait ResultProcessor<S: StorageEngine> {
 /// 提供通用的结果处理器功能，其他执行器可以继承此基础实现
 pub struct BaseResultProcessor<S: StorageEngine> {
     /// 执行器ID
-    pub id: usize,
+    pub id: i64,
     /// 执行器名称
     pub name: String,
     /// 执行器描述
@@ -228,7 +228,7 @@ pub struct ResultProcessorFactory;
 impl ResultProcessorFactory {
     /// 创建投影处理器
     pub fn create_projector<S: StorageEngine>(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         columns: Vec<crate::query::executor::result_processing::projection::ProjectionColumn>,
     ) -> crate::query::executor::result_processing::projection::ProjectExecutor<S> {
@@ -239,7 +239,7 @@ impl ResultProcessorFactory {
 
     /// 创建排序处理器
     pub fn create_sorter<S: StorageEngine>(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         sort_keys: Vec<crate::query::executor::result_processing::sort::SortKey>,
         limit: Option<usize>,
@@ -251,7 +251,7 @@ impl ResultProcessorFactory {
 
     /// 创建限制处理器
     pub fn create_limiter<S: StorageEngine>(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         limit: Option<usize>,
         offset: usize,
@@ -263,7 +263,7 @@ impl ResultProcessorFactory {
 
     /// 创建聚合处理器
     pub fn create_aggregator<S: StorageEngine>(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         aggregate_functions: Vec<crate::core::types::operators::AggregateFunction>,
         group_keys: Vec<crate::core::Expression>,
@@ -280,7 +280,7 @@ impl ResultProcessorFactory {
 
     /// 创建去重处理器
     pub fn create_deduper<S: StorageEngine>(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         strategy: crate::query::executor::result_processing::dedup::DedupStrategy,
         memory_limit: Option<usize>,
@@ -295,7 +295,7 @@ impl ResultProcessorFactory {
 
     /// 创建过滤处理器
     pub fn create_filter<S: StorageEngine>(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         condition: crate::core::Expression,
     ) -> crate::query::executor::result_processing::filter::FilterExecutor<S> {
@@ -306,7 +306,7 @@ impl ResultProcessorFactory {
 
     /// 创建采样处理器
     pub fn create_sampler<S: StorageEngine>(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         method: crate::query::executor::result_processing::sample::SampleMethod,
         count: usize,
@@ -319,7 +319,7 @@ impl ResultProcessorFactory {
 
     /// 创建TopN处理器
     pub fn create_topn<S: StorageEngine>(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         n: usize,
         sort_columns: Vec<String>,

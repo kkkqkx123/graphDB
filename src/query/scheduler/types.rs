@@ -7,9 +7,9 @@ use crate::storage::StorageEngine;
 // Executor dependency information
 #[derive(Debug, Clone)]
 pub struct ExecutorDep {
-    pub executor_id: usize,
-    pub dependencies: Vec<usize>, // IDs of executors that must execute before this one
-    pub successors: Vec<usize>,   // IDs of executors that depend on this one
+    pub executor_id: i64,
+    pub dependencies: Vec<i64>, // IDs of executors that must execute before this one
+    pub successors: Vec<i64>,   // IDs of executors that depend on this one
 }
 
 // Scheduler trait that defines how executors are coordinated

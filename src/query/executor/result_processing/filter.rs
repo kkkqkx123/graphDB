@@ -284,7 +284,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for FilterExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> ExecutorMetadata for FilterExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

@@ -20,7 +20,10 @@ pub mod statement_parser;
 // 重新导出主要类型
 pub use ast::CypherStatement;
 pub use lexer::CypherLexer;
-pub use parser::{CypherParser, ParseError, ParseResult, ParserInfo};
+pub use parser::{CypherParser, ParseResult, ParserInfo};
+
+// 重新导出ParseError
+pub use crate::query::parser::ParseError;
 
 // 重新导出Cypher表达式相关类型
 pub use expression_evaluator::CypherEvaluator;

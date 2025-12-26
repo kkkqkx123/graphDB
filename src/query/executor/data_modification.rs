@@ -18,7 +18,7 @@ pub struct InsertExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> InsertExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         vertex_data: Option<Vec<Vertex>>,
         edge_data: Option<Vec<Edge>>,
@@ -30,7 +30,7 @@ impl<S: StorageEngine> InsertExecutor<S> {
         }
     }
 
-    pub fn with_vertices(id: usize, storage: Arc<Mutex<S>>, vertex_data: Vec<Vertex>) -> Self {
+    pub fn with_vertices(id: i64, storage: Arc<Mutex<S>>, vertex_data: Vec<Vertex>) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
             vertex_data: Some(vertex_data),
@@ -38,7 +38,7 @@ impl<S: StorageEngine> InsertExecutor<S> {
         }
     }
 
-    pub fn with_edges(id: usize, storage: Arc<Mutex<S>>, edge_data: Vec<Edge>) -> Self {
+    pub fn with_edges(id: i64, storage: Arc<Mutex<S>>, edge_data: Vec<Edge>) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
             vertex_data: None,
@@ -138,7 +138,7 @@ pub struct EdgeUpdate {
 
 impl<S: StorageEngine> UpdateExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         vertex_updates: Option<Vec<VertexUpdate>>,
         edge_updates: Option<Vec<EdgeUpdate>>,
@@ -240,7 +240,7 @@ pub struct DeleteExecutor<S: StorageEngine> {
 
 impl<S: StorageEngine> DeleteExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         vertex_ids: Option<Vec<Value>>,
         edge_ids: Option<Vec<Value>>,
@@ -352,7 +352,7 @@ pub enum IndexType {
 
 impl<S: StorageEngine> CreateIndexExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         index_name: String,
         index_type: IndexType,
@@ -463,7 +463,7 @@ impl<S: StorageEngine> ExecutorLifecycle for DropIndexExecutor<S> {
 }
 
 impl<S: StorageEngine> ExecutorMetadata for DropIndexExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

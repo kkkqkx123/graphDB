@@ -134,7 +134,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for AssignExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> ExecutorMetadata for AssignExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

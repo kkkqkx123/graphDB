@@ -55,7 +55,7 @@ pub struct SortExecutor<S: StorageEngine + Send + 'static> {
 
 impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         sort_keys: Vec<SortKey>,
         limit: Option<usize>,
@@ -258,7 +258,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for SortExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> ExecutorMetadata for SortExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

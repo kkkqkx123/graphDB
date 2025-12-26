@@ -54,7 +54,7 @@ impl<S: StorageEngine> std::fmt::Debug for TraverseExecutor<S> {
 
 impl<S: StorageEngine> TraverseExecutor<S> {
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,

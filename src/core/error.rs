@@ -346,6 +346,36 @@ impl From<serde_json::Error> for DBError {
     }
 }
 
+impl From<crate::query::context::validate::schema::SchemaValidationError> for DBError {
+    fn from(err: crate::query::context::validate::schema::SchemaValidationError) -> Self {
+        DBError::Validation(err.to_string())
+    }
+}
+
+impl From<crate::query::planner::planner::PlannerError> for DBError {
+    fn from(err: crate::query::planner::planner::PlannerError) -> Self {
+        DBError::Query(QueryError::ExecutionError(err.to_string()))
+    }
+}
+
+impl From<crate::query::optimizer::optimizer::OptimizerError> for DBError {
+    fn from(err: crate::query::optimizer::optimizer::OptimizerError) -> Self {
+        DBError::Query(QueryError::ExecutionError(err.to_string()))
+    }
+}
+
+impl From<crate::query::executor::cypher::CypherExecutorError> for DBError {
+    fn from(err: crate::query::executor::cypher::CypherExecutorError) -> Self {
+        DBError::Query(QueryError::ExecutionError(err.to_string()))
+    }
+}
+
+impl From<crate::query::parser::lexer::LexError> for DBError {
+    fn from(err: crate::query::parser::lexer::LexError) -> Self {
+        DBError::Query(QueryError::ParseError(err.to_string()))
+    }
+}
+
 /// 类型别名，用于向后兼容
 pub type GraphDBResult<T> = DBResult<T>;
 

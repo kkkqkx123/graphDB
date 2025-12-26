@@ -36,7 +36,7 @@ pub struct UnwindExecutor<S: StorageEngine + Send + 'static> {
 impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
     /// 创建新的UnwindExecutor
     pub fn new(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         input_var: String,
         unwind_expr: Expression,
@@ -54,7 +54,7 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
 
     /// 带上下文创建UnwindExecutor
     pub fn with_context(
-        id: usize,
+        id: i64,
         storage: Arc<Mutex<S>>,
         input_var: String,
         unwind_expr: Expression,
@@ -334,7 +334,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for UnwindExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> ExecutorMetadata for UnwindExecutor<S> {
-    fn id(&self) -> usize {
+    fn id(&self) -> i64 {
         self.base.id
     }
 

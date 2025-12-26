@@ -11,7 +11,7 @@ pub struct GraphTraversalExecutorFactory;
 impl GraphTraversalExecutorFactory {
     /// 创建ExpandExecutor
     pub fn create_expand_executor<S: crate::storage::StorageEngine>(
-        id: usize,
+        id: i64,
         storage: std::sync::Arc<std::sync::Mutex<S>>,
         edge_direction: crate::query::executor::base::EdgeDirection,
         edge_types: Option<Vec<String>>,
@@ -22,7 +22,7 @@ impl GraphTraversalExecutorFactory {
 
     /// 创建ExpandAllExecutor
     pub fn create_expand_all_executor<S: crate::storage::StorageEngine + std::marker::Send>(
-        id: usize,
+        id: i64,
         storage: std::sync::Arc<std::sync::Mutex<S>>,
         edge_direction: crate::query::executor::base::EdgeDirection,
         edge_types: Option<Vec<String>>,
@@ -33,7 +33,7 @@ impl GraphTraversalExecutorFactory {
 
     /// 创建TraverseExecutor
     pub fn create_traverse_executor<S: crate::storage::StorageEngine>(
-        id: usize,
+        id: i64,
         storage: std::sync::Arc<std::sync::Mutex<S>>,
         edge_direction: crate::query::executor::base::EdgeDirection,
         edge_types: Option<Vec<String>>,
@@ -52,7 +52,7 @@ impl GraphTraversalExecutorFactory {
 
     /// 创建ShortestPathExecutor
     pub fn create_shortest_path_executor<S: crate::storage::StorageEngine>(
-        id: usize,
+        id: i64,
         storage: std::sync::Arc<std::sync::Mutex<S>>,
         start_vertex_ids: Vec<crate::core::Value>,
         end_vertex_ids: Vec<crate::core::Value>,

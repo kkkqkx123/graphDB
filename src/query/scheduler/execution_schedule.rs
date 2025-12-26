@@ -8,13 +8,13 @@ use crate::storage::StorageEngine;
 // Execution schedule containing multiple executors and their dependencies
 // This represents the physical execution plan with executor dependencies and scheduling
 pub struct ExecutionSchedule<S: StorageEngine> {
-    pub executors: HashMap<usize, Box<dyn Executor<S>>>,
-    pub dependencies: HashMap<usize, ExecutorDep>,
-    pub root_executor_id: usize, // The executor that starts the execution
+    pub executors: HashMap<i64, Box<dyn Executor<S>>>,
+    pub dependencies: HashMap<i64, ExecutorDep>,
+    pub root_executor_id: i64, // The executor that starts the execution
 }
 
 impl<S: StorageEngine + Send + 'static> ExecutionSchedule<S> {
-    pub fn new(root_id: usize) -> Self {
+    pub fn new(root_id: i64) -> Self {
         Self {
             executors: HashMap::new(),
             dependencies: HashMap::new(),
@@ -39,7 +39,7 @@ impl<S: StorageEngine + Send + 'static> ExecutionSchedule<S> {
         }
     }
 
-    pub fn add_dependency(&mut self, from: usize, to: usize) -> Result<(), QueryError> {
+    pub fn add_dependency(&mut self, from: i64, to: i64) -> Result<(), QueryError> {
         // Check that both executors exist
         if !self.executors.contains_key(&from) {
             return Err(QueryError::InvalidQuery(format!(
@@ -81,8 +81,8 @@ impl<S: StorageEngine + Send + 'static> ExecutionSchedule<S> {
     /// Get all executors that can be executed (all dependencies satisfied)
     pub fn get_executable_executors(
         &self,
-        completed_executors: &HashMap<usize, ExecutionResult>,
-    ) -> Vec<usize> {
+        completed_executors: &HashMap<i64, ExecutionResult>,
+    ) -> Vec<i64> {
         let mut executable = Vec::new();
 
         for (id, dep_info) in &self.dependencies {
@@ -101,7 +101,7 @@ impl<S: StorageEngine + Send + 'static> ExecutionSchedule<S> {
     }
 
     /// Get successors of a given executor
-    pub fn get_successors(&self, executor_id: usize) -> Vec<usize> {
+    pub fn get_successors(&self, executor_id: i64) -> Vec<i64> {
         self.dependencies
             .get(&executor_id)
             .map(|dep| dep.successors.clone())
@@ -111,8 +111,8 @@ impl<S: StorageEngine + Send + 'static> ExecutionSchedule<S> {
     /// Check if all dependencies for an executor are satisfied
     pub fn are_dependencies_satisfied(
         &self,
-        executor_id: usize,
-        completed_executors: &HashMap<usize, ExecutionResult>,
+        executor_id: i64,
+        completed_executors: &HashMap<i64, ExecutionResult>,
     ) -> bool {
         self.dependencies
             .get(&executor_id)
@@ -154,9 +154,9 @@ impl<S: StorageEngine + Send + 'static> ExecutionSchedule<S> {
     /// Helper method to detect cycles using DFS
     fn has_cycle(
         &self,
-        executor_id: usize,
-        visited: &mut std::collections::HashSet<usize>,
-        recursion_stack: &mut std::collections::HashSet<usize>,
+        executor_id: i64,
+        visited: &mut std::collections::HashSet<i64>,
+        recursion_stack: &mut std::collections::HashSet<i64>,
     ) -> Result<bool, QueryError> {
         visited.insert(executor_id);
         recursion_stack.insert(executor_id);

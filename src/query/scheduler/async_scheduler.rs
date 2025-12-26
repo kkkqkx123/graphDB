@@ -12,8 +12,8 @@ use crate::utils::safe_lock;
 // Execution state tracking
 #[derive(Debug)]
 pub struct ExecutionState {
-    pub executing_executors: HashSet<usize>,
-    pub execution_results: HashMap<usize, ExecutionResult>,
+    pub executing_executors: HashSet<i64>,
+    pub execution_results: HashMap<i64, ExecutionResult>,
     pub failed_status: Option<QueryError>,
 }
 
@@ -26,11 +26,11 @@ impl ExecutionState {
         }
     }
 
-    pub fn is_executor_executing(&self, executor_id: usize) -> bool {
+    pub fn is_executor_executing(&self, executor_id: i64) -> bool {
         self.executing_executors.contains(&executor_id)
     }
 
-    pub fn is_executor_completed(&self, executor_id: usize) -> bool {
+    pub fn is_executor_completed(&self, executor_id: i64) -> bool {
         self.execution_results.contains_key(&executor_id)
     }
 
@@ -69,7 +69,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     // Execute a single executor
     async fn execute_executor(
         &self,
-        executor_id: usize,
+        executor_id: i64,
         execution_schedule: &mut ExecutionSchedule<S>,
     ) -> Result<ExecutionResult, QueryError> {
         // 从执行调度中获取执行器
@@ -138,7 +138,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     }
 
     // Get executable executors (those with all dependencies satisfied)
-    fn get_executable_executors(&self, execution_schedule: &ExecutionSchedule<S>) -> Vec<usize> {
+    fn get_executable_executors(&self, execution_schedule: &ExecutionSchedule<S>) -> Vec<i64> {
         let state = safe_lock(&self.execution_state)
             .expect("AsyncScheduler execution_state lock should not be poisoned");
         execution_schedule
@@ -197,9 +197,9 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     // Execute a batch of executors in parallel
     async fn execute_executor_batch(
         &self,
-        executor_ids: &[usize],
+        executor_ids: &[i64],
         execution_schedule: &mut ExecutionSchedule<S>,
-    ) -> Result<Vec<usize>, QueryError> {
+    ) -> Result<Vec<i64>, QueryError> {
         let mut tasks = Vec::new();
         let mut next_executors = Vec::new();
 
