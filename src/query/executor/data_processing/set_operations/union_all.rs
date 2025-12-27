@@ -113,13 +113,18 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for UnionAllExecutor<S>
     }
 }
 
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for UnionAllExecutor<S>
+{
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.set_executor.get_storage()
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
     for UnionAllExecutor<S>
 {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        self.set_executor.storage()
-    }
 }
 
 #[cfg(test)]

@@ -80,7 +80,7 @@ The graphDB project utilises Cargo as its build system. To build the project:
 
 analyze_cargo is a cli tool that automatically runs `cargo test --lib`, categorizes the errors/warnings, and generates a detailed Markdown report.
 default output file is `cargo_errors_report.md` in pwd.
-You can use it instead of `cargo test --lib` or `cargo check`. 
+Use it instead of `cargo test --lib` or `cargo check`. 
 
 **Usage**
 ```bash

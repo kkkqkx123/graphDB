@@ -64,7 +64,7 @@ impl<S: StorageEngine> ExpandExecutor<S> {
 
     /// 获取节点的邻居节点
     async fn get_neighbors(&self, node_id: &Value) -> Result<Vec<Value>, QueryError> {
-        let storage = safe_lock(&self.base.storage)
+        let storage = safe_lock(self.get_storage())
             .expect("ExpandExecutor storage lock should not be poisoned");
 
         // 获取节点的所有边
@@ -150,7 +150,7 @@ impl<S: StorageEngine> ExpandExecutor<S> {
     fn build_expansion_result(&self, expanded_nodes: Vec<Value>) -> ExecutionResult {
         // 将节点ID转换为顶点对象
         let mut vertices = Vec::new();
-        let storage = safe_lock(&self.base.storage)
+        let storage = safe_lock(self.get_storage())
             .expect("ExpandExecutor storage lock should not be poisoned");
 
         for node_id in expanded_nodes {
@@ -260,9 +260,14 @@ impl<S: StorageEngine> ExecutorMetadata for ExpandExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for ExpandExecutor<S>
+{
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("ExpandExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ExpandExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }

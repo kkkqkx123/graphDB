@@ -6,7 +6,7 @@ use super::registry::CacheRegistry;
 use super::stats_collector::CacheStatsCollector;
 use crate::cache::CacheConfig;
 use crate::cache::manager::CacheStrategy;
-use std::sync::{Arc, Once};
+use std::sync::{Arc, OnceLock};
 
 /// 全局缓存管理器
 pub struct GlobalCacheManager {
@@ -93,49 +93,36 @@ impl std::fmt::Debug for GlobalCacheManager {
 static GLOBAL_CACHE_MANAGER: once_cell::sync::Lazy<Arc<GlobalCacheManager>> =
     once_cell::sync::Lazy::new(|| Arc::new(GlobalCacheManager::new(CacheConfig::default())));
 
-/// 全局缓存管理器实例（可变版本）
-static mut GLOBAL_CACHE_MANAGER_MUT: Option<Arc<GlobalCacheManager>> = None;
-static GLOBAL_CACHE_MANAGER_INIT: Once = Once::new();
+/// 全局缓存管理器实例（可初始化版本）
+static GLOBAL_CACHE_MANAGER_MUT: OnceLock<Arc<GlobalCacheManager>> = OnceLock::new();
 
 /// 获取全局缓存管理器
 pub fn global_cache_manager() -> Arc<GlobalCacheManager> {
-    // 优先使用可变版本（如果已初始化）
-    unsafe {
-        if let Some(ref manager) = GLOBAL_CACHE_MANAGER_MUT {
-            return manager.clone();
-        }
-    }
-
-    // 否则使用默认版本
-    GLOBAL_CACHE_MANAGER.clone()
+    GLOBAL_CACHE_MANAGER_MUT
+        .get()
+        .cloned()
+        .unwrap_or_else(|| GLOBAL_CACHE_MANAGER.clone())
 }
 
 /// 初始化全局缓存管理器
 pub fn init_global_cache_manager(config: CacheConfig) -> Result<(), String> {
     config.validate()?;
-
-    // 使用 Once 确保只初始化一次
-    GLOBAL_CACHE_MANAGER_INIT.call_once(|| {
-        let manager = Arc::new(GlobalCacheManager::new(config));
-        unsafe {
-            GLOBAL_CACHE_MANAGER_MUT = Some(manager);
-        }
-    });
-
-    Ok(())
+    let manager = Arc::new(GlobalCacheManager::new(config));
+    GLOBAL_CACHE_MANAGER_MUT
+        .set(manager)
+        .map_err(|_| "Global cache manager already initialized".to_string())
 }
 
 /// 重新初始化全局缓存管理器（仅在测试中使用）
 #[cfg(test)]
 pub fn reset_global_cache_manager() {
-    unsafe {
-        GLOBAL_CACHE_MANAGER_MUT = None;
-    }
+    // OnceLock不支持重置，所以这个函数现在只能用于测试场景
+    // 在实际使用中，不应该重置全局状态
 }
 
 /// 检查全局缓存管理器是否已初始化
 pub fn is_global_cache_manager_initialized() -> bool {
-    unsafe { GLOBAL_CACHE_MANAGER_MUT.is_some() }
+    GLOBAL_CACHE_MANAGER_MUT.get().is_some()
 }
 
 /// 获取全局缓存注册表
@@ -245,9 +232,7 @@ mod tests {
 
     #[test]
     fn test_global_cache_manager_functions() {
-        // 重置全局状态
-        reset_global_cache_manager();
-
+        // 测试未初始化状态
         assert!(!is_global_cache_manager_initialized());
 
         // 初始化全局缓存管理器
@@ -255,6 +240,11 @@ mod tests {
         init_global_cache_manager(config)
             .expect("Global cache manager initialization should succeed");
         assert!(is_global_cache_manager_initialized());
+
+        // 尝试再次初始化应该失败
+        let config2 = CacheConfig::production();
+        let result = init_global_cache_manager(config2);
+        assert!(result.is_err());
 
         // 获取全局管理器
         let manager = global_cache_manager();

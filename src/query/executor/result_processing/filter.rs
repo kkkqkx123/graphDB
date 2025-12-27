@@ -17,7 +17,7 @@ use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::storage::StorageEngine;
 
@@ -297,11 +297,14 @@ impl<S: StorageEngine + Send> ExecutorMetadata for FilterExecutor<S> {
     }
 }
 
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for FilterExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for FilterExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage
     }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for FilterExecutor<S> {
 }
 
 impl<S: StorageEngine + Send + 'static> InputExecutor<S> for FilterExecutor<S> {

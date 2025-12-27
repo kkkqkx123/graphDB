@@ -14,7 +14,7 @@ use crate::query::executor::data_processing::join::hash_table::{
     HashTableBuilder, HashTableProbe, MultiKeyHashTable, SingleKeyHashTable,
 };
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -271,11 +271,14 @@ impl<S: StorageEngine> ExecutorMetadata for InnerJoinExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for InnerJoinExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base_executor.get_base().storage.as_ref().expect("InnerJoinExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for InnerJoinExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base_executor.get_base().storage
-    }
 }
 
 /// 哈希内连接执行器（并行版本）
@@ -338,11 +341,14 @@ impl<S: StorageEngine> ExecutorMetadata for HashInnerJoinExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for HashInnerJoinExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.inner.get_storage()
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HashInnerJoinExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.inner.storage()
-    }
 }
 
 #[cfg(test)]

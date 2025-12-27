@@ -429,10 +429,11 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     pub fn description(&self) -> &str {
         &self.description
     }
+}
 
-    /// 获取存储引擎引用
-    pub fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S> for BaseJoinExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("BaseJoinExecutor storage should be set")
     }
 }
 

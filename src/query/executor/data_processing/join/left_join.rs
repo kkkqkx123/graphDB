@@ -13,7 +13,7 @@ use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor, hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::storage::StorageEngine;
 
@@ -282,11 +282,14 @@ impl<S: StorageEngine> ExecutorMetadata for LeftJoinExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for LeftJoinExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base_executor.get_base().storage.as_ref().expect("LeftJoinExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LeftJoinExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base_executor.get_base().storage
-    }
 }
 
 /// 哈希左外连接执行器（并行版本）
@@ -348,11 +351,14 @@ impl<S: StorageEngine> ExecutorMetadata for HashLeftJoinExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for HashLeftJoinExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.inner.get_storage()
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HashLeftJoinExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.inner.storage()
-    }
 }
 
 #[cfg(test)]

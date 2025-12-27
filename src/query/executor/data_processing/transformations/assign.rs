@@ -147,11 +147,14 @@ impl<S: StorageEngine + Send> ExecutorMetadata for AssignExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S> for AssignExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("AssignExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AssignExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor, hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::storage::StorageEngine;
 
@@ -193,9 +193,12 @@ impl<S: StorageEngine + Send> ExecutorMetadata for RightJoinExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for RightJoinExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.base.get_storage()
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RightJoinExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage()
-    }
 }

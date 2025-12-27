@@ -67,7 +67,7 @@ impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge)>, QueryError> {
-        let storage = safe_lock(&self.base.storage)
+        let storage = safe_lock(self.get_storage())
             .expect("ExpandAllExecutor storage lock should not be poisoned");
 
         // 获取节点的所有边
@@ -172,7 +172,7 @@ impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
 
                 // 获取邻居节点的完整信息
                 let neighbor_vertex = {
-                    let storage = safe_lock(&self.base.storage)
+                    let storage = safe_lock(self.get_storage())
                         .expect("ExpandAllExecutor storage lock should not be poisoned");
                     storage
                         .get_node(&neighbor_id)
@@ -259,7 +259,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandAllExecutor<S> {
             ExecutionResult::Edges(edges) => {
                 // 从边中提取节点
                 let mut nodes = Vec::new();
-                let storage = safe_lock(&self.base.storage)
+                let storage = safe_lock(self.get_storage())
                     .expect("ExpandAllExecutor storage lock should not be poisoned");
                 let mut visited = HashSet::new();
                 for edge in edges {
@@ -279,7 +279,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandAllExecutor<S> {
             ExecutionResult::Values(values) => {
                 // 从值中提取节点
                 let mut vertices = Vec::new();
-                let storage = safe_lock(&self.base.storage)
+                let storage = safe_lock(self.get_storage())
                     .expect("ExpandAllExecutor storage lock should not be poisoned");
                 for value in values {
                     match value {
@@ -369,9 +369,14 @@ impl<S: StorageEngine> ExecutorMetadata for ExpandAllExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for ExpandAllExecutor<S>
+{
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("ExpandAllExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ExpandAllExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }

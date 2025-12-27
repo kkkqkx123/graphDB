@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use super::base::BaseExecutor;
+use super::traits::HasStorage;
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
@@ -106,11 +107,14 @@ impl<S: StorageEngine> ExecutorMetadata for InsertExecutor<S> {
     }
 }
 
+impl<S: StorageEngine> HasStorage<S> for InsertExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("InsertExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 // Executor for updating existing vertices/edges
@@ -160,7 +164,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
 
         // Update vertices if provided
         if let Some(updates) = &self.vertex_updates {
-            let _storage = safe_lock(&self.base.storage)
+            let _storage = safe_lock(self.get_storage())
                 .expect("UpdateExecutor storage lock should not be poisoned");
             for _update in updates {
                 // In a real implementation, we would:
@@ -174,7 +178,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
 
         // Update edges if provided
         if let Some(updates) = &self.edge_updates {
-            let _storage = safe_lock(&self.base.storage)
+            let _storage = safe_lock(self.get_storage())
                 .expect("UpdateExecutor storage lock should not be poisoned");
             for _update in updates {
                 // In a real implementation, we would:
@@ -220,11 +224,14 @@ impl<S: StorageEngine> ExecutorMetadata for UpdateExecutor<S> {
     }
 }
 
+impl<S: StorageEngine> HasStorage<S> for UpdateExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("UpdateExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 // Executor for deleting vertices/edges
@@ -324,11 +331,14 @@ impl<S: StorageEngine> ExecutorMetadata for DeleteExecutor<S> {
     }
 }
 
+impl<S: StorageEngine> HasStorage<S> for DeleteExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("DeleteExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 // Executor for creating indexes
@@ -411,11 +421,14 @@ impl<S: StorageEngine> ExecutorMetadata for CreateIndexExecutor<S> {
     }
 }
 
+impl<S: StorageEngine> HasStorage<S> for CreateIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("CreateIndexExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 // Executor for dropping indexes
@@ -476,9 +489,12 @@ impl<S: StorageEngine> ExecutorMetadata for DropIndexExecutor<S> {
     }
 }
 
+impl<S: StorageEngine> HasStorage<S> for DropIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("DropIndexExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for DropIndexExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }

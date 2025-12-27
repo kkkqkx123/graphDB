@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::traits::{
-    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasInput, HasStorage,
 };
 use crate::storage::StorageEngine;
 
@@ -46,7 +46,7 @@ pub struct BaseExecutor<S: StorageEngine> {
     pub id: i64,
     pub name: String,
     pub description: String,
-    pub storage: Arc<Mutex<S>>,
+    pub storage: Option<Arc<Mutex<S>>>,
     pub context: ExecutionContext,
     is_open: bool,
 }
@@ -57,7 +57,18 @@ impl<S: StorageEngine> BaseExecutor<S> {
             id,
             name,
             description: String::new(),
-            storage,
+            storage: Some(storage),
+            context: ExecutionContext::new(),
+            is_open: false,
+        }
+    }
+
+    pub fn without_storage(id: i64, name: String) -> Self {
+        Self {
+            id,
+            name,
+            description: String::new(),
+            storage: None,
             context: ExecutionContext::new(),
             is_open: false,
         }
@@ -73,7 +84,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
             id,
             name,
             description: String::new(),
-            storage,
+            storage: Some(storage),
             context,
             is_open: false,
         }
@@ -89,7 +100,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
             id,
             name,
             description,
-            storage,
+            storage: Some(storage),
             context: ExecutionContext::new(),
             is_open: false,
         }
@@ -106,10 +117,16 @@ impl<S: StorageEngine> BaseExecutor<S> {
             id,
             name,
             description,
-            storage,
+            storage: Some(storage),
             context,
             is_open: false,
         }
+    }
+}
+
+impl<S: StorageEngine> HasStorage<S> for BaseExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.storage.as_ref().expect("BaseExecutor storage should be set")
     }
 }
 
@@ -177,13 +194,11 @@ pub struct StartExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> StartExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(id: i64) -> Self {
         Self {
-            base: BaseExecutor::with_description(
+            base: BaseExecutor::without_storage(
                 id,
                 "StartExecutor".to_string(),
-                "Start executor - provides initial execution context".to_string(),
-                storage,
             ),
         }
     }
@@ -230,9 +245,6 @@ impl<S: StorageEngine> ExecutorMetadata for StartExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 // Legacy ExecutionResult for backward compatibility

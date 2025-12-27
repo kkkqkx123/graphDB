@@ -5,7 +5,7 @@ use super::base::BaseExecutor;
 use crate::expression::ExpressionContext;
 use crate::core::Value;
 use crate::query::executor::traits::{
-    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
@@ -48,7 +48,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
             Some(ids) => {
                 // 获取特定顶点ID的顶点
                 let mut result_vertices = Vec::new();
-                let storage = safe_lock(&self.base.storage)
+                let storage = safe_lock(self.get_storage())
                     .expect("GetVerticesExecutor storage lock should not be poisoned");
 
                 for id in ids {
@@ -77,7 +77,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
             }
             None => {
                 // ScanVertices操作：扫描所有顶点
-                let storage = safe_lock(&self.base.storage)
+                let storage = safe_lock(self.get_storage())
                     .expect("GetVerticesExecutor storage lock should not be poisoned");
 
                 // 获取所有顶点
@@ -190,11 +190,14 @@ impl<S: StorageEngine> ExecutorMetadata for GetVerticesExecutor<S> {
     }
 }
 
+impl<S: StorageEngine> HasStorage<S> for GetVerticesExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("GetVerticesExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for GetVerticesExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 // Implementation for a basic GetEdges executor
@@ -255,11 +258,14 @@ impl<S: StorageEngine> ExecutorMetadata for GetEdgesExecutor<S> {
     }
 }
 
+impl<S: StorageEngine> HasStorage<S> for GetEdgesExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("GetEdgesExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for GetEdgesExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 // Implementation for a basic GetNeighbors executor
@@ -332,11 +338,14 @@ impl<S: StorageEngine> ExecutorMetadata for GetNeighborsExecutor<S> {
     }
 }
 
+impl<S: StorageEngine> HasStorage<S> for GetNeighborsExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("GetNeighborsExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for GetNeighborsExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 // Implementation for GetPropExecutor
@@ -409,9 +418,12 @@ impl<S: StorageEngine> ExecutorMetadata for GetPropExecutor<S> {
     }
 }
 
+impl<S: StorageEngine> HasStorage<S> for GetPropExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("GetPropExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for GetPropExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }

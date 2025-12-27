@@ -93,7 +93,7 @@ impl<S: StorageEngine> TraverseExecutor<S> {
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge)>, QueryError> {
-        let storage = safe_lock(&self.base.storage)
+        let storage = safe_lock(self.get_storage())
             .expect("TraverseExecutor storage lock should not be poisoned");
 
         // 获取节点的所有边
@@ -184,7 +184,7 @@ impl<S: StorageEngine> TraverseExecutor<S> {
 
             for (neighbor_id, edge) in neighbors_with_edges {
                 // 获取邻居节点的完整信息
-                let storage = safe_lock(&self.base.storage)
+                let storage = safe_lock(self.get_storage())
                     .expect("TraverseExecutor storage lock should not be poisoned");
                 let neighbor_vertex = storage
                     .get_node(&neighbor_id)
@@ -314,7 +314,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for TraverseExecutor<S> {
                 let mut nodes = Vec::new();
                 let mut visited = HashSet::new();
                 for edge in edges {
-                    let storage = safe_lock(&self.base.storage)
+                    let storage = safe_lock(self.get_storage())
                         .expect("TraverseExecutor storage lock should not be poisoned");
                     if let Ok(Some(src_vertex)) = storage.get_node(&edge.src) {
                         if visited.insert(src_vertex.vid.clone()) {
@@ -332,7 +332,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for TraverseExecutor<S> {
             ExecutionResult::Values(values) => {
                 // 从值中提取节点
                 let mut vertices = Vec::new();
-                let storage = safe_lock(&self.base.storage)
+                let storage = safe_lock(self.get_storage())
                     .expect("TraverseExecutor storage lock should not be poisoned");
                 for value in values {
                     match value {
@@ -428,9 +428,14 @@ impl<S: StorageEngine> ExecutorMetadata for TraverseExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for TraverseExecutor<S>
+{
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("TraverseExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for TraverseExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }

@@ -257,9 +257,14 @@ impl<S: StorageEngine + Send> ExecutorMetadata for FullOuterJoinExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for FullOuterJoinExecutor<S>
+{
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_base().storage.as_ref().expect("FullOuterJoinExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for FullOuterJoinExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage()
-    }
 }

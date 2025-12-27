@@ -39,13 +39,53 @@ pub trait ExecutorMetadata {
     fn description(&self) -> &str;
 }
 
-/// 组合 Executor trait - 组合所有 Executor 相关 trait
+/// 组合 Executor trait - 基础组合
 #[async_trait]
 pub trait Executor<S: StorageEngine>:
     ExecutorCore + ExecutorLifecycle + ExecutorMetadata + Send + Sync
 {
-    /// 获取存储引擎引用
+}
+
+/// 存储访问trait - 提供存储引擎访问能力
+pub trait StorageAccess<S: StorageEngine> {
     fn storage(&self) -> &Arc<Mutex<S>>;
+}
+
+/// 输入访问trait - 提供输入执行器访问能力
+pub trait InputAccess<S: StorageEngine> {
+    fn input(&self) -> Option<&Box<dyn Executor<S>>>;
+    fn input_mut(&mut self) -> Option<&mut Box<dyn Executor<S>>>;
+    fn set_input(&mut self, input: Box<dyn Executor<S>>);
+}
+
+/// 带存储访问能力的Executor
+pub trait ExecutorWithStorage<S: StorageEngine>:
+    Executor<S> + StorageAccess<S>
+{
+}
+
+/// 带输入访问能力的Executor
+pub trait ExecutorWithInput<S: StorageEngine>:
+    Executor<S> + InputAccess<S>
+{
+}
+
+/// 完整Executor - 带存储和输入访问能力
+pub trait FullExecutor<S: StorageEngine>:
+    ExecutorWithStorage<S> + ExecutorWithInput<S>
+{
+}
+
+/// 内部trait - 标记具有存储的执行器
+pub trait HasStorage<S: StorageEngine> {
+    fn get_storage(&self) -> &Arc<Mutex<S>>;
+}
+
+/// 内部trait - 标记具有输入的执行器
+pub trait HasInput<S: StorageEngine> {
+    fn get_input(&self) -> Option<&Box<dyn Executor<S>>>;
+    fn get_input_mut(&mut self) -> Option<&mut Box<dyn Executor<S>>>;
+    fn set_input_impl(&mut self, input: Box<dyn Executor<S>>);
 }
 
 /// 执行结果类型
@@ -191,9 +231,53 @@ macro_rules! impl_executor_for {
 
         #[async_trait::async_trait]
         impl $crate::query::executor::traits::Executor<$storage_type> for $type {
-            fn storage(&self) -> &$storage_type {
-                self.storage()
-            }
         }
     };
+}
+
+/// 为需要存储访问的执行器提供默认实现
+impl<T, S: StorageEngine> StorageAccess<S> for T
+where
+    T: HasStorage<S>,
+{
+    fn storage(&self) -> &Arc<Mutex<S>> {
+        self.get_storage()
+    }
+}
+
+/// 为需要输入访问的执行器提供默认实现
+impl<T, S: StorageEngine> InputAccess<S> for T
+where
+    T: HasInput<S>,
+{
+    fn input(&self) -> Option<&Box<dyn Executor<S>>> {
+        self.get_input()
+    }
+    
+    fn input_mut(&mut self) -> Option<&mut Box<dyn Executor<S>>> {
+        self.get_input_mut()
+    }
+    
+    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
+        self.set_input_impl(input)
+    }
+}
+
+/// 为同时具有存储和输入的执行器提供默认实现
+impl<T, S: StorageEngine> ExecutorWithStorage<S> for T
+where
+    T: Executor<S> + StorageAccess<S>
+{
+}
+
+impl<T, S: StorageEngine> ExecutorWithInput<S> for T
+where
+    T: Executor<S> + InputAccess<S>
+{
+}
+
+impl<T, S: StorageEngine> FullExecutor<S> for T
+where
+    T: ExecutorWithStorage<S> + ExecutorWithInput<S>
+{
 }

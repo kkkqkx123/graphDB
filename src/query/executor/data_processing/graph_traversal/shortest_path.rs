@@ -92,7 +92,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
-        let storage = safe_lock(&self.base.storage)
+        let storage = safe_lock(self.get_storage())
             .expect("ShortestPathExecutor storage lock should not be poisoned");
 
         // 获取节点的所有边
@@ -154,7 +154,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
 
         // 初始化队列
         for start_id in &self.start_vertex_ids {
-            let storage = safe_lock(&self.base.storage)
+            let storage = safe_lock(self.get_storage())
                 .expect("ShortestPathExecutor storage lock should not be poisoned");
             if let Ok(Some(start_vertex)) = storage.get_node(start_id) {
                 let initial_path = Path {
@@ -183,7 +183,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
                 }
 
                 // 创建新路径
-                let storage = safe_lock(&self.base.storage)
+                let storage = safe_lock(self.get_storage())
                     .expect("ShortestPathExecutor storage lock should not be poisoned");
                 if let Ok(Some(neighbor_vertex)) = storage.get_node(&neighbor_id) {
                     let mut new_path = current_path.clone();
@@ -268,7 +268,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
 
         // 回溯路径
         while let Some((prev_id, edge)) = self.previous_map.get(&current_id) {
-            let storage = safe_lock(&self.base.storage)
+            let storage = safe_lock(self.get_storage())
                 .expect("ShortestPathExecutor storage lock should not be poisoned");
             if let Ok(Some(current_vertex)) = storage.get_node(&current_id) {
                 path_steps.push(Step {
@@ -285,7 +285,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         }
 
         // 获取起始节点
-        let storage = safe_lock(&self.base.storage)
+        let storage = safe_lock(self.get_storage())
             .expect("ShortestPathExecutor storage lock should not be poisoned");
         if let Ok(Some(start_vertex)) = storage.get_node(&current_id) {
             // 反转路径步骤
@@ -469,9 +469,14 @@ impl<S: StorageEngine> ExecutorMetadata for ShortestPathExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for ShortestPathExecutor<S>
+{
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("ShortestPathExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShortestPathExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }

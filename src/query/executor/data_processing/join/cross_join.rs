@@ -9,7 +9,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -361,11 +361,14 @@ impl<S: StorageEngine> ExecutorMetadata for CrossJoinExecutor<S> {
     }
 }
 
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CrossJoinExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base_executor.get_base().storage
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S> for CrossJoinExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base_executor.get_base().storage.as_ref().expect("CrossJoinExecutor storage should be set")
     }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> crate::query::executor::traits::Executor<S> for CrossJoinExecutor<S> {
 }
 
 #[cfg(test)]

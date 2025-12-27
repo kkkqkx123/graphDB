@@ -272,7 +272,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         let mut vertices = Vec::new();
 
         // 获取存储引擎
-        let storage = self.base.storage.lock().map_err(|_| {
+        let storage = self.get_storage().lock().map_err(|_| {
             DBError::Storage(crate::core::error::StorageError::DbError(
                 "Failed to lock storage".to_string(),
             ))
@@ -412,11 +412,14 @@ impl<S: StorageEngine + Send> ExecutorMetadata for AppendVerticesExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S> for AppendVerticesExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("AppendVerticesExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AppendVerticesExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 #[cfg(test)]

@@ -84,6 +84,8 @@ pub struct ExecutionSchedule<S: StorageEngine> {
 
 **实现复杂度**：中等
 
+**实际有问题，box形式与另一种形式的生命周期不同**
+
 ---
 
 ### 方案 2：执行器对象池

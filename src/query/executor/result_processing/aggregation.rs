@@ -21,6 +21,7 @@ use crate::query::executor::result_processing::traits::{
 };
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    HasStorage,
 };
 use crate::storage::StorageEngine;
 
@@ -543,11 +544,14 @@ impl<S: StorageEngine + Send> ExecutorMetadata for AggregateExecutor<S> {
     }
 }
 
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AggregateExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for AggregateExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage
     }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AggregateExecutor<S> {
 }
 
 impl<S: StorageEngine + Send + 'static> InputExecutor<S> for AggregateExecutor<S> {
@@ -630,11 +634,14 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for GroupByExecutor<S> 
     }
 }
 
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for GroupByExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.aggregate_executor.get_storage()
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GroupByExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        self.aggregate_executor.storage()
-    }
 }
 
 /// HavingExecutor - HAVING 子句执行器
@@ -814,11 +821,14 @@ impl<S: StorageEngine + Send> ExecutorMetadata for HavingExecutor<S> {
     }
 }
 
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HavingExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for HavingExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage
     }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HavingExecutor<S> {
 }
 
 impl<S: StorageEngine + Send + 'static> InputExecutor<S> for HavingExecutor<S> {

@@ -12,7 +12,7 @@ use crate::core::Expression;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::storage::StorageEngine;
 
@@ -328,11 +328,14 @@ impl<S: StorageEngine> ExecutorMetadata for ProjectExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for ProjectExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("ProjectExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 #[cfg(test)]
@@ -482,7 +485,10 @@ mod tests {
 
     #[async_trait::async_trait]
     impl Executor<MockStorageEngine> for MockInputExecutor {
-        fn storage(&self) -> &Arc<Mutex<MockStorageEngine>> {
+    }
+
+    impl HasStorage<MockStorageEngine> for MockInputExecutor {
+        fn get_storage(&self) -> &Arc<Mutex<MockStorageEngine>> {
             unimplemented!("Mock executor doesn't use storage")
         }
     }

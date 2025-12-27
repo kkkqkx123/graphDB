@@ -354,11 +354,16 @@ impl<S: StorageEngine> ExecutorMetadata for LoopExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for LoopExecutor<S>
+{
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("LoopExecutor storage should be set")
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
 }
 
 /// WhileLoopExecutor - 条件循环执行器
@@ -417,11 +422,16 @@ impl<S: StorageEngine> ExecutorMetadata for WhileLoopExecutor<S> {
     }
 }
 
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for WhileLoopExecutor<S>
+{
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.inner.get_storage()
+    }
+}
+
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for WhileLoopExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.inner.storage()
-    }
 }
 
 /// ForLoopExecutor - 计数循环执行器
@@ -528,9 +538,6 @@ impl<S: StorageEngine> ExecutorMetadata for ForLoopExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        &self.inner.storage()
-    }
 }
 
 #[cfg(test)]
