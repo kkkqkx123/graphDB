@@ -140,6 +140,24 @@ pub enum ExpressionErrorType {
     PropertyNotFound,
     /// 运行时错误
     RuntimeError,
+    /// 不支持的操作
+    UnsupportedOperation,
+    /// 类型转换错误
+    TypeConversionError,
+    /// 操作符错误
+    OperatorError,
+    /// 标签未找到
+    LabelNotFound,
+    /// 边未找到
+    EdgeNotFound,
+    /// 路径错误
+    PathError,
+    /// 范围错误
+    RangeError,
+    /// 聚合函数错误
+    AggregateError,
+    /// 验证错误
+    ValidationError,
 }
 
 /// 表达式错误位置信息
@@ -273,6 +291,66 @@ impl ExpressionError {
             ExpressionErrorType::InvalidArgumentCount,
             format!("无效参数数量: {}", name.into()),
         )
+    }
+
+    /// 创建不支持的操作错误
+    pub fn unsupported_operation(operation: impl Into<String>, suggestion: impl Into<String>) -> Self {
+        Self::new(
+            ExpressionErrorType::UnsupportedOperation,
+            format!("不支持的操作: {}, 建议: {}", operation.into(), suggestion.into()),
+        )
+    }
+
+    /// 创建类型转换错误
+    pub fn type_conversion_error(from_type: impl Into<String>, to_type: impl Into<String>) -> Self {
+        Self::new(
+            ExpressionErrorType::TypeConversionError,
+            format!("类型转换错误: 无法从 {} 转换为 {}", from_type.into(), to_type.into()),
+        )
+    }
+
+    /// 创建操作符错误
+    pub fn operator_error(operator: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::new(
+            ExpressionErrorType::OperatorError,
+            format!("操作符错误: {}: {}", operator.into(), message.into()),
+        )
+    }
+
+    /// 创建标签未找到错误
+    pub fn label_not_found(label: impl Into<String>) -> Self {
+        Self::new(
+            ExpressionErrorType::LabelNotFound,
+            format!("标签未找到: {}", label.into()),
+        )
+    }
+
+    /// 创建边未找到错误
+    pub fn edge_not_found(edge: impl Into<String>) -> Self {
+        Self::new(
+            ExpressionErrorType::EdgeNotFound,
+            format!("边未找到: {}", edge.into()),
+        )
+    }
+
+    /// 创建路径错误
+    pub fn path_error(message: impl Into<String>) -> Self {
+        Self::new(ExpressionErrorType::PathError, message)
+    }
+
+    /// 创建范围错误
+    pub fn range_error(message: impl Into<String>) -> Self {
+        Self::new(ExpressionErrorType::RangeError, message)
+    }
+
+    /// 创建聚合函数错误
+    pub fn aggregate_error(message: impl Into<String>) -> Self {
+        Self::new(ExpressionErrorType::AggregateError, message)
+    }
+
+    /// 创建验证错误
+    pub fn validation_error(message: impl Into<String>) -> Self {
+        Self::new(ExpressionErrorType::ValidationError, message)
     }
 }
 

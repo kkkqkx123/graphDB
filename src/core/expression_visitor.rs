@@ -106,6 +106,18 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
             Expr::Case(e) => self.visit_case_expr(e),
             Expr::Subscript(e) => self.visit_subscript_expr(e),
             Expr::Predicate(e) => self.visit_predicate_expr(e),
+            Expr::TagProperty(e) => self.visit_tag_property_expr(e),
+            Expr::EdgeProperty(e) => self.visit_edge_property_expr(e),
+            Expr::InputProperty(e) => self.visit_input_property_expr(e),
+            Expr::VariableProperty(e) => self.visit_variable_property_expr(e),
+            Expr::SourceProperty(e) => self.visit_source_property_expr(e),
+            Expr::DestinationProperty(e) => self.visit_destination_property_expr(e),
+            Expr::TypeCast(e) => self.visit_type_cast_expr(e),
+            Expr::Range(e) => self.visit_range_expr(e),
+            Expr::Path(e) => self.visit_path_expr(e),
+            Expr::Label(e) => self.visit_label_expr(e),
+            Expr::Reduce(e) => self.visit_reduce_expr(e),
+            Expr::ListComprehension(e) => self.visit_list_comprehension_expr(e),
         }
     }
 
@@ -244,6 +256,30 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
     fn visit_subscript_expr(&mut self, expr: &SubscriptExpr) -> Self::Result;
 
     fn visit_predicate_expr(&mut self, expr: &PredicateExpr) -> Self::Result;
+
+    fn visit_tag_property_expr(&mut self, expr: &TagPropertyExpr) -> Self::Result;
+
+    fn visit_edge_property_expr(&mut self, expr: &EdgePropertyExpr) -> Self::Result;
+
+    fn visit_input_property_expr(&mut self, expr: &InputPropertyExpr) -> Self::Result;
+
+    fn visit_variable_property_expr(&mut self, expr: &VariablePropertyExpr) -> Self::Result;
+
+    fn visit_source_property_expr(&mut self, expr: &SourcePropertyExpr) -> Self::Result;
+
+    fn visit_destination_property_expr(&mut self, expr: &DestinationPropertyExpr) -> Self::Result;
+
+    fn visit_type_cast_expr(&mut self, expr: &TypeCastExpr) -> Self::Result;
+
+    fn visit_range_expr(&mut self, expr: &RangeExpr) -> Self::Result;
+
+    fn visit_path_expr(&mut self, expr: &PathExpr) -> Self::Result;
+
+    fn visit_label_expr(&mut self, expr: &LabelExpr) -> Self::Result;
+
+    fn visit_reduce_expr(&mut self, expr: &ReduceExpr) -> Self::Result;
+
+    fn visit_list_comprehension_expr(&mut self, expr: &ListComprehensionExpr) -> Self::Result;
 
     /// 预访问钩子 - 在访问开始前调用
     fn pre_visit(&mut self) -> VisitorResult<()> {

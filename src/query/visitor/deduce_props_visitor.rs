@@ -649,6 +649,77 @@ impl ExpressionVisitor for DeducePropsVisitor {
         Ok(())
     }
 
+    fn visit_tag_property_expr(&mut self, expr: &TagPropertyExpr) -> Self::Result {
+        self.props.insert_tag_prop(&expr.tag, &expr.prop);
+        Ok(())
+    }
+
+    fn visit_edge_property_expr(&mut self, expr: &EdgePropertyExpr) -> Self::Result {
+        self.props.insert_edge_prop(&expr.edge, &expr.prop);
+        Ok(())
+    }
+
+    fn visit_input_property_expr(&mut self, expr: &InputPropertyExpr) -> Self::Result {
+        self.props.insert_input_prop(&expr.prop);
+        Ok(())
+    }
+
+    fn visit_variable_property_expr(&mut self, expr: &VariablePropertyExpr) -> Self::Result {
+        self.props.insert_var_prop(&expr.var, &expr.prop);
+        Ok(())
+    }
+
+    fn visit_source_property_expr(&mut self, expr: &SourcePropertyExpr) -> Self::Result {
+        self.props.insert_src_tag_prop(&expr.tag, &expr.prop);
+        Ok(())
+    }
+
+    fn visit_destination_property_expr(&mut self, expr: &DestinationPropertyExpr) -> Self::Result {
+        self.props.insert_dst_tag_prop(&expr.tag, &expr.prop);
+        Ok(())
+    }
+
+    fn visit_type_cast_expr(&mut self, expr: &TypeCastExpr) -> Self::Result {
+        self.visit_expr(&expr.expr)
+    }
+
+    fn visit_range_expr(&mut self, expr: &RangeExpr) -> Self::Result {
+        self.visit_expr(&expr.collection)?;
+        if let Some(ref start) = expr.start {
+            self.visit_expr(start)?;
+        }
+        if let Some(ref end) = expr.end {
+            self.visit_expr(end)?;
+        }
+        Ok(())
+    }
+
+    fn visit_path_expr(&mut self, expr: &PathExpr) -> Self::Result {
+        for item in &expr.elements {
+            self.visit_expr(item)?;
+        }
+        Ok(())
+    }
+
+    fn visit_label_expr(&mut self, _expr: &LabelExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_reduce_expr(&mut self, expr: &ReduceExpr) -> Self::Result {
+        self.visit_expr(&expr.list)?;
+        self.visit_expr(&expr.initial)?;
+        self.visit_expr(&expr.expr)?;
+        Ok(())
+    }
+
+    fn visit_list_comprehension_expr(&mut self, expr: &ListComprehensionExpr) -> Self::Result {
+        self.visit_expr(&expr.generator)?;
+        if let Some(ref condition) = expr.condition {
+            self.visit_expr(condition)?;
+        }
+        Ok(())
+    }
+
     fn state(&self) -> &ExpressionVisitorState {
         &self.state
     }

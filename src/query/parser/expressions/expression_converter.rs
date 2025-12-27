@@ -3,10 +3,13 @@
 
 use crate::core::types::expression::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
-use crate::core::Value;
+use crate::core::{NullType, Value};
 use crate::query::parser::ast::{
-    BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, Expr, FunctionCallExpr, ListExpr, MapExpr,
-    PredicateExpr, PropertyAccessExpr, SubscriptExpr, UnaryExpr, UnaryOp, VariableExpr,
+    BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, EdgePropertyExpr, Expr,
+    FunctionCallExpr, InputPropertyExpr, LabelExpr, ListComprehensionExpr, ListExpr,
+    MapExpr, PathExpr, PredicateExpr, PropertyAccessExpr, RangeExpr, ReduceExpr,
+    SourcePropertyExpr, SubscriptExpr, TagPropertyExpr, TypeCastExpr, UnaryExpr, UnaryOp,
+    VariableExpr, VariablePropertyExpr, DestinationPropertyExpr,
 };
 
 /// 将AST表达式转换为graph表达式
@@ -23,6 +26,18 @@ pub fn convert_ast_to_graph_expression(ast_expr: &Expr) -> Result<Expression, St
         Expr::Case(expr) => convert_case_expr(expr),
         Expr::Subscript(expr) => convert_subscript_expr(expr),
         Expr::Predicate(expr) => convert_predicate_expr(expr),
+        Expr::TagProperty(expr) => convert_tag_property_expr(expr),
+        Expr::EdgeProperty(expr) => convert_edge_property_expr(expr),
+        Expr::InputProperty(expr) => convert_input_property_expr(expr),
+        Expr::VariableProperty(expr) => convert_variable_property_expr(expr),
+        Expr::SourceProperty(expr) => convert_source_property_expr(expr),
+        Expr::DestinationProperty(expr) => convert_destination_property_expr(expr),
+        Expr::TypeCast(expr) => convert_type_cast_expr(expr),
+        Expr::Range(expr) => convert_range_expr(expr),
+        Expr::Path(expr) => convert_path_expr(expr),
+        Expr::Label(expr) => convert_label_expr(expr),
+        Expr::Reduce(expr) => convert_reduce_expr(expr),
+        Expr::ListComprehension(expr) => convert_list_comprehension_expr(expr),
     }
 }
 
@@ -37,6 +52,143 @@ fn convert_constant_expr(expr: &ConstantExpr) -> Result<Expression, String> {
         _ => return Err(format!("不支持的常量值类型: {:?}", expr.value)),
     };
     Ok(Expression::Literal(value))
+}
+
+/// 转换标签属性表达式
+fn convert_tag_property_expr(expr: &TagPropertyExpr) -> Result<Expression, String> {
+    Ok(Expression::TagProperty {
+        tag: expr.tag.clone(),
+        prop: expr.prop.clone(),
+    })
+}
+
+/// 转换边属性表达式
+fn convert_edge_property_expr(expr: &EdgePropertyExpr) -> Result<Expression, String> {
+    Ok(Expression::EdgeProperty {
+        edge: expr.edge.clone(),
+        prop: expr.prop.clone(),
+    })
+}
+
+/// 转换输入属性表达式
+fn convert_input_property_expr(expr: &InputPropertyExpr) -> Result<Expression, String> {
+    Ok(Expression::InputProperty(expr.prop.clone()))
+}
+
+/// 转换变量属性表达式
+fn convert_variable_property_expr(expr: &VariablePropertyExpr) -> Result<Expression, String> {
+    Ok(Expression::VariableProperty {
+        var: expr.var.clone(),
+        prop: expr.prop.clone(),
+    })
+}
+
+/// 转换源属性表达式
+fn convert_source_property_expr(expr: &SourcePropertyExpr) -> Result<Expression, String> {
+    Ok(Expression::SourceProperty {
+        tag: expr.tag.clone(),
+        prop: expr.prop.clone(),
+    })
+}
+
+/// 转换目标属性表达式
+fn convert_destination_property_expr(expr: &DestinationPropertyExpr) -> Result<Expression, String> {
+    Ok(Expression::DestinationProperty {
+        tag: expr.tag.clone(),
+        prop: expr.prop.clone(),
+    })
+}
+
+/// 转换类型转换表达式
+fn convert_type_cast_expr(expr: &TypeCastExpr) -> Result<Expression, String> {
+    let converted_expr = convert_ast_to_graph_expression(&expr.expr)?;
+    let target_type = parse_data_type(&expr.target_type)?;
+    Ok(Expression::TypeCast {
+        expr: Box::new(converted_expr),
+        target_type,
+    })
+}
+
+/// 转换范围表达式
+fn convert_range_expr(expr: &RangeExpr) -> Result<Expression, String> {
+    let collection = convert_ast_to_graph_expression(&expr.collection)?;
+    let start = if let Some(ref start_expr) = expr.start {
+        Some(Box::new(convert_ast_to_graph_expression(start_expr)?))
+    } else {
+        None
+    };
+    let end = if let Some(ref end_expr) = expr.end {
+        Some(Box::new(convert_ast_to_graph_expression(end_expr)?))
+    } else {
+        None
+    };
+    Ok(Expression::Range {
+        collection: Box::new(collection),
+        start,
+        end,
+    })
+}
+
+/// 转换路径表达式
+fn convert_path_expr(expr: &PathExpr) -> Result<Expression, String> {
+    let elements: Result<Vec<Expression>, String> = expr
+        .elements
+        .iter()
+        .map(|elem| convert_ast_to_graph_expression(elem))
+        .collect();
+    Ok(Expression::Path(elements?))
+}
+
+/// 转换标签表达式
+fn convert_label_expr(expr: &LabelExpr) -> Result<Expression, String> {
+    Ok(Expression::Label(expr.label.clone()))
+}
+
+/// 转换归约表达式
+fn convert_reduce_expr(expr: &ReduceExpr) -> Result<Expression, String> {
+    let initial = convert_ast_to_graph_expression(&expr.initial)?;
+    let list = convert_ast_to_graph_expression(&expr.list)?;
+    let reduce_expr = convert_ast_to_graph_expression(&expr.expr)?;
+    Ok(Expression::Reduce {
+        list: Box::new(list),
+        var: expr.var.clone(),
+        initial: Box::new(initial),
+        expr: Box::new(reduce_expr),
+    })
+}
+
+/// 转换列表推导表达式
+fn convert_list_comprehension_expr(expr: &ListComprehensionExpr) -> Result<Expression, String> {
+    let generator = convert_ast_to_graph_expression(&expr.generator)?;
+    let condition = if let Some(ref cond_expr) = expr.condition {
+        Some(Box::new(convert_ast_to_graph_expression(cond_expr)?))
+    } else {
+        None
+    };
+    Ok(Expression::ListComprehension {
+        generator: Box::new(generator),
+        condition,
+    })
+}
+
+/// 解析数据类型字符串
+fn parse_data_type(type_str: &str) -> Result<crate::core::types::expression::DataType, String> {
+    match type_str.to_uppercase().as_str() {
+        "BOOL" | "BOOLEAN" => Ok(crate::core::types::expression::DataType::Bool),
+        "INT" | "INTEGER" => Ok(crate::core::types::expression::DataType::Int),
+        "FLOAT" | "DOUBLE" => Ok(crate::core::types::expression::DataType::Float),
+        "STRING" | "STR" => Ok(crate::core::types::expression::DataType::String),
+        "LIST" => Ok(crate::core::types::expression::DataType::List),
+        "MAP" => Ok(crate::core::types::expression::DataType::Map),
+        "VERTEX" => Ok(crate::core::types::expression::DataType::Vertex),
+        "EDGE" => Ok(crate::core::types::expression::DataType::Edge),
+        "PATH" => Ok(crate::core::types::expression::DataType::Path),
+        "DATETIME" => Ok(crate::core::types::expression::DataType::DateTime),
+        "DATE" => Ok(crate::core::types::expression::DataType::Date),
+        "TIME" => Ok(crate::core::types::expression::DataType::Time),
+        "DURATION" => Ok(crate::core::types::expression::DataType::Duration),
+        _ => Err(format!("不支持的数据类型: {}", type_str)),
+    }
 }
 
 /// 转换变量表达式
@@ -301,14 +453,18 @@ mod tests {
     use super::*;
     use crate::core::Value;
     use crate::query::parser::ast::{
-        BinaryExpr, BinaryOp, ConstantExpr, Expr, UnaryExpr, UnaryOp, VariableExpr,
+        BinaryExpr, BinaryOp, ConstantExpr, EdgePropertyExpr, Expr, InputPropertyExpr,
+        LabelExpr, ListComprehensionExpr, ListExpr, MapExpr, PathExpr, PredicateExpr,
+        PropertyAccessExpr, RangeExpr, ReduceExpr, SourcePropertyExpr, SubscriptExpr,
+        TagPropertyExpr, TypeCastExpr, UnaryExpr, UnaryOp, VariableExpr,
+        VariablePropertyExpr, DestinationPropertyExpr, Span,
     };
 
     #[test]
     fn test_convert_constant_expr() {
         let ast_expr = Expr::Constant(ConstantExpr::new(
             Value::Int(42),
-            crate::query::parser::ast::Span::default(),
+            Span::default(),
         ));
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of constant expression");
@@ -324,7 +480,7 @@ mod tests {
     fn test_convert_variable_expr() {
         let ast_expr = Expr::Variable(VariableExpr::new(
             "test_var".to_string(),
-            crate::query::parser::ast::Span::default(),
+            Span::default(),
         ));
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of variable expression");
@@ -337,20 +493,164 @@ mod tests {
     }
 
     #[test]
+    fn test_convert_tag_property_expr() {
+        let ast_expr = Expr::TagProperty(TagPropertyExpr::new(
+            "person".to_string(),
+            "name".to_string(),
+            Span::default(),
+        ));
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of tag property expression");
+
+        if let Expression::TagProperty { tag, prop } = result {
+            assert_eq!(tag, "person");
+            assert_eq!(prop, "name");
+        } else {
+            panic!("Expected TagProperty, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_convert_edge_property_expr() {
+        let ast_expr = Expr::EdgeProperty(EdgePropertyExpr::new(
+            "friend".to_string(),
+            "since".to_string(),
+            Span::default(),
+        ));
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of edge property expression");
+
+        if let Expression::EdgeProperty { edge, prop } = result {
+            assert_eq!(edge, "friend");
+            assert_eq!(prop, "since");
+        } else {
+            panic!("Expected EdgeProperty, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_convert_input_property_expr() {
+        let ast_expr = Expr::InputProperty(InputPropertyExpr::new(
+            "input_prop".to_string(),
+            Span::default(),
+        ));
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of input property expression");
+
+        if let Expression::InputProperty(prop) = result {
+            assert_eq!(prop, "input_prop");
+        } else {
+            panic!("Expected InputProperty, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_convert_variable_property_expr() {
+        let ast_expr = Expr::VariableProperty(VariablePropertyExpr::new(
+            "var_name".to_string(),
+            "prop_name".to_string(),
+            Span::default(),
+        ));
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of variable property expression");
+
+        if let Expression::VariableProperty { var, prop } = result {
+            assert_eq!(var, "var_name");
+            assert_eq!(prop, "prop_name");
+        } else {
+            panic!("Expected VariableProperty, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_convert_source_property_expr() {
+        let ast_expr = Expr::SourceProperty(SourcePropertyExpr::new(
+            "person".to_string(),
+            "age".to_string(),
+            Span::default(),
+        ));
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of source property expression");
+
+        if let Expression::SourceProperty { tag, prop } = result {
+            assert_eq!(tag, "person");
+            assert_eq!(prop, "age");
+        } else {
+            panic!("Expected SourceProperty, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_convert_destination_property_expr() {
+        let ast_expr = Expr::DestinationProperty(DestinationPropertyExpr::new(
+            "person".to_string(),
+            "age".to_string(),
+            Span::default(),
+        ));
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of destination property expression");
+
+        if let Expression::DestinationProperty { tag, prop } = result {
+            assert_eq!(tag, "person");
+            assert_eq!(prop, "age");
+        } else {
+            panic!("Expected DestinationProperty, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_convert_type_cast_expr() {
+        let inner_expr = Expr::Constant(ConstantExpr::new(
+            Value::Int(42),
+            Span::default(),
+        ));
+        let ast_expr = Expr::TypeCast(TypeCastExpr::new(
+            inner_expr,
+            "FLOAT".to_string(),
+            Span::default(),
+        ));
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of type cast expression");
+
+        if let Expression::TypeCast { expr, target_type } = result {
+            assert_eq!(*expr, Expression::Literal(Value::Int(42)));
+            assert_eq!(target_type, crate::core::types::expression::DataType::Float);
+        } else {
+            panic!("Expected TypeCast, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_convert_label_expr() {
+        let ast_expr = Expr::Label(LabelExpr::new(
+            "Person".to_string(),
+            Span::default(),
+        ));
+        let result = convert_ast_to_graph_expression(&ast_expr)
+            .expect("Expected successful conversion of label expression");
+
+        if let Expression::Label(label) = result {
+            assert_eq!(label, "Person");
+        } else {
+            panic!("Expected Label, got {:?}", result);
+        }
+    }
+
+    #[test]
     fn test_convert_binary_expr() {
         let left = Expr::Constant(ConstantExpr::new(
             Value::Int(5),
-            crate::query::parser::ast::Span::default(),
+            Span::default(),
         ));
         let right = Expr::Constant(ConstantExpr::new(
             Value::Int(3),
-            crate::query::parser::ast::Span::default(),
+            Span::default(),
         ));
         let ast_expr = Expr::Binary(BinaryExpr::new(
             left,
             BinaryOp::Add,
             right,
-            crate::query::parser::ast::Span::default(),
+            Span::default(),
         ));
 
         let result = convert_ast_to_graph_expression(&ast_expr)
@@ -369,12 +669,12 @@ mod tests {
     fn test_convert_unary_expr() {
         let operand = Expr::Constant(ConstantExpr::new(
             Value::Bool(true),
-            crate::query::parser::ast::Span::default(),
+            Span::default(),
         ));
         let ast_expr = Expr::Unary(UnaryExpr::new(
             UnaryOp::Not,
             operand,
-            crate::query::parser::ast::Span::default(),
+            Span::default(),
         ));
 
         let result = convert_ast_to_graph_expression(&ast_expr)
@@ -392,17 +692,17 @@ mod tests {
     fn test_convert_unsupported_operator() {
         let left = Expr::Constant(ConstantExpr::new(
             Value::Int(5),
-            crate::query::parser::ast::Span::default(),
+            Span::default(),
         ));
         let right = Expr::Constant(ConstantExpr::new(
             Value::Int(3),
-            crate::query::parser::ast::Span::default(),
+            Span::default(),
         ));
         let ast_expr = Expr::Binary(BinaryExpr::new(
             left,
             BinaryOp::Xor,
             right,
-            crate::query::parser::ast::Span::default(),
+            Span::default(),
         ));
 
         let result = convert_ast_to_graph_expression(&ast_expr);
@@ -418,7 +718,6 @@ mod tests {
         assert!(result.is_ok());
 
         let expr = result.expect("Expected successful parsing of expression from string");
-        // 由于解析器可能返回复杂的表达式结构，我们只检查是否成功转换
         assert!(matches!(expr, Expression::Binary { .. }));
     }
 }

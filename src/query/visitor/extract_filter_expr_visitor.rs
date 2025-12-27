@@ -433,6 +433,54 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
     fn visit_predicate_expr(&mut self, _expr: &crate::query::parser::ast::expr::PredicateExpr) -> Self::Result {
         Ok(())
     }
+
+    fn visit_tag_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::TagPropertyExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_edge_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::EdgePropertyExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_input_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::InputPropertyExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_variable_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::VariablePropertyExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_source_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::SourcePropertyExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_destination_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::DestinationPropertyExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_type_cast_expr(&mut self, _expr: &crate::query::parser::ast::expr::TypeCastExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_range_expr(&mut self, _expr: &crate::query::parser::ast::expr::RangeExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_path_expr(&mut self, _expr: &crate::query::parser::ast::expr::PathExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_label_expr(&mut self, _expr: &crate::query::parser::ast::expr::LabelExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_reduce_expr(&mut self, _expr: &crate::query::parser::ast::expr::ReduceExpr) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_list_comprehension_expr(&mut self, _expr: &crate::query::parser::ast::expr::ListComprehensionExpr) -> Self::Result {
+        Ok(())
+    }
 }
 
 fn is_filter_expression(expr: &Expression) -> bool {

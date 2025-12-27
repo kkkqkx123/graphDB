@@ -19,6 +19,18 @@ pub enum Expr {
     Case(CaseExpr),
     Subscript(SubscriptExpr),
     Predicate(PredicateExpr),
+    TagProperty(TagPropertyExpr),
+    EdgeProperty(EdgePropertyExpr),
+    InputProperty(InputPropertyExpr),
+    VariableProperty(VariablePropertyExpr),
+    SourceProperty(SourcePropertyExpr),
+    DestinationProperty(DestinationPropertyExpr),
+    TypeCast(TypeCastExpr),
+    Range(RangeExpr),
+    Path(PathExpr),
+    Label(LabelExpr),
+    Reduce(ReduceExpr),
+    ListComprehension(ListComprehensionExpr),
 }
 
 impl Expr {
@@ -36,6 +48,18 @@ impl Expr {
             Expr::Case(e) => e.span,
             Expr::Subscript(e) => e.span,
             Expr::Predicate(e) => e.span,
+            Expr::TagProperty(e) => e.span,
+            Expr::EdgeProperty(e) => e.span,
+            Expr::InputProperty(e) => e.span,
+            Expr::VariableProperty(e) => e.span,
+            Expr::SourceProperty(e) => e.span,
+            Expr::DestinationProperty(e) => e.span,
+            Expr::TypeCast(e) => e.span,
+            Expr::Range(e) => e.span,
+            Expr::Path(e) => e.span,
+            Expr::Label(e) => e.span,
+            Expr::Reduce(e) => e.span,
+            Expr::ListComprehension(e) => e.span,
         }
     }
 
@@ -60,6 +84,24 @@ impl Expr {
                 match_constant && when_constant && default_constant
             }
             Expr::Subscript(e) => e.collection.is_constant() && e.index.is_constant(),
+            Expr::Range(e) => {
+                let collection_constant = e.collection.is_constant();
+                let start_constant = e.start.as_ref().map_or(true, |expr| expr.is_constant());
+                let end_constant = e.end.as_ref().map_or(true, |expr| expr.is_constant());
+                collection_constant && start_constant && end_constant
+            }
+            Expr::Path(e) => e.elements.iter().all(|elem| elem.is_constant()),
+            Expr::Reduce(e) => {
+                let list_constant = e.list.is_constant();
+                let initial_constant = e.initial.is_constant();
+                let expr_constant = e.expr.is_constant();
+                list_constant && initial_constant && expr_constant
+            }
+            Expr::ListComprehension(e) => {
+                let generator_constant = e.generator.is_constant();
+                let condition_constant = e.condition.as_ref().map_or(true, |expr| expr.is_constant());
+                generator_constant && condition_constant
+            }
             _ => false,
         }
     }
@@ -138,6 +180,41 @@ impl Expr {
                 e.list.to_string(),
                 e.condition.to_string()
             ),
+            Expr::TagProperty(e) => format!("{}.{}", e.tag, e.prop),
+            Expr::EdgeProperty(e) => format!("{}.{}", e.edge, e.prop),
+            Expr::InputProperty(e) => format!("$-.{}", e.prop),
+            Expr::VariableProperty(e) => format!("${}.{}", e.var, e.prop),
+            Expr::SourceProperty(e) => format!("$^{}.{}", e.tag, e.prop),
+            Expr::DestinationProperty(e) => format!("$${}.{}", e.tag, e.prop),
+            Expr::TypeCast(e) => format!("CAST({} AS {})", e.expr.to_string(), e.target_type),
+            Expr::Range(e) => {
+                let start_str = e.start.as_ref().map_or(String::new(), |expr| expr.to_string());
+                let end_str = e.end.as_ref().map_or(String::new(), |expr| expr.to_string());
+                format!("{}[{}..{}]", e.collection.to_string(), start_str, end_str)
+            }
+            Expr::Path(e) => {
+                let elements_str = e
+                    .elements
+                    .iter()
+                    .map(|elem| elem.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" -> ");
+                format!("[{}]", elements_str)
+            }
+            Expr::Label(e) => format!(":{}", e.label),
+            Expr::Reduce(e) => format!(
+                "REDUCE({}, {}, {}, {})",
+                e.var,
+                e.initial.to_string(),
+                e.list.to_string(),
+                e.expr.to_string()
+            ),
+            Expr::ListComprehension(e) => {
+                let condition_str = e.condition.as_ref().map_or(String::new(), |expr| {
+                    format!(" WHERE {}", expr.to_string())
+                });
+                format!("[x IN {}{} | x]", e.generator.to_string(), condition_str)
+            }
         }
     }
 }
@@ -336,6 +413,193 @@ impl PredicateExpr {
     }
 }
 
+/// 标签属性表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct TagPropertyExpr {
+    pub span: Span,
+    pub tag: String,
+    pub prop: String,
+}
+
+impl TagPropertyExpr {
+    pub fn new(tag: String, prop: String, span: Span) -> Self {
+        Self { span, tag, prop }
+    }
+}
+
+/// 边属性表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct EdgePropertyExpr {
+    pub span: Span,
+    pub edge: String,
+    pub prop: String,
+}
+
+impl EdgePropertyExpr {
+    pub fn new(edge: String, prop: String, span: Span) -> Self {
+        Self { span, edge, prop }
+    }
+}
+
+/// 输入属性表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct InputPropertyExpr {
+    pub span: Span,
+    pub prop: String,
+}
+
+impl InputPropertyExpr {
+    pub fn new(prop: String, span: Span) -> Self {
+        Self { span, prop }
+    }
+}
+
+/// 变量属性表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct VariablePropertyExpr {
+    pub span: Span,
+    pub var: String,
+    pub prop: String,
+}
+
+impl VariablePropertyExpr {
+    pub fn new(var: String, prop: String, span: Span) -> Self {
+        Self { span, var, prop }
+    }
+}
+
+/// 源属性表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct SourcePropertyExpr {
+    pub span: Span,
+    pub tag: String,
+    pub prop: String,
+}
+
+impl SourcePropertyExpr {
+    pub fn new(tag: String, prop: String, span: Span) -> Self {
+        Self { span, tag, prop }
+    }
+}
+
+/// 目标属性表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct DestinationPropertyExpr {
+    pub span: Span,
+    pub tag: String,
+    pub prop: String,
+}
+
+impl DestinationPropertyExpr {
+    pub fn new(tag: String, prop: String, span: Span) -> Self {
+        Self { span, tag, prop }
+    }
+}
+
+/// 类型转换表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeCastExpr {
+    pub span: Span,
+    pub expr: Box<Expr>,
+    pub target_type: String,
+}
+
+impl TypeCastExpr {
+    pub fn new(expr: Expr, target_type: String, span: Span) -> Self {
+        Self {
+            span,
+            expr: Box::new(expr),
+            target_type,
+        }
+    }
+}
+
+/// 范围表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct RangeExpr {
+    pub span: Span,
+    pub collection: Box<Expr>,
+    pub start: Option<Box<Expr>>,
+    pub end: Option<Box<Expr>>,
+}
+
+impl RangeExpr {
+    pub fn new(collection: Expr, start: Option<Expr>, end: Option<Expr>, span: Span) -> Self {
+        Self {
+            span,
+            collection: Box::new(collection),
+            start: start.map(Box::new),
+            end: end.map(Box::new),
+        }
+    }
+}
+
+/// 路径表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct PathExpr {
+    pub span: Span,
+    pub elements: Vec<Expr>,
+}
+
+impl PathExpr {
+    pub fn new(elements: Vec<Expr>, span: Span) -> Self {
+        Self { span, elements }
+    }
+}
+
+/// 标签表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct LabelExpr {
+    pub span: Span,
+    pub label: String,
+}
+
+impl LabelExpr {
+    pub fn new(label: String, span: Span) -> Self {
+        Self { span, label }
+    }
+}
+
+/// 归约表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReduceExpr {
+    pub span: Span,
+    pub var: String,
+    pub initial: Box<Expr>,
+    pub list: Box<Expr>,
+    pub expr: Box<Expr>,
+}
+
+impl ReduceExpr {
+    pub fn new(var: String, initial: Expr, list: Expr, expr: Expr, span: Span) -> Self {
+        Self {
+            span,
+            var,
+            initial: Box::new(initial),
+            list: Box::new(list),
+            expr: Box::new(expr),
+        }
+    }
+}
+
+/// 列表推导表达式
+#[derive(Debug, Clone, PartialEq)]
+pub struct ListComprehensionExpr {
+    pub span: Span,
+    pub generator: Box<Expr>,
+    pub condition: Option<Box<Expr>>,
+}
+
+impl ListComprehensionExpr {
+    pub fn new(generator: Expr, condition: Option<Expr>, span: Span) -> Self {
+        Self {
+            span,
+            generator: Box::new(generator),
+            condition: condition.map(Box::new),
+        }
+    }
+}
+
 // 实现 Display trait 用于格式化输出
 impl std::fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -454,6 +718,32 @@ impl ExprUtils {
                 Self::find_variables_recursive(&e.list, variables);
                 Self::find_variables_recursive(&e.condition, variables);
             }
+            Expr::TypeCast(e) => Self::find_variables_recursive(&e.expr, variables),
+            Expr::Range(e) => {
+                Self::find_variables_recursive(&e.collection, variables);
+                if let Some(ref start) = e.start {
+                    Self::find_variables_recursive(start, variables);
+                }
+                if let Some(ref end) = e.end {
+                    Self::find_variables_recursive(end, variables);
+                }
+            }
+            Expr::Path(e) => {
+                for elem in &e.elements {
+                    Self::find_variables_recursive(elem, variables);
+                }
+            }
+            Expr::Reduce(e) => {
+                Self::find_variables_recursive(&e.initial, variables);
+                Self::find_variables_recursive(&e.list, variables);
+                Self::find_variables_recursive(&e.expr, variables);
+            }
+            Expr::ListComprehension(e) => {
+                Self::find_variables_recursive(&e.generator, variables);
+                if let Some(ref condition) = e.condition {
+                    Self::find_variables_recursive(condition, variables);
+                }
+            }
             _ => {}
         }
     }
@@ -504,6 +794,33 @@ impl ExprUtils {
             Expr::Predicate(e) => {
                 Self::contains_aggregate_recursive(&e.list)
                     || Self::contains_aggregate_recursive(&e.condition)
+            }
+            Expr::TypeCast(e) => Self::contains_aggregate_recursive(&e.expr),
+            Expr::Range(e) => {
+                let collection_contains = Self::contains_aggregate_recursive(&e.collection);
+                let start_contains = e
+                    .start
+                    .as_ref()
+                    .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
+                let end_contains = e
+                    .end
+                    .as_ref()
+                    .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
+                collection_contains || start_contains || end_contains
+            }
+            Expr::Path(e) => e.elements.iter().any(Self::contains_aggregate_recursive),
+            Expr::Reduce(e) => {
+                Self::contains_aggregate_recursive(&e.initial)
+                    || Self::contains_aggregate_recursive(&e.list)
+                    || Self::contains_aggregate_recursive(&e.expr)
+            }
+            Expr::ListComprehension(e) => {
+                let generator_contains = Self::contains_aggregate_recursive(&e.generator);
+                let condition_contains = e
+                    .condition
+                    .as_ref()
+                    .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
+                generator_contains || condition_contains
             }
             _ => false,
         }
