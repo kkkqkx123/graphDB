@@ -56,7 +56,7 @@ impl Planner for GoPlanner {
             edge_types = edge_types.iter().map(|et| format!("-{}", et)).collect();
         }
 
-        let expand_direction = EdgeDirection::Out;
+        let expand_direction = EdgeDirection::Outgoing;
         let expand_node = ExpandNode::new(1, edge_types.clone(), expand_direction);
 
         let direction = if go_ctx.over.direction == "both" {

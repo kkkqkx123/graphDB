@@ -569,7 +569,7 @@ impl StmtParser {
         let span = self.current_span();
 
         let mut edge_types = Vec::new();
-        let mut direction = EdgeDirection::Out;
+        let mut direction = EdgeDirection::Outgoing;
 
         // 解析边类型
         loop {
@@ -583,9 +583,9 @@ impl StmtParser {
 
         // 解析方向
         if self.match_token(LexerToken::Out) {
-            direction = EdgeDirection::Out;
+            direction = EdgeDirection::Outgoing;
         } else if self.match_token(LexerToken::In) {
-            direction = EdgeDirection::In;
+            direction = EdgeDirection::Incoming;
         } else if self.match_token(LexerToken::Both) {
             direction = EdgeDirection::Both;
         }

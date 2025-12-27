@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{Edge, Value, Vertex};
+use crate::core::types::EdgeDirection;
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasInput, HasStorage,
 };
@@ -177,14 +178,6 @@ pub trait ChainableExecutor<S: StorageEngine + Send + 'static>:
         self.set_input(next);
         Box::new(self)
     }
-}
-
-// Edge direction enum for neighbor queries
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum EdgeDirection {
-    In,
-    Out,
-    Both,
 }
 
 // Implementation for StartExecutor

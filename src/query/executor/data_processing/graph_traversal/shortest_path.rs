@@ -115,7 +115,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
             .into_iter()
             .filter_map(|edge| {
                 let (neighbor_id, weight) = match self.edge_direction {
-                    EdgeDirection::In => {
+                    EdgeDirection::Incoming => {
                         if *edge.dst == *node_id {
                             // 对于最短路径，我们可以使用边的ranking作为权重
                             ((*edge.src).clone(), edge.ranking as f64)
@@ -123,7 +123,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
                             return None;
                         }
                     }
-                    EdgeDirection::Out => {
+                    EdgeDirection::Outgoing => {
                         if *edge.src == *node_id {
                             ((*edge.dst).clone(), edge.ranking as f64)
                         } else {

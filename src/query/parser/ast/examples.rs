@@ -150,7 +150,7 @@ pub fn build_create_edge_query() -> Stmt {
         src,
         dst,
         Some(properties),
-        EdgeDirection::Out,
+        EdgeDirection::Outgoing,
         span,
     )
 }
@@ -202,7 +202,7 @@ pub fn build_go_query() -> Stmt {
     let over = OverClause {
         span,
         edge_types: vec!["KNOWS".to_string()],
-        direction: EdgeDirection::Out,
+        direction: EdgeDirection::Outgoing,
     };
 
     // 创建 YIELD 子句
@@ -319,7 +319,7 @@ pub fn build_find_path_query() -> Stmt {
     let over = OverClause {
         span,
         edge_types: vec!["KNOWS".to_string()],
-        direction: EdgeDirection::Out,
+        direction: EdgeDirection::Outgoing,
     };
 
     // 创建 YIELD 子句
@@ -424,7 +424,7 @@ pub fn build_complex_pattern() -> Pattern {
     let edge_e = PatternFactory::simple_edge(
         Some("e".to_string()),
         vec!["KNOWS".to_string()],
-        EdgeDirection::Out,
+        EdgeDirection::Outgoing,
         span,
     );
 

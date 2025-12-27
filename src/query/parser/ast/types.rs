@@ -1,6 +1,7 @@
 //! 基础类型定义
 
 use crate::core::types::operators::AggregateFunction as CoreAggregateFunction;
+use crate::core::types::EdgeDirection;
 
 /// 位置信息
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -123,14 +124,6 @@ pub enum PredicateType {
     Single,
     None,
     Exists,
-}
-
-/// 边方向
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EdgeDirection {
-    Out,
-    In,
-    Both,
 }
 
 // 使用核心数据类型

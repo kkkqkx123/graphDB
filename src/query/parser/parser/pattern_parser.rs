@@ -102,11 +102,11 @@ impl super::Parser {
         let direction = match self.current_token().kind {
             TokenKind::Arrow => {
                 self.next_token();
-                EdgeDirection::Out
+                EdgeDirection::Outgoing
             }
             TokenKind::BackArrow => {
                 self.next_token();
-                EdgeDirection::In
+                EdgeDirection::Incoming
             }
             TokenKind::Minus => {
                 self.next_token();

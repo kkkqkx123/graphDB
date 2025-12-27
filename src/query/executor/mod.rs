@@ -19,7 +19,7 @@ pub use traits::{
 
 // Re-export the base types
 pub use base::{
-    BaseExecutor, ChainableExecutor, EdgeDirection, ExecutionContext, InputExecutor, StartExecutor,
+    BaseExecutor, ChainableExecutor, ExecutionContext, InputExecutor, StartExecutor,
 };
 
 // Re-export result processing executors

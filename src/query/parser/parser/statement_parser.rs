@@ -310,10 +310,10 @@ impl super::Parser {
         // Parse edge pattern -> or <-
         let direction = if self.current_token.kind == LexerToken::Arrow {
             self.next_token();
-            EdgeDirection::Out
+            EdgeDirection::Outgoing
         } else if self.current_token.kind == LexerToken::BackArrow {
             self.next_token();
-            EdgeDirection::In
+            EdgeDirection::Incoming
         } else {
             let span = self.parser_current_span();
             return Err(ParseError::new(

@@ -82,11 +82,11 @@ pub trait GoStatementParser: ExpressionParser {
             match self.current_token().kind {
                 TokenKind::Out => {
                     self.next_token();
-                    EdgeDirection::Out
+                    EdgeDirection::Outgoing
                 }
                 TokenKind::In => {
                     self.next_token();
-                    EdgeDirection::In
+                    EdgeDirection::Incoming
                 }
                 TokenKind::Both => {
                     self.next_token();
@@ -104,7 +104,7 @@ pub trait GoStatementParser: ExpressionParser {
                 }
             }
         } else {
-            EdgeDirection::Out // 默认方向
+            EdgeDirection::Outgoing // 默认方向
         };
 
         Ok(OverClause {

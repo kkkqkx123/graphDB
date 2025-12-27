@@ -275,7 +275,7 @@ mod pattern_tests {
             vec!["KNOWS".to_string()],
             None,
             vec![],
-            EdgeDirection::Out,
+            EdgeDirection::Outgoing,
             None,
             Span::default(),
         ));
@@ -300,7 +300,7 @@ mod pattern_tests {
                 vec![],
                 None,
                 vec![],
-                EdgeDirection::Out,
+                EdgeDirection::Outgoing,
                 None,
                 Span::default(),
             )),

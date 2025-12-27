@@ -90,9 +90,9 @@ impl PatternParser {
 
         // 检查方向
         let direction = if self.match_token(LexerToken::BackArrow) {
-            EdgeDirection::In
+            EdgeDirection::Incoming
         } else {
-            EdgeDirection::Out
+            EdgeDirection::Outgoing
         };
 
         self.expect_token(LexerToken::LBracket)?;
@@ -157,15 +157,15 @@ impl PatternParser {
         self.expect_token(LexerToken::RBracket)?;
 
         // 检查方向
-        let final_direction = if direction == EdgeDirection::In {
+        let final_direction = if direction == EdgeDirection::Incoming {
             if self.match_token(LexerToken::Arrow) {
                 EdgeDirection::Both // <-[]-> 表示双向
             } else {
-                EdgeDirection::In
+                EdgeDirection::Incoming
             }
         } else {
             if self.match_token(LexerToken::Arrow) {
-                EdgeDirection::Out
+                EdgeDirection::Outgoing
             } else {
                 EdgeDirection::Both // -[]- 表示双向
             }

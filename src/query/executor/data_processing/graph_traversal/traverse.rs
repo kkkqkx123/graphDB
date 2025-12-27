@@ -115,14 +115,14 @@ impl<S: StorageEngine> TraverseExecutor<S> {
         let neighbors_with_edges = filtered_edges
             .into_iter()
             .filter_map(|edge| match self.edge_direction {
-                EdgeDirection::In => {
+                EdgeDirection::Incoming => {
                     if *edge.dst == *node_id {
                         Some(((*edge.src).clone(), edge))
                     } else {
                         None
                     }
                 }
-                EdgeDirection::Out => {
+                EdgeDirection::Outgoing => {
                     if *edge.src == *node_id {
                         Some(((*edge.dst).clone(), edge))
                     } else {

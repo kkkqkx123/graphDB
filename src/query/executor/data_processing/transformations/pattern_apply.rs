@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::EdgeDirection;
 use crate::expression::DefaultExpressionContext;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::core::{DataSet, Edge, Path, Value, Vertex};
@@ -48,17 +49,6 @@ pub enum PatternType {
         /// 路径长度范围
         length_range: Option<(usize, Option<usize>)>,
     },
-}
-
-/// 边方向
-#[derive(Debug, Clone, PartialEq)]
-pub enum EdgeDirection {
-    /// 出边
-    Outgoing,
-    /// 入边
-    Incoming,
-    /// 无向边
-    Undirected,
 }
 
 /// PatternApply执行器

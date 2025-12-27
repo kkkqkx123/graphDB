@@ -21,7 +21,7 @@ pub use append_vertices::AppendVerticesExecutor;
 
 // 模式匹配执行器
 pub mod pattern_apply;
-pub use pattern_apply::{EdgeDirection, PatternApplyExecutor, PatternType};
+pub use pattern_apply::{PatternApplyExecutor, PatternType};
 
 // 聚合操作执行器
 pub mod rollup_apply;
