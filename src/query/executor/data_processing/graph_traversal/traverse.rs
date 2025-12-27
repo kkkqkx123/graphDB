@@ -6,7 +6,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -165,6 +165,7 @@ impl<S: StorageEngine> TraverseExecutor<S> {
         }
 
         let mut next_paths = Vec::new();
+        let mut completed_this_step = Vec::new();
 
         for path in &self.current_paths {
             // 获取当前路径的最后一个节点
@@ -205,7 +206,7 @@ impl<S: StorageEngine> TraverseExecutor<S> {
 
                     // 检查是否达到最大深度
                     if current_depth + 1 >= max_depth {
-                        self.completed_paths.push(new_path);
+                        completed_this_step.push(new_path);
                     } else {
                         next_paths.push(new_path);
                     }
@@ -213,6 +214,7 @@ impl<S: StorageEngine> TraverseExecutor<S> {
             }
         }
 
+        self.completed_paths.extend(completed_this_step);
         self.current_paths = next_paths;
         Ok(())
     }
@@ -332,7 +334,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for TraverseExecutor<S> {
             ExecutionResult::Values(values) => {
                 // 从值中提取节点
                 let mut vertices = Vec::new();
-                let storage = safe_lock(self.get_storage())
+                let storage = safe_lock(&*self.get_storage())
                     .expect("TraverseExecutor storage lock should not be poisoned");
                 for value in values {
                     match value {
@@ -428,9 +430,7 @@ impl<S: StorageEngine> ExecutorMetadata for TraverseExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
-    for TraverseExecutor<S>
-{
+impl<S: StorageEngine + Send> HasStorage<S> for TraverseExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("TraverseExecutor storage should be set")
     }

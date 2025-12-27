@@ -6,7 +6,7 @@ use crate::core::error::{DBError, QueryError};
 use crate::query::executor::cypher::context::CypherExecutionContext;
 use crate::query::executor::cypher::{CypherExecutorError, CypherExecutorTrait};
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::query::parser::cypher::ast::statements::CypherStatement;
 use crate::storage::StorageEngine;
@@ -282,7 +282,10 @@ impl<S: StorageEngine> ExecutorMetadata for CypherExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for CypherExecutor<S> {
-    fn storage(&self) -> &Arc<Mutex<S>> {
+}
+
+impl<S: StorageEngine + Send> HasStorage<S> for CypherExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
         &self.storage
     }
 }

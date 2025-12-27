@@ -13,7 +13,7 @@ use crate::core::Expression;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::storage::StorageEngine;
 
@@ -650,6 +650,17 @@ mod tests {
     struct CountExecutor {
         count: i64,
         max_count: i64,
+        storage: Arc<Mutex<MockStorage>>,
+    }
+
+    impl CountExecutor {
+        fn new(storage: Arc<Mutex<MockStorage>>) -> Self {
+            Self {
+                count: 0,
+                max_count: 10,
+                storage,
+            }
+        }
     }
 
     #[async_trait]
@@ -690,15 +701,18 @@ mod tests {
 
     #[async_trait]
     impl Executor<MockStorage> for CountExecutor {
-        fn storage(&self) -> &Arc<Mutex<MockStorage>> {
-            // 需要添加base字段或者修改这个实现
-            unimplemented!("需要添加base字段到CountExecutor")
+    }
+
+    impl HasStorage<MockStorage> for CountExecutor {
+        fn get_storage(&self) -> &Arc<Mutex<MockStorage>> {
+            &self.storage
         }
     }
 
     #[tokio::test]
     async fn test_while_loop_executor() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let storage_clone = storage.clone();
 
         // 创建条件表达式：__iteration < 3
         let condition = Expression::binary(
@@ -707,10 +721,7 @@ mod tests {
             Expression::int(3),
         );
 
-        let body_executor = Box::new(CountExecutor {
-            count: 0,
-            max_count: 10,
-        });
+        let body_executor = Box::new(CountExecutor::new(storage_clone));
 
         let mut executor = WhileLoopExecutor::new(
             1,
@@ -745,11 +756,9 @@ mod tests {
     #[tokio::test]
     async fn test_for_loop_executor() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let storage_clone = storage.clone();
 
-        let body_executor = Box::new(CountExecutor {
-            count: 0,
-            max_count: 10,
-        });
+        let body_executor = Box::new(CountExecutor::new(storage_clone));
 
         let mut executor =
             ForLoopExecutor::new(1, storage, "i".to_string(), 1, 3, 1, body_executor);

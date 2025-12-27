@@ -13,7 +13,7 @@ use crate::core::Expression;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::storage::StorageEngine;
 
@@ -412,7 +412,7 @@ impl<S: StorageEngine + Send> ExecutorMetadata for AppendVerticesExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S> for AppendVerticesExecutor<S> {
+impl<S: StorageEngine + Send> HasStorage<S> for AppendVerticesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("AppendVerticesExecutor storage should be set")
     }

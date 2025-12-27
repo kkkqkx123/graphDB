@@ -6,7 +6,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -150,7 +150,7 @@ impl<S: StorageEngine> ExpandExecutor<S> {
     fn build_expansion_result(&self, expanded_nodes: Vec<Value>) -> ExecutionResult {
         // 将节点ID转换为顶点对象
         let mut vertices = Vec::new();
-        let storage = safe_lock(self.get_storage())
+        let storage = safe_lock(&*self.get_storage())
             .expect("ExpandExecutor storage lock should not be poisoned");
 
         for node_id in expanded_nodes {
@@ -260,9 +260,7 @@ impl<S: StorageEngine> ExecutorMetadata for ExpandExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
-    for ExpandExecutor<S>
-{
+impl<S: StorageEngine + Send> HasStorage<S> for ExpandExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("ExpandExecutor storage should be set")
     }

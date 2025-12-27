@@ -111,7 +111,7 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
         match plan_node {
             // 基础执行器
             PlanNodeEnum::Start(node) => {
-                Ok(Box::new(StartExecutor::new(node.id(), storage)))
+                Ok(Box::new(StartExecutor::new(node.id())))
             }
 
             // 数据访问执行器

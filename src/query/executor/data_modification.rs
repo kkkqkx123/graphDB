@@ -55,7 +55,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for InsertExecutor<S> {
 
         // Insert vertices if provided
         if let Some(vertices) = &self.vertex_data {
-            let mut storage = safe_lock(&self.base.storage)
+            let mut storage = safe_lock(self.get_storage())
                 .expect("InsertExecutor storage lock should not be poisoned");
             for vertex in vertices {
                 storage.insert_node(vertex.clone())?; // Assuming we have an insert_node method
@@ -65,7 +65,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for InsertExecutor<S> {
 
         // Insert edges if provided
         if let Some(edges) = &self.edge_data {
-            let mut storage = safe_lock(&self.base.storage)
+            let mut storage = safe_lock(self.get_storage())
                 .expect("InsertExecutor storage lock should not be poisoned");
             for edge in edges {
                 storage.insert_edge(edge.clone())?; // Assuming we have an insert_edge method
@@ -178,7 +178,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
 
         // Update edges if provided
         if let Some(updates) = &self.edge_updates {
-            let _storage = safe_lock(self.get_storage())
+            let _storage = safe_lock(&*self.get_storage())
                 .expect("UpdateExecutor storage lock should not be poisoned");
             for _update in updates {
                 // In a real implementation, we would:
@@ -271,7 +271,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for DeleteExecutor<S> {
 
         // Delete vertices if provided
         if let Some(ids) = &self.vertex_ids {
-            let _storage = safe_lock(&self.base.storage)
+            let _storage = safe_lock(&*self.get_storage())
                 .expect("DeleteExecutor storage lock should not be poisoned");
             for _id in ids {
                 // In a real implementation, we would:
@@ -285,7 +285,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for DeleteExecutor<S> {
 
         // Delete edges if provided
         if let Some(ids) = &self.edge_ids {
-            let _storage = safe_lock(&self.base.storage)
+            let _storage = safe_lock(&*self.get_storage())
                 .expect("DeleteExecutor storage lock should not be poisoned");
             for _id in ids {
                 // In a real implementation, we would:
