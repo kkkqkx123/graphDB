@@ -4,6 +4,8 @@ pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
 pub mod factory;
+pub mod object_pool;
+pub mod recursion_detector;
 pub mod result_processing;
 pub mod tag_filter;
 pub mod traits;
@@ -13,8 +15,7 @@ pub mod cypher;
 
 // Re-export the new trait types
 pub use traits::{
-    BaseExecutor as NewBaseExecutor, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle,
-    ExecutorMetadata,
+    BaseExecutor as NewBaseExecutor, ExecutionResult, Executor, HasStorage, HasInput,
 };
 
 // Re-export the base types

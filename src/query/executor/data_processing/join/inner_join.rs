@@ -14,7 +14,7 @@ use crate::query::executor::data_processing::join::hash_table::{
     HashTableBuilder, HashTableProbe, MultiKeyHashTable, SingleKeyHashTable,
 };
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
+    ExecutionResult, Executor, HasStorage,
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;

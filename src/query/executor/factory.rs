@@ -21,28 +21,42 @@ use crate::query::executor::data_processing::{
     UnwindExecutor, AssignExecutor
 };
 use crate::query::executor::base::{StartExecutor, ExecutionContext};
+use crate::query::executor::recursion_detector::{RecursionDetector, ExecutorSafetyValidator, ExecutorSafetyConfig};
 
 /// 执行器工厂
 ///
 /// 负责根据计划节点类型创建对应的执行器实例
 /// 采用直接匹配模式，避免过度抽象
+/// 包含递归检测和安全验证机制
 #[derive(Debug)]
 pub struct ExecutorFactory<S: StorageEngine + 'static> {
     storage: Option<Arc<Mutex<S>>>,
+    recursion_detector: RecursionDetector,
+    safety_validator: ExecutorSafetyValidator,
 }
 
 impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
     /// 创建新的执行器工厂
     pub fn new() -> Self {
+        let recursion_detector = RecursionDetector::new(100);
+        let safety_validator = ExecutorSafetyValidator::new(ExecutorSafetyConfig::default());
+        
         Self {
             storage: None,
+            recursion_detector,
+            safety_validator,
         }
     }
     
     /// 设置存储引擎
     pub fn with_storage(storage: Arc<Mutex<S>>) -> Self {
+        let recursion_detector = RecursionDetector::new(100);
+        let safety_validator = ExecutorSafetyValidator::new(ExecutorSafetyConfig::default());
+        
         Self {
             storage: Some(storage),
+            recursion_detector,
+            safety_validator,
         }
     }
 
@@ -101,6 +115,27 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
         Ok(Box::new(executor))
     }
 
+    /// 验证计划节点的安全性
+    fn validate_plan_node(&self, plan_node: &PlanNodeEnum) -> Result<(), QueryError> {
+        match plan_node {
+            PlanNodeEnum::Expand(node) => {
+                let step_limit = node.step_limit().and_then(|s| usize::try_from(s).ok()).unwrap_or(10);
+                if step_limit > 1000 {
+                    return Err(QueryError::ExecutionError(
+                        format!("Expand执行器的步数限制{}超过安全阈值1000", step_limit)
+                    ));
+                }
+            }
+            PlanNodeEnum::Loop(_) => {
+                return Err(QueryError::ExecutionError(
+                    "循环执行器需要手动构建，不支持通过工厂自动创建".to_string()
+                ));
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
     /// 根据计划节点创建执行器
     pub fn create_executor(
         &self,
@@ -108,6 +143,9 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
+        // 验证执行器类型和配置
+        self.validate_plan_node(plan_node)?;
+        
         match plan_node {
             // 基础执行器
             PlanNodeEnum::Start(node) => {
@@ -249,6 +287,12 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
 
             // 图遍历执行器
             PlanNodeEnum::Expand(node) => {
+                // 验证Expand执行器的安全配置
+                self.safety_validator.validate_expand_config(
+                    node.step_limit().and_then(|s| usize::try_from(s).ok()).unwrap_or(10),
+                    node.edge_types().is_empty(),
+                )?;
+                
                 let executor = ExpandExecutor::new(
                     node.id(),
                     storage,

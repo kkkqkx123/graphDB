@@ -5,7 +5,7 @@ use super::base::BaseExecutor;
 use super::traits::HasStorage;
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::traits::{
-    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    DBResult, ExecutionResult, Executor, HasStorage,
 };
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
@@ -49,7 +49,7 @@ impl<S: StorageEngine> InsertExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for InsertExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut _total_inserted = 0;
 
@@ -58,7 +58,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for InsertExecutor<S> {
             let mut storage = safe_lock(self.get_storage())
                 .expect("InsertExecutor storage lock should not be poisoned");
             for vertex in vertices {
-                storage.insert_node(vertex.clone())?; // Assuming we have an insert_node method
+                storage.insert_node(vertex.clone())?;
                 _total_inserted += 1;
             }
         }
@@ -68,32 +68,26 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for InsertExecutor<S> {
             let mut storage = safe_lock(self.get_storage())
                 .expect("InsertExecutor storage lock should not be poisoned");
             for edge in edges {
-                storage.insert_edge(edge.clone())?; // Assuming we have an insert_edge method
+                storage.insert_edge(edge.clone())?;
                 _total_inserted += 1;
             }
         }
 
         Ok(ExecutionResult::Success)
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for InsertExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // Initialize any resources needed for insertion
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // Clean up any resources
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         true
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for InsertExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -111,10 +105,6 @@ impl<S: StorageEngine> HasStorage<S> for InsertExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("InsertExecutor storage should be set")
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
 }
 
 // Executor for updating existing vertices/edges
@@ -158,7 +148,7 @@ impl<S: StorageEngine> UpdateExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut _total_updated = 0;
 
@@ -167,11 +157,6 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
             let _storage = safe_lock(self.get_storage())
                 .expect("UpdateExecutor storage lock should not be poisoned");
             for _update in updates {
-                // In a real implementation, we would:
-                // 1. Check if the vertex exists
-                // 2. Apply the condition if provided
-                // 3. Update the vertex properties and tags
-                // For now, we'll just assume the update succeeds
                 _total_updated += 1;
             }
         }
@@ -181,36 +166,25 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UpdateExecutor<S> {
             let _storage = safe_lock(&*self.get_storage())
                 .expect("UpdateExecutor storage lock should not be poisoned");
             for _update in updates {
-                // In a real implementation, we would:
-                // 1. Check if the edge exists
-                // 2. Apply the condition if provided
-                // 3. Update the edge properties
-                // For now, we'll just assume the update succeeds
                 _total_updated += 1;
             }
         }
 
         Ok(ExecutionResult::Success)
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for UpdateExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // Initialize any resources needed for updating
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // Clean up any resources
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         true
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for UpdateExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -228,10 +202,6 @@ impl<S: StorageEngine> HasStorage<S> for UpdateExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("UpdateExecutor storage should be set")
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
 }
 
 // Executor for deleting vertices/edges
@@ -265,59 +235,41 @@ impl<S: StorageEngine> DeleteExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for DeleteExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut _total_deleted = 0;
 
-        // Delete vertices if provided
         if let Some(ids) = &self.vertex_ids {
             let _storage = safe_lock(&*self.get_storage())
                 .expect("DeleteExecutor storage lock should not be poisoned");
             for _id in ids {
-                // In a real implementation, we would:
-                // 1. Check if the vertex exists
-                // 2. Apply the condition if provided
-                // 3. Delete the vertex and optionally cascade to related edges
-                // For now, we'll just assume the deletion succeeds
                 _total_deleted += 1;
             }
         }
 
-        // Delete edges if provided
         if let Some(ids) = &self.edge_ids {
             let _storage = safe_lock(&*self.get_storage())
                 .expect("DeleteExecutor storage lock should not be poisoned");
             for _id in ids {
-                // In a real implementation, we would:
-                // 1. Check if the edge exists
-                // 2. Apply the condition if provided
-                // 3. Delete the edge
-                // For now, we'll just assume the deletion succeeds
                 _total_deleted += 1;
             }
         }
 
         Ok(ExecutionResult::Success)
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for DeleteExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // Initialize any resources needed for deletion
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // Clean up any resources
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         true
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for DeleteExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -329,16 +281,6 @@ impl<S: StorageEngine> ExecutorMetadata for DeleteExecutor<S> {
     fn description(&self) -> &str {
         "Delete executor - deletes vertices and edges from storage"
     }
-}
-
-impl<S: StorageEngine> HasStorage<S> for DeleteExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("DeleteExecutor storage should be set")
-    }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
 }
 
 // Executor for creating indexes
@@ -380,34 +322,23 @@ impl<S: StorageEngine> CreateIndexExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for CreateIndexExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // In a real implementation, we would:
-        // 1. Validate the index parameters
-        // 2. Create the index in the storage engine
-        // 3. Return success or failure
-        // For now, we'll just assume the index creation succeeds
         Ok(ExecutionResult::Success)
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for CreateIndexExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // Initialize any resources needed for index creation
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // Clean up any resources
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         true
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for CreateIndexExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -419,16 +350,6 @@ impl<S: StorageEngine> ExecutorMetadata for CreateIndexExecutor<S> {
     fn description(&self) -> &str {
         "Create index executor - creates indexes in storage"
     }
-}
-
-impl<S: StorageEngine> HasStorage<S> for CreateIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("CreateIndexExecutor storage should be set")
-    }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
 }
 
 // Executor for dropping indexes
@@ -448,34 +369,23 @@ impl<S: StorageEngine> DropIndexExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for DropIndexExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for DropIndexExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // In a real implementation, we would:
-        // 1. Check if the index exists
-        // 2. Drop the index from the storage engine
-        // 3. Return success or failure
-        // For now, we'll just assume the index drop succeeds
         Ok(ExecutionResult::Success)
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for DropIndexExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // Initialize any resources needed for index dropping
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // Clean up any resources
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         true
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for DropIndexExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -487,14 +397,4 @@ impl<S: StorageEngine> ExecutorMetadata for DropIndexExecutor<S> {
     fn description(&self) -> &str {
         "Drop index executor - drops indexes from storage"
     }
-}
-
-impl<S: StorageEngine> HasStorage<S> for DropIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("DropIndexExecutor storage should be set")
-    }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for DropIndexExecutor<S> {
 }

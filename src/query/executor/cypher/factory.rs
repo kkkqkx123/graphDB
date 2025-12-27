@@ -150,7 +150,7 @@ impl<S: StorageEngine + Send + 'static> CypherExecutorFactory<S> {
 mod tests {
     use crate::config::test_config::test_config;
     use crate::query::executor::cypher::CypherExecutorFactory;
-    use crate::query::executor::traits::{ExecutorLifecycle, ExecutorMetadata};
+    use crate::query::executor::traits::Executor;
     use crate::query::parser::cypher::ast::clauses::*;
     use crate::query::parser::cypher::ast::expressions::Expression;
     use crate::query::parser::cypher::ast::statements::CypherStatement;

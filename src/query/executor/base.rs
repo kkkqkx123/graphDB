@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::{Edge, Value, Vertex};
 use crate::core::types::EdgeDirection;
 use crate::query::executor::traits::{
-    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasInput, HasStorage,
+    DBResult, ExecutionResult, Executor, HasInput, HasStorage,
 };
 use crate::storage::StorageEngine;
 
@@ -131,7 +131,12 @@ impl<S: StorageEngine> HasStorage<S> for BaseExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for BaseExecutor<S> {
+#[async_trait]
+impl<S: StorageEngine> Executor<S> for BaseExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        Ok(ExecutionResult::Success)
+    }
+
     fn open(&mut self) -> DBResult<()> {
         self.is_open = true;
         Ok(())
@@ -145,9 +150,7 @@ impl<S: StorageEngine> ExecutorLifecycle for BaseExecutor<S> {
     fn is_open(&self) -> bool {
         self.is_open
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for BaseExecutor<S> {
     fn id(&self) -> i64 {
         self.id
     }
@@ -198,15 +201,13 @@ impl<S: StorageEngine> StartExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for StartExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // StartExecutor typically produces an initial result set or provides a starting point
         // For initial implementation, we can return a simple success or empty result
         Ok(ExecutionResult::Success)
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for StartExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         // Initialize any resources needed for the start executor
         Ok(())
@@ -220,9 +221,7 @@ impl<S: StorageEngine> ExecutorLifecycle for StartExecutor<S> {
     fn is_open(&self) -> bool {
         true
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for StartExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -234,10 +233,6 @@ impl<S: StorageEngine> ExecutorMetadata for StartExecutor<S> {
     fn description(&self) -> &str {
         &self.base.description
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
 }
 
 // Legacy ExecutionResult for backward compatibility

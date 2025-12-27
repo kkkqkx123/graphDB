@@ -13,8 +13,9 @@ use crate::core::Expression;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
+    ExecutionResult, Executor, HasStorage,
 };
+use crate::query::executor::recursion_detector::{RecursionDetector, ExecutorSafetyValidator};
 use crate::storage::StorageEngine;
 
 /// 循环状态
@@ -29,6 +30,7 @@ pub enum LoopState {
 /// LoopExecutor - 循环控制执行器
 ///
 /// 实现循环控制逻辑，支持条件循环和计数循环
+/// 包含递归检测机制，防止循环执行器自引用
 pub struct LoopExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     condition: Option<Expression>, // 循环条件，None 表示无限循环
@@ -41,6 +43,10 @@ pub struct LoopExecutor<S: StorageEngine> {
     results: Vec<ExecutionResult>,
     // 循环变量上下文
     loop_context: DefaultExpressionContext,
+    // 递归检测器
+    recursion_detector: RecursionDetector,
+    // 安全验证器
+    safety_validator: ExecutorSafetyValidator,
 }
 
 impl<S: StorageEngine> LoopExecutor<S> {
@@ -51,6 +57,11 @@ impl<S: StorageEngine> LoopExecutor<S> {
         body_executor: Box<dyn Executor<S>>,
         max_iterations: Option<usize>,
     ) -> Self {
+        let recursion_detector = RecursionDetector::new(100);
+        let safety_validator = ExecutorSafetyValidator::new(
+            recursion_detector::ExecutorSafetyConfig::default()
+        );
+
         Self {
             base: BaseExecutor::new(id, "LoopExecutor".to_string(), storage),
             condition,
@@ -61,6 +72,8 @@ impl<S: StorageEngine> LoopExecutor<S> {
             evaluator: ExpressionEvaluator,
             results: Vec::new(),
             loop_context: DefaultExpressionContext::new(),
+            recursion_detector,
+            safety_validator,
         }
     }
 }
@@ -253,27 +266,32 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for LoopExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 验证自引用 - 防止无限递归
         self.validate_no_self_reference()?;
+        
+        self.safety_validator.validate_loop_config(
+            self.max_iterations.unwrap_or(1000),
+            self.condition.is_some(),
+        )?;
+        
+        self.recursion_detector.validate_executor(
+            self.body_executor.id(),
+            self.body_executor.name(),
+        )?;
         
         self.loop_state = LoopState::Running;
         self.results.clear();
         self.current_iteration = 0;
 
-        // 打开循环体执行器
         self.body_executor.open()?;
 
-        // 执行循环
         while self.should_continue() {
-            // 首先设置迭代变量
             self.loop_context.set_variable(
                 "__iteration".to_string(),
                 Value::Int(self.current_iteration as i64),
             );
 
-            // 评估循环条件
             let should_continue = match self.evaluate_condition().await {
                 Ok(continue_flag) => continue_flag,
                 Err(e) => {
@@ -286,7 +304,6 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for LoopExecutor<S> {
                 break;
             }
 
-            // 执行循环体
             match self.execute_iteration().await {
                 Ok(result) => {
                     self.results.push(result);
@@ -298,37 +315,30 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for LoopExecutor<S> {
             }
         }
 
-        // 关闭循环体执行器
         let _ = self.body_executor.close();
+        
+        self.recursion_detector.leave_executor();
 
-        // 设置最终状态
         if !matches!(self.loop_state, LoopState::Error(_)) {
             self.loop_state = LoopState::Finished;
         }
 
-        // 返回收集的结果
         Ok(self.collect_results())
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // 初始化循环状态
         self.loop_state = LoopState::NotStarted;
         self.current_iteration = 0;
         self.results.clear();
         self.loop_context = DefaultExpressionContext::new();
 
-        // 打开循环体执行器
         self.body_executor.open()?;
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // 关闭循环体执行器
         self.body_executor.close()?;
 
-        // 清理资源
         self.results.clear();
         self.loop_context = DefaultExpressionContext::new();
 
@@ -338,9 +348,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LoopExecutor<S> {
     fn is_open(&self) -> bool {
         self.base.is_open()
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for LoopExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -352,18 +360,6 @@ impl<S: StorageEngine> ExecutorMetadata for LoopExecutor<S> {
     fn description(&self) -> &str {
         &self.base.description
     }
-}
-
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
-    for LoopExecutor<S>
-{
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("LoopExecutor storage should be set")
-    }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
 }
 
 /// WhileLoopExecutor - 条件循环执行器
@@ -388,13 +384,11 @@ impl<S: StorageEngine + Send + 'static> WhileLoopExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for WhileLoopExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for WhileLoopExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.inner.execute().await
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for WhileLoopExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         self.inner.open()
     }
@@ -406,9 +400,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for WhileLoopExecutor<S> {
     fn is_open(&self) -> bool {
         self.inner.is_open()
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for WhileLoopExecutor<S> {
     fn id(&self) -> i64 {
         self.inner.id()
     }
@@ -428,10 +420,6 @@ impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStora
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.inner.get_storage()
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for WhileLoopExecutor<S> {
 }
 
 /// ForLoopExecutor - 计数循环执行器
@@ -477,38 +465,29 @@ impl<S: StorageEngine + Send + 'static> ForLoopExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for ForLoopExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 初始化循环
         self.inner.open()?;
 
         let mut current = self.start;
         let mut results = Vec::new();
 
-        // 执行循环
         while (self.step > 0 && current <= self.end) || (self.step < 0 && current >= self.end) {
-            // 设置循环变量
             self.inner
                 .set_loop_variable(self.loop_var.clone(), Value::Int(current));
 
-            // 执行循环体
             let result = self.inner.execute_iteration().await?;
             results.push(result);
 
-            // 更新循环变量
             current += self.step;
         }
 
-        // 关闭循环
         self.inner.close()?;
 
-        // 返回结果
         self.inner.results = results;
         Ok(self.inner.collect_results())
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for ForLoopExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         self.inner.open()
     }
@@ -520,9 +499,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for ForLoopExecutor<S> {
     fn is_open(&self) -> bool {
         self.inner.is_open()
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for ForLoopExecutor<S> {
     fn id(&self) -> i64 {
         self.inner.id()
     }
@@ -536,8 +513,12 @@ impl<S: StorageEngine> ExecutorMetadata for ForLoopExecutor<S> {
     }
 }
 
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for ForLoopExecutor<S>
+{
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.inner.get_storage()
+    }
 }
 
 #[cfg(test)]
@@ -664,7 +645,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl ExecutorCore for CountExecutor {
+    impl Executor<MockStorage> for CountExecutor {
         async fn execute(&mut self) -> DBResult<ExecutionResult> {
             if self.count < self.max_count {
                 self.count += 1;
@@ -673,34 +654,30 @@ mod tests {
                 Ok(ExecutionResult::Success)
             }
         }
-    }
 
-    impl ExecutorLifecycle for CountExecutor {
         fn open(&mut self) -> DBResult<()> {
             Ok(())
         }
+
         fn close(&mut self) -> DBResult<()> {
             Ok(())
         }
+
         fn is_open(&self) -> bool {
             true
         }
-    }
 
-    impl ExecutorMetadata for CountExecutor {
         fn id(&self) -> i64 {
             0
         }
+
         fn name(&self) -> &str {
             "CountExecutor"
         }
+
         fn description(&self) -> &str {
             "CountExecutor"
         }
-    }
-
-    #[async_trait]
-    impl Executor<MockStorage> for CountExecutor {
     }
 
     impl HasStorage<MockStorage> for CountExecutor {

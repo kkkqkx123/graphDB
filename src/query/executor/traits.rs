@@ -1,22 +1,21 @@
-//! Executor trait 重构 - 拆分为多个小 trait
+//! Executor trait 重构 - 统一简化架构
 //!
-//! 这个模块将原来的 Executor trait 拆分为多个职责单一的小 trait，
-//! 遵循接口隔离原则，提高代码的可维护性和可扩展性。
+//! 这个模块提供了简化的执行器trait设计，减少动态分发，提高性能。
+//! 采用组合trait的方式，提供灵活且高效的执行器接口。
 
 use crate::core::error::DBError;
 use crate::storage::StorageEngine;
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-/// 执行核心 trait - 负责执行逻辑
+/// 统一的执行器trait - 核心接口
+///
+/// 这是所有执行器必须实现的核心trait，包含执行、生命周期和元数据功能
 #[async_trait]
-pub trait ExecutorCore {
+pub trait Executor<S: StorageEngine>: Send + Sync {
     /// 执行查询
     async fn execute(&mut self) -> DBResult<ExecutionResult>;
-}
 
-/// 生命周期管理 trait - 负责执行器的生命周期
-pub trait ExecutorLifecycle {
     /// 打开执行器
     fn open(&mut self) -> DBResult<()>;
 
@@ -25,10 +24,7 @@ pub trait ExecutorLifecycle {
 
     /// 检查执行器是否已打开
     fn is_open(&self) -> bool;
-}
 
-/// 元数据 trait - 提供执行器的元信息
-pub trait ExecutorMetadata {
     /// 获取执行器ID
     fn id(&self) -> i64;
 
@@ -39,49 +35,16 @@ pub trait ExecutorMetadata {
     fn description(&self) -> &str;
 }
 
-/// 组合 Executor trait - 基础组合
-#[async_trait]
-pub trait Executor<S: StorageEngine>:
-    ExecutorCore + ExecutorLifecycle + ExecutorMetadata + Send + Sync
-{
-}
-
-/// 存储访问trait - 提供存储引擎访问能力
-pub trait StorageAccess<S: StorageEngine> {
-    fn storage(&self) -> &Arc<Mutex<S>>;
-}
-
-/// 输入访问trait - 提供输入执行器访问能力
-pub trait InputAccess<S: StorageEngine> {
-    fn input(&self) -> Option<&Box<dyn Executor<S>>>;
-    fn input_mut(&mut self) -> Option<&mut Box<dyn Executor<S>>>;
-    fn set_input(&mut self, input: Box<dyn Executor<S>>);
-}
-
-/// 带存储访问能力的Executor
-pub trait ExecutorWithStorage<S: StorageEngine>:
-    Executor<S> + StorageAccess<S>
-{
-}
-
-/// 带输入访问能力的Executor
-pub trait ExecutorWithInput<S: StorageEngine>:
-    Executor<S> + InputAccess<S>
-{
-}
-
-/// 完整Executor - 带存储和输入访问能力
-pub trait FullExecutor<S: StorageEngine>:
-    ExecutorWithStorage<S> + ExecutorWithInput<S>
-{
-}
-
-/// 内部trait - 标记具有存储的执行器
+/// 存储访问trait - 可选功能
+///
+/// 只需要存储访问能力的执行器可以实现此trait
 pub trait HasStorage<S: StorageEngine> {
     fn get_storage(&self) -> &Arc<Mutex<S>>;
 }
 
-/// 内部trait - 标记具有输入的执行器
+/// 输入访问trait - 可选功能
+///
+/// 需要访问输入执行器的执行器可以实现此trait
 pub trait HasInput<S: StorageEngine> {
     fn get_input(&self) -> Option<&Box<dyn Executor<S>>>;
     fn get_input_mut(&mut self) -> Option<&mut Box<dyn Executor<S>>>;
@@ -129,9 +92,11 @@ impl ExecutionResult {
 pub type DBResult<T> = Result<T, DBError>;
 
 /// 基础执行器实现 - 提供默认的执行器行为
+///
+/// 提供存储、ID、名称、描述等基础功能
 #[derive(Debug)]
 pub struct BaseExecutor<S: StorageEngine> {
-    storage: Arc<Mutex<S>>,
+    storage: Option<Arc<Mutex<S>>>,
     id: i64,
     name: String,
     description: String,
@@ -139,10 +104,21 @@ pub struct BaseExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> BaseExecutor<S> {
-    /// 创建新的基础执行器
+    /// 创建新的基础执行器（带存储）
     pub fn new(storage: Arc<Mutex<S>>, id: i64, name: &str, description: &str) -> Self {
         Self {
-            storage,
+            storage: Some(storage),
+            id,
+            name: name.to_string(),
+            description: description.to_string(),
+            is_open: false,
+        }
+    }
+
+    /// 创建新的基础执行器（不带存储）
+    pub fn new_without_storage(id: i64, name: &str, description: &str) -> Self {
+        Self {
+            storage: None,
             id,
             name: name.to_string(),
             description: description.to_string(),
@@ -152,132 +128,19 @@ impl<S: StorageEngine> BaseExecutor<S> {
 
     /// 获取存储引擎的可变引用
     pub fn storage_mut(&mut self) -> &Arc<Mutex<S>> {
-        &self.storage
+        self.storage.as_ref().expect("Storage not set")
+    }
+
+    /// 设置存储引擎
+    pub fn set_storage(&mut self, storage: Arc<Mutex<S>>) {
+        self.storage = Some(storage);
     }
 }
 
-impl<S: StorageEngine> ExecutorLifecycle for BaseExecutor<S> {
-    fn open(&mut self) -> DBResult<()> {
-        self.is_open = true;
-        Ok(())
-    }
-
-    fn close(&mut self) -> DBResult<()> {
-        self.is_open = false;
-        Ok(())
-    }
-
-    fn is_open(&self) -> bool {
-        self.is_open
+impl<S: StorageEngine> HasStorage<S> for BaseExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.storage.as_ref().expect("Storage not set")
     }
 }
 
-impl<S: StorageEngine> ExecutorMetadata for BaseExecutor<S> {
-    fn id(&self) -> i64 {
-        self.id
-    }
 
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn description(&self) -> &str {
-        &self.description
-    }
-}
-
-/// 为现有实现提供自动派生的宏
-#[macro_export]
-macro_rules! impl_executor_for {
-    ($type:ty, $storage_type:ty) => {
-        #[async_trait::async_trait]
-        impl $crate::query::executor::traits::ExecutorCore for $type {
-            async fn execute(
-                &mut self,
-            ) -> $crate::query::executor::traits::DBResult<
-                $crate::query::executor::traits::ExecutionResult,
-            > {
-                self.execute().await
-            }
-        }
-
-        impl $crate::query::executor::traits::ExecutorLifecycle for $type {
-            fn open(&mut self) -> $crate::query::executor::traits::DBResult<()> {
-                self.open()
-            }
-
-            fn close(&mut self) -> $crate::query::executor::traits::DBResult<()> {
-                self.close()
-            }
-
-            fn is_open(&self) -> bool {
-                self.is_open()
-            }
-        }
-
-        impl $crate::query::executor::traits::ExecutorMetadata for $type {
-            fn id(&self) -> i64 {
-                self.id()
-            }
-
-            fn name(&self) -> &str {
-                self.name()
-            }
-
-            fn description(&self) -> &str {
-                self.description()
-            }
-        }
-
-        #[async_trait::async_trait]
-        impl $crate::query::executor::traits::Executor<$storage_type> for $type {
-        }
-    };
-}
-
-/// 为需要存储访问的执行器提供默认实现
-impl<T, S: StorageEngine> StorageAccess<S> for T
-where
-    T: HasStorage<S>,
-{
-    fn storage(&self) -> &Arc<Mutex<S>> {
-        self.get_storage()
-    }
-}
-
-/// 为需要输入访问的执行器提供默认实现
-impl<T, S: StorageEngine> InputAccess<S> for T
-where
-    T: HasInput<S>,
-{
-    fn input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.get_input()
-    }
-    
-    fn input_mut(&mut self) -> Option<&mut Box<dyn Executor<S>>> {
-        self.get_input_mut()
-    }
-    
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.set_input_impl(input)
-    }
-}
-
-/// 为同时具有存储和输入的执行器提供默认实现
-impl<T, S: StorageEngine> ExecutorWithStorage<S> for T
-where
-    T: Executor<S> + StorageAccess<S>
-{
-}
-
-impl<T, S: StorageEngine> ExecutorWithInput<S> for T
-where
-    T: Executor<S> + InputAccess<S>
-{
-}
-
-impl<T, S: StorageEngine> FullExecutor<S> for T
-where
-    T: ExecutorWithStorage<S> + ExecutorWithInput<S>
-{
-}

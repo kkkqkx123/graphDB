@@ -8,7 +8,7 @@ use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor, hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata,
+    ExecutionResult, Executor, HasStorage,
 };
 use crate::storage::StorageEngine;
 

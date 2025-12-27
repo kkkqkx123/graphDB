@@ -6,7 +6,7 @@ use crate::core::error::{DBError, QueryError};
 use crate::query::executor::cypher::context::CypherExecutionContext;
 use crate::query::executor::cypher::{CypherExecutorError, CypherExecutorTrait};
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
+    ExecutionResult, Executor, HasStorage,
 };
 use crate::query::parser::cypher::ast::statements::CypherStatement;
 use crate::storage::StorageEngine;
@@ -232,7 +232,7 @@ impl<S: StorageEngine> CypherExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for CypherExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CypherExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, DBError> {
         if !self.is_open {
             return Err(DBError::Query(QueryError::ExecutionError(
@@ -240,23 +240,17 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for CypherExecutor<S> {
             )));
         }
 
-        // 默认执行逻辑 - 这里可以执行预设置的语句
-        // 或者返回成功状态
         Ok(ExecutionResult::Success)
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for CypherExecutor<S> {
     fn open(&mut self) -> Result<(), DBError> {
         self.is_open = true;
-        // 初始化执行上下文
         self.context = CypherExecutionContext::new();
         Ok(())
     }
 
     fn close(&mut self) -> Result<(), DBError> {
         self.is_open = false;
-        // 清理执行上下文
         self.context.clear();
         Ok(())
     }
@@ -264,9 +258,7 @@ impl<S: StorageEngine> ExecutorLifecycle for CypherExecutor<S> {
     fn is_open(&self) -> bool {
         self.is_open
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for CypherExecutor<S> {
     fn id(&self) -> i64 {
         self.id
     }
@@ -278,10 +270,6 @@ impl<S: StorageEngine> ExecutorMetadata for CypherExecutor<S> {
     fn description(&self) -> &str {
         &self.description
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for CypherExecutor<S> {
 }
 
 impl<S: StorageEngine + Send> HasStorage<S> for CypherExecutor<S> {

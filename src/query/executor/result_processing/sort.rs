@@ -15,7 +15,7 @@ use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
+    ExecutionResult, Executor, HasStorage,
 };
 use crate::storage::StorageEngine;
 

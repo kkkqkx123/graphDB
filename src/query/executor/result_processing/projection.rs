@@ -12,7 +12,7 @@ use crate::core::Expression;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
+    ExecutionResult, Executor, HasStorage,
 };
 use crate::storage::StorageEngine;
 
@@ -343,7 +343,7 @@ mod tests {
     use super::*;
     use crate::core::value::{DataSet, Value};
     use crate::core::{BinaryOperator, Expression};
-    use crate::query::executor::traits::{ExecutionResult, Executor, ExecutorCore};
+    use crate::query::executor::traits::{ExecutionResult, Executor};
     use crate::storage::StorageEngine;
 
     // 模拟存储引擎

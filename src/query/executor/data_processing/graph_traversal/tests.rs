@@ -7,7 +7,7 @@ mod tests {
     use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathAlgorithm;
     use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
     use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
-    use crate::query::executor::traits::ExecutorMetadata;
+    use crate::query::executor::traits::Executor;
     use crate::storage::{NativeStorage, StorageEngine};
     use std::sync::{Arc, Mutex};
 

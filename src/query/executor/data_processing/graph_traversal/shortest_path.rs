@@ -6,7 +6,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Step, Value};
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::traits::{
-    ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
+    ExecutionResult, Executor, HasStorage,
 };
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
