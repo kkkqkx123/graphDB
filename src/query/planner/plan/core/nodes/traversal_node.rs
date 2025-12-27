@@ -5,7 +5,7 @@
 use super::super::common::{EdgeProp, TagProp};
 use crate::core::Value;
 use crate::query::context::validate::types::Variable;
-use crate::query::executor::base::EdgeDirection;
+use crate::core::types::EdgeDirection;
 
 /// 扩展节点
 #[derive(Debug)]

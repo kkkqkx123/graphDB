@@ -8,7 +8,7 @@ use crate::query::planner::plan::core::nodes::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::executor::base::EdgeDirection;
+use crate::core::types::EdgeDirection;
 
 /// SUBGRAPH查询规划器
 /// 负责将SUBGRAPH查询转换为执行计划

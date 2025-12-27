@@ -8,7 +8,7 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::executor::base::EdgeDirection;
+use crate::core::types::EdgeDirection;
 
 /// PATH查询规划器
 /// 负责将PATH查询转换为执行计划
