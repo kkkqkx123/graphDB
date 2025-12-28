@@ -223,13 +223,11 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for LimitExecutor<S> 
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for LimitExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LimitExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
         } else {
-            // 如果没有输入执行器，使用设置的输入数据
             self.base
                 .input
                 .clone()
@@ -238,9 +236,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for LimitExecutor<S> {
 
         self.process(input_result).await
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for LimitExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
@@ -256,11 +252,9 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for LimitExecutor<S> {
     }
 
     fn is_open(&self) -> bool {
-        self.base.id > 0 // 简单的状态检查
+        self.base.id > 0
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorMetadata for LimitExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -272,16 +266,6 @@ impl<S: StorageEngine + Send> ExecutorMetadata for LimitExecutor<S> {
     fn description(&self) -> &str {
         &self.base.description
     }
-}
-
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for LimitExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LimitExecutor<S> {
 }
 
 impl<S: StorageEngine + Send + 'static> InputExecutor<S> for LimitExecutor<S> {

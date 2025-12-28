@@ -210,12 +210,10 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for LeftJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 检查输入数据集
         let (left_dataset, right_dataset) = self.base_executor.check_input_datasets()?;
 
-        // 处理空集情况
         if left_dataset.rows.is_empty() {
             let empty_result = DataSet {
                 col_names: self.base_executor.get_col_names().clone(),
@@ -225,7 +223,6 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for LeftJoinExecutor<S> {
         }
 
         if right_dataset.rows.is_empty() {
-            // 右表为空，左表所有行都填充NULL
             let mut result = DataSet::new();
             result.col_names = self.base_executor.get_col_names().clone();
             self.right_col_size = right_dataset.col_names.len();
@@ -241,7 +238,6 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for LeftJoinExecutor<S> {
             return Ok(ExecutionResult::Values(vec![Value::DataSet(result)]));
         }
 
-        // 根据键的数量选择连接算法
         let result = if self.use_multi_key {
             self.execute_multi_key_join(&left_dataset, &right_dataset)?
         } else {
@@ -250,25 +246,19 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for LeftJoinExecutor<S> {
 
         Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for LeftJoinExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // 初始化资源
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // 清理资源
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         self.base_executor.get_base().is_open()
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for LeftJoinExecutor<S> {
     fn id(&self) -> i64 {
         self.base_executor.get_base().id
     }
@@ -286,10 +276,6 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for LeftJoinExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base_executor.get_base().storage.as_ref().expect("LeftJoinExecutor storage should be set")
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LeftJoinExecutor<S> {
 }
 
 /// 哈希左外连接执行器（并行版本）
@@ -316,14 +302,12 @@ impl<S: StorageEngine> HashLeftJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for HashLeftJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for HashLeftJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 目前与普通左连接相同，后续可以添加并行处理逻辑
         self.inner.execute().await
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for HashLeftJoinExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         self.inner.open()
     }
@@ -335,9 +319,7 @@ impl<S: StorageEngine> ExecutorLifecycle for HashLeftJoinExecutor<S> {
     fn is_open(&self) -> bool {
         self.inner.is_open()
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for HashLeftJoinExecutor<S> {
     fn id(&self) -> i64 {
         self.inner.id()
     }
@@ -355,10 +337,6 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for HashLeftJoinExecutor<S
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.inner.get_storage()
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HashLeftJoinExecutor<S> {
 }
 
 #[cfg(test)]

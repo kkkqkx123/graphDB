@@ -98,7 +98,7 @@ impl<S: StorageEngine> MinusExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for MinusExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for MinusExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_minus().await.map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
@@ -106,7 +106,6 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for MinusExecutor<S> {
             ))
         })?;
 
-        // 将DataSet转换为Values结果
         let values: Vec<Value> = dataset
             .rows
             .into_iter()
@@ -115,9 +114,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for MinusExecutor<S> {
 
         Ok(ExecutionResult::Values(values))
     }
-}
 
-impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for MinusExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         self.set_executor.open()
     }
@@ -129,9 +126,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for MinusExecutor<S> {
     fn is_open(&self) -> bool {
         self.set_executor.is_open()
     }
-}
 
-impl<S: StorageEngine + Send + 'static> ExecutorMetadata for MinusExecutor<S> {
     fn id(&self) -> i64 {
         self.set_executor.id()
     }
@@ -143,20 +138,6 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for MinusExecutor<S> {
     fn description(&self) -> &str {
         self.set_executor.description()
     }
-}
-
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
-    for MinusExecutor<S>
-{
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.set_executor.get_storage()
-    }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
-    for MinusExecutor<S>
-{
 }
 
 #[cfg(test)]

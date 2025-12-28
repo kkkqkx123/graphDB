@@ -243,7 +243,7 @@ impl<S: StorageEngine> InputExecutor<S> for ExpandAllExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandAllExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
@@ -325,11 +325,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ExpandAllExecutor<S> {
         // 构建结果
         Ok(self.build_expansion_result())
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for ExpandAllExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // 初始化扩展所需的任何资源
         self.path_cache.clear();
         self.visited_nodes.clear();
 
@@ -340,7 +337,6 @@ impl<S: StorageEngine> ExecutorLifecycle for ExpandAllExecutor<S> {
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // 清理资源
         self.path_cache.clear();
         self.visited_nodes.clear();
 
@@ -353,9 +349,7 @@ impl<S: StorageEngine> ExecutorLifecycle for ExpandAllExecutor<S> {
     fn is_open(&self) -> bool {
         self.base.is_open()
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for ExpandAllExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -373,8 +367,4 @@ impl<S: StorageEngine + Send> HasStorage<S> for ExpandAllExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("ExpandAllExecutor storage should be set")
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ExpandAllExecutor<S> {
 }

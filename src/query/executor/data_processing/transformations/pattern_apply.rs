@@ -393,12 +393,10 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for PatternApplyExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for PatternApplyExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 执行模式匹配操作
         let dataset = self.execute_pattern_apply()?;
 
-        // 将数据集转换为值列表
         let values: Vec<Value> = dataset
             .rows
             .into_iter()
@@ -407,25 +405,19 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for PatternApplyExecutor<S>
 
         Ok(ExecutionResult::Values(values))
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for PatternApplyExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // 初始化资源
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // 清理资源
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         self.base.is_open()
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorMetadata for PatternApplyExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -443,10 +435,6 @@ impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStora
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("PatternApplyExecutor storage should be set")
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for PatternApplyExecutor<S> {
 }
 
 #[cfg(test)]

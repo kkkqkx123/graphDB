@@ -61,9 +61,9 @@ impl Planner for PathPlanner {
         let expand_direction = if path_ctx.over.direction == "both" {
             EdgeDirection::Both
         } else if path_ctx.over.direction == "in" {
-            EdgeDirection::In
+            EdgeDirection::Incoming
         } else {
-            EdgeDirection::Out
+            EdgeDirection::Outgoing
         };
 
         let mut edge_types = path_ctx.over.edge_types.clone();

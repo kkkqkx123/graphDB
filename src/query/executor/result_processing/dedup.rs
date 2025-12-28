@@ -415,13 +415,11 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for DedupExecutor<S> 
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for DedupExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DedupExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
         } else {
-            // 如果没有输入执行器，使用设置的输入数据
             self.base
                 .input
                 .clone()
@@ -430,11 +428,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for DedupExecutor<S> {
 
         self.process(input_result).await
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for DedupExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // 初始化去重所需的任何资源
         self.reset_memory_usage();
 
         if let Some(ref mut input_exec) = self.input_executor {
@@ -444,7 +439,6 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for DedupExecutor<S> {
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // 清理资源
         self.reset_memory_usage();
 
         if let Some(ref mut input_exec) = self.input_executor {
@@ -454,11 +448,9 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for DedupExecutor<S> {
     }
 
     fn is_open(&self) -> bool {
-        self.base.id > 0 // 简单的状态检查
+        self.base.id > 0
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorMetadata for DedupExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -470,16 +462,6 @@ impl<S: StorageEngine + Send> ExecutorMetadata for DedupExecutor<S> {
     fn description(&self) -> &str {
         &self.base.description
     }
-}
-
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S> for DedupExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        &self.base.storage
-    }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DedupExecutor<S> {
 }
 
 impl<S: StorageEngine + Send + 'static> InputExecutor<S> for DedupExecutor<S> {
@@ -621,31 +603,31 @@ mod tests {
         }
 
         #[async_trait]
-        impl ExecutorCore for MockInputExecutor {
+        impl crate::query::executor::traits::Executor<MockStorage> for MockInputExecutor {
             async fn execute(&mut self) -> DBResult<ExecutionResult> {
                 Ok(self.result.clone())
             }
-        }
 
-        impl ExecutorLifecycle for MockInputExecutor {
             fn open(&mut self) -> DBResult<()> {
                 Ok(())
             }
+
             fn close(&mut self) -> DBResult<()> {
                 Ok(())
             }
+
             fn is_open(&self) -> bool {
                 true
             }
-        }
 
-        impl ExecutorMetadata for MockInputExecutor {
             fn id(&self) -> i64 {
                 0
             }
+
             fn name(&self) -> &str {
                 "MockInputExecutor"
             }
+
             fn description(&self) -> &str {
                 "Mock input executor for testing"
             }
@@ -655,10 +637,6 @@ mod tests {
             fn get_storage(&self) -> &Arc<Mutex<MockStorage>> {
                 &self.storage
             }
-        }
-
-        #[async_trait]
-        impl crate::query::executor::traits::Executor<MockStorage> for MockInputExecutor {
         }
 
         let input_executor = MockInputExecutor {

@@ -305,35 +305,26 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for UnwindExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for UnwindExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 执行展开操作
         let dataset = self.execute_unwind()?;
-
-        // 返回展开后的数据集 - 平铺所有值
         Ok(ExecutionResult::Values(
             dataset.rows.into_iter().flatten().collect(),
         ))
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for UnwindExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // 初始化资源
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // 清理资源
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         self.base.is_open()
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorMetadata for UnwindExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -351,10 +342,6 @@ impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStora
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("UnwindExecutor storage should be set")
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for UnwindExecutor<S> {
 }
 
 #[cfg(test)]

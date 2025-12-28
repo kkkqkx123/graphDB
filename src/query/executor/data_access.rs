@@ -5,7 +5,7 @@ use super::base::BaseExecutor;
 use crate::expression::ExpressionContext;
 use crate::core::Value;
 use crate::query::executor::traits::{
-    DBResult, ExecutionResult, Executor, ExecutorCore, ExecutorLifecycle, ExecutorMetadata, HasStorage,
+    DBResult, ExecutionResult, Executor, HasStorage,
 };
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
@@ -42,23 +42,21 @@ impl<S: StorageEngine> GetVerticesExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetVerticesExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let vertices = match &self.vertex_ids {
             Some(ids) => {
-                // 获取特定顶点ID的顶点
                 let mut result_vertices = Vec::new();
                 let storage = safe_lock(self.get_storage())
                     .expect("GetVerticesExecutor storage lock should not be poisoned");
 
                 for id in ids {
                     if let Some(vertex) = storage.get_node(id)? {
-                        // 应用标签过滤表达式（如果存在）
                         let include_vertex = if let Some(ref tag_filter_expr) = self.tag_filter {
                             self.tag_processor
                                 .process_tag_filter(tag_filter_expr, &vertex)
                         } else {
-                            true // 没有标签过滤器，包含所有顶点
+                            true
                         };
 
                         if include_vertex {
@@ -66,7 +64,6 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                         }
                     }
 
-                    // Apply limit if specified
                     if let Some(limit) = self.limit {
                         if result_vertices.len() >= limit {
                             break;
@@ -76,14 +73,11 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                 result_vertices
             }
             None => {
-                // ScanVertices操作：扫描所有顶点
                 let storage = safe_lock(self.get_storage())
                     .expect("GetVerticesExecutor storage lock should not be poisoned");
 
-                // 获取所有顶点
                 let mut all_vertices = storage.scan_all_vertices()?;
 
-                // 应用标签过滤表达式
                 if let Some(ref tag_filter_expr) = self.tag_filter {
                     all_vertices = all_vertices
                         .into_iter()
@@ -94,13 +88,11 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                         .collect();
                 }
 
-                // 应用顶点过滤表达式
                 if let Some(ref filter_expr) = self.vertex_filter {
                     let evaluator = crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::new();
                     all_vertices = all_vertices
                         .into_iter()
                         .filter(|vertex| {
-                            // 创建评估上下文
                             let mut context =
                                 crate::expression::DefaultExpressionContext::new();
                             context.set_variable(
@@ -108,10 +100,8 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                                 crate::core::Value::Vertex(Box::new(vertex.clone())),
                             );
 
-                            // 评估过滤表达式
                             match evaluator.evaluate(filter_expr, &mut context) {
                                 Ok(value) => {
-                                    // 将 Value 转换为 bool
                                     match value {
                                         crate::core::Value::Bool(b) => b,
                                         crate::core::Value::Int(i) => i != 0,
@@ -120,29 +110,28 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                                         crate::core::Value::List(l) => !l.is_empty(),
                                         crate::core::Value::Map(m) => !m.is_empty(),
                                         crate::core::Value::Set(s) => !s.is_empty(),
-                                        crate::core::Value::Vertex(_) => true, // 顶点对象视为true
-                                        crate::core::Value::Edge(_) => true,   // 边对象视为true
-                                        crate::core::Value::Path(_) => true,   // 路径对象视为true
-                                        crate::core::Value::Null(_) => false,  // null视为false
-                                        crate::core::Value::Empty => false,    // empty视为false
-                                        crate::core::Value::Date(_) => true,   // 日期对象视为true
-                                        crate::core::Value::Time(_) => true,   // 时间对象视为true
-                                        crate::core::Value::DateTime(_) => true, // 日期时间对象视为true
-                                        crate::core::Value::Geography(_) => true, // 地理对象视为true
-                                        crate::core::Value::Duration(_) => true, // 持续时间对象视为true
-                                        crate::core::Value::DataSet(ds) => !ds.rows.is_empty(), // 数据集非空视为true
+                                        crate::core::Value::Vertex(_) => true,
+                                        crate::core::Value::Edge(_) => true,
+                                        crate::core::Value::Path(_) => true,
+                                        crate::core::Value::Null(_) => false,
+                                        crate::core::Value::Empty => false,
+                                        crate::core::Value::Date(_) => true,
+                                        crate::core::Value::Time(_) => true,
+                                        crate::core::Value::DateTime(_) => true,
+                                        crate::core::Value::Geography(_) => true,
+                                        crate::core::Value::Duration(_) => true,
+                                        crate::core::Value::DataSet(ds) => !ds.rows.is_empty(),
                                     }
                                 }
                                 Err(e) => {
                                     eprintln!("顶点过滤表达式评估失败: {}", e);
-                                    false // 过滤失败时默认排除该顶点
+                                    false
                                 }
                             }
                         })
                         .collect();
                 }
 
-                // 应用limit限制
                 if let Some(limit) = self.limit {
                     all_vertices.into_iter().take(limit).collect()
                 } else {
@@ -158,25 +147,19 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for GetVerticesExecutor<S> 
                 .collect(),
         ))
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for GetVerticesExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // Initialize any resources needed for vertex retrieval
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // Clean up any resources
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         true
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for GetVerticesExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -194,10 +177,6 @@ impl<S: StorageEngine> HasStorage<S> for GetVerticesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("GetVerticesExecutor storage should be set")
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for GetVerticesExecutor<S> {
 }
 
 // Implementation for a basic GetEdges executor
@@ -218,33 +197,24 @@ impl<S: StorageEngine> GetEdgesExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for GetEdgesExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetEdgesExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // In a real implementation, this would fetch edges based on the edge_type
-        // For now return empty list
         let edges: Vec<crate::core::Value> = Vec::new();
-
         Ok(ExecutionResult::Values(edges))
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for GetEdgesExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // Initialize any resources needed for edge retrieval
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // Clean up any resources
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         true
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for GetEdgesExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -264,9 +234,7 @@ impl<S: StorageEngine> HasStorage<S> for GetEdgesExecutor<S> {
     }
 }
 
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for GetEdgesExecutor<S> {
-}
+
 
 // Implementation for a basic GetNeighbors executor
 #[derive(Debug)]
@@ -298,33 +266,24 @@ impl<S: StorageEngine> GetNeighborsExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for GetNeighborsExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetNeighborsExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // In a real implementation, this would fetch neighboring vertices based on edges
-        // For now return empty list
         let neighbors: Vec<crate::core::Value> = Vec::new();
-
         Ok(ExecutionResult::Values(neighbors))
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for GetNeighborsExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // Initialize any resources needed for neighbor retrieval
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // Clean up any resources
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         true
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for GetNeighborsExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -344,9 +303,7 @@ impl<S: StorageEngine> HasStorage<S> for GetNeighborsExecutor<S> {
     }
 }
 
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for GetNeighborsExecutor<S> {
-}
+
 
 // Implementation for GetPropExecutor
 #[derive(Debug)]
@@ -378,33 +335,24 @@ impl<S: StorageEngine> GetPropExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for GetPropExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetPropExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // In a real implementation, this would fetch specific properties from vertices or edges
-        // For now, return empty list
         let props: Vec<crate::core::Value> = Vec::new();
-
         Ok(ExecutionResult::Values(props))
     }
-}
 
-impl<S: StorageEngine> ExecutorLifecycle for GetPropExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // Initialize any resources needed for property retrieval
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // Clean up any resources
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         true
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for GetPropExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -424,6 +372,4 @@ impl<S: StorageEngine> HasStorage<S> for GetPropExecutor<S> {
     }
 }
 
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for GetPropExecutor<S> {
-}
+

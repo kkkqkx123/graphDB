@@ -207,17 +207,14 @@ impl<S: StorageEngine> InputExecutor<S> for ProjectExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
         } else {
-            // 如果没有输入执行器，返回空结果
             ExecutionResult::DataSet(crate::core::value::DataSet::new())
         };
 
-        // 对结果应用投影
         let projected_result = match input_result {
             ExecutionResult::DataSet(dataset) => {
                 let projected_dataset = self.project_dataset(dataset)?;
@@ -232,18 +229,15 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                 ExecutionResult::DataSet(projected_dataset)
             }
             ExecutionResult::Values(values) => {
-                // 对于值列表，我们创建一个简单的数据集
                 let mut dataset = crate::core::value::DataSet::new();
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
-                // 每个值作为一行
                 for value in values {
                     dataset.rows.push(vec![value]);
                 }
                 ExecutionResult::DataSet(dataset)
             }
             ExecutionResult::Paths(paths) => {
-                // 对于路径，我们创建一个包含路径信息的数据集
                 let mut dataset = crate::core::value::DataSet::new();
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
@@ -251,7 +245,6 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
 
                 for path in paths {
                     let mut context = DefaultExpressionContext::new();
-                    // 设置路径相关信息作为变量
                     context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
                     context
                         .set_variable("src".to_string(), Value::String(path.src.vid.to_string()));
@@ -275,7 +268,6 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
                 ExecutionResult::DataSet(dataset)
             }
             ExecutionResult::Count(count) => {
-                // 对于计数，我们创建一个包含计数值的数据集
                 let mut dataset = crate::core::value::DataSet::new();
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
                 dataset.rows.push(vec![Value::Int(count as i64)]);
@@ -283,18 +275,14 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for ProjectExecutor<S> {
             }
             ExecutionResult::Success => ExecutionResult::Success,
             ExecutionResult::Error(_) => {
-                // 传播错误结果
                 input_result
             }
         };
 
         Ok(projected_result)
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for ProjectExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // 初始化投影所需的任何资源
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
         }
@@ -302,7 +290,6 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for ProjectExecutor<S> {
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // 清理资源
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;
         }
@@ -312,9 +299,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for ProjectExecutor<S> {
     fn is_open(&self) -> bool {
         self.base.is_open()
     }
-}
 
-impl<S: StorageEngine> ExecutorMetadata for ProjectExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -326,16 +311,6 @@ impl<S: StorageEngine> ExecutorMetadata for ProjectExecutor<S> {
     fn description(&self) -> &str {
         &self.base.description
     }
-}
-
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for ProjectExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("ProjectExecutor storage should be set")
-    }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S> {
 }
 
 #[cfg(test)]
@@ -449,13 +424,11 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl ExecutorCore for MockInputExecutor {
+    impl Executor<MockStorageEngine> for MockInputExecutor {
         async fn execute(&mut self) -> DBResult<ExecutionResult> {
             Ok(self.result.clone())
         }
-    }
 
-    impl crate::query::executor::traits::ExecutorLifecycle for MockInputExecutor {
         fn open(&mut self) -> DBResult<()> {
             Ok(())
         }
@@ -467,9 +440,7 @@ mod tests {
         fn is_open(&self) -> bool {
             true
         }
-    }
 
-    impl crate::query::executor::traits::ExecutorMetadata for MockInputExecutor {
         fn id(&self) -> i64 {
             0
         }
@@ -481,10 +452,6 @@ mod tests {
         fn description(&self) -> &str {
             "Mock executor for testing"
         }
-    }
-
-    #[async_trait::async_trait]
-    impl Executor<MockStorageEngine> for MockInputExecutor {
     }
 
     impl HasStorage<MockStorageEngine> for MockInputExecutor {

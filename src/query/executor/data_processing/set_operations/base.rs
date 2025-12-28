@@ -197,23 +197,20 @@ impl<S: StorageEngine> SetExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::ExecutorCore
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
     for SetExecutor<S>
 {
     async fn execute(
         &mut self,
     ) -> crate::query::executor::traits::DBResult<crate::query::executor::traits::ExecutionResult>
     {
-        // 基类不直接执行，由子类实现具体逻辑
         Err(crate::core::error::DBError::Query(
             crate::core::error::QueryError::ExecutionError(
                 "SetExecutor是抽象基类，不能直接执行".to_string(),
             ),
         ))
     }
-}
 
-impl<S: StorageEngine> crate::query::executor::traits::ExecutorLifecycle for SetExecutor<S> {
     fn open(&mut self) -> crate::query::executor::traits::DBResult<()> {
         Ok(())
     }
@@ -225,9 +222,7 @@ impl<S: StorageEngine> crate::query::executor::traits::ExecutorLifecycle for Set
     fn is_open(&self) -> bool {
         true
     }
-}
 
-impl<S: StorageEngine> crate::query::executor::traits::ExecutorMetadata for SetExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -239,20 +234,6 @@ impl<S: StorageEngine> crate::query::executor::traits::ExecutorMetadata for SetE
     fn description(&self) -> &str {
         "Set executor base class"
     }
-}
-
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
-    for SetExecutor<S>
-{
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("SetExecutor storage should be set")
-    }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
-    for SetExecutor<S>
-{
 }
 
 #[cfg(test)]

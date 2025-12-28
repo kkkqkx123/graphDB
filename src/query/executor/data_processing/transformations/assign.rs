@@ -107,33 +107,24 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for AssignExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AssignExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 执行赋值操作
         self.execute_assign()?;
-
-        // AssignExecutor通常返回Success，表示赋值操作完成
         Ok(ExecutionResult::Success)
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for AssignExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // 初始化资源
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // 清理资源
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         self.base.is_open()
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorMetadata for AssignExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -151,10 +142,6 @@ impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStora
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("AssignExecutor storage should be set")
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AssignExecutor<S> {
 }
 
 #[cfg(test)]

@@ -223,13 +223,11 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for FullOuterJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for FullOuterJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.execute_full_outer_join().await
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for FullOuterJoinExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         Ok(())
     }
@@ -241,9 +239,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for FullOuterJoinExecutor<S> {
     fn is_open(&self) -> bool {
         self.base.base.is_open()
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorMetadata for FullOuterJoinExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id()
     }
@@ -253,7 +249,7 @@ impl<S: StorageEngine + Send> ExecutorMetadata for FullOuterJoinExecutor<S> {
     }
 
     fn description(&self) -> &str {
-        &self.base.description()
+        self.base.description()
     }
 }
 
@@ -263,8 +259,4 @@ impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStora
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_base().storage.as_ref().expect("FullOuterJoinExecutor storage should be set")
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for FullOuterJoinExecutor<S> {
 }

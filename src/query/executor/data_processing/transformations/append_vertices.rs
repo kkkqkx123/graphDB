@@ -366,12 +366,10 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for AppendVerticesExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AppendVerticesExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 执行追加顶点操作
         let dataset = self.execute_append_vertices().await?;
 
-        // 将数据集转换为值列表
         let values: Vec<Value> = dataset
             .rows
             .into_iter()
@@ -380,25 +378,19 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for AppendVerticesExecutor<
 
         Ok(ExecutionResult::Values(values))
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for AppendVerticesExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
-        // 初始化资源
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // 清理资源
         Ok(())
     }
 
     fn is_open(&self) -> bool {
         self.base.is_open()
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorMetadata for AppendVerticesExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id
     }
@@ -416,10 +408,6 @@ impl<S: StorageEngine + Send> HasStorage<S> for AppendVerticesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("AppendVerticesExecutor storage should be set")
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AppendVerticesExecutor<S> {
 }
 
 #[cfg(test)]

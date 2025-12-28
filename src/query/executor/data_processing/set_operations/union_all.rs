@@ -66,7 +66,7 @@ impl<S: StorageEngine> UnionAllExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for UnionAllExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for UnionAllExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_union_all().await.map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
@@ -74,7 +74,6 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UnionAllExecutor<S> {
             ))
         })?;
 
-        // 将DataSet转换为Values结果
         let values: Vec<Value> = dataset
             .rows
             .into_iter()
@@ -83,9 +82,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorCore for UnionAllExecutor<S> {
 
         Ok(ExecutionResult::Values(values))
     }
-}
 
-impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for UnionAllExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         self.set_executor.open()
     }
@@ -97,9 +94,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorLifecycle for UnionAllExecutor<S
     fn is_open(&self) -> bool {
         self.set_executor.is_open()
     }
-}
 
-impl<S: StorageEngine + Send + 'static> ExecutorMetadata for UnionAllExecutor<S> {
     fn id(&self) -> i64 {
         self.set_executor.id()
     }
@@ -111,20 +106,6 @@ impl<S: StorageEngine + Send + 'static> ExecutorMetadata for UnionAllExecutor<S>
     fn description(&self) -> &str {
         self.set_executor.description()
     }
-}
-
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
-    for UnionAllExecutor<S>
-{
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.set_executor.get_storage()
-    }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
-    for UnionAllExecutor<S>
-{
 }
 
 #[cfg(test)]

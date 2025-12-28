@@ -85,11 +85,11 @@ pub trait CreateStmtParser: ExpressionParser {
         let direction = if self.current_token().kind == TokenKind::Arrow {
             // ->
             self.next_token();
-            EdgeDirection::Out
+            EdgeDirection::Outgoing
         } else if self.current_token().kind == TokenKind::BackArrow {
             // <-
             self.next_token();
-            EdgeDirection::In
+            EdgeDirection::Incoming
         } else {
             return Err(ParseError::syntax_error(
                 format!("Expected -> or <-, got {:?}", self.current_token().kind),

@@ -159,13 +159,11 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ExecutorCore for RightJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> Executor<S> for RightJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.execute_right_join().await
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorLifecycle for RightJoinExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         Ok(())
     }
@@ -177,9 +175,7 @@ impl<S: StorageEngine + Send> ExecutorLifecycle for RightJoinExecutor<S> {
     fn is_open(&self) -> bool {
         self.base.base.is_open()
     }
-}
 
-impl<S: StorageEngine + Send> ExecutorMetadata for RightJoinExecutor<S> {
     fn id(&self) -> i64 {
         self.base.id()
     }
@@ -189,7 +185,7 @@ impl<S: StorageEngine + Send> ExecutorMetadata for RightJoinExecutor<S> {
     }
 
     fn description(&self) -> &str {
-        &self.base.description()
+        self.base.description()
     }
 }
 
@@ -197,8 +193,4 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for RightJoinExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.base.get_storage()
     }
-}
-
-#[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RightJoinExecutor<S> {
 }
