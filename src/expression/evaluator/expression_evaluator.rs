@@ -7,6 +7,7 @@ use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOper
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::Value;
 use crate::expression::evaluator::traits::{Evaluator, ExpressionContext};
+use crate::expression::evaluator::operations::{BinaryOperationEvaluator, UnaryOperationEvaluator};
 
 /// 表达式求值器实现
 #[derive(Debug)]
@@ -58,11 +59,11 @@ impl ExpressionEvaluator {
             Expression::Binary { left, op, right } => {
                 let left_value = self.evaluate(left, context)?;
                 let right_value = self.evaluate(right, context)?;
-                self.eval_binary_operation(&left_value, op, &right_value)
+                BinaryOperationEvaluator::evaluate(&left_value, op, &right_value)
             }
             Expression::Unary { op, operand } => {
                 let value = self.evaluate(operand, context)?;
-                self.eval_unary_operation(op, &value)
+                UnaryOperationEvaluator::evaluate(op, &value)
             }
             Expression::Function { name, args } => {
                 let arg_values: Result<Vec<Value>, ExpressionError> =
@@ -126,79 +127,63 @@ impl ExpressionEvaluator {
                     .collect();
                 element_values.map(Value::List)
             }
-            Expression::Label(_) => {
-                // 标签表达式暂时返回null
-                Ok(Value::Null(crate::core::NullType::Null))
+            Expression::Label(label_name) => {
+                self.eval_label_expression(label_name, context)
             }
-            Expression::TagProperty { tag: _, prop: _ } => {
-                // 标签属性表达式暂时返回null
-                Ok(Value::Null(crate::core::NullType::Null))
+            Expression::TagProperty { tag, prop } => {
+                self.eval_tag_property(tag, prop, context)
             }
-            Expression::EdgeProperty { edge: _, prop: _ } => {
-                // 边属性表达式暂时返回null
-                Ok(Value::Null(crate::core::NullType::Null))
+            Expression::EdgeProperty { edge, prop } => {
+                self.eval_edge_property(edge, prop, context)
             }
             Expression::InputProperty(prop_name) => {
-                // 输入属性表达式：从上下文中获取变量值
-                // 在测试中，输入属性被映射为上下文中的变量
                 match context.get_variable(prop_name) {
                     Some(value) => Ok(value),
                     None => Ok(Value::Null(crate::core::NullType::Null))
                 }
             }
-            Expression::VariableProperty { var: _, prop: _ } => {
-                // 变量属性表达式暂时返回null
-                Ok(Value::Null(crate::core::NullType::Null))
+            Expression::VariableProperty { var, prop } => {
+                self.eval_variable_property(var, prop, context)
             }
-            Expression::SourceProperty { tag: _, prop: _ } => {
-                // 源属性表达式暂时返回null
-                Ok(Value::Null(crate::core::NullType::Null))
+            Expression::SourceProperty { tag, prop } => {
+                self.eval_source_property(tag, prop, context)
             }
-            Expression::DestinationProperty { tag: _, prop: _ } => {
-                // 目的属性表达式暂时返回null
-                Ok(Value::Null(crate::core::NullType::Null))
+            Expression::DestinationProperty { tag, prop } => {
+                self.eval_destination_property(tag, prop, context)
             }
             // 一元操作扩展
             Expression::UnaryPlus(expr) => self.evaluate(expr, context),
             Expression::UnaryNegate(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(&UnaryOperator::Minus, &value)
+                UnaryOperationEvaluator::evaluate(&UnaryOperator::Minus, &value)
             }
             Expression::UnaryNot(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(&UnaryOperator::Not, &value)
+                UnaryOperationEvaluator::evaluate(&UnaryOperator::Not, &value)
             }
             Expression::UnaryIncr(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(&UnaryOperator::Increment, &value)
+                UnaryOperationEvaluator::evaluate(&UnaryOperator::Increment, &value)
             }
             Expression::UnaryDecr(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(&UnaryOperator::Decrement, &value)
+                UnaryOperationEvaluator::evaluate(&UnaryOperator::Decrement, &value)
             }
             Expression::IsNull(expr) => {
                 let value = self.evaluate(expr, context)?;
-                Ok(Value::Bool(value.is_null()))
+                UnaryOperationEvaluator::evaluate(&UnaryOperator::IsNull, &value)
             }
             Expression::IsNotNull(expr) => {
                 let value = self.evaluate(expr, context)?;
-                Ok(Value::Bool(!value.is_null()))
+                UnaryOperationEvaluator::evaluate(&UnaryOperator::IsNotNull, &value)
             }
             Expression::IsEmpty(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(&UnaryOperator::IsEmpty, &value)
+                UnaryOperationEvaluator::evaluate(&UnaryOperator::IsEmpty, &value)
             }
             Expression::IsNotEmpty(expr) => {
                 let value = self.evaluate(expr, context)?;
-                self.eval_unary_operation(&UnaryOperator::IsNotEmpty, &value)
-            }
-            // 类型转换
-            Expression::TypeCasting {
-                expr,
-                target_type: _,
-            } => {
-                // 暂时只返回原值
-                self.evaluate(expr, context)
+                UnaryOperationEvaluator::evaluate(&UnaryOperator::IsNotEmpty, &value)
             }
             // 列表推导
             Expression::ListComprehension {
@@ -206,54 +191,62 @@ impl ExpressionEvaluator {
                 condition,
             } => {
                 let gen_value = self.evaluate(generator, context)?;
-                // 如果有条件，检查条件是否满足
-                if let Some(cond) = condition {
-                    let cond_result = self.evaluate(cond, context)?;
-                    match cond_result {
-                        Value::Bool(true) => Ok(gen_value),
-                        Value::Bool(false) => Ok(Value::List(vec![])),
-                        _ => Err(ExpressionError::type_error("推导条件必须是布尔值")),
+                match gen_value {
+                    Value::List(items) => {
+                        let mut result = Vec::new();
+                        for item in items {
+                            if let Some(cond) = condition {
+                                let cond_result = self.evaluate(cond, context)?;
+                                match cond_result {
+                                    Value::Bool(true) => result.push(item),
+                                    Value::Bool(false) => continue,
+                                    _ => return Err(ExpressionError::type_error("推导条件必须是布尔值")),
+                                }
+                            } else {
+                                result.push(item);
+                            }
+                        }
+                        Ok(Value::List(result))
                     }
-                } else {
-                    Ok(Value::List(vec![gen_value]))
+                    _ => Ok(Value::List(vec![gen_value])),
                 }
             }
             // 谓词表达式
             Expression::Predicate { list, condition } => {
                 let list_value = self.evaluate(list, context)?;
-                let cond_value = self.evaluate(condition, context)?;
-                // 简单实现，返回满足条件的列表元素
-                match (list_value, cond_value) {
-                    (Value::List(items), Value::Bool(true)) => Ok(Value::List(items)),
-                    (Value::List(_), Value::Bool(false)) => Ok(Value::List(vec![])),
-                    _ => Err(ExpressionError::type_error("谓词表达式需要列表和布尔条件")),
+                match list_value {
+                    Value::List(items) => {
+                        let mut result = Vec::new();
+                        for item in items {
+                            let cond_result = self.evaluate(condition, context)?;
+                            match cond_result {
+                                Value::Bool(true) => result.push(item),
+                                Value::Bool(false) => continue,
+                                _ => return Err(ExpressionError::type_error("谓词条件必须是布尔值")),
+                            }
+                        }
+                        Ok(Value::List(result))
+                    }
+                    _ => Err(ExpressionError::type_error("谓词表达式需要列表")),
                 }
             }
             // 归约表达式
             Expression::Reduce {
                 list,
-                var: _,
+                var,
                 initial,
                 expr,
             } => {
                 let list_value = self.evaluate(list, context)?;
-                let acc = self.evaluate(initial, context)?;
+                let mut acc = self.evaluate(initial, context)?;
 
                 if let Value::List(items) = list_value {
-                    for _item in items {
-                        // 简单实现，暂时只返回累加器
-                        let _ = self.evaluate(expr, context)?;
+                    for item in items {
+                        context.set_variable(var.clone(), item);
+                        acc = self.evaluate(expr, context)?;
                     }
                 }
                 Ok(acc)
-            }
-            // 路径构建表达式
-            Expression::PathBuild(elements) => {
-                let element_values: Result<Vec<Value>, ExpressionError> = elements
-                    .iter()
-                    .map(|elem| self.evaluate(elem, context))
-                    .collect();
-                element_values.map(Value::List)
             }
             // 文本搜索表达式
             Expression::ESQuery(_) => {
@@ -262,23 +255,6 @@ impl ExpressionEvaluator {
             }
             // UUID表达式
             Expression::UUID => Ok(Value::String(uuid::Uuid::new_v4().to_string())),
-            // 下标范围表达式
-            Expression::SubscriptRange {
-                collection,
-                start,
-                end,
-            } => {
-                let collection_value = self.evaluate(collection, context)?;
-                let start_value = start
-                    .as_ref()
-                    .map(|e| self.evaluate(e, context))
-                    .transpose()?;
-                let end_value = end
-                    .as_ref()
-                    .map(|e| self.evaluate(e, context))
-                    .transpose()?;
-                self.eval_range_access(&collection_value, start_value.as_ref(), end_value.as_ref())
-            }
             // 匹配路径模式表达式
             Expression::MatchPathPattern {
                 path_alias: _,
@@ -334,11 +310,11 @@ impl ExpressionEvaluator {
             Expression::Binary { left, op, right } => {
                 let left_value = self.eval_expression_generic(left, context)?;
                 let right_value = self.eval_expression_generic(right, context)?;
-                self.eval_binary_operation(&left_value, op, &right_value)
+                BinaryOperationEvaluator::evaluate(&left_value, op, &right_value)
             }
             Expression::Unary { op, operand } => {
                 let value = self.eval_expression_generic(operand, context)?;
-                self.eval_unary_operation(op, &value)
+                UnaryOperationEvaluator::evaluate(op, &value)
             }
             Expression::Function { name, args } => {
                 let arg_values: Result<Vec<Value>, ExpressionError> = args
@@ -439,176 +415,6 @@ impl ExpressionEvaluator {
     /// 获取求值器版本
     pub fn version(&self) -> &str {
         "1.0.0"
-    }
-
-    /// 求值二元运算
-    pub fn eval_binary_operation(
-        &self,
-        left: &Value,
-        op: &BinaryOperator,
-        right: &Value,
-    ) -> Result<Value, ExpressionError> {
-        match op {
-            // 算术运算
-            BinaryOperator::Add => left
-                .add(right)
-                .map_err(|e| ExpressionError::runtime_error(e)),
-            BinaryOperator::Subtract => left
-                .sub(right)
-                .map_err(|e| ExpressionError::runtime_error(e)),
-            BinaryOperator::Multiply => left
-                .mul(right)
-                .map_err(|e| ExpressionError::runtime_error(e)),
-            BinaryOperator::Divide => {
-                if matches!(right, Value::Int(0) | Value::Float(0.0)) {
-                    Err(ExpressionError::division_by_zero())
-                } else {
-                    left.div(right)
-                        .map_err(|e| ExpressionError::runtime_error(e))
-                }
-            }
-            BinaryOperator::Modulo => left
-                .modulo(right)
-                .map_err(|e| ExpressionError::runtime_error(e)),
-            BinaryOperator::Exponent => left
-                .pow(right)
-                .map_err(|e| ExpressionError::runtime_error(e)),
-
-            // 比较运算
-            BinaryOperator::Equal => Ok(Value::Bool(left.equals(right))),
-            BinaryOperator::NotEqual => Ok(Value::Bool(!left.equals(right))),
-            BinaryOperator::LessThan => Ok(Value::Bool(left.less_than(right))),
-            BinaryOperator::LessThanOrEqual => Ok(Value::Bool(left.less_than_equal(right))),
-            BinaryOperator::GreaterThan => Ok(Value::Bool(left.greater_than(right))),
-            BinaryOperator::GreaterThanOrEqual => Ok(Value::Bool(left.greater_than_equal(right))),
-
-            // 逻辑运算
-            BinaryOperator::And => match (left, right) {
-                (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(*l && *r)),
-                _ => Err(ExpressionError::type_error("逻辑运算需要布尔值")),
-            },
-            BinaryOperator::Or => match (left, right) {
-                (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(*l || *r)),
-                _ => Err(ExpressionError::type_error("逻辑运算需要布尔值")),
-            },
-            BinaryOperator::Xor => match (left, right) {
-                (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(*l ^ *r)),
-                _ => Err(ExpressionError::type_error("XOR运算需要布尔值")),
-            },
-
-            // 字符串运算
-            BinaryOperator::StringConcat => match (left, right) {
-                (Value::String(l), Value::String(r)) => Ok(Value::String(format!("{}{}", l, r))),
-                _ => Err(ExpressionError::type_error("字符串连接需要字符串值")),
-            },
-            BinaryOperator::Like => {
-                match (left, right) {
-                    (Value::String(l), Value::String(r)) => {
-                        // 改进的LIKE实现，支持%和_通配符，并处理转义字符
-                        self.eval_like_operation(l, r)
-                    }
-                    _ => Err(ExpressionError::type_error("LIKE操作需要字符串值")),
-                }
-            }
-            BinaryOperator::In => match right {
-                Value::List(items) => Ok(Value::Bool(items.contains(left))),
-                _ => Err(ExpressionError::type_error("IN操作右侧必须是列表")),
-            },
-            BinaryOperator::NotIn => match right {
-                Value::List(items) => Ok(Value::Bool(!items.contains(left))),
-                _ => Err(ExpressionError::type_error("NOT IN操作右侧必须是列表")),
-            },
-            BinaryOperator::Contains => match (&left, &right) {
-                (Value::String(s), Value::String(sub)) => Ok(Value::Bool(s.contains(sub))),
-                (Value::List(items), item) => Ok(Value::Bool(items.contains(item))),
-                _ => Err(ExpressionError::type_error("CONTAINS操作需要字符串或列表")),
-            },
-            BinaryOperator::StartsWith => match (&left, &right) {
-                (Value::String(s), Value::String(prefix)) => Ok(Value::Bool(s.starts_with(prefix))),
-                _ => Err(ExpressionError::type_error("STARTS WITH操作需要字符串值")),
-            },
-            BinaryOperator::EndsWith => match (&left, &right) {
-                (Value::String(s), Value::String(suffix)) => Ok(Value::Bool(s.ends_with(suffix))),
-                _ => Err(ExpressionError::type_error("ENDS WITH操作需要字符串值")),
-            },
-
-            // 访问运算
-            BinaryOperator::Subscript => self.eval_subscript_access(left, right),
-            BinaryOperator::Attribute => self.eval_property_access(left, &right.to_string()),
-
-            // 集合运算
-            BinaryOperator::Union => match (left, right) {
-                (Value::List(l), Value::List(r)) => {
-                    let mut result = l.clone();
-                    result.extend(r.clone());
-                    Ok(Value::List(result))
-                }
-                _ => Err(ExpressionError::type_error("UNION操作需要列表值")),
-            },
-            BinaryOperator::Intersect => match (left, right) {
-                (Value::List(l), Value::List(r)) => {
-                    let result: Vec<Value> =
-                        l.iter().filter(|item| r.contains(item)).cloned().collect();
-                    Ok(Value::List(result))
-                }
-                _ => Err(ExpressionError::type_error("INTERSECT操作需要列表值")),
-            },
-            BinaryOperator::Except => match (left, right) {
-                (Value::List(l), Value::List(r)) => {
-                    let result: Vec<Value> =
-                        l.iter().filter(|item| !r.contains(item)).cloned().collect();
-                    Ok(Value::List(result))
-                }
-                _ => Err(ExpressionError::type_error("EXCEPT操作需要列表值")),
-            },
-        }
-    }
-
-    /// 求值一元运算
-    pub fn eval_unary_operation(
-        &self,
-        op: &UnaryOperator,
-        value: &Value,
-    ) -> Result<Value, ExpressionError> {
-        match op {
-            // 算术运算
-            UnaryOperator::Plus => Ok(value.clone()),
-            UnaryOperator::Minus => value
-                .negate()
-                .map_err(|e| ExpressionError::runtime_error(e)),
-
-            // 逻辑运算
-            UnaryOperator::Not => match value {
-                Value::Bool(b) => Ok(Value::Bool(!b)),
-                _ => Err(ExpressionError::type_error("NOT操作需要布尔值")),
-            },
-
-            // 存在性检查
-            UnaryOperator::IsNull => Ok(Value::Bool(value.is_null())),
-            UnaryOperator::IsNotNull => Ok(Value::Bool(!value.is_null())),
-            UnaryOperator::IsEmpty => match value {
-                Value::String(s) => Ok(Value::Bool(s.is_empty())),
-                Value::List(l) => Ok(Value::Bool(l.is_empty())),
-                Value::Map(m) => Ok(Value::Bool(m.is_empty())),
-                _ => Err(ExpressionError::type_error("EMPTY检查需要容器类型")),
-            },
-            UnaryOperator::IsNotEmpty => match value {
-                Value::String(s) => Ok(Value::Bool(!s.is_empty())),
-                Value::List(l) => Ok(Value::Bool(!l.is_empty())),
-                Value::Map(m) => Ok(Value::Bool(!m.is_empty())),
-                _ => Err(ExpressionError::type_error("EMPTY检查需要容器类型")),
-            },
-
-            // 增减操作
-            UnaryOperator::Increment => match value {
-                Value::Int(i) => Ok(Value::Int(i + 1)),
-                _ => Err(ExpressionError::type_error("递增操作需要整数")),
-            },
-            UnaryOperator::Decrement => match value {
-                Value::Int(i) => Ok(Value::Int(i - 1)),
-                _ => Err(ExpressionError::type_error("递减操作需要整数")),
-            },
-        }
     }
 
     /// 求值类型转换
@@ -820,31 +626,41 @@ impl ExpressionEvaluator {
                 if args.len() != 1 {
                     return Err(ExpressionError::argument_count_error(1, args.len()));
                 }
-                args[0].abs().map_err(|e| ExpressionError::runtime_error(e))
+                match &args[0] {
+                    Value::Int(i) => Ok(Value::Int(i.abs())),
+                    Value::Float(f) => Ok(Value::Float(f.abs())),
+                    _ => Err(ExpressionError::type_error("abs函数需要数值类型")),
+                }
             }
             "ceil" => {
                 if args.len() != 1 {
                     return Err(ExpressionError::argument_count_error(1, args.len()));
                 }
-                args[0]
-                    .ceil()
-                    .map_err(|e| ExpressionError::runtime_error(e))
+                match &args[0] {
+                    Value::Int(i) => Ok(Value::Int(*i)),
+                    Value::Float(f) => Ok(Value::Float(f.ceil())),
+                    _ => Err(ExpressionError::type_error("ceil函数需要数值类型")),
+                }
             }
             "floor" => {
                 if args.len() != 1 {
                     return Err(ExpressionError::argument_count_error(1, args.len()));
                 }
-                args[0]
-                    .floor()
-                    .map_err(|e| ExpressionError::runtime_error(e))
+                match &args[0] {
+                    Value::Int(i) => Ok(Value::Int(*i)),
+                    Value::Float(f) => Ok(Value::Float(f.floor())),
+                    _ => Err(ExpressionError::type_error("floor函数需要数值类型")),
+                }
             }
             "round" => {
                 if args.len() != 1 {
                     return Err(ExpressionError::argument_count_error(1, args.len()));
                 }
-                args[0]
-                    .round()
-                    .map_err(|e| ExpressionError::runtime_error(e))
+                match &args[0] {
+                    Value::Int(i) => Ok(Value::Int(*i)),
+                    Value::Float(f) => Ok(Value::Float(f.round())),
+                    _ => Err(ExpressionError::type_error("round函数需要数值类型")),
+                }
             }
 
             // 字符串函数
@@ -852,33 +668,39 @@ impl ExpressionEvaluator {
                 if args.len() != 1 {
                     return Err(ExpressionError::argument_count_error(1, args.len()));
                 }
-                args[0]
-                    .length()
-                    .map_err(|e| ExpressionError::runtime_error(e))
+                match &args[0] {
+                    Value::String(s) => Ok(Value::Int(s.len() as i64)),
+                    Value::List(l) => Ok(Value::Int(l.len() as i64)),
+                    Value::Map(m) => Ok(Value::Int(m.len() as i64)),
+                    _ => Err(ExpressionError::type_error("length函数需要字符串、列表或映射类型")),
+                }
             }
             "lower" => {
                 if args.len() != 1 {
                     return Err(ExpressionError::argument_count_error(1, args.len()));
                 }
-                args[0]
-                    .lower()
-                    .map_err(|e| ExpressionError::runtime_error(e))
+                match &args[0] {
+                    Value::String(s) => Ok(Value::String(s.to_lowercase())),
+                    _ => Err(ExpressionError::type_error("lower函数需要字符串类型")),
+                }
             }
             "upper" => {
                 if args.len() != 1 {
                     return Err(ExpressionError::argument_count_error(1, args.len()));
                 }
-                args[0]
-                    .upper()
-                    .map_err(|e| ExpressionError::runtime_error(e))
+                match &args[0] {
+                    Value::String(s) => Ok(Value::String(s.to_uppercase())),
+                    _ => Err(ExpressionError::type_error("upper函数需要字符串类型")),
+                }
             }
             "trim" => {
                 if args.len() != 1 {
                     return Err(ExpressionError::argument_count_error(1, args.len()));
                 }
-                args[0]
-                    .trim()
-                    .map_err(|e| ExpressionError::runtime_error(e))
+                match &args[0] {
+                    Value::String(s) => Ok(Value::String(s.trim().to_string())),
+                    _ => Err(ExpressionError::type_error("trim函数需要字符串类型")),
+                }
             }
 
             _ => Err(ExpressionError::undefined_function(name)),
@@ -980,8 +802,10 @@ impl ExpressionEvaluator {
             AggregateFunction::Min => {
                 let mut min = args[0].clone();
                 for arg in args.iter().skip(1) {
-                    if arg.less_than(&min) {
-                        min = arg.clone();
+                    match arg.lt(&min) {
+                        Ok(Value::Bool(true)) => min = arg.clone(),
+                        Ok(_) => {}
+                        Err(e) => return Err(ExpressionError::runtime_error(e)),
                     }
                 }
                 Ok(min)
@@ -989,8 +813,10 @@ impl ExpressionEvaluator {
             AggregateFunction::Max => {
                 let mut max = args[0].clone();
                 for arg in args.iter().skip(1) {
-                    if arg.greater_than(&max) {
-                        max = arg.clone();
+                    match arg.gt(&max) {
+                        Ok(Value::Bool(true)) => max = arg.clone(),
+                        Ok(_) => {}
+                        Err(e) => return Err(ExpressionError::runtime_error(e)),
                     }
                 }
                 Ok(max)
@@ -1130,6 +956,191 @@ impl ExpressionEvaluator {
         }
 
         text_chars.peek().is_none()
+    }
+
+    /// 求值标签表达式
+    fn eval_label_expression(
+        &self,
+        label_name: &str,
+        context: &mut dyn crate::expression::ExpressionContext,
+    ) -> Result<Value, ExpressionError> {
+        if let Some(vertex) = context.get_vertex() {
+            let label_list: Vec<Value> = vertex.tags.iter()
+                .map(|tag| Value::String(tag.name.clone()))
+                .collect();
+            Ok(Value::List(label_list))
+        } else {
+            Err(ExpressionError::runtime_error(format!("标签表达式需要顶点上下文: {}", label_name)))
+        }
+    }
+
+    /// 求值标签属性表达式
+    fn eval_tag_property(
+        &self,
+        tag_name: &str,
+        prop_name: &str,
+        context: &mut dyn crate::expression::ExpressionContext,
+    ) -> Result<Value, ExpressionError> {
+        if let Some(vertex) = context.get_vertex() {
+            for tag in &vertex.tags {
+                if tag.name == tag_name {
+                    if let Some(value) = tag.properties.get(prop_name) {
+                        return Ok(value.clone());
+                    }
+                }
+            }
+            Err(ExpressionError::runtime_error(format!(
+                "标签属性不存在: {}.{}", tag_name, prop_name
+            )))
+        } else {
+            Err(ExpressionError::runtime_error(format!(
+                "标签属性表达式需要顶点上下文: {}.{}", tag_name, prop_name
+            )))
+        }
+    }
+
+    /// 求值边属性表达式
+    fn eval_edge_property(
+        &self,
+        edge_name: &str,
+        prop_name: &str,
+        context: &mut dyn crate::expression::ExpressionContext,
+    ) -> Result<Value, ExpressionError> {
+        if let Some(edge) = context.get_edge() {
+            if edge_name.is_empty() || edge.edge_type() == edge_name {
+                if let Some(value) = edge.properties().get(prop_name) {
+                    return Ok(value.clone());
+                }
+                Err(ExpressionError::runtime_error(format!(
+                    "边属性不存在: {}.{}", edge_name, prop_name
+                )))
+            } else {
+                Err(ExpressionError::runtime_error(format!(
+                    "边名称不匹配: 期望 '{}', 实际 '{}'", edge_name, edge.edge_type()
+                )))
+            }
+        } else {
+            Err(ExpressionError::runtime_error(format!(
+                "边属性表达式需要边上下文: {}.{}", edge_name, prop_name
+            )))
+        }
+    }
+
+    /// 求值变量属性表达式
+    fn eval_variable_property(
+        &self,
+        var_name: &str,
+        prop_name: &str,
+        context: &mut dyn crate::expression::ExpressionContext,
+    ) -> Result<Value, ExpressionError> {
+        if let Some(value) = context.get_variable(var_name) {
+            match value {
+                Value::Vertex(vertex) => {
+                    if let Some(prop_value) = vertex.properties.get(prop_name) {
+                        Ok(prop_value.clone())
+                    } else {
+                        Err(ExpressionError::runtime_error(format!(
+                            "顶点属性不存在: {}.{}", var_name, prop_name
+                        )))
+                    }
+                }
+                Value::Edge(edge) => {
+                    if let Some(prop_value) = edge.properties().get(prop_name) {
+                        Ok(prop_value.clone())
+                    } else {
+                        Err(ExpressionError::runtime_error(format!(
+                            "边属性不存在: {}.{}", var_name, prop_name
+                        )))
+                    }
+                }
+                Value::Map(map) => {
+                    if let Some(prop_value) = map.get(prop_name) {
+                        Ok(prop_value.clone())
+                    } else {
+                        Err(ExpressionError::runtime_error(format!(
+                            "映射属性不存在: {}.{}", var_name, prop_name
+                        )))
+                    }
+                }
+                _ => Err(ExpressionError::type_error(format!(
+                    "变量属性访问需要顶点、边或映射类型: {}", var_name
+                ))),
+            }
+        } else {
+            Err(ExpressionError::undefined_variable(var_name))
+        }
+    }
+
+    /// 求值源属性表达式
+    fn eval_source_property(
+        &self,
+        tag_name: &str,
+        prop_name: &str,
+        context: &mut dyn crate::expression::ExpressionContext,
+    ) -> Result<Value, ExpressionError> {
+        if let Some(edge) = context.get_edge() {
+            let source_var = format!("_src_{}", edge.src());
+            if let Some(value) = context.get_variable(&source_var) {
+                if let Value::Vertex(vertex) = value {
+                    for tag in &vertex.tags {
+                        if tag.name == tag_name {
+                            if let Some(prop_value) = tag.properties.get(prop_name) {
+                                return Ok(prop_value.clone());
+                            }
+                        }
+                    }
+                    Err(ExpressionError::runtime_error(format!(
+                        "源标签属性不存在: $^.{}.{}", tag_name, prop_name
+                    )))
+                } else {
+                    Err(ExpressionError::type_error(format!(
+                        "源属性表达式需要顶点类型: $^.{}.{}", tag_name, prop_name
+                    )))
+                }
+            } else {
+                Err(ExpressionError::undefined_variable(&source_var))
+            }
+        } else {
+            Err(ExpressionError::runtime_error(format!(
+                "源属性表达式需要边上下文: $^.{}.{}", tag_name, prop_name
+            )))
+        }
+    }
+
+    /// 求值目的属性表达式
+    fn eval_destination_property(
+        &self,
+        tag_name: &str,
+        prop_name: &str,
+        context: &mut dyn crate::expression::ExpressionContext,
+    ) -> Result<Value, ExpressionError> {
+        if let Some(edge) = context.get_edge() {
+            let dest_var = format!("_dst_{}", edge.dst());
+            if let Some(value) = context.get_variable(&dest_var) {
+                if let Value::Vertex(vertex) = value {
+                    for tag in &vertex.tags {
+                        if tag.name == tag_name {
+                            if let Some(prop_value) = tag.properties.get(prop_name) {
+                                return Ok(prop_value.clone());
+                            }
+                        }
+                    }
+                    Err(ExpressionError::runtime_error(format!(
+                        "目的标签属性不存在: $$.{}.{}", tag_name, prop_name
+                    )))
+                } else {
+                    Err(ExpressionError::type_error(format!(
+                        "目的属性表达式需要顶点类型: $$.{}.{}", tag_name, prop_name
+                    )))
+                }
+            } else {
+                Err(ExpressionError::undefined_variable(&dest_var))
+            }
+        } else {
+            Err(ExpressionError::runtime_error(format!(
+                "目的属性表达式需要边上下文: $$.{}.{}", tag_name, prop_name
+            )))
+        }
     }
 
     /// 求值CASE表达式

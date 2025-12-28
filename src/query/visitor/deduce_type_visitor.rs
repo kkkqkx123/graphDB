@@ -324,7 +324,6 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 self.type_ = accumulator_type;
                 Ok(())
             }
-            Expression::PathBuild(items) => self.visit_path_build(items),
             Expression::ESQuery(_) => {
                 // 文本搜索结果为字符串
                 self.type_ = ValueTypeDef::String;
@@ -347,30 +346,9 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 };
                 Ok(())
             }
-            Expression::SubscriptRange {
-                collection,
-                start,
-                end,
-            } => {
-                self.visit_expr(collection)?;
-                if let Some(start_idx) = start {
-                    self.visit_expr(start_idx)?;
-                }
-                if let Some(end_idx) = end {
-                    self.visit_expr(end_idx)?;
-                }
-                // 范围下标始终返回列表
-                self.type_ = ValueTypeDef::List;
-                Ok(())
-            }
             Expression::Label(_name) => {
                 // 标签通常是字符串
                 self.type_ = ValueTypeDef::String;
-                Ok(())
-            }
-            Expression::TypeCasting { expr, .. } => {
-                self.visit_expr(expr)?;
-                // 类型转换后返回转换后的类型
                 Ok(())
             }
             Expression::MatchPathPattern { patterns, .. } => {
@@ -681,12 +659,6 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    /// 推导路径构建表达式的类型
-    fn visit_path_build(&mut self, _items: &[Expression]) -> Result<(), TypeDeductionError> {
-        self.type_ = ValueTypeDef::Path;
-        Ok(())
-    }
-
     /// 检查两种类型是否兼容
     fn are_types_compatible(&self, type1: &ValueTypeDef, type2: &ValueTypeDef) -> bool {
         TypeUtils::are_types_compatible(type1, type2)
@@ -964,7 +936,6 @@ impl<'a, S: StorageEngine> Visitor<Expression> for DeduceTypeVisitor<'a, S> {
                 self.type_ = accumulator_type;
                 Ok(())
             }
-            Expression::PathBuild(items) => self.visit_path_build(items),
             Expression::ESQuery(_) => {
                 self.type_ = ValueTypeDef::String;
                 Ok(())
@@ -984,27 +955,8 @@ impl<'a, S: StorageEngine> Visitor<Expression> for DeduceTypeVisitor<'a, S> {
                 };
                 Ok(())
             }
-            Expression::SubscriptRange {
-                collection,
-                start,
-                end,
-            } => {
-                self.visit(collection)?;
-                if let Some(start_idx) = start {
-                    self.visit(start_idx)?;
-                }
-                if let Some(end_idx) = end {
-                    self.visit(end_idx)?;
-                }
-                self.type_ = ValueTypeDef::List;
-                Ok(())
-            }
             Expression::Label(_name) => {
                 self.type_ = ValueTypeDef::String;
-                Ok(())
-            }
-            Expression::TypeCasting { expr, .. } => {
-                self.visit(expr)?;
                 Ok(())
             }
             Expression::MatchPathPattern { patterns, .. } => {

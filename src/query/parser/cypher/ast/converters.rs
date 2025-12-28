@@ -584,7 +584,7 @@ impl ExpressionEvaluator {
             BinaryOperator::Subtract => left.sub(&right),
             BinaryOperator::Multiply => left.mul(&right),
             BinaryOperator::Divide => left.div(&right),
-            BinaryOperator::Modulo => left.modulo(&right),
+            BinaryOperator::Modulo => left.rem(&right),
             BinaryOperator::Exponent => match (&left, &right) {
                 (Value::Int(l), Value::Int(r)) => {
                     let result = l.pow(*r as u32);
@@ -604,16 +604,12 @@ impl ExpressionEvaluator {
                 }
                 _ => Err("指数操作符只能应用于数字".to_string()),
             },
-            BinaryOperator::Equal => Ok(Value::Bool(left.equals(&right))),
-            BinaryOperator::NotEqual => Ok(Value::Bool(!left.equals(&right))),
-            BinaryOperator::GreaterThan => Ok(Value::Bool(left.greater_than(&right))),
-            BinaryOperator::LessThan => Ok(Value::Bool(left.less_than(&right))),
-            BinaryOperator::GreaterThanOrEqual => Ok(Value::Bool(
-                left.greater_than(&right) || left.equals(&right),
-            )),
-            BinaryOperator::LessThanOrEqual => {
-                Ok(Value::Bool(left.less_than(&right) || left.equals(&right)))
-            }
+            BinaryOperator::Equal => Ok(Value::Bool(left == right)),
+            BinaryOperator::NotEqual => Ok(Value::Bool(left != right)),
+            BinaryOperator::GreaterThan => Ok(Value::Bool(left > right)),
+            BinaryOperator::LessThan => Ok(Value::Bool(left < right)),
+            BinaryOperator::GreaterThanOrEqual => Ok(Value::Bool(left >= right)),
+            BinaryOperator::LessThanOrEqual => Ok(Value::Bool(left <= right)),
             BinaryOperator::And => match (left, right) {
                 (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(l && r)),
                 _ => Err("AND操作符只能应用于布尔值".to_string()),

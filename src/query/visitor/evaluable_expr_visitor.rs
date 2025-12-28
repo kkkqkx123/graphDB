@@ -354,9 +354,6 @@ impl<'a> Visitor<Expression> for EvaluableExprVisitor {
             Expression::IsNotNull(expr) => self.visit_is_not_null(expr),
             Expression::IsEmpty(expr) => self.visit_is_empty(expr),
             Expression::IsNotEmpty(expr) => self.visit_is_not_empty(expr),
-            Expression::TypeCasting { expr, target_type } => {
-                self.visit_type_casting(expr, target_type)
-            }
             Expression::ListComprehension { generator, condition } => {
                 self.visit_list_comprehension(generator, condition)
             }
@@ -364,12 +361,8 @@ impl<'a> Visitor<Expression> for EvaluableExprVisitor {
             Expression::Reduce { list, var, initial, expr } => {
                 self.visit_reduce(list, var, initial, expr)
             }
-            Expression::PathBuild(items) => self.visit_path_build(items),
             Expression::ESQuery(query) => self.visit_es_query(query),
             Expression::UUID => self.visit_uuid(),
-            Expression::SubscriptRange { collection, start, end } => {
-                self.visit_subscript_range(collection, start, end)
-            }
             Expression::MatchPathPattern { path_alias, patterns } => {
                 self.visit_match_path_pattern(path_alias, patterns)
             }

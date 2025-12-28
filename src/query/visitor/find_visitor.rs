@@ -372,15 +372,6 @@ impl Visitor<Expression> for FindVisitor {
                 }
                 self.visit(expr);
             }
-            Expression::TypeCasting { expr, target_type } => {
-                if self.target_types.contains(&ExpressionType::TypeCast) {
-                    self.found_exprs.push(Expression::TypeCasting {
-                        expr: expr.clone(),
-                        target_type: target_type.to_string(),
-                    });
-                }
-                self.visit(expr);
-            }
             Expression::ListComprehension { generator, condition } => {
                 if self.target_types.contains(&ExpressionType::List) {
                     self.found_exprs.push(Expression::ListComprehension {
@@ -416,14 +407,6 @@ impl Visitor<Expression> for FindVisitor {
                 self.visit(initial);
                 self.visit(expr);
             }
-            Expression::PathBuild(items) => {
-                if self.target_types.contains(&ExpressionType::Path) {
-                    self.found_exprs.push(Expression::PathBuild(items.to_vec()));
-                }
-                for item in items {
-                    self.visit(item);
-                }
-            }
             Expression::ESQuery(query) => {
                 if self.target_types.contains(&ExpressionType::Function) {
                     self.found_exprs.push(Expression::ESQuery(query.to_string()));
@@ -432,22 +415,6 @@ impl Visitor<Expression> for FindVisitor {
             Expression::UUID => {
                 if self.target_types.contains(&ExpressionType::Literal) {
                     self.found_exprs.push(Expression::UUID);
-                }
-            }
-            Expression::SubscriptRange { collection, start, end } => {
-                if self.target_types.contains(&ExpressionType::Subscript) {
-                    self.found_exprs.push(Expression::SubscriptRange {
-                        collection: collection.clone(),
-                        start: start.as_ref().map(|e| e.clone()),
-                        end: end.as_ref().map(|e| e.clone()),
-                    });
-                }
-                self.visit(collection);
-                if let Some(start_expr) = start {
-                    self.visit(start_expr);
-                }
-                if let Some(end_expr) = end {
-                    self.visit(end_expr);
                 }
             }
             Expression::MatchPathPattern { path_alias, patterns } => {

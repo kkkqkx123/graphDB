@@ -467,6 +467,11 @@ impl Path {
         self.steps.len()
     }
 
+    /// 获取路径长度（步骤数）
+    pub fn length(&self) -> usize {
+        self.steps.len()
+    }
+
     /// 检查路径是否为空（仅包含源顶点）
     pub fn is_empty(&self) -> bool {
         self.steps.is_empty()

@@ -126,29 +126,9 @@ impl AliasValidationStrategy {
                 self.validate_expression_aliases(initial, aliases)?;
                 self.validate_expression_aliases(expr, aliases)
             }
-            Expression::PathBuild(items) => {
-                for item in items {
-                    self.validate_expression_aliases(item, aliases)?;
-                }
-                Ok(())
-            }
             Expression::Subscript { collection, index } => {
                 self.validate_expression_aliases(collection, aliases)?;
                 self.validate_expression_aliases(index, aliases)
-            }
-            Expression::SubscriptRange {
-                collection,
-                start,
-                end,
-            } => {
-                self.validate_expression_aliases(collection, aliases)?;
-                if let Some(start_expr) = start {
-                    self.validate_expression_aliases(start_expr, aliases)?;
-                }
-                if let Some(end_expr) = end {
-                    self.validate_expression_aliases(end_expr, aliases)?;
-                }
-                Ok(())
             }
             Expression::MatchPathPattern { patterns, .. } => {
                 for pattern in patterns {
@@ -176,8 +156,7 @@ impl AliasValidationStrategy {
             | Expression::ESQuery(_)
             | Expression::UUID
             | Expression::Variable(_)
-            | Expression::Label(_)
-            | Expression::TypeCasting { .. } => Ok(()),
+            | Expression::Label(_) => Ok(()),
             Expression::TypeCast { expr, .. } => {
                 // 类型转换表达式需要验证其子表达式
                 self.validate_expression_aliases(expr, aliases)

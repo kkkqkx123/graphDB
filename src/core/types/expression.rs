@@ -116,12 +116,6 @@ pub enum Expression {
     IsEmpty(Box<Expression>),
     IsNotEmpty(Box<Expression>),
 
-    // 类型转换
-    TypeCasting {
-        expr: Box<Expression>,
-        target_type: String,
-    },
-
     // 列表推导
     ListComprehension {
         generator: Box<Expression>,
@@ -142,21 +136,11 @@ pub enum Expression {
         expr: Box<Expression>,
     },
 
-    // 路径构建表达式
-    PathBuild(Vec<Expression>),
-
     // 文本搜索表达式
     ESQuery(String),
 
     // UUID表达式
     UUID,
-
-    // 下标范围表达式
-    SubscriptRange {
-        collection: Box<Expression>,
-        start: Option<Box<Expression>>,
-        end: Option<Box<Expression>>,
-    },
 
     // 匹配路径模式表达式
     MatchPathPattern {
@@ -389,9 +373,6 @@ impl Expression {
             Expression::IsEmpty(expr) => vec![expr.as_ref()],
             Expression::IsNotEmpty(expr) => vec![expr.as_ref()],
 
-            // 类型转换
-            Expression::TypeCasting { expr, .. } => vec![expr.as_ref()],
-
             // 列表推导
             Expression::ListComprehension {
                 generator,
@@ -419,30 +400,11 @@ impl Expression {
                 vec![list.as_ref(), initial.as_ref(), expr.as_ref()]
             }
 
-            // 路径构建表达式
-            Expression::PathBuild(items) => items.iter().collect(),
-
             // 文本搜索表达式
             Expression::ESQuery(_) => vec![],
 
             // UUID表达式
             Expression::UUID => vec![],
-
-            // 下标范围表达式
-            Expression::SubscriptRange {
-                collection,
-                start,
-                end,
-            } => {
-                let mut children = vec![collection.as_ref()];
-                if let Some(s) = start {
-                    children.push(s.as_ref());
-                }
-                if let Some(e) = end {
-                    children.push(e.as_ref());
-                }
-                children
-            }
 
             // 匹配路径模式表达式
             Expression::MatchPathPattern { patterns, .. } => patterns.iter().collect(),
@@ -487,9 +449,6 @@ impl Expression {
             Expression::IsEmpty(_) => ExpressionType::Unary,
             Expression::IsNotEmpty(_) => ExpressionType::Unary,
 
-            // 类型转换
-            Expression::TypeCasting { .. } => ExpressionType::TypeCast,
-
             // 列表推导
             Expression::ListComprehension { .. } => ExpressionType::List,
 
@@ -499,17 +458,11 @@ impl Expression {
             // 归约表达式
             Expression::Reduce { .. } => ExpressionType::Aggregate,
 
-            // 路径构建表达式
-            Expression::PathBuild(_) => ExpressionType::Path,
-
             // 文本搜索表达式
             Expression::ESQuery(_) => ExpressionType::Function,
 
             // UUID表达式
             Expression::UUID => ExpressionType::Literal,
-
-            // 下标范围表达式
-            Expression::SubscriptRange { .. } => ExpressionType::Subscript,
 
             // 匹配路径模式表达式
             Expression::MatchPathPattern { .. } => ExpressionType::Path,

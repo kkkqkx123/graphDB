@@ -278,13 +278,6 @@ impl AggregateValidationStrategy {
                 self.validate_expression_in_aggregate(reduce_expr)?;
             }
 
-            // 递归检查路径构建表达式
-            Expression::PathBuild(exprs) => {
-                for expr_item in exprs {
-                    self.validate_expression_in_aggregate(expr_item)?;
-                }
-            }
-
             // 常量、属性、聚合等表达式不需要进一步递归检查
             _ => {}
         }

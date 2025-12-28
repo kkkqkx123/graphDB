@@ -46,6 +46,91 @@ impl Default for NullType {
     }
 }
 
+impl std::hash::Hash for Value {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Value::Empty => 0u8.hash(state),
+            Value::Null(n) => {
+                1u8.hash(state);
+                n.hash(state);
+            }
+            Value::Bool(b) => {
+                2u8.hash(state);
+                b.hash(state);
+            }
+            Value::Int(i) => {
+                3u8.hash(state);
+                i.hash(state);
+            }
+            Value::Float(f) => {
+                4u8.hash(state);
+                f.to_bits().hash(state);
+            }
+            Value::String(s) => {
+                5u8.hash(state);
+                s.hash(state);
+            }
+            Value::Date(d) => {
+                6u8.hash(state);
+                d.hash(state);
+            }
+            Value::Time(t) => {
+                7u8.hash(state);
+                t.hash(state);
+            }
+            Value::DateTime(dt) => {
+                8u8.hash(state);
+                dt.hash(state);
+            }
+            Value::Vertex(v) => {
+                9u8.hash(state);
+                v.hash(state);
+            }
+            Value::Edge(e) => {
+                10u8.hash(state);
+                e.hash(state);
+            }
+            Value::Path(p) => {
+                11u8.hash(state);
+                p.hash(state);
+            }
+            Value::List(list) => {
+                12u8.hash(state);
+                for item in list {
+                    item.hash(state);
+                }
+            }
+            Value::Map(map) => {
+                13u8.hash(state);
+                let mut pairs: Vec<_> = map.iter().collect();
+                pairs.sort_by_key(|&(k, _)| k);
+                for (k, v) in pairs {
+                    k.hash(state);
+                    v.hash(state);
+                }
+            }
+            Value::Set(set) => {
+                14u8.hash(state);
+                for item in set {
+                    item.hash(state);
+                }
+            }
+            Value::Geography(g) => {
+                15u8.hash(state);
+                g.hash(state);
+            }
+            Value::Duration(d) => {
+                16u8.hash(state);
+                d.hash(state);
+            }
+            Value::DataSet(ds) => {
+                17u8.hash(state);
+                ds.hash(state);
+            }
+        }
+    }
+}
+
 /// 简单日期表示
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DateValue {
@@ -235,5 +320,202 @@ impl Value {
         let mut hasher = DefaultHasher::new();
         self.hash(&mut hasher);
         hasher.finish()
+    }
+
+    /// 转换为布尔值
+    pub fn cast_to_bool(&self) -> Result<Value, String> {
+        match self {
+            Value::Bool(b) => Ok(Value::Bool(*b)),
+            Value::Int(i) => Ok(Value::Bool(*i != 0)),
+            Value::Float(f) => Ok(Value::Bool(*f != 0.0)),
+            Value::String(s) => {
+                let lower = s.to_lowercase();
+                match lower.as_str() {
+                    "true" | "1" | "yes" | "on" => Ok(Value::Bool(true)),
+                    "false" | "0" | "no" | "off" => Ok(Value::Bool(false)),
+                    _ => Err(format!("无法将字符串 '{}' 转换为布尔值", s)),
+                }
+            }
+            Value::Null(_) => Ok(Value::Null(NullType::Null)),
+            Value::Empty => Ok(Value::Null(NullType::Null)),
+            _ => Err(format!("无法将 {:?} 转换为布尔值", self.get_type())),
+        }
+    }
+
+    /// 转换为整数
+    pub fn cast_to_int(&self) -> Result<Value, String> {
+        match self {
+            Value::Int(i) => Ok(Value::Int(*i)),
+            Value::Float(f) => Ok(Value::Int(*f as i64)),
+            Value::Bool(b) => Ok(Value::Int(if *b { 1 } else { 0 })),
+            Value::String(s) => {
+                s.parse::<i64>()
+                    .map(Value::Int)
+                    .map_err(|_| format!("无法将字符串 '{}' 转换为整数", s))
+            }
+            Value::Null(_) => Ok(Value::Null(NullType::Null)),
+            Value::Empty => Ok(Value::Null(NullType::Null)),
+            _ => Err(format!("无法将 {:?} 转换为整数", self.get_type())),
+        }
+    }
+
+    /// 转换为浮点数
+    pub fn cast_to_float(&self) -> Result<Value, String> {
+        match self {
+            Value::Float(f) => Ok(Value::Float(*f)),
+            Value::Int(i) => Ok(Value::Float(*i as f64)),
+            Value::Bool(b) => Ok(Value::Float(if *b { 1.0 } else { 0.0 })),
+            Value::String(s) => {
+                s.parse::<f64>()
+                    .map(Value::Float)
+                    .map_err(|_| format!("无法将字符串 '{}' 转换为浮点数", s))
+            }
+            Value::Null(_) => Ok(Value::Null(NullType::Null)),
+            Value::Empty => Ok(Value::Null(NullType::Null)),
+            _ => Err(format!("无法将 {:?} 转换为浮点数", self.get_type())),
+        }
+    }
+
+    /// 转换为字符串
+    pub fn cast_to_string(&self) -> Result<Value, String> {
+        match self {
+            Value::String(s) => Ok(Value::String(s.clone())),
+            Value::Bool(b) => Ok(Value::String(if *b { "true".to_string() } else { "false".to_string() })),
+            Value::Int(i) => Ok(Value::String(i.to_string())),
+            Value::Float(f) => Ok(Value::String(f.to_string())),
+            Value::Null(_) => Ok(Value::String("null".to_string())),
+            Value::Empty => Ok(Value::String("empty".to_string())),
+            Value::List(list) => {
+                let items: Vec<String> = list.iter()
+                    .map(|v| v.cast_to_string().map(|s| {
+                        if let Value::String(s) = s { s } else { "?".to_string() }
+                    }))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(Value::String(format!("[{}]", items.join(", "))))
+            }
+            Value::Map(map) => {
+                let items: Vec<String> = map.iter()
+                    .map(|(k, v)| v.cast_to_string().map(|s| {
+                        if let Value::String(s) = s { format!("{}: {}", k, s) } else { format!("{}: ?", k) }
+                    }))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(Value::String(format!("{{{}}}", items.join(", "))))
+            }
+            _ => Err(format!("无法将 {:?} 转换为字符串", self.get_type())),
+        }
+    }
+
+    /// 转换为列表
+    pub fn cast_to_list(&self) -> Result<Value, String> {
+        match self {
+            Value::List(list) => Ok(Value::List(list.clone())),
+            Value::Set(set) => Ok(Value::List(set.iter().cloned().collect())),
+            Value::Null(_) => Ok(Value::Null(NullType::Null)),
+            Value::Empty => Ok(Value::List(vec![])),
+            Value::String(s) => {
+                let chars: Vec<Value> = s.chars().map(|c| Value::String(c.to_string())).collect();
+                Ok(Value::List(chars))
+            }
+            _ => Err(format!("无法将 {:?} 转换为列表", self.get_type())),
+        }
+    }
+
+    /// 转换为映射
+    pub fn cast_to_map(&self) -> Result<Value, String> {
+        match self {
+            Value::Map(map) => Ok(Value::Map(map.clone())),
+            Value::Null(_) => Ok(Value::Null(NullType::Null)),
+            Value::Empty => Ok(Value::Map(std::collections::HashMap::new())),
+            Value::List(list) => {
+                let mut map = std::collections::HashMap::new();
+                for (i, v) in list.iter().enumerate() {
+                    map.insert(i.to_string(), v.clone());
+                }
+                Ok(Value::Map(map))
+            }
+            _ => Err(format!("无法将 {:?} 转换为映射", self.get_type())),
+        }
+    }
+
+    /// 取反操作
+    pub fn negate(&self) -> Result<Value, String> {
+        match self {
+            Value::Int(i) => Ok(Value::Int(-i)),
+            Value::Float(f) => Ok(Value::Float(-f)),
+            _ => Err(format!("无法对 {:?} 进行取反操作", self.get_type())),
+        }
+    }
+
+    /// 绝对值操作
+    pub fn abs(&self) -> Result<Value, String> {
+        match self {
+            Value::Int(i) => Ok(Value::Int(i.abs())),
+            Value::Float(f) => Ok(Value::Float(f.abs())),
+            _ => Err(format!("无法计算 {:?} 的绝对值", self.get_type())),
+        }
+    }
+
+    /// 长度操作
+    pub fn length(&self) -> Result<Value, String> {
+        match self {
+            Value::String(s) => Ok(Value::Int(s.len() as i64)),
+            Value::List(list) => Ok(Value::Int(list.len() as i64)),
+            Value::Map(map) => Ok(Value::Int(map.len() as i64)),
+            Value::Set(set) => Ok(Value::Int(set.len() as i64)),
+            Value::Path(p) => Ok(Value::Int(p.length() as i64)),
+            _ => Err(format!("无法计算 {:?} 的长度", self.get_type())),
+        }
+    }
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Empty => write!(f, "EMPTY"),
+            Value::Null(n) => write!(f, "NULL({:?})", n),
+            Value::Bool(b) => write!(f, "{}", b),
+            Value::Int(i) => write!(f, "{}", i),
+            Value::Float(fl) => write!(f, "{}", fl),
+            Value::String(s) => write!(f, "\"{}\"", s),
+            Value::Date(d) => write!(f, "{:04}-{:02}-{:02}", d.year, d.month, d.day),
+            Value::Time(t) => write!(f, "{:02}:{:02}:{:02}.{:06}", t.hour, t.minute, t.sec, t.microsec),
+            Value::DateTime(dt) => write!(f, "{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:06}", dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.sec, dt.microsec),
+            Value::Vertex(v) => write!(f, "Vertex({:?})", v.id()),
+            Value::Edge(e) => write!(f, "Edge({:?} -> {:?})", e.src(), e.dst()),
+            Value::Path(p) => write!(f, "Path({:?})", p),
+            Value::List(list) => {
+                write!(f, "[")?;
+                for (i, item) in list.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", item)?;
+                }
+                write!(f, "]")
+            }
+            Value::Map(map) => {
+                write!(f, "{{")?;
+                for (i, (k, v)) in map.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", k, v)?;
+                }
+                write!(f, "}}")
+            }
+            Value::Set(set) => {
+                write!(f, "{{")?;
+                for (i, item) in set.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", item)?;
+                }
+                write!(f, "}}")
+            }
+            Value::Geography(g) => write!(f, "Geography({:?})", g),
+            Value::Duration(d) => write!(f, "Duration({:?})", d),
+            Value::DataSet(ds) => write!(f, "DataSet({:?})", ds),
+        }
     }
 }

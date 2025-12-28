@@ -51,13 +51,18 @@ impl CypherEvaluator {
             crate::query::parser::cypher::ast::expressions::Expression::Binary(bin_expr) => {
                 let left_val = Self::evaluate_cypher(&bin_expr.left, context)?;
                 let right_val = Self::evaluate_cypher(&bin_expr.right, context)?;
-                crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::new()
-                    .eval_binary_operation(&left_val, &bin_expr.operator, &right_val)
+                crate::expression::evaluator::operations::BinaryOperationEvaluator::evaluate(
+                    &left_val,
+                    &bin_expr.operator,
+                    &right_val,
+                )
             }
             crate::query::parser::cypher::ast::expressions::Expression::Unary(unary_expr) => {
                 let operand_val = Self::evaluate_cypher(&unary_expr.expression, context)?;
-                crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::new()
-                    .eval_unary_operation(&unary_expr.operator, &operand_val)
+                crate::expression::evaluator::operations::UnaryOperationEvaluator::evaluate(
+                    &unary_expr.operator,
+                    &operand_val,
+                )
             }
             crate::query::parser::cypher::ast::expressions::Expression::List(list_expr) => {
                 let mut values = Vec::new();
