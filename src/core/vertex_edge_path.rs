@@ -166,6 +166,32 @@ impl Vertex {
     pub fn has_properties(&self) -> bool {
         !self.properties.is_empty() || self.tags.iter().any(|tag| !tag.properties.is_empty())
     }
+
+    /// 比较属性映射的辅助函数
+    fn cmp_properties(a: &HashMap<String, Value>, b: &HashMap<String, Value>) -> std::cmp::Ordering {
+        // 先比较属性数量
+        match a.len().cmp(&b.len()) {
+            std::cmp::Ordering::Equal => {
+                // 按排序后的键值对比较
+                let mut a_sorted: Vec<_> = a.iter().collect();
+                let mut b_sorted: Vec<_> = b.iter().collect();
+                a_sorted.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
+                b_sorted.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
+
+                for ((k1, v1), (k2, v2)) in a_sorted.iter().zip(b_sorted.iter()) {
+                    match k1.cmp(k2) {
+                        std::cmp::Ordering::Equal => match v1.cmp(v2) {
+                            std::cmp::Ordering::Equal => continue,
+                            ord => return ord,
+                        },
+                        ord => return ord,
+                    }
+                }
+                std::cmp::Ordering::Equal
+            }
+            ord => ord,
+        }
+    }
 }
 
 impl Default for Vertex {
@@ -175,6 +201,45 @@ impl Default for Vertex {
             tags: Vec::new(),
             properties: HashMap::new(),
         }
+    }
+}
+
+impl Ord for Vertex {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // 使用链式比较，提高可读性
+        self.vid.cmp(&other.vid)
+            .then_with(|| self.tags.len().cmp(&other.tags.len()))
+            .then_with(|| self.cmp_tags_and_properties(other))
+    }
+}
+
+impl Vertex {
+    /// 比较标签和属性
+    fn cmp_tags_and_properties(&self, other: &Self) -> std::cmp::Ordering {
+        // 比较标签
+        let mut self_tags: Vec<_> = self.tags.iter().collect();
+        let mut other_tags: Vec<_> = other.tags.iter().collect();
+        self_tags.sort_by(|a, b| a.name.cmp(&b.name));
+        other_tags.sort_by(|a, b| a.name.cmp(&b.name));
+
+        // 比较每个标签
+        for (tag1, tag2) in self_tags.iter().zip(other_tags.iter()) {
+            let tag_cmp = tag1.name.cmp(&tag2.name)
+                .then_with(|| Vertex::cmp_properties(&tag1.properties, &tag2.properties));
+            
+            if tag_cmp != std::cmp::Ordering::Equal {
+                return tag_cmp;
+            }
+        }
+
+        // 比较顶点级属性
+        Vertex::cmp_properties(&self.properties, &other.properties)
+    }
+}
+
+impl PartialOrd for Vertex {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -305,6 +370,23 @@ impl Edge {
     }
 }
 
+impl Ord for Edge {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // 使用链式比较，提高可读性
+        self.src.cmp(&other.src)
+            .then_with(|| self.dst.cmp(&other.dst))
+            .then_with(|| self.edge_type.cmp(&other.edge_type))
+            .then_with(|| self.ranking.cmp(&other.ranking))
+            .then_with(|| Vertex::cmp_properties(&self.props, &other.props))
+    }
+}
+
+impl PartialOrd for Edge {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 /// Represents a step in a path
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct Step {
@@ -312,11 +394,56 @@ pub struct Step {
     pub edge: Box<Edge>,
 }
 
+impl Ord for Step {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // 比较顺序：dst -> edge
+        match self.dst.cmp(&other.dst) {
+            std::cmp::Ordering::Equal => self.edge.cmp(&other.edge),
+            ord => ord,
+        }
+    }
+}
+
+impl PartialOrd for Step {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 /// Represents a path in the graph
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
 pub struct Path {
     pub src: Box<Vertex>,
     pub steps: Vec<Step>,
+}
+
+impl Ord for Path {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // 使用链式比较，提高可读性
+        self.src.cmp(&other.src)
+            .then_with(|| self.steps.len().cmp(&other.steps.len()))
+            .then_with(|| self.cmp_steps(other))
+    }
+}
+
+impl Path {
+    /// 比较路径中的步骤
+    fn cmp_steps(&self, other: &Self) -> std::cmp::Ordering {
+        // 比较每个步骤
+        for (step1, step2) in self.steps.iter().zip(other.steps.iter()) {
+            let step_cmp = step1.cmp(step2);
+            if step_cmp != std::cmp::Ordering::Equal {
+                return step_cmp;
+            }
+        }
+        std::cmp::Ordering::Equal
+    }
+}
+
+impl PartialOrd for Path {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 // 手动实现Hash以处理复杂类型的Hash

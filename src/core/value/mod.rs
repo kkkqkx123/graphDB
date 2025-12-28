@@ -1,0 +1,18 @@
+//! Value 模块 - 图数据库值类型系统
+//!
+//! 此模块提供了图数据库中的核心值类型系统，包括：
+//! - 核心类型定义 (`types.rs`)
+//! - 比较逻辑 (`comparison.rs`) 
+//! - 算术运算 (`operations.rs`)
+//! - 类型转换 (`conversion.rs`)
+
+pub mod types;
+pub mod comparison;
+pub mod operations;
+pub mod conversion;
+
+// 重新导出所有公共类型和功能，保持API兼容性
+pub use types::*;
+pub use comparison::*;
+pub use operations::*;
+pub use conversion::*;

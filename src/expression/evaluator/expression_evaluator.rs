@@ -138,9 +138,13 @@ impl ExpressionEvaluator {
                 // 边属性表达式暂时返回null
                 Ok(Value::Null(crate::core::NullType::Null))
             }
-            Expression::InputProperty(_) => {
-                // 输入属性表达式暂时返回null
-                Ok(Value::Null(crate::core::NullType::Null))
+            Expression::InputProperty(prop_name) => {
+                // 输入属性表达式：从上下文中获取变量值
+                // 在测试中，输入属性被映射为上下文中的变量
+                match context.get_variable(prop_name) {
+                    Some(value) => Ok(value),
+                    None => Ok(Value::Null(crate::core::NullType::Null))
+                }
             }
             Expression::VariableProperty { var: _, prop: _ } => {
                 // 变量属性表达式暂时返回null
