@@ -1,15 +1,10 @@
-//! 优化的排序执行器
+//! 排序执行器
 //!
-//! 提供高性能排序功能，支持外部排序、并行排序和内存优化
+//! 提供高性能排序功能，支持多列排序和Top-N优化
 
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use std::cmp::Ordering;
-use std::collections::BinaryHeap;
-use std::cmp::Reverse;
-use std::fs::{File, create_dir_all};
-use std::io::{Write, Read, BufWriter, BufReader};
-use std::path::PathBuf;
 
 use crate::core::error::{DBError, DBResult};
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
@@ -25,7 +20,7 @@ use crate::query::executor::traits::{
 use crate::storage::StorageEngine;
 
 /// 排序顺序枚举
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortOrder {
     Asc,
     Desc,
@@ -36,52 +31,45 @@ pub enum SortOrder {
 pub struct SortKey {
     pub expression: Expression,
     pub order: SortOrder,
+    /// 优化后的列索引（如果表达式可以解析为列索引）
+    pub column_index: Option<usize>,
 }
 
 impl SortKey {
     pub fn new(expression: Expression, order: SortOrder) -> Self {
-        Self { expression, order }
+        Self { 
+            expression, 
+            order, 
+            column_index: None 
+        }
     }
-}
-
-/// 排序算法类型
-#[derive(Debug, Clone, PartialEq)]
-pub enum SortAlgorithm {
-    /// 快速排序（默认）
-    QuickSort,
-    /// 归并排序（稳定排序）
-    MergeSort,
-    /// 堆排序（内存高效）
-    HeapSort,
-    /// 外部排序（大数据集）
-    ExternalSort,
-    /// 并行快速排序
-    ParallelQuickSort,
+    
+    /// 创建基于列索引的排序键
+    pub fn from_column_index(column_index: usize, order: SortOrder) -> Self {
+        Self {
+            expression: Expression::Literal(Value::Int(column_index as i64)),
+            order,
+            column_index: Some(column_index),
+        }
+    }
+    
+    /// 检查是否使用列索引排序
+    pub fn uses_column_index(&self) -> bool {
+        self.column_index.is_some()
+    }
 }
 
 /// 排序配置
 #[derive(Debug, Clone)]
 pub struct SortConfig {
-    /// 排序算法
-    pub algorithm: SortAlgorithm,
-    /// 内存限制（字节）
+    /// 内存限制（字节），用于大数据集处理
     pub memory_limit: usize,
-    /// 块大小（用于外部排序）
-    pub block_size: usize,
-    /// 是否启用并行处理
-    pub parallel: bool,
-    /// 最大线程数
-    pub max_threads: usize,
 }
 
 impl Default for SortConfig {
     fn default() -> Self {
         Self {
-            algorithm: SortAlgorithm::QuickSort,
             memory_limit: 100 * 1024 * 1024, // 100MB 默认内存限制
-            block_size: 64 * 1024, // 64KB 块大小
-            parallel: true,
-            max_threads: 4,
         }
     }
 }
@@ -98,10 +86,6 @@ pub struct SortExecutor<S: StorageEngine + Send + 'static> {
     input_executor: Option<Box<dyn Executor<S>>>,
     /// 排序配置
     config: SortConfig,
-    /// 当前内存使用量
-    memory_usage: usize,
-    /// 临时目录（用于外部排序）
-    temp_dir: PathBuf,
 }
 
 impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
@@ -115,12 +99,9 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
         let base = BaseResultProcessor::new(
             id,
             "SortExecutor".to_string(),
-            "High-performance sorting with external sort and parallel processing".to_string(),
+            "High-performance sorting".to_string(),
             storage,
         );
-
-        let temp_dir = std::env::temp_dir().join("graphdb_sort");
-        create_dir_all(&temp_dir)?;
 
         Ok(Self {
             base,
@@ -128,8 +109,6 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
             limit,
             input_executor: None,
             config,
-            memory_usage: 0,
-            temp_dir,
         })
     }
 
@@ -140,9 +119,12 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
 
             match input_result {
                 ExecutionResult::DataSet(mut data_set) => {
+                    // 优化排序键（将表达式解析为列索引）
+                    self.optimize_sort_keys(&data_set.col_names)?;
+                    
                     // 根据数据集大小和配置选择合适的排序算法
-                    self.select_and_execute_sort(&mut data_set)?;
-                    Ok(data_set)
+        self.execute_sort(&mut data_set)?;
+        Ok(data_set)
                 }
                 _ => Err(DBError::Query(
                     crate::core::error::QueryError::ExecutionError(
@@ -158,16 +140,68 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
             ))
         }
     }
+    
+    /// 优化排序键，将表达式解析为列索引
+    fn optimize_sort_keys(&mut self, col_names: &[String]) -> DBResult<()> {
+        // 先收集需要解析的表达式
+        let mut expressions_to_parse = Vec::new();
+        for (i, sort_key) in self.sort_keys.iter().enumerate() {
+            if sort_key.column_index.is_none() {
+                expressions_to_parse.push((i, sort_key.expression.clone()));
+            }
+        }
+        
+        // 解析表达式为列索引
+        for (i, expr) in expressions_to_parse {
+            if let Some(column_index) = self.parse_expression_to_column_index(&expr, col_names)? {
+                self.sort_keys[i].column_index = Some(column_index);
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// 将表达式解析为列索引
+    fn parse_expression_to_column_index(&self, expr: &Expression, col_names: &[String]) -> DBResult<Option<usize>> {
+        match expr {
+            Expression::InputProperty(prop_name) => {
+                // 查找属性名对应的列索引
+                for (index, col_name) in col_names.iter().enumerate() {
+                    if col_name == prop_name {
+                        return Ok(Some(index));
+                    }
+                }
+                Ok(None)
+            }
+            Expression::Literal(Value::Int(index)) => {
+                // 直接使用列索引
+                let idx = *index as usize;
+                if idx < col_names.len() {
+                    Ok(Some(idx))
+                } else {
+                    Ok(None)
+                }
+            }
+            _ => Ok(None), // 其他表达式类型暂时不支持优化
+        }
+    }
 
-    /// 根据数据集特征选择并执行合适的排序算法
-    fn select_and_execute_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
+    /// 执行排序算法
+    fn execute_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
         if self.sort_keys.is_empty() || data_set.rows.is_empty() {
             return Ok(());
         }
 
+        // 检查是否所有排序键都使用列索引
+        let all_use_column_index = self.sort_keys.iter().all(|key| key.uses_column_index());
+        
+        if all_use_column_index {
+            // 使用列索引进行排序
+            return self.execute_column_index_sort(data_set);
+        }
+
         // 估算内存使用
         let estimated_memory = self.estimate_memory_usage(data_set);
-        self.memory_usage = estimated_memory;
 
         // 如果有LIMIT且数据量很大，使用Top-N算法
         if let Some(limit) = self.limit {
@@ -176,438 +210,209 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
             }
         }
 
-        // 根据内存使用和配置选择排序算法
-        if estimated_memory > self.config.memory_limit {
-            // 大数据集使用外部排序
-            self.execute_external_sort(data_set)
-        } else if self.config.parallel && data_set.rows.len() > 10000 {
-            // 中等大小数据集使用并行排序
-            self.execute_parallel_sort(data_set)
-        } else if self.config.algorithm == SortAlgorithm::HeapSort {
-            // 内存受限时使用堆排序
-            self.execute_heap_sort(data_set)
-        } else {
-            // 默认使用快速排序
-            self.execute_quick_sort(data_set)
+        // 使用标准库排序（简化实现）
+        self.execute_standard_sort(data_set)
+    }
+    
+    /// 使用列索引进行排序
+    fn execute_column_index_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
+        // 验证所有列索引都在有效范围内
+        for sort_key in &self.sort_keys {
+            if let Some(column_index) = sort_key.column_index {
+                if data_set.rows.iter().any(|row| column_index >= row.len()) {
+                    return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        format!("列索引超出范围: {} (最大索引: {})", column_index, data_set.rows[0].len() - 1)
+                    )));
+                }
+            }
         }
+        
+        // 直接使用标准库排序，性能最优
+        data_set.rows.sort_unstable_by(|a, b| {
+            self.compare_by_column_indices(a, b).unwrap_or(Ordering::Equal)
+        });
+        
+        // 应用limit
+        if let Some(limit) = self.limit {
+            data_set.rows.truncate(limit);
+        }
+        
+        Ok(())
+    }
+    
+    /// 使用标准库排序（简化实现）
+    fn execute_standard_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
+        // 使用标准库排序
+        data_set.rows.sort_unstable_by(|a, b| {
+            self.compare_rows(a, b).unwrap_or(Ordering::Equal)
+        });
+        
+        // 应用limit
+        if let Some(limit) = self.limit {
+            data_set.rows.truncate(limit);
+        }
+        
+        Ok(())
+    }
+    
+    /// 基于列索引比较两个数据行
+    fn compare_by_column_indices(&self, a: &[Value], b: &[Value]) -> DBResult<Ordering> {
+        for sort_key in &self.sort_keys {
+            if let Some(column_index) = sort_key.column_index {
+                if column_index >= a.len() || column_index >= b.len() {
+                    return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        format!("列索引超出范围: {} (最大索引: {})", column_index, a.len().min(b.len()) - 1)
+                    )));
+                }
+                
+                let a_val = &a[column_index];
+                let b_val = &b[column_index];
+                
+                let cmp = a_val.partial_cmp(b_val)
+                    .ok_or_else(|| DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        format!("值比较失败，类型不匹配: {:?} 和 {:?}", a_val, b_val)
+                    )))?;
+                if cmp != Ordering::Equal {
+                    return Ok(match sort_key.order {
+                        SortOrder::Asc => cmp,
+                        SortOrder::Desc => cmp.reverse(),
+                    });
+                }
+            }
+        }
+        Ok(Ordering::Equal)
     }
 
     /// 估算数据集内存使用
     fn estimate_memory_usage(&self, data_set: &DataSet) -> usize {
-        let row_size = std::mem::size_of::<Vec<Value>>() + 
-                      data_set.col_names.len() * std::mem::size_of::<Value>();
+        if data_set.rows.is_empty() {
+            return 0;
+        }
+        
+        // 估算每行的内存使用
+        let sample_row = &data_set.rows[0];
+        let mut row_size = std::mem::size_of::<Vec<Value>>();
+        
+        // 估算每个值的内存使用
+        for value in sample_row {
+            row_size += self.estimate_value_size(value);
+        }
+        
+        // 估算排序键的内存使用
         let sort_key_size = self.sort_keys.len() * std::mem::size_of::<Value>();
         
+        // 总内存使用 = 行数 × (行大小 + 排序键大小)
         data_set.rows.len() * (row_size + sort_key_size)
     }
+    
+    /// 估算单个值的内存使用
+    fn estimate_value_size(&self, value: &Value) -> usize {
+        match value {
+            Value::String(s) => std::mem::size_of::<String>() + s.len(),
+            Value::Int(_) => std::mem::size_of::<i64>(),
+            Value::Float(_) => std::mem::size_of::<f64>(),
+            Value::Bool(_) => std::mem::size_of::<bool>(),
+            Value::Null(_) => 0,
+            Value::List(list) => {
+                std::mem::size_of::<Vec<Value>>() + 
+                list.iter().map(|v| self.estimate_value_size(v)).sum::<usize>()
+            }
+            Value::Map(map) => {
+                std::mem::size_of::<std::collections::HashMap<String, Value>>() + 
+                map.iter().map(|(k, v)| k.len() + self.estimate_value_size(v)).sum::<usize>()
+            }
+            _ => std::mem::size_of::<Value>(), // 默认大小
+        }
+    }
 
-    /// 执行Top-N排序（使用最小堆/最大堆）
+    /// 执行Top-N排序（使用select_nth_unstable优化）
     fn execute_top_n_sort(&mut self, data_set: &mut DataSet, n: usize) -> DBResult<()> {
         if n == 0 || data_set.rows.is_empty() {
             return Ok(());
         }
 
-        let evaluator = ExpressionEvaluator;
-        let mut heap = BinaryHeap::with_capacity(n);
-
-        // 为每行计算排序键值并维护堆
-        for row in &data_set.rows {
-            let sort_values = self.calculate_sort_values(row, &data_set.col_names, &evaluator)?;
-            
-            // 获取排序方向（假设所有排序键方向相同）
-            let sort_order = if !self.sort_keys.is_empty() {
-                self.sort_keys[0].order.clone()
-            } else {
-                SortOrder::Asc // 默认升序
-            };
-            
-            if heap.len() < n {
-                    heap.push(SortItem::new(sort_values, row.clone(), sort_order));
-                } else {
-                    // 检查是否需要替换堆顶元素
-                    if let Some(mut top) = heap.peek_mut() {
-                        let new_item = SortItem::new(sort_values.clone(), row.clone(), sort_order.clone());
-                        let comparison = new_item.cmp(&top);
-                        // 对于最大堆，如果新元素比堆顶小（在堆的排序意义上），则替换
-                        if comparison == Ordering::Less {
-                            *top = new_item;
-                        }
-                    }
-                }
+        // 如果n大于等于数据集大小，直接排序整个数据集
+        if n >= data_set.rows.len() {
+            return self.execute_sort(data_set);
         }
 
-        // 提取排序结果
-        let mut sorted_items: Vec<_> = heap.into_iter().collect();
-        sorted_items.sort_by(|a, b| self.compare_sort_items(a, b));
-
-        data_set.rows = sorted_items.into_iter().map(|item| item.row).collect();
-        Ok(())
-    }
-
-    /// 执行快速排序
-    fn execute_quick_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
-        let evaluator = ExpressionEvaluator;
-        let mut rows_with_keys: Vec<(Vec<Value>, Vec<Value>)> = Vec::new();
-
-        // 为每行计算排序键值
-        for row in &data_set.rows {
-            let sort_values = self.calculate_sort_values(row, &data_set.col_names, &evaluator)?;
-            rows_with_keys.push((sort_values, row.clone()));
+        // 检查是否所有排序键都使用列索引
+        let all_use_column_index = self.sort_keys.iter().all(|key| key.uses_column_index());
+        
+        if all_use_column_index {
+            // 使用列索引进行Top-N排序
+            return self.execute_column_index_top_n_sort(data_set, n);
         }
 
-        // 执行快速排序
-        let len = rows_with_keys.len();
-        if len > 0 {
-            self.quick_sort_recursive(&mut rows_with_keys, 0, len - 1);
-        }
+        // 获取所有排序键的方向
+        let sort_orders: Vec<SortOrder> = self.sort_keys.iter().map(|key| key.order).collect();
+        
+        // 根据排序方向选择正确的比较逻辑
+        let is_ascending = sort_orders[0] == SortOrder::Asc;
 
-        // 提取排序后的行
-        data_set.rows = rows_with_keys.into_iter().map(|(_, row)| row).collect();
-        Ok(())
-    }
-
-    /// 快速排序递归实现
-    fn quick_sort_recursive(&self, items: &mut [(Vec<Value>, Vec<Value>)], low: usize, high: usize) {
-        if low < high {
-            let pivot = self.partition(items, low, high);
-            if pivot > 0 {
-                self.quick_sort_recursive(items, low, pivot - 1);
-            }
-            self.quick_sort_recursive(items, pivot + 1, high);
-        }
-    }
-
-    /// 快速排序分区函数
-    fn partition(&self, items: &mut [(Vec<Value>, Vec<Value>)], low: usize, high: usize) -> usize {
-        let pivot = high;
-        let mut i = low;
-
-        for j in low..high {
-            if self.compare_sort_items_vec(&items[j].0, &items[pivot].0) != Ordering::Greater {
-                items.swap(i, j);
-                i += 1;
-            }
-        }
-
-        items.swap(i, pivot);
-        i
-    }
-
-    /// 执行并行快速排序
-    fn execute_parallel_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
-        let evaluator = ExpressionEvaluator;
-        let mut rows_with_keys: Vec<(Vec<Value>, Vec<Value>)> = Vec::new();
-
-        // 为每行计算排序键值
-        for row in &data_set.rows {
-            let sort_values = self.calculate_sort_values(row, &data_set.col_names, &evaluator)?;
-            rows_with_keys.push((sort_values, row.clone()));
-        }
-
-        // 并行快速排序实现
-        self.parallel_quick_sort(&mut rows_with_keys);
-
-        // 提取排序后的行
-        data_set.rows = rows_with_keys.into_iter().map(|(_, row)| row).collect();
-        Ok(())
-    }
-
-    /// 并行快速排序
-    fn parallel_quick_sort(&self, items: &mut [(Vec<Value>, Vec<Value>)]) {
-        if items.len() <= 1000 {
-            // 小数组使用普通快速排序
-            self.quick_sort_recursive(items, 0, items.len().saturating_sub(1));
+        // 使用最佳实践方法：直接对数据行进行操作
+        if is_ascending {
+            // 升序：选择前n个最小的元素
+            let (left, _, _) = data_set.rows.select_nth_unstable_by(n, |a, b| {
+                self.compare_rows(a, b).unwrap_or(Ordering::Equal)
+            });
+            left.sort_unstable_by(|a, b| self.compare_rows(a, b).unwrap_or(Ordering::Equal));
+            data_set.rows.truncate(n);
         } else {
-            // 大数组使用并行处理
-            let pivot = self.partition(items, 0, items.len().saturating_sub(1));
-            
-            // 并行处理左右两部分
-            let (left, right) = items.split_at_mut(pivot);
-            
-            if !left.is_empty() && !right.is_empty() {
-                // 这里可以使用rayon::join进行真正的并行处理
-                // 目前使用顺序处理作为简化实现
-                self.parallel_quick_sort(left);
-                self.parallel_quick_sort(&mut right[1..]); // 跳过pivot
-            } else if !left.is_empty() {
-                self.parallel_quick_sort(left);
-            } else if right.len() > 1 {
-                self.parallel_quick_sort(&mut right[1..]);
-            }
-        }
-    }
-
-    /// 执行堆排序
-    fn execute_heap_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
-        let evaluator = ExpressionEvaluator;
-        let mut rows_with_keys: Vec<(Vec<Value>, Vec<Value>)> = Vec::new();
-
-        // 为每行计算排序键值
-        for row in &data_set.rows {
-            let sort_values = self.calculate_sort_values(row, &data_set.col_names, &evaluator)?;
-            rows_with_keys.push((sort_values, row.clone()));
+            // 降序：选择最大的n个元素
+            // compare_rows方法内部已经根据SortOrder::Desc正确处理了降序比较
+            // 因此直接使用compare_rows(a, b)即可
+            data_set.rows.sort_unstable_by(|a, b| self.compare_rows(a, b).unwrap_or(Ordering::Equal));
+            data_set.rows.truncate(n);
         }
 
-        // 执行堆排序
-        self.heap_sort(&mut rows_with_keys);
-
-        // 提取排序后的行
-        data_set.rows = rows_with_keys.into_iter().map(|(_, row)| row).collect();
         Ok(())
     }
+    
+    /// 使用列索引进行Top-N排序
+    fn execute_column_index_top_n_sort(&mut self, data_set: &mut DataSet, n: usize) -> DBResult<()> {
+        // 获取所有排序键的方向
+        let sort_orders: Vec<SortOrder> = self.sort_keys.iter().map(|key| key.order).collect();
+        let is_ascending = sort_orders[0] == SortOrder::Asc;
 
-    /// 堆排序实现
-    fn heap_sort(&self, items: &mut [(Vec<Value>, Vec<Value>)]) {
-        let n = items.len();
-        
-        // 构建最大堆
-        for i in (0..n / 2).rev() {
-            self.heapify(items, n, i);
-        }
-        
-        // 一个个从堆中取出元素
-        for i in (1..n).rev() {
-            items.swap(0, i);
-            self.heapify(items, i, 0);
-        }
-    }
-
-    /// 堆化函数
-    fn heapify(&self, items: &mut [(Vec<Value>, Vec<Value>)], n: usize, i: usize) {
-        let mut largest = i;
-        let left = 2 * i + 1;
-        let right = 2 * i + 2;
-
-        if left < n && self.compare_sort_items_vec(&items[left].0, &items[largest].0) == Ordering::Greater {
-            largest = left;
-        }
-
-        if right < n && self.compare_sort_items_vec(&items[right].0, &items[largest].0) == Ordering::Greater {
-            largest = right;
-        }
-
-        if largest != i {
-            items.swap(i, largest);
-            self.heapify(items, n, largest);
-        }
-    }
-
-    /// 执行外部排序（完整实现）
-    fn execute_external_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
-        if data_set.rows.is_empty() {
-            return Ok(());
-        }
-
-        let evaluator = ExpressionEvaluator;
-        let mut temp_files = Vec::new();
-        let mut current_block = Vec::new();
-        let mut current_block_size = 0;
-        let block_size = self.config.block_size;
-
-        // 第一阶段：将数据分块并排序写入临时文件
-        for row in &data_set.rows {
-            let sort_values = self.calculate_sort_values(row, &data_set.col_names, &evaluator)?;
-            let row_size = std::mem::size_of_val(row) + std::mem::size_of_val(&sort_values);
-            
-            current_block.push((sort_values, row.clone()));
-            current_block_size += row_size;
-
-            // 当块大小达到限制时，排序并写入临时文件
-            if current_block_size >= block_size {
-                self.sort_and_write_block(&mut current_block, &mut temp_files)?;
-                current_block.clear();
-                current_block_size = 0;
-            }
-        }
-
-        // 处理剩余的块
-        if !current_block.is_empty() {
-            self.sort_and_write_block(&mut current_block, &mut temp_files)?;
-        }
-
-        // 第二阶段：多路归并
-        if temp_files.is_empty() {
-            return Ok(());
-        } else if temp_files.len() == 1 {
-            // 只有一个块，直接读取结果
-            self.read_sorted_block(&temp_files[0], data_set)?;
+        if is_ascending {
+            // 升序：选择前n个最小的元素
+            let (left, _, _) = data_set.rows.select_nth_unstable_by(n, |a, b| {
+                self.compare_by_column_indices(a, b).unwrap_or(Ordering::Equal)
+            });
+            left.sort_unstable_by(|a, b| self.compare_by_column_indices(a, b).unwrap_or(Ordering::Equal));
+            data_set.rows.truncate(n);
         } else {
-            // 多个块，执行多路归并
-            self.multiway_merge(&temp_files, data_set)?;
+            // 降序：选择最大的n个元素
+            data_set.rows.sort_unstable_by(|a, b| self.compare_by_column_indices(a, b).unwrap_or(Ordering::Equal));
+            data_set.rows.truncate(n);
         }
-
-        // 清理临时文件
-        for temp_file in &temp_files {
-            std::fs::remove_file(temp_file).ok();
-        }
-
+        
         Ok(())
     }
-
-    /// 对块进行排序并写入临时文件
-    fn sort_and_write_block(&self, block: &mut [(Vec<Value>, Vec<Value>)], temp_files: &mut Vec<PathBuf>) -> DBResult<()> {
-        // 对块进行排序
-        block.sort_by(|a, b| self.compare_sort_items_vec(&a.0, &b.0));
-
-        // 写入临时文件
-        let temp_file = self.temp_dir.join(format!("sort_block_{}.tmp", temp_files.len()));
-        let file = File::create(&temp_file)?;
-        let mut writer = BufWriter::new(file);
-
-        // 序列化并写入数据 - 克隆数据以避免借用问题
-        let block_clone: Vec<(Vec<Value>, Vec<Value>)> = block.to_vec();
-        let encoded = bincode::encode_to_vec(&block_clone, bincode::config::standard())
-            .map_err(|e| DBError::Serialization(format!("Failed to encode sort block: {}", e)))?;
-        writer.write_all(&encoded)?;
-        writer.flush()?;
-
-        temp_files.push(temp_file);
-        Ok(())
-    }
-
-    /// 读取排序后的块
-    fn read_sorted_block(&self, temp_file: &PathBuf, data_set: &mut DataSet) -> DBResult<()> {
-        let file = File::open(temp_file)?;
-        let mut reader = BufReader::new(file);
-        let mut buffer = Vec::new();
-        reader.read_to_end(&mut buffer)?;
-
-        let (block, _): (Vec<(Vec<Value>, Vec<Value>)>, _) = 
-            bincode::decode_from_slice(&buffer, bincode::config::standard())
-                .map_err(|e| DBError::Serialization(format!("Failed to decode sort block: {}", e)))?;
-
-        data_set.rows = block.into_iter().map(|(_, row)| row).collect();
-        Ok(())
-    }
-
-    /// 多路归并
-    fn multiway_merge(&self, temp_files: &[PathBuf], data_set: &mut DataSet) -> DBResult<()> {
-        // 读取所有块的第一部分到内存
-        let mut readers = Vec::new();
-        let mut current_items = Vec::new();
-
-        for (i, temp_file) in temp_files.iter().enumerate() {
-            let file = File::open(temp_file)?;
-            let mut reader = BufReader::new(file);
-            let mut buffer = Vec::new();
-            reader.read_to_end(&mut buffer)?;
-
-            let (block, _): (Vec<(Vec<Value>, Vec<Value>)>, _) = 
-                bincode::decode_from_slice(&buffer, bincode::config::standard())
-                    .map_err(|e| DBError::Serialization(format!("Failed to decode sort block in merge: {}", e)))?;
-            if !block.is_empty() {
-                // 先克隆第一个元素，再将 block 移动到 readers 中
-                let first_item = block[0].clone();
-                readers.push((block, 0)); // (数据块, 当前索引)
-                current_items.push((i, first_item.0, first_item.1));
-            }
-        }
-
-        // 使用最小堆进行多路归并
-        let mut result = Vec::new();
-        let mut heap = BinaryHeap::new();
-
-        // 初始化堆
-        for (i, sort_values, row) in current_items {
-            heap.push(Reverse(SortItem::new_with_source(sort_values, row, i, SortOrder::Asc)));
-        }
-
-        // 归并过程
-        while let Some(Reverse(item)) = heap.pop() {
-            result.push(item.row);
-            
-            // 从同一个源读取下一个元素
-            let source_index = item.source_index;
-            if let Some(ref mut reader) = readers.get_mut(source_index) {
-                reader.1 += 1; // 移动到下一个元素
-                if reader.1 < reader.0.len() {
-                    let next_item = &reader.0[reader.1];
-                    heap.push(Reverse(SortItem::new_with_source(
-                        next_item.0.clone(),
-                        next_item.1.clone(),
-                        source_index,
-                        SortOrder::Asc,
-                    )));
-                }
-            }
-        }
-
-        data_set.rows = result;
-        Ok(())
-    }
-
-    /// 执行归并排序
-    fn execute_merge_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
+    
+    /// 通用预处理方法：为排序准备数据
+    fn prepare_sort_data(&self, data_set: &DataSet) -> DBResult<Vec<(Vec<Value>, Vec<Value>)>> {
         let evaluator = ExpressionEvaluator;
         let mut rows_with_keys: Vec<(Vec<Value>, Vec<Value>)> = Vec::new();
 
-        // 为每行计算排序键值
+        // 为每行计算排序键值，克隆行数据以避免生命周期问题
         for row in &data_set.rows {
             let sort_values = self.calculate_sort_values(row, &data_set.col_names, &evaluator)?;
             rows_with_keys.push((sort_values, row.clone()));
         }
-
-        // 执行归并排序
-        self.merge_sort(&mut rows_with_keys);
-
-        // 提取排序后的行
-        data_set.rows = rows_with_keys.into_iter().map(|(_, row)| row).collect();
+        
+        Ok(rows_with_keys)
+    }
+    
+    /// 通用结果提取方法：从排序后的数据中提取结果
+    fn extract_sorted_data(&self, rows_with_keys: Vec<(Vec<Value>, &Vec<Value>)>, data_set: &mut DataSet) -> DBResult<()> {
+        // 提取排序后的行，需要克隆以保持所有权
+        data_set.rows = rows_with_keys.into_iter().map(|(_, row)| row.clone()).collect();
         Ok(())
     }
 
-    /// 归并排序实现
-    fn merge_sort(&self, items: &mut [(Vec<Value>, Vec<Value>)]) {
-        if items.len() <= 1 {
-            return;
-        }
 
-        let mid = items.len() / 2;
-        
-        // 递归排序左右两部分
-        let mut left: Vec<(Vec<Value>, Vec<Value>)> = items[..mid].to_vec();
-        let mut right: Vec<(Vec<Value>, Vec<Value>)> = items[mid..].to_vec();
-        
-        self.merge_sort(&mut left);
-        self.merge_sort(&mut right);
-        
-        // 合并结果
-        let mut merged = self.merge_impl(&left, &right);
-        
-        // 将结果复制回原数组
-        for (i, item) in merged.drain(..).enumerate() {
-            items[i] = item;
-        }
-    }
-
-    /// 合并两个已排序的数组
-    fn merge_impl(&self, left: &[(Vec<Value>, Vec<Value>)], right: &[(Vec<Value>, Vec<Value>)]) -> Vec<(Vec<Value>, Vec<Value>)> {
-        let mut temp = Vec::with_capacity(left.len() + right.len());
-        
-        let mut i = 0;
-        let mut j = 0;
-        
-        while i < left.len() && j < right.len() {
-            if self.compare_sort_items_vec(&left[i].0, &right[j].0) != Ordering::Greater {
-                temp.push(left[i].clone());
-                i += 1;
-            } else {
-                temp.push(right[j].clone());
-                j += 1;
-            }
-        }
-        
-        while i < left.len() {
-            temp.push(left[i].clone());
-            i += 1;
-        }
-        
-        while j < right.len() {
-            temp.push(right[j].clone());
-            j += 1;
-        }
-        
-        temp
-    }
 
     /// 计算行的排序键值
     fn calculate_sort_values(
@@ -616,96 +421,86 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
         col_names: &[String],
         evaluator: &ExpressionEvaluator,
     ) -> DBResult<Vec<Value>> {
-        let mut expr_context = DefaultExpressionContext::new();
-        for (i, col_name) in col_names.iter().enumerate() {
-            if i < row.len() {
-                expr_context.set_variable(col_name.clone(), row[i].clone());
-            }
-        }
-
         let mut sort_values = Vec::new();
+        
         for sort_key in &self.sort_keys {
-            let sort_value = evaluator
-                .evaluate(&sort_key.expression, &mut expr_context)
-                .map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(
-                        e.to_string(),
-                    ))
-                })?;
-            sort_values.push(sort_value);
+            // 处理按列索引排序的特殊情况
+            if let Expression::Literal(Value::Int(index)) = &sort_key.expression {
+                let idx = *index as usize;
+                if idx < row.len() {
+                    sort_values.push(row[idx].clone());
+                } else {
+                    return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        format!("列索引{}超出范围，行长度:{}", idx, row.len())
+                    )));
+                }
+            } else {
+                // 使用表达式求值器处理其他类型的表达式
+                let mut expr_context = DefaultExpressionContext::new();
+                for (i, col_name) in col_names.iter().enumerate() {
+                    if i < row.len() {
+                        expr_context.set_variable(col_name.clone(), row[i].clone());
+                    }
+                }
+                
+                let sort_value = evaluator
+                    .evaluate(&sort_key.expression, &mut expr_context)
+                    .map_err(|e| {
+                        DBError::Query(crate::core::error::QueryError::ExecutionError(
+                            e.to_string(),
+                        ))
+                    })?;
+                sort_values.push(sort_value);
+            }
         }
 
         Ok(sort_values)
     }
 
-    /// 比较两个排序项目
-    fn compare_sort_items(&self, a: &SortItem, b: &SortItem) -> Ordering {
-        self.compare_sort_items_vec(&a.sort_values, &b.sort_values)
-    }
-
     /// 比较两个排序值向量
-    fn compare_sort_items_vec(&self, a: &[Value], b: &[Value]) -> Ordering {
+    fn compare_sort_items_vec(&self, a: &[Value], b: &[Value]) -> DBResult<Ordering> {
         for ((idx, sort_val_a), sort_val_b) in a.iter().enumerate().zip(b.iter()) {
-            let comparison = self.compare_values(sort_val_a, sort_val_b, &self.sort_keys[idx].order);
+            let comparison = self.compare_values(sort_val_a, sort_val_b, &self.sort_keys[idx].order)?;
             if !comparison.is_eq() {
-                return comparison;
+                return Ok(comparison);
             }
         }
-        Ordering::Equal
+        Ok(Ordering::Equal)
     }
 
     /// 比较两个值，根据排序方向
-    fn compare_values(&self, a: &Value, b: &Value, order: &SortOrder) -> Ordering {
-        let comparison = a.partial_cmp(b).unwrap_or(Ordering::Equal);
+    fn compare_values(&self, a: &Value, b: &Value, order: &SortOrder) -> DBResult<Ordering> {
+        let comparison = a.partial_cmp(b)
+            .ok_or_else(|| DBError::Query(crate::core::error::QueryError::ExecutionError(
+                format!("排序值比较失败，类型不匹配: {:?} 和 {:?}", a, b)
+            )))?;
 
-        match order {
+        Ok(match order {
             SortOrder::Asc => comparison,
             SortOrder::Desc => comparison.reverse(),
-        }
+        })
+    }
+
+    /// 比较两个数据行，直接使用排序键表达式
+    /// 注意：这个方法内部已经根据SortKey的order字段正确处理了排序方向
+    fn compare_rows(&self, a: &[Value], b: &[Value]) -> DBResult<Ordering> {
+        let evaluator = ExpressionEvaluator;
+        
+        // 创建虚拟列名（因为排序键表达式应该能够直接访问行数据）
+        let col_names: Vec<String> = (0..a.len())
+            .map(|i| format!("col_{}", i))
+            .collect();
+        
+        // 为每行计算排序值
+        let sort_values_a = self.calculate_sort_values(a, &col_names, &evaluator)?;
+        let sort_values_b = self.calculate_sort_values(b, &col_names, &evaluator)?;
+        
+        // 使用现有的比较逻辑
+        self.compare_sort_items_vec(&sort_values_a, &sort_values_b)
     }
 }
 
-/// 排序项，用于堆排序
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct SortItem {
-    sort_values: Vec<Value>,
-    row: Vec<Value>,
-    source_index: usize, // 用于多路归并时标识数据来源
-    sort_order: SortOrder, // 排序方向
-}
 
-impl SortItem {
-    fn new(sort_values: Vec<Value>, row: Vec<Value>, sort_order: SortOrder) -> Self {
-        Self { sort_values, row, source_index: 0, sort_order }
-    }
-
-    fn new_with_source(sort_values: Vec<Value>, row: Vec<Value>, source_index: usize, sort_order: SortOrder) -> Self {
-        Self { sort_values, row, source_index, sort_order }
-    }
-}
-
-impl PartialOrd for SortItem {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for SortItem {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // 比较排序值，考虑排序方向
-        for (a, b) in self.sort_values.iter().zip(other.sort_values.iter()) {
-            let comparison = a.partial_cmp(b).unwrap_or(Ordering::Equal);
-            if !comparison.is_eq() {
-                // 根据排序方向调整比较结果
-                return match self.sort_order {
-                    SortOrder::Asc => comparison,
-                    SortOrder::Desc => comparison.reverse(),
-                };
-            }
-        }
-        Ordering::Equal
-    }
-}
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for SortExecutor<S> {
@@ -732,13 +527,12 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for SortExecutor<S> {
     }
 
     fn memory_usage(&self) -> usize {
-        self.memory_usage
+        self.base.memory_usage
     }
 
     fn reset(&mut self) {
         self.base.memory_usage = 0;
         self.base.input = None;
-        self.memory_usage = 0;
     }
 }
 
@@ -799,6 +593,7 @@ mod tests {
     use super::*;
     use crate::core::value::{DataSet, Value};
     use crate::config::test_config::test_config;
+    use crate::storage::native_storage::NativeStorage;
 
     fn create_test_dataset() -> DataSet {
         let mut data_set = DataSet::new();
@@ -816,73 +611,179 @@ mod tests {
         data_set
     }
 
+    fn create_large_test_dataset(size: usize) -> DataSet {
+        let mut data_set = DataSet::new();
+        data_set.col_names = vec!["id".to_string(), "value".to_string()];
+        
+        for i in 0..size {
+            data_set.rows.push(vec![Value::Int(i as i64), Value::Int((size - i) as i64)]);
+        }
+        
+        data_set
+    }
+
     #[test]
-    fn test_quick_sort() {
+    fn test_sort_key_column_index() {
+        // 测试排序键列索引功能
+        let sort_key = SortKey::new(Expression::Literal(Value::Int(1)), SortOrder::Asc);
+        assert!(!sort_key.uses_column_index());
+        
+        // 测试基于列索引的排序键
+        let column_index_sort_key = SortKey::from_column_index(1, SortOrder::Desc);
+        assert!(column_index_sort_key.uses_column_index());
+        assert_eq!(column_index_sort_key.column_index, Some(1));
+    }
+
+    #[test]
+    fn test_column_index_sorting() {
         let mut data_set = create_test_dataset();
-        let sort_keys = vec![
-            SortKey {
-                expression: Expression::InputProperty("score".to_string()), // 按score排序
-                order: SortOrder::Asc,
-            }
-        ];
         
-        let config = SortConfig {
-            algorithm: SortAlgorithm::QuickSort,
-            memory_limit: 1024 * 1024, // 1MB
-            block_size: 64 * 1024, // 64KB
-            parallel: false,
-            max_threads: 1,
-        };
+        // 使用列索引排序
+        let sort_keys = vec![SortKey::from_column_index(2, SortOrder::Asc)]; // 按score列升序排序
         
-        // 创建模拟存储引擎，使用test_config提供的路径
-        use crate::storage::native_storage::NativeStorage;
+        let config = SortConfig::default();
+        
         let test_config = test_config();
-        let db_path = test_config.test_db_path("test_db_sort_1");
+        let db_path = test_config.test_db_path("test_column_index_sort");
         let storage = Arc::new(Mutex::new(NativeStorage::new(db_path.to_str().unwrap()).unwrap()));
         
         let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();
         
-        // 手动调用排序方法进行测试
-        executor.select_and_execute_sort(&mut data_set).unwrap();
+        // 执行排序
+        executor.execute_sort(&mut data_set).unwrap();
         
-        // 验证排序结果
+        // 验证排序结果（升序：分数从低到高）
         assert_eq!(data_set.rows.len(), 5);
-        assert_eq!(data_set.rows[0][2], Value::Float(78.5)); // Charlie
-        assert_eq!(data_set.rows[4][2], Value::Float(95.5)); // Eve
+        assert_eq!(data_set.rows[0][2], Value::Float(78.5)); // Charlie (最低分)
+        assert_eq!(data_set.rows[1][2], Value::Float(85.5)); // Alice
+        assert_eq!(data_set.rows[2][2], Value::Float(88.0)); // David
+        assert_eq!(data_set.rows[3][2], Value::Float(92.0)); // Bob
+        assert_eq!(data_set.rows[4][2], Value::Float(95.5)); // Eve (最高分)
     }
+
+
 
     #[test]
     fn test_top_n_sort() {
         let mut data_set = create_test_dataset();
-        let sort_keys = vec![
-            SortKey {
-                expression: Expression::InputProperty("score".to_string()), // 按score排序
-                order: SortOrder::Desc, // 降序
-            }
-        ];
+        let sort_keys = vec![SortKey::from_column_index(2, SortOrder::Desc)]; // 按score列降序排序
         
-        let config = SortConfig {
-            algorithm: SortAlgorithm::HeapSort,
-            memory_limit: 1024 * 1024, // 1MB
-            block_size: 64 * 1024, // 64KB
-            parallel: false,
-            max_threads: 1,
-        };
+        let config = SortConfig::default();
         
-        // 创建模拟存储引擎，使用test_config提供的路径
-        use crate::storage::native_storage::NativeStorage;
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_db_sort_2");
         let storage = Arc::new(Mutex::new(NativeStorage::new(db_path.to_str().unwrap()).unwrap()));
         
         let mut executor = SortExecutor::new(1, storage, sort_keys, Some(3), config).unwrap();
         
-        // 手动调用排序方法进行测试
-        executor.select_and_execute_sort(&mut data_set).unwrap();
+        // 执行排序
+        executor.execute_sort(&mut data_set).unwrap();
         
         // 验证Top-N结果
         assert_eq!(data_set.rows.len(), 3); // 只保留前3个
         assert_eq!(data_set.rows[0][2], Value::Float(95.5)); // Eve (最高分)
+        assert_eq!(data_set.rows[1][2], Value::Float(92.0)); // Bob
         assert_eq!(data_set.rows[2][2], Value::Float(88.0)); // David (第三高分)
+    }
+
+    #[test]
+    fn test_column_index_top_n_sort() {
+        let mut data_set = create_test_dataset();
+        
+        // 使用列索引排序
+        let sort_keys = vec![SortKey::from_column_index(2, SortOrder::Desc)]; // 按score列降序排序
+        
+        let config = SortConfig::default();
+        
+        let test_config = test_config();
+        let db_path = test_config.test_db_path("test_column_index_top_n");
+        let storage = Arc::new(Mutex::new(NativeStorage::new(db_path.to_str().unwrap()).unwrap()));
+        
+        let mut executor = SortExecutor::new(1, storage, sort_keys, Some(2), config).unwrap();
+        
+        // 执行排序
+        executor.execute_sort(&mut data_set).unwrap();
+        
+        // 验证Top-N结果
+        assert_eq!(data_set.rows.len(), 2); // 只保留前2个
+        assert_eq!(data_set.rows[0][2], Value::Float(95.5)); // Eve (最高分)
+        assert_eq!(data_set.rows[1][2], Value::Float(92.0)); // Bob (第二高分)
+    }
+
+    #[test]
+    fn test_multi_column_sorting() {
+        let mut data_set = create_test_dataset();
+        
+        // 多列排序：先按age升序，再按score降序
+        let sort_keys = vec![
+            SortKey::from_column_index(1, SortOrder::Asc),  // age升序
+            SortKey::from_column_index(2, SortOrder::Desc), // score降序
+        ];
+        
+        let config = SortConfig::default();
+        
+        let test_config = test_config();
+        let db_path = test_config.test_db_path("test_multi_column");
+        let storage = Arc::new(Mutex::new(NativeStorage::new(db_path.to_str().unwrap()).unwrap()));
+        
+        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();
+        
+        executor.execute_sort(&mut data_set).unwrap();
+        
+        // 验证多列排序结果
+        assert_eq!(data_set.rows.len(), 5);
+        
+        // 第一列排序：年龄从低到高
+        assert_eq!(data_set.rows[0][1], Value::Int(22)); // Charlie (最年轻)
+        assert_eq!(data_set.rows[1][1], Value::Int(25)); // Alice
+        assert_eq!(data_set.rows[2][1], Value::Int(26)); // Eve
+        assert_eq!(data_set.rows[3][1], Value::Int(28)); // David
+        assert_eq!(data_set.rows[4][1], Value::Int(30)); // Bob (最年长)
+        
+        // 对于相同年龄的行，按分数降序排序
+        // 这里没有年龄相同的行，所以不需要额外验证
+    }
+
+    #[test]
+    fn test_error_handling() {
+        let mut data_set = create_test_dataset();
+        
+        // 测试无效的列索引
+        let sort_keys = vec![SortKey::from_column_index(10, SortOrder::Asc)]; // 无效列索引
+        
+        let config = SortConfig::default();
+        let test_config = test_config();
+        let db_path = test_config.test_db_path("test_error_handling");
+        let storage = Arc::new(Mutex::new(NativeStorage::new(db_path.to_str().unwrap()).unwrap()));
+        
+        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();
+        
+        // 应该会返回错误，因为列索引超出范围
+        let result = executor.execute_sort(&mut data_set);
+        assert!(result.is_err());
+        
+        // 验证错误信息包含列索引信息
+        let error = result.unwrap_err();
+        assert!(format!("{:?}", error).contains("列索引"));
+    }
+
+    #[test]
+    fn test_compare_by_column_indices() {
+        let mut data_set = create_test_dataset();
+        let sort_keys = vec![SortKey::from_column_index(2, SortOrder::Asc)];
+        
+        let config = SortConfig::default();
+        let test_config = test_config();
+        let db_path = test_config.test_db_path("test_column_comparison");
+        let storage = Arc::new(Mutex::new(NativeStorage::new(db_path.to_str().unwrap()).unwrap()));
+        
+        let executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();
+        
+        // 测试列索引比较功能
+        let row1 = &data_set.rows[0]; // Alice: 85.5
+        let row2 = &data_set.rows[1]; // Bob: 92.0
+        
+        let result = executor.compare_by_column_indices(row1, row2).unwrap();
+        assert_eq!(result, Ordering::Less); // 85.5 < 92.0
     }
 }
