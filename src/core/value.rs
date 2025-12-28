@@ -1,5 +1,6 @@
 use crate::core::vertex_edge_path::{Edge, Path, Vertex};
 use serde::{Deserialize, Serialize};
+use bincode::{Encode, Decode};
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -29,7 +30,7 @@ pub enum ValueTypeDef {
     StringRange,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum NullType {
     Null,
     NaN,
@@ -48,7 +49,7 @@ impl Default for NullType {
 }
 
 /// Simple Date representation similar to Nebula
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DateValue {
     pub year: i32,
     pub month: u32,
@@ -56,7 +57,7 @@ pub struct DateValue {
 }
 
 /// Simple Time representation similar to Nebula
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct TimeValue {
     pub hour: u32,
     pub minute: u32,
@@ -65,7 +66,7 @@ pub struct TimeValue {
 }
 
 /// Simple DateTime representation similar to Nebula
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DateTimeValue {
     pub year: i32,
     pub month: u32,
@@ -77,7 +78,7 @@ pub struct DateTimeValue {
 }
 
 /// Simple Geography representation similar to Nebula
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode)]
 pub struct GeographyValue {
     pub point: Option<(f64, f64)>,             // latitude, longitude
     pub linestring: Option<Vec<(f64, f64)>>,   // list of coordinates
@@ -118,7 +119,7 @@ impl std::hash::Hash for GeographyValue {
 }
 
 /// Simple Duration representation similar to Nebula
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DurationValue {
     pub seconds: i64,
     pub microseconds: i32,
@@ -141,7 +142,7 @@ impl std::hash::Hash for List {
 }
 
 /// Simple DataSet representation similar to Nebula
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DataSet {
     pub col_names: Vec<String>,
     pub rows: Vec<Vec<Value>>,
@@ -164,7 +165,7 @@ impl List {
 
 /// Represents a value that can be stored in node/edge properties
 /// This follows the design pattern of Nebula's Value type
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub enum Value {
     Empty,
     Null(NullType),

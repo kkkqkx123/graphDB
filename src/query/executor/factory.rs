@@ -221,12 +221,14 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
                         crate::query::executor::result_processing::SortOrder::Asc,
                     )
                 }).collect();
+                let config = crate::query::executor::result_processing::SortConfig::default();
                 let executor = SortExecutor::new(
                     node.id(),
                     storage,
                     sort_keys,
                     node.limit().map(|l| l as usize),
-                );
+                    config,
+                ).map_err(|e| QueryError::ExecutionError(e.to_string()))?;
                 Ok(Box::new(executor))
             }
             PlanNodeEnum::Aggregate(node) => {

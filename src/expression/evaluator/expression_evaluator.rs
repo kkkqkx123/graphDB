@@ -4,7 +4,7 @@
 
 use crate::core::types::expression::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
-use crate::core::error::ExpressionError;
+use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::Value;
 use crate::expression::evaluator::traits::{Evaluator, ExpressionContext};
 
@@ -926,6 +926,14 @@ impl ExpressionEvaluator {
             }
             AggregateFunction::Collect => Ok(Value::List(vec![arg.clone()])),
             AggregateFunction::Distinct => Ok(Value::List(vec![arg.clone()])),
+            AggregateFunction::Percentile => {
+                // 单参数情况下的PERCENTILE，返回原始值
+                if arg.is_null() {
+                    Ok(Value::Null(crate::core::NullType::Null))
+                } else {
+                    Ok(arg.clone())
+                }
+            }
         }
     }
 
@@ -995,6 +1003,67 @@ impl ExpressionEvaluator {
             AggregateFunction::Distinct => {
                 let unique_values: std::collections::HashSet<_> = args.iter().cloned().collect();
                 Ok(Value::List(unique_values.into_iter().collect()))
+            }
+            AggregateFunction::Percentile => {
+                // PERCENTILE函数 - 需要两个参数：值数组和百分位数
+                if args.len() < 2 {
+                    return Err(ExpressionError::argument_count_error(2, args.len()));
+                }
+                
+                // 获取百分位数值（第二个参数）
+                let percentile = match &args[1] {
+                    Value::Int(v) => *v as f64,
+                    Value::Float(v) => *v,
+                    _ => return Err(ExpressionError::type_error("Percentile must be a number")),
+                };
+                
+                if percentile < 0.0 || percentile > 100.0 {
+                    return Err(ExpressionError::new(
+                        ExpressionErrorType::InvalidOperation,
+                        "Percentile must be between 0 and 100"
+                    ));
+                }
+                
+                // 获取值数组（第一个参数）
+                let values = match &args[0] {
+                    Value::List(list) => list,
+                    _ => return Err(ExpressionError::type_error("First argument must be a list")),
+                };
+                
+                if values.is_empty() {
+                    return Ok(Value::Null(crate::core::NullType::NaN));
+                }
+                
+                // 提取数值并排序
+                let mut numeric_values = Vec::new();
+                for value in values {
+                    match value {
+                        Value::Int(v) => numeric_values.push(*v as f64),
+                        Value::Float(v) => numeric_values.push(*v),
+                        _ => continue, // 跳过非数值
+                    }
+                }
+                
+                if numeric_values.is_empty() {
+                    return Ok(Value::Null(crate::core::NullType::NaN));
+                }
+                
+                numeric_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                
+                // 计算百分位数
+                let index = (percentile / 100.0) * (numeric_values.len() - 1) as f64;
+                let lower_index = index.floor() as usize;
+                let upper_index = index.ceil() as usize;
+                
+                if lower_index == upper_index {
+                    Ok(Value::Float(numeric_values[lower_index]))
+                } else {
+                    let lower_value = numeric_values[lower_index];
+                    let upper_value = numeric_values[upper_index];
+                    let weight = index - lower_index as f64;
+                    let interpolated = lower_value + weight * (upper_value - lower_value);
+                    Ok(Value::Float(interpolated))
+                }
             }
         }
     }

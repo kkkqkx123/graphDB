@@ -582,6 +582,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             }
             AggregateFunction::Collect => ValueTypeDef::List,
             AggregateFunction::Distinct => ValueTypeDef::List,
+            AggregateFunction::Percentile => ValueTypeDef::Float,
         };
         Ok(())
     }

@@ -97,6 +97,9 @@ pub struct AggregateState {
     pub avg: Option<Value>,
     pub max: Option<Value>,
     pub min: Option<Value>,
+    pub collect: Vec<Value>,
+    pub distinct_values: std::collections::HashSet<Value>,
+    pub percentile_values: Vec<f64>, // 用于计算百分位数
 }
 
 impl AggregateState {
@@ -107,6 +110,9 @@ impl AggregateState {
             avg: None,
             max: None,
             min: None,
+            collect: Vec::new(),
+            distinct_values: std::collections::HashSet::new(),
+            percentile_values: Vec::new(),
         }
     }
 
@@ -184,6 +190,77 @@ impl AggregateState {
                     "Cannot divide this value type".to_string(),
                 ),
             )),
+        }
+    }
+
+    /// 更新收集状态（COLLECT函数）
+    pub fn update_collect(&mut self, value: &Value) -> DBResult<()> {
+        self.collect.push(value.clone());
+        self.count += 1;
+        Ok(())
+    }
+
+    /// 更新去重状态（DISTINCT函数）
+    pub fn update_distinct(&mut self, value: &Value) -> DBResult<()> {
+        let old_size = self.distinct_values.len();
+        self.distinct_values.insert(value.clone());
+        if self.distinct_values.len() > old_size {
+            self.count += 1;
+        }
+        Ok(())
+    }
+
+    /// 更新百分位数状态（PERCENTILE函数）
+    pub fn update_percentile(&mut self, value: &Value) -> DBResult<()> {
+        match value {
+            Value::Int(v) => {
+                self.percentile_values.push(*v as f64);
+                self.count += 1;
+            }
+            Value::Float(v) => {
+                self.percentile_values.push(*v);
+                self.count += 1;
+            }
+            _ => {
+                return Err(crate::core::error::DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "PERCENTILE function only supports numeric values".to_string(),
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// 计算百分位数
+    pub fn calculate_percentile(&self, percentile: f64) -> DBResult<Value> {
+        if self.percentile_values.is_empty() {
+            return Ok(Value::Null(crate::core::value::NullType::NaN));
+        }
+
+        if percentile < 0.0 || percentile > 100.0 {
+            return Err(crate::core::error::DBError::Query(
+                crate::core::error::QueryError::ExecutionError(
+                    "Percentile must be between 0 and 100".to_string(),
+                ),
+            ));
+        }
+
+        let mut sorted_values = self.percentile_values.clone();
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        let index = (percentile / 100.0) * (sorted_values.len() - 1) as f64;
+        let lower_index = index.floor() as usize;
+        let upper_index = index.ceil() as usize;
+
+        if lower_index == upper_index {
+            Ok(Value::Float(sorted_values[lower_index]))
+        } else {
+            let lower_value = sorted_values[lower_index];
+            let upper_value = sorted_values[upper_index];
+            let weight = index - lower_index as f64;
+            let interpolated = lower_value + weight * (upper_value - lower_value);
+            Ok(Value::Float(interpolated))
         }
     }
 }
@@ -348,9 +425,56 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                             }
                         }
                     }
-                    AggregateFunction::Collect | AggregateFunction::Distinct => {
-                        // 这些函数暂时不实现
-                        continue;
+                    AggregateFunction::Collect => {
+                        // COLLECT函数 - 收集所有值到列表
+                        if let Some(field) = &agg_func.field {
+                            if let Some(col_index) =
+                                dataset.col_names.iter().position(|name| name == field)
+                            {
+                                if col_index < row.len() {
+                                    // 获取或创建聚合状态
+                                    let state = group_state
+                                        .groups
+                                        .entry(group_key.clone())
+                                        .or_insert_with(AggregateState::new);
+                                    state.update_collect(&row[col_index])?;
+                                }
+                            }
+                        }
+                    }
+                    AggregateFunction::Distinct => {
+                        // DISTINCT函数 - 收集去重后的值
+                        if let Some(field) = &agg_func.field {
+                            if let Some(col_index) =
+                                dataset.col_names.iter().position(|name| name == field)
+                            {
+                                if col_index < row.len() {
+                                    // 获取或创建聚合状态
+                                    let state = group_state
+                                        .groups
+                                        .entry(group_key.clone())
+                                        .or_insert_with(AggregateState::new);
+                                    state.update_distinct(&row[col_index])?;
+                                }
+                            }
+                        }
+                    }
+                    AggregateFunction::Percentile => {
+                        // PERCENTILE函数 - 需要字段和百分位数两个参数
+                        if let Some(field) = &agg_func.field {
+                            if let Some(col_index) =
+                                dataset.col_names.iter().position(|name| name == field)
+                            {
+                                if col_index < row.len() {
+                                    // 获取或创建聚合状态
+                                    let state = group_state
+                                        .groups
+                                        .entry(group_key.clone())
+                                        .or_insert_with(AggregateState::new);
+                                    state.update_percentile(&row[col_index])?;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -411,6 +535,13 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                 }
                 AggregateFunction::Collect => "collect".to_string(),
                 AggregateFunction::Distinct => "distinct".to_string(),
+                AggregateFunction::Percentile => {
+                    if let Some(field) = &agg_func.field {
+                        format!("percentile_{}", field)
+                    } else {
+                        "percentile".to_string()
+                    }
+                }
             };
             result_dataset.col_names.push(col_name);
         }
@@ -442,9 +573,28 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                         .min
                         .clone()
                         .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Collect | AggregateFunction::Distinct => {
-                        // 这些函数暂时返回空值
-                        Value::Null(crate::core::value::NullType::NaN)
+                    AggregateFunction::Collect => {
+                        // COLLECT函数 - 返回收集的所有值
+                        if agg_state.collect.is_empty() {
+                            Value::List(Vec::new())
+                        } else {
+                            Value::List(agg_state.collect.clone())
+                        }
+                    }
+                    AggregateFunction::Distinct => {
+                        // DISTINCT函数 - 返回去重后的值集合
+                        if agg_state.distinct_values.is_empty() {
+                            Value::Set(std::collections::HashSet::new())
+                        } else {
+                            Value::Set(agg_state.distinct_values.clone())
+                        }
+                    }
+                    AggregateFunction::Percentile => {
+                        // PERCENTILE函数 - 计算百分位数
+                        // 这里简化处理，使用默认的50%百分位数（中位数）
+                        // 在实际应用中，应该从查询参数中获取百分位数值
+                        agg_state.calculate_percentile(50.0)
+                            .unwrap_or(Value::Null(crate::core::value::NullType::NaN))
                     }
                 };
                 result_row.push(agg_value);

@@ -303,6 +303,7 @@ impl ExpressionFunction for AggregateFunction {
             AggregateFunction::Max => "max",
             AggregateFunction::Collect => "collect",
             AggregateFunction::Distinct => "distinct",
+            AggregateFunction::Percentile => "percentile",
         }
     }
 
@@ -330,6 +331,7 @@ impl ExpressionFunction for AggregateFunction {
             AggregateFunction::Max => "最大值",
             AggregateFunction::Collect => "收集",
             AggregateFunction::Distinct => "去重",
+            AggregateFunction::Percentile => "百分位数",
         }
     }
 }

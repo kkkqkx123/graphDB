@@ -387,6 +387,7 @@ pub enum AggregateFunction {
     Max,
     Collect,
     Distinct,
+    Percentile,
 }
 
 impl Operator for AggregateFunction {
@@ -399,6 +400,7 @@ impl Operator for AggregateFunction {
             AggregateFunction::Max => "MAX",
             AggregateFunction::Collect => "COLLECT",
             AggregateFunction::Distinct => "DISTINCT",
+            AggregateFunction::Percentile => "PERCENTILE",
         }
     }
 
@@ -421,6 +423,7 @@ impl Operator for AggregateFunction {
             AggregateFunction::Max => 1,
             AggregateFunction::Collect => 1,
             AggregateFunction::Distinct => 1,
+            AggregateFunction::Percentile => 2, // 需要字段和百分位数两个参数
         }
     }
 }

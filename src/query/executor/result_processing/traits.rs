@@ -243,9 +243,10 @@ impl ResultProcessorFactory {
         storage: Arc<Mutex<S>>,
         sort_keys: Vec<crate::query::executor::result_processing::sort::SortKey>,
         limit: Option<usize>,
-    ) -> crate::query::executor::result_processing::sort::SortExecutor<S> {
+    ) -> DBResult<crate::query::executor::result_processing::sort::SortExecutor<S>> {
+        let config = crate::query::executor::result_processing::sort::SortConfig::default();
         crate::query::executor::result_processing::sort::SortExecutor::new(
-            id, storage, sort_keys, limit,
+            id, storage, sort_keys, limit, config,
         )
     }
 

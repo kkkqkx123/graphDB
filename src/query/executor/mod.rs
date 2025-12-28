@@ -4,6 +4,7 @@ pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
 pub mod factory;
+pub mod memory_manager;
 pub mod object_pool;
 pub mod recursion_detector;
 pub mod result_processing;

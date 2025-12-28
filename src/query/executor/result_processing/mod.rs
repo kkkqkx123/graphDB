@@ -18,7 +18,7 @@ pub use projection::{ProjectExecutor, ProjectionColumn};
 
 // 排序执行器
 pub mod sort;
-pub use sort::{SortExecutor, SortKey, SortOrder};
+pub use sort::{SortExecutor, SortKey, SortOrder, SortConfig};
 
 // 限制执行器
 pub mod limit;
