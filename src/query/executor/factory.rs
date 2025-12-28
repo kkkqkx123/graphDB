@@ -289,9 +289,8 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> ExecutorFactory<S> {
             PlanNodeEnum::Expand(node) => {
                 // 验证Expand执行器的安全配置
                 self.safety_validator.validate_expand_config(
-                    node.step_limit().and_then(|s| usize::try_from(s).ok()).unwrap_or(10),
-                    node.edge_types().is_empty(),
-                )?;
+                    node.step_limit().and_then(|s| usize::try_from(s).ok()),
+                ).map_err(|e| QueryError::ExecutionError(e.to_string()))?;
                 
                 let executor = ExpandExecutor::new(
                     node.id(),

@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use super::base::BaseExecutor;
-use super::traits::HasStorage;
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::traits::{
     DBResult, ExecutionResult, Executor, HasStorage,
@@ -201,6 +200,12 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
 impl<S: StorageEngine> HasStorage<S> for UpdateExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("UpdateExecutor storage should be set")
+    }
+}
+
+impl<S: StorageEngine> HasStorage<S> for DeleteExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("DeleteExecutor storage should be set")
     }
 }
 

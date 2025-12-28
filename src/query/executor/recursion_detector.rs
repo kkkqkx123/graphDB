@@ -113,6 +113,7 @@ impl Default for ExecutorSafetyConfig {
 }
 
 /// 执行器安全验证器
+#[derive(Debug)]
 pub struct ExecutorSafetyValidator {
     config: ExecutorSafetyConfig,
     recursion_detector: RecursionDetector,

@@ -15,7 +15,7 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{
     ExecutionResult, Executor, HasStorage,
 };
-use crate::query::executor::recursion_detector::{RecursionDetector, ExecutorSafetyValidator};
+use crate::query::executor::recursion_detector::{RecursionDetector, ExecutorSafetyValidator, ExecutorSafetyConfig};
 use crate::storage::StorageEngine;
 
 /// 循环状态
@@ -59,7 +59,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
     ) -> Self {
         let recursion_detector = RecursionDetector::new(100);
         let safety_validator = ExecutorSafetyValidator::new(
-            recursion_detector::ExecutorSafetyConfig::default()
+            ExecutorSafetyConfig::default()
         );
 
         Self {
@@ -271,8 +271,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
         self.validate_no_self_reference()?;
         
         self.safety_validator.validate_loop_config(
-            self.max_iterations.unwrap_or(1000),
-            self.condition.is_some(),
+            self.max_iterations,
         )?;
         
         self.recursion_detector.validate_executor(
@@ -359,6 +358,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
 
     fn description(&self) -> &str {
         &self.base.description
+    }
+}
+
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for LoopExecutor<S>
+{
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }
 

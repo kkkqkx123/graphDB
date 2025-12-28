@@ -209,11 +209,11 @@ mod safety_tests {
         let validator = ExecutorSafetyValidator::new(config);
 
         // 正常配置
-        assert!(validator.validate_loop_config(100, true).is_ok());
-        assert!(validator.validate_loop_config(1000, true).is_ok());
+        assert!(validator.validate_loop_config(Some(100)).is_ok());
+        assert!(validator.validate_loop_config(Some(1000)).is_ok());
 
         // 超过限制
-        assert!(validator.validate_loop_config(1001, true).is_err());
+        assert!(validator.validate_loop_config(Some(1001)).is_err());
     }
 
     #[test]
@@ -226,11 +226,11 @@ mod safety_tests {
         let validator = ExecutorSafetyValidator::new(config);
 
         // 正常配置
-        assert!(validator.validate_expand_config(50, false).is_ok());
-        assert!(validator.validate_expand_config(100, false).is_ok());
+        assert!(validator.validate_expand_config(Some(50)).is_ok());
+        assert!(validator.validate_expand_config(Some(100)).is_ok());
 
         // 超过限制
-        assert!(validator.validate_expand_config(101, false).is_err());
+        assert!(validator.validate_expand_config(Some(101)).is_err());
     }
 
     #[test]
@@ -320,8 +320,8 @@ mod safety_tests {
         let validator = ExecutorSafetyValidator::default();
 
         // 验证默认配置
-        assert!(validator.validate_loop_config(1000, true).is_ok());
-        assert!(validator.validate_expand_config(100, false).is_ok());
+        assert!(validator.validate_loop_config(Some(1000)).is_ok());
+        assert!(validator.validate_expand_config(Some(100)).is_ok());
     }
 
     #[test]
@@ -390,12 +390,12 @@ mod safety_tests {
         let validator = ExecutorSafetyValidator::new(config);
 
         // 边界条件 - 刚好等于限制
-        assert!(validator.validate_loop_config(100, true).is_ok());
-        assert!(validator.validate_expand_config(50, false).is_ok());
+        assert!(validator.validate_loop_config(Some(100)).is_ok());
+        assert!(validator.validate_expand_config(Some(50)).is_ok());
 
         // 边界条件 - 超过限制1
-        assert!(validator.validate_loop_config(101, true).is_err());
-        assert!(validator.validate_expand_config(51, false).is_err());
+        assert!(validator.validate_loop_config(Some(101)).is_err());
+        assert!(validator.validate_expand_config(Some(51)).is_err());
     }
 
     #[test]
