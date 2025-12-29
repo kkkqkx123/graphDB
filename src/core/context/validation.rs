@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 use super::base::ContextType;
-use super::traits::Context;
+use super::traits::BaseContext;
 use crate::core::Value;
 
 /// 验证上下文
@@ -201,7 +201,7 @@ impl ValidationContext {
     }
 }
 
-impl Context for ValidationContext {
+impl BaseContext for ValidationContext {
     fn id(&self) -> &str {
         &self.id
     }

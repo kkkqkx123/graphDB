@@ -4,7 +4,7 @@
 
 use super::base::ContextType;
 use super::session::SessionInfo;
-use crate::core::Context;
+use super::traits::BaseContext;
 use serde::{Deserialize, Serialize};
 
 /// 查询类型
@@ -90,7 +90,7 @@ impl QueryContext {
     }
 }
 
-impl Context for QueryContext {
+impl BaseContext for QueryContext {
     fn id(&self) -> &str {
         &self.query_id
     }

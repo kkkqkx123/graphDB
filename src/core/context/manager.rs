@@ -9,7 +9,7 @@ use super::base::{
     ContextConfig, ContextEvent, ContextEventListener, ContextManager,
     ContextStatistics, ContextType, SimpleEventListener,
 };
-use super::traits::Context;
+use super::traits::BaseContext;
 use super::execution::ExecutionContext;
 use super::query::QueryContext;
 use super::request::RequestContext;
@@ -159,7 +159,7 @@ impl DefaultContextManager {
     }
 
     /// 检查上下文是否过期 - 泛型实现
-    fn is_context_expired<T: Context>(&self, context: &T) -> bool {
+    fn is_context_expired<T: BaseContext>(&self, context: &T) -> bool {
         if let Some(timeout_ms) = self.config.timeout_ms {
             if let Ok(elapsed) = context.created_at().elapsed() {
                 elapsed.as_millis() as u64 > timeout_ms
@@ -279,7 +279,7 @@ impl DefaultContextManager {
     }
 
     /// 触发上下文销毁事件
-    fn emit_context_destroyed_event<T: Context>(
+    fn emit_context_destroyed_event<T: BaseContext>(
         &self,
         id: &str,
         context_type: ContextType,

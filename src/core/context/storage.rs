@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use super::base::ContextType;
-use super::traits::Context;
+use super::traits::BaseContext;
 use crate::core::Value;
 
 /// 存储上下文
@@ -327,7 +327,7 @@ impl StorageContext {
     }
 }
 
-impl Context for StorageContext {
+impl BaseContext for StorageContext {
     fn id(&self) -> &str {
         &self.id
     }

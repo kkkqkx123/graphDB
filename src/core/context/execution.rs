@@ -4,7 +4,7 @@
 
 use super::base::ContextType;
 use super::query::QueryContext;
-use super::traits::Context;
+use super::traits::BaseContext;
 use crate::core::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -239,7 +239,7 @@ impl ExecutionContext {
     }
 }
 
-impl Context for ExecutionContext {
+impl BaseContext for ExecutionContext {
     fn id(&self) -> &str {
         &self.query_context.query_id
     }

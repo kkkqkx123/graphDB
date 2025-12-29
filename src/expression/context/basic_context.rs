@@ -3,7 +3,7 @@
 //! 提供表达式求值过程中的基础上下文实现
 
 use crate::cache::CacheConfig;
-use crate::core::context::traits::{Context, ContextExt};
+use crate::core::context::traits::{BaseContext, ContextExt};
 use crate::core::context::ContextType;
 use crate::core::Value;
 use crate::expression::cache::{ExpressionCacheManager, ExpressionCacheStats};
@@ -363,7 +363,7 @@ impl Clone for BasicExpressionContext {
     }
 }
 
-impl Context for BasicExpressionContext {
+impl BaseContext for BasicExpressionContext {
     fn id(&self) -> &str {
         "expression_context"
     }

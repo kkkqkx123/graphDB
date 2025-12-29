@@ -15,7 +15,7 @@ use crate::core::Value;
 /// - 可变功能：提供默认实现，子类可以覆盖
 /// - 层次化功能：提供默认实现，子类可以覆盖
 /// - 属性功能：提供默认实现，子类可以覆盖
-pub trait Context: std::fmt::Debug + Send + Sync {
+pub trait BaseContext: std::fmt::Debug + Send + Sync {
     /// 获取上下文ID
     fn id(&self) -> &str;
 
@@ -98,8 +98,8 @@ pub trait Context: std::fmt::Debug + Send + Sync {
 
 /// 上下文辅助trait - 提供额外的实用方法
 ///
-/// 这个trait为Context提供额外的实用方法，不需要强制实现
-pub trait ContextExt: Context {
+/// 这个trait为BaseContext提供额外的实用方法，不需要强制实现
+pub trait ContextExt: BaseContext {
     /// 检查上下文是否过期
     ///
     /// 默认实现：检查updated_at是否超过指定时间
@@ -133,47 +133,13 @@ pub trait ContextExt: Context {
     }
 }
 
-/// 为所有实现了Context的类型自动实现ContextExt
-impl<T: Context> ContextExt for T {}
-
-/// 上下文构建器 - 提供链式API创建上下文
-///
-/// 这个trait为上下文类型提供构建器模式支持
-pub trait ContextBuilder: Sized {
-    /// 上下文类型
-    type Output: Context;
-
-    /// 创建新的构建器
-    fn new() -> Self;
-
-    /// 设置上下文ID
-    fn with_id(self, id: impl Into<String>) -> Self;
-
-    /// 设置父上下文ID
-    fn with_parent_id(self, parent_id: impl Into<String>) -> Self;
-
-    /// 设置自定义属性
-    fn with_attribute(self, key: impl Into<String>, value: Value) -> Self;
-
-    /// 构建上下文
-    fn build(self) -> Self::Output;
-}
-
-/// 上下文转换trait - 支持上下文类型之间的转换
-///
-/// 这个trait允许在不同类型的上下文之间进行转换
-pub trait ContextConvert<T: Context> {
-    /// 转换为目标上下文类型
-    fn convert(&self) -> Option<T>;
-
-    /// 尝试转换为目标上下文类型
-    fn try_convert(&self) -> Result<T, String>;
-}
+/// 为所有实现了BaseContext的类型自动实现ContextExt
+impl<T: BaseContext> ContextExt for T {}
 
 /// 上下文验证trait - 提供上下文验证功能
 ///
 /// 这个trait为上下文提供验证功能
-pub trait ContextValidation: Context {
+pub trait ContextValidation: BaseContext {
     /// 验证上下文
     ///
     /// 返回验证结果和错误消息列表
@@ -186,5 +152,5 @@ pub trait ContextValidation: Context {
     }
 }
 
-/// 为所有实现了Context的类型自动实现ContextValidation
-impl<T: Context> ContextValidation for T {}
+/// 为所有实现了BaseContext的类型自动实现ContextValidation
+impl<T: BaseContext> ContextValidation for T {}

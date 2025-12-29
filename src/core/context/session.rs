@@ -3,7 +3,7 @@
 //! 提供会话级别的上下文管理
 
 use super::base::ContextType;
-use super::traits::{Context, ContextExt};
+use super::traits::{BaseContext, ContextExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
@@ -211,7 +211,7 @@ impl SessionContext {
     }
 }
 
-impl Context for SessionContext {
+impl BaseContext for SessionContext {
     fn id(&self) -> &str {
         &self.session_id
     }
@@ -401,23 +401,6 @@ impl SessionInfo {
             last_accessed: now,
             status: SessionStatus::Active,
         }
-    }
-
-    /// 创建简化版本的会话信息（兼容性方法）
-    pub fn simple(
-        session_id: impl Into<String>,
-        username: impl Into<String>,
-        roles: Vec<String>,
-    ) -> Self {
-        Self::new(
-            session_id,
-            username,
-            roles,
-            "",
-            0,
-            "",
-            "",
-        )
     }
 
     /// 更新最后访问时间

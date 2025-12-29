@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use super::base::ContextType;
-use super::traits::Context;
+use super::traits::BaseContext;
 use crate::core::Value;
 
 // SessionInfo 现在统一使用 src/core/context/session.rs 中的定义
@@ -432,7 +432,7 @@ impl RequestContext {
     }
 }
 
-impl Context for RequestContext {
+impl BaseContext for RequestContext {
     fn id(&self) -> &str {
         &self.id
     }
