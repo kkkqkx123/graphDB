@@ -1,6 +1,7 @@
 //! Subgraph查询上下文
 
-use crate::query::context::ast::{AstContext, ExpressionProps, Starts, StepClause};
+use std::collections::HashSet;
+use crate::query::context::ast::{AstContext, ExpressionProps, Starts, StepClause, FromType, EdgeDirection};
 
 // Subgraph查询上下文
 #[derive(Debug, Clone)]
@@ -13,9 +14,9 @@ pub struct SubgraphContext {
     pub tag_filter: Option<String>,
     pub edge_filter: Option<String>,
     pub col_names: Vec<String>,
-    pub edge_names: Vec<String>,
-    pub edge_types: Vec<String>,
-    pub bi_direct_edge_types: Vec<String>,
+    pub edge_names: HashSet<String>,
+    pub edge_types: HashSet<String>,
+    pub bi_direct_edge_types: HashSet<String>,
     pub col_type: Vec<String>,
     pub expr_props: ExpressionProps,
     pub with_prop: bool,
@@ -27,27 +28,16 @@ impl SubgraphContext {
     pub fn new(base: AstContext) -> Self {
         Self {
             base,
-            from: Starts {
-                from_type: "instant_expr".to_string(),
-                src: None,
-                original_src: None,
-                user_defined_var_name: String::new(),
-                runtime_vid_name: String::new(),
-                vids: Vec::new(),
-            },
-            steps: StepClause {
-                m_steps: 1,
-                n_steps: 1,
-                is_m_to_n: false,
-            },
+            from: Starts::new(FromType::default()),
+            steps: StepClause::new(),
             loop_steps: String::new(),
             filter: None,
             tag_filter: None,
             edge_filter: None,
             col_names: Vec::new(),
-            edge_names: Vec::new(),
-            edge_types: Vec::new(),
-            bi_direct_edge_types: Vec::new(),
+            edge_names: HashSet::new(),
+            edge_types: HashSet::new(),
+            bi_direct_edge_types: HashSet::new(),
             col_type: Vec::new(),
             expr_props: ExpressionProps::default(),
             with_prop: false,
@@ -61,5 +51,4 @@ impl SubgraphContext {
 #[derive(Debug, Clone)]
 pub struct MaintainContext {
     pub base: AstContext,
-    // 可以根据具体维护操作添加更多字段
 }

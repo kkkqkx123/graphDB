@@ -1,6 +1,6 @@
 //! GO查询上下文
 
-use crate::query::context::ast::{AstContext, ExpressionProps, Over, Starts, StepClause};
+use crate::query::context::ast::{AstContext, ExpressionProps, Over, Starts, StepClause, FromType, EdgeDirection, YieldColumns};
 
 // GO查询上下文
 #[derive(Debug, Clone)]
@@ -10,7 +10,7 @@ pub struct GoContext {
     pub steps: StepClause,
     pub over: Over,
     pub filter: Option<String>,
-    pub yield_expr: Option<String>,
+    pub yield_expr: Option<YieldColumns>,
     pub distinct: bool,
     pub random: bool,
     pub limits: Vec<i64>,
@@ -20,9 +20,9 @@ pub struct GoContext {
     pub join_dst: bool,
     pub is_simple: bool,
     pub expr_props: ExpressionProps,
-    pub dst_props_expr: Option<String>,
-    pub src_props_expr: Option<String>,
-    pub edge_props_expr: Option<String>,
+    pub dst_props_expr: Option<YieldColumns>,
+    pub src_props_expr: Option<YieldColumns>,
+    pub edge_props_expr: Option<YieldColumns>,
     pub src_vid_col_name: String,
     pub dst_vid_col_name: String,
     pub input_var_name: String,
@@ -32,25 +32,9 @@ impl GoContext {
     pub fn new(base: AstContext) -> Self {
         Self {
             base,
-            from: Starts {
-                from_type: "instant_expr".to_string(),
-                src: None,
-                original_src: None,
-                user_defined_var_name: String::new(),
-                runtime_vid_name: String::new(),
-                vids: Vec::new(),
-            },
-            steps: StepClause {
-                m_steps: 1,
-                n_steps: 1,
-                is_m_to_n: false,
-            },
-            over: Over {
-                is_over_all: false,
-                edge_types: Vec::new(),
-                direction: "out".to_string(),
-                all_edges: Vec::new(),
-            },
+            from: Starts::new(FromType::default()),
+            steps: StepClause::new(),
+            over: Over::new(),
             filter: None,
             yield_expr: None,
             distinct: false,

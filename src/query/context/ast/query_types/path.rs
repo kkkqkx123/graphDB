@@ -1,6 +1,6 @@
 //! Path查询上下文
 
-use crate::query::context::ast::{AstContext, ExpressionProps, Over, Starts, StepClause};
+use crate::query::context::ast::{AstContext, EdgeDirection, ExpressionProps, FromType, Over, Starts, StepClause};
 
 // Path查询上下文
 #[derive(Debug, Clone)]
@@ -32,33 +32,10 @@ impl PathContext {
     pub fn new(base: AstContext) -> Self {
         Self {
             base,
-            from: Starts {
-                from_type: "instant_expr".to_string(),
-                src: None,
-                original_src: None,
-                user_defined_var_name: String::new(),
-                runtime_vid_name: String::new(),
-                vids: Vec::new(),
-            },
-            to: Starts {
-                from_type: "instant_expr".to_string(),
-                src: None,
-                original_src: None,
-                user_defined_var_name: String::new(),
-                runtime_vid_name: String::new(),
-                vids: Vec::new(),
-            },
-            steps: StepClause {
-                m_steps: 1,
-                n_steps: 1,
-                is_m_to_n: false,
-            },
-            over: Over {
-                is_over_all: false,
-                edge_types: Vec::new(),
-                direction: "out".to_string(),
-                all_edges: Vec::new(),
-            },
+            from: Starts::new(FromType::default()),
+            to: Starts::new(FromType::default()),
+            steps: StepClause::new(),
+            over: Over::new(),
             limit: -1,
             filter: None,
             col_names: Vec::new(),

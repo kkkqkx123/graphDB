@@ -1,6 +1,6 @@
 //! Fetch Edges查询上下文
 
-use crate::query::context::ast::{AstContext, ExpressionProps};
+use crate::query::context::ast::{AstContext, ExpressionProps, YieldColumns};
 
 // Fetch Edges查询上下文
 #[derive(Debug, Clone)]
@@ -11,7 +11,7 @@ pub struct FetchEdgesContext {
     pub rank: Option<String>,
     pub edge_type: Option<String>,
     pub expr_props: ExpressionProps,
-    pub yield_expr: Option<String>,
+    pub yield_expr: Option<YieldColumns>,
     pub edge_name: String,
     pub distinct: bool,
     pub input_var_name: String,

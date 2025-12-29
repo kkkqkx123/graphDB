@@ -1,6 +1,6 @@
 //! Lookup查询上下文
 
-use crate::query::context::ast::AstContext;
+use crate::query::context::ast::{AstContext, YieldColumns};
 
 // Lookup查询上下文
 #[derive(Debug, Clone)]
@@ -10,7 +10,7 @@ pub struct LookupContext {
     pub dedup: bool,
     pub schema_id: i32,
     pub filter: Option<String>,
-    pub yield_expr: Option<String>,
+    pub yield_expr: Option<YieldColumns>,
     pub idx_return_cols: Vec<String>,
     pub idx_col_names: Vec<String>,
     pub is_fulltext_index: bool,
