@@ -185,17 +185,4 @@ impl Value {
             _ => Err("无法获取该类型的长度".to_string()),
         }
     }
-
-    /// 检查是否为空
-    pub fn is_empty(&self) -> Result<Value, String> {
-        use Value::*;
-        match self {
-            List(list) => Ok(Bool(list.is_empty())),
-            String(s) => Ok(Bool(s.is_empty())),
-            Map(m) => Ok(Bool(m.is_empty())),
-            Set(s) => Ok(Bool(s.is_empty())),
-            Empty => Ok(Bool(true)),
-            _ => Ok(Bool(false)),
-        }
-    }
 }

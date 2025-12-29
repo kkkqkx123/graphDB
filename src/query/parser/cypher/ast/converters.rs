@@ -1003,7 +1003,7 @@ impl ExpressionEvaluator {
             let condition_match = if let Some(test_val) = &test_value {
                 // 简单CASE形式：CASE test WHEN value1 THEN result1 WHEN value2 THEN result2
                 let when_value = self.evaluate(&alternative.when_expression)?;
-                test_val.equals(&when_value)
+                test_val == &when_value
             } else {
                 // 搜索CASE形式：CASE WHEN condition1 THEN result1 WHEN condition2 THEN result2
                 match self.evaluate(&alternative.when_expression)? {

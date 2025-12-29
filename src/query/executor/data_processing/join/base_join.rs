@@ -171,13 +171,13 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         &self,
         dataset: &DataSet,
         hash_key_expr: &Expression,
-        evaluator: &JoinKeyEvaluator,
+        _evaluator: &JoinKeyEvaluator,
         context: &mut C,
     ) -> Result<HashMap<Value, Vec<Vec<Value>>>, QueryError> {
         let mut hash_table = HashMap::new();
 
         for row in &dataset.rows {
-            let key = evaluator.evaluate_key(hash_key_expr, context)
+            let key = JoinKeyEvaluator::evaluate_key(hash_key_expr, context)
                 .map_err(|e| QueryError::ExecutionError(format!("键求值失败: {}", e)))?;
 
             hash_table
@@ -194,13 +194,13 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         &self,
         dataset: &DataSet,
         hash_key_exprs: &[Expression],
-        evaluator: &JoinKeyEvaluator,
+        _evaluator: &JoinKeyEvaluator,
         context: &mut C,
     ) -> Result<HashMap<JoinKey, Vec<Vec<Value>>>, QueryError> {
         let mut hash_table = HashMap::new();
 
         for row in &dataset.rows {
-            let key_values = evaluator.evaluate_keys(hash_key_exprs, context)
+            let key_values = JoinKeyEvaluator::evaluate_keys(hash_key_exprs, context)
                 .map_err(|e| QueryError::ExecutionError(format!("键求值失败: {}", e)))?;
 
             let join_key = JoinKey::new(key_values);
@@ -219,13 +219,13 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         probe_dataset: &DataSet,
         hash_table: &HashMap<Value, Vec<Vec<Value>>>,
         probe_key_expr: &Expression,
-        evaluator: &JoinKeyEvaluator,
+        _evaluator: &JoinKeyEvaluator,
         context: &mut C,
     ) -> Result<Vec<(Vec<Value>, Vec<Vec<Value>>)>, QueryError> {
         let mut results = Vec::new();
 
         for probe_row in &probe_dataset.rows {
-            let key = evaluator.evaluate_key(probe_key_expr, context)
+            let key = JoinKeyEvaluator::evaluate_key(probe_key_expr, context)
                 .map_err(|e| QueryError::ExecutionError(format!("探测键求值失败: {}", e)))?;
 
             if let Some(matching_rows) = hash_table.get(&key) {
@@ -242,13 +242,13 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         probe_dataset: &DataSet,
         hash_table: &HashMap<JoinKey, Vec<Vec<Value>>>,
         probe_key_exprs: &[Expression],
-        evaluator: &JoinKeyEvaluator,
+        _evaluator: &JoinKeyEvaluator,
         context: &mut C,
     ) -> Result<Vec<(Vec<Value>, Vec<Vec<Value>>)>, QueryError> {
         let mut results = Vec::new();
 
         for probe_row in &probe_dataset.rows {
-            let key_values = evaluator.evaluate_keys(probe_key_exprs, context)
+            let key_values = JoinKeyEvaluator::evaluate_keys(probe_key_exprs, context)
                 .map_err(|e| QueryError::ExecutionError(format!("探测键求值失败: {}", e)))?;
 
             let join_key = JoinKey::new(key_values);

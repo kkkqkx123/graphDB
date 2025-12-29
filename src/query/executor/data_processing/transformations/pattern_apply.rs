@@ -153,9 +153,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                     temp_context.set_variable("_".to_string(), prop_value);
 
                     // 评估属性表达式
-                    let evaluator = ExpressionEvaluator::new();
-                    let result = evaluator
-                        .evaluate(prop_expr, &mut temp_context)
+                    let result = ExpressionEvaluator::evaluate(prop_expr, &mut temp_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),
@@ -223,9 +221,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                     temp_context.set_variable("_".to_string(), prop_value);
 
                     // 评估属性表达式
-                    let evaluator = ExpressionEvaluator::new();
-                    let result = evaluator
-                        .evaluate(prop_expr, &mut temp_context)
+                    let result = ExpressionEvaluator::evaluate(prop_expr, &mut temp_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),

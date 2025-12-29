@@ -123,14 +123,11 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         expr_context: &mut dyn ExpressionContext,
     ) -> DBResult<()> {
         for value in iter {
-            // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
 
-            // 构建键列表
             let mut key_list = List { values: Vec::new() };
             for col in compare_cols {
-                let evaluator = ExpressionEvaluator::new();
-                let val = evaluator.evaluate(col, expr_context).map_err(|e| {
+                let val = ExpressionEvaluator::evaluate(col, expr_context).map_err(|e| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(
                         e.to_string(),
                     ))
@@ -138,15 +135,12 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
                 key_list.values.push(val);
             }
 
-            // 获取收集列的值
-            let evaluator = ExpressionEvaluator::new();
-            let collect_val = evaluator.evaluate(collect_col, expr_context).map_err(|e| {
+            let collect_val = ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(
                     e.to_string(),
                 ))
             })?;
 
-            // 添加到哈希表
             let entry = hash_table
                 .entry(key_list)
                 .or_insert_with(|| List { values: Vec::new() });
@@ -170,16 +164,14 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             expr_context.set_variable("_".to_string(), value.clone());
 
             // 获取键值
-            let evaluator = ExpressionEvaluator::new();
-            let key_val = evaluator.evaluate(compare_col, expr_context).map_err(|e| {
+            let key_val = ExpressionEvaluator::evaluate(compare_col, expr_context).map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(
                     e.to_string(),
                 ))
             })?;
 
             // 获取收集列的值
-            let evaluator = ExpressionEvaluator::new();
-            let collect_val = evaluator.evaluate(collect_col, expr_context).map_err(|e| {
+            let collect_val = ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(
                     e.to_string(),
                 ))
@@ -206,12 +198,9 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         hash_table.values.reserve(iter.len());
 
         for value in iter {
-            // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
 
-            // 获取收集列的值
-            let evaluator = ExpressionEvaluator::new();
-            let collect_val = evaluator.evaluate(collect_col, expr_context).map_err(|e| {
+            let collect_val = ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(
                     e.to_string(),
                 ))
@@ -272,18 +261,14 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         dataset.rows.reserve(probe_iter.len());
 
         for value in probe_iter {
-            // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
 
-            // 获取探测键值
-            let evaluator = ExpressionEvaluator::new();
-            let key_val = evaluator.evaluate(probe_key, expr_context).map_err(|e| {
+            let key_val = ExpressionEvaluator::evaluate(probe_key, expr_context).map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(
                     e.to_string(),
                 ))
             })?;
 
-            // 查找哈希表
             let vals = hash_table
                 .get(&key_val)
                 .cloned()
@@ -326,8 +311,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             // 构建键列表
             let mut key_list = List { values: Vec::new() };
             for col in probe_keys {
-                let evaluator = ExpressionEvaluator::new();
-                let val = evaluator.evaluate(col, expr_context).map_err(|e| {
+                let val = ExpressionEvaluator::evaluate(col, expr_context).map_err(|e| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(
                         e.to_string(),
                     ))

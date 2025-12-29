@@ -35,8 +35,6 @@ pub struct MatchClauseExecutor<S: StorageEngine> {
     traversal_engine: TraversalEngine<S>,
     /// 结果构建器
     result_builder: ResultBuilder,
-    /// 表达式求值器
-    expression_evaluator: ExpressionEvaluator,
     /// 当前路径集合
     current_paths: Vec<PathInfo>,
     /// 结果路径集合
@@ -51,7 +49,6 @@ impl<S: StorageEngine> MatchClauseExecutor<S> {
             pattern_matcher: PatternMatcher::new(storage.clone()),
             traversal_engine: TraversalEngine::new(storage.clone()),
             result_builder: ResultBuilder::new(),
-            expression_evaluator: ExpressionEvaluator::default(),
             current_paths: Vec::new(),
             result_paths: Vec::new(),
         }
@@ -171,9 +168,7 @@ impl<S: StorageEngine> MatchClauseExecutor<S> {
         }
 
         // 求值WHERE表达式
-        let result = self
-            .expression_evaluator
-            .evaluate(&where_clause.expression, context)?;
+        let result = ExpressionEvaluator::evaluate(&where_clause.expression, context)?;
 
         // 检查结果是否为布尔值
         if let Value::Bool(matches) = result {

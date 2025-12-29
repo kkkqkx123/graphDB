@@ -393,12 +393,11 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
     
     /// 通用预处理方法：为排序准备数据
     fn prepare_sort_data(&self, data_set: &DataSet) -> DBResult<Vec<(Vec<Value>, Vec<Value>)>> {
-        let evaluator = ExpressionEvaluator;
         let mut rows_with_keys: Vec<(Vec<Value>, Vec<Value>)> = Vec::new();
 
         // 为每行计算排序键值，克隆行数据以避免生命周期问题
         for row in &data_set.rows {
-            let sort_values = self.calculate_sort_values(row, &data_set.col_names, &evaluator)?;
+            let sort_values = self.calculate_sort_values(row, &data_set.col_names)?;
             rows_with_keys.push((sort_values, row.clone()));
         }
         
@@ -419,7 +418,6 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
         &self,
         row: &[Value],
         col_names: &[String],
-        evaluator: &ExpressionEvaluator,
     ) -> DBResult<Vec<Value>> {
         let mut sort_values = Vec::new();
         
@@ -443,8 +441,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
                     }
                 }
                 
-                let sort_value = evaluator
-                    .evaluate(&sort_key.expression, &mut expr_context)
+                let sort_value = ExpressionEvaluator::evaluate(&sort_key.expression, &mut expr_context)
                     .map_err(|e| {
                         DBError::Query(crate::core::error::QueryError::ExecutionError(
                             e.to_string(),
@@ -484,16 +481,14 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
     /// 比较两个数据行，直接使用排序键表达式
     /// 注意：这个方法内部已经根据SortKey的order字段正确处理了排序方向
     fn compare_rows(&self, a: &[Value], b: &[Value]) -> DBResult<Ordering> {
-        let evaluator = ExpressionEvaluator;
-        
         // 创建虚拟列名（因为排序键表达式应该能够直接访问行数据）
         let col_names: Vec<String> = (0..a.len())
             .map(|i| format!("col_{}", i))
             .collect();
         
         // 为每行计算排序值
-        let sort_values_a = self.calculate_sort_values(a, &col_names, &evaluator)?;
-        let sort_values_b = self.calculate_sort_values(b, &col_names, &evaluator)?;
+        let sort_values_a = self.calculate_sort_values(a, &col_names)?;
+        let sort_values_b = self.calculate_sort_values(b, &col_names)?;
         
         // 使用现有的比较逻辑
         self.compare_sort_items_vec(&sort_values_a, &sort_values_b)

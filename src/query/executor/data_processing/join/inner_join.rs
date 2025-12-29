@@ -69,9 +69,6 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
         left_dataset: &DataSet,
         right_dataset: &DataSet,
     ) -> Result<DataSet, QueryError> {
-        // 使用表达式求值器评估键表达式
-        let evaluator = ExpressionEvaluator::new();
-        
         // 创建简单的表达式上下文（需要根据实际需求实现）
         // 注意：这里需要根据实际的执行上下文来实现 ExpressionContext
         // 暂时使用简化的实现，实际需要从 BaseExecutor 获取完整的上下文
@@ -141,9 +138,6 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
         left_dataset: &DataSet,
         right_dataset: &DataSet,
     ) -> Result<DataSet, QueryError> {
-        // 使用表达式求值器评估键表达式
-        let evaluator = ExpressionEvaluator::new();
-        
         // 由于 ExpressionContext 需要具体的实现，这里暂时保留原有的字符串解析逻辑
         // 在后续实现中，需要将 Expression 转换为列索引或直接求值
         

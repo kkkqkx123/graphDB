@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use bincode::{Encode, Decode};
+use std::hash::Hash;
 
 /// Value类型定义枚举
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -43,91 +44,6 @@ pub enum NullType {
 impl Default for NullType {
     fn default() -> Self {
         NullType::Null
-    }
-}
-
-impl std::hash::Hash for Value {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        match self {
-            Value::Empty => 0u8.hash(state),
-            Value::Null(n) => {
-                1u8.hash(state);
-                n.hash(state);
-            }
-            Value::Bool(b) => {
-                2u8.hash(state);
-                b.hash(state);
-            }
-            Value::Int(i) => {
-                3u8.hash(state);
-                i.hash(state);
-            }
-            Value::Float(f) => {
-                4u8.hash(state);
-                f.to_bits().hash(state);
-            }
-            Value::String(s) => {
-                5u8.hash(state);
-                s.hash(state);
-            }
-            Value::Date(d) => {
-                6u8.hash(state);
-                d.hash(state);
-            }
-            Value::Time(t) => {
-                7u8.hash(state);
-                t.hash(state);
-            }
-            Value::DateTime(dt) => {
-                8u8.hash(state);
-                dt.hash(state);
-            }
-            Value::Vertex(v) => {
-                9u8.hash(state);
-                v.hash(state);
-            }
-            Value::Edge(e) => {
-                10u8.hash(state);
-                e.hash(state);
-            }
-            Value::Path(p) => {
-                11u8.hash(state);
-                p.hash(state);
-            }
-            Value::List(list) => {
-                12u8.hash(state);
-                for item in list {
-                    item.hash(state);
-                }
-            }
-            Value::Map(map) => {
-                13u8.hash(state);
-                let mut pairs: Vec<_> = map.iter().collect();
-                pairs.sort_by_key(|&(k, _)| k);
-                for (k, v) in pairs {
-                    k.hash(state);
-                    v.hash(state);
-                }
-            }
-            Value::Set(set) => {
-                14u8.hash(state);
-                for item in set {
-                    item.hash(state);
-                }
-            }
-            Value::Geography(g) => {
-                15u8.hash(state);
-                g.hash(state);
-            }
-            Value::Duration(d) => {
-                16u8.hash(state);
-                d.hash(state);
-            }
-            Value::DataSet(ds) => {
-                17u8.hash(state);
-                ds.hash(state);
-            }
-        }
     }
 }
 

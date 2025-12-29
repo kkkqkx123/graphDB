@@ -13,42 +13,32 @@ use crate::expression::ExpressionError;
 pub struct CypherProcessor;
 
 impl CypherProcessor {
-    /// 处理Cypher表达式的完整流程：转换 -> 优化 -> 评估
     pub fn process(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
         context: &mut dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
-        // 1. 优化Cypher表达式
         let optimized_expr = super::expression_optimizer::CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr);
 
-        // 2. 转换为统一表达式
         let unified_expr = super::expression_converter::ExpressionConverter::convert_cypher_to_unified(&optimized_expr)?;
 
-        // 3. 评估统一表达式
-        crate::expression::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
+        crate::expression::evaluator::ExpressionEvaluator::evaluate(&unified_expr, context)
     }
 
-    /// 处理Cypher表达式的优化流程：优化 -> 转换 -> 评估
     pub fn process_with_optimization(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
         context: &mut dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
-        // 1. 优化Cypher表达式
         let optimized_expr = super::expression_optimizer::CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr);
 
-        // 2. 转换为统一表达式
         let unified_expr = super::expression_converter::ExpressionConverter::convert_cypher_to_unified(&optimized_expr)?;
 
-        // 3. 评估统一表达式
-        crate::expression::evaluator::ExpressionEvaluator::new().evaluate(&unified_expr, context)
+        crate::expression::evaluator::ExpressionEvaluator::evaluate(&unified_expr, context)
     }
 
-    /// 直接评估Cypher表达式（不进行转换）
     pub fn evaluate_direct(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
         context: &mut dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
-        // 使用CypherEvaluator直接评估
         super::expression_evaluator::CypherEvaluator::evaluate_cypher(cypher_expr, context)
     }
 }

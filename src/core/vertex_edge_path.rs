@@ -388,10 +388,17 @@ impl PartialOrd for Edge {
 }
 
 /// Represents a step in a path
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
 pub struct Step {
     pub dst: Box<Vertex>,
     pub edge: Box<Edge>,
+}
+
+impl std::hash::Hash for Step {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.dst.hash(state);
+        self.edge.hash(state);
+    }
 }
 
 impl Ord for Step {

@@ -63,10 +63,8 @@ impl AggregateExpression {
         context: &mut C,
         state: &mut AggregateState,
     ) -> Result<Value, ExpressionError> {
-        // 计算参数值
-        let evaluator = crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-        let arg_value = evaluator
-            .evaluate(&self.argument, context)
+        let arg_value = crate::expression::evaluator::expression_evaluator::ExpressionEvaluator
+            ::evaluate(&self.argument, context)
             .map_err(|e| ExpressionError::function_error(e.to_string()))?;
 
         // 更新聚合状态
@@ -157,7 +155,7 @@ impl AggregateState {
     pub fn update(&mut self, function: &AggregateFunction, value: &Value) {
         // 如果是去重函数，检查是否已存在
         if matches!(function, AggregateFunction::Count)
-            && self.distinct_values.contains(&value.to_string())
+            && self.distinct_values.contains(&format!("{}", value))
         {
             return; // 跳过重复值
         }
@@ -204,7 +202,7 @@ impl AggregateState {
 
         // 记录值用于去重
         if matches!(function, AggregateFunction::Count) {
-            self.distinct_values.insert(value.to_string());
+            self.distinct_values.insert(format!("{}", value));
         }
     }
 }

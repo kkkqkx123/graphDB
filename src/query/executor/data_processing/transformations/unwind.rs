@@ -94,9 +94,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                 )))
             })?;
 
-        // 创建表达式上下文和评估器
+        // 创建表达式上下文
         let mut expr_context = DefaultExpressionContext::new();
-        let evaluator = ExpressionEvaluator;
 
         // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {
@@ -118,8 +117,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     expr_context.set_variable("_".to_string(), value.clone());
 
                     // 计算展开表达式
-                    let unwind_value = evaluator
-                        .evaluate(&self.unwind_expr, &mut expr_context)
+                    let unwind_value = ExpressionEvaluator
+                        ::evaluate(&self.unwind_expr, &mut expr_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),
@@ -151,8 +150,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     let vertex_value = Value::Vertex(Box::new(vertex.clone()));
                     expr_context.set_variable("_".to_string(), vertex_value.clone());
 
-                    let unwind_value = evaluator
-                        .evaluate(&self.unwind_expr, &mut expr_context)
+                    let unwind_value = ExpressionEvaluator
+                        ::evaluate(&self.unwind_expr, &mut expr_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),
@@ -180,8 +179,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     let edge_value = Value::Edge(edge.clone());
                     expr_context.set_variable("_".to_string(), edge_value.clone());
 
-                    let unwind_value = evaluator
-                        .evaluate(&self.unwind_expr, &mut expr_context)
+                    let unwind_value = ExpressionEvaluator
+                        ::evaluate(&self.unwind_expr, &mut expr_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),
@@ -208,8 +207,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                 let empty_value = Value::Empty;
                 expr_context.set_variable("_".to_string(), empty_value.clone());
 
-                let unwind_value = evaluator
-                    .evaluate(&self.unwind_expr, &mut expr_context)
+                let unwind_value = ExpressionEvaluator
+                    ::evaluate(&self.unwind_expr, &mut expr_context)
                     .map_err(|e| {
                         DBError::Query(crate::core::error::QueryError::ExecutionError(
                             e.to_string(),
@@ -230,8 +229,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     let path_value = Value::Path(path.clone());
                     expr_context.set_variable("_".to_string(), path_value.clone());
 
-                    let unwind_value = evaluator
-                        .evaluate(&self.unwind_expr, &mut expr_context)
+                    let unwind_value = ExpressionEvaluator
+                        ::evaluate(&self.unwind_expr, &mut expr_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),
@@ -259,8 +258,8 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     for value in row {
                         expr_context.set_variable("_".to_string(), value.clone());
 
-                        let unwind_value = evaluator
-                            .evaluate(&self.unwind_expr, &mut expr_context)
+                        let unwind_value = ExpressionEvaluator
+                            ::evaluate(&self.unwind_expr, &mut expr_context)
                             .map_err(|e| {
                                 DBError::Query(crate::core::error::QueryError::ExecutionError(
                                     e.to_string(),

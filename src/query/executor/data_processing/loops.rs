@@ -38,7 +38,6 @@ pub struct LoopExecutor<S: StorageEngine> {
     max_iterations: Option<usize>,
     current_iteration: usize,
     loop_state: LoopState,
-    evaluator: ExpressionEvaluator,
     // 循环结果收集
     results: Vec<ExecutionResult>,
     // 循环变量上下文
@@ -69,7 +68,6 @@ impl<S: StorageEngine> LoopExecutor<S> {
             max_iterations,
             current_iteration: 0,
             loop_state: LoopState::NotStarted,
-            evaluator: ExpressionEvaluator,
             results: Vec::new(),
             loop_context: DefaultExpressionContext::new(),
             recursion_detector,
@@ -94,9 +92,7 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
     async fn evaluate_condition(&mut self) -> DBResult<bool> {
         match &self.condition {
             Some(expr) => {
-                let result = self
-                    .evaluator
-                    .evaluate(expr, &mut self.loop_context)
+                let result = ExpressionEvaluator::evaluate(expr, &mut self.loop_context)
                     .map_err(|e| {
                         DBError::Expression(crate::core::error::ExpressionError::function_error(
                             e.to_string(),

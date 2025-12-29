@@ -11,66 +11,43 @@ use crate::expression::evaluator::traits::ExpressionContext;
 /// Join键求值器
 ///
 /// 专门为Join操作设计的表达式求值器，将表达式求值为可哈希的Value类型
+/// 使用 unit struct 模式，零开销
 #[derive(Debug)]
-pub struct JoinKeyEvaluator {
-    evaluator: ExpressionEvaluator,
-}
+pub struct JoinKeyEvaluator;
 
 impl JoinKeyEvaluator {
-    pub fn new() -> Self {
-        Self {
-            evaluator: ExpressionEvaluator::new(),
-        }
-    }
-
-    pub fn with_evaluator(evaluator: ExpressionEvaluator) -> Self {
-        Self { evaluator }
-    }
-
-    pub fn evaluator(&self) -> &ExpressionEvaluator {
-        &self.evaluator
-    }
-
-    pub fn evaluator_mut(&mut self) -> &mut ExpressionEvaluator {
-        &mut self.evaluator
-    }
-
     pub fn evaluate_key<C: ExpressionContext>(
-        &self,
         expr: &Expression,
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
-        self.evaluator.evaluate(expr, context)
+        ExpressionEvaluator::evaluate(expr, context)
     }
 
     pub fn evaluate_keys<C: ExpressionContext>(
-        &self,
         exprs: &[Expression],
         context: &mut C,
     ) -> Result<Vec<Value>, ExpressionError> {
         let mut keys = Vec::with_capacity(exprs.len());
         for expr in exprs {
-            keys.push(self.evaluate_key(expr, context)?);
+            keys.push(Self::evaluate_key(expr, context)?);
         }
         Ok(keys)
     }
 
     pub fn evaluate_key_dyn(
-        &self,
         expr: &Expression,
         context: &mut dyn ExpressionContext,
     ) -> Result<Value, ExpressionError> {
-        self.evaluator.evaluate(expr, context)
+        ExpressionEvaluator::evaluate(expr, context)
     }
 
     pub fn evaluate_keys_dyn(
-        &self,
         exprs: &[Expression],
         context: &mut dyn ExpressionContext,
     ) -> Result<Vec<Value>, ExpressionError> {
         let mut keys = Vec::with_capacity(exprs.len());
         for expr in exprs {
-            keys.push(self.evaluate_key_dyn(expr, context)?);
+            keys.push(Self::evaluate_key_dyn(expr, context)?);
         }
         Ok(keys)
     }
@@ -95,12 +72,6 @@ impl JoinKeyEvaluator {
             Expression::Property { object, property } => Some((object.as_ref(), property)),
             _ => None,
         }
-    }
-}
-
-impl Default for JoinKeyEvaluator {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

@@ -271,7 +271,7 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_attribute(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        Self::eval_property_access(left, &right.to_string())
+        Self::eval_property_access(left, &format!("{}", right))
     }
 
     fn eval_property_access(value: &Value, property: &str) -> Result<Value, ExpressionError> {

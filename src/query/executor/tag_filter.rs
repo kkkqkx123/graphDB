@@ -10,34 +10,20 @@ use crate::core::Expression;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 
 /// 标签过滤器处理器
-pub struct TagFilterProcessor {
-    evaluator: ExpressionEvaluator,
-}
-
-impl std::fmt::Debug for TagFilterProcessor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TagFilterProcessor")
-            .field("evaluator", &"ExpressionEvaluator")
-            .finish()
-    }
-}
+///
+/// 使用 unit struct 模式，零开销
+#[derive(Debug)]
+pub struct TagFilterProcessor;
 
 impl TagFilterProcessor {
-    /// 创建新的标签过滤器处理器
-    pub fn new() -> Self {
-        Self {
-            evaluator: ExpressionEvaluator::new(),
-        }
-    }
-
     /// 处理标签过滤表达式
-    pub fn process_tag_filter(&self, filter_expr: &Expression, vertex: &Vertex) -> bool {
+    pub fn process_tag_filter(filter_expr: &Expression, vertex: &Vertex) -> bool {
         // 创建包含顶点标签的上下文
-        let mut context = self.create_tag_context(vertex);
+        let mut context = Self::create_tag_context(vertex);
 
         // 评估表达式
-        match self.evaluator.evaluate(filter_expr, &mut context) {
-            Ok(value) => self.value_to_bool(&value),
+        match ExpressionEvaluator::evaluate(filter_expr, &mut context) {
+            Ok(value) => Self::value_to_bool(&value),
             Err(e) => {
                 eprintln!("标签过滤表达式评估失败: {}", e);
                 false // 默认排除
@@ -46,7 +32,7 @@ impl TagFilterProcessor {
     }
 
     /// 创建包含标签信息的评估上下文
-    fn create_tag_context(&self, vertex: &Vertex) -> DefaultExpressionContext {
+    fn create_tag_context(vertex: &Vertex) -> DefaultExpressionContext {
         let mut context = DefaultExpressionContext::new();
 
         // 将顶点作为变量添加
@@ -87,7 +73,7 @@ impl TagFilterProcessor {
     }
 
     /// 将值转换为布尔值
-    fn value_to_bool(&self, value: &Value) -> bool {
+    fn value_to_bool(value: &Value) -> bool {
         match value {
             Value::Bool(b) => *b,
             Value::Null(_) => false,
@@ -103,19 +89,19 @@ impl TagFilterProcessor {
     }
 
     /// 解析标签过滤字符串为表达式
-    pub fn parse_tag_filter(&self, filter_str: &str) -> Result<Expression, String> {
+    pub fn parse_tag_filter(filter_str: &str) -> Result<Expression, String> {
         // 尝试解析为完整表达式
         match crate::query::parser::expressions::parse_expression_from_string(filter_str) {
             Ok(expr) => Ok(expr),
             Err(_) => {
                 // 如果解析失败，尝试作为简单的标签列表处理
-                self.parse_simple_tag_list(filter_str)
+                Self::parse_simple_tag_list(filter_str)
             }
         }
     }
 
     /// 解析简单的标签列表（逗号分隔）
-    fn parse_simple_tag_list(&self, filter_str: &str) -> Result<Expression, String> {
+    fn parse_simple_tag_list(filter_str: &str) -> Result<Expression, String> {
         let tags: Vec<String> = filter_str
             .split(',')
             .map(|s| s.trim().to_string())
@@ -149,12 +135,6 @@ impl TagFilterProcessor {
     }
 }
 
-impl Default for TagFilterProcessor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,8 +143,6 @@ mod tests {
 
     #[test]
     fn test_process_tag_filter_with_contains() {
-        let processor = TagFilterProcessor::new();
-
         // 创建测试顶点
         let vertex = Vertex::new(
             Value::Int(1),
@@ -181,13 +159,11 @@ mod tests {
             Expression::list(vec![Expression::literal("user".to_string())]),
         );
 
-        assert!(processor.process_tag_filter(&expr, &vertex));
+        assert!(TagFilterProcessor::process_tag_filter(&expr, &vertex));
     }
 
     #[test]
     fn test_process_tag_filter_with_count() {
-        let processor = TagFilterProcessor::new();
-
         // 创建测试顶点
         let vertex = Vertex::new(
             Value::Int(1),
@@ -204,14 +180,12 @@ mod tests {
             Expression::literal(1i64),
         );
 
-        assert!(processor.process_tag_filter(&expr, &vertex));
+        assert!(TagFilterProcessor::process_tag_filter(&expr, &vertex));
     }
 
     #[test]
     fn test_parse_simple_tag_list() {
-        let processor = TagFilterProcessor::new();
-
-        let result = processor.parse_simple_tag_list("user, admin, moderator");
+        let result = TagFilterProcessor::parse_simple_tag_list("user, admin, moderator");
         assert!(result.is_ok());
 
         let expr = result.expect("Expected Ok result for simple tag list parsing");
@@ -226,9 +200,7 @@ mod tests {
 
     #[test]
     fn test_parse_empty_tag_list() {
-        let processor = TagFilterProcessor::new();
-
-        let result = processor.parse_simple_tag_list("");
+        let result = TagFilterProcessor::parse_simple_tag_list("");
         assert!(result.is_err());
     }
 }

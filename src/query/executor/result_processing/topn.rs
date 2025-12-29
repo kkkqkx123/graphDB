@@ -152,7 +152,6 @@ impl<S: StorageEngine> TopNExecutor<S> {
 
     /// 使用堆优化的 TopN 算法处理数据集
     fn heap_optimized_topn_dataset(&self, dataset: &mut DataSet) -> DBResult<()> {
-        let evaluator = ExpressionEvaluator;
         let heap_size = self.n + self.offset;
 
         // 创建最小堆（用于升序）或最大堆（用于降序）
@@ -160,7 +159,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
 
         // 处理前 heap_size 个元素
         for (i, row) in dataset.rows.iter().enumerate().take(heap_size) {
-            let sort_value = self.calculate_sort_value(row, &dataset.col_names, &evaluator)?;
+            let sort_value = self.calculate_sort_value(row, &dataset.col_names)?;
             heap.push(TopNItem {
                 sort_value,
                 original_index: i,
@@ -170,7 +169,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
 
         // 处理剩余元素
         for (i, row) in dataset.rows.iter().enumerate().skip(heap_size) {
-            let sort_value = self.calculate_sort_value(row, &dataset.col_names, &evaluator)?;
+            let sort_value = self.calculate_sort_value(row, &dataset.col_names)?;
             let new_item = TopNItem {
                 sort_value,
                 original_index: i,
@@ -219,7 +218,6 @@ impl<S: StorageEngine> TopNExecutor<S> {
         &self,
         row: &[Value],
         col_names: &[String],
-        evaluator: &ExpressionEvaluator,
     ) -> DBResult<Vec<Value>> {
         let mut context = DefaultExpressionContext::new();
         for (i, col_name) in col_names.iter().enumerate() {
@@ -230,8 +228,8 @@ impl<S: StorageEngine> TopNExecutor<S> {
 
         let mut sort_values = Vec::new();
         for sort_key in &self.sort_keys {
-            let value = evaluator
-                .evaluate(&sort_key.expression, &mut context)
+            let value = ExpressionEvaluator
+                ::evaluate(&sort_key.expression, &mut context)
                 .map_err(|e| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
                         "Failed to evaluate sort expression: {}",
@@ -246,14 +244,12 @@ impl<S: StorageEngine> TopNExecutor<S> {
 
     /// 对数据集进行排序
     fn sort_dataset(&self, dataset: &mut DataSet) -> DBResult<()> {
-        let evaluator = ExpressionEvaluator;
-
         dataset.rows.sort_by(|a, b| {
-            let sort_a = match self.calculate_sort_value(a, &dataset.col_names, &evaluator) {
+            let sort_a = match self.calculate_sort_value(a, &dataset.col_names) {
                 Ok(val) => val,
                 Err(_) => return Ordering::Less, // 如果计算排序值失败，将此行放在前面
             };
-            let sort_b = match self.calculate_sort_value(b, &dataset.col_names, &evaluator) {
+            let sort_b = match self.calculate_sort_value(b, &dataset.col_names) {
                 Ok(val) => val,
                 Err(_) => return Ordering::Greater, // 如果计算排序值失败，将此行放在后面
             };

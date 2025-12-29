@@ -50,7 +50,6 @@ impl<S: StorageEngine> ProjectExecutor<S> {
     /// 处理单行数据的投影
     fn project_row(&self, row: &[Value], col_names: &[String]) -> DBResult<Vec<Value>> {
         let mut projected_row = Vec::new();
-        let evaluator = ExpressionEvaluator;
 
         // 为当前行创建评估上下文
         let mut context = DefaultExpressionContext::new();
@@ -64,7 +63,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
         // 对每个投影列进行求值
         for column in &self.columns {
-            match evaluator.evaluate(&column.expression, &mut context) {
+            match ExpressionEvaluator::evaluate(&column.expression, &mut context) {
                 Ok(value) => projected_row.push(value),
                 Err(e) => {
                     return Err(DBError::Expression(
@@ -109,8 +108,6 @@ impl<S: StorageEngine> ProjectExecutor<S> {
         // 设置列名
         result_dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
-        let evaluator = ExpressionEvaluator;
-
         // 对每个顶点进行投影
         for vertex in vertices {
             let mut context = DefaultExpressionContext::new();
@@ -130,7 +127,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
             let mut projected_row = Vec::new();
             for column in &self.columns {
-                match evaluator.evaluate(&column.expression, &mut context) {
+                match ExpressionEvaluator::evaluate(&column.expression, &mut context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
                         return Err(DBError::Expression(
@@ -158,8 +155,6 @@ impl<S: StorageEngine> ProjectExecutor<S> {
         // 设置列名
         result_dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
-        let evaluator = ExpressionEvaluator;
-
         // 对每个边进行投影
         for edge in edges {
             let mut context = DefaultExpressionContext::new();
@@ -177,7 +172,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
 
             let mut projected_row = Vec::new();
             for column in &self.columns {
-                match evaluator.evaluate(&column.expression, &mut context) {
+                match ExpressionEvaluator::evaluate(&column.expression, &mut context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
                         return Err(DBError::Expression(
@@ -241,8 +236,6 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
                 let mut dataset = crate::core::value::DataSet::new();
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
-                let evaluator = ExpressionEvaluator;
-
                 for path in paths {
                     let mut context = DefaultExpressionContext::new();
                     context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
@@ -251,7 +244,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
 
                     let mut projected_row = Vec::new();
                     for column in &self.columns {
-                        match evaluator.evaluate(&column.expression, &mut context) {
+                        match ExpressionEvaluator::evaluate(&column.expression, &mut context) {
                             Ok(value) => projected_row.push(value),
                             Err(e) => {
                                 return Err(DBError::Expression(

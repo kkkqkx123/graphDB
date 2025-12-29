@@ -84,7 +84,6 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
     /// 对数据集应用过滤条件
     fn apply_filter(&self, dataset: &mut DataSet) -> DBResult<()> {
-        let evaluator = ExpressionEvaluator;
         let mut filtered_rows = Vec::new();
 
         for row in &dataset.rows {
@@ -98,8 +97,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
             // 评估过滤条件
             let condition_result =
-                evaluator
-                    .evaluate(&self.condition, &mut context)
+                ExpressionEvaluator::evaluate(&self.condition, &mut context)
                     .map_err(|e| {
                         DBError::Expression(crate::core::error::ExpressionError::function_error(
                             format!("Failed to evaluate filter condition: {}", e),
@@ -118,7 +116,6 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
     /// 过滤值列表
     fn filter_values(&self, values: Vec<crate::core::Value>) -> DBResult<Vec<crate::core::Value>> {
-        let evaluator = ExpressionEvaluator;
         let mut filtered_values = Vec::new();
 
         for value in values {
@@ -128,8 +125,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
             // 评估过滤条件
             let condition_result =
-                evaluator
-                    .evaluate(&self.condition, &mut context)
+                ExpressionEvaluator::evaluate(&self.condition, &mut context)
                     .map_err(|e| {
                         DBError::Expression(crate::core::error::ExpressionError::function_error(
                             format!("Failed to evaluate filter condition: {}", e),
@@ -150,7 +146,6 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
         &self,
         vertices: Vec<crate::core::Vertex>,
     ) -> DBResult<Vec<crate::core::Vertex>> {
-        let evaluator = ExpressionEvaluator;
         let mut filtered_vertices = Vec::new();
 
         for vertex in vertices {
@@ -164,8 +159,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
             // 评估过滤条件
             let condition_result =
-                evaluator
-                    .evaluate(&self.condition, &mut context)
+                ExpressionEvaluator::evaluate(&self.condition, &mut context)
                     .map_err(|e| {
                         DBError::Expression(crate::core::error::ExpressionError::function_error(
                             format!("Failed to evaluate filter condition: {}", e),
@@ -183,7 +177,6 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
     /// 过滤边列表
     fn filter_edges(&self, edges: Vec<crate::core::Edge>) -> DBResult<Vec<crate::core::Edge>> {
-        let evaluator = ExpressionEvaluator;
         let mut filtered_edges = Vec::new();
 
         for edge in edges {
@@ -194,8 +187,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
             // 评估过滤条件
             let condition_result =
-                evaluator
-                    .evaluate(&self.condition, &mut context)
+                ExpressionEvaluator::evaluate(&self.condition, &mut context)
                     .map_err(|e| {
                         DBError::Expression(crate::core::error::ExpressionError::function_error(
                             format!("Failed to evaluate filter condition: {}", e),

@@ -277,7 +277,7 @@ impl FunctionManager {
                 min_arity: 1,
                 max_arity: 1,
                 is_pure: true,
-                body: Arc::new(|args| Value::String(args[0].to_string())),
+                body: Arc::new(|args| Value::String(format!("{}", args[0]))),
                 type_signature: vec![
                     TypeSignature {
                         args_type: vec![ValueType::Int],

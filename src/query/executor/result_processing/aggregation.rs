@@ -351,7 +351,6 @@ impl<S: StorageEngine> AggregateExecutor<S> {
         &mut self,
         dataset: crate::core::value::DataSet,
     ) -> DBResult<crate::core::value::DataSet> {
-        let evaluator = ExpressionEvaluator::new();
         let mut group_state = GroupAggregateState::new();
 
         // 处理每一行数据
@@ -367,7 +366,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
             // 计算分组键
             let mut group_key = Vec::new();
             for group_expr in &self.group_keys {
-                let key_value = evaluator.evaluate(group_expr, &mut context).map_err(|e| {
+                let key_value = ExpressionEvaluator::evaluate(group_expr, &mut context).map_err(|e| {
                     crate::core::error::DBError::Expression(
                         crate::core::error::ExpressionError::function_error(format!(
                             "Failed to evaluate group key: {}",
@@ -818,11 +817,9 @@ impl<S: StorageEngine> HavingExecutor<S> {
 
     /// 应用 HAVING 条件过滤
     fn apply_having_condition(&self, dataset: &mut crate::core::value::DataSet) -> DBResult<()> {
-        let evaluator = ExpressionEvaluator::new();
         let mut filtered_rows = Vec::new();
 
         for row in &dataset.rows {
-            // 构建表达式上下文
             let mut context = DefaultExpressionContext::new();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
@@ -830,10 +827,8 @@ impl<S: StorageEngine> HavingExecutor<S> {
                 }
             }
 
-            // 评估 HAVING 条件
             let condition_result =
-                evaluator
-                    .evaluate(&self.condition, &mut context)
+                ExpressionEvaluator::evaluate(&self.condition, &mut context)
                     .map_err(|e| {
                         crate::core::error::DBError::Expression(
                             crate::core::error::ExpressionError::function_error(format!(
@@ -843,7 +838,6 @@ impl<S: StorageEngine> HavingExecutor<S> {
                         )
                     })?;
 
-            // 如果条件为真，保留该行
             if let Value::Bool(true) = condition_result {
                 filtered_rows.push(row.clone());
             }

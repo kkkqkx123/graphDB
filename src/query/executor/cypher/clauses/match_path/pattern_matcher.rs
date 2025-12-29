@@ -15,16 +15,12 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug)]
 pub struct PatternMatcher<S: StorageEngine> {
     storage: Arc<Mutex<S>>,
-    expression_evaluator: ExpressionEvaluator,
 }
 
 impl<S: StorageEngine> PatternMatcher<S> {
     /// 创建新的模式匹配器
     pub fn new(storage: Arc<Mutex<S>>) -> Self {
-        Self {
-            storage,
-            expression_evaluator: ExpressionEvaluator::default(),
-        }
+        Self { storage }
     }
 
     /// 查找起始节点
@@ -96,7 +92,7 @@ impl<S: StorageEngine> PatternMatcher<S> {
                 // 获取节点属性值
                 if let Some(value) = vertex.get_property_any(prop_name) {
                     // 求值表达式
-                    let expr_value = self.expression_evaluator.evaluate(prop_expr, context)?;
+                    let expr_value = ExpressionEvaluator::evaluate(prop_expr, context)?;
 
                     // 比较值
                     if !self.values_equal(value, &expr_value) {
@@ -141,7 +137,7 @@ impl<S: StorageEngine> PatternMatcher<S> {
                 // 获取边属性值
                 if let Some(value) = edge.get_property(prop_name) {
                     // 求值表达式
-                    let expr_value = self.expression_evaluator.evaluate(prop_expr, context)?;
+                    let expr_value = ExpressionEvaluator::evaluate(prop_expr, context)?;
 
                     // 比较值
                     if !self.values_equal(value, &expr_value) {
