@@ -18,6 +18,7 @@ pub struct ResultBuilder {
     iterator: Option<Arc<dyn ResultIterator>>,
     memory_stats: MemoryStats,
     memory_manager: Option<Arc<dyn MemoryManager>>,
+    memory_limit: Option<u64>,
 }
 
 impl std::fmt::Debug for ResultBuilder {
@@ -30,12 +31,12 @@ impl std::fmt::Debug for ResultBuilder {
             .field("has_iterator", &self.iterator.is_some())
             .field("memory_stats", &self.memory_stats)
             .field("has_memory_manager", &self.memory_manager.is_some())
+            .field("memory_limit", &self.memory_limit)
             .finish()
     }
 }
 
 impl ResultBuilder {
-    /// 创建新的结果构建器
     pub fn new() -> Self {
         Self {
             check_memory: false,
@@ -45,6 +46,7 @@ impl ResultBuilder {
             iterator: None,
             memory_stats: MemoryStats::new(),
             memory_manager: None,
+            memory_limit: None,
         }
     }
 
@@ -94,6 +96,12 @@ impl ResultBuilder {
         self
     }
 
+    /// 设置内存限制
+    pub fn memory_limit(mut self, limit: u64) -> Self {
+        self.memory_limit = Some(limit);
+        self
+    }
+
     /// 构建结果
     pub fn build(self) -> Result {
         let value = match self.value {
@@ -110,6 +118,7 @@ impl ResultBuilder {
             self.memory_stats,
             self.check_memory,
             self.memory_manager,
+            self.memory_limit,
         );
 
         result
@@ -125,6 +134,7 @@ impl ResultBuilder {
             iterator: result.iterator().cloned(),
             memory_stats: result.memory_stats().clone(),
             memory_manager: None, // 不复制内存管理器
+            memory_limit: result.get_memory_limit(),
         }
     }
 }
@@ -183,6 +193,6 @@ mod tests {
             .memory_stats(stats)
             .build();
 
-        assert_eq!(result.memory_stats().value_bytes, 100);
+        assert_eq!(result.memory_stats().value_bytes(), 100);
     }
 }

@@ -21,43 +21,88 @@ pub enum ResultState {
 /// 内存使用统计
 #[derive(Debug, Clone)]
 pub struct MemoryStats {
-    pub total_bytes: u64,
-    pub value_bytes: u64,
-    pub iterator_bytes: u64,
-    pub overhead_bytes: u64,
+    total_bytes: Arc<AtomicU64>,
+    value_bytes: Arc<AtomicU64>,
+    iterator_bytes: Arc<AtomicU64>,
+    overhead_bytes: Arc<AtomicU64>,
 }
 
 impl MemoryStats {
     pub fn new() -> Self {
         Self {
-            total_bytes: 0,
-            value_bytes: 0,
-            iterator_bytes: 0,
-            overhead_bytes: 0,
+            total_bytes: Arc::new(AtomicU64::new(0)),
+            value_bytes: Arc::new(AtomicU64::new(0)),
+            iterator_bytes: Arc::new(AtomicU64::new(0)),
+            overhead_bytes: Arc::new(AtomicU64::new(0)),
         }
     }
 
     pub fn total(&self) -> u64 {
-        self.total_bytes
+        self.total_bytes.load(Ordering::Relaxed)
     }
 
-    pub fn update_value_bytes(&mut self, bytes: u64) {
-        self.value_bytes = bytes;
+    pub fn value_bytes(&self) -> u64 {
+        self.value_bytes.load(Ordering::Relaxed)
+    }
+
+    pub fn iterator_bytes(&self) -> u64 {
+        self.iterator_bytes.load(Ordering::Relaxed)
+    }
+
+    pub fn overhead_bytes(&self) -> u64 {
+        self.overhead_bytes.load(Ordering::Relaxed)
+    }
+
+    pub fn update_value_bytes(&self, bytes: u64) {
+        self.value_bytes.store(bytes, Ordering::Relaxed);
         self.recalculate_total();
     }
 
-    pub fn update_iterator_bytes(&mut self, bytes: u64) {
-        self.iterator_bytes = bytes;
+    pub fn update_iterator_bytes(&self, bytes: u64) {
+        self.iterator_bytes.store(bytes, Ordering::Relaxed);
         self.recalculate_total();
     }
 
-    pub fn update_overhead_bytes(&mut self, bytes: u64) {
-        self.overhead_bytes = bytes;
+    pub fn update_overhead_bytes(&self, bytes: u64) {
+        self.overhead_bytes.store(bytes, Ordering::Relaxed);
         self.recalculate_total();
     }
 
-    fn recalculate_total(&mut self) {
-        self.total_bytes = self.value_bytes + self.iterator_bytes + self.overhead_bytes;
+    pub fn add_value_bytes(&self, bytes: u64) {
+        self.value_bytes.fetch_add(bytes, Ordering::Relaxed);
+        self.total_bytes.fetch_add(bytes, Ordering::Relaxed);
+    }
+
+    pub fn add_iterator_bytes(&self, bytes: u64) {
+        self.iterator_bytes.fetch_add(bytes, Ordering::Relaxed);
+        self.total_bytes.fetch_add(bytes, Ordering::Relaxed);
+    }
+
+    pub fn add_overhead_bytes(&self, bytes: u64) {
+        self.overhead_bytes.fetch_add(bytes, Ordering::Relaxed);
+        self.total_bytes.fetch_add(bytes, Ordering::Relaxed);
+    }
+
+    pub fn sub_value_bytes(&self, bytes: u64) {
+        self.value_bytes.fetch_sub(bytes, Ordering::Relaxed);
+        self.total_bytes.fetch_sub(bytes, Ordering::Relaxed);
+    }
+
+    pub fn sub_iterator_bytes(&self, bytes: u64) {
+        self.iterator_bytes.fetch_sub(bytes, Ordering::Relaxed);
+        self.total_bytes.fetch_sub(bytes, Ordering::Relaxed);
+    }
+
+    pub fn sub_overhead_bytes(&self, bytes: u64) {
+        self.overhead_bytes.fetch_sub(bytes, Ordering::Relaxed);
+        self.total_bytes.fetch_sub(bytes, Ordering::Relaxed);
+    }
+
+    fn recalculate_total(&self) {
+        let total = self.value_bytes.load(Ordering::Relaxed)
+            + self.iterator_bytes.load(Ordering::Relaxed)
+            + self.overhead_bytes.load(Ordering::Relaxed);
+        self.total_bytes.store(total, Ordering::Relaxed);
     }
 }
 
@@ -73,6 +118,7 @@ pub struct ResultCore {
     pub access_count: AtomicU64,
     pub is_shared: bool,
     pub memory_manager: Option<Arc<dyn MemoryManager>>,
+    pub memory_limit: Option<u64>,
 }
 
 impl std::fmt::Debug for ResultCore {
@@ -88,6 +134,7 @@ impl std::fmt::Debug for ResultCore {
             .field("access_count", &self.access_count.load(Ordering::Relaxed))
             .field("is_shared", &self.is_shared)
             .field("has_memory_manager", &self.memory_manager.is_some())
+            .field("memory_limit", &self.memory_limit)
             .finish()
     }
 }
@@ -103,8 +150,9 @@ impl Clone for ResultCore {
             memory_stats: self.memory_stats.clone(),
             creation_time: self.creation_time,
             access_count: AtomicU64::new(self.access_count.load(Ordering::Relaxed)),
-            is_shared: true, // 克隆后标记为共享
+            is_shared: true,
             memory_manager: self.memory_manager.clone(),
+            memory_limit: self.memory_limit,
         }
     }
 }
@@ -124,7 +172,6 @@ pub struct Result {
 
 impl Clone for Result {
     fn clone(&self) -> Self {
-        // 克隆ResultCore并标记为共享
         let mut cloned_core = (*self.core).clone();
         cloned_core.is_shared = true;
 
@@ -135,7 +182,6 @@ impl Clone for Result {
 }
 
 impl Result {
-    /// 创建新的结果
     pub fn new(value: Value, state: ResultState) -> Self {
         let mut memory_stats = MemoryStats::new();
         let value_bytes = std::mem::size_of_val(&value) as u64;
@@ -152,6 +198,7 @@ impl Result {
             access_count: AtomicU64::new(0),
             is_shared: false,
             memory_manager: None,
+            memory_limit: None,
         };
 
         Self {
@@ -159,12 +206,10 @@ impl Result {
         }
     }
 
-    /// 创建空结果
     pub fn empty() -> Self {
         Self::new(Value::Null(NullType::Null), ResultState::UnExecuted)
     }
 
-    /// 创建带消息的结果
     pub fn with_message(value: Value, state: ResultState, msg: String) -> Self {
         let mut result = Self::new(value, state);
         if let Some(core) = Arc::get_mut(&mut result.core) {
@@ -173,7 +218,6 @@ impl Result {
         result
     }
 
-    /// 完整构造方法 - 用于 ResultBuilder
     pub(crate) fn with_components(
         value: Value,
         state: ResultState,
@@ -182,6 +226,7 @@ impl Result {
         memory_stats: MemoryStats,
         check_memory: bool,
         memory_manager: Option<Arc<dyn MemoryManager>>,
+        memory_limit: Option<u64>,
     ) -> Self {
         let core = ResultCore {
             check_memory,
@@ -194,6 +239,7 @@ impl Result {
             access_count: AtomicU64::new(0),
             is_shared: false,
             memory_manager,
+            memory_limit,
         };
 
         Self {
@@ -296,7 +342,6 @@ impl Result {
         }
     }
 
-    /// 检查内存使用情况
     pub fn check_memory_usage(&self) -> std::result::Result<bool, String> {
         if !self.core.check_memory {
             return Ok(true);
@@ -306,14 +351,13 @@ impl Result {
             let total_bytes = self.core.memory_stats.total();
             manager.check_memory(total_bytes)
         } else {
-            // 简化的内存检查逻辑
             let total_bytes = self.core.memory_stats.total();
-            const MEMORY_LIMIT: u64 = 100 * 1024 * 1024; // 100MB
+            let limit = self.core.memory_limit.unwrap_or(100 * 1024 * 1024);
 
-            if total_bytes > MEMORY_LIMIT {
+            if total_bytes > limit {
                 Err(format!(
                     "Memory usage exceeded limit: {} bytes > {} bytes",
-                    total_bytes, MEMORY_LIMIT
+                    total_bytes, limit
                 ))
             } else {
                 Ok(true)
@@ -321,7 +365,6 @@ impl Result {
         }
     }
 
-    /// 更新内存统计
     pub fn update_memory_stats(&mut self) {
         if let Some(core) = Arc::get_mut(&mut self.core) {
             if let Some(iter) = &core.iterator {
@@ -333,6 +376,16 @@ impl Result {
             let value_bytes = std::mem::size_of_val(&*core.value) as u64;
             core.memory_stats.update_value_bytes(value_bytes);
         }
+    }
+
+    pub fn set_memory_limit(&mut self, limit: u64) {
+        if let Some(core) = Arc::get_mut(&mut self.core) {
+            core.memory_limit = Some(limit);
+        }
+    }
+
+    pub fn get_memory_limit(&self) -> Option<u64> {
+        self.core.memory_limit
     }
 
     /// 增加访问计数
@@ -390,17 +443,47 @@ mod tests {
 
     #[test]
     fn test_memory_stats() {
-        let mut stats = MemoryStats::new();
+        let stats = MemoryStats::new();
         assert_eq!(stats.total(), 0);
 
         stats.update_value_bytes(100);
         assert_eq!(stats.total(), 100);
+        assert_eq!(stats.value_bytes(), 100);
 
         stats.update_iterator_bytes(200);
         assert_eq!(stats.total(), 300);
+        assert_eq!(stats.iterator_bytes(), 200);
 
         stats.update_overhead_bytes(50);
         assert_eq!(stats.total(), 350);
+        assert_eq!(stats.overhead_bytes(), 50);
+    }
+
+    #[test]
+    fn test_memory_stats_add_sub() {
+        let stats = MemoryStats::new();
+        assert_eq!(stats.total(), 0);
+
+        stats.add_value_bytes(100);
+        assert_eq!(stats.total(), 100);
+        assert_eq!(stats.value_bytes(), 100);
+
+        stats.add_iterator_bytes(200);
+        assert_eq!(stats.total(), 300);
+        assert_eq!(stats.iterator_bytes(), 200);
+
+        stats.sub_value_bytes(50);
+        assert_eq!(stats.total(), 250);
+        assert_eq!(stats.value_bytes(), 50);
+    }
+
+    #[test]
+    fn test_memory_limit() {
+        let mut result = Result::new(Value::Int(42), ResultState::Success);
+        assert_eq!(result.get_memory_limit(), None);
+
+        result.set_memory_limit(1000);
+        assert_eq!(result.get_memory_limit(), Some(1000));
     }
 
     #[test]

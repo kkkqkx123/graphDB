@@ -68,7 +68,7 @@ impl AggregateExpression {
             .map_err(|e| ExpressionError::function_error(e.to_string()))?;
 
         // 更新聚合状态
-        state.update(&self.function, &arg_value);
+        state.update(&self.function, &arg_value, self.distinct);
 
         // 返回当前状态的聚合结果
         match &self.function {
@@ -104,16 +104,7 @@ impl AggregateExpression {
                     .collect(),
             )),
             AggregateFunction::Percentile => {
-                // 简化实现，返回平均值
-                if state.count > 0 {
-                    match &state.sum {
-                        Value::Int(i) => Ok(Value::Float(*i as f64 / state.count as f64)),
-                        Value::Float(f) => Ok(Value::Float(*f / state.count as f64)),
-                        _ => Ok(Value::Float(0.0)),
-                    }
-                } else {
-                    Ok(Value::Float(0.0))
-                }
+                state.calculate_percentile(50.0)
             }
         }
     }
@@ -127,7 +118,8 @@ pub struct AggregateState {
     pub min: Option<Value>,
     pub max: Option<Value>,
     pub values: Vec<Value>,
-    pub distinct_values: std::collections::HashSet<String>, // 用于去重
+    pub distinct_values: std::collections::HashSet<String>,
+    pub percentile_values: Vec<f64>,
 }
 
 impl AggregateState {
@@ -139,6 +131,7 @@ impl AggregateState {
             max: None,
             values: Vec::new(),
             distinct_values: std::collections::HashSet::new(),
+            percentile_values: Vec::new(),
         }
     }
 
@@ -149,19 +142,34 @@ impl AggregateState {
         self.max = None;
         self.values.clear();
         self.distinct_values.clear();
+        self.percentile_values.clear();
     }
 
     /// 更新聚合状态
-    pub fn update(&mut self, function: &AggregateFunction, value: &Value) {
-        // 如果是去重函数，检查是否已存在
-        if matches!(function, AggregateFunction::Count)
-            && self.distinct_values.contains(&format!("{}", value))
-        {
-            return; // 跳过重复值
+    pub fn update(&mut self, function: &AggregateFunction, value: &Value, distinct: bool) {
+        let value_str = format!("{}", value);
+
+        // 如果启用distinct，检查是否已存在
+        if distinct && self.distinct_values.contains(&value_str) {
+            return;
+        }
+
+        // 记录值用于去重
+        if distinct {
+            self.distinct_values.insert(value_str);
         }
 
         self.count += 1;
         self.values.push(value.clone());
+
+        // PERCENTILE函数特殊处理：收集数值
+        if matches!(function, AggregateFunction::Percentile) {
+            match value {
+                Value::Int(v) => self.percentile_values.push(*v as f64),
+                Value::Float(v) => self.percentile_values.push(*v),
+                _ => {}
+            }
+        }
 
         // 更新最小值
         if self.min.as_ref().map_or(true, |min_val| value < min_val) {
@@ -187,12 +195,37 @@ impl AggregateState {
             (Value::Float(ref mut sum_float), Value::Int(val_int)) => {
                 *sum_float += *val_int as f64;
             }
-            _ => {} // 不兼容的类型，跳过求和
+            _ => {}
+        }
+    }
+
+    /// 计算百分位数
+    pub fn calculate_percentile(&self, percentile: f64) -> Result<Value, ExpressionError> {
+        if self.percentile_values.is_empty() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
         }
 
-        // 记录值用于去重
-        if matches!(function, AggregateFunction::Count) {
-            self.distinct_values.insert(format!("{}", value));
+        if percentile < 0.0 || percentile > 100.0 {
+            return Err(ExpressionError::function_error(
+                "Percentile must be between 0 and 100".to_string(),
+            ));
+        }
+
+        let mut sorted_values = self.percentile_values.clone();
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        let index = (percentile / 100.0) * (sorted_values.len() - 1) as f64;
+        let lower_index = index.floor() as usize;
+        let upper_index = index.ceil() as usize;
+
+        if lower_index == upper_index {
+            Ok(Value::Float(sorted_values[lower_index]))
+        } else {
+            let lower_value = sorted_values[lower_index];
+            let upper_value = sorted_values[upper_index];
+            let weight = index - lower_index as f64;
+            let interpolated = lower_value + weight * (upper_value - lower_value);
+            Ok(Value::Float(interpolated))
         }
     }
 }
