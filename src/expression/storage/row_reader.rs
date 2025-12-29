@@ -31,18 +31,6 @@ impl RowReaderWrapper {
         Ok(wrapper)
     }
 
-    /// 创建简化版本的RowReaderWrapper（用于测试）
-    pub fn new_simple(data: Vec<u8>, schema: Schema) -> Result<Self, String> {
-        let mut wrapper = Self {
-            data,
-            schema,
-            field_offsets: HashMap::new(),
-        };
-
-        wrapper.calculate_field_offsets()?;
-        Ok(wrapper)
-    }
-
     /// 预计算字段偏移量
     fn calculate_field_offsets(&mut self) -> Result<(), String> {
         let mut offset = 0;
