@@ -10,27 +10,8 @@ use super::base::ContextType;
 use super::traits::Context;
 use crate::core::Value;
 
-/// 会话信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SessionInfo {
-    pub session_id: String,
-    pub user_name: String,
-    pub client_ip: String,
-    pub client_port: u16,
-    pub created_at: std::time::SystemTime,
-}
-
-impl SessionInfo {
-    pub fn new(session_id: String, user_name: String, client_ip: String, client_port: u16) -> Self {
-        Self {
-            session_id,
-            user_name,
-            client_ip,
-            client_port,
-            created_at: std::time::SystemTime::now(),
-        }
-    }
-}
+// SessionInfo 现在统一使用 src/core/context/session.rs 中的定义
+use super::session::{SessionInfo, SessionStatus};
 
 /// 请求参数
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -198,8 +179,11 @@ impl RequestContext {
         let session_info = SessionInfo::new(
             session_id.to_string(),
             user_name.to_string(),
+            vec![], // 默认无角色
             client_ip.to_string(),
             client_port,
+            "", // 默认客户端信息
+            "", // 默认连接信息
         );
         let request_params = RequestParams::new(query);
         Self::new(id, session_info, request_params)
@@ -218,8 +202,11 @@ impl RequestContext {
         let session_info = SessionInfo::new(
             session_id.to_string(),
             user_name.to_string(),
+            vec![], // 默认无角色
             client_ip.to_string(),
             client_port,
+            "", // 默认客户端信息
+            "", // 默认连接信息
         );
         let request_params = RequestParams::new(query).with_parameters(parameters);
         Self::new(id, session_info, request_params)
@@ -238,8 +225,11 @@ impl RequestContext {
         let session_info = SessionInfo::new(
             session_id.to_string(),
             user_name.to_string(),
+            vec![], // 默认无角色
             client_ip.to_string(),
             client_port,
+            "", // 默认客户端信息
+            "", // 默认连接信息
         );
         let request_params = RequestParams::new(query).with_timeout(timeout_ms);
         Self::new(id, session_info, request_params)
@@ -257,7 +247,7 @@ impl RequestContext {
 
     /// 获取用户名
     pub fn user_name(&self) -> Option<&str> {
-        self.session_info.as_ref().map(|s| s.user_name.as_str())
+        self.session_info.as_ref().map(|s| s.username.as_str())
     }
 
     /// 获取客户端IP
@@ -533,8 +523,11 @@ impl Default for RequestContext {
         let session_info = SessionInfo::new(
             "default_session".to_string(),
             "default_user".to_string(),
+            vec![],
             "localhost".to_string(),
             0,
+            "default_client".to_string(),
+            "default_connection".to_string(),
         );
         let request_params = RequestParams::new("SELECT 1".to_string());
         Self::new("default_request".to_string(), session_info, request_params)

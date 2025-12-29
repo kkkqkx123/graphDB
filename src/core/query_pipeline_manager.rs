@@ -74,6 +74,10 @@ impl<S: StorageEngine + 'static + std::fmt::Debug> QueryPipelineManager<S> {
             "default_session".to_string(),
             "default_user".to_string(),
             vec![],
+            "127.0.0.1".to_string(),
+            8080,
+            "default_client".to_string(),
+            "default_connection".to_string(),
         );
         Ok(QueryContext::new(
             uuid::Uuid::new_v4().to_string(),

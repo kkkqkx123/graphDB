@@ -339,7 +339,7 @@ impl Default for SessionConfig {
 
 // 重新导出类型以供其他模块使用
 
-/// 会话信息（简化版本，用于兼容性）
+/// 会话信息（统一版本，包含完整的会话生命周期管理）
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SessionInfo {
     /// 会话ID
@@ -348,107 +348,95 @@ pub struct SessionInfo {
     pub username: String,
     /// 用户角色
     pub roles: Vec<String>,
+    /// 客户端IP
+    pub client_ip: String,
+    /// 客户端端口
+    pub client_port: u16,
+    /// 客户端信息
+    pub client_info: String,
+    /// 连接信息
+    pub connection_info: String,
+    /// 创建时间
+    pub created_at: std::time::SystemTime,
+    /// 最后访问时间
+    pub last_accessed: std::time::SystemTime,
+    /// 会话状态
+    pub status: SessionStatus,
+}
+
+/// 会话状态
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SessionStatus {
+    /// 活跃
+    Active,
+    /// 空闲
+    Idle,
+    /// 已过期
+    Expired,
+    /// 已关闭
+    Closed,
 }
 
 impl SessionInfo {
-    /// 创建新的会话信息
+    /// 创建新的会话信息（完整版本）
     pub fn new(
         session_id: impl Into<String>,
         username: impl Into<String>,
         roles: Vec<String>,
+        client_ip: impl Into<String>,
+        client_port: u16,
+        client_info: impl Into<String>,
+        connection_info: impl Into<String>,
     ) -> Self {
+        let now = std::time::SystemTime::now();
         Self {
             session_id: session_id.into(),
             username: username.into(),
             roles,
-        }
-    }
-}
-
-/// 会话统计信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SessionStatistics {
-    /// 会话ID
-    pub session_id: String,
-    /// 用户名
-    pub username: String,
-    /// 创建时间
-    pub created_at: SystemTime,
-    /// 最后活动时间
-    pub last_activity: SystemTime,
-    /// 总查询数
-    pub total_queries: usize,
-    /// 成功查询数
-    pub successful_queries: usize,
-    /// 失败查询数
-    pub failed_queries: usize,
-    /// 总执行时间（毫秒）
-    pub total_execution_time_ms: u64,
-    /// 平均执行时间（毫秒）
-    pub average_execution_time_ms: f64,
-    /// 内存使用峰值（字节）
-    pub peak_memory_usage_bytes: usize,
-    /// 网络IO总量（字节）
-    pub total_network_io_bytes: usize,
-}
-
-impl SessionStatistics {
-    /// 创建新的会话统计信息
-    pub fn new(session_id: impl Into<String>, username: impl Into<String>) -> Self {
-        let now = SystemTime::now();
-        Self {
-            session_id: session_id.into(),
-            username: username.into(),
+            client_ip: client_ip.into(),
+            client_port,
+            client_info: client_info.into(),
+            connection_info: connection_info.into(),
             created_at: now,
-            last_activity: now,
-            total_queries: 0,
-            successful_queries: 0,
-            failed_queries: 0,
-            total_execution_time_ms: 0,
-            average_execution_time_ms: 0.0,
-            peak_memory_usage_bytes: 0,
-            total_network_io_bytes: 0,
+            last_accessed: now,
+            status: SessionStatus::Active,
         }
     }
 
-    /// 记录查询完成
-    pub fn record_query_completion(&mut self, execution_time_ms: u64, success: bool) {
-        self.total_queries += 1;
-        self.total_execution_time_ms += execution_time_ms;
+    /// 创建简化版本的会话信息（兼容性方法）
+    pub fn simple(
+        session_id: impl Into<String>,
+        username: impl Into<String>,
+        roles: Vec<String>,
+    ) -> Self {
+        Self::new(
+            session_id,
+            username,
+            roles,
+            "",
+            0,
+            "",
+            "",
+        )
+    }
 
-        if success {
-            self.successful_queries += 1;
+    /// 更新最后访问时间
+    pub fn touch(&mut self) {
+        self.last_accessed = std::time::SystemTime::now();
+    }
+
+    /// 检查会话是否有效
+    pub fn is_valid(&self, timeout: std::time::Duration) -> bool {
+        if let Ok(elapsed) = self.last_accessed.elapsed() {
+            elapsed < timeout && matches!(self.status, SessionStatus::Active | SessionStatus::Idle)
         } else {
-            self.failed_queries += 1;
-        }
-
-        self.average_execution_time_ms =
-            self.total_execution_time_ms as f64 / self.total_queries as f64;
-    }
-
-    /// 更新内存使用峰值
-    pub fn update_memory_peak(&mut self, memory_bytes: usize) {
-        if memory_bytes > self.peak_memory_usage_bytes {
-            self.peak_memory_usage_bytes = memory_bytes;
+            false
         }
     }
 
-    /// 增加网络IO量
-    pub fn add_network_io(&mut self, bytes: usize) {
-        self.total_network_io_bytes += bytes;
-    }
-
-    /// 获取成功率
-    pub fn success_rate(&self) -> f64 {
-        if self.total_queries == 0 {
-            0.0
-        } else {
-            self.successful_queries as f64 / self.total_queries as f64
-        }
-    }
-
-    /// 获取失败率
-    pub fn failure_rate(&self) -> f64 {
-        1.0 - self.success_rate()
+    /// 关闭会话
+    pub fn close(&mut self) {
+        self.status = SessionStatus::Closed;
+        self.touch();
     }
 }

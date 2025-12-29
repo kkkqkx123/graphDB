@@ -709,6 +709,10 @@ mod tests {
             "test_session",
             "test_user",
             vec!["user".to_string()],
+            "127.0.0.1",
+            8080,
+            "test_client",
+            "test_connection",
         );
         let query_ctx = QueryContext::new(
             "test_query",

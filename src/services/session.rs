@@ -1,5 +1,6 @@
 use crate::core::error::DBError;
 use crate::core::Value;
+use crate::core::context::session::{SessionInfo, SessionStatus};
 use crate::utils::{safe_lock, safe_read, safe_write};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -27,71 +28,41 @@ impl std::fmt::Display for SessionId {
     }
 }
 
-/// Session status
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SessionStatus {
-    Active,
-    Idle,
-    Expired,
-    Closed,
-}
-
-/// Information about a session
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SessionInfo {
-    pub id: SessionId,
-    pub created_at: SystemTime,
-    pub last_accessed: SystemTime,
-    pub status: SessionStatus,
-    pub user_id: Option<String>,
-    pub client_info: String,
-    pub connection_info: String,
-}
-
 /// A session containing variables and settings
 #[derive(Debug, Clone)]
 pub struct Session {
-    pub id: SessionId,
-    pub created_at: SystemTime,
-    pub last_accessed: SystemTime,
-    pub status: SessionStatus,
-    pub user_id: Option<String>,
+    pub session_info: SessionInfo,
     pub variables: Arc<RwLock<HashMap<String, Value>>>,
     pub settings: Arc<RwLock<HashMap<String, Value>>>,
-    pub client_info: String,
-    pub connection_info: String,
 }
 
 impl Session {
     pub fn new(user_id: Option<String>, client_info: String, connection_info: String) -> Self {
-        Self {
-            id: SessionId::new(),
-            created_at: SystemTime::now(),
-            last_accessed: SystemTime::now(),
-            status: SessionStatus::Active,
-            user_id,
-            variables: Arc::new(RwLock::new(HashMap::new())),
-            settings: Arc::new(RwLock::new(HashMap::new())),
+        let session_info = SessionInfo::new(
+            SessionId::new().to_string(),
+            user_id.unwrap_or_else(|| "anonymous".to_string()),
+            vec![], // 默认无角色
+            "", // 客户端IP
+            0,  // 客户端端口
             client_info,
             connection_info,
+        );
+        
+        Self {
+            session_info,
+            variables: Arc::new(RwLock::new(HashMap::new())),
+            settings: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     /// Check if the session is still valid based on timeout
     pub fn is_valid(&self, timeout: Duration) -> bool {
-        if let Ok(elapsed) = self.last_accessed.elapsed() {
-            elapsed < timeout && matches!(self.status, SessionStatus::Active | SessionStatus::Idle)
-        } else {
-            false
-        }
+        self.session_info.is_valid(timeout)
     }
 
     /// Update the last accessed time
     pub fn touch(&mut self) {
-        self.last_accessed = SystemTime::now();
-        if matches!(self.status, SessionStatus::Expired | SessionStatus::Closed) {
-            self.status = SessionStatus::Active;
-        }
+        self.session_info.touch();
     }
 
     /// Get a session variable
@@ -126,22 +97,9 @@ impl Session {
         Ok(())
     }
 
-    /// Get session info
-    pub fn info(&self) -> SessionInfo {
-        SessionInfo {
-            id: self.id.clone(),
-            created_at: self.created_at,
-            last_accessed: self.last_accessed,
-            status: self.status.clone(),
-            user_id: self.user_id.clone(),
-            client_info: self.client_info.clone(),
-            connection_info: self.connection_info.clone(),
-        }
-    }
-
     /// Close the session
     pub fn close(&mut self) {
-        self.status = SessionStatus::Closed;
+        self.session_info.status = SessionStatus::Closed;
     }
 }
 
@@ -167,7 +125,7 @@ impl SessionManager {
         connection_info: String,
     ) -> Result<SessionId, DBError> {
         let session = Session::new(user_id, client_info, connection_info);
-        let session_id = session.id.clone();
+        let session_id = SessionId(session.session_info.session_id.clone());
 
         let session = Arc::new(Mutex::new(session));
         {
@@ -218,7 +176,7 @@ impl SessionManager {
     pub fn get_session_info(&self, session_id: &SessionId) -> Result<Option<SessionInfo>, DBError> {
         if let Some(session) = self.get_session(session_id)? {
             let session = safe_lock(&session)?;
-            Ok(Some(session.info()))
+            Ok(Some(session.session_info.clone()))
         } else {
             Ok(None)
         }
@@ -231,10 +189,10 @@ impl SessionManager {
 
         for session in sessions.values() {
             if let Ok(session) = safe_lock(session) {
-                if matches!(session.status, SessionStatus::Active)
+                if matches!(session.session_info.status, SessionStatus::Active)
                     && session.is_valid(self.default_session_timeout)
                 {
-                    active_sessions.push(session.info());
+                    active_sessions.push(session.session_info.clone());
                 }
             }
         }
@@ -298,6 +256,7 @@ pub mod session_utils {
     /// Get the age of a session
     pub fn session_age(session: &Session) -> Duration {
         session
+            .session_info
             .created_at
             .elapsed()
             .unwrap_or(Duration::from_secs(0))
@@ -305,7 +264,7 @@ pub mod session_utils {
 
     /// Check if a session is about to expire
     pub fn is_about_to_expire(session: &Session, warning_threshold: Duration) -> bool {
-        if let Ok(elapsed) = session.created_at.elapsed() {
+        if let Ok(elapsed) = session.session_info.created_at.elapsed() {
             let remaining = self::default_session_timeout().saturating_sub(elapsed);
             remaining < warning_threshold
         } else {
@@ -340,11 +299,11 @@ mod tests {
             "connection_info".to_string(),
         );
 
-        assert!(session.id.as_str().len() > 0);
-        assert_eq!(session.user_id, Some("user123".to_string()));
+        assert!(session.session_info.session_id.len() > 0);
+        assert_eq!(session.session_info.username, "user123");
 
         // Check that session is initially active
-        assert!(matches!(session.status, SessionStatus::Active));
+        assert!(matches!(session.session_info.status, SessionStatus::Active));
     }
 
     #[test]
@@ -399,8 +358,8 @@ mod tests {
             .expect("Failed to get session info in test");
         assert!(info.is_some());
         assert_eq!(
-            info.expect("Session info should exist").user_id,
-            Some("user123".to_string())
+            info.expect("Session info should exist").username,
+            "user123".to_string()
         );
 
         // Touch the session to update last_accessed time
@@ -431,7 +390,7 @@ mod tests {
         assert!(session.is_valid(Duration::from_secs(10)));
 
         // Modify the last_accessed time to be in the past
-        session.last_accessed = SystemTime::now() - Duration::from_secs(15); // 15 seconds ago
+        session.session_info.last_accessed = SystemTime::now() - Duration::from_secs(15); // 15 seconds ago
 
         // Now it should be invalid with a 10-second timeout
         assert!(!session.is_valid(Duration::from_secs(10)));
