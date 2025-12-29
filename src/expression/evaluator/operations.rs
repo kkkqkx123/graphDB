@@ -74,12 +74,8 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_divide(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        if matches!(right, Value::Int(0) | Value::Float(0.0)) {
-            Err(ExpressionError::division_by_zero())
-        } else {
-            left.div(right)
-                .map_err(|e| ExpressionError::runtime_error(e))
-        }
+        left.div(right)
+            .map_err(|e| ExpressionError::runtime_error(e))
     }
 
     fn eval_modulo(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
@@ -117,17 +113,13 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_and(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        match (left, right) {
-            (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(*l && *r)),
-            _ => Err(ExpressionError::type_error("逻辑运算需要布尔值")),
-        }
+        left.and(right)
+            .map_err(|e| ExpressionError::runtime_error(e))
     }
 
     fn eval_or(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        match (left, right) {
-            (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(*l || *r)),
-            _ => Err(ExpressionError::type_error("逻辑运算需要布尔值")),
-        }
+        left.or(right)
+            .map_err(|e| ExpressionError::runtime_error(e))
     }
 
     fn eval_xor(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
@@ -138,10 +130,8 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_string_concat(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        match (left, right) {
-            (Value::String(l), Value::String(r)) => Ok(Value::String(format!("{}{}", l, r))),
-            _ => Err(ExpressionError::type_error("字符串连接需要字符串值")),
-        }
+        left.add(right)
+            .map_err(|e| ExpressionError::runtime_error(e))
     }
 
     fn eval_like(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
@@ -356,10 +346,8 @@ impl UnaryOperationEvaluator {
     }
 
     fn eval_not(value: &Value) -> Result<Value, ExpressionError> {
-        match value {
-            Value::Bool(b) => Ok(Value::Bool(!b)),
-            _ => Err(ExpressionError::type_error("NOT操作需要布尔值")),
-        }
+        value.not()
+            .map_err(|e| ExpressionError::runtime_error(e))
     }
 
     fn eval_is_null(value: &Value) -> Result<Value, ExpressionError> {

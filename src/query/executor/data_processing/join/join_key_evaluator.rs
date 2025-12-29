@@ -34,24 +34,6 @@ impl JoinKeyEvaluator {
         Ok(keys)
     }
 
-    pub fn evaluate_key_dyn(
-        expr: &Expression,
-        context: &mut dyn ExpressionContext,
-    ) -> Result<Value, ExpressionError> {
-        ExpressionEvaluator::evaluate(expr, context)
-    }
-
-    pub fn evaluate_keys_dyn(
-        exprs: &[Expression],
-        context: &mut dyn ExpressionContext,
-    ) -> Result<Vec<Value>, ExpressionError> {
-        let mut keys = Vec::with_capacity(exprs.len());
-        for expr in exprs {
-            keys.push(Self::evaluate_key_dyn(expr, context)?);
-        }
-        Ok(keys)
-    }
-
     pub fn is_simple_variable(expr: &Expression) -> bool {
         matches!(expr, Expression::Variable(_))
     }

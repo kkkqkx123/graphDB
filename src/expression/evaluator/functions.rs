@@ -193,10 +193,8 @@ impl FunctionEvaluator {
             AggregateFunction::Min => {
                 let mut min = args[0].clone();
                 for arg in args.iter().skip(1) {
-                    match arg.lt(&min) {
-                        Ok(Value::Bool(true)) => min = arg.clone(),
-                        Ok(_) => {}
-                        Err(e) => return Err(ExpressionError::runtime_error(e)),
+                    if arg < &min {
+                        min = arg.clone();
                     }
                 }
                 Ok(min)
@@ -204,10 +202,8 @@ impl FunctionEvaluator {
             AggregateFunction::Max => {
                 let mut max = args[0].clone();
                 for arg in args.iter().skip(1) {
-                    match arg.gt(&max) {
-                        Ok(Value::Bool(true)) => max = arg.clone(),
-                        Ok(_) => {}
-                        Err(e) => return Err(ExpressionError::runtime_error(e)),
+                    if arg > &max {
+                        max = arg.clone();
                     }
                 }
                 Ok(max)

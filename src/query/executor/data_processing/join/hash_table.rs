@@ -803,7 +803,7 @@ pub fn build_hash_table(
         // 评估表达式获取键值
         let mut key_values = Vec::new();
         for key_expr in key_exprs {
-            match evaluator.evaluate(key_expr, &mut expr_context) {
+            match ExpressionEvaluator::evaluate(key_expr, &mut expr_context) {
                 Ok(value) => key_values.push(value),
                 Err(e) => return Err(format!("键表达式求值失败: {}", e)),
             }
@@ -854,11 +854,10 @@ pub fn extract_key_values(
         }
     }
     
-    let evaluator = ExpressionEvaluator;
     let mut key_values = Vec::new();
     
     for key_expr in key_exprs {
-        if let Ok(value) = evaluator.evaluate(key_expr, &mut expr_context) {
+        if let Ok(value) = ExpressionEvaluator::evaluate(key_expr, &mut expr_context) {
             key_values.push(value);
         }
     }

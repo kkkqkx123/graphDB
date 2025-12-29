@@ -109,11 +109,11 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     }
 
     /// 检查顶点是否匹配节点模式
-    fn match_node_pattern(
+    fn match_node_pattern<C: ExpressionContext>(
         &self,
         vertex: &Vertex,
         pattern: &PatternType,
-        expr_context: &dyn ExpressionContext,
+        expr_context: &C,
     ) -> DBResult<bool> {
         if let PatternType::Node {
             labels, properties, ..
@@ -174,11 +174,11 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     }
 
     /// 检查边是否匹配边模式
-    fn match_edge_pattern(
+    fn match_edge_pattern<C: ExpressionContext>(
         &self,
         edge: &Edge,
         pattern: &PatternType,
-        expr_context: &dyn ExpressionContext,
+        expr_context: &C,
     ) -> DBResult<bool> {
         if let PatternType::Edge {
             edge_type,
@@ -242,11 +242,11 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
     }
 
     /// 检查路径是否匹配路径模式
-    fn match_path_pattern(
+    fn match_path_pattern<C: ExpressionContext>(
         &self,
         path: &Path,
         pattern: &PatternType,
-        _expr_context: &dyn ExpressionContext,
+        _expr_context: &C,
     ) -> DBResult<bool> {
         if let PatternType::Path { length_range, .. } = pattern {
             // 检查路径长度

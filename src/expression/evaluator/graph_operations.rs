@@ -11,10 +11,10 @@ pub struct GraphOperationEvaluator;
 
 impl GraphOperationEvaluator {
     /// 求值标签表达式
-    pub fn eval_label_expression(
+    pub fn eval_label_expression<C: ExpressionContext>(
         &self,
         label_name: &str,
-        context: &mut dyn ExpressionContext,
+        context: &mut C,
     ) -> Result<Value, ExpressionError> {
         if let Some(vertex) = context.get_vertex() {
             let label_list: Vec<Value> = vertex.tags.iter()
@@ -27,11 +27,11 @@ impl GraphOperationEvaluator {
     }
 
     /// 求值标签属性表达式
-    pub fn eval_tag_property(
+    pub fn eval_tag_property<C: ExpressionContext>(
         &self,
         tag_name: &str,
         prop_name: &str,
-        context: &mut dyn ExpressionContext,
+        context: &mut C,
     ) -> Result<Value, ExpressionError> {
         if let Some(vertex) = context.get_vertex() {
             for tag in &vertex.tags {
@@ -52,11 +52,11 @@ impl GraphOperationEvaluator {
     }
 
     /// 求值边属性表达式
-    pub fn eval_edge_property(
+    pub fn eval_edge_property<C: ExpressionContext>(
         &self,
         edge_name: &str,
         prop_name: &str,
-        context: &mut dyn ExpressionContext,
+        context: &mut C,
     ) -> Result<Value, ExpressionError> {
         if let Some(edge) = context.get_edge() {
             if edge_name.is_empty() || edge.edge_type() == edge_name {
@@ -79,11 +79,11 @@ impl GraphOperationEvaluator {
     }
 
     /// 求值变量属性表达式
-    pub fn eval_variable_property(
+    pub fn eval_variable_property<C: ExpressionContext>(
         &self,
         var_name: &str,
         prop_name: &str,
-        context: &mut dyn ExpressionContext,
+        context: &mut C,
     ) -> Result<Value, ExpressionError> {
         if let Some(value) = context.get_variable(var_name) {
             match value {
@@ -124,11 +124,11 @@ impl GraphOperationEvaluator {
     }
 
     /// 求值源属性表达式
-    pub fn eval_source_property(
+    pub fn eval_source_property<C: ExpressionContext>(
         &self,
         tag_name: &str,
         prop_name: &str,
-        context: &mut dyn ExpressionContext,
+        context: &mut C,
     ) -> Result<Value, ExpressionError> {
         if let Some(edge) = context.get_edge() {
             let source_var = format!("_src_{}", edge.src());
@@ -160,11 +160,11 @@ impl GraphOperationEvaluator {
     }
 
     /// 求值目的属性表达式
-    pub fn eval_destination_property(
+    pub fn eval_destination_property<C: ExpressionContext>(
         &self,
         tag_name: &str,
         prop_name: &str,
-        context: &mut dyn ExpressionContext,
+        context: &mut C,
     ) -> Result<Value, ExpressionError> {
         if let Some(edge) = context.get_edge() {
             let dest_var = format!("_dst_{}", edge.dst());

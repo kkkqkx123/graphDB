@@ -164,22 +164,12 @@ impl AggregateState {
         self.values.push(value.clone());
 
         // 更新最小值
-        if self.min.as_ref().map_or(true, |min_val| {
-            match value.lt(min_val) {
-                Ok(Value::Bool(b)) => b,
-                _ => false,
-            }
-        }) {
+        if self.min.as_ref().map_or(true, |min_val| value < min_val) {
             self.min = Some(value.clone());
         }
 
         // 更新最大值
-        if self.max.as_ref().map_or(true, |max_val| {
-            match value.gt(max_val) {
-                Ok(Value::Bool(b)) => b,
-                _ => false,
-            }
-        }) {
+        if self.max.as_ref().map_or(true, |max_val| value > max_val) {
             self.max = Some(value.clone());
         }
 

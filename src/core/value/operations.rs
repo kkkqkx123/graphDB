@@ -144,45 +144,6 @@ impl Value {
         }
     }
 
-    /// 相等比较
-    pub fn eq(&self, other: &Value) -> Result<Value, String> {
-        Ok(Value::Bool(self == other))
-    }
 
-    /// 不等比较
-    pub fn ne(&self, other: &Value) -> Result<Value, String> {
-        Ok(Value::Bool(self != other))
-    }
 
-    /// 小于比较
-    pub fn lt(&self, other: &Value) -> Result<Value, String> {
-        Ok(Value::Bool(self < other))
-    }
-
-    /// 小于等于比较
-    pub fn le(&self, other: &Value) -> Result<Value, String> {
-        Ok(Value::Bool(self <= other))
-    }
-
-    /// 大于比较
-    pub fn gt(&self, other: &Value) -> Result<Value, String> {
-        Ok(Value::Bool(self > other))
-    }
-
-    /// 大于等于比较
-    pub fn ge(&self, other: &Value) -> Result<Value, String> {
-        Ok(Value::Bool(self >= other))
-    }
-
-    /// 获取列表长度
-    pub fn len(&self) -> Result<Value, String> {
-        use Value::*;
-        match self {
-            List(list) => Ok(Int(list.len() as i64)),
-            String(s) => Ok(Int(s.len() as i64)),
-            Map(m) => Ok(Int(m.len() as i64)),
-            Set(s) => Ok(Int(s.len() as i64)),
-            _ => Err("无法获取该类型的长度".to_string()),
-        }
-    }
 }

@@ -13,9 +13,9 @@ use crate::expression::ExpressionError;
 pub struct CypherProcessor;
 
 impl CypherProcessor {
-    pub fn process(
+    pub fn process<C: ExpressionContext>(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-        context: &mut dyn ExpressionContext,
+        context: &mut C,
     ) -> Result<Value, ExpressionError> {
         let optimized_expr = super::expression_optimizer::CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr);
 
@@ -24,9 +24,9 @@ impl CypherProcessor {
         crate::expression::evaluator::ExpressionEvaluator::evaluate(&unified_expr, context)
     }
 
-    pub fn process_with_optimization(
+    pub fn process_with_optimization<C: ExpressionContext>(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-        context: &mut dyn ExpressionContext,
+        context: &mut C,
     ) -> Result<Value, ExpressionError> {
         let optimized_expr = super::expression_optimizer::CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr);
 
@@ -35,9 +35,9 @@ impl CypherProcessor {
         crate::expression::evaluator::ExpressionEvaluator::evaluate(&unified_expr, context)
     }
 
-    pub fn evaluate_direct(
+    pub fn evaluate_direct<C: ExpressionContext>(
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
-        context: &mut dyn ExpressionContext,
+        context: &mut C,
     ) -> Result<Value, ExpressionError> {
         super::expression_evaluator::CypherEvaluator::evaluate_cypher(cypher_expr, context)
     }

@@ -114,13 +114,13 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     }
 
     /// 构建哈希表（多键）
-    fn build_hash_table(
+    fn build_hash_table<C: ExpressionContext>(
         &self,
         compare_cols: &[Expression],
         collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut HashMap<List, List>,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut C,
     ) -> DBResult<()> {
         for value in iter {
             expr_context.set_variable("_".to_string(), value.clone());
@@ -151,13 +151,13 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     }
 
     /// 构建单键哈希表
-    fn build_single_key_hash_table(
+    fn build_single_key_hash_table<C: ExpressionContext>(
         &self,
         compare_col: &Expression,
         collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut HashMap<Value, List>,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut C,
     ) -> DBResult<()> {
         for value in iter {
             // 设置当前值到表达式上下文
@@ -188,12 +188,12 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     }
 
     /// 构建零键哈希表
-    fn build_zero_key_hash_table(
+    fn build_zero_key_hash_table<C: ExpressionContext>(
         &self,
         collect_col: &Expression,
         iter: &[Value],
         hash_table: &mut List,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut C,
     ) -> DBResult<()> {
         hash_table.values.reserve(iter.len());
 
@@ -213,11 +213,11 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     }
 
     /// 探测零键哈希表
-    fn probe_zero_key(
+    fn probe_zero_key<C: ExpressionContext>(
         &self,
         probe_iter: &[Value],
         hash_table: &List,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut C,
     ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
@@ -246,12 +246,12 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     }
 
     /// 探测单键哈希表
-    fn probe_single_key(
+    fn probe_single_key<C: ExpressionContext>(
         &self,
         probe_key: &Expression,
         probe_iter: &[Value],
         hash_table: &HashMap<Value, List>,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut C,
     ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
@@ -290,12 +290,12 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
     }
 
     /// 探测多键哈希表
-    fn probe(
+    fn probe<C: ExpressionContext>(
         &self,
         probe_keys: &[Expression],
         probe_iter: &[Value],
         hash_table: &HashMap<List, List>,
-        expr_context: &mut dyn ExpressionContext,
+        expr_context: &mut C,
     ) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
