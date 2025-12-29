@@ -33,6 +33,7 @@ pub struct ShortestPathExecutor<S: StorageEngine> {
     end_vertex_ids: Vec<Value>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
+    pub max_depth: Option<usize>, // 最大搜索深度限制
     algorithm: ShortestPathAlgorithm, // 使用的算法
     input_executor: Option<Box<dyn Executor<S>>>,
     // 路径缓存
@@ -41,6 +42,11 @@ pub struct ShortestPathExecutor<S: StorageEngine> {
     visited_nodes: HashSet<Value>,
     distance_map: HashMap<Value, f64>,
     previous_map: HashMap<Value, (Value, Edge)>, // node -> (previous_node, edge)
+    // 统计信息
+    pub nodes_visited: usize,
+    pub edges_traversed: usize,
+    pub execution_time_ms: u64,
+    pub max_depth_reached: usize,
 }
 
 // Manual Debug implementation for ShortestPathExecutor to avoid requiring Debug trait for Executor trait object
@@ -52,12 +58,17 @@ impl<S: StorageEngine> std::fmt::Debug for ShortestPathExecutor<S> {
             .field("end_vertex_ids", &self.end_vertex_ids)
             .field("edge_direction", &self.edge_direction)
             .field("edge_types", &self.edge_types)
+            .field("max_depth", &self.max_depth)
             .field("algorithm", &self.algorithm)
             .field("input_executor", &"Option<Box<dyn Executor<S>>>")
             .field("shortest_paths", &self.shortest_paths)
             .field("visited_nodes", &self.visited_nodes)
             .field("distance_map", &"HashMap<Value, f64>")
             .field("previous_map", &"HashMap<Value, (Value, Edge)>")
+            .field("nodes_visited", &self.nodes_visited)
+            .field("edges_traversed", &self.edges_traversed)
+            .field("execution_time_ms", &self.execution_time_ms)
+            .field("max_depth_reached", &self.max_depth_reached)
             .finish()
     }
 }
@@ -70,6 +81,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         end_vertex_ids: Vec<Value>,
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
+        max_depth: Option<usize>,
         algorithm: ShortestPathAlgorithm,
     ) -> Self {
         Self {
@@ -78,12 +90,17 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
             end_vertex_ids,
             edge_direction,
             edge_types,
+            max_depth,
             algorithm,
             input_executor: None,
             shortest_paths: Vec::new(),
             visited_nodes: HashSet::new(),
             distance_map: HashMap::new(),
             previous_map: HashMap::new(),
+            nodes_visited: 0,
+            edges_traversed: 0,
+            execution_time_ms: 0,
+            max_depth_reached: 0,
         }
     }
 

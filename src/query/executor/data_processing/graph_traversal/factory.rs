@@ -58,6 +58,7 @@ impl GraphTraversalExecutorFactory {
         end_vertex_ids: Vec<crate::core::Value>,
         edge_direction: crate::query::executor::base::EdgeDirection,
         edge_types: Option<Vec<String>>,
+        max_depth: Option<usize>,
         algorithm: ShortestPathAlgorithm,
     ) -> ShortestPathExecutor<S> {
         ShortestPathExecutor::new(
@@ -67,6 +68,7 @@ impl GraphTraversalExecutorFactory {
             end_vertex_ids,
             edge_direction,
             edge_types,
+            max_depth,
             algorithm,
         )
     }

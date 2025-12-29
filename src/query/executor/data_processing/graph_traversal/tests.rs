@@ -96,7 +96,7 @@ mod tests {
         assert_eq!(executor.id(), 1);
         assert!(matches!(executor.get_edge_direction(), EdgeDirection::Outgoing));
         assert!(executor.get_edge_types().is_some());
-        assert_eq!(executor.get_max_depth(), &Some(1));
+        assert_eq!(executor.get_max_depth(), Some(1));
     }
 
     #[tokio::test]
@@ -114,7 +114,7 @@ mod tests {
         assert_eq!(executor.id(), 2);
         assert!(matches!(executor.get_edge_direction(), EdgeDirection::Both));
         assert!(executor.get_edge_types().is_none());
-        assert_eq!(executor.get_max_depth(), &Some(2));
+        assert_eq!(executor.get_max_depth(), Some(2));
     }
 
     #[tokio::test]
@@ -133,7 +133,7 @@ mod tests {
         assert_eq!(executor.id(), 3);
         assert!(matches!(executor.get_edge_direction(), EdgeDirection::Outgoing));
         assert!(executor.get_edge_types().is_some());
-        assert_eq!(executor.get_max_depth(), &Some(3));
+        assert_eq!(executor.get_max_depth(), Some(3));
     }
 
     #[tokio::test]
@@ -146,6 +146,7 @@ mod tests {
             vec![Value::String("C".to_string())],
             EdgeDirection::Outgoing,
             None,
+            Some(10), // 添加max_depth参数
             ShortestPathAlgorithm::BFS,
         );
 
