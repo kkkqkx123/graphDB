@@ -312,98 +312,8 @@ mod tests {
     use crate::core::value::{DataSet, Value};
     use crate::core::{BinaryOperator, Expression};
     use crate::query::executor::traits::{ExecutionResult, Executor};
+    use crate::storage::test_mock::MockStorage;
     use crate::storage::StorageEngine;
-
-    // 模拟存储引擎
-    pub struct MockStorageEngine;
-
-    impl StorageEngine for MockStorageEngine {
-        fn insert_node(
-            &mut self,
-            _vertex: crate::core::Vertex,
-        ) -> Result<Value, crate::storage::StorageError> {
-            Ok(Value::Null(crate::core::value::NullType::Null))
-        }
-
-        fn get_node(
-            &self,
-            _id: &Value,
-        ) -> Result<Option<crate::core::Vertex>, crate::storage::StorageError> {
-            Ok(None)
-        }
-
-        fn update_node(
-            &mut self,
-            _vertex: crate::core::Vertex,
-        ) -> Result<(), crate::storage::StorageError> {
-            Ok(())
-        }
-
-        fn delete_node(&mut self, _id: &Value) -> Result<(), crate::storage::StorageError> {
-            Ok(())
-        }
-
-        fn insert_edge(
-            &mut self,
-            _edge: crate::core::Edge,
-        ) -> Result<(), crate::storage::StorageError> {
-            Ok(())
-        }
-
-        fn get_edge(
-            &self,
-            _src: &Value,
-            _dst: &Value,
-            _edge_type: &str,
-        ) -> Result<Option<crate::core::Edge>, crate::storage::StorageError> {
-            Ok(None)
-        }
-
-        fn get_node_edges(
-            &self,
-            _node_id: &Value,
-            _direction: crate::core::Direction,
-        ) -> Result<Vec<crate::core::Edge>, crate::storage::StorageError> {
-            Ok(Vec::new())
-        }
-
-        fn delete_edge(
-            &mut self,
-            _src: &Value,
-            _dst: &Value,
-            _edge_type: &str,
-        ) -> Result<(), crate::storage::StorageError> {
-            Ok(())
-        }
-
-        fn begin_transaction(&mut self) -> Result<u64, crate::storage::StorageError> {
-            Ok(1)
-        }
-
-        fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), crate::storage::StorageError> {
-            Ok(())
-        }
-
-        fn rollback_transaction(
-            &mut self,
-            _tx_id: u64,
-        ) -> Result<(), crate::storage::StorageError> {
-            Ok(())
-        }
-
-        fn scan_all_vertices(
-            &self,
-        ) -> Result<Vec<crate::core::Vertex>, crate::storage::StorageError> {
-            Ok(Vec::new())
-        }
-
-        fn scan_vertices_by_tag(
-            &self,
-            _tag: &str,
-        ) -> Result<Vec<crate::core::Vertex>, crate::storage::StorageError> {
-            Ok(Vec::new())
-        }
-    }
 
     // 模拟输入执行器
     struct MockInputExecutor {
@@ -417,7 +327,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl Executor<MockStorageEngine> for MockInputExecutor {
+    impl Executor<MockStorage> for MockInputExecutor {
         async fn execute(&mut self) -> DBResult<ExecutionResult> {
             Ok(self.result.clone())
         }
@@ -447,15 +357,15 @@ mod tests {
         }
     }
 
-    impl HasStorage<MockStorageEngine> for MockInputExecutor {
-        fn get_storage(&self) -> &Arc<Mutex<MockStorageEngine>> {
+    impl HasStorage<MockStorage> for MockInputExecutor {
+        fn get_storage(&self) -> &Arc<Mutex<MockStorage>> {
             unimplemented!("Mock executor doesn't use storage")
         }
     }
 
     #[tokio::test]
     async fn test_simple_projection() {
-        let storage = Arc::new(Mutex::new(MockStorageEngine));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建简单的投影：选择第一列
         let columns = vec![ProjectionColumn::new(
@@ -499,7 +409,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_expression_projection() {
-        let storage = Arc::new(Mutex::new(MockStorageEngine));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建表达式投影：计算两列之和
         let columns = vec![ProjectionColumn::new(
@@ -547,7 +457,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_vertex_projection() {
-        let storage = Arc::new(Mutex::new(MockStorageEngine));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建顶点投影
         let columns = vec![
@@ -566,6 +476,7 @@ mod tests {
         // 创建测试顶点
         let vertex1 = crate::core::Vertex {
             vid: Box::new(Value::Int(1)),
+            id: 1,
             tags: vec![crate::core::vertex_edge_path::Tag {
                 name: "person".to_string(),
                 properties: std::collections::HashMap::new(),
@@ -578,6 +489,7 @@ mod tests {
 
         let vertex2 = crate::core::Vertex {
             vid: Box::new(Value::Int(2)),
+            id: 2,
             tags: vec![crate::core::vertex_edge_path::Tag {
                 name: "person".to_string(),
                 properties: std::collections::HashMap::new(),
@@ -619,7 +531,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_edge_projection() {
-        let storage = Arc::new(Mutex::new(MockStorageEngine));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建边投影
         let columns = vec![
@@ -645,6 +557,7 @@ mod tests {
             dst: Box::new(Value::Int(2)),
             edge_type: "knows".to_string(),
             ranking: 0,
+            id: 1,
             props: std::collections::HashMap::from([("since".to_string(), Value::Int(2020))]),
         };
 
@@ -653,6 +566,7 @@ mod tests {
             dst: Box::new(Value::Int(3)),
             edge_type: "works_with".to_string(),
             ranking: 0,
+            id: 2,
             props: std::collections::HashMap::from([(
                 "project".to_string(),
                 Value::String("GraphDB".to_string()),

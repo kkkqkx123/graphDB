@@ -368,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_estimate_dataset_memory_usage() {
-        use crate::query::executor::data_processing::join::cross_join::tests::MockStorage;
+        use crate::storage::test_mock::MockStorage;
 
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["col1".to_string(), "col2".to_string()];

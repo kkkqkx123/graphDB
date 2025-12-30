@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+#[cfg(test)]
 pub mod test_config;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

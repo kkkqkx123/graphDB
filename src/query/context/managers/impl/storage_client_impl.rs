@@ -286,7 +286,7 @@ impl StorageClient for MemoryStorageClient {
 
         let mut vertices = self.vertices.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_vertices = vertices.entry(space_id).or_insert_with(HashMap::new);
-        let vid = vertex.id().clone();
+        let vid = vertex.vid().clone();
         space_vertices.insert(vid, vertex);
 
         Ok(ExecResponse::ok())
@@ -307,7 +307,7 @@ impl StorageClient for MemoryStorageClient {
                 .collect();
             
             let vertex = Vertex::new(new_vertex.id, tags);
-            space_vertices.insert(vertex.id().clone(), vertex);
+            space_vertices.insert(vertex.vid().clone(), vertex);
         }
 
         Ok(ExecResponse::ok())

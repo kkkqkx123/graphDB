@@ -11,7 +11,7 @@ pub mod retry;
 pub mod transaction;
 
 // 重新导出所有公共类型和trait
-pub use index_manager::{Index, IndexManager, IndexStatus, IndexType, IndexBuildProgress};
+pub use index_manager::{Index, IndexManager, IndexStatus, IndexType};
 pub use meta_client::{ClusterInfo, MetaClient, SpaceInfo};
 pub use r#impl::*;
 pub use schema_manager::{CharsetInfo, Schema, SchemaManager, FieldDef, TagDef, EdgeTypeDef, SchemaVersion, SchemaHistory};

@@ -983,6 +983,7 @@ mod tests {
     use super::*;
 
     /// Mock 存储引擎用于测试
+    #[derive(Debug)]
     struct MockStorageEngine;
 
     impl StorageEngine for MockStorageEngine {
@@ -1050,6 +1051,10 @@ mod tests {
 
         fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), StorageError> {
             Ok(())
+        }
+
+        fn scan_edges_by_type(&self, _edge_type: &str) -> Result<Vec<Edge>, StorageError> {
+            Ok(Vec::new())
         }
     }
 

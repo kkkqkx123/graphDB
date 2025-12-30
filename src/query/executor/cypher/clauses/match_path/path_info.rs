@@ -75,7 +75,7 @@ impl PathInfo {
 
     /// 检查路径是否包含指定节点
     pub fn contains_vertex(&self, vertex_id: &crate::core::Value) -> bool {
-        self.vertices.iter().any(|v| v.id() == vertex_id)
+        self.vertices.iter().any(|v| v.vid() == vertex_id)
     }
 }
 

@@ -202,7 +202,7 @@ impl<S: StorageEngine> TraversalEngine<S> {
             }
             PatternDirection::Both => {
                 // 双向，选择不是源节点的另一端
-                if edge.src() == source_vertex.id() {
+                if edge.src() == source_vertex.vid() {
                     edge.dst().clone()
                 } else {
                     edge.src().clone()
@@ -240,10 +240,10 @@ impl<S: StorageEngine> TraversalEngine<S> {
     pub fn has_cycle(&self, path: &PathInfo) -> bool {
         let mut seen = HashSet::new();
         for vertex in &path.vertices {
-            if seen.contains(vertex.id()) {
+            if seen.contains(vertex.vid()) {
                 return true;
             }
-            seen.insert(vertex.id().clone());
+            seen.insert(vertex.vid().clone());
         }
         false
     }
@@ -252,7 +252,7 @@ impl<S: StorageEngine> TraversalEngine<S> {
     pub fn unique_vertex_count(&self, path: &PathInfo) -> usize {
         let mut unique_ids = HashSet::new();
         for vertex in &path.vertices {
-            unique_ids.insert(vertex.id());
+            unique_ids.insert(vertex.vid());
         }
         unique_ids.len()
     }

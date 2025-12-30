@@ -208,7 +208,7 @@ mod tests {
         // 按单个标签过滤
         let filtered = matcher.filter_vertices_by_labels(vertices.clone(), &["Person".to_string()]);
         assert_eq!(filtered.len(), 1);
-        assert_eq!(filtered[0].id(), &Value::String("v1".to_string()));
+        assert_eq!(filtered[0].vid(), &Value::String("v1".to_string()));
 
         // 按多个标签过滤
         let filtered = matcher.filter_vertices_by_labels(
@@ -307,7 +307,7 @@ mod tests {
             .filter_vertices_by_properties(vertices, &properties, &context)
             .expect("Failed to get next");
         assert_eq!(filtered.len(), 1);
-        assert_eq!(filtered[0].id(), &Value::String("v1".to_string()));
+        assert_eq!(filtered[0].vid(), &Value::String("v1".to_string()));
     }
 
     #[tokio::test]

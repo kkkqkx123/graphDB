@@ -398,13 +398,13 @@ mod tests {
         assert_eq!(unique_vertices.len(), 3);
         assert!(unique_vertices
             .iter()
-            .any(|v| v.id() == &Value::String("v1".to_string())));
+            .any(|v| v.vid() == &Value::String("v1".to_string())));
         assert!(unique_vertices
             .iter()
-            .any(|v| v.id() == &Value::String("v2".to_string())));
+            .any(|v| v.vid() == &Value::String("v2".to_string())));
         assert!(unique_vertices
             .iter()
-            .any(|v| v.id() == &Value::String("v3".to_string())));
+            .any(|v| v.vid() == &Value::String("v3".to_string())));
     }
 
     #[test]

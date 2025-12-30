@@ -13,6 +13,7 @@ pub struct NativeStorage {
     
     schema_tree: Tree,
     node_edge_index: Tree, // Index: node_id -> [edge_id]
+    edge_type_index: Tree, // Index: edge_type -> [edge_key]
     db_path: String,       // Store the path for cloning
 }
 
@@ -39,6 +40,7 @@ impl NativeStorage {
         let edges_tree = db.open_tree("edges").map_err(|e| StorageError::DbError(e.to_string()))?;
         let schema_tree = db.open_tree("schema").map_err(|e| StorageError::DbError(e.to_string()))?;
         let node_edge_index = db.open_tree("node_edge_index").map_err(|e| StorageError::DbError(e.to_string()))?;
+        let edge_type_index = db.open_tree("edge_type_index").map_err(|e| StorageError::DbError(e.to_string()))?;
 
         Ok(Self {
             db,
@@ -46,6 +48,7 @@ impl NativeStorage {
             edges_tree,
             schema_tree,
             node_edge_index,
+            edge_type_index,
             db_path,
         })
     }
@@ -112,6 +115,50 @@ impl NativeStorage {
     fn get_node_edge_keys(&self, node_id: &Value) -> Result<Vec<Vec<u8>>, StorageError> {
         let node_id_bytes = self.value_to_bytes(node_id)?;
         match self.node_edge_index.get(&node_id_bytes).map_err(Self::sled_error_to_storage_error)? {
+            Some(list_bytes) => {
+                let edge_key_list: Vec<Vec<u8>> = serde_json::from_slice(&list_bytes)
+                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                Ok(edge_key_list)
+            }
+            None => Ok(Vec::new()),
+        }
+    }
+
+    fn update_edge_type_index(
+        &self,
+        edge_type: &str,
+        edge_key: &[u8],
+        add: bool,
+    ) -> Result<(), StorageError> {
+        let edge_type_bytes = edge_type.as_bytes().to_vec();
+        let mut edge_list = match self.edge_type_index.get(&edge_type_bytes).map_err(Self::sled_error_to_storage_error)? {
+            Some(list_bytes) => {
+                let result: Vec<Vec<u8>> = serde_json::from_slice(&list_bytes)
+                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                result
+            }
+            None => Vec::new(),
+        };
+
+        if add {
+            if !edge_list.contains(&edge_key.to_vec()) {
+                edge_list.push(edge_key.to_vec());
+            }
+        } else {
+            edge_list.retain(|key| key != edge_key);
+        }
+
+        let list_bytes = serde_json::to_vec(&edge_list)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+
+        self.edge_type_index.insert(&edge_type_bytes, list_bytes).map_err(Self::sled_error_to_storage_error)?;
+
+        Ok(())
+    }
+
+    fn get_edge_keys_by_type(&self, edge_type: &str) -> Result<Vec<Vec<u8>>, StorageError> {
+        let edge_type_bytes = edge_type.as_bytes().to_vec();
+        match self.edge_type_index.get(&edge_type_bytes).map_err(Self::sled_error_to_storage_error)? {
             Some(list_bytes) => {
                 let edge_key_list: Vec<Vec<u8>> = serde_json::from_slice(&list_bytes)
                     .map_err(|e| StorageError::SerializationError(e.to_string()))?;
@@ -223,6 +270,7 @@ impl StorageEngine for NativeStorage {
         // 更新索引
         self.update_node_edge_index(&edge.src, &edge_key_bytes, true)?;
         self.update_node_edge_index(&edge.dst, &edge_key_bytes, true)?;
+        self.update_edge_type_index(&edge.edge_type, &edge_key_bytes, true)?;
 
         self.db.flush().map_err(Self::sled_error_to_storage_error)?;
 
@@ -287,6 +335,7 @@ impl StorageEngine for NativeStorage {
 
             self.update_node_edge_index(src, &edge_key_bytes, false)?;
             self.update_node_edge_index(dst, &edge_key_bytes, false)?;
+            self.update_edge_type_index(edge_type, &edge_key_bytes, false)?;
 
             self.db.flush().map_err(Self::sled_error_to_storage_error)?;
             Ok(())
@@ -298,12 +347,11 @@ impl StorageEngine for NativeStorage {
     fn scan_edges_by_type(&self, edge_type: &str) -> Result<Vec<Edge>, StorageError> {
         let mut edges = Vec::new();
 
-        for item in self.edges_tree.iter() {
-            let (_, edge_bytes) = item.map_err(Self::sled_error_to_storage_error)?;
-            let edge: Edge = serde_json::from_slice(&edge_bytes)
-                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-            
-            if edge.edge_type == edge_type {
+        let edge_keys = self.get_edge_keys_by_type(edge_type)?;
+        for edge_key_bytes in edge_keys {
+            if let Some(edge_bytes) = self.edges_tree.get(&edge_key_bytes).map_err(Self::sled_error_to_storage_error)? {
+                let edge: Edge = serde_json::from_slice(&edge_bytes)
+                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 edges.push(edge);
             }
         }

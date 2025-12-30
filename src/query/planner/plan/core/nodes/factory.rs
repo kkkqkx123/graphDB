@@ -49,12 +49,9 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         columns: Vec<YieldColumn>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 这里需要重构 ProjectNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(
-            -1,
-            "project_placeholder",
-        )))
+        use super::project_node::ProjectNode;
+        let project_node = ProjectNode::new(input, columns)?;
+        Ok(PlanNodeEnum::Project(project_node))
     }
 
     /// 创建内连接节点
@@ -64,6 +61,8 @@ impl PlanNodeFactory {
         hash_keys: Vec<Expr>,
         probe_keys: Vec<Expr>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        use super::join_node::InnerJoinNode;
+
         // 将 Expr 转换为 Expression
         let hash_keys_expr: Result<Vec<_>, _> = hash_keys
             .iter()
@@ -81,12 +80,9 @@ impl PlanNodeFactory {
             crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
         })?;
 
-        // 这里需要重构 InnerJoinNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(
-            -1,
-            "inner_join_placeholder",
-        )))
+        // 创建 InnerJoinNode
+        let inner_join_node = InnerJoinNode::new(left, right, hash_keys_expr, probe_keys_expr)?;
+        Ok(PlanNodeEnum::InnerJoin(inner_join_node))
     }
 
     /// 创建起始节点

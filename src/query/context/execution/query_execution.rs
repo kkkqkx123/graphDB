@@ -627,6 +627,30 @@ mod tests {
         fn save_to_disk(&self) -> ManagerResult<()> {
             Ok(())
         }
+
+        fn insert_vertex_to_index(&self, _space_id: i32, _vertex: &crate::core::Vertex) -> ManagerResult<()> {
+            Ok(())
+        }
+
+        fn delete_vertex_from_index(&self, _space_id: i32, _vertex: &crate::core::Vertex) -> ManagerResult<()> {
+            Ok(())
+        }
+
+        fn update_vertex_in_index(&self, _space_id: i32, _old_vertex: &crate::core::Vertex, _new_vertex: &crate::core::Vertex) -> ManagerResult<()> {
+            Ok(())
+        }
+
+        fn insert_edge_to_index(&self, _space_id: i32, _edge: &crate::core::Edge) -> ManagerResult<()> {
+            Ok(())
+        }
+
+        fn delete_edge_from_index(&self, _space_id: i32, _edge: &crate::core::Edge) -> ManagerResult<()> {
+            Ok(())
+        }
+
+        fn update_edge_in_index(&self, _space_id: i32, _old_edge: &crate::core::Edge, _new_edge: &crate::core::Edge) -> ManagerResult<()> {
+            Ok(())
+        }
     }
 
     #[derive(Debug)]

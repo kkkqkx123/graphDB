@@ -11,6 +11,7 @@ use crate::storage::StorageEngine;
 use std::collections::{HashMap, BTreeMap};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
+use std::fmt;
 
 /// 简化的索引数据结构 - 使用 BTreeMap + HashMap 混合索引
 ///
@@ -18,12 +19,12 @@ use std::sync::{Arc, RwLock};
 /// 辅助索引使用 HashMap，支持精确匹配的快速查找
 #[derive(Debug)]
 struct IndexData {
-    /// 按标签和属性组合索引的顶点 - BTreeMap支持范围查询
-    vertex_by_tag_property: BTreeMap<(String, String), Vec<Vertex>>,
+    /// 按标签、属性和属性值索引的顶点 - BTreeMap支持范围查询
+    vertex_by_tag_property: BTreeMap<(String, String, Value), Vec<Vertex>>,
     /// 按内部ID精确查找顶点 - HashMap提供O(1)查询
     vertex_by_id: HashMap<i64, Vertex>,
-    /// 按边类型和属性组合索引的边 - BTreeMap支持范围查询
-    edge_by_type_property: BTreeMap<(String, String), Vec<Edge>>,
+    /// 按边类型、属性和属性值索引的边 - BTreeMap支持范围查询
+    edge_by_type_property: BTreeMap<(String, String, Value), Vec<Edge>>,
     /// 按内部ID精确查找边 - HashMap提供O(1)查询
     edge_by_id: HashMap<i64, Edge>,
 }
@@ -40,14 +41,14 @@ impl IndexData {
 
     /// 插入顶点到索引
     fn insert_vertex(&mut self, tag_name: &str, field_name: &str, field_value: &Value, vertex: Vertex) {
-        let key = (tag_name.to_string(), field_name.to_string());
+        let key = (tag_name.to_string(), field_name.to_string(), field_value.clone());
         self.vertex_by_tag_property.entry(key).or_insert_with(Vec::new).push(vertex.clone());
         self.vertex_by_id.insert(vertex.id(), vertex);
     }
 
     /// 插入边到索引
     fn insert_edge(&mut self, edge_type: &str, field_name: &str, field_value: &Value, edge: Edge) {
-        let key = (edge_type.to_string(), field_name.to_string());
+        let key = (edge_type.to_string(), field_name.to_string(), field_value.clone());
         self.edge_by_type_property.entry(key).or_insert_with(Vec::new).push(edge.clone());
         self.edge_by_id.insert(edge.id, edge);
     }
@@ -62,87 +63,47 @@ impl IndexData {
         self.edge_by_id.get(&id)
     }
 
-    /// 按标签和属性查找顶点 - 使用BTreeMap
-    fn lookup_vertex_by_property(&self, tag_name: &str, field_name: &str) -> Option<&Vec<Vertex>> {
-        let key = (tag_name.to_string(), field_name.to_string());
+    /// 按标签、属性和属性值精确查找顶点 - 使用BTreeMap
+    fn lookup_vertex_by_property(&self, tag_name: &str, field_name: &str, field_value: &Value) -> Option<&Vec<Vertex>> {
+        let key = (tag_name.to_string(), field_name.to_string(), field_value.clone());
         self.vertex_by_tag_property.get(&key)
     }
 
-    /// 按边类型和属性查找边 - 使用BTreeMap
-    fn lookup_edge_by_property(&self, edge_type: &str, field_name: &str) -> Option<&Vec<Edge>> {
-        let key = (edge_type.to_string(), field_name.to_string());
+    /// 按边类型、属性和属性值精确查找边 - 使用BTreeMap
+    fn lookup_edge_by_property(&self, edge_type: &str, field_name: &str, field_value: &Value) -> Option<&Vec<Edge>> {
+        let key = (edge_type.to_string(), field_name.to_string(), field_value.clone());
         self.edge_by_type_property.get(&key)
     }
 
     /// 范围查找顶点 - BTreeMap天然支持范围迭代
     fn range_lookup_vertex(&self, tag_name: &str, field_name: &str, 
                            start_value: &Value, end_value: &Value) -> Vec<Vertex> {
-        let key = (tag_name.to_string(), field_name.to_string());
-        if let Some(vertices) = self.vertex_by_tag_property.get(&key) {
-            vertices.iter()
-                .filter(|v| Self::vertex_in_range(v, tag_name, field_name, start_value, end_value))
-                .cloned()
-                .collect()
-        } else {
-            Vec::new()
+        let start_key = (tag_name.to_string(), field_name.to_string(), start_value.clone());
+        let end_key = (tag_name.to_string(), field_name.to_string(), end_value.clone());
+        
+        let mut result = Vec::new();
+        for (_, vertices) in self.vertex_by_tag_property.range(start_key..=end_key) {
+            result.extend(vertices.iter().cloned());
         }
+        result
     }
 
     /// 范围查找边 - BTreeMap天然支持范围迭代
     fn range_lookup_edge(&self, edge_type: &str, field_name: &str,
                         start_value: &Value, end_value: &Value) -> Vec<Edge> {
-        let key = (edge_type.to_string(), field_name.to_string());
-        if let Some(edges) = self.edge_by_type_property.get(&key) {
-            edges.iter()
-                .filter(|e| Self::edge_in_range(e, edge_type, field_name, start_value, end_value))
-                .cloned()
-                .collect()
-        } else {
-            Vec::new()
+        let start_key = (edge_type.to_string(), field_name.to_string(), start_value.clone());
+        let end_key = (edge_type.to_string(), field_name.to_string(), end_value.clone());
+        
+        let mut result = Vec::new();
+        for (_, edges) in self.edge_by_type_property.range(start_key..=end_key) {
+            result.extend(edges.iter().cloned());
         }
-    }
-
-    /// 检查顶点属性是否在范围内
-    fn vertex_in_range(vertex: &Vertex, tag_name: &str, field_name: &str,
-                       start_value: &Value, end_value: &Value) -> bool {
-        if let Some(tag) = vertex.tags.iter().find(|t| t.name == tag_name) {
-            if let Some(value) = tag.properties.get(field_name) {
-                return Self::value_in_range(value, start_value, end_value);
-            }
-        }
-        false
-    }
-
-    /// 检查边属性是否在范围内
-    fn edge_in_range(edge: &Edge, edge_type: &str, field_name: &str,
-                    start_value: &Value, end_value: &Value) -> bool {
-        if edge.edge_type == edge_type {
-            if let Some(value) = edge.props.get(field_name) {
-                return Self::value_in_range(value, start_value, end_value);
-            }
-        }
-        false
-    }
-
-    /// 检查值是否在范围内
-    fn value_in_range(value: &Value, start_value: &Value, end_value: &Value) -> bool {
-        match (value, start_value, end_value) {
-            (Value::Int(v), Value::Int(start), Value::Int(end)) => {
-                *v >= *start && *v <= *end
-            }
-            (Value::Float(v), Value::Float(start), Value::Float(end)) => {
-                *v >= *start && *v <= *end
-            }
-            (Value::String(v), Value::String(start), Value::String(end)) => {
-                *v >= *start && *v <= *end
-            }
-            _ => false,
-        }
+        result
     }
 }
 
 /// 内存中的索引管理器实现
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct MemoryIndexManager {
     indexes: Arc<RwLock<HashMap<String, Index>>>,
     next_index_id: Arc<RwLock<i32>>,
@@ -151,10 +112,22 @@ pub struct MemoryIndexManager {
     storage_engine: Option<Arc<dyn StorageEngine>>,
 }
 
+impl fmt::Debug for MemoryIndexManager {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MemoryIndexManager")
+            .field("indexes", &self.indexes)
+            .field("next_index_id", &self.next_index_id)
+            .field("storage_path", &self.storage_path)
+            .field("index_data", &self.index_data)
+            .field("storage_engine", &"[redacted]")
+            .finish()
+    }
+}
+
 impl MemoryIndexManager {
     /// 创建新的内存索引管理器
     pub fn new(storage_path: PathBuf) -> Self {
-        let mut manager = Self {
+        let manager = Self {
             indexes: Arc::new(RwLock::new(HashMap::new())),
             next_index_id: Arc::new(RwLock::new(1)),
             storage_path,
@@ -376,7 +349,10 @@ impl IndexManager for MemoryIndexManager {
         let field_name = index.fields.get(0)
             .ok_or_else(|| ManagerError::IndexError("索引字段为空".to_string()))?;
         
-        let vertices = data.lookup_vertex_by_property(&index.schema_name, field_name)
+        let field_value = values.get(0)
+            .ok_or_else(|| ManagerError::IndexError("索引值为空".to_string()))?;
+        
+        let vertices = data.lookup_vertex_by_property(&index.schema_name, field_name, field_value)
             .ok_or_else(|| ManagerError::NotFound("未找到匹配的顶点".to_string()))?;
         
         Ok(vertices.clone())
@@ -403,7 +379,10 @@ impl IndexManager for MemoryIndexManager {
         let field_name = index.fields.get(0)
             .ok_or_else(|| ManagerError::IndexError("索引字段为空".to_string()))?;
         
-        let edges = data.lookup_edge_by_property(&index.schema_name, field_name)
+        let field_value = values.get(0)
+            .ok_or_else(|| ManagerError::IndexError("索引值为空".to_string()))?;
+        
+        let edges = data.lookup_edge_by_property(&index.schema_name, field_name, field_value)
             .ok_or_else(|| ManagerError::NotFound("未找到匹配的边".to_string()))?;
         
         Ok(edges.clone())

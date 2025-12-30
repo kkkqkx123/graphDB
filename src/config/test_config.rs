@@ -1,16 +1,20 @@
 //! 测试配置模块
 //!
 //! 统一管理测试数据路径，避免在项目路径中出现过多文件
+//! 此模块仅在测试时编译
 
+#[cfg(test)]
 use std::path::PathBuf;
 
 /// 测试配置结构体
+#[cfg(test)]
 #[derive(Debug, Clone)]
 pub struct TestConfig {
     /// 测试数据根目录
     pub test_data_root: PathBuf,
 }
 
+#[cfg(test)]
 impl Default for TestConfig {
     fn default() -> Self {
         Self {
@@ -19,6 +23,7 @@ impl Default for TestConfig {
     }
 }
 
+#[cfg(test)]
 impl TestConfig {
     /// 创建新的测试配置
     pub fn new() -> Self {
@@ -56,6 +61,7 @@ impl TestConfig {
 }
 
 /// 全局测试配置实例
+#[cfg(test)]
 pub fn test_config() -> TestConfig {
     TestConfig::new()
 }
