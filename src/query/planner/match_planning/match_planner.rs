@@ -42,7 +42,7 @@ impl MatchPlanner {
 
     pub fn make() -> Box<dyn Planner> {
         // 创建一个默认的查询上下文
-        let query_context = AstContext::new("MATCH", "MATCH (n)");
+        let query_context = AstContext::from_strings("MATCH", "MATCH (n)");
         Box::new(Self::new(query_context))
     }
 
@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn test_match_planner_creation() {
-        let query_ctx = AstContext::new("MATCH", "MATCH (n)");
+        let query_ctx = AstContext::from_strings("MATCH", "MATCH (n)");
         let planner = MatchPlanner::new(query_ctx);
         assert_eq!(planner.query_context.statement_type(), "MATCH");
     }
@@ -164,21 +164,21 @@ mod tests {
     #[test]
     fn test_match_planner_make() {
         let planner = MatchPlanner::make();
-        assert!(planner.match_planner(&AstContext::new("MATCH", "MATCH (n)")));
-        assert!(!planner.match_planner(&AstContext::new("GO", "GO 1 TO 2")));
+        assert!(planner.match_planner(&AstContext::from_strings("MATCH", "MATCH (n)")));
+        assert!(!planner.match_planner(&AstContext::from_strings("GO", "GO 1 TO 2")));
     }
 
     #[test]
     fn test_match_planner_match_ast_ctx() {
-        assert!(MatchPlanner::match_ast_ctx(&AstContext::new(
+        assert!(MatchPlanner::match_ast_ctx(&AstContext::from_strings(
             "MATCH",
             "MATCH (n)"
         )));
-        assert!(MatchPlanner::match_ast_ctx(&AstContext::new(
+        assert!(MatchPlanner::match_ast_ctx(&AstContext::from_strings(
             "match",
             "match (n)"
         )));
-        assert!(!MatchPlanner::match_ast_ctx(&AstContext::new(
+        assert!(!MatchPlanner::match_ast_ctx(&AstContext::from_strings(
             "GO",
             "GO 1 TO 2"
         )));

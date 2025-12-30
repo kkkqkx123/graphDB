@@ -49,9 +49,9 @@ impl Planner for SubgraphPlanner {
 
         let arg_node = Argument::new(1, &subgraph_ctx.from.user_defined_var_name);
 
-        let expand_node = Expand::new(1, subgraph_ctx.edge_types.clone(), EdgeDirection::Outgoing);
+        let expand_node = Expand::new(1, subgraph_ctx.edge_types.iter().cloned().collect::<Vec<_>>(), EdgeDirection::Outgoing);
 
-        let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAll::new(2, subgraph_ctx.edge_types.clone(), "out"));
+        let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAll::new(2, subgraph_ctx.edge_types.iter().cloned().collect::<Vec<_>>(), "out"));
 
         let filter_node: PlanNodeEnum = if let Some(ref condition) = subgraph_ctx.filter {
             match Filter::new(

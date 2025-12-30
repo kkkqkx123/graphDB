@@ -58,19 +58,12 @@ impl Planner for PathPlanner {
         );
 
         // 3. 创建扩展节点进行路径搜索
-        let expand_direction = if path_ctx.over.direction == "both" {
-            EdgeDirection::Both
-        } else if path_ctx.over.direction == "in" {
-            EdgeDirection::Incoming
-        } else {
-            EdgeDirection::Outgoing
-        };
+        let expand_direction: EdgeDirection = path_ctx.over.direction.into();
 
         let mut edge_types = path_ctx.over.edge_types.clone();
-        // 如果是双向边，设置方向
-        if path_ctx.over.direction == "both" {
+        if path_ctx.over.direction == crate::query::context::ast::EdgeDirection::Both {
             edge_types.extend(path_ctx.over.edge_types.iter().map(|et| format!("-{}", et)));
-        } else if path_ctx.over.direction == "in" {
+        } else if path_ctx.over.direction == crate::query::context::ast::EdgeDirection::In {
             edge_types = path_ctx
                 .over
                 .edge_types
@@ -81,16 +74,7 @@ impl Planner for PathPlanner {
 
         let _expand_node = ExpandNode::new(1, edge_types.clone(), expand_direction);
 
-        // 5. 创建ExpandAll节点进行多步扩展
-        let expand_all_direction = if path_ctx.over.direction == "both" {
-            "both"
-        } else if path_ctx.over.direction == "in" {
-            "in"
-        } else {
-            "out"
-        };
-
-        let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAllNode::new(2, edge_types, expand_all_direction));
+        let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAllNode::new(2, edge_types, path_ctx.over.direction.as_str()));
 
         // 6. 创建过滤节点（如果有过滤条件）
         let filter_node: PlanNodeEnum = if let Some(ref condition) = path_ctx.filter {

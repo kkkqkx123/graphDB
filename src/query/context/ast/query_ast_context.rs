@@ -39,7 +39,7 @@ impl QueryAstContext {
     /// 创建新的查询AST上下文
     pub fn new(query_text: &str) -> Self {
         Self {
-            base: AstContext::new("QUERY", query_text),
+            base: AstContext::from_strings("QUERY", query_text),
             dependencies: HashMap::new(),
             query_variables: HashMap::new(),
             expression_contexts: Vec::new(),

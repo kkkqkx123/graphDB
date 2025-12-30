@@ -35,3 +35,30 @@ impl EdgeDirection {
         }
     }
 }
+
+impl From<&str> for EdgeDirection {
+    fn from(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "out" | "outgoing" => EdgeDirection::Outgoing,
+            "in" | "incoming" => EdgeDirection::Incoming,
+            "both" | "bidirectional" => EdgeDirection::Both,
+            _ => EdgeDirection::Both,
+        }
+    }
+}
+
+impl From<String> for EdgeDirection {
+    fn from(s: String) -> Self {
+        EdgeDirection::from(s.as_str())
+    }
+}
+
+impl From<crate::query::context::ast::EdgeDirection> for EdgeDirection {
+    fn from(d: crate::query::context::ast::EdgeDirection) -> Self {
+        match d {
+            crate::query::context::ast::EdgeDirection::Out => EdgeDirection::Outgoing,
+            crate::query::context::ast::EdgeDirection::In => EdgeDirection::Incoming,
+            crate::query::context::ast::EdgeDirection::Both => EdgeDirection::Both,
+        }
+    }
+}

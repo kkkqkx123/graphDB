@@ -88,7 +88,7 @@ impl YieldClausePlanner {
                 plan.tail = Some(project_node);
             } else {
                 // 使用新的统一连接器将投影节点连接到现有计划的尾部
-                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                let temp_ast_context = crate::query::context::ast::base::AstContext::from_strings(
                     &context.query_info.statement_type,
                     &context.query_info.query_id,
                 );
@@ -119,7 +119,7 @@ impl YieldClausePlanner {
                 plan.tail = Some(dedup_node);
             } else {
                 // 使用新的统一连接器将去重节点连接到现有计划的尾部
-                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                let temp_ast_context = crate::query::context::ast::base::AstContext::from_strings(
                     &context.query_info.statement_type,
                     &context.query_info.query_id,
                 );

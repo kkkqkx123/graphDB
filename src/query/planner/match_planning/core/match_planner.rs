@@ -91,7 +91,7 @@ mod tests {
 
     /// 创建测试用的 AST 上下文
     fn create_test_ast_context(statement_type: &str, query_text: &str) -> AstContext {
-        AstContext::new(statement_type, query_text)
+        AstContext::from_strings(statement_type, query_text)
     }
 
     /// 创建测试用的节点信息

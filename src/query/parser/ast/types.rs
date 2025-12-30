@@ -5,7 +5,7 @@ use crate::core::types::operators::AggregateFunction as CoreAggregateFunction;
 pub use crate::core::types::EdgeDirection;
 
 /// 位置信息
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Span {
     pub start: Position,
     pub end: Position,
@@ -22,17 +22,10 @@ impl Span {
             end: end.position,
         }
     }
-
-    pub fn default() -> Self {
-        Self {
-            start: Position::new(0, 0),
-            end: Position::new(0, 0),
-        }
-    }
 }
 
 /// 位置信息
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Position {
     pub line: usize,
     pub column: usize,

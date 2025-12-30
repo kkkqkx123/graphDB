@@ -97,13 +97,23 @@ impl Planner for LookupPlanner {
 
         // 3. 创建投影节点
         use crate::query::validator::YieldColumn;
-        let yield_columns = vec![YieldColumn {
-            expr: crate::core::Expression::Variable(
-                lookup_ctx.yield_expr.clone().unwrap_or("*".to_string()),
-            ),
-            alias: "result".to_string(),
-            is_matched: false,
-        }];
+        use crate::query::context::ast::YieldColumns;
+        
+        let yield_columns = if let Some(ref yield_expr) = lookup_ctx.yield_expr {
+            yield_expr.columns.iter().map(|col| YieldColumn {
+                expr: crate::core::Expression::Variable(
+                    col.name(),
+                ),
+                alias: col.alias.clone().unwrap_or_else(|| col.name()),
+                is_matched: false,
+            }).collect()
+        } else {
+            vec![YieldColumn {
+                expr: crate::core::Expression::Variable("*".to_string()),
+                alias: "result".to_string(),
+                is_matched: false,
+            }]
+        };
 
         // 创建新的索引扫描节点作为PlanNodeEnum
         let index_scan_enum = if lookup_ctx.is_edge {

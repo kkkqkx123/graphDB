@@ -2,6 +2,7 @@
 //! 处理Nebula GO查询的规划
 
 use crate::query::context::ast::{AstContext, GoContext};
+use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::plan::core::PlanNodeEnum;
 use crate::query::planner::plan::core::{
     ArgumentNode, DedupNode, ExpandAllNode, ExpandNode, FilterNode, InnerJoinNode, ProjectNode,
@@ -50,24 +51,17 @@ impl Planner for GoPlanner {
         let arg_node_enum = PlanNodeEnum::Argument(arg_node);
 
         let mut edge_types = go_ctx.over.edge_types.clone();
-        if go_ctx.over.direction == "both" {
+        if go_ctx.over.direction == crate::query::context::ast::EdgeDirection::Both {
             edge_types = go_ctx.over.edge_types.clone();
-        } else if go_ctx.over.direction == "in" {
+        } else if go_ctx.over.direction == crate::query::context::ast::EdgeDirection::In {
             edge_types = edge_types.iter().map(|et| format!("-{}", et)).collect();
         }
 
-        let expand_direction = EdgeDirection::Outgoing;
+        let expand_direction: EdgeDirection = go_ctx.over.direction.into();
+
         let expand_node = ExpandNode::new(1, edge_types.clone(), expand_direction);
 
-        let direction = if go_ctx.over.direction == "both" {
-            "both"
-        } else if go_ctx.over.direction == "in" {
-            "in"
-        } else {
-            "out"
-        };
-
-        let expand_all_node = ExpandAllNode::new(1, go_ctx.over.edge_types.clone(), direction);
+        let expand_all_node = ExpandAllNode::new(1, go_ctx.over.edge_types.clone(), go_ctx.over.direction.as_str());
 
         let join_node_opt: Option<PlanNodeEnum> = if go_ctx.join_dst {
             let join_key = crate::core::Expression::Variable("_expandall_vid".to_string());
@@ -104,13 +98,28 @@ impl Planner for GoPlanner {
             None
         };
 
-        let yield_columns = vec![crate::query::validator::YieldColumn {
-            expr: crate::core::Expression::Variable(
-                go_ctx.yield_expr.clone().unwrap_or("DEFAULT".to_string()),
-            ),
-            alias: "project_result".to_string(),
-            is_matched: false,
-        }];
+        let yield_columns = if let Some(ref yield_expr) = go_ctx.yield_expr {
+            yield_expr.columns.iter().map(|col| {
+                crate::query::validator::YieldColumn {
+                    expr: crate::core::Expression::Variable(
+                        col.alias.clone().unwrap_or_else(|| {
+                            match &col.expr {
+                                Expr::Variable(v) => v.name.clone(),
+                                _ => "DEFAULT".to_string(),
+                            }
+                        }),
+                    ),
+                    alias: col.alias.clone().unwrap_or_else(|| "DEFAULT".to_string()),
+                    is_matched: false,
+                }
+            }).collect()
+        } else {
+            vec![crate::query::validator::YieldColumn {
+                expr: crate::core::Expression::Variable("DEFAULT".to_string()),
+                alias: "project_result".to_string(),
+                is_matched: false,
+            }]
+        };
 
         let last_node: PlanNodeEnum = if let Some(ref filter_node) = filter_node_opt {
             filter_node.clone()

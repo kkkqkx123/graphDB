@@ -152,6 +152,16 @@ impl From<&str> for EdgeDirection {
     }
 }
 
+impl EdgeDirection {
+    pub fn as_str(&self) -> &str {
+        match self {
+            EdgeDirection::Out => "out",
+            EdgeDirection::In => "in",
+            EdgeDirection::Both => "both",
+        }
+    }
+}
+
 // 起始顶点信息
 #[derive(Debug, Clone)]
 pub struct Starts {

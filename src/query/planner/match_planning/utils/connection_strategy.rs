@@ -523,7 +523,7 @@ mod tests {
         assert!(strategy.can_handle(&ConnectionType::InnerJoin));
         assert!(!strategy.can_handle(&ConnectionType::LeftJoin));
 
-        let qctx = AstContext::new("test", "test");
+        let qctx = AstContext::from_strings("test", "test");
         let left = SubPlan::new(None, None);
         let right = SubPlan::new(None, None);
         let params = JoinParams::inner_join(vec![], HashSet::new());
@@ -543,7 +543,7 @@ mod tests {
         assert!(connector.supports_connection_type(&ConnectionType::Sequential));
         assert!(!connector.supports_connection_type(&ConnectionType::RightJoin));
 
-        let qctx = AstContext::new("test", "test");
+        let qctx = AstContext::from_strings("test", "test");
         let left = SubPlan::new(None, None);
         let right = SubPlan::new(None, None);
         let params = JoinParams::cartesian();
@@ -554,7 +554,7 @@ mod tests {
 
     #[test]
     fn test_static_methods() {
-        let qctx = AstContext::new("test", "test");
+        let qctx = AstContext::from_strings("test", "test");
         let left = SubPlan::new(None, None);
         let right = SubPlan::new(None, None);
 

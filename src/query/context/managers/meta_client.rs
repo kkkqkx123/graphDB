@@ -1,7 +1,9 @@
 //! 元数据客户端接口 - 定义元数据访问的基本操作
 
+use serde::{Deserialize, Serialize};
+
 /// 集群信息
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterInfo {
     pub cluster_id: String,
     pub meta_servers: Vec<String>,
@@ -9,7 +11,7 @@ pub struct ClusterInfo {
 }
 
 /// 空间信息
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpaceInfo {
     pub space_id: i32,
     pub space_name: String,
@@ -25,4 +27,18 @@ pub trait MetaClient: Send + Sync + std::fmt::Debug {
     fn get_space_info(&self, space_id: i32) -> Result<SpaceInfo, String>;
     /// 检查连接状态
     fn is_connected(&self) -> bool;
+    
+    /// 创建空间
+    fn create_space(&self, space_name: &str, partition_num: i32, replica_factor: i32) -> Result<i32, String>;
+    /// 删除空间
+    fn drop_space(&self, space_id: i32) -> Result<(), String>;
+    /// 列出所有空间
+    fn list_spaces(&self) -> Result<Vec<SpaceInfo>, String>;
+    /// 检查空间是否存在
+    fn has_space(&self, space_id: i32) -> bool;
+    
+    /// 从磁盘加载元数据
+    fn load_from_disk(&self) -> Result<(), String>;
+    /// 保存元数据到磁盘
+    fn save_to_disk(&self) -> Result<(), String>;
 }

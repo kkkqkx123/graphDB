@@ -92,7 +92,7 @@ impl ReturnClausePlanner {
                 order_by_planner.transform(&order_by_clause_ctx, Some(&plan), context)?;
 
             // 使用新的统一连接器连接排序计划
-            let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+            let temp_ast_context = crate::query::context::ast::base::AstContext::from_strings(
                 &context.query_info.statement_type,
                 &context.query_info.query_id,
             );
@@ -111,7 +111,7 @@ impl ReturnClausePlanner {
                 let pagination_plan =
                     pagination_planner.transform(&pagination_clause_ctx, Some(&plan), context)?;
 
-                let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+                let temp_ast_context = crate::query::context::ast::base::AstContext::from_strings(
                     &context.query_info.statement_type,
                     &context.query_info.query_id,
                 );
@@ -131,7 +131,7 @@ impl ReturnClausePlanner {
             // 暂时简化去重节点创建
             // TODO: 实现完整的去重逻辑，创建专门的 DedupNode
 
-            let temp_ast_context = crate::query::context::ast::base::AstContext::new(
+            let temp_ast_context = crate::query::context::ast::base::AstContext::from_strings(
                 &context.query_info.statement_type,
                 &context.query_info.query_id,
             );

@@ -109,7 +109,7 @@ impl CypherAstContext {
     /// 创建新的Cypher AST上下文
     pub fn new(query_text: &str) -> Self {
         Self {
-            base: AstContext::new("CYPHER", query_text),
+            base: AstContext::from_strings("CYPHER", query_text),
             query_parts: Vec::new(),
             variables: HashMap::new(),
             expressions: Vec::new(),
@@ -277,7 +277,7 @@ mod tests {
                 referenced_clauses: vec![],
             }],
             input_variables: HashSet::new(),
-            output_variables: ["n"].iter().cloned().collect(),
+            output_variables: ["n"].iter().map(|s| s.to_string()).collect(),
         };
 
         context.add_query_part(part);
@@ -315,7 +315,7 @@ mod tests {
 
         let var_info = VariableInfo {
             var_type: AliasType::Node,
-            labels: ["Person"].iter().cloned().collect(),
+            labels: ["Person"].iter().map(|s| s.to_string()).collect(),
             properties: HashMap::new(),
             is_optional: false,
             scope: VariableScope::Local,
@@ -377,7 +377,7 @@ mod tests {
                 referenced_clauses: vec![],
             }],
             input_variables: HashSet::new(),
-            output_variables: ["a"].iter().cloned().collect(),
+            output_variables: ["a"].iter().map(|s| s.to_string()).collect(),
         };
 
         let part2 = QueryPart {
@@ -388,8 +388,8 @@ mod tests {
                 position: 1,
                 referenced_clauses: vec![],
             }],
-            input_variables: ["a"].iter().cloned().collect(),
-            output_variables: ["b"].iter().cloned().collect(),
+            input_variables: ["a"].iter().map(|s| s.to_string()).collect(),
+            output_variables: ["b"].iter().map(|s| s.to_string()).collect(),
         };
 
         context.add_query_part(part1);

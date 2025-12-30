@@ -391,7 +391,7 @@ mod tests {
     #[test]
     fn test_sequential_planner() {
         let _planner = SequentialPlanner::new();
-        assert!(SequentialPlanner::match_ast_ctx(&AstContext::new(
+        assert!(SequentialPlanner::match_ast_ctx(&AstContext::from_strings(
             "test", "test"
         )));
     }

@@ -1,20 +1,40 @@
 //! Schema管理器实现 - 内存中的Schema管理
 //!
-use super::super::{Schema, SchemaManager};
+use super::super::{EdgeTypeDef, FieldDef, Schema, SchemaManager, TagDef};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 /// 内存中的Schema管理器实现
 #[derive(Debug, Clone)]
 pub struct MemorySchemaManager {
     schemas: Arc<RwLock<HashMap<String, Schema>>>,
+    tags: Arc<RwLock<HashMap<i32, TagDef>>>,
+    edge_types: Arc<RwLock<HashMap<i32, EdgeTypeDef>>>,
+    space_tags: Arc<RwLock<HashMap<i32, Vec<i32>>>>,
+    space_edge_types: Arc<RwLock<HashMap<i32, Vec<i32>>>>,
+    next_tag_id: Arc<RwLock<i32>>,
+    next_edge_type_id: Arc<RwLock<i32>>,
+    storage_path: PathBuf,
 }
 
 impl MemorySchemaManager {
     /// 创建新的内存Schema管理器
     pub fn new() -> Self {
+        Self::with_storage_path("./data/schema")
+    }
+
+    /// 使用指定存储路径创建内存Schema管理器
+    pub fn with_storage_path<P: AsRef<Path>>(storage_path: P) -> Self {
         Self {
             schemas: Arc::new(RwLock::new(HashMap::new())),
+            tags: Arc::new(RwLock::new(HashMap::new())),
+            edge_types: Arc::new(RwLock::new(HashMap::new())),
+            space_tags: Arc::new(RwLock::new(HashMap::new())),
+            space_edge_types: Arc::new(RwLock::new(HashMap::new())),
+            next_tag_id: Arc::new(RwLock::new(1)),
+            next_edge_type_id: Arc::new(RwLock::new(1)),
+            storage_path: storage_path.as_ref().to_path_buf(),
         }
     }
 
@@ -65,11 +85,266 @@ impl SchemaManager for MemorySchemaManager {
             Err(_) => false,
         }
     }
+
+    fn create_tag(&self, space_id: i32, tag_name: &str, fields: Vec<FieldDef>) -> Result<i32, String> {
+        let mut next_id = self.next_tag_id.write().map_err(|e| e.to_string())?;
+        let tag_id = *next_id;
+        *next_id += 1;
+        drop(next_id);
+
+        let tag_def = TagDef {
+            tag_id,
+            tag_name: tag_name.to_string(),
+            fields,
+            comment: None,
+        };
+
+        let mut tags = self.tags.write().map_err(|e| e.to_string())?;
+        tags.insert(tag_id, tag_def);
+        drop(tags);
+
+        let mut space_tags = self.space_tags.write().map_err(|e| e.to_string())?;
+        space_tags.entry(space_id).or_insert_with(Vec::new).push(tag_id);
+        drop(space_tags);
+
+        self.save_to_disk()?;
+        Ok(tag_id)
+    }
+
+    fn drop_tag(&self, space_id: i32, tag_id: i32) -> Result<(), String> {
+        let mut tags = self.tags.write().map_err(|e| e.to_string())?;
+        if !tags.contains_key(&tag_id) {
+            return Err(format!("Tag {} 不存在", tag_id));
+        }
+        tags.remove(&tag_id);
+        drop(tags);
+
+        let mut space_tags = self.space_tags.write().map_err(|e| e.to_string())?;
+        if let Some(tag_list) = space_tags.get_mut(&space_id) {
+            tag_list.retain(|&id| id != tag_id);
+        }
+        drop(space_tags);
+
+        self.save_to_disk()?;
+        Ok(())
+    }
+
+    fn get_tag(&self, _space_id: i32, tag_id: i32) -> Option<TagDef> {
+        let tags = self.tags.read().ok()?;
+        tags.get(&tag_id).cloned()
+    }
+
+    fn list_tags(&self, space_id: i32) -> Result<Vec<TagDef>, String> {
+        let space_tags = self.space_tags.read().map_err(|e| e.to_string())?;
+        let tag_ids = space_tags.get(&space_id).cloned().unwrap_or_default();
+        drop(space_tags);
+
+        let tags = self.tags.read().map_err(|e| e.to_string())?;
+        let tag_list: Vec<TagDef> = tag_ids
+            .iter()
+            .filter_map(|id| tags.get(id).cloned())
+            .collect();
+        Ok(tag_list)
+    }
+
+    fn has_tag(&self, _space_id: i32, tag_id: i32) -> bool {
+        match self.tags.read() {
+            Ok(tags) => tags.contains_key(&tag_id),
+            Err(_) => false,
+        }
+    }
+
+    fn create_edge_type(&self, space_id: i32, edge_type_name: &str, fields: Vec<FieldDef>) -> Result<i32, String> {
+        let mut next_id = self.next_edge_type_id.write().map_err(|e| e.to_string())?;
+        let edge_type_id = *next_id;
+        *next_id += 1;
+        drop(next_id);
+
+        let edge_type_def = EdgeTypeDef {
+            edge_type_id,
+            edge_type_name: edge_type_name.to_string(),
+            fields,
+            comment: None,
+        };
+
+        let mut edge_types = self.edge_types.write().map_err(|e| e.to_string())?;
+        edge_types.insert(edge_type_id, edge_type_def);
+        drop(edge_types);
+
+        let mut space_edge_types = self.space_edge_types.write().map_err(|e| e.to_string())?;
+        space_edge_types.entry(space_id).or_insert_with(Vec::new).push(edge_type_id);
+        drop(space_edge_types);
+
+        self.save_to_disk()?;
+        Ok(edge_type_id)
+    }
+
+    fn drop_edge_type(&self, space_id: i32, edge_type_id: i32) -> Result<(), String> {
+        let mut edge_types = self.edge_types.write().map_err(|e| e.to_string())?;
+        if !edge_types.contains_key(&edge_type_id) {
+            return Err(format!("EdgeType {} 不存在", edge_type_id));
+        }
+        edge_types.remove(&edge_type_id);
+        drop(edge_types);
+
+        let mut space_edge_types = self.space_edge_types.write().map_err(|e| e.to_string())?;
+        if let Some(edge_type_list) = space_edge_types.get_mut(&space_id) {
+            edge_type_list.retain(|&id| id != edge_type_id);
+        }
+        drop(space_edge_types);
+
+        self.save_to_disk()?;
+        Ok(())
+    }
+
+    fn get_edge_type(&self, _space_id: i32, edge_type_id: i32) -> Option<EdgeTypeDef> {
+        let edge_types = self.edge_types.read().ok()?;
+        edge_types.get(&edge_type_id).cloned()
+    }
+
+    fn list_edge_types(&self, space_id: i32) -> Result<Vec<EdgeTypeDef>, String> {
+        let space_edge_types = self.space_edge_types.read().map_err(|e| e.to_string())?;
+        let edge_type_ids = space_edge_types.get(&space_id).cloned().unwrap_or_default();
+        drop(space_edge_types);
+
+        let edge_types = self.edge_types.read().map_err(|e| e.to_string())?;
+        let edge_type_list: Vec<EdgeTypeDef> = edge_type_ids
+            .iter()
+            .filter_map(|id| edge_types.get(id).cloned())
+            .collect();
+        Ok(edge_type_list)
+    }
+
+    fn has_edge_type(&self, _space_id: i32, edge_type_id: i32) -> bool {
+        match self.edge_types.read() {
+            Ok(edge_types) => edge_types.contains_key(&edge_type_id),
+            Err(_) => false,
+        }
+    }
+
+    fn load_from_disk(&self) -> Result<(), String> {
+        use std::fs;
+
+        if !self.storage_path.exists() {
+            return Ok(());
+        }
+
+        let schemas_file = self.storage_path.join("schemas.json");
+        let tags_file = self.storage_path.join("tags.json");
+        let edge_types_file = self.storage_path.join("edge_types.json");
+        let space_tags_file = self.storage_path.join("space_tags.json");
+        let space_edge_types_file = self.storage_path.join("space_edge_types.json");
+
+        if schemas_file.exists() {
+            let content = fs::read_to_string(&schemas_file).map_err(|e| e.to_string())?;
+            let schema_list: Vec<Schema> = serde_json::from_str(&content)
+                .map_err(|e| format!("反序列化Schema失败: {}", e))?;
+            let mut schemas = self.schemas.write().map_err(|e| e.to_string())?;
+            schemas.clear();
+            for schema in schema_list {
+                schemas.insert(schema.name.clone(), schema);
+            }
+        }
+
+        if tags_file.exists() {
+            let content = fs::read_to_string(&tags_file).map_err(|e| e.to_string())?;
+            let tag_list: Vec<TagDef> = serde_json::from_str(&content)
+                .map_err(|e| format!("反序列化Tag失败: {}", e))?;
+            let mut tags = self.tags.write().map_err(|e| e.to_string())?;
+            tags.clear();
+            for tag_def in tag_list {
+                let tag_id = tag_def.tag_id;
+                tags.insert(tag_id, tag_def);
+                let mut next_id = self.next_tag_id.write().map_err(|e| e.to_string())?;
+                if tag_id >= *next_id {
+                    *next_id = tag_id + 1;
+                }
+            }
+        }
+
+        if edge_types_file.exists() {
+            let content = fs::read_to_string(&edge_types_file).map_err(|e| e.to_string())?;
+            let edge_type_list: Vec<EdgeTypeDef> = serde_json::from_str(&content)
+                .map_err(|e| format!("反序列化EdgeType失败: {}", e))?;
+            let mut edge_types = self.edge_types.write().map_err(|e| e.to_string())?;
+            edge_types.clear();
+            for edge_type_def in edge_type_list {
+                let edge_type_id = edge_type_def.edge_type_id;
+                edge_types.insert(edge_type_id, edge_type_def);
+                let mut next_id = self.next_edge_type_id.write().map_err(|e| e.to_string())?;
+                if edge_type_id >= *next_id {
+                    *next_id = edge_type_id + 1;
+                }
+            }
+        }
+
+        if space_tags_file.exists() {
+            let content = fs::read_to_string(&space_tags_file).map_err(|e| e.to_string())?;
+            let space_tags_map: HashMap<i32, Vec<i32>> = serde_json::from_str(&content)
+                .map_err(|e| format!("反序列化Space Tag映射失败: {}", e))?;
+            let mut space_tags = self.space_tags.write().map_err(|e| e.to_string())?;
+            *space_tags = space_tags_map;
+        }
+
+        if space_edge_types_file.exists() {
+            let content = fs::read_to_string(&space_edge_types_file).map_err(|e| e.to_string())?;
+            let space_edge_types_map: HashMap<i32, Vec<i32>> = serde_json::from_str(&content)
+                .map_err(|e| format!("反序列化Space EdgeType映射失败: {}", e))?;
+            let mut space_edge_types = self.space_edge_types.write().map_err(|e| e.to_string())?;
+            *space_edge_types = space_edge_types_map;
+        }
+
+        Ok(())
+    }
+
+    fn save_to_disk(&self) -> Result<(), String> {
+        use std::fs;
+
+        if !self.storage_path.exists() {
+            fs::create_dir_all(&self.storage_path).map_err(|e| e.to_string())?;
+        }
+
+        let schemas = self.schemas.read().map_err(|e| e.to_string())?;
+        let schema_list: Vec<Schema> = schemas.values().cloned().collect();
+        let schemas_content = serde_json::to_string_pretty(&schema_list)
+            .map_err(|e| format!("序列化Schema失败: {}", e))?;
+        let schemas_file = self.storage_path.join("schemas.json");
+        fs::write(&schemas_file, schemas_content).map_err(|e| e.to_string())?;
+
+        let tags = self.tags.read().map_err(|e| e.to_string())?;
+        let tag_list: Vec<TagDef> = tags.values().cloned().collect();
+        let tags_content = serde_json::to_string_pretty(&tag_list)
+            .map_err(|e| format!("序列化Tag失败: {}", e))?;
+        let tags_file = self.storage_path.join("tags.json");
+        fs::write(&tags_file, tags_content).map_err(|e| e.to_string())?;
+
+        let edge_types = self.edge_types.read().map_err(|e| e.to_string())?;
+        let edge_type_list: Vec<EdgeTypeDef> = edge_types.values().cloned().collect();
+        let edge_types_content = serde_json::to_string_pretty(&edge_type_list)
+            .map_err(|e| format!("序列化EdgeType失败: {}", e))?;
+        let edge_types_file = self.storage_path.join("edge_types.json");
+        fs::write(&edge_types_file, edge_types_content).map_err(|e| e.to_string())?;
+
+        let space_tags = self.space_tags.read().map_err(|e| e.to_string())?;
+        let space_tags_content = serde_json::to_string_pretty(&*space_tags)
+            .map_err(|e| format!("序列化Space Tag映射失败: {}", e))?;
+        let space_tags_file = self.storage_path.join("space_tags.json");
+        fs::write(&space_tags_file, space_tags_content).map_err(|e| e.to_string())?;
+
+        let space_edge_types = self.space_edge_types.read().map_err(|e| e.to_string())?;
+        let space_edge_types_content = serde_json::to_string_pretty(&*space_edge_types)
+            .map_err(|e| format!("序列化Space EdgeType映射失败: {}", e))?;
+        let space_edge_types_file = self.storage_path.join("space_edge_types.json");
+        fs::write(&space_edge_types_file, space_edge_types_content).map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
 
     #[test]
     fn test_memory_schema_manager_creation() {
@@ -183,5 +458,252 @@ mod tests {
                 .len(),
             2
         );
+    }
+
+    #[test]
+    fn test_create_tag() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let manager = MemorySchemaManager::with_storage_path(temp_dir.path());
+
+        let fields = vec![
+            FieldDef {
+                name: "id".to_string(),
+                data_type: "int".to_string(),
+                nullable: false,
+                default_value: None,
+            },
+            FieldDef {
+                name: "name".to_string(),
+                data_type: "string".to_string(),
+                nullable: false,
+                default_value: None,
+            },
+        ];
+
+        let tag_id = manager.create_tag(1, "person", fields).expect("Failed to create tag");
+        assert_eq!(tag_id, 1);
+        assert!(manager.has_tag(1, tag_id));
+
+        let tag_def = manager.get_tag(1, tag_id).expect("Failed to get tag");
+        assert_eq!(tag_def.tag_name, "person");
+        assert_eq!(tag_def.fields.len(), 2);
+    }
+
+    #[test]
+    fn test_drop_tag() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let manager = MemorySchemaManager::with_storage_path(temp_dir.path());
+
+        let fields = vec![FieldDef {
+            name: "id".to_string(),
+            data_type: "int".to_string(),
+            nullable: false,
+            default_value: None,
+        }];
+
+        let tag_id = manager.create_tag(1, "person", fields).expect("Failed to create tag");
+        assert!(manager.has_tag(1, tag_id));
+
+        manager.drop_tag(1, tag_id).expect("Failed to drop tag");
+        assert!(!manager.has_tag(1, tag_id));
+    }
+
+    #[test]
+    fn test_list_tags() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let manager = MemorySchemaManager::with_storage_path(temp_dir.path());
+
+        let fields1 = vec![FieldDef {
+            name: "id".to_string(),
+            data_type: "int".to_string(),
+            nullable: false,
+            default_value: None,
+        }];
+
+        let fields2 = vec![FieldDef {
+            name: "name".to_string(),
+            data_type: "string".to_string(),
+            nullable: false,
+            default_value: None,
+        }];
+
+        manager.create_tag(1, "person", fields1).expect("Failed to create tag1");
+        manager.create_tag(1, "company", fields2).expect("Failed to create tag2");
+
+        let tags = manager.list_tags(1).expect("Failed to list tags");
+        assert_eq!(tags.len(), 2);
+        assert!(tags.iter().any(|t| t.tag_name == "person"));
+        assert!(tags.iter().any(|t| t.tag_name == "company"));
+    }
+
+    #[test]
+    fn test_create_edge_type() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let manager = MemorySchemaManager::with_storage_path(temp_dir.path());
+
+        let fields = vec![
+            FieldDef {
+                name: "weight".to_string(),
+                data_type: "double".to_string(),
+                nullable: true,
+                default_value: None,
+            },
+            FieldDef {
+                name: "since".to_string(),
+                data_type: "timestamp".to_string(),
+                nullable: false,
+                default_value: None,
+            },
+        ];
+
+        let edge_type_id = manager.create_edge_type(1, "friend", fields).expect("Failed to create edge type");
+        assert_eq!(edge_type_id, 1);
+        assert!(manager.has_edge_type(1, edge_type_id));
+
+        let edge_type_def = manager.get_edge_type(1, edge_type_id).expect("Failed to get edge type");
+        assert_eq!(edge_type_def.edge_type_name, "friend");
+        assert_eq!(edge_type_def.fields.len(), 2);
+    }
+
+    #[test]
+    fn test_drop_edge_type() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let manager = MemorySchemaManager::with_storage_path(temp_dir.path());
+
+        let fields = vec![FieldDef {
+            name: "weight".to_string(),
+            data_type: "double".to_string(),
+            nullable: true,
+            default_value: None,
+        }];
+
+        let edge_type_id = manager.create_edge_type(1, "friend", fields).expect("Failed to create edge type");
+        assert!(manager.has_edge_type(1, edge_type_id));
+
+        manager.drop_edge_type(1, edge_type_id).expect("Failed to drop edge type");
+        assert!(!manager.has_edge_type(1, edge_type_id));
+    }
+
+    #[test]
+    fn test_list_edge_types() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let manager = MemorySchemaManager::with_storage_path(temp_dir.path());
+
+        let fields1 = vec![FieldDef {
+            name: "weight".to_string(),
+            data_type: "double".to_string(),
+            nullable: true,
+            default_value: None,
+        }];
+
+        let fields2 = vec![FieldDef {
+            name: "since".to_string(),
+            data_type: "timestamp".to_string(),
+            nullable: false,
+            default_value: None,
+        }];
+
+        manager.create_edge_type(1, "friend", fields1).expect("Failed to create edge type1");
+        manager.create_edge_type(1, "follow", fields2).expect("Failed to create edge type2");
+
+        let edge_types = manager.list_edge_types(1).expect("Failed to list edge types");
+        assert_eq!(edge_types.len(), 2);
+        assert!(edge_types.iter().any(|e| e.edge_type_name == "friend"));
+        assert!(edge_types.iter().any(|e| e.edge_type_name == "follow"));
+    }
+
+    #[test]
+    fn test_save_and_load_from_disk() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let storage_path = temp_dir.path();
+
+        let manager1 = MemorySchemaManager::with_storage_path(storage_path);
+
+        let fields = vec![FieldDef {
+            name: "id".to_string(),
+            data_type: "int".to_string(),
+            nullable: false,
+            default_value: None,
+        }];
+
+        manager1.create_tag(1, "person", fields.clone()).expect("Failed to create tag");
+        manager1.create_edge_type(1, "friend", fields).expect("Failed to create edge type");
+
+        manager1.save_to_disk().expect("Failed to save to disk");
+
+        assert!(storage_path.join("tags.json").exists());
+        assert!(storage_path.join("edge_types.json").exists());
+
+        let manager2 = MemorySchemaManager::with_storage_path(storage_path);
+        manager2.load_from_disk().expect("Failed to load from disk");
+
+        let tags = manager2.list_tags(1).expect("Failed to list tags");
+        assert_eq!(tags.len(), 1);
+
+        let edge_types = manager2.list_edge_types(1).expect("Failed to list edge types");
+        assert_eq!(edge_types.len(), 1);
+    }
+
+    #[test]
+    fn test_load_from_disk_empty() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let manager = MemorySchemaManager::with_storage_path(temp_dir.path());
+
+        let result = manager.load_from_disk();
+        assert!(result.is_ok());
+
+        let tags = manager.list_tags(1).expect("Failed to list tags");
+        assert!(tags.is_empty());
+    }
+
+    #[test]
+    fn test_auto_save_on_create_and_drop() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let storage_path = temp_dir.path();
+
+        let manager1 = MemorySchemaManager::with_storage_path(storage_path);
+
+        let fields = vec![FieldDef {
+            name: "id".to_string(),
+            data_type: "int".to_string(),
+            nullable: false,
+            default_value: None,
+        }];
+
+        manager1.create_tag(1, "person", fields).expect("Failed to create tag");
+
+        assert!(storage_path.join("tags.json").exists());
+
+        let manager2 = MemorySchemaManager::with_storage_path(storage_path);
+        manager2.load_from_disk().expect("Failed to load from disk");
+        assert!(manager2.has_tag(1, 1));
+
+        manager2.drop_tag(1, 1).expect("Failed to drop tag");
+
+        let manager3 = MemorySchemaManager::with_storage_path(storage_path);
+        manager3.load_from_disk().expect("Failed to load from disk");
+        assert!(!manager3.has_tag(1, 1));
+    }
+
+    #[test]
+    fn test_space_isolation() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let manager = MemorySchemaManager::with_storage_path(temp_dir.path());
+
+        let fields = vec![FieldDef {
+            name: "id".to_string(),
+            data_type: "int".to_string(),
+            nullable: false,
+            default_value: None,
+        }];
+
+        manager.create_tag(1, "person", fields.clone()).expect("Failed to create tag in space1");
+        manager.create_tag(2, "person", fields).expect("Failed to create tag in space2");
+
+        let tags_space1 = manager.list_tags(1).expect("Failed to list tags in space1");
+        let tags_space2 = manager.list_tags(2).expect("Failed to list tags in space2");
+
+        assert_eq!(tags_space1.len(), 1);
+        assert_eq!(tags_space2.len(), 1);
     }
 }

@@ -359,6 +359,54 @@ mod tests {
         fn has_schema(&self, name: &str) -> bool {
             self.schemas.contains_key(name)
         }
+
+        fn create_tag(&self, _space_id: i32, _tag_name: &str, _fields: Vec<crate::query::context::managers::FieldDef>) -> Result<i32, String> {
+            Ok(1)
+        }
+
+        fn drop_tag(&self, _space_id: i32, _tag_id: i32) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn get_tag(&self, _space_id: i32, _tag_id: i32) -> Option<crate::query::context::managers::TagDef> {
+            None
+        }
+
+        fn list_tags(&self, _space_id: i32) -> Result<Vec<crate::query::context::managers::TagDef>, String> {
+            Ok(Vec::new())
+        }
+
+        fn has_tag(&self, _space_id: i32, _tag_id: i32) -> bool {
+            false
+        }
+
+        fn create_edge_type(&self, _space_id: i32, _edge_type_name: &str, _fields: Vec<crate::query::context::managers::FieldDef>) -> Result<i32, String> {
+            Ok(1)
+        }
+
+        fn drop_edge_type(&self, _space_id: i32, _edge_type_id: i32) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn get_edge_type(&self, _space_id: i32, _edge_type_id: i32) -> Option<crate::query::context::managers::EdgeTypeDef> {
+            None
+        }
+
+        fn list_edge_types(&self, _space_id: i32) -> Result<Vec<crate::query::context::managers::EdgeTypeDef>, String> {
+            Ok(Vec::new())
+        }
+
+        fn has_edge_type(&self, _space_id: i32, _edge_type_id: i32) -> bool {
+            false
+        }
+
+        fn load_from_disk(&self) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn save_to_disk(&self) -> Result<(), String> {
+            Ok(())
+        }
     }
 
     #[derive(Debug)]

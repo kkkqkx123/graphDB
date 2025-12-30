@@ -1,6 +1,6 @@
 //! 基础AST上下文定义
 
-use std::rc::Rc;
+use std::sync::Arc;
 use crate::core::context::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::context::validate::types::SpaceInfo;
@@ -14,7 +14,7 @@ use crate::query::context::validate::types::SpaceInfo;
 #[derive(Debug, Clone)]
 pub struct AstContext {
     /// 查询上下文引用，提供运行时资源访问
-    pub qctx: Option<Rc<QueryContext>>,
+    pub qctx: Option<Arc<QueryContext>>,
     
     /// 语法树节点引用，用于错误定位和调试
     pub sentence: Option<Stmt>,
@@ -25,7 +25,7 @@ pub struct AstContext {
 
 impl AstContext {
     /// 创建新的AST上下文
-    pub fn new(qctx: Option<Rc<QueryContext>>, sentence: Option<Stmt>) -> Self {
+    pub fn new(qctx: Option<Arc<QueryContext>>, sentence: Option<Stmt>) -> Self {
         Self {
             qctx,
             sentence,
@@ -33,8 +33,17 @@ impl AstContext {
         }
     }
 
+    /// 创建新的AST上下文（便捷方法）
+    pub fn from_strings(query_type: &str, query_text: &str) -> Self {
+        Self {
+            qctx: None,
+            sentence: None,
+            space: SpaceInfo::default(),
+        }
+    }
+
     /// 创建带有空间信息的AST上下文
-    pub fn with_space(qctx: Option<Rc<QueryContext>>, sentence: Option<Stmt>, space: SpaceInfo) -> Self {
+    pub fn with_space(qctx: Option<Arc<QueryContext>>, sentence: Option<Stmt>, space: SpaceInfo) -> Self {
         Self {
             qctx,
             sentence,
@@ -43,7 +52,7 @@ impl AstContext {
     }
 
     /// 获取查询上下文
-    pub fn query_context(&self) -> Option<&Rc<QueryContext>> {
+    pub fn query_context(&self) -> Option<&Arc<QueryContext>> {
         self.qctx.as_ref()
     }
 
@@ -103,6 +112,16 @@ impl AstContext {
 
 impl Default for AstContext {
     fn default() -> Self {
+        Self {
+            qctx: None,
+            sentence: None,
+            space: SpaceInfo::default(),
+        }
+    }
+}
+
+impl From<(&str, &str)> for AstContext {
+    fn from((query_type, query_text): (&str, &str)) -> Self {
         Self {
             qctx: None,
             sentence: None,
