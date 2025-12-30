@@ -2,6 +2,7 @@
 
 use crate::core::{Value, Vertex, Edge};
 use serde::{Deserialize, Serialize};
+use crate::core::error::{ManagerError, ManagerResult};
 
 /// 索引状态
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -58,20 +59,20 @@ pub trait IndexManager: Send + Sync + std::fmt::Debug {
     fn has_index(&self, name: &str) -> bool;
     
     /// 创建索引
-    fn create_index(&self, space_id: i32, index: Index) -> Result<i32, String>;
+    fn create_index(&self, space_id: i32, index: Index) -> ManagerResult<i32>;
     /// 删除索引
-    fn drop_index(&self, space_id: i32, index_id: i32) -> Result<(), String>;
+    fn drop_index(&self, space_id: i32, index_id: i32) -> ManagerResult<()>;
     /// 获取索引状态
     fn get_index_status(&self, space_id: i32, index_id: i32) -> Option<IndexStatus>;
     /// 列出指定Space的所有索引
-    fn list_indexes_by_space(&self, space_id: i32) -> Result<Vec<Index>, String>;
+    fn list_indexes_by_space(&self, space_id: i32) -> ManagerResult<Vec<Index>>;
     
     /// 异步构建索引
-    fn build_index_async(&self, space_id: i32, index_id: i32) -> Result<(), String>;
+    fn build_index_async(&self, space_id: i32, index_id: i32) -> ManagerResult<()>;
     /// 获取索引构建进度
     fn get_build_progress(&self, space_id: i32, index_id: i32) -> Option<IndexBuildProgress>;
     /// 取消索引构建
-    fn cancel_build(&self, space_id: i32, index_id: i32) -> Result<(), String>;
+    fn cancel_build(&self, space_id: i32, index_id: i32) -> ManagerResult<()>;
     
     /// ==================== 索引查询功能 ====================
     
@@ -81,7 +82,7 @@ pub trait IndexManager: Send + Sync + std::fmt::Debug {
         space_id: i32,
         index_name: &str,
         values: &[Value],
-    ) -> Result<Vec<Vertex>, String>;
+    ) -> ManagerResult<Vec<Vertex>>;
     
     /// 基于索引查询边
     fn lookup_edge_by_index(
@@ -89,7 +90,7 @@ pub trait IndexManager: Send + Sync + std::fmt::Debug {
         space_id: i32,
         index_name: &str,
         values: &[Value],
-    ) -> Result<Vec<Edge>, String>;
+    ) -> ManagerResult<Vec<Edge>>;
     
     /// 基于索引的范围查询顶点
     fn range_lookup_vertex(
@@ -98,7 +99,7 @@ pub trait IndexManager: Send + Sync + std::fmt::Debug {
         index_name: &str,
         start: &Value,
         end: &Value,
-    ) -> Result<Vec<Vertex>, String>;
+    ) -> ManagerResult<Vec<Vertex>>;
     
     /// 基于索引的范围查询边
     fn range_lookup_edge(
@@ -107,10 +108,10 @@ pub trait IndexManager: Send + Sync + std::fmt::Debug {
         index_name: &str,
         start: &Value,
         end: &Value,
-    ) -> Result<Vec<Edge>, String>;
+    ) -> ManagerResult<Vec<Edge>>;
     
     /// 从磁盘加载索引
-    fn load_from_disk(&self) -> Result<(), String>;
+    fn load_from_disk(&self) -> ManagerResult<()>;
     /// 保存索引到磁盘
-    fn save_to_disk(&self) -> Result<(), String>;
+    fn save_to_disk(&self) -> ManagerResult<()>;
 }

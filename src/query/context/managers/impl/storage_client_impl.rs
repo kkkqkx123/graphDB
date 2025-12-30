@@ -6,6 +6,7 @@ use super::super::{
     ExecResponse, UpdateResponse
 };
 use crate::core::{Value, Vertex, Edge, Tag};
+use crate::core::error::{ManagerError, ManagerResult};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::path::PathBuf;
@@ -79,24 +80,24 @@ impl MemoryStorageClient {
     }
 
     /// 创建表
-    pub fn create_table(&self, table_name: &str) -> Result<(), String> {
-        let mut tables = self.tables.write().map_err(|e| e.to_string())?;
+    pub fn create_table(&self, table_name: &str) -> ManagerResult<()> {
+        let mut tables = self.tables.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if tables.contains_key(table_name) {
-            return Err(format!("表 {} 已存在", table_name));
+            return Err(ManagerError::AlreadyExists(format!("表 {} 已存在", table_name)));
         }
         tables.insert(table_name.to_string(), HashMap::new());
         Ok(())
     }
 
     /// 删除表
-    pub fn drop_table(&self, table_name: &str) -> Result<(), String> {
-        let mut tables = self.tables.write().map_err(|e| e.to_string())?;
+    pub fn drop_table(&self, table_name: &str) -> ManagerResult<()> {
+        let mut tables = self.tables.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         tables.remove(table_name);
         Ok(())
     }
 
     /// 从磁盘加载数据
-    pub fn load_from_disk(&self) -> Result<(), String> {
+    pub fn load_from_disk(&self) -> ManagerResult<()> {
         use std::fs;
         
         if !self.storage_path.exists() {
@@ -105,16 +106,16 @@ impl MemoryStorageClient {
         
         let vertices_file = self.storage_path.join("vertices.json");
         if vertices_file.exists() {
-            let content = fs::read_to_string(&vertices_file).map_err(|e| e.to_string())?;
+            let content = fs::read_to_string(&vertices_file).map_err(|e| ManagerError::StorageError(e.to_string()))?;
             let loaded_vertices: HashMap<i32, HashMap<String, Vertex>> = serde_json::from_str(&content)
-                .map_err(|e| format!("反序列化顶点失败: {}", e))?;
+                .map_err(|e| ManagerError::StorageError(format!("反序列化顶点失败: {}", e)))?;
             
-            let mut vertices = self.vertices.write().map_err(|e| e.to_string())?;
+            let mut vertices = self.vertices.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
             for (space_id, space_vertices) in loaded_vertices {
                 let mut vertex_map: HashMap<Value, Vertex> = HashMap::new();
                 for (vid_str, vertex) in space_vertices {
                     let vid: Value = serde_json::from_str(&vid_str)
-                        .map_err(|e| format!("反序列化顶点ID失败: {}", e))?;
+                        .map_err(|e| ManagerError::StorageError(format!("反序列化顶点ID失败: {}", e)))?;
                     vertex_map.insert(vid, vertex);
                 }
                 vertices.insert(space_id, vertex_map);
@@ -123,14 +124,14 @@ impl MemoryStorageClient {
         
         let edges_file = self.storage_path.join("edges.json");
         if edges_file.exists() {
-            let content = fs::read_to_string(&edges_file).map_err(|e| e.to_string())?;
+            let content = fs::read_to_string(&edges_file).map_err(|e| ManagerError::StorageError(e.to_string()))?;
             let loaded_edges: HashMap<i32, Vec<Edge>> = serde_json::from_str(&content)
-                .map_err(|e| format!("反序列化边失败: {}", e))?;
+                .map_err(|e| ManagerError::StorageError(format!("反序列化边失败: {}", e)))?;
             
-            let mut edges = self.edges.write().map_err(|e| e.to_string())?;
+            let mut edges = self.edges.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
             *edges = loaded_edges;
             
-            let mut edge_index = self.edge_index.write().map_err(|e| e.to_string())?;
+            let mut edge_index = self.edge_index.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
             edge_index.clear();
             for (space_id, space_edges) in edges.iter() {
                 let mut space_index = HashMap::new();
@@ -151,33 +152,33 @@ impl MemoryStorageClient {
     }
 
     /// 保存数据到磁盘
-    pub fn save_to_disk(&self) -> Result<(), String> {
+    pub fn save_to_disk(&self) -> ManagerResult<()> {
         use std::fs;
         
         if !self.storage_path.exists() {
-            fs::create_dir_all(&self.storage_path).map_err(|e| e.to_string())?;
+            fs::create_dir_all(&self.storage_path).map_err(|e| ManagerError::StorageError(e.to_string()))?;
         }
         
-        let vertices = self.vertices.read().map_err(|e| e.to_string())?;
+        let vertices = self.vertices.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let mut vertices_to_save: HashMap<i32, HashMap<String, Vertex>> = HashMap::new();
         for (space_id, space_vertices) in vertices.iter() {
             let mut vertex_map: HashMap<String, Vertex> = HashMap::new();
             for (vid, vertex) in space_vertices.iter() {
-                let vid_str = serde_json::to_string(vid).map_err(|e| e.to_string())?;
+                let vid_str = serde_json::to_string(vid).map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 vertex_map.insert(vid_str, vertex.clone());
             }
             vertices_to_save.insert(*space_id, vertex_map);
         }
         let vertices_content = serde_json::to_string_pretty(&vertices_to_save)
-            .map_err(|e| format!("序列化顶点失败: {}", e))?;
+            .map_err(|e| ManagerError::StorageError(format!("序列化顶点失败: {}", e)))?;
         let vertices_file = self.storage_path.join("vertices.json");
-        fs::write(&vertices_file, vertices_content).map_err(|e| e.to_string())?;
+        fs::write(&vertices_file, vertices_content).map_err(|e| ManagerError::StorageError(e.to_string()))?;
         
-        let edges = self.edges.read().map_err(|e| e.to_string())?;
+        let edges = self.edges.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let edges_content = serde_json::to_string_pretty(&*edges)
-            .map_err(|e| format!("序列化边失败: {}", e))?;
+            .map_err(|e| ManagerError::StorageError(format!("序列化边失败: {}", e)))?;
         let edges_file = self.storage_path.join("edges.json");
-        fs::write(&edges_file, edges_content).map_err(|e| e.to_string())?;
+        fs::write(&edges_file, edges_content).map_err(|e| ManagerError::StorageError(e.to_string()))?;
         
         Ok(())
     }
@@ -200,7 +201,7 @@ impl Default for MemoryStorageClient {
 }
 
 impl StorageClient for MemoryStorageClient {
-    fn execute(&self, operation: StorageOperation) -> Result<StorageResponse, String> {
+    fn execute(&self, operation: StorageOperation) -> ManagerResult<StorageResponse> {
         if !self.connected {
             return Ok(StorageResponse {
                 success: false,
@@ -209,13 +210,13 @@ impl StorageClient for MemoryStorageClient {
             });
         }
 
-        let mut tables = self.tables.write().map_err(|e| e.to_string())?;
+        let mut tables = self.tables.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         match operation {
             StorageOperation::Read { table, key } => {
                 let table_data = tables
                     .get_mut(&table)
-                    .ok_or_else(|| format!("表 {} 不存在", table))?;
+                    .ok_or_else(|| ManagerError::NotFound(format!("表 {} 不存在", table)))?;
                 let data = table_data.get(&key).cloned();
 
                 Ok(StorageResponse {
@@ -256,7 +257,7 @@ impl StorageClient for MemoryStorageClient {
             StorageOperation::Scan { table, prefix } => {
                 let table_data = tables
                     .get(&table)
-                    .ok_or_else(|| format!("表 {} 不存在", table))?;
+                    .ok_or_else(|| ManagerError::NotFound(format!("表 {} 不存在", table)))?;
 
                 let mut results = HashMap::new();
                 for (key, value) in table_data {
@@ -278,12 +279,12 @@ impl StorageClient for MemoryStorageClient {
         self.connected
     }
 
-    fn add_vertex(&self, space_id: i32, vertex: Vertex) -> Result<ExecResponse, String> {
+    fn add_vertex(&self, space_id: i32, vertex: Vertex) -> ManagerResult<ExecResponse> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let mut vertices = self.vertices.write().map_err(|e| e.to_string())?;
+        let mut vertices = self.vertices.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_vertices = vertices.entry(space_id).or_insert_with(HashMap::new);
         let vid = vertex.id().clone();
         space_vertices.insert(vid, vertex);
@@ -291,12 +292,12 @@ impl StorageClient for MemoryStorageClient {
         Ok(ExecResponse::ok())
     }
 
-    fn add_vertices(&self, space_id: i32, new_vertices: Vec<NewVertex>) -> Result<ExecResponse, String> {
+    fn add_vertices(&self, space_id: i32, new_vertices: Vec<NewVertex>) -> ManagerResult<ExecResponse> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let mut vertices = self.vertices.write().map_err(|e| e.to_string())?;
+        let mut vertices = self.vertices.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_vertices = vertices.entry(space_id).or_insert_with(HashMap::new);
 
         for new_vertex in new_vertices {
@@ -312,12 +313,12 @@ impl StorageClient for MemoryStorageClient {
         Ok(ExecResponse::ok())
     }
 
-    fn get_vertex(&self, space_id: i32, vid: &Value) -> Result<Option<Vertex>, String> {
+    fn get_vertex(&self, space_id: i32, vid: &Value) -> ManagerResult<Option<Vertex>> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let vertices = self.vertices.read().map_err(|e| e.to_string())?;
+        let vertices = self.vertices.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_vertices) = vertices.get(&space_id) {
             Ok(space_vertices.get(vid).cloned())
         } else {
@@ -325,12 +326,12 @@ impl StorageClient for MemoryStorageClient {
         }
     }
 
-    fn get_vertices(&self, space_id: i32, vids: &[Value]) -> Result<Vec<Option<Vertex>>, String> {
+    fn get_vertices(&self, space_id: i32, vids: &[Value]) -> ManagerResult<Vec<Option<Vertex>>> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let vertices = self.vertices.read().map_err(|e| e.to_string())?;
+        let vertices = self.vertices.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_vertices = vertices.get(&space_id);
 
         let mut results = Vec::with_capacity(vids.len());
@@ -345,22 +346,22 @@ impl StorageClient for MemoryStorageClient {
         Ok(results)
     }
 
-    fn delete_vertex(&self, space_id: i32, vid: &Value) -> Result<ExecResponse, String> {
+    fn delete_vertex(&self, space_id: i32, vid: &Value) -> ManagerResult<ExecResponse> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let mut vertices = self.vertices.write().map_err(|e| e.to_string())?;
+        let mut vertices = self.vertices.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_vertices) = vertices.get_mut(&space_id) {
             space_vertices.remove(vid);
             
-            let mut edges = self.edges.write().map_err(|e| e.to_string())?;
+            let mut edges = self.edges.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
             if let Some(space_edges) = edges.get_mut(&space_id) {
                 space_edges.retain(|edge| {
                     edge.src.as_ref() != vid && edge.dst.as_ref() != vid
                 });
                 
-                let mut edge_index = self.edge_index.write().map_err(|e| e.to_string())?;
+                let mut edge_index = self.edge_index.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 if let Some(space_index) = edge_index.get_mut(&space_id) {
                     space_index.retain(|key, _| {
                         &key.src != vid && &key.dst != vid
@@ -374,25 +375,25 @@ impl StorageClient for MemoryStorageClient {
         }
     }
 
-    fn delete_vertices(&self, space_id: i32, vids: &[Value]) -> Result<ExecResponse, String> {
+    fn delete_vertices(&self, space_id: i32, vids: &[Value]) -> ManagerResult<ExecResponse> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let mut vertices = self.vertices.write().map_err(|e| e.to_string())?;
+        let mut vertices = self.vertices.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_vertices) = vertices.get_mut(&space_id) {
             for vid in vids {
                 space_vertices.remove(vid);
             }
         }
 
-        let mut edges = self.edges.write().map_err(|e| e.to_string())?;
+        let mut edges = self.edges.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_edges) = edges.get_mut(&space_id) {
             space_edges.retain(|edge| {
                 !vids.contains(edge.src.as_ref()) && !vids.contains(edge.dst.as_ref())
             });
             
-            let mut edge_index = self.edge_index.write().map_err(|e| e.to_string())?;
+            let mut edge_index = self.edge_index.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
             if let Some(space_index) = edge_index.get_mut(&space_id) {
                 space_index.retain(|key, _| {
                     !vids.contains(&key.src) && !vids.contains(&key.dst)
@@ -403,12 +404,12 @@ impl StorageClient for MemoryStorageClient {
         Ok(ExecResponse::ok())
     }
 
-    fn delete_tags(&self, space_id: i32, del_tags: Vec<DelTags>) -> Result<ExecResponse, String> {
+    fn delete_tags(&self, space_id: i32, del_tags: Vec<DelTags>) -> ManagerResult<ExecResponse> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let mut vertices = self.vertices.write().map_err(|e| e.to_string())?;
+        let mut vertices = self.vertices.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_vertices) = vertices.get_mut(&space_id) {
             for del_tag in del_tags {
                 if let Some(vertex) = space_vertices.get_mut(&del_tag.id) {
@@ -434,12 +435,12 @@ impl StorageClient for MemoryStorageClient {
         insertable: bool,
         return_props: Vec<String>,
         _condition: Option<String>,
-    ) -> Result<UpdateResponse, String> {
+    ) -> ManagerResult<UpdateResponse> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let mut vertices = self.vertices.write().map_err(|e| e.to_string())?;
+        let mut vertices = self.vertices.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_vertices = vertices.entry(space_id).or_insert_with(HashMap::new);
 
         let mut inserted = false;
@@ -483,12 +484,12 @@ impl StorageClient for MemoryStorageClient {
         Ok(UpdateResponse::ok(inserted, props_to_return))
     }
 
-    fn add_edge(&self, space_id: i32, edge: Edge) -> Result<ExecResponse, String> {
+    fn add_edge(&self, space_id: i32, edge: Edge) -> ManagerResult<ExecResponse> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let mut edges = self.edges.write().map_err(|e| e.to_string())?;
+        let mut edges = self.edges.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_edges = edges.entry(space_id).or_insert_with(Vec::new);
         
         let key = EdgeKey {
@@ -498,7 +499,7 @@ impl StorageClient for MemoryStorageClient {
             dst: edge.dst.as_ref().clone(),
         };
         
-        let mut edge_index = self.edge_index.write().map_err(|e| e.to_string())?;
+        let mut edge_index = self.edge_index.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_index = edge_index.entry(space_id).or_insert_with(HashMap::new);
         
         if let Some(&idx) = space_index.get(&key) {
@@ -512,15 +513,15 @@ impl StorageClient for MemoryStorageClient {
         Ok(ExecResponse::ok())
     }
 
-    fn add_edges(&self, space_id: i32, new_edges: Vec<NewEdge>) -> Result<ExecResponse, String> {
+    fn add_edges(&self, space_id: i32, new_edges: Vec<NewEdge>) -> ManagerResult<ExecResponse> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let mut edges = self.edges.write().map_err(|e| e.to_string())?;
+        let mut edges = self.edges.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_edges = edges.entry(space_id).or_insert_with(Vec::new);
         
-        let mut edge_index = self.edge_index.write().map_err(|e| e.to_string())?;
+        let mut edge_index = self.edge_index.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_index = edge_index.entry(space_id).or_insert_with(HashMap::new);
 
         for new_edge in new_edges {
@@ -544,15 +545,15 @@ impl StorageClient for MemoryStorageClient {
         Ok(ExecResponse::ok())
     }
 
-    fn get_edge(&self, space_id: i32, edge_key: &EdgeKey) -> Result<Option<Edge>, String> {
+    fn get_edge(&self, space_id: i32, edge_key: &EdgeKey) -> ManagerResult<Option<Edge>> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let edge_index = self.edge_index.read().map_err(|e| e.to_string())?;
+        let edge_index = self.edge_index.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_index) = edge_index.get(&space_id) {
             if let Some(&idx) = space_index.get(edge_key) {
-                let edges = self.edges.read().map_err(|e| e.to_string())?;
+                let edges = self.edges.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 if let Some(space_edges) = edges.get(&space_id) {
                     if idx < space_edges.len() {
                         return Ok(Some(space_edges[idx].clone()));
@@ -564,14 +565,14 @@ impl StorageClient for MemoryStorageClient {
         Ok(None)
     }
 
-    fn get_edges(&self, space_id: i32, edge_keys: &[EdgeKey]) -> Result<Vec<Option<Edge>>, String> {
+    fn get_edges(&self, space_id: i32, edge_keys: &[EdgeKey]) -> ManagerResult<Vec<Option<Edge>>> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let edge_index = self.edge_index.read().map_err(|e| e.to_string())?;
+        let edge_index = self.edge_index.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_index = edge_index.get(&space_id);
-        let edges = self.edges.read().map_err(|e| e.to_string())?;
+        let edges = self.edges.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_edges = edges.get(&space_id);
 
         let mut results = Vec::with_capacity(edge_keys.len());
@@ -590,15 +591,15 @@ impl StorageClient for MemoryStorageClient {
         Ok(results)
     }
 
-    fn delete_edge(&self, space_id: i32, edge_key: &EdgeKey) -> Result<ExecResponse, String> {
+    fn delete_edge(&self, space_id: i32, edge_key: &EdgeKey) -> ManagerResult<ExecResponse> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let mut edge_index = self.edge_index.write().map_err(|e| e.to_string())?;
+        let mut edge_index = self.edge_index.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_index) = edge_index.get_mut(&space_id) {
             if let Some(idx) = space_index.remove(edge_key) {
-                let mut edges = self.edges.write().map_err(|e| e.to_string())?;
+                let mut edges = self.edges.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 if let Some(space_edges) = edges.get_mut(&space_id) {
                     if idx < space_edges.len() {
                         space_edges.remove(idx);
@@ -616,9 +617,9 @@ impl StorageClient for MemoryStorageClient {
         Ok(ExecResponse::ok())
     }
 
-    fn delete_edges(&self, space_id: i32, edge_keys: &[EdgeKey]) -> Result<ExecResponse, String> {
+    fn delete_edges(&self, space_id: i32, edge_keys: &[EdgeKey]) -> ManagerResult<ExecResponse> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
         for edge_key in edge_keys {
@@ -636,13 +637,13 @@ impl StorageClient for MemoryStorageClient {
         insertable: bool,
         return_props: Vec<String>,
         _condition: Option<String>,
-    ) -> Result<UpdateResponse, String> {
+    ) -> ManagerResult<UpdateResponse> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let mut edges = self.edges.write().map_err(|e| e.to_string())?;
-        let mut edge_index = self.edge_index.write().map_err(|e| e.to_string())?;
+        let mut edges = self.edges.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut edge_index = self.edge_index.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_index = edge_index.entry(space_id).or_insert_with(HashMap::new);
         let space_edges = edges.entry(space_id).or_insert_with(Vec::new);
 
@@ -696,12 +697,12 @@ impl StorageClient for MemoryStorageClient {
         Ok(UpdateResponse::ok(inserted, props_to_return))
     }
 
-    fn scan_vertices(&self, space_id: i32, limit: Option<usize>) -> Result<Vec<Vertex>, String> {
+    fn scan_vertices(&self, space_id: i32, limit: Option<usize>) -> ManagerResult<Vec<Vertex>> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let vertices = self.vertices.read().map_err(|e| e.to_string())?;
+        let vertices = self.vertices.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_vertices) = vertices.get(&space_id) {
             let result: Vec<Vertex> = space_vertices.values().cloned().collect();
             if let Some(limit) = limit {
@@ -714,12 +715,12 @@ impl StorageClient for MemoryStorageClient {
         }
     }
 
-    fn scan_vertices_by_tag(&self, space_id: i32, tag_id: i32, limit: Option<usize>) -> Result<Vec<Vertex>, String> {
+    fn scan_vertices_by_tag(&self, space_id: i32, tag_id: i32, limit: Option<usize>) -> ManagerResult<Vec<Vertex>> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let vertices = self.vertices.read().map_err(|e| e.to_string())?;
+        let vertices = self.vertices.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_vertices) = vertices.get(&space_id) {
             let tag_name = format!("tag_{}", tag_id);
             let result: Vec<Vertex> = space_vertices
@@ -738,12 +739,12 @@ impl StorageClient for MemoryStorageClient {
         }
     }
 
-    fn scan_edges(&self, space_id: i32, limit: Option<usize>) -> Result<Vec<Edge>, String> {
+    fn scan_edges(&self, space_id: i32, limit: Option<usize>) -> ManagerResult<Vec<Edge>> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let edges = self.edges.read().map_err(|e| e.to_string())?;
+        let edges = self.edges.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_edges) = edges.get(&space_id) {
             let result: Vec<Edge> = space_edges.clone();
             if let Some(limit) = limit {
@@ -756,12 +757,12 @@ impl StorageClient for MemoryStorageClient {
         }
     }
 
-    fn scan_edges_by_type(&self, space_id: i32, edge_type: &str, limit: Option<usize>) -> Result<Vec<Edge>, String> {
+    fn scan_edges_by_type(&self, space_id: i32, edge_type: &str, limit: Option<usize>) -> ManagerResult<Vec<Edge>> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let edges = self.edges.read().map_err(|e| e.to_string())?;
+        let edges = self.edges.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_edges) = edges.get(&space_id) {
             let result: Vec<Edge> = space_edges
                 .iter()
@@ -779,12 +780,12 @@ impl StorageClient for MemoryStorageClient {
         }
     }
 
-    fn scan_edges_by_src(&self, space_id: i32, src: &Value, limit: Option<usize>) -> Result<Vec<Edge>, String> {
+    fn scan_edges_by_src(&self, space_id: i32, src: &Value, limit: Option<usize>) -> ManagerResult<Vec<Edge>> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let edges = self.edges.read().map_err(|e| e.to_string())?;
+        let edges = self.edges.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_edges) = edges.get(&space_id) {
             let result: Vec<Edge> = space_edges
                 .iter()
@@ -802,12 +803,12 @@ impl StorageClient for MemoryStorageClient {
         }
     }
 
-    fn scan_edges_by_dst(&self, space_id: i32, dst: &Value, limit: Option<usize>) -> Result<Vec<Edge>, String> {
+    fn scan_edges_by_dst(&self, space_id: i32, dst: &Value, limit: Option<usize>) -> ManagerResult<Vec<Edge>> {
         if !self.connected {
-            return Err("存储客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("存储客户端未连接".to_string()));
         }
 
-        let edges = self.edges.read().map_err(|e| e.to_string())?;
+        let edges = self.edges.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(space_edges) = edges.get(&space_id) {
             let result: Vec<Edge> = space_edges
                 .iter()

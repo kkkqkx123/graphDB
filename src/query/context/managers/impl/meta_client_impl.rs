@@ -1,6 +1,7 @@
 //! 元数据客户端实现 - 内存中的元数据管理
 
 use super::super::{ClusterInfo, MetaClient, SpaceInfo};
+use crate::core::error::{ManagerError, ManagerResult};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -47,22 +48,22 @@ impl MemoryMetaClient {
     }
 
     /// 添加空间信息
-    pub fn add_space(&self, space_info: SpaceInfo) -> Result<(), String> {
-        let mut spaces = self.spaces.write().map_err(|e| e.to_string())?;
+    pub fn add_space(&self, space_info: SpaceInfo) -> ManagerResult<()> {
+        let mut spaces = self.spaces.write().map_err(|e| ManagerError::Other(e.to_string()))?;
         spaces.insert(space_info.space_id, space_info);
         Ok(())
     }
 
     /// 删除空间信息
-    pub fn remove_space(&self, space_id: i32) -> Result<(), String> {
-        let mut spaces = self.spaces.write().map_err(|e| e.to_string())?;
+    pub fn remove_space(&self, space_id: i32) -> ManagerResult<()> {
+        let mut spaces = self.spaces.write().map_err(|e| ManagerError::Other(e.to_string()))?;
         spaces.remove(&space_id);
         Ok(())
     }
 
     /// 更新空间信息
-    pub fn update_space(&self, space_id: i32, space_info: SpaceInfo) -> Result<(), String> {
-        let mut spaces = self.spaces.write().map_err(|e| e.to_string())?;
+    pub fn update_space(&self, space_id: i32, space_info: SpaceInfo) -> ManagerResult<()> {
+        let mut spaces = self.spaces.write().map_err(|e| ManagerError::Other(e.to_string()))?;
         spaces.insert(space_id, space_info);
         Ok(())
     }
@@ -84,8 +85,8 @@ impl MemoryMetaClient {
     }
 
     /// 更新集群信息
-    pub fn update_cluster_info(&self, cluster_info: ClusterInfo) -> Result<(), String> {
-        let mut info = self.cluster_info.write().map_err(|e| e.to_string())?;
+    pub fn update_cluster_info(&self, cluster_info: ClusterInfo) -> ManagerResult<()> {
+        let mut info = self.cluster_info.write().map_err(|e| ManagerError::Other(e.to_string()))?;
         *info = cluster_info;
         Ok(())
     }
@@ -98,45 +99,45 @@ impl Default for MemoryMetaClient {
 }
 
 impl MetaClient for MemoryMetaClient {
-    fn get_cluster_info(&self) -> Result<ClusterInfo, String> {
+    fn get_cluster_info(&self) -> ManagerResult<ClusterInfo> {
         if !self.connected {
-            return Err("元数据客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("元数据客户端未连接".to_string()));
         }
 
-        let info = self.cluster_info.read().map_err(|e| e.to_string())?;
+        let info = self.cluster_info.read().map_err(|e| ManagerError::Other(e.to_string()))?;
         Ok(info.clone())
     }
 
-    fn get_space_info(&self, space_id: i32) -> Result<SpaceInfo, String> {
+    fn get_space_info(&self, space_id: i32) -> ManagerResult<SpaceInfo> {
         if !self.connected {
-            return Err("元数据客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("元数据客户端未连接".to_string()));
         }
 
-        let spaces = self.spaces.read().map_err(|e| e.to_string())?;
+        let spaces = self.spaces.read().map_err(|e| ManagerError::Other(e.to_string()))?;
         spaces
             .get(&space_id)
             .cloned()
-            .ok_or_else(|| format!("空间 {} 不存在", space_id))
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    fn create_space(&self, space_name: &str, partition_num: i32, replica_factor: i32) -> Result<i32, String> {
+    fn create_space(&self, space_name: &str, partition_num: i32, replica_factor: i32) -> ManagerResult<i32> {
         if !self.connected {
-            return Err("元数据客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("元数据客户端未连接".to_string()));
         }
 
         if partition_num <= 0 {
-            return Err("分区数必须大于0".to_string());
+            return Err(ManagerError::InvalidInput("分区数必须大于0".to_string()));
         }
 
         if replica_factor <= 0 {
-            return Err("副本因子必须大于0".to_string());
+            return Err(ManagerError::InvalidInput("副本因子必须大于0".to_string()));
         }
 
-        let mut next_id = self.next_space_id.write().map_err(|e| e.to_string())?;
+        let mut next_id = self.next_space_id.write().map_err(|e| ManagerError::Other(e.to_string()))?;
         let space_id = *next_id;
         *next_id += 1;
         drop(next_id);
@@ -148,7 +149,7 @@ impl MetaClient for MemoryMetaClient {
             replica_factor,
         };
 
-        let mut spaces = self.spaces.write().map_err(|e| e.to_string())?;
+        let mut spaces = self.spaces.write().map_err(|e| ManagerError::Other(e.to_string()))?;
         spaces.insert(space_id, space_info);
         drop(spaces);
 
@@ -156,14 +157,14 @@ impl MetaClient for MemoryMetaClient {
         Ok(space_id)
     }
 
-    fn drop_space(&self, space_id: i32) -> Result<(), String> {
+    fn drop_space(&self, space_id: i32) -> ManagerResult<()> {
         if !self.connected {
-            return Err("元数据客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("元数据客户端未连接".to_string()));
         }
 
-        let mut spaces = self.spaces.write().map_err(|e| e.to_string())?;
+        let mut spaces = self.spaces.write().map_err(|e| ManagerError::Other(e.to_string()))?;
         if !spaces.contains_key(&space_id) {
-            return Err(format!("空间 {} 不存在", space_id));
+            return Err(ManagerError::NotFound(format!("空间 {} 不存在", space_id)));
         }
         spaces.remove(&space_id);
         drop(spaces);
@@ -172,12 +173,12 @@ impl MetaClient for MemoryMetaClient {
         Ok(())
     }
 
-    fn list_spaces(&self) -> Result<Vec<SpaceInfo>, String> {
+    fn list_spaces(&self) -> ManagerResult<Vec<SpaceInfo>> {
         if !self.connected {
-            return Err("元数据客户端未连接".to_string());
+            return Err(ManagerError::ConnectionError("元数据客户端未连接".to_string()));
         }
 
-        let spaces = self.spaces.read().map_err(|e| e.to_string())?;
+        let spaces = self.spaces.read().map_err(|e| ManagerError::Other(e.to_string()))?;
         let space_list: Vec<SpaceInfo> = spaces.values().cloned().collect();
         Ok(space_list)
     }
@@ -189,7 +190,7 @@ impl MetaClient for MemoryMetaClient {
         }
     }
 
-    fn load_from_disk(&self) -> Result<(), String> {
+    fn load_from_disk(&self) -> ManagerResult<()> {
         use std::fs;
 
         if !self.storage_path.exists() {
@@ -200,23 +201,23 @@ impl MetaClient for MemoryMetaClient {
         let spaces_file = self.storage_path.join("spaces.json");
 
         if cluster_file.exists() {
-            let content = fs::read_to_string(&cluster_file).map_err(|e| e.to_string())?;
+            let content = fs::read_to_string(&cluster_file).map_err(|e| ManagerError::Other(e.to_string()))?;
             let cluster_info: ClusterInfo = serde_json::from_str(&content)
-                .map_err(|e| format!("反序列化集群信息失败: {}", e))?;
-            let mut info = self.cluster_info.write().map_err(|e| e.to_string())?;
+                .map_err(|e| ManagerError::Other(format!("反序列化集群信息失败: {}", e)))?;
+            let mut info = self.cluster_info.write().map_err(|e| ManagerError::Other(e.to_string()))?;
             *info = cluster_info;
         }
 
         if spaces_file.exists() {
-            let content = fs::read_to_string(&spaces_file).map_err(|e| e.to_string())?;
+            let content = fs::read_to_string(&spaces_file).map_err(|e| ManagerError::Other(e.to_string()))?;
             let space_list: Vec<SpaceInfo> = serde_json::from_str(&content)
-                .map_err(|e| format!("反序列化空间信息失败: {}", e))?;
-            let mut spaces = self.spaces.write().map_err(|e| e.to_string())?;
+                .map_err(|e| ManagerError::Other(format!("反序列化空间信息失败: {}", e)))?;
+            let mut spaces = self.spaces.write().map_err(|e| ManagerError::Other(e.to_string()))?;
             spaces.clear();
             for space_info in space_list {
                 let space_id = space_info.space_id;
                 spaces.insert(space_id, space_info);
-                let mut next_id = self.next_space_id.write().map_err(|e| e.to_string())?;
+                let mut next_id = self.next_space_id.write().map_err(|e| ManagerError::Other(e.to_string()))?;
                 if space_id >= *next_id {
                     *next_id = space_id + 1;
                 }
@@ -226,27 +227,27 @@ impl MetaClient for MemoryMetaClient {
         Ok(())
     }
 
-    fn save_to_disk(&self) -> Result<(), String> {
+    fn save_to_disk(&self) -> ManagerResult<()> {
         use std::fs;
 
         if !self.storage_path.exists() {
-            fs::create_dir_all(&self.storage_path).map_err(|e| e.to_string())?;
+            fs::create_dir_all(&self.storage_path).map_err(|e| ManagerError::Other(e.to_string()))?;
         }
 
-        let cluster_info = self.cluster_info.read().map_err(|e| e.to_string())?;
+        let cluster_info = self.cluster_info.read().map_err(|e| ManagerError::Other(e.to_string()))?;
         let cluster_content = serde_json::to_string_pretty(&*cluster_info)
-            .map_err(|e| format!("序列化集群信息失败: {}", e))?;
+            .map_err(|e| ManagerError::Other(format!("序列化集群信息失败: {}", e)))?;
 
         let cluster_file = self.storage_path.join("cluster.json");
-        fs::write(&cluster_file, cluster_content).map_err(|e| e.to_string())?;
+        fs::write(&cluster_file, cluster_content).map_err(|e| ManagerError::Other(e.to_string()))?;
 
-        let spaces = self.spaces.read().map_err(|e| e.to_string())?;
+        let spaces = self.spaces.read().map_err(|e| ManagerError::Other(e.to_string()))?;
         let space_list: Vec<SpaceInfo> = spaces.values().cloned().collect();
         let spaces_content = serde_json::to_string_pretty(&space_list)
-            .map_err(|e| format!("序列化空间信息失败: {}", e))?;
+            .map_err(|e| ManagerError::Other(format!("序列化空间信息失败: {}", e)))?;
 
         let spaces_file = self.storage_path.join("spaces.json");
-        fs::write(&spaces_file, spaces_content).map_err(|e| e.to_string())?;
+        fs::write(&spaces_file, spaces_content).map_err(|e| ManagerError::Other(e.to_string()))?;
 
         Ok(())
     }
@@ -368,7 +369,7 @@ mod tests {
 
         let result = client.get_cluster_info();
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "元数据客户端未连接");
+        assert_eq!(result.unwrap_err(), ManagerError::ConnectionError("元数据客户端未连接".to_string()));
 
         client.reconnect();
         assert!(client.is_connected());
@@ -452,11 +453,11 @@ mod tests {
 
         let result = client.create_space("test", 0, 3);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "分区数必须大于0");
+        assert_eq!(result.unwrap_err(), ManagerError::InvalidInput("分区数必须大于0".to_string()));
 
         let result = client.create_space("test", 10, 0);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "副本因子必须大于0");
+        assert_eq!(result.unwrap_err(), ManagerError::InvalidInput("副本因子必须大于0".to_string()));
     }
 
     #[test]
@@ -478,7 +479,7 @@ mod tests {
 
         let result = client.drop_space(999);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "空间 999 不存在");
+        assert_eq!(result.unwrap_err(), ManagerError::NotFound("空间 999 不存在".to_string()));
     }
 
     #[test]

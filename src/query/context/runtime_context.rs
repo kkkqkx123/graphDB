@@ -5,6 +5,7 @@
 
 use crate::common::base::id::{EdgeType, TagId};
 use crate::core::Value;
+use crate::core::error::{ManagerError, ManagerResult};
 use std::sync::Arc;
 
 use crate::query::context::managers::SchemaManager;
@@ -108,8 +109,8 @@ pub trait StorageSchemaManager: Send + Sync + std::fmt::Debug {
 
 /// 索引管理器trait
 pub trait IndexManager: Send + Sync + std::fmt::Debug {
-    fn create_index(&mut self, name: String, schema: Schema) -> Result<(), IndexError>;
-    fn drop_index(&mut self, name: &str) -> Result<(), IndexError>;
+    fn create_index(&mut self, name: String, schema: Schema) -> ManagerResult<()>;
+    fn drop_index(&mut self, name: &str) -> ManagerResult<()>;
     fn get_index(&self, name: &str) -> Option<Index>;
 }
 
@@ -360,11 +361,11 @@ mod tests {
             self.schemas.contains_key(name)
         }
 
-        fn create_tag(&self, _space_id: i32, _tag_name: &str, _fields: Vec<crate::query::context::managers::FieldDef>) -> Result<i32, String> {
+        fn create_tag(&self, _space_id: i32, _tag_name: &str, _fields: Vec<crate::query::context::managers::FieldDef>) -> ManagerResult<i32> {
             Ok(1)
         }
 
-        fn drop_tag(&self, _space_id: i32, _tag_id: i32) -> Result<(), String> {
+        fn drop_tag(&self, _space_id: i32, _tag_id: i32) -> ManagerResult<()> {
             Ok(())
         }
 
@@ -372,7 +373,7 @@ mod tests {
             None
         }
 
-        fn list_tags(&self, _space_id: i32) -> Result<Vec<crate::query::context::managers::TagDef>, String> {
+        fn list_tags(&self, _space_id: i32) -> ManagerResult<Vec<crate::query::context::managers::TagDef>> {
             Ok(Vec::new())
         }
 
@@ -380,11 +381,11 @@ mod tests {
             false
         }
 
-        fn create_edge_type(&self, _space_id: i32, _edge_type_name: &str, _fields: Vec<crate::query::context::managers::FieldDef>) -> Result<i32, String> {
+        fn create_edge_type(&self, _space_id: i32, _edge_type_name: &str, _fields: Vec<crate::query::context::managers::FieldDef>) -> ManagerResult<i32> {
             Ok(1)
         }
 
-        fn drop_edge_type(&self, _space_id: i32, _edge_type_id: i32) -> Result<(), String> {
+        fn drop_edge_type(&self, _space_id: i32, _edge_type_id: i32) -> ManagerResult<()> {
             Ok(())
         }
 
@@ -392,7 +393,7 @@ mod tests {
             None
         }
 
-        fn list_edge_types(&self, _space_id: i32) -> Result<Vec<crate::query::context::managers::EdgeTypeDef>, String> {
+        fn list_edge_types(&self, _space_id: i32) -> ManagerResult<Vec<crate::query::context::managers::EdgeTypeDef>> {
             Ok(Vec::new())
         }
 
@@ -400,12 +401,40 @@ mod tests {
             false
         }
 
-        fn load_from_disk(&self) -> Result<(), String> {
+        fn load_from_disk(&self) -> ManagerResult<()> {
             Ok(())
         }
 
-        fn save_to_disk(&self) -> Result<(), String> {
+        fn save_to_disk(&self) -> ManagerResult<()> {
             Ok(())
+        }
+
+        fn create_schema_version(&self, _space_id: i32, _comment: Option<String>) -> ManagerResult<i32> {
+            Ok(1)
+        }
+
+        fn get_schema_version(&self, _space_id: i32, _version: i32) -> Option<crate::query::context::managers::SchemaVersion> {
+            None
+        }
+
+        fn get_latest_schema_version(&self, _space_id: i32) -> Option<i32> {
+            Some(1)
+        }
+
+        fn get_schema_history(&self, _space_id: i32) -> ManagerResult<crate::query::context::managers::SchemaHistory> {
+            Ok(crate::query::context::managers::SchemaHistory {
+                space_id: _space_id,
+                versions: Vec::new(),
+                current_version: 1,
+            })
+        }
+
+        fn rollback_schema(&self, _space_id: i32, _version: i32) -> ManagerResult<()> {
+            Ok(())
+        }
+
+        fn get_current_version(&self, _space_id: i32) -> Option<i32> {
+            Some(1)
         }
     }
 
@@ -413,11 +442,11 @@ mod tests {
     struct MockIndexManager;
 
     impl IndexManager for MockIndexManager {
-        fn create_index(&mut self, _name: String, _schema: Schema) -> Result<(), IndexError> {
+        fn create_index(&mut self, _name: String, _schema: Schema) -> ManagerResult<()> {
             Ok(())
         }
 
-        fn drop_index(&mut self, _name: &str) -> Result<(), IndexError> {
+        fn drop_index(&mut self, _name: &str) -> ManagerResult<()> {
             Ok(())
         }
 

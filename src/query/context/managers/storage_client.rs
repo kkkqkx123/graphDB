@@ -2,6 +2,7 @@
 
 use crate::core::{Value, Vertex, Edge};
 use std::collections::HashMap;
+use crate::core::error::{ManagerError, ManagerResult};
 
 /// 存储操作类型
 #[derive(Debug, Clone)]
@@ -152,32 +153,32 @@ impl UpdateResponse {
 /// 存储客户端接口 - 定义存储层访问的基本操作
 pub trait StorageClient: Send + Sync + std::fmt::Debug {
     /// 执行存储操作
-    fn execute(&self, operation: StorageOperation) -> Result<StorageResponse, String>;
+    fn execute(&self, operation: StorageOperation) -> ManagerResult<StorageResponse>;
     /// 检查连接状态
     fn is_connected(&self) -> bool;
     
     /// ==================== Vertex 操作 ====================
     
     /// 添加单个顶点
-    fn add_vertex(&self, space_id: i32, vertex: Vertex) -> Result<ExecResponse, String>;
+    fn add_vertex(&self, space_id: i32, vertex: Vertex) -> ManagerResult<ExecResponse>;
     
     /// 批量添加顶点
-    fn add_vertices(&self, space_id: i32, vertices: Vec<NewVertex>) -> Result<ExecResponse, String>;
+    fn add_vertices(&self, space_id: i32, vertices: Vec<NewVertex>) -> ManagerResult<ExecResponse>;
     
     /// 获取顶点
-    fn get_vertex(&self, space_id: i32, vid: &Value) -> Result<Option<Vertex>, String>;
+    fn get_vertex(&self, space_id: i32, vid: &Value) -> ManagerResult<Option<Vertex>>;
     
     /// 批量获取顶点
-    fn get_vertices(&self, space_id: i32, vids: &[Value]) -> Result<Vec<Option<Vertex>>, String>;
+    fn get_vertices(&self, space_id: i32, vids: &[Value]) -> ManagerResult<Vec<Option<Vertex>>>;
     
     /// 删除单个顶点
-    fn delete_vertex(&self, space_id: i32, vid: &Value) -> Result<ExecResponse, String>;
+    fn delete_vertex(&self, space_id: i32, vid: &Value) -> ManagerResult<ExecResponse>;
     
     /// 批量删除顶点
-    fn delete_vertices(&self, space_id: i32, vids: &[Value]) -> Result<ExecResponse, String>;
+    fn delete_vertices(&self, space_id: i32, vids: &[Value]) -> ManagerResult<ExecResponse>;
     
     /// 删除顶点的特定标签
-    fn delete_tags(&self, space_id: i32, del_tags: Vec<DelTags>) -> Result<ExecResponse, String>;
+    fn delete_tags(&self, space_id: i32, del_tags: Vec<DelTags>) -> ManagerResult<ExecResponse>;
     
     /// 更新顶点属性
     fn update_vertex(
@@ -189,27 +190,27 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
         insertable: bool,
         return_props: Vec<String>,
         condition: Option<String>,
-    ) -> Result<UpdateResponse, String>;
+    ) -> ManagerResult<UpdateResponse>;
     
     /// ==================== Edge 操作 ====================
     
     /// 添加单个边
-    fn add_edge(&self, space_id: i32, edge: Edge) -> Result<ExecResponse, String>;
+    fn add_edge(&self, space_id: i32, edge: Edge) -> ManagerResult<ExecResponse>;
     
     /// 批量添加边
-    fn add_edges(&self, space_id: i32, edges: Vec<NewEdge>) -> Result<ExecResponse, String>;
+    fn add_edges(&self, space_id: i32, edges: Vec<NewEdge>) -> ManagerResult<ExecResponse>;
     
     /// 获取边
-    fn get_edge(&self, space_id: i32, edge_key: &EdgeKey) -> Result<Option<Edge>, String>;
+    fn get_edge(&self, space_id: i32, edge_key: &EdgeKey) -> ManagerResult<Option<Edge>>;
     
     /// 批量获取边
-    fn get_edges(&self, space_id: i32, edge_keys: &[EdgeKey]) -> Result<Vec<Option<Edge>>, String>;
+    fn get_edges(&self, space_id: i32, edge_keys: &[EdgeKey]) -> ManagerResult<Vec<Option<Edge>>>;
     
     /// 删除单个边
-    fn delete_edge(&self, space_id: i32, edge_key: &EdgeKey) -> Result<ExecResponse, String>;
+    fn delete_edge(&self, space_id: i32, edge_key: &EdgeKey) -> ManagerResult<ExecResponse>;
     
     /// 批量删除边
-    fn delete_edges(&self, space_id: i32, edge_keys: &[EdgeKey]) -> Result<ExecResponse, String>;
+    fn delete_edges(&self, space_id: i32, edge_keys: &[EdgeKey]) -> ManagerResult<ExecResponse>;
     
     /// 更新边属性
     fn update_edge(
@@ -220,25 +221,25 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
         insertable: bool,
         return_props: Vec<String>,
         condition: Option<String>,
-    ) -> Result<UpdateResponse, String>;
+    ) -> ManagerResult<UpdateResponse>;
     
     /// ==================== 扫描操作 ====================
     
     /// 扫描所有顶点
-    fn scan_vertices(&self, space_id: i32, limit: Option<usize>) -> Result<Vec<Vertex>, String>;
+    fn scan_vertices(&self, space_id: i32, limit: Option<usize>) -> ManagerResult<Vec<Vertex>>;
     
     /// 按标签扫描顶点
-    fn scan_vertices_by_tag(&self, space_id: i32, tag_id: i32, limit: Option<usize>) -> Result<Vec<Vertex>, String>;
+    fn scan_vertices_by_tag(&self, space_id: i32, tag_id: i32, limit: Option<usize>) -> ManagerResult<Vec<Vertex>>;
     
     /// 扫描所有边
-    fn scan_edges(&self, space_id: i32, limit: Option<usize>) -> Result<Vec<Edge>, String>;
+    fn scan_edges(&self, space_id: i32, limit: Option<usize>) -> ManagerResult<Vec<Edge>>;
     
     /// 按边类型扫描边
-    fn scan_edges_by_type(&self, space_id: i32, edge_type: &str, limit: Option<usize>) -> Result<Vec<Edge>, String>;
+    fn scan_edges_by_type(&self, space_id: i32, edge_type: &str, limit: Option<usize>) -> ManagerResult<Vec<Edge>>;
     
     /// 按源顶点扫描边
-    fn scan_edges_by_src(&self, space_id: i32, src: &Value, limit: Option<usize>) -> Result<Vec<Edge>, String>;
+    fn scan_edges_by_src(&self, space_id: i32, src: &Value, limit: Option<usize>) -> ManagerResult<Vec<Edge>>;
     
     /// 按目标顶点扫描边
-    fn scan_edges_by_dst(&self, space_id: i32, dst: &Value, limit: Option<usize>) -> Result<Vec<Edge>, String>;
+    fn scan_edges_by_dst(&self, space_id: i32, dst: &Value, limit: Option<usize>) -> ManagerResult<Vec<Edge>>;
 }

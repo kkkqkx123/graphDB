@@ -2,6 +2,7 @@
 
 use super::super::{Index, IndexManager, IndexStatus, IndexType, IndexBuildProgress};
 use crate::core::{Value, Vertex, Edge};
+use crate::core::error::{ManagerError, ManagerResult};
 use std::collections::{HashMap, BTreeMap};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, atomic::{AtomicBool, AtomicU64, Ordering}};
@@ -60,22 +61,22 @@ impl MemoryIndexManager {
     }
 
     /// 添加索引
-    pub fn add_index(&self, index: Index) -> Result<(), String> {
-        let mut indexes = self.indexes.write().map_err(|e| e.to_string())?;
+    pub fn add_index(&self, index: Index) -> ManagerResult<()> {
+        let mut indexes = self.indexes.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         indexes.insert(index.name.clone(), index);
         Ok(())
     }
 
     /// 删除索引
-    pub fn remove_index(&self, name: &str) -> Result<(), String> {
-        let mut indexes = self.indexes.write().map_err(|e| e.to_string())?;
+    pub fn remove_index(&self, name: &str) -> ManagerResult<()> {
+        let mut indexes = self.indexes.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         indexes.remove(name);
         Ok(())
     }
 
     /// 更新索引
-    pub fn update_index(&self, name: &str, index: Index) -> Result<(), String> {
-        let mut indexes = self.indexes.write().map_err(|e| e.to_string())?;
+    pub fn update_index(&self, name: &str, index: Index) -> ManagerResult<()> {
+        let mut indexes = self.indexes.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         indexes.insert(name.to_string(), index);
         Ok(())
     }
@@ -129,14 +130,14 @@ impl IndexManager for MemoryIndexManager {
         }
     }
 
-    fn create_index(&self, space_id: i32, mut index: Index) -> Result<i32, String> {
-        let mut indexes = self.indexes.write().map_err(|e| e.to_string())?;
+    fn create_index(&self, space_id: i32, mut index: Index) -> ManagerResult<i32> {
+        let mut indexes = self.indexes.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         
         if indexes.contains_key(&index.name) {
-            return Err(format!("索引 {} 已存在", index.name));
+            return Err(ManagerError::AlreadyExists(format!("索引 {} 已存在", index.name)));
         }
         
-        let mut next_id = self.next_index_id.write().map_err(|e| e.to_string())?;
+        let mut next_id = self.next_index_id.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         index.id = *next_id;
         index.space_id = space_id;
         index.status = IndexStatus::Creating;
@@ -150,14 +151,14 @@ impl IndexManager for MemoryIndexManager {
         Ok(index.id)
     }
 
-    fn drop_index(&self, _space_id: i32, index_id: i32) -> Result<(), String> {
-        let mut indexes = self.indexes.write().map_err(|e| e.to_string())?;
+    fn drop_index(&self, _space_id: i32, index_id: i32) -> ManagerResult<()> {
+        let mut indexes = self.indexes.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         
         let index_name = indexes
             .values()
             .find(|idx| idx.id == index_id)
             .map(|idx| idx.name.clone())
-            .ok_or_else(|| format!("索引ID {} 不存在", index_id))?;
+            .ok_or_else(|| ManagerError::NotFound(format!("索引ID {} 不存在", index_id)))?;
         
         indexes.remove(&index_name);
         drop(indexes);
@@ -172,8 +173,8 @@ impl IndexManager for MemoryIndexManager {
         indexes.values().find(|idx| idx.id == index_id).map(|idx| idx.status.clone())
     }
 
-    fn list_indexes_by_space(&self, space_id: i32) -> Result<Vec<Index>, String> {
-        let indexes = self.indexes.read().map_err(|e| e.to_string())?;
+    fn list_indexes_by_space(&self, space_id: i32) -> ManagerResult<Vec<Index>> {
+        let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         Ok(indexes
             .values()
             .filter(|idx| idx.space_id == space_id)
@@ -181,11 +182,11 @@ impl IndexManager for MemoryIndexManager {
             .collect())
     }
 
-    fn load_from_disk(&self) -> Result<(), String> {
+    fn load_from_disk(&self) -> ManagerResult<()> {
         use std::fs;
         
         if !self.storage_path.exists() {
-            fs::create_dir_all(&self.storage_path).map_err(|e| e.to_string())?;
+            fs::create_dir_all(&self.storage_path).map_err(|e| ManagerError::StorageError(e.to_string()))?;
             return Ok(());
         }
         
@@ -194,13 +195,13 @@ impl IndexManager for MemoryIndexManager {
             return Ok(());
         }
         
-        let content = fs::read_to_string(&index_file).map_err(|e| e.to_string())?;
+        let content = fs::read_to_string(&index_file).map_err(|e| ManagerError::StorageError(e.to_string()))?;
         
         let loaded_indexes: Vec<Index> = serde_json::from_str(&content)
-            .map_err(|e| format!("反序列化索引失败: {}", e))?;
+            .map_err(|e| ManagerError::IndexError(format!("反序列化索引失败: {}", e)))?;
         
-        let mut indexes = self.indexes.write().map_err(|e| e.to_string())?;
-        let mut next_id = self.next_index_id.write().map_err(|e| e.to_string())?;
+        let mut indexes = self.indexes.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut next_id = self.next_index_id.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         
         for index in loaded_indexes {
             if index.id >= *next_id {
@@ -212,41 +213,41 @@ impl IndexManager for MemoryIndexManager {
         Ok(())
     }
 
-    fn save_to_disk(&self) -> Result<(), String> {
+    fn save_to_disk(&self) -> ManagerResult<()> {
         use std::fs;
         
         if !self.storage_path.exists() {
-            fs::create_dir_all(&self.storage_path).map_err(|e| e.to_string())?;
+            fs::create_dir_all(&self.storage_path).map_err(|e| ManagerError::StorageError(e.to_string()))?;
         }
         
-        let indexes = self.indexes.read().map_err(|e| e.to_string())?;
+        let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let index_list: Vec<Index> = indexes.values().cloned().collect();
         
         let content = serde_json::to_string_pretty(&index_list)
-            .map_err(|e| format!("序列化索引失败: {}", e))?;
+            .map_err(|e| ManagerError::IndexError(format!("序列化索引失败: {}", e)))?;
         
         let index_file = self.storage_path.join("indexes.json");
-        fs::write(&index_file, content).map_err(|e| e.to_string())?;
+        fs::write(&index_file, content).map_err(|e| ManagerError::StorageError(e.to_string()))?;
         
         Ok(())
     }
 
-    fn build_index_async(&self, space_id: i32, index_id: i32) -> Result<(), String> {
+    fn build_index_async(&self, space_id: i32, index_id: i32) -> ManagerResult<()> {
         let index_name = {
-            let indexes = self.indexes.read().map_err(|e| e.to_string())?;
+            let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
             let index = indexes
                 .values()
                 .find(|idx| idx.id == index_id && idx.space_id == space_id)
-                .ok_or_else(|| format!("索引ID {} 在Space {} 中不存在", index_id, space_id))?;
+                .ok_or_else(|| ManagerError::NotFound(format!("索引ID {} 在Space {} 中不存在", index_id, space_id)))?;
             
             if index.status != IndexStatus::Creating {
-                return Err(format!("索引 {} 状态为 {:?}，无法开始构建", index.name, index.status));
+                return Err(ManagerError::IndexError(format!("索引 {} 状态为 {:?}，无法开始构建", index.name, index.status)));
             }
             
             index.name.clone()
         };
         
-        let mut indexes = self.indexes.write().map_err(|e| e.to_string())?;
+        let mut indexes = self.indexes.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let index = indexes.get_mut(&index_name).expect("索引不存在");
         index.status = IndexStatus::Building;
         drop(indexes);
@@ -267,7 +268,7 @@ impl IndexManager for MemoryIndexManager {
             error_message: error_message.clone(),
         };
         
-        let mut build_tasks = self.build_tasks.write().map_err(|e| e.to_string())?;
+        let mut build_tasks = self.build_tasks.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         build_tasks.insert(index_id, build_task);
         drop(build_tasks);
         
@@ -347,25 +348,25 @@ impl IndexManager for MemoryIndexManager {
         })
     }
 
-    fn cancel_build(&self, space_id: i32, index_id: i32) -> Result<(), String> {
+    fn cancel_build(&self, space_id: i32, index_id: i32) -> ManagerResult<()> {
         let index_name = {
-            let indexes = self.indexes.read().map_err(|e| e.to_string())?;
+            let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
             let index = indexes
                 .values()
                 .find(|idx| idx.id == index_id && idx.space_id == space_id)
-                .ok_or_else(|| format!("索引ID {} 在Space {} 中不存在", index_id, space_id))?;
+                .ok_or_else(|| ManagerError::NotFound(format!("索引ID {} 在Space {} 中不存在", index_id, space_id)))?;
             
             if index.status != IndexStatus::Building {
-                return Err(format!("索引 {} 状态为 {:?}，无法取消构建", index.name, index.status));
+                return Err(ManagerError::IndexError(format!("索引 {} 状态为 {:?}，无法取消构建", index.name, index.status)));
             }
             
             index.name.clone()
         };
         
-        let build_tasks = self.build_tasks.read().map_err(|e| e.to_string())?;
+        let build_tasks = self.build_tasks.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let task = build_tasks
             .get(&index_id)
-            .ok_or_else(|| format!("索引 {} 没有正在进行的构建任务", index_name))?;
+            .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 没有正在进行的构建任务", index_name)))?;
         
         task.is_cancelled.store(true, Ordering::Relaxed);
         
@@ -377,34 +378,34 @@ impl IndexManager for MemoryIndexManager {
         space_id: i32,
         index_name: &str,
         values: &[Value],
-    ) -> Result<Vec<Vertex>, String> {
-        let indexes = self.indexes.read().map_err(|e| e.to_string())?;
+    ) -> ManagerResult<Vec<Vertex>> {
+        let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let index = indexes
             .get(index_name)
-            .ok_or_else(|| format!("索引 {} 不存在", index_name))?;
+            .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 不存在", index_name)))?;
         
         if index.space_id != space_id {
-            return Err(format!("索引 {} 不属于Space {}", index_name, space_id));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 不属于Space {}", index_name, space_id)));
         }
         
         if index.index_type != IndexType::TagIndex {
-            return Err(format!("索引 {} 不是顶点索引", index_name));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 不是顶点索引", index_name)));
         }
         
         if index.status != IndexStatus::Active {
-            return Err(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status)));
         }
         
-        let index_data = self.index_data.read().map_err(|e| e.to_string())?;
+        let index_data = self.index_data.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let data = index_data
             .get(&index.id)
-            .ok_or_else(|| format!("索引 {} 的数据不存在", index_name))?;
+            .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 的数据不存在", index_name)))?;
         
         let key = values.to_vec();
         data.vertex_index
             .get(&key)
             .map(|vertices| vertices.clone())
-            .ok_or_else(|| format!("索引 {} 中未找到匹配的顶点", index_name))
+            .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 中未找到匹配的顶点", index_name)))
     }
 
     fn lookup_edge_by_index(
@@ -412,34 +413,34 @@ impl IndexManager for MemoryIndexManager {
         space_id: i32,
         index_name: &str,
         values: &[Value],
-    ) -> Result<Vec<Edge>, String> {
-        let indexes = self.indexes.read().map_err(|e| e.to_string())?;
+    ) -> ManagerResult<Vec<Edge>> {
+        let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let index = indexes
             .get(index_name)
-            .ok_or_else(|| format!("索引 {} 不存在", index_name))?;
+            .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 不存在", index_name)))?;
         
         if index.space_id != space_id {
-            return Err(format!("索引 {} 不属于Space {}", index_name, space_id));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 不属于Space {}", index_name, space_id)));
         }
         
         if index.index_type != IndexType::EdgeIndex {
-            return Err(format!("索引 {} 不是边索引", index_name));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 不是边索引", index_name)));
         }
         
         if index.status != IndexStatus::Active {
-            return Err(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status)));
         }
         
-        let index_data = self.index_data.read().map_err(|e| e.to_string())?;
+        let index_data = self.index_data.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let data = index_data
             .get(&index.id)
-            .ok_or_else(|| format!("索引 {} 的数据不存在", index_name))?;
+            .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 的数据不存在", index_name)))?;
         
         let key = values.to_vec();
         data.edge_index
             .get(&key)
             .map(|edges| edges.clone())
-            .ok_or_else(|| format!("索引 {} 中未找到匹配的边", index_name))
+            .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 中未找到匹配的边", index_name)))
     }
 
     fn range_lookup_vertex(
@@ -448,28 +449,28 @@ impl IndexManager for MemoryIndexManager {
         index_name: &str,
         start: &Value,
         end: &Value,
-    ) -> Result<Vec<Vertex>, String> {
-        let indexes = self.indexes.read().map_err(|e| e.to_string())?;
+    ) -> ManagerResult<Vec<Vertex>> {
+        let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let index = indexes
             .get(index_name)
-            .ok_or_else(|| format!("索引 {} 不存在", index_name))?;
+            .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 不存在", index_name)))?;
         
         if index.space_id != space_id {
-            return Err(format!("索引 {} 不属于Space {}", index_name, space_id));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 不属于Space {}", index_name, space_id)));
         }
         
         if index.index_type != IndexType::TagIndex {
-            return Err(format!("索引 {} 不是顶点索引", index_name));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 不是顶点索引", index_name)));
         }
         
         if index.status != IndexStatus::Active {
-            return Err(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status)));
         }
         
-        let index_data = self.index_data.read().map_err(|e| e.to_string())?;
+        let index_data = self.index_data.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let data = index_data
             .get(&index.id)
-            .ok_or_else(|| format!("索引 {} 的数据不存在", index_name))?;
+            .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 的数据不存在", index_name)))?;
         
         let start_key = vec![start.clone()];
         let end_key = vec![end.clone()];
@@ -488,28 +489,28 @@ impl IndexManager for MemoryIndexManager {
         index_name: &str,
         start: &Value,
         end: &Value,
-    ) -> Result<Vec<Edge>, String> {
-        let indexes = self.indexes.read().map_err(|e| e.to_string())?;
+    ) -> ManagerResult<Vec<Edge>> {
+        let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let index = indexes
             .get(index_name)
-            .ok_or_else(|| format!("索引 {} 不存在", index_name))?;
+            .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 不存在", index_name)))?;
         
         if index.space_id != space_id {
-            return Err(format!("索引 {} 不属于Space {}", index_name, space_id));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 不属于Space {}", index_name, space_id)));
         }
         
         if index.index_type != IndexType::EdgeIndex {
-            return Err(format!("索引 {} 不是边索引", index_name));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 不是边索引", index_name)));
         }
         
         if index.status != IndexStatus::Active {
-            return Err(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status));
+            return Err(ManagerError::InvalidInput(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status)));
         }
         
-        let index_data = self.index_data.read().map_err(|e| e.to_string())?;
+        let index_data = self.index_data.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let data = index_data
             .get(&index.id)
-            .ok_or_else(|| format!("索引 {} 的数据不存在", index_name))?;
+            .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 的数据不存在", index_name)))?;
         
         let start_key = vec![start.clone()];
         let end_key = vec![end.clone()];
