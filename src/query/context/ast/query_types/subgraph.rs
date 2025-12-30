@@ -1,7 +1,7 @@
 //! Subgraph查询上下文
 
 use std::collections::HashSet;
-use crate::query::context::ast::{AstContext, ExpressionProps, Starts, StepClause, FromType, EdgeDirection};
+use crate::query::context::ast::{AstContext, ExpressionProps, Starts, StepClause, FromType};
 
 // Subgraph查询上下文
 #[derive(Debug, Clone)]

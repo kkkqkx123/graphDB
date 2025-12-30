@@ -29,11 +29,11 @@ pub struct PlanNodeFactory;
 impl PlanNodeFactory {
     /// 创建过滤节点
     pub fn create_filter(
-        input: PlanNodeEnum,
+        _input: PlanNodeEnum,
         condition: Expr,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 将 Expr 转换为 Expression
-        let expr = convert_ast_to_graph_expression(&condition).map_err(|e| {
+        let _expr = convert_ast_to_graph_expression(&condition).map_err(|e| {
             crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
         })?;
 
@@ -314,10 +314,10 @@ impl PlanNodeFactory {
 
     /// 创建索引扫描节点
     pub fn create_index_scan(
-        space_id: i32,
-        tag_id: i32,
-        index_id: i32,
-        scan_type: &str,
+        _space_id: i32,
+        _tag_id: i32,
+        _index_id: i32,
+        _scan_type: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         // 这里需要重构 IndexScan::new 来返回 PlanNodeEnum
         // 暂时返回一个参数节点作为占位符

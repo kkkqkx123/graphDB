@@ -85,7 +85,7 @@ pub struct Histogram {
     counts: Arc<Mutex<Vec<u64>>>,
     sum: Arc<Mutex<f64>>,
     
-    created_at: std::time::SystemTime,
+    _created_at: std::time::SystemTime,
 }
 
 impl Histogram {
@@ -97,7 +97,7 @@ impl Histogram {
             buckets: buckets.clone(),
             counts: Arc::new(Mutex::new(vec![0; buckets.len()])),
             sum: Arc::new(Mutex::new(0.0)),
-            created_at: SystemTime::now(),
+            _created_at: SystemTime::now(),
         }
     }
 
@@ -156,7 +156,7 @@ impl Timer {
             name: name.to_string(),
             description: description.to_string(),
             value: Arc::new(Mutex::new(Vec::new())),
-            created_at: SystemTime::now(),
+            _created_at: SystemTime::now(),
         }
     }
 
@@ -223,7 +223,7 @@ impl StatsRegistry {
             gauges: Arc::new(Mutex::new(HashMap::new())),
             histograms: Arc::new(Mutex::new(HashMap::new())),
             timers: Arc::new(Mutex::new(HashMap::new())),
-            created_at: SystemTime::now(),
+            _created_at: SystemTime::now(),
         }
     }
 

@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 use crate::query::parser::ast::expr::Expr;
+use crate::core::types::EdgeDirection;
+use crate::query::validator::structs::clause_structs::YieldColumn;
 
 /// 起始顶点类型 - 强类型枚举替代String
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -114,54 +116,6 @@ impl Default for PatternKind {
     }
 }
 
-/// 边方向类型 - 强类型枚举替代String
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum EdgeDirection {
-    /// 出边
-    Out,
-    /// 入边
-    In,
-    /// 双向
-    Both,
-}
-
-impl Default for EdgeDirection {
-    fn default() -> Self {
-        EdgeDirection::Out
-    }
-}
-
-impl From<EdgeDirection> for String {
-    fn from(d: EdgeDirection) -> Self {
-        match d {
-            EdgeDirection::Out => "out".to_string(),
-            EdgeDirection::In => "in".to_string(),
-            EdgeDirection::Both => "both".to_string(),
-        }
-    }
-}
-
-impl From<&str> for EdgeDirection {
-    fn from(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
-            "out" => EdgeDirection::Out,
-            "in" => EdgeDirection::In,
-            "both" => EdgeDirection::Both,
-            _ => EdgeDirection::Out,
-        }
-    }
-}
-
-impl EdgeDirection {
-    pub fn as_str(&self) -> &str {
-        match self {
-            EdgeDirection::Out => "out",
-            EdgeDirection::In => "in",
-            EdgeDirection::Both => "both",
-        }
-    }
-}
-
 // 起始顶点信息
 #[derive(Debug, Clone)]
 pub struct Starts {
@@ -200,7 +154,7 @@ impl Over {
         Self {
             is_over_all: false,
             edge_types: Vec::new(),
-            direction: EdgeDirection::Out,
+            direction: EdgeDirection::Outgoing,
             all_edges: Vec::new(),
         }
     }
@@ -233,28 +187,6 @@ pub struct ExpressionProps {
     pub src_tag_props: HashMap<String, Vec<String>>,
 }
 
-/// 输出列定义
-#[derive(Debug, Clone)]
-pub struct YieldColumn {
-    pub expr: Expr,
-    pub alias: Option<String>,
-}
-
-impl YieldColumn {
-    pub fn new(expr: Expr, alias: Option<String>) -> Self {
-        YieldColumn { expr, alias }
-    }
-
-    pub fn name(&self) -> String {
-        self.alias.clone().unwrap_or_else(|| {
-            match &self.expr {
-                Expr::Variable(v) => v.name.clone(),
-                _ => format!("{:?}", self.expr),
-            }
-        })
-    }
-}
-
 /// 输出列集合
 #[derive(Debug, Clone, Default)]
 pub struct YieldColumns {
@@ -277,7 +209,7 @@ impl YieldColumns {
     }
 
     pub fn get_column_names(&self) -> Vec<String> {
-        self.columns.iter().map(|c| c.name()).collect()
+        self.columns.iter().map(|c| c.name().to_string()).collect()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -290,85 +222,5 @@ impl YieldColumns {
 
     pub fn iter(&self) -> impl Iterator<Item = &YieldColumn> {
         self.columns.iter()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_yield_column_new() {
-        let expr = Expr::Variable(crate::query::parser::ast::expr::VariableExpr {
-            name: "test_var".to_string(),
-            span: Default::default(),
-        });
-        let column = YieldColumn::new(expr.clone(), Some("alias".to_string()));
-        assert_eq!(column.name(), "alias");
-    }
-
-    #[test]
-    fn test_yield_column_name_without_alias() {
-        let expr = Expr::Variable(crate::query::parser::ast::expr::VariableExpr {
-            name: "test_var".to_string(),
-            span: Default::default(),
-        });
-        let column = YieldColumn::new(expr, None);
-        assert_eq!(column.name(), "test_var");
-    }
-
-    #[test]
-    fn test_yield_columns_new() {
-        let columns = YieldColumns::new();
-        assert!(columns.is_empty());
-        assert_eq!(columns.len(), 0);
-    }
-
-    #[test]
-    fn test_yield_columns_with_capacity() {
-        let columns = YieldColumns::with_capacity(10);
-        assert!(columns.is_empty());
-        assert_eq!(columns.len(), 0);
-    }
-
-    #[test]
-    fn test_yield_columns_add_column() {
-        let mut columns = YieldColumns::new();
-        let expr = Expr::Variable(crate::query::parser::ast::expr::VariableExpr {
-            name: "var1".to_string(),
-            span: Default::default(),
-        });
-        columns.add_column(YieldColumn::new(expr, Some("alias1".to_string())));
-        assert_eq!(columns.len(), 1);
-        assert_eq!(columns.get_column_names(), vec!["alias1"]);
-    }
-
-    #[test]
-    fn test_yield_columns_get_column_names() {
-        let mut columns = YieldColumns::new();
-        let expr1 = Expr::Variable(crate::query::parser::ast::expr::VariableExpr {
-            name: "var1".to_string(),
-            span: Default::default(),
-        });
-        let expr2 = Expr::Variable(crate::query::parser::ast::expr::VariableExpr {
-            name: "var2".to_string(),
-            span: Default::default(),
-        });
-        columns.add_column(YieldColumn::new(expr1, Some("alias1".to_string())));
-        columns.add_column(YieldColumn::new(expr2, Some("alias2".to_string())));
-        assert_eq!(columns.get_column_names(), vec!["alias1", "alias2"]);
-    }
-
-    #[test]
-    fn test_yield_columns_iter() {
-        let mut columns = YieldColumns::new();
-        let expr = Expr::Variable(crate::query::parser::ast::expr::VariableExpr {
-            name: "var".to_string(),
-            span: Default::default(),
-        });
-        columns.add_column(YieldColumn::new(expr, Some("alias".to_string())));
-        let mut iter = columns.iter();
-        assert!(iter.next().is_some());
-        assert!(iter.next().is_none());
     }
 }

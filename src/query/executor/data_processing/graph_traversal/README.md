@@ -80,7 +80,7 @@ use crate::query::executor::data_processing::graph_traversal::GraphTraversalExec
 let expand_executor = GraphTraversalExecutorFactory::create_expand_executor(
     1,                                    // ID
     storage.clone(),                      // 存储引擎
-    EdgeDirection::Out,                   // 边方向
+    EdgeDirection::Outgoing,              // 边方向
     Some(vec!["friend".to_string()]),     // 边类型过滤
     Some(2),                             // 最大深度
 );

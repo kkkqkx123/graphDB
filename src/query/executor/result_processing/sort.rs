@@ -392,7 +392,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
     }
     
     /// 通用预处理方法：为排序准备数据
-    fn prepare_sort_data(&self, data_set: &DataSet) -> DBResult<Vec<(Vec<Value>, Vec<Value>)>> {
+    fn _prepare_sort_data(&self, data_set: &DataSet) -> DBResult<Vec<(Vec<Value>, Vec<Value>)>> {
         let mut rows_with_keys: Vec<(Vec<Value>, Vec<Value>)> = Vec::new();
 
         // 为每行计算排序键值，克隆行数据以避免生命周期问题
@@ -405,7 +405,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
     }
     
     /// 通用结果提取方法：从排序后的数据中提取结果
-    fn extract_sorted_data(&self, rows_with_keys: Vec<(Vec<Value>, &Vec<Value>)>, data_set: &mut DataSet) -> DBResult<()> {
+    fn _extract_sorted_data(&self, rows_with_keys: Vec<(Vec<Value>, &Vec<Value>)>, data_set: &mut DataSet) -> DBResult<()> {
         // 提取排序后的行，需要克隆以保持所有权
         data_set.rows = rows_with_keys.into_iter().map(|(_, row)| row.clone()).collect();
         Ok(())

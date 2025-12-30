@@ -17,7 +17,7 @@ struct IndexData {
 }
 
 impl IndexData {
-    fn new() -> Self {
+    fn _new() -> Self {
         Self {
             vertex_index: BTreeMap::new(),
             edge_index: BTreeMap::new(),

@@ -2,7 +2,7 @@
 //!
 //! 提供具体的表达式求值功能，包含零成本抽象优化
 
-use crate::core::types::expression::{Expression, DataType};
+use crate::core::types::expression::Expression;
 use crate::core::error::ExpressionError;
 use crate::core::Value;
 use crate::expression::evaluator::traits::ExpressionContext;

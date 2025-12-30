@@ -6,7 +6,7 @@ use crate::core::{Value, DataSet, DBError, DBResult};
 use crate::core::types::expression::Expression;
 use crate::query::executor::memory_manager::{MemoryTracker, MemoryConfig, TrackedVec};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::evaluator::traits::{Evaluator, ExpressionContext};
+use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use bincode::{encode_to_vec, decode_from_slice, Encode, Decode};
 use std::collections::{HashMap, VecDeque};

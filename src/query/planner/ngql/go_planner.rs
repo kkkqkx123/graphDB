@@ -51,9 +51,9 @@ impl Planner for GoPlanner {
         let arg_node_enum = PlanNodeEnum::Argument(arg_node);
 
         let mut edge_types = go_ctx.over.edge_types.clone();
-        if go_ctx.over.direction == crate::query::context::ast::EdgeDirection::Both {
+        if go_ctx.over.direction == EdgeDirection::Both {
             edge_types = go_ctx.over.edge_types.clone();
-        } else if go_ctx.over.direction == crate::query::context::ast::EdgeDirection::In {
+        } else if go_ctx.over.direction == EdgeDirection::Incoming {
             edge_types = edge_types.iter().map(|et| format!("-{}", et)).collect();
         }
 
@@ -61,7 +61,12 @@ impl Planner for GoPlanner {
 
         let expand_node = ExpandNode::new(1, edge_types.clone(), expand_direction);
 
-        let expand_all_node = ExpandAllNode::new(1, go_ctx.over.edge_types.clone(), go_ctx.over.direction.as_str());
+        let direction_str = match go_ctx.over.direction {
+            EdgeDirection::Outgoing => "out",
+            EdgeDirection::Incoming => "in",
+            EdgeDirection::Both => "both",
+        };
+        let expand_all_node = ExpandAllNode::new(1, go_ctx.over.edge_types.clone(), direction_str);
 
         let join_node_opt: Option<PlanNodeEnum> = if go_ctx.join_dst {
             let join_key = crate::core::Expression::Variable("_expandall_vid".to_string());
@@ -101,15 +106,8 @@ impl Planner for GoPlanner {
         let yield_columns = if let Some(ref yield_expr) = go_ctx.yield_expr {
             yield_expr.columns.iter().map(|col| {
                 crate::query::validator::YieldColumn {
-                    expr: crate::core::Expression::Variable(
-                        col.alias.clone().unwrap_or_else(|| {
-                            match &col.expr {
-                                Expr::Variable(v) => v.name.clone(),
-                                _ => "DEFAULT".to_string(),
-                            }
-                        }),
-                    ),
-                    alias: col.alias.clone().unwrap_or_else(|| "DEFAULT".to_string()),
+                    expr: crate::core::Expression::Variable(col.alias.clone()),
+                    alias: col.alias.clone(),
                     is_matched: false,
                 }
             }).collect()

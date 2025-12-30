@@ -1,6 +1,6 @@
 //! Path查询上下文
 
-use crate::query::context::ast::{AstContext, EdgeDirection, ExpressionProps, FromType, Over, Starts, StepClause};
+use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Over, Starts, StepClause};
 
 // Path查询上下文
 #[derive(Debug, Clone)]

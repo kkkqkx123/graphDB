@@ -226,15 +226,15 @@ impl<S: StorageEngine> DeleteExecutor<S> {
         storage: Arc<Mutex<S>>,
         vertex_ids: Option<Vec<Value>>,
         edge_ids: Option<Vec<Value>>,
-        condition: Option<String>,
-        cascade: bool,
+        _condition: Option<String>,
+        _cascade: bool,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DeleteExecutor".to_string(), storage),
             vertex_ids,
             edge_ids,
-            condition,
-            cascade,
+            _condition,
+            _cascade,
         }
     }
 }
@@ -311,17 +311,17 @@ impl<S: StorageEngine> CreateIndexExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        index_name: String,
-        index_type: IndexType,
-        properties: Vec<String>,
-        tag_name: Option<String>,
+        _index_name: String,
+        _index_type: IndexType,
+        _properties: Vec<String>,
+        _tag_name: Option<String>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateIndexExecutor".to_string(), storage),
-            index_name,
-            index_type,
-            properties,
-            tag_name,
+            _index_name,
+            _index_type,
+            _properties,
+            _tag_name,
         }
     }
 }
@@ -365,10 +365,10 @@ pub struct DropIndexExecutor<S: StorageEngine> {
 }
 
 impl<S: StorageEngine> DropIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_name: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, _index_name: String) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropIndexExecutor".to_string(), storage),
-            index_name,
+            _index_name,
         }
     }
 }

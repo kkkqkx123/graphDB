@@ -7,8 +7,6 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, NullType, Value};
-use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor, hash_table::{build_hash_table, extract_key_values, JoinKey},
 };

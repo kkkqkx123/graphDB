@@ -61,9 +61,9 @@ impl Planner for PathPlanner {
         let expand_direction: EdgeDirection = path_ctx.over.direction.into();
 
         let mut edge_types = path_ctx.over.edge_types.clone();
-        if path_ctx.over.direction == crate::query::context::ast::EdgeDirection::Both {
+        if path_ctx.over.direction == EdgeDirection::Both {
             edge_types.extend(path_ctx.over.edge_types.iter().map(|et| format!("-{}", et)));
-        } else if path_ctx.over.direction == crate::query::context::ast::EdgeDirection::In {
+        } else if path_ctx.over.direction == EdgeDirection::Incoming {
             edge_types = path_ctx
                 .over
                 .edge_types
@@ -74,7 +74,12 @@ impl Planner for PathPlanner {
 
         let _expand_node = ExpandNode::new(1, edge_types.clone(), expand_direction);
 
-        let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAllNode::new(2, edge_types, path_ctx.over.direction.as_str()));
+        let direction_str = match path_ctx.over.direction {
+            EdgeDirection::Outgoing => "out",
+            EdgeDirection::Incoming => "in",
+            EdgeDirection::Both => "both",
+        };
+        let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAllNode::new(2, edge_types, direction_str));
 
         // 6. 创建过滤节点（如果有过滤条件）
         let filter_node: PlanNodeEnum = if let Some(ref condition) = path_ctx.filter {

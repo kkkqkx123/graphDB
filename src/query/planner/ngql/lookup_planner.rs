@@ -97,14 +97,13 @@ impl Planner for LookupPlanner {
 
         // 3. 创建投影节点
         use crate::query::validator::YieldColumn;
-        use crate::query::context::ast::YieldColumns;
         
         let yield_columns = if let Some(ref yield_expr) = lookup_ctx.yield_expr {
             yield_expr.columns.iter().map(|col| YieldColumn {
                 expr: crate::core::Expression::Variable(
-                    col.name(),
+                    col.name().to_string(),
                 ),
-                alias: col.alias.clone().unwrap_or_else(|| col.name()),
+                alias: col.alias.clone(),
                 is_matched: false,
             }).collect()
         } else {
