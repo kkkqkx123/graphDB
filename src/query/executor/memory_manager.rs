@@ -2,9 +2,9 @@
 //!
 //! 提供查询执行过程中的内存使用监控和限制功能
 
+use crate::core::error::{DBError, DBResult};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use crate::core::error::{DBError, DBResult};
 
 /// 内存使用配置
 #[derive(Debug, Clone)]
@@ -23,7 +23,7 @@ impl Default for MemoryConfig {
     fn default() -> Self {
         Self {
             max_query_memory: 100 * 1024 * 1024, // 100MB 默认限制
-            check_interval: 1000, // 每1000行检查一次
+            check_interval: 1000,                // 每1000行检查一次
             spill_enabled: true,
             spill_threshold: 80, // 80% 时开始溢出
         }
@@ -53,7 +53,7 @@ impl MemoryTracker {
     /// 分配内存
     pub fn allocate(&self, size: usize) -> DBResult<()> {
         let current = self.current_usage.fetch_add(size, Ordering::AcqRel);
-        
+
         // 检查是否超出限制
         if current + size > self.limit {
             // 回滚分配
@@ -64,7 +64,7 @@ impl MemoryTracker {
                 self.limit
             )));
         }
-        
+
         Ok(())
     }
 
@@ -104,7 +104,8 @@ pub struct TrackedVec<T> {
     element_size: usize,
 }
 
-impl<T> TrackedVec<T> where 
+impl<T> TrackedVec<T>
+where
     T: Sized,
 {
     /// 创建新的跟踪向量
@@ -120,10 +121,10 @@ impl<T> TrackedVec<T> where
     pub fn with_capacity(capacity: usize, tracker: Arc<MemoryTracker>) -> DBResult<Self> {
         let element_size = std::mem::size_of::<T>();
         let estimated_size = capacity * element_size;
-        
+
         // 预分配内存检查
         tracker.allocate(estimated_size)?;
-        
+
         Ok(Self {
             inner: Vec::with_capacity(capacity),
             tracker,
@@ -139,7 +140,7 @@ impl<T> TrackedVec<T> where
             let additional_size = new_capacity * self.element_size;
             self.tracker.allocate(additional_size)?;
         }
-        
+
         self.inner.push(value);
         Ok(())
     }
@@ -204,7 +205,7 @@ impl MemoryManager {
             allocation_count: 0,
             deallocation_count: 0,
         }));
-        
+
         Self { tracker, stats }
     }
 
@@ -244,15 +245,15 @@ mod tests {
     fn test_memory_tracker_basic() {
         let config = MemoryConfig::default();
         let tracker = MemoryTracker::new(1024, config);
-        
+
         // 测试基本分配和释放
         assert!(tracker.allocate(100).is_ok());
         assert_eq!(tracker.current_usage(), 100);
         assert_eq!(tracker.usage_ratio(), 9); // ~9.7%
-        
+
         tracker.deallocate(50);
         assert_eq!(tracker.current_usage(), 50);
-        
+
         // 测试超出限制
         assert!(tracker.allocate(1000).is_err());
         assert_eq!(tracker.current_usage(), 50); // 应该回滚
@@ -263,12 +264,12 @@ mod tests {
         let mut config = MemoryConfig::default();
         config.spill_threshold = 70;
         let tracker = MemoryTracker::new(1000, config);
-        
+
         assert!(!tracker.should_spill());
-        
+
         tracker.allocate(600).unwrap();
         assert!(tracker.should_spill()); // 60% < 70%，但接近阈值
-        
+
         tracker.allocate(100).unwrap();
         assert!(tracker.should_spill()); // 70% >= 70%
     }
@@ -278,18 +279,18 @@ mod tests {
         let config = MemoryConfig::default();
         let tracker = Arc::new(MemoryTracker::new(1024, config));
         let mut vec = TrackedVec::<i32>::new(tracker.clone());
-        
+
         // 测试基本操作
         vec.push(42).unwrap();
         vec.push(43).unwrap();
-        
+
         assert_eq!(vec.len(), 2);
         assert_eq!(vec.as_slice(), &[42, 43]);
-        
+
         // 测试内存跟踪
         let expected_size = 2 * std::mem::size_of::<i32>();
         assert_eq!(tracker.current_usage(), expected_size);
-        
+
         // 测试清空
         vec.clear();
         assert_eq!(tracker.current_usage(), 0);
@@ -299,11 +300,11 @@ mod tests {
     fn test_tracked_vec_capacity() {
         let config = MemoryConfig::default();
         let tracker = Arc::new(MemoryTracker::new(1024, config));
-        
+
         // 测试带容量的创建
         let vec = TrackedVec::<i32>::with_capacity(10, tracker.clone());
         assert!(vec.is_ok());
-        
+
         // 测试超出内存限制
         let tracker_small = Arc::new(MemoryTracker::new(10, MemoryConfig::default()));
         let vec_large = TrackedVec::<i32>::with_capacity(10, tracker_small);

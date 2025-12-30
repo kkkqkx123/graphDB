@@ -5,11 +5,11 @@ use crate::core::types::expression::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::{NullType, Value};
 use crate::query::parser::ast::{
-    BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, EdgePropertyExpr, Expr,
-    FunctionCallExpr, InputPropertyExpr, LabelExpr, ListComprehensionExpr, ListExpr,
-    MapExpr, PathExpr, PredicateExpr, PropertyAccessExpr, RangeExpr, ReduceExpr,
-    SourcePropertyExpr, SubscriptExpr, TagPropertyExpr, TypeCastExpr, UnaryExpr, UnaryOp,
-    VariableExpr, VariablePropertyExpr, DestinationPropertyExpr,
+    BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, DestinationPropertyExpr, EdgePropertyExpr, Expr,
+    FunctionCallExpr, InputPropertyExpr, LabelExpr, ListComprehensionExpr, ListExpr, MapExpr,
+    PathExpr, PredicateExpr, PropertyAccessExpr, RangeExpr, ReduceExpr, SourcePropertyExpr,
+    SubscriptExpr, TagPropertyExpr, TypeCastExpr, UnaryExpr, UnaryOp, VariableExpr,
+    VariablePropertyExpr,
 };
 
 /// 将AST表达式转换为graph表达式
@@ -453,19 +453,16 @@ mod tests {
     use super::*;
     use crate::core::Value;
     use crate::query::parser::ast::{
-        BinaryExpr, BinaryOp, ConstantExpr, EdgePropertyExpr, Expr, InputPropertyExpr,
-        LabelExpr, ListComprehensionExpr, ListExpr, MapExpr, PathExpr, PredicateExpr,
-        PropertyAccessExpr, RangeExpr, ReduceExpr, SourcePropertyExpr, SubscriptExpr,
-        TagPropertyExpr, TypeCastExpr, UnaryExpr, UnaryOp, VariableExpr,
-        VariablePropertyExpr, DestinationPropertyExpr, Span,
+        BinaryExpr, BinaryOp, ConstantExpr, DestinationPropertyExpr, EdgePropertyExpr, Expr,
+        InputPropertyExpr, LabelExpr, ListComprehensionExpr, ListExpr, MapExpr, PathExpr,
+        PredicateExpr, PropertyAccessExpr, RangeExpr, ReduceExpr, SourcePropertyExpr, Span,
+        SubscriptExpr, TagPropertyExpr, TypeCastExpr, UnaryExpr, UnaryOp, VariableExpr,
+        VariablePropertyExpr,
     };
 
     #[test]
     fn test_convert_constant_expr() {
-        let ast_expr = Expr::Constant(ConstantExpr::new(
-            Value::Int(42),
-            Span::default(),
-        ));
+        let ast_expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of constant expression");
 
@@ -478,10 +475,7 @@ mod tests {
 
     #[test]
     fn test_convert_variable_expr() {
-        let ast_expr = Expr::Variable(VariableExpr::new(
-            "test_var".to_string(),
-            Span::default(),
-        ));
+        let ast_expr = Expr::Variable(VariableExpr::new("test_var".to_string(), Span::default()));
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of variable expression");
 
@@ -600,10 +594,7 @@ mod tests {
 
     #[test]
     fn test_convert_type_cast_expr() {
-        let inner_expr = Expr::Constant(ConstantExpr::new(
-            Value::Int(42),
-            Span::default(),
-        ));
+        let inner_expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
         let ast_expr = Expr::TypeCast(TypeCastExpr::new(
             inner_expr,
             "FLOAT".to_string(),
@@ -622,10 +613,7 @@ mod tests {
 
     #[test]
     fn test_convert_label_expr() {
-        let ast_expr = Expr::Label(LabelExpr::new(
-            "Person".to_string(),
-            Span::default(),
-        ));
+        let ast_expr = Expr::Label(LabelExpr::new("Person".to_string(), Span::default()));
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of label expression");
 
@@ -638,20 +626,9 @@ mod tests {
 
     #[test]
     fn test_convert_binary_expr() {
-        let left = Expr::Constant(ConstantExpr::new(
-            Value::Int(5),
-            Span::default(),
-        ));
-        let right = Expr::Constant(ConstantExpr::new(
-            Value::Int(3),
-            Span::default(),
-        ));
-        let ast_expr = Expr::Binary(BinaryExpr::new(
-            left,
-            BinaryOp::Add,
-            right,
-            Span::default(),
-        ));
+        let left = Expr::Constant(ConstantExpr::new(Value::Int(5), Span::default()));
+        let right = Expr::Constant(ConstantExpr::new(Value::Int(3), Span::default()));
+        let ast_expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Add, right, Span::default()));
 
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of binary expression");
@@ -667,15 +644,8 @@ mod tests {
 
     #[test]
     fn test_convert_unary_expr() {
-        let operand = Expr::Constant(ConstantExpr::new(
-            Value::Bool(true),
-            Span::default(),
-        ));
-        let ast_expr = Expr::Unary(UnaryExpr::new(
-            UnaryOp::Not,
-            operand,
-            Span::default(),
-        ));
+        let operand = Expr::Constant(ConstantExpr::new(Value::Bool(true), Span::default()));
+        let ast_expr = Expr::Unary(UnaryExpr::new(UnaryOp::Not, operand, Span::default()));
 
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of unary expression");
@@ -690,20 +660,9 @@ mod tests {
 
     #[test]
     fn test_convert_unsupported_operator() {
-        let left = Expr::Constant(ConstantExpr::new(
-            Value::Int(5),
-            Span::default(),
-        ));
-        let right = Expr::Constant(ConstantExpr::new(
-            Value::Int(3),
-            Span::default(),
-        ));
-        let ast_expr = Expr::Binary(BinaryExpr::new(
-            left,
-            BinaryOp::Xor,
-            right,
-            Span::default(),
-        ));
+        let left = Expr::Constant(ConstantExpr::new(Value::Int(5), Span::default()));
+        let right = Expr::Constant(ConstantExpr::new(Value::Int(3), Span::default()));
+        let ast_expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Xor, right, Span::default()));
 
         let result = convert_ast_to_graph_expression(&ast_expr);
         assert!(result.is_err());

@@ -1,5 +1,5 @@
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use bincode::{Encode, Decode};
 use std::collections::HashMap;
 
 use crate::core::value::{NullType, Value};
@@ -35,7 +35,7 @@ impl Tag {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
 pub struct Vertex {
     pub vid: Box<Value>, // Vertex ID can now be any Value type, using Box to break cycles
-    pub id: i64, // Internal integer ID for indexing and fast lookup
+    pub id: i64,         // Internal integer ID for indexing and fast lookup
     pub tags: Vec<Tag>,  // A vertex can have multiple tags
     pub properties: HashMap<String, Value>, // Vertex properties
 }
@@ -176,7 +176,10 @@ impl Vertex {
     }
 
     /// 比较属性映射的辅助函数
-    fn cmp_properties(a: &HashMap<String, Value>, b: &HashMap<String, Value>) -> std::cmp::Ordering {
+    fn cmp_properties(
+        a: &HashMap<String, Value>,
+        b: &HashMap<String, Value>,
+    ) -> std::cmp::Ordering {
         // 先比较属性数量
         match a.len().cmp(&b.len()) {
             std::cmp::Ordering::Equal => {
@@ -216,7 +219,8 @@ impl Default for Vertex {
 impl Ord for Vertex {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // 使用链式比较，提高可读性
-        self.vid.cmp(&other.vid)
+        self.vid
+            .cmp(&other.vid)
             .then_with(|| self.tags.len().cmp(&other.tags.len()))
             .then_with(|| self.cmp_tags_and_properties(other))
     }
@@ -233,9 +237,11 @@ impl Vertex {
 
         // 比较每个标签
         for (tag1, tag2) in self_tags.iter().zip(other_tags.iter()) {
-            let tag_cmp = tag1.name.cmp(&tag2.name)
+            let tag_cmp = tag1
+                .name
+                .cmp(&tag2.name)
                 .then_with(|| Vertex::cmp_properties(&tag1.properties, &tag2.properties));
-            
+
             if tag_cmp != std::cmp::Ordering::Equal {
                 return tag_cmp;
             }
@@ -259,7 +265,7 @@ pub struct Edge {
     pub dst: Box<Value>, // Destination vertex ID (can be any Value type, using Box to break cycles)
     pub edge_type: String, // Edge type name
     pub ranking: i64,    // Edge ranking
-    pub id: i64, // Internal integer ID for indexing and fast lookup
+    pub id: i64,         // Internal integer ID for indexing and fast lookup
     pub props: HashMap<String, Value>, // Edge properties
 }
 
@@ -385,7 +391,8 @@ impl Edge {
 impl Ord for Edge {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // 使用链式比较，提高可读性
-        self.src.cmp(&other.src)
+        self.src
+            .cmp(&other.src)
             .then_with(|| self.dst.cmp(&other.dst))
             .then_with(|| self.edge_type.cmp(&other.edge_type))
             .then_with(|| self.ranking.cmp(&other.ranking))
@@ -439,7 +446,8 @@ pub struct Path {
 impl Ord for Path {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // 使用链式比较，提高可读性
-        self.src.cmp(&other.src)
+        self.src
+            .cmp(&other.src)
             .then_with(|| self.steps.len().cmp(&other.steps.len()))
             .then_with(|| self.cmp_steps(other))
     }

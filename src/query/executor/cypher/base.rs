@@ -5,9 +5,7 @@
 use crate::core::error::{DBError, QueryError};
 use crate::query::executor::cypher::context::CypherExecutionContext;
 use crate::query::executor::cypher::{CypherExecutorError, CypherExecutorTrait};
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::parser::cypher::ast::statements::CypherStatement;
 use crate::storage::StorageEngine;
 use async_trait::async_trait;

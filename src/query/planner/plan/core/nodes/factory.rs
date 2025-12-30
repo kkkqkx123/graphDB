@@ -14,8 +14,8 @@ use super::graph_scan_node::{
 use super::sort_node::{LimitNode, SortNode};
 use super::start_node::StartNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
-use crate::core::Value;
 use crate::core::types::EdgeDirection;
+use crate::core::Value;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::parser::expressions::convert_ast_to_graph_expression;
 use crate::query::planner::plan::PlanNodeEnum;

@@ -3,8 +3,8 @@
 
 use super::optimizer::OptimizerError;
 use super::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use super::rule_traits::{BaseOptRule, PushDownRule};
 use super::rule_patterns::PatternBuilder;
+use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
 /// 通用LIMIT下推规则
@@ -879,11 +879,13 @@ impl PushDownRule for PushLimitDownExpandAllRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
     use crate::core::context::QueryContext;
+    use crate::core::Expression;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
-    use crate::query::planner::plan::core::nodes::graph_scan_node::{GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode};
+    use crate::query::planner::plan::core::nodes::graph_scan_node::{
+        GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
+    };
     use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
     use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
     use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
@@ -1059,7 +1061,10 @@ mod tests {
         let start_opt_node = OptGroupNode::new(2, start_node.into_enum());
         ctx.add_plan_node_and_group_node(2, &start_opt_node);
 
-        let columns = vec![YieldColumn::new(Expression::Variable("test_var".to_string()), "test_alias".to_string())];
+        let columns = vec![YieldColumn::new(
+            Expression::Variable("test_var".to_string()),
+            "test_alias".to_string(),
+        )];
         let project_node = ProjectNode::new(start_opt_node.plan_node.clone(), columns)
             .expect("Project node should be created successfully");
         let project_opt_node = OptGroupNode::new(3, project_node.into_enum());

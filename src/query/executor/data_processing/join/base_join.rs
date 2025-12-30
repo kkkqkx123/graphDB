@@ -30,7 +30,6 @@ pub struct BaseJoinExecutor<S: StorageEngine> {
     /// 描述
     description: String,
     /// 是否交换左右输入（优化用）
-    
     exchange: bool,
     /// 右侧输出列索引（用于自然连接）
     rhs_output_col_idxs: Option<Vec<usize>>,
@@ -431,9 +430,14 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S> for BaseJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for BaseJoinExecutor<S>
+{
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("BaseJoinExecutor storage should be set")
+        self.base
+            .storage
+            .as_ref()
+            .expect("BaseJoinExecutor storage should be set")
     }
 }
 

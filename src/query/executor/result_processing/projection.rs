@@ -6,14 +6,12 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::expression::{DefaultExpressionContext, ExpressionContext};
-use crate::core::Value;
 use crate::core::Expression;
+use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 投影列定义
@@ -267,9 +265,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
                 ExecutionResult::DataSet(dataset)
             }
             ExecutionResult::Success => ExecutionResult::Success,
-            ExecutionResult::Error(_) => {
-                input_result
-            }
+            ExecutionResult::Error(_) => input_result,
         };
 
         Ok(projected_result)

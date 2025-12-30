@@ -140,9 +140,9 @@ pub enum EdgeAlterOperation {
     AddField(SchemaField),
     DropField(String),
     ModifyField(String, SchemaField), // 字段名, 新字段定义
-    SetTtlDuration(i64), // 设置 TTL 时长
-    SetTtlCol(String),   // 设置 TTL 列
-    DropTtl,             // 删除 TTL 设置
+    SetTtlDuration(i64),              // 设置 TTL 时长
+    SetTtlCol(String),                // 设置 TTL 列
+    DropTtl,                          // 删除 TTL 设置
 }
 
 /// 修改边计划节点
@@ -156,7 +156,13 @@ pub struct AlterEdge {
 }
 
 impl AlterEdge {
-    pub fn new(id: i64, cost: f64, if_exists: bool, edge_name: &str, operations: Vec<EdgeAlterOperation>) -> Self {
+    pub fn new(
+        id: i64,
+        cost: f64,
+        if_exists: bool,
+        edge_name: &str,
+        operations: Vec<EdgeAlterOperation>,
+    ) -> Self {
         Self {
             id,
             cost,

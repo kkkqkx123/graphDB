@@ -1045,7 +1045,10 @@ impl ExprVisitor for AstFormatter {
     }
 
     fn visit_destination_property(&mut self, expr: &DestinationPropertyExpr) -> Self::Result {
-        self.write_line(&format!("DestinationProperty: $$.{}.{}", expr.tag, expr.prop));
+        self.write_line(&format!(
+            "DestinationProperty: $$.{}.{}",
+            expr.tag, expr.prop
+        ));
     }
 
     fn visit_type_cast(&mut self, expr: &TypeCastExpr) -> Self::Result {

@@ -2,8 +2,8 @@
 //! 提供优化规则的通用接口和辅助函数，减少代码重复
 
 use super::optimizer::{OptContext, OptGroupNode, OptRule, OptimizerError, Pattern};
-use crate::core::{Expression, Value};
 use crate::core::types::operators::BinaryOperator;
+use crate::core::{Expression, Value};
 use crate::query::planner::plan::PlanNodeEnum;
 
 use std::collections::HashMap;
@@ -290,19 +290,43 @@ pub fn is_expression_tautology(expr: &Expression) -> bool {
         Expression::Binary { left, op, right } => {
             match (left.as_ref(), op, right.as_ref()) {
                 // 检查 1 = 1
-                (Expression::Literal(Value::Int(1)), BinaryOperator::Equal, Expression::Literal(Value::Int(1))) => true,
+                (
+                    Expression::Literal(Value::Int(1)),
+                    BinaryOperator::Equal,
+                    Expression::Literal(Value::Int(1)),
+                ) => true,
                 // 检查 0 = 0
-                (Expression::Literal(Value::Int(0)), BinaryOperator::Equal, Expression::Literal(Value::Int(0))) => true,
+                (
+                    Expression::Literal(Value::Int(0)),
+                    BinaryOperator::Equal,
+                    Expression::Literal(Value::Int(0)),
+                ) => true,
                 // 检查 a = a
-                (Expression::Variable(a), BinaryOperator::Equal, Expression::Variable(b)) if a == b => true,
+                (Expression::Variable(a), BinaryOperator::Equal, Expression::Variable(b))
+                    if a == b =>
+                {
+                    true
+                }
                 // 检查逻辑或的永真式：a OR NOT a
-                (Expression::Variable(a), BinaryOperator::Or, Expression::Unary { op, operand }) 
-                    if matches!(op, crate::core::types::operators::UnaryOperator::Not) 
-                        && matches!(operand.as_ref(), Expression::Variable(b) if b == a) => true,
+                (
+                    Expression::Variable(a),
+                    BinaryOperator::Or,
+                    Expression::Unary { op, operand },
+                ) if matches!(op, crate::core::types::operators::UnaryOperator::Not)
+                    && matches!(operand.as_ref(), Expression::Variable(b) if b == a) =>
+                {
+                    true
+                }
                 // 检查逻辑或的永真式：NOT a OR a
-                (Expression::Unary { op, operand }, BinaryOperator::Or, Expression::Variable(b))
-                    if matches!(op, crate::core::types::operators::UnaryOperator::Not)
-                        && matches!(operand.as_ref(), Expression::Variable(a) if a == b) => true,
+                (
+                    Expression::Unary { op, operand },
+                    BinaryOperator::Or,
+                    Expression::Variable(b),
+                ) if matches!(op, crate::core::types::operators::UnaryOperator::Not)
+                    && matches!(operand.as_ref(), Expression::Variable(a) if a == b) =>
+                {
+                    true
+                }
                 _ => false,
             }
         }
@@ -459,18 +483,12 @@ pub fn get_dependency_at<'a>(
 }
 
 /// 辅助函数：创建新的OptGroupNode
-pub fn create_new_opt_group_node(
-    id: usize,
-    plan_node: PlanNodeEnum,
-) -> OptGroupNode {
+pub fn create_new_opt_group_node(id: usize, plan_node: PlanNodeEnum) -> OptGroupNode {
     OptGroupNode::new(id, plan_node)
 }
 
 /// 辅助函数：克隆OptGroupNode但替换计划节点
-pub fn clone_with_new_plan_node(
-    node: &OptGroupNode,
-    plan_node: PlanNodeEnum,
-) -> OptGroupNode {
+pub fn clone_with_new_plan_node(node: &OptGroupNode, plan_node: PlanNodeEnum) -> OptGroupNode {
     let mut new_node = node.clone();
     new_node.plan_node = plan_node;
     new_node

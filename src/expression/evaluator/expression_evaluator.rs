@@ -2,13 +2,13 @@
 //!
 //! 提供具体的表达式求值功能，包含零成本抽象优化
 
-use crate::core::types::expression::Expression;
 use crate::core::error::ExpressionError;
+use crate::core::types::expression::Expression;
 use crate::core::Value;
-use crate::expression::evaluator::traits::ExpressionContext;
-use crate::expression::evaluator::operations::{BinaryOperationEvaluator, UnaryOperationEvaluator};
-use crate::expression::evaluator::functions::FunctionEvaluator;
 use crate::expression::evaluator::collection_operations::CollectionOperationEvaluator;
+use crate::expression::evaluator::functions::FunctionEvaluator;
+use crate::expression::evaluator::operations::{BinaryOperationEvaluator, UnaryOperationEvaluator};
+use crate::expression::evaluator::traits::ExpressionContext;
 
 /// 表达式求值器实现（unit struct，零开销）
 #[derive(Debug)]
@@ -48,27 +48,25 @@ impl ExpressionEvaluator {
         match expr {
             // 字面量 - 直接返回值
             Expression::Literal(value) => Ok(value.clone()),
-            
+
             // 变量 - 从上下文获取
-            Expression::Variable(name) => {
-                context
-                    .get_variable(name)
-                    .ok_or_else(|| ExpressionError::undefined_variable(name))
-            }
-            
+            Expression::Variable(name) => context
+                .get_variable(name)
+                .ok_or_else(|| ExpressionError::undefined_variable(name)),
+
             // 二元操作 - 递归求值左右操作数
             Expression::Binary { left, op, right } => {
                 let left_value = Self::evaluate_impl(left, context)?;
                 let right_value = Self::evaluate_impl(right, context)?;
                 BinaryOperationEvaluator::evaluate(&left_value, op, &right_value)
             }
-            
+
             // 一元操作 - 递归求值操作数
             Expression::Unary { op, operand } => {
                 let value = Self::evaluate_impl(operand, context)?;
                 UnaryOperationEvaluator::evaluate(op, &value)
             }
-            
+
             // 函数调用 - 批量求值参数
             Expression::Function { name, args } => {
                 let arg_values: Result<Vec<Value>, ExpressionError> = args
@@ -78,15 +76,22 @@ impl ExpressionEvaluator {
                 let arg_values = arg_values?;
                 FunctionEvaluator.eval_function_call(name, &arg_values)
             }
-                
+
             // 聚合函数 - 直接求值
-            Expression::Aggregate { func, arg, distinct } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
                 let arg_value = Self::evaluate_impl(arg, context)?;
                 FunctionEvaluator.eval_aggregate_function(func, &[arg_value], *distinct)
             }
-            
+
             // CASE 表达式 - 短路求值
-            Expression::Case { conditions, default } => {
+            Expression::Case {
+                conditions,
+                default,
+            } => {
                 for (condition, value) in conditions {
                     let condition_result = Self::evaluate_impl(condition, context)?;
                     match condition_result {
@@ -97,13 +102,13 @@ impl ExpressionEvaluator {
                         _ => return Err(ExpressionError::type_error("CASE条件必须是布尔值")),
                     }
                 }
-                
+
                 match default {
                     Some(default_expr) => Self::evaluate_impl(default_expr, context),
                     None => Ok(Value::Null(crate::core::NullType::Null)),
                 }
             }
-                
+
             // 列表 - 批量求值
             Expression::List(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements
@@ -112,7 +117,7 @@ impl ExpressionEvaluator {
                     .collect();
                 element_values.map(Value::List)
             }
-            
+
             // 映射 - 批量求值
             Expression::Map(entries) => {
                 let mut map_values = std::collections::HashMap::new();
@@ -122,16 +127,20 @@ impl ExpressionEvaluator {
                 }
                 Ok(Value::Map(map_values))
             }
-            
+
             // 下标访问
             Expression::Subscript { collection, index } => {
                 let collection_value = Self::evaluate_impl(collection, context)?;
                 let index_value = Self::evaluate_impl(index, context)?;
                 CollectionOperationEvaluator.eval_subscript_access(&collection_value, &index_value)
             }
-            
+
             // 范围访问
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 let collection_value = Self::evaluate_impl(collection, context)?;
                 let start_value = start
                     .as_ref()
@@ -142,12 +151,12 @@ impl ExpressionEvaluator {
                     .map(|e| Self::evaluate_impl(e, context))
                     .transpose()?;
                 CollectionOperationEvaluator.eval_range_access(
-                    &collection_value, 
-                    start_value.as_ref(), 
-                    end_value.as_ref()
+                    &collection_value,
+                    start_value.as_ref(),
+                    end_value.as_ref(),
                 )
             }
-            
+
             // 路径表达式
             Expression::Path(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements
@@ -156,21 +165,21 @@ impl ExpressionEvaluator {
                     .collect();
                 element_values.map(Value::List)
             }
-            
+
             // 属性访问
             Expression::Property { object, property } => {
                 let object_value = Self::evaluate_impl(object, context)?;
                 CollectionOperationEvaluator.eval_property_access(&object_value, property)
             }
-            
+
             // 类型转换
             Expression::TypeCast { expr, target_type } => {
                 let value = Self::evaluate_impl(expr, context)?;
                 Self::eval_type_cast(&value, target_type)
             }
-            
+
             // 其他表达式类型 - 保持静态分发，避免动态分发回退
-            _ => Err(ExpressionError::type_error("不支持的表达式类型"))
+            _ => Err(ExpressionError::type_error("不支持的表达式类型")),
         }
     }
 

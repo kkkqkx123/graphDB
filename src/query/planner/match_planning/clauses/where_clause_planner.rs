@@ -46,7 +46,6 @@ use std::collections::HashSet;
 /// 在上面的例子中，WHERE 子句会过滤出年龄大于25且姓名以'John'开头的人员。
 #[derive(Debug)]
 pub struct WhereClausePlanner {
-    
     need_stable_filter: bool, // 是否需要稳定的过滤器（用于ORDER BY场景）
 }
 
@@ -114,10 +113,11 @@ impl WhereClausePlanner {
 
                 if path.is_pred {
                     // 构建模式谓词的计划
-                    let temp_ast_context = crate::query::context::ast::base::AstContext::from_strings(
-                        &context.query_info.statement_type,
-                        &context.query_info.query_id,
-                    );
+                    let temp_ast_context =
+                        crate::query::context::ast::base::AstContext::from_strings(
+                            &context.query_info.statement_type,
+                            &context.query_info.query_id,
+                        );
                     paths_plan = UnifiedConnector::pattern_apply(
                         &temp_ast_context,
                         &paths_plan,
@@ -126,10 +126,11 @@ impl WhereClausePlanner {
                     )?;
                 } else {
                     // 构建路径收集的计划
-                    let temp_ast_context = crate::query::context::ast::base::AstContext::from_strings(
-                        &context.query_info.statement_type,
-                        &context.query_info.query_id,
-                    );
+                    let temp_ast_context =
+                        crate::query::context::ast::base::AstContext::from_strings(
+                            &context.query_info.statement_type,
+                            &context.query_info.query_id,
+                        );
                     paths_plan = UnifiedConnector::roll_up_apply(
                         &temp_ast_context,
                         &paths_plan,

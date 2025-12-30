@@ -1,6 +1,8 @@
 //! Schema管理器实现 - 内存中的Schema管理
 //!
-use super::super::{EdgeTypeDef, FieldDef, Schema, SchemaManager, TagDef, SchemaVersion, SchemaHistory};
+use super::super::{
+    EdgeTypeDef, FieldDef, Schema, SchemaHistory, SchemaManager, SchemaVersion, TagDef,
+};
 use crate::core::error::{ManagerError, ManagerResult};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -92,8 +94,16 @@ impl SchemaManager for MemorySchemaManager {
         }
     }
 
-    fn create_tag(&self, space_id: i32, tag_name: &str, fields: Vec<FieldDef>) -> ManagerResult<i32> {
-        let mut next_id = self.next_tag_id.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+    fn create_tag(
+        &self,
+        space_id: i32,
+        tag_name: &str,
+        fields: Vec<FieldDef>,
+    ) -> ManagerResult<i32> {
+        let mut next_id = self
+            .next_tag_id
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let tag_id = *next_id;
         *next_id += 1;
         drop(next_id);
@@ -105,33 +115,50 @@ impl SchemaManager for MemorySchemaManager {
             comment: None,
         };
 
-        let mut tags = self.tags.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut tags = self
+            .tags
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         tags.insert(tag_id, tag_def);
         drop(tags);
 
-        let mut space_tags = self.space_tags.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        space_tags.entry(space_id).or_insert_with(Vec::new).push(tag_id);
+        let mut space_tags = self
+            .space_tags
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        space_tags
+            .entry(space_id)
+            .or_insert_with(Vec::new)
+            .push(tag_id);
         drop(space_tags);
 
-        self.save_to_disk().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        self.save_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         Ok(tag_id)
     }
 
     fn drop_tag(&self, space_id: i32, tag_id: i32) -> ManagerResult<()> {
-        let mut tags = self.tags.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut tags = self
+            .tags
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if !tags.contains_key(&tag_id) {
             return Err(ManagerError::NotFound(format!("Tag {} 不存在", tag_id)));
         }
         tags.remove(&tag_id);
         drop(tags);
 
-        let mut space_tags = self.space_tags.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut space_tags = self
+            .space_tags
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(tag_list) = space_tags.get_mut(&space_id) {
             tag_list.retain(|&id| id != tag_id);
         }
         drop(space_tags);
 
-        self.save_to_disk().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        self.save_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         Ok(())
     }
 
@@ -141,11 +168,17 @@ impl SchemaManager for MemorySchemaManager {
     }
 
     fn list_tags(&self, space_id: i32) -> ManagerResult<Vec<TagDef>> {
-        let space_tags = self.space_tags.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let space_tags = self
+            .space_tags
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let tag_ids = space_tags.get(&space_id).cloned().unwrap_or_default();
         drop(space_tags);
 
-        let tags = self.tags.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let tags = self
+            .tags
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let tag_list: Vec<TagDef> = tag_ids
             .iter()
             .filter_map(|id| tags.get(id).cloned())
@@ -160,8 +193,16 @@ impl SchemaManager for MemorySchemaManager {
         }
     }
 
-    fn create_edge_type(&self, space_id: i32, edge_type_name: &str, fields: Vec<FieldDef>) -> ManagerResult<i32> {
-        let mut next_id = self.next_edge_type_id.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+    fn create_edge_type(
+        &self,
+        space_id: i32,
+        edge_type_name: &str,
+        fields: Vec<FieldDef>,
+    ) -> ManagerResult<i32> {
+        let mut next_id = self
+            .next_edge_type_id
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let edge_type_id = *next_id;
         *next_id += 1;
         drop(next_id);
@@ -173,33 +214,53 @@ impl SchemaManager for MemorySchemaManager {
             comment: None,
         };
 
-        let mut edge_types = self.edge_types.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut edge_types = self
+            .edge_types
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         edge_types.insert(edge_type_id, edge_type_def);
         drop(edge_types);
 
-        let mut space_edge_types = self.space_edge_types.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        space_edge_types.entry(space_id).or_insert_with(Vec::new).push(edge_type_id);
+        let mut space_edge_types = self
+            .space_edge_types
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        space_edge_types
+            .entry(space_id)
+            .or_insert_with(Vec::new)
+            .push(edge_type_id);
         drop(space_edge_types);
 
-        self.save_to_disk().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        self.save_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         Ok(edge_type_id)
     }
 
     fn drop_edge_type(&self, space_id: i32, edge_type_id: i32) -> ManagerResult<()> {
-        let mut edge_types = self.edge_types.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut edge_types = self
+            .edge_types
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if !edge_types.contains_key(&edge_type_id) {
-            return Err(ManagerError::NotFound(format!("EdgeType {} 不存在", edge_type_id)));
+            return Err(ManagerError::NotFound(format!(
+                "EdgeType {} 不存在",
+                edge_type_id
+            )));
         }
         edge_types.remove(&edge_type_id);
         drop(edge_types);
 
-        let mut space_edge_types = self.space_edge_types.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut space_edge_types = self
+            .space_edge_types
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(edge_type_list) = space_edge_types.get_mut(&space_id) {
             edge_type_list.retain(|&id| id != edge_type_id);
         }
         drop(space_edge_types);
 
-        self.save_to_disk().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        self.save_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         Ok(())
     }
 
@@ -209,11 +270,17 @@ impl SchemaManager for MemorySchemaManager {
     }
 
     fn list_edge_types(&self, space_id: i32) -> ManagerResult<Vec<EdgeTypeDef>> {
-        let space_edge_types = self.space_edge_types.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let space_edge_types = self
+            .space_edge_types
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let edge_type_ids = space_edge_types.get(&space_id).cloned().unwrap_or_default();
         drop(space_edge_types);
 
-        let edge_types = self.edge_types.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let edge_types = self
+            .edge_types
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let edge_type_list: Vec<EdgeTypeDef> = edge_type_ids
             .iter()
             .filter_map(|id| edge_types.get(id).cloned())
@@ -242,10 +309,14 @@ impl SchemaManager for MemorySchemaManager {
         let space_edge_types_file = self.storage_path.join("space_edge_types.json");
 
         if schemas_file.exists() {
-            let content = fs::read_to_string(&schemas_file).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            let content = fs::read_to_string(&schemas_file)
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
             let schema_list: Vec<Schema> = serde_json::from_str(&content)
                 .map_err(|e| ManagerError::SchemaError(format!("反序列化Schema失败: {}", e)))?;
-            let mut schemas = self.schemas.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            let mut schemas = self
+                .schemas
+                .write()
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
             schemas.clear();
             for schema in schema_list {
                 schemas.insert(schema.name.clone(), schema);
@@ -253,15 +324,22 @@ impl SchemaManager for MemorySchemaManager {
         }
 
         if tags_file.exists() {
-            let content = fs::read_to_string(&tags_file).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            let content = fs::read_to_string(&tags_file)
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
             let tag_list: Vec<TagDef> = serde_json::from_str(&content)
                 .map_err(|e| ManagerError::SchemaError(format!("反序列化Tag失败: {}", e)))?;
-            let mut tags = self.tags.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            let mut tags = self
+                .tags
+                .write()
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
             tags.clear();
             for tag_def in tag_list {
                 let tag_id = tag_def.tag_id;
                 tags.insert(tag_id, tag_def);
-                let mut next_id = self.next_tag_id.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+                let mut next_id = self
+                    .next_tag_id
+                    .write()
+                    .map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 if tag_id >= *next_id {
                     *next_id = tag_id + 1;
                 }
@@ -269,15 +347,22 @@ impl SchemaManager for MemorySchemaManager {
         }
 
         if edge_types_file.exists() {
-            let content = fs::read_to_string(&edge_types_file).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            let content = fs::read_to_string(&edge_types_file)
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
             let edge_type_list: Vec<EdgeTypeDef> = serde_json::from_str(&content)
                 .map_err(|e| ManagerError::SchemaError(format!("反序列化EdgeType失败: {}", e)))?;
-            let mut edge_types = self.edge_types.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            let mut edge_types = self
+                .edge_types
+                .write()
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
             edge_types.clear();
             for edge_type_def in edge_type_list {
                 let edge_type_id = edge_type_def.edge_type_id;
                 edge_types.insert(edge_type_id, edge_type_def);
-                let mut next_id = self.next_edge_type_id.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+                let mut next_id = self
+                    .next_edge_type_id
+                    .write()
+                    .map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 if edge_type_id >= *next_id {
                     *next_id = edge_type_id + 1;
                 }
@@ -285,22 +370,35 @@ impl SchemaManager for MemorySchemaManager {
         }
 
         if space_tags_file.exists() {
-            let content = fs::read_to_string(&space_tags_file).map_err(|e| ManagerError::StorageError(e.to_string()))?;
-            let space_tags_map: HashMap<i32, Vec<i32>> = serde_json::from_str(&content)
-                .map_err(|e| ManagerError::SchemaError(format!("反序列化Space Tag映射失败: {}", e)))?;
-            let mut space_tags = self.space_tags.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            let content = fs::read_to_string(&space_tags_file)
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            let space_tags_map: HashMap<i32, Vec<i32>> =
+                serde_json::from_str(&content).map_err(|e| {
+                    ManagerError::SchemaError(format!("反序列化Space Tag映射失败: {}", e))
+                })?;
+            let mut space_tags = self
+                .space_tags
+                .write()
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
             *space_tags = space_tags_map;
         }
 
         if space_edge_types_file.exists() {
-            let content = fs::read_to_string(&space_edge_types_file).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            let content = fs::read_to_string(&space_edge_types_file)
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
             let space_edge_types_map: HashMap<i32, Vec<i32>> = serde_json::from_str(&content)
-                .map_err(|e| ManagerError::SchemaError(format!("反序列化Space EdgeType映射失败: {}", e)))?;
-            let mut space_edge_types = self.space_edge_types.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+                .map_err(|e| {
+                    ManagerError::SchemaError(format!("反序列化Space EdgeType映射失败: {}", e))
+                })?;
+            let mut space_edge_types = self
+                .space_edge_types
+                .write()
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
             *space_edge_types = space_edge_types_map;
         }
 
-        self.load_schema_versions_from_disk().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        self.load_schema_versions_from_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         Ok(())
     }
@@ -309,50 +407,85 @@ impl SchemaManager for MemorySchemaManager {
         use std::fs;
 
         if !self.storage_path.exists() {
-            fs::create_dir_all(&self.storage_path).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            fs::create_dir_all(&self.storage_path)
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         }
 
-        let schemas = self.schemas.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let schemas = self
+            .schemas
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let schema_list: Vec<Schema> = schemas.values().cloned().collect();
         let schemas_content = serde_json::to_string_pretty(&schema_list)
             .map_err(|e| ManagerError::SchemaError(format!("序列化Schema失败: {}", e)))?;
         let schemas_file = self.storage_path.join("schemas.json");
-        fs::write(&schemas_file, schemas_content).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        fs::write(&schemas_file, schemas_content)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
-        let tags = self.tags.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let tags = self
+            .tags
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let tag_list: Vec<TagDef> = tags.values().cloned().collect();
         let tags_content = serde_json::to_string_pretty(&tag_list)
             .map_err(|e| ManagerError::SchemaError(format!("序列化Tag失败: {}", e)))?;
         let tags_file = self.storage_path.join("tags.json");
-        fs::write(&tags_file, tags_content).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        fs::write(&tags_file, tags_content)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
-        let edge_types = self.edge_types.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let edge_types = self
+            .edge_types
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let edge_type_list: Vec<EdgeTypeDef> = edge_types.values().cloned().collect();
         let edge_types_content = serde_json::to_string_pretty(&edge_type_list)
             .map_err(|e| ManagerError::SchemaError(format!("序列化EdgeType失败: {}", e)))?;
         let edge_types_file = self.storage_path.join("edge_types.json");
-        fs::write(&edge_types_file, edge_types_content).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        fs::write(&edge_types_file, edge_types_content)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
-        let space_tags = self.space_tags.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let space_tags = self
+            .space_tags
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let space_tags_content = serde_json::to_string_pretty(&*space_tags)
             .map_err(|e| ManagerError::SchemaError(format!("序列化Space Tag映射失败: {}", e)))?;
         let space_tags_file = self.storage_path.join("space_tags.json");
-        fs::write(&space_tags_file, space_tags_content).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        fs::write(&space_tags_file, space_tags_content)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
-        let space_edge_types = self.space_edge_types.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let space_edge_types_content = serde_json::to_string_pretty(&*space_edge_types)
-            .map_err(|e| ManagerError::SchemaError(format!("序列化Space EdgeType映射失败: {}", e)))?;
+        let space_edge_types = self
+            .space_edge_types
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let space_edge_types_content =
+            serde_json::to_string_pretty(&*space_edge_types).map_err(|e| {
+                ManagerError::SchemaError(format!("序列化Space EdgeType映射失败: {}", e))
+            })?;
         let space_edge_types_file = self.storage_path.join("space_edge_types.json");
-        fs::write(&space_edge_types_file, space_edge_types_content).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        fs::write(&space_edge_types_file, space_edge_types_content)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         Ok(())
     }
 
     fn create_schema_version(&self, space_id: i32, comment: Option<String>) -> ManagerResult<i32> {
-        let tags = self.tags.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let edge_types = self.edge_types.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let space_tags = self.space_tags.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let space_edge_types = self.space_edge_types.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let tags = self
+            .tags
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let edge_types = self
+            .edge_types
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let space_tags = self
+            .space_tags
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let space_edge_types = self
+            .space_edge_types
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         let tag_ids = space_tags.get(&space_id).cloned().unwrap_or_default();
         let edge_type_ids = space_edge_types.get(&space_id).cloned().unwrap_or_default();
@@ -372,7 +505,10 @@ impl SchemaManager for MemorySchemaManager {
         drop(space_tags);
         drop(space_edge_types);
 
-        let mut next_version = self.next_version.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut next_version = self
+            .next_version
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let version = *next_version;
         *next_version += 1;
         drop(next_version);
@@ -391,24 +527,34 @@ impl SchemaManager for MemorySchemaManager {
             comment,
         };
 
-        let mut schema_versions = self.schema_versions.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let history = schema_versions.entry(space_id).or_insert_with(|| SchemaHistory {
-            space_id,
-            versions: Vec::new(),
-            current_version: 0,
-        });
+        let mut schema_versions = self
+            .schema_versions
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let history = schema_versions
+            .entry(space_id)
+            .or_insert_with(|| SchemaHistory {
+                space_id,
+                versions: Vec::new(),
+                current_version: 0,
+            });
         history.versions.push(schema_version.clone());
         history.current_version = version;
         drop(schema_versions);
 
-        self.save_schema_versions_to_disk().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        self.save_schema_versions_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         Ok(version)
     }
 
     fn get_schema_version(&self, space_id: i32, version: i32) -> Option<SchemaVersion> {
         let schema_versions = self.schema_versions.read().ok()?;
         let history = schema_versions.get(&space_id)?;
-        history.versions.iter().find(|v| v.version == version).cloned()
+        history
+            .versions
+            .iter()
+            .find(|v| v.version == version)
+            .cloned()
     }
 
     fn get_latest_schema_version(&self, space_id: i32) -> Option<i32> {
@@ -418,21 +564,40 @@ impl SchemaManager for MemorySchemaManager {
     }
 
     fn get_schema_history(&self, space_id: i32) -> ManagerResult<SchemaHistory> {
-        let schema_versions = self.schema_versions.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let schema_versions = self
+            .schema_versions
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         match schema_versions.get(&space_id) {
             Some(history) => Ok(history.clone()),
-            None => Err(ManagerError::NotFound(format!("Space {} 没有Schema历史记录", space_id))),
+            None => Err(ManagerError::NotFound(format!(
+                "Space {} 没有Schema历史记录",
+                space_id
+            ))),
         }
     }
 
     fn rollback_schema(&self, space_id: i32, version: i32) -> ManagerResult<()> {
-        let schema_version = self.get_schema_version(space_id, version)
+        let schema_version = self
+            .get_schema_version(space_id, version)
             .ok_or_else(|| ManagerError::NotFound(format!("版本 {} 不存在", version)))?;
 
-        let mut tags = self.tags.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let mut edge_types = self.edge_types.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let mut space_tags = self.space_tags.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let mut space_edge_types = self.space_edge_types.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut tags = self
+            .tags
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut edge_types = self
+            .edge_types
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut space_tags = self
+            .space_tags
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut space_edge_types = self
+            .space_edge_types
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         for tag_def in &schema_version.tags {
             tags.insert(tag_def.tag_id, tag_def.clone());
@@ -443,7 +608,11 @@ impl SchemaManager for MemorySchemaManager {
         }
 
         let tag_ids: Vec<i32> = schema_version.tags.iter().map(|t| t.tag_id).collect();
-        let edge_type_ids: Vec<i32> = schema_version.edge_types.iter().map(|e| e.edge_type_id).collect();
+        let edge_type_ids: Vec<i32> = schema_version
+            .edge_types
+            .iter()
+            .map(|e| e.edge_type_id)
+            .collect();
 
         space_tags.insert(space_id, tag_ids);
         space_edge_types.insert(space_id, edge_type_ids);
@@ -453,14 +622,19 @@ impl SchemaManager for MemorySchemaManager {
         drop(space_tags);
         drop(space_edge_types);
 
-        let mut schema_versions = self.schema_versions.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut schema_versions = self
+            .schema_versions
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         if let Some(history) = schema_versions.get_mut(&space_id) {
             history.current_version = version;
         }
         drop(schema_versions);
 
-        self.save_to_disk().map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        self.save_schema_versions_to_disk().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        self.save_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        self.save_schema_versions_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         Ok(())
     }
 
@@ -480,14 +654,19 @@ impl MemorySchemaManager {
         use std::fs;
 
         if !self.storage_path.exists() {
-            fs::create_dir_all(&self.storage_path).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            fs::create_dir_all(&self.storage_path)
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         }
 
-        let schema_versions = self.schema_versions.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let schema_versions = self
+            .schema_versions
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let versions_content = serde_json::to_string_pretty(&*schema_versions)
             .map_err(|e| ManagerError::SchemaError(format!("序列化Schema版本失败: {}", e)))?;
         let versions_file = self.storage_path.join("schema_versions.json");
-        fs::write(&versions_file, versions_content).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        fs::write(&versions_file, versions_content)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         Ok(())
     }
@@ -500,11 +679,15 @@ impl MemorySchemaManager {
             return Ok(());
         }
 
-        let content = fs::read_to_string(&versions_file).map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let content = fs::read_to_string(&versions_file)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let versions_map: HashMap<i32, SchemaHistory> = serde_json::from_str(&content)
             .map_err(|e| ManagerError::SchemaError(format!("反序列化Schema版本失败: {}", e)))?;
 
-        let mut schema_versions = self.schema_versions.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut schema_versions = self
+            .schema_versions
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         *schema_versions = versions_map;
 
         let mut max_version = 0;
@@ -516,7 +699,10 @@ impl MemorySchemaManager {
             }
         }
 
-        let mut next_version = self.next_version.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let mut next_version = self
+            .next_version
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         *next_version = max_version + 1;
 
         Ok(())
@@ -662,7 +848,9 @@ mod tests {
             },
         ];
 
-        let tag_id = manager.create_tag(1, "person", fields).expect("Failed to create tag");
+        let tag_id = manager
+            .create_tag(1, "person", fields)
+            .expect("Failed to create tag");
         assert_eq!(tag_id, 1);
         assert!(manager.has_tag(1, tag_id));
 
@@ -683,7 +871,9 @@ mod tests {
             default_value: None,
         }];
 
-        let tag_id = manager.create_tag(1, "person", fields).expect("Failed to create tag");
+        let tag_id = manager
+            .create_tag(1, "person", fields)
+            .expect("Failed to create tag");
         assert!(manager.has_tag(1, tag_id));
 
         manager.drop_tag(1, tag_id).expect("Failed to drop tag");
@@ -709,8 +899,12 @@ mod tests {
             default_value: None,
         }];
 
-        manager.create_tag(1, "person", fields1).expect("Failed to create tag1");
-        manager.create_tag(1, "company", fields2).expect("Failed to create tag2");
+        manager
+            .create_tag(1, "person", fields1)
+            .expect("Failed to create tag1");
+        manager
+            .create_tag(1, "company", fields2)
+            .expect("Failed to create tag2");
 
         let tags = manager.list_tags(1).expect("Failed to list tags");
         assert_eq!(tags.len(), 2);
@@ -738,11 +932,15 @@ mod tests {
             },
         ];
 
-        let edge_type_id = manager.create_edge_type(1, "friend", fields).expect("Failed to create edge type");
+        let edge_type_id = manager
+            .create_edge_type(1, "friend", fields)
+            .expect("Failed to create edge type");
         assert_eq!(edge_type_id, 1);
         assert!(manager.has_edge_type(1, edge_type_id));
 
-        let edge_type_def = manager.get_edge_type(1, edge_type_id).expect("Failed to get edge type");
+        let edge_type_def = manager
+            .get_edge_type(1, edge_type_id)
+            .expect("Failed to get edge type");
         assert_eq!(edge_type_def.edge_type_name, "friend");
         assert_eq!(edge_type_def.fields.len(), 2);
     }
@@ -759,10 +957,14 @@ mod tests {
             default_value: None,
         }];
 
-        let edge_type_id = manager.create_edge_type(1, "friend", fields).expect("Failed to create edge type");
+        let edge_type_id = manager
+            .create_edge_type(1, "friend", fields)
+            .expect("Failed to create edge type");
         assert!(manager.has_edge_type(1, edge_type_id));
 
-        manager.drop_edge_type(1, edge_type_id).expect("Failed to drop edge type");
+        manager
+            .drop_edge_type(1, edge_type_id)
+            .expect("Failed to drop edge type");
         assert!(!manager.has_edge_type(1, edge_type_id));
     }
 
@@ -785,10 +987,16 @@ mod tests {
             default_value: None,
         }];
 
-        manager.create_edge_type(1, "friend", fields1).expect("Failed to create edge type1");
-        manager.create_edge_type(1, "follow", fields2).expect("Failed to create edge type2");
+        manager
+            .create_edge_type(1, "friend", fields1)
+            .expect("Failed to create edge type1");
+        manager
+            .create_edge_type(1, "follow", fields2)
+            .expect("Failed to create edge type2");
 
-        let edge_types = manager.list_edge_types(1).expect("Failed to list edge types");
+        let edge_types = manager
+            .list_edge_types(1)
+            .expect("Failed to list edge types");
         assert_eq!(edge_types.len(), 2);
         assert!(edge_types.iter().any(|e| e.edge_type_name == "friend"));
         assert!(edge_types.iter().any(|e| e.edge_type_name == "follow"));
@@ -808,8 +1016,12 @@ mod tests {
             default_value: None,
         }];
 
-        manager1.create_tag(1, "person", fields.clone()).expect("Failed to create tag");
-        manager1.create_edge_type(1, "friend", fields).expect("Failed to create edge type");
+        manager1
+            .create_tag(1, "person", fields.clone())
+            .expect("Failed to create tag");
+        manager1
+            .create_edge_type(1, "friend", fields)
+            .expect("Failed to create edge type");
 
         manager1.save_to_disk().expect("Failed to save to disk");
 
@@ -822,7 +1034,9 @@ mod tests {
         let tags = manager2.list_tags(1).expect("Failed to list tags");
         assert_eq!(tags.len(), 1);
 
-        let edge_types = manager2.list_edge_types(1).expect("Failed to list edge types");
+        let edge_types = manager2
+            .list_edge_types(1)
+            .expect("Failed to list edge types");
         assert_eq!(edge_types.len(), 1);
     }
 
@@ -852,7 +1066,9 @@ mod tests {
             default_value: None,
         }];
 
-        manager1.create_tag(1, "person", fields).expect("Failed to create tag");
+        manager1
+            .create_tag(1, "person", fields)
+            .expect("Failed to create tag");
 
         assert!(storage_path.join("tags.json").exists());
 
@@ -879,8 +1095,12 @@ mod tests {
             default_value: None,
         }];
 
-        manager.create_tag(1, "person", fields.clone()).expect("Failed to create tag in space1");
-        manager.create_tag(2, "person", fields).expect("Failed to create tag in space2");
+        manager
+            .create_tag(1, "person", fields.clone())
+            .expect("Failed to create tag in space1");
+        manager
+            .create_tag(2, "person", fields)
+            .expect("Failed to create tag in space2");
 
         let tags_space1 = manager.list_tags(1).expect("Failed to list tags in space1");
         let tags_space2 = manager.list_tags(2).expect("Failed to list tags in space2");
@@ -901,12 +1121,18 @@ mod tests {
             default_value: None,
         }];
 
-        manager.create_tag(1, "person", fields1).expect("Failed to create tag");
+        manager
+            .create_tag(1, "person", fields1)
+            .expect("Failed to create tag");
 
-        let version = manager.create_schema_version(1, Some("初始版本".to_string())).expect("Failed to create schema version");
+        let version = manager
+            .create_schema_version(1, Some("初始版本".to_string()))
+            .expect("Failed to create schema version");
         assert_eq!(version, 1);
 
-        let current_version = manager.get_current_version(1).expect("Failed to get current version");
+        let current_version = manager
+            .get_current_version(1)
+            .expect("Failed to get current version");
         assert_eq!(current_version, 1);
     }
 
@@ -922,10 +1148,16 @@ mod tests {
             default_value: None,
         }];
 
-        manager.create_tag(1, "person", fields1).expect("Failed to create tag");
-        manager.create_schema_version(1, Some("版本1".to_string())).expect("Failed to create schema version");
+        manager
+            .create_tag(1, "person", fields1)
+            .expect("Failed to create tag");
+        manager
+            .create_schema_version(1, Some("版本1".to_string()))
+            .expect("Failed to create schema version");
 
-        let schema_version = manager.get_schema_version(1, 1).expect("Failed to get schema version");
+        let schema_version = manager
+            .get_schema_version(1, 1)
+            .expect("Failed to get schema version");
         assert_eq!(schema_version.version, 1);
         assert_eq!(schema_version.space_id, 1);
         assert_eq!(schema_version.tags.len(), 1);
@@ -944,8 +1176,12 @@ mod tests {
             default_value: None,
         }];
 
-        manager.create_tag(1, "person", fields1).expect("Failed to create tag");
-        manager.create_schema_version(1, Some("版本1".to_string())).expect("Failed to create schema version");
+        manager
+            .create_tag(1, "person", fields1)
+            .expect("Failed to create tag");
+        manager
+            .create_schema_version(1, Some("版本1".to_string()))
+            .expect("Failed to create schema version");
 
         let fields2 = vec![FieldDef {
             name: "name".to_string(),
@@ -954,10 +1190,16 @@ mod tests {
             default_value: None,
         }];
 
-        manager.create_tag(1, "company", fields2).expect("Failed to create tag");
-        manager.create_schema_version(1, Some("版本2".to_string())).expect("Failed to create schema version");
+        manager
+            .create_tag(1, "company", fields2)
+            .expect("Failed to create tag");
+        manager
+            .create_schema_version(1, Some("版本2".to_string()))
+            .expect("Failed to create schema version");
 
-        let history = manager.get_schema_history(1).expect("Failed to get schema history");
+        let history = manager
+            .get_schema_history(1)
+            .expect("Failed to get schema history");
         assert_eq!(history.space_id, 1);
         assert_eq!(history.versions.len(), 2);
         assert_eq!(history.current_version, 2);
@@ -975,8 +1217,12 @@ mod tests {
             default_value: None,
         }];
 
-        manager.create_tag(1, "person", fields1).expect("Failed to create tag");
-        manager.create_schema_version(1, Some("版本1".to_string())).expect("Failed to create schema version");
+        manager
+            .create_tag(1, "person", fields1)
+            .expect("Failed to create tag");
+        manager
+            .create_schema_version(1, Some("版本1".to_string()))
+            .expect("Failed to create schema version");
 
         let fields2 = vec![FieldDef {
             name: "name".to_string(),
@@ -985,19 +1231,29 @@ mod tests {
             default_value: None,
         }];
 
-        manager.create_tag(1, "company", fields2).expect("Failed to create tag");
-        manager.create_schema_version(1, Some("版本2".to_string())).expect("Failed to create schema version");
+        manager
+            .create_tag(1, "company", fields2)
+            .expect("Failed to create tag");
+        manager
+            .create_schema_version(1, Some("版本2".to_string()))
+            .expect("Failed to create schema version");
 
         let tags = manager.list_tags(1).expect("Failed to list tags");
         assert_eq!(tags.len(), 2);
 
-        manager.rollback_schema(1, 1).expect("Failed to rollback schema");
+        manager
+            .rollback_schema(1, 1)
+            .expect("Failed to rollback schema");
 
-        let tags_after_rollback = manager.list_tags(1).expect("Failed to list tags after rollback");
+        let tags_after_rollback = manager
+            .list_tags(1)
+            .expect("Failed to list tags after rollback");
         assert_eq!(tags_after_rollback.len(), 1);
         assert_eq!(tags_after_rollback[0].tag_name, "person");
 
-        let current_version = manager.get_current_version(1).expect("Failed to get current version");
+        let current_version = manager
+            .get_current_version(1)
+            .expect("Failed to get current version");
         assert_eq!(current_version, 1);
     }
 
@@ -1015,16 +1271,24 @@ mod tests {
             default_value: None,
         }];
 
-        manager1.create_tag(1, "person", fields1).expect("Failed to create tag");
-        manager1.create_schema_version(1, Some("持久化测试".to_string())).expect("Failed to create schema version");
+        manager1
+            .create_tag(1, "person", fields1)
+            .expect("Failed to create tag");
+        manager1
+            .create_schema_version(1, Some("持久化测试".to_string()))
+            .expect("Failed to create schema version");
 
         let manager2 = MemorySchemaManager::with_storage_path(storage_path);
         manager2.load_from_disk().expect("Failed to load from disk");
 
-        let current_version = manager2.get_current_version(1).expect("Failed to get current version");
+        let current_version = manager2
+            .get_current_version(1)
+            .expect("Failed to get current version");
         assert_eq!(current_version, 1);
 
-        let schema_version = manager2.get_schema_version(1, 1).expect("Failed to get schema version");
+        let schema_version = manager2
+            .get_schema_version(1, 1)
+            .expect("Failed to get schema version");
         assert_eq!(schema_version.tags.len(), 1);
         assert_eq!(schema_version.tags[0].tag_name, "person");
     }

@@ -2,8 +2,8 @@
 //!
 //! 提供各种内置函数的求值功能
 
-use crate::core::types::operators::AggregateFunction;
 use crate::core::error::{ExpressionError, ExpressionErrorType};
+use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 
 /// 函数求值器
@@ -64,7 +64,9 @@ impl FunctionEvaluator {
                     Value::String(s) => Ok(Value::Int(s.len() as i64)),
                     Value::List(l) => Ok(Value::Int(l.len() as i64)),
                     Value::Map(m) => Ok(Value::Int(m.len() as i64)),
-                    _ => Err(ExpressionError::type_error("length函数需要字符串、列表或映射类型")),
+                    _ => Err(ExpressionError::type_error(
+                        "length函数需要字符串、列表或映射类型",
+                    )),
                 }
             }
             "lower" => {
@@ -225,29 +227,29 @@ impl FunctionEvaluator {
                 if args.len() < 2 {
                     return Err(ExpressionError::argument_count_error(2, args.len()));
                 }
-                
+
                 let percentile = match &args[1] {
                     Value::Int(v) => *v as f64,
                     Value::Float(v) => *v,
                     _ => return Err(ExpressionError::type_error("Percentile must be a number")),
                 };
-                
+
                 if percentile < 0.0 || percentile > 100.0 {
                     return Err(ExpressionError::new(
                         ExpressionErrorType::InvalidOperation,
-                        "Percentile must be between 0 and 100"
+                        "Percentile must be between 0 and 100",
                     ));
                 }
-                
+
                 let values = match &args[0] {
                     Value::List(list) => list,
                     _ => return Err(ExpressionError::type_error("First argument must be a list")),
                 };
-                
+
                 if values.is_empty() {
                     return Ok(Value::Null(crate::core::NullType::NaN));
                 }
-                
+
                 let mut numeric_values = Vec::new();
                 for value in values {
                     match value {
@@ -256,17 +258,18 @@ impl FunctionEvaluator {
                         _ => continue,
                     }
                 }
-                
+
                 if numeric_values.is_empty() {
                     return Ok(Value::Null(crate::core::NullType::NaN));
                 }
-                
-                numeric_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                
+
+                numeric_values
+                    .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
                 let index = (percentile / 100.0) * (numeric_values.len() - 1) as f64;
                 let lower_index = index.floor() as usize;
                 let upper_index = index.ceil() as usize;
-                
+
                 if lower_index == upper_index {
                     Ok(Value::Float(numeric_values[lower_index]))
                 } else {

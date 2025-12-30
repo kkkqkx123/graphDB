@@ -36,7 +36,7 @@ pub enum StatType {
 #[derive(Debug)]
 struct QueryStats {
     slow_query_threshold_us: u64,
-    
+
     enable_space_level_metrics: bool,
 }
 

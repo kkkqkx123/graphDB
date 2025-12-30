@@ -4,8 +4,8 @@
 
 use super::registry::CacheRegistry;
 use super::stats_collector::CacheStatsCollector;
-use crate::cache::CacheConfig;
 use crate::cache::manager::CacheStrategy;
+use crate::cache::CacheConfig;
 use std::sync::{Arc, OnceLock};
 
 /// 全局缓存管理器

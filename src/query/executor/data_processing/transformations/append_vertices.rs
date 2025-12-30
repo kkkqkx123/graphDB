@@ -6,15 +6,13 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::Expression;
+use crate::core::{DataSet, Value, Vertex};
+use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
-use crate::core::{DataSet, Value, Vertex};
-use crate::core::Expression;
-use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// AppendVertices执行器
@@ -26,7 +24,6 @@ pub struct AppendVerticesExecutor<S: StorageEngine + Send + 'static> {
     /// 源表达式，用于获取顶点ID
     src_expr: Expression,
     /// 要获取的属性列表
-    
     props: Vec<String>,
     /// 顶点过滤表达式
     v_filter: Option<Expression>,
@@ -41,19 +38,19 @@ pub struct AppendVerticesExecutor<S: StorageEngine + Send + 'static> {
 }
 
 impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
-            /// 创建新的AppendVerticesExecutor
-            pub fn new(
-                id: i64,
-                storage: Arc<Mutex<S>>,
-                input_var: String,
-                src_expr: Expression,
-                props: Vec<String>,
-                v_filter: Option<Expression>,
-                col_names: Vec<String>,
-                dedup: bool,
-                track_prev_path: bool,
-                need_fetch_prop: bool,
-            ) -> Self {
+    /// 创建新的AppendVerticesExecutor
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        input_var: String,
+        src_expr: Expression,
+        props: Vec<String>,
+        v_filter: Option<Expression>,
+        col_names: Vec<String>,
+        dedup: bool,
+        track_prev_path: bool,
+        need_fetch_prop: bool,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AppendVerticesExecutor".to_string(), storage),
             input_var,
@@ -68,19 +65,19 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
     }
 
     /// 带上下文创建AppendVerticesExecutor
-            pub fn with_context(
-                id: i64,
-                storage: Arc<Mutex<S>>,
-                input_var: String,
-                src_expr: Expression,
-                props: Vec<String>,
-                v_filter: Option<Expression>,
-                col_names: Vec<String>,
-                dedup: bool,
-                track_prev_path: bool,
-                need_fetch_prop: bool,
-                context: crate::query::executor::base::ExecutionContext,
-            ) -> Self {
+    pub fn with_context(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        input_var: String,
+        src_expr: Expression,
+        props: Vec<String>,
+        v_filter: Option<Expression>,
+        col_names: Vec<String>,
+        dedup: bool,
+        track_prev_path: bool,
+        need_fetch_prop: bool,
+        context: crate::query::executor::base::ExecutionContext,
+    ) -> Self {
         Self {
             base: BaseExecutor::with_context(
                 id,
@@ -136,11 +133,12 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     expr_context.set_variable("_".to_string(), value.clone());
 
                     // 计算源表达式获取顶点ID
-                    let vid = ExpressionEvaluator::evaluate(&self.src_expr, &mut expr_context).map_err(|e| {
-                        DBError::Query(crate::core::error::QueryError::ExecutionError(
-                            e.to_string(),
-                        ))
-                    })?;
+                    let vid = ExpressionEvaluator::evaluate(&self.src_expr, &mut expr_context)
+                        .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     // 检查是否去重
                     if let Some(ref mut seen_map) = seen {
@@ -158,11 +156,12 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     let vertex_value = Value::Vertex(Box::new(vertex.clone()));
                     expr_context.set_variable("_".to_string(), vertex_value.clone());
 
-                    let vid = ExpressionEvaluator::evaluate(&self.src_expr, &mut expr_context).map_err(|e| {
-                        DBError::Query(crate::core::error::QueryError::ExecutionError(
-                            e.to_string(),
-                        ))
-                    })?;
+                    let vid = ExpressionEvaluator::evaluate(&self.src_expr, &mut expr_context)
+                        .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     if let Some(ref mut seen_map) = seen {
                         if !seen_map.contains_key(&vid) {
@@ -179,11 +178,12 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     let edge_value = Value::Edge(edge.clone());
                     expr_context.set_variable("_".to_string(), edge_value.clone());
 
-                    let vid = ExpressionEvaluator::evaluate(&self.src_expr, &mut expr_context).map_err(|e| {
-                        DBError::Query(crate::core::error::QueryError::ExecutionError(
-                            e.to_string(),
-                        ))
-                    })?;
+                    let vid = ExpressionEvaluator::evaluate(&self.src_expr, &mut expr_context)
+                        .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     if let Some(ref mut seen_map) = seen {
                         if !seen_map.contains_key(&vid) {
@@ -323,11 +323,12 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 
             // 如果有顶点过滤器，应用它
             if let Some(ref filter_expr) = self.v_filter {
-                let filter_result = ExpressionEvaluator::evaluate(filter_expr, &mut row_context).map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(
-                        e.to_string(),
-                    ))
-                })?;
+                let filter_result = ExpressionEvaluator::evaluate(filter_expr, &mut row_context)
+                    .map_err(|e| {
+                        DBError::Query(crate::core::error::QueryError::ExecutionError(
+                            e.to_string(),
+                        ))
+                    })?;
 
                 if let Value::Bool(false) = filter_result {
                     continue; // 过滤掉这个顶点
@@ -394,7 +395,10 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AppendVerticesExe
 
 impl<S: StorageEngine + Send> HasStorage<S> for AppendVerticesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("AppendVerticesExecutor storage should be set")
+        self.base
+            .storage
+            .as_ref()
+            .expect("AppendVerticesExecutor storage should be set")
     }
 }
 

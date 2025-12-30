@@ -1,9 +1,9 @@
 //! 基础AST上下文定义
 
-use std::sync::Arc;
 use crate::core::context::query::QueryContext;
-use crate::query::parser::ast::Stmt;
 use crate::query::context::validate::types::SpaceInfo;
+use crate::query::parser::ast::Stmt;
+use std::sync::Arc;
 
 /// 基础AST上下文
 ///
@@ -15,10 +15,10 @@ use crate::query::context::validate::types::SpaceInfo;
 pub struct AstContext {
     /// 查询上下文引用，提供运行时资源访问
     pub qctx: Option<Arc<QueryContext>>,
-    
+
     /// 语法树节点引用，用于错误定位和调试
     pub sentence: Option<Stmt>,
-    
+
     /// 空间信息，支持多空间查询
     pub space: SpaceInfo,
 }
@@ -43,7 +43,11 @@ impl AstContext {
     }
 
     /// 创建带有空间信息的AST上下文
-    pub fn with_space(qctx: Option<Arc<QueryContext>>, sentence: Option<Stmt>, space: SpaceInfo) -> Self {
+    pub fn with_space(
+        qctx: Option<Arc<QueryContext>>,
+        sentence: Option<Stmt>,
+        space: SpaceInfo,
+    ) -> Self {
         Self {
             qctx,
             sentence,

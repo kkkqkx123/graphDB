@@ -8,11 +8,10 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, NullType, Value};
 use crate::query::executor::data_processing::join::{
-    base_join::BaseJoinExecutor, hash_table::{build_hash_table, extract_key_values, JoinKey},
+    base_join::BaseJoinExecutor,
+    hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 左外连接执行器
@@ -57,15 +56,13 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         let build_dataset = right_dataset;
 
         // 构建哈希表
-        let hash_table =
-            build_hash_table(build_dataset, self.base_executor.get_probe_keys()).map_err(
-                |e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                        "构建哈希表失败: {}",
-                        e
-                    )))
-                },
-            )?;
+        let hash_table = build_hash_table(build_dataset, self.base_executor.get_probe_keys())
+            .map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "构建哈希表失败: {}",
+                    e
+                )))
+            })?;
 
         // 构建列名到索引的映射
         let left_col_map: std::collections::HashMap<&str, usize> = left_dataset
@@ -100,7 +97,9 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
                 for &right_idx in right_indices {
                     if right_idx < build_dataset.rows.len() {
                         let right_row = &build_dataset.rows[right_idx];
-                        let new_row = self.base_executor.new_row(left_row.clone(), right_row.clone());
+                        let new_row = self
+                            .base_executor
+                            .new_row(left_row.clone(), right_row.clone());
                         result.rows.push(new_row);
                     }
                 }
@@ -135,15 +134,13 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
         let build_dataset = right_dataset;
 
         // 构建哈希表
-        let hash_table =
-            build_hash_table(build_dataset, self.base_executor.get_probe_keys()).map_err(
-                |e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                        "构建多键哈希表失败: {}",
-                        e
-                    )))
-                },
-            )?;
+        let hash_table = build_hash_table(build_dataset, self.base_executor.get_probe_keys())
+            .map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
+                    "构建多键哈希表失败: {}",
+                    e
+                )))
+            })?;
 
         // 构建列名到索引的映射
         let left_col_map: std::collections::HashMap<&str, usize> = left_dataset
@@ -178,7 +175,9 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
                 for &right_idx in right_indices {
                     if right_idx < build_dataset.rows.len() {
                         let right_row = &build_dataset.rows[right_idx];
-                        let new_row = self.base_executor.new_row(left_row.clone(), right_row.clone());
+                        let new_row = self
+                            .base_executor
+                            .new_row(left_row.clone(), right_row.clone());
                         result.rows.push(new_row);
                     }
                 }
@@ -201,7 +200,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
     }
 
     /// 创建填充NULL的右侧行
-    
+
     fn create_null_right_row(&self) -> Vec<Value> {
         vec![Value::Null(NullType::Null); self.right_col_size]
     }
@@ -272,7 +271,11 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
 
 impl<S: StorageEngine + Send + 'static> HasStorage<S> for LeftJoinExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base_executor.get_base().storage.as_ref().expect("LeftJoinExecutor storage should be set")
+        self.base_executor
+            .get_base()
+            .storage
+            .as_ref()
+            .expect("LeftJoinExecutor storage should be set")
     }
 }
 

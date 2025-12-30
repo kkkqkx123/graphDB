@@ -1,4 +1,3 @@
-
 use crate::query::planner::match_planning::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::match_planning::core::cypher_clause_planner::{
     CypherClausePlanner, DataFlowNode, PlanningContext,
@@ -235,7 +234,6 @@ fn create_unwind_node(
     // 由于 PlanNodeEnum 不能直接修改，我们使用占位符
     // 实际的属性会在执行时设置
     Ok(PlanNodeEnum::Unwind(unwind_node))
-    
 }
 
 /// 序列化表达式为字符串

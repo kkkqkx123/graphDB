@@ -5,9 +5,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
@@ -21,7 +19,7 @@ pub struct TraverseExecutor<S: StorageEngine> {
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>,
-    
+
     conditions: Option<String>, // 遍历条件
     input_executor: Option<Box<dyn Executor<S>>>,
     // 遍历状态
@@ -426,6 +424,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for TraverseExecutor<S> {
 
 impl<S: StorageEngine + Send> HasStorage<S> for TraverseExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("TraverseExecutor storage should be set")
+        self.base
+            .storage
+            .as_ref()
+            .expect("TraverseExecutor storage should be set")
     }
 }

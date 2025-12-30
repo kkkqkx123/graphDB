@@ -297,7 +297,11 @@ mod tests {
     fn create_test_node_info(alias: &str, anonymous: bool) -> NodeInfo {
         NodeInfo {
             alias: alias.to_string(),
-            labels: if anonymous { vec![] } else { vec!["Person".to_string()] },
+            labels: if anonymous {
+                vec![]
+            } else {
+                vec!["Person".to_string()]
+            },
             props: None,
             anonymous,
             filter: None,

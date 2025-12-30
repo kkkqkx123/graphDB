@@ -4,10 +4,10 @@
 use crate::query::context::ast::{AstContext, FetchVerticesContext};
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::common::TagProp;
+use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::{
     ArgumentNode, DedupNode, GetVerticesNode, PlanNodeEnum, ProjectNode,
 };
-use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -62,10 +62,7 @@ impl Planner for FetchVerticesPlanner {
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
         // 2. 创建获取顶点的节点
-        let mut get_vertices_node = GetVerticesNode::new(
-            2,
-            &fetch_ctx.from.user_defined_var_name,
-        );
+        let mut get_vertices_node = GetVerticesNode::new(2, &fetch_ctx.from.user_defined_var_name);
         get_vertices_node.add_dependency(arg_node_enum.clone());
         get_vertices_node.set_output_var(Variable {
             name: "fetched_vertices".to_string(),
@@ -84,10 +81,7 @@ impl Planner for FetchVerticesPlanner {
         let get_vertices_node_enum = PlanNodeEnum::GetVertices(get_vertices_node);
 
         // 3. 创建投影节点
-        let project_node = ProjectNode::new(
-            get_vertices_node_enum.clone(),
-            vec![],
-        )?;
+        let project_node = ProjectNode::new(get_vertices_node_enum.clone(), vec![])?;
 
         let project_node_enum = PlanNodeEnum::Project(project_node);
 

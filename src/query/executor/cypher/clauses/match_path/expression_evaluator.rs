@@ -7,8 +7,8 @@ use crate::core::error::DBError;
 use crate::core::Value;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::cypher::context::CypherExecutionContext;
-use crate::query::parser::cypher::ast::expressions::Expression;
 use crate::query::executor::cypher::CypherExpressionEvaluator;
+use crate::query::parser::cypher::ast::expressions::Expression;
 
 /// 统一的表达式求值器
 ///
@@ -19,10 +19,7 @@ pub struct ExpressionEvaluator;
 
 impl ExpressionEvaluator {
     /// 求值Cypher表达式
-    pub fn evaluate(
-        expr: &Expression,
-        context: &CypherExecutionContext,
-    ) -> Result<Value, DBError> {
+    pub fn evaluate(expr: &Expression, context: &CypherExecutionContext) -> Result<Value, DBError> {
         let mut eval_context = Self::convert_context(context);
 
         CypherExpressionEvaluator
@@ -51,7 +48,9 @@ impl ExpressionEvaluator {
     }
 
     /// 转换上下文类型
-    fn convert_context(context: &CypherExecutionContext) -> crate::expression::BasicExpressionContext {
+    fn convert_context(
+        context: &CypherExecutionContext,
+    ) -> crate::expression::BasicExpressionContext {
         let mut eval_context = crate::expression::BasicExpressionContext::default();
 
         for (name, cypher_var) in context.variables() {
@@ -119,20 +118,17 @@ mod tests {
         let context = CypherExecutionContext::new();
 
         let string_expr = Expression::Literal(Literal::String("test".to_string()));
-        let result = ExpressionEvaluator
-            ::evaluate(&string_expr, &context)
+        let result = ExpressionEvaluator::evaluate(&string_expr, &context)
             .expect("Failed to evaluate string expression");
         assert_eq!(result, Value::String("test".to_string()));
 
         let int_expr = Expression::Literal(Literal::Integer(42));
-        let result = ExpressionEvaluator
-            ::evaluate(&int_expr, &context)
+        let result = ExpressionEvaluator::evaluate(&int_expr, &context)
             .expect("Failed to evaluate int expression");
         assert_eq!(result, Value::Int(42));
 
         let bool_expr = Expression::Literal(Literal::Boolean(true));
-        let result = ExpressionEvaluator
-            ::evaluate(&bool_expr, &context)
+        let result = ExpressionEvaluator::evaluate(&bool_expr, &context)
             .expect("Failed to evaluate bool expression");
         assert_eq!(result, Value::Bool(true));
     }
@@ -146,8 +142,7 @@ mod tests {
             operator: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(Literal::Integer(42))),
         });
-        let result = ExpressionEvaluator
-            ::evaluate(&equal_expr, &context)
+        let result = ExpressionEvaluator::evaluate(&equal_expr, &context)
             .expect("Failed to evaluate equal expression");
         assert_eq!(result, Value::Bool(true));
 
@@ -156,8 +151,7 @@ mod tests {
             operator: BinaryOperator::NotEqual,
             right: Box::new(Expression::Literal(Literal::Integer(43))),
         });
-        let result = ExpressionEvaluator
-            ::evaluate(&not_equal_expr, &context)
+        let result = ExpressionEvaluator::evaluate(&not_equal_expr, &context)
             .expect("Failed to evaluate not equal expression");
         assert_eq!(result, Value::Bool(true));
 
@@ -166,8 +160,7 @@ mod tests {
             operator: BinaryOperator::And,
             right: Box::new(Expression::Literal(Literal::Boolean(true))),
         });
-        let result = ExpressionEvaluator
-            ::evaluate(&and_expr, &context)
+        let result = ExpressionEvaluator::evaluate(&and_expr, &context)
             .expect("Failed to evaluate and expression");
         assert_eq!(result, Value::Bool(true));
     }
@@ -180,8 +173,7 @@ mod tests {
             operator: UnaryOperator::Not,
             expression: Box::new(Expression::Literal(Literal::Boolean(true))),
         });
-        let result = ExpressionEvaluator
-            ::evaluate(&not_expr, &context)
+        let result = ExpressionEvaluator::evaluate(&not_expr, &context)
             .expect("Failed to evaluate not expression");
         assert_eq!(result, Value::Bool(false));
 
@@ -189,8 +181,7 @@ mod tests {
             operator: UnaryOperator::Minus,
             expression: Box::new(Expression::Literal(Literal::Integer(42))),
         });
-        let result = ExpressionEvaluator
-            ::evaluate(&neg_expr, &context)
+        let result = ExpressionEvaluator::evaluate(&neg_expr, &context)
             .expect("Failed to evaluate neg expression");
         assert_eq!(result, Value::Int(-42));
     }
@@ -204,8 +195,7 @@ mod tests {
             operator: BinaryOperator::Add,
             right: Box::new(Expression::Literal(Literal::Integer(5))),
         });
-        let result = ExpressionEvaluator
-            ::evaluate(&add_expr, &context)
+        let result = ExpressionEvaluator::evaluate(&add_expr, &context)
             .expect("Failed to evaluate add expression");
         assert_eq!(result, Value::Int(15));
 
@@ -214,8 +204,7 @@ mod tests {
             operator: BinaryOperator::Add,
             right: Box::new(Expression::Literal(Literal::String(" World".to_string()))),
         });
-        let result = ExpressionEvaluator
-            ::evaluate(&concat_expr, &context)
+        let result = ExpressionEvaluator::evaluate(&concat_expr, &context)
             .expect("Failed to evaluate concat expression");
         assert_eq!(result, Value::String("Hello World".to_string()));
     }
@@ -272,8 +261,7 @@ mod tests {
             Expression::Literal(Literal::Integer(3)),
         ];
 
-        let results = ExpressionEvaluator
-            ::evaluate_batch(&exprs, &context)
+        let results = ExpressionEvaluator::evaluate_batch(&exprs, &context)
             .expect("Failed to evaluate batch expressions");
         assert_eq!(results.len(), 3);
         assert_eq!(results[0], Value::Int(1));

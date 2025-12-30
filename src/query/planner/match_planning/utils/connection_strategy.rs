@@ -230,10 +230,7 @@ impl ConnectionStrategy for SequentialStrategy {
                     Some(right_tail.clone()),
                 ))
             }
-            _ => Ok(SubPlan::new(
-                left.root.clone(),
-                right.tail.clone(),
-            )),
+            _ => Ok(SubPlan::new(left.root.clone(), right.tail.clone())),
         }
     }
 

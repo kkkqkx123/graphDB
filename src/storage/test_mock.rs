@@ -3,11 +3,14 @@
 //! 提供统一的Mock存储引擎实现，避免在各个测试模块中重复实现
 
 #[cfg(test)]
-use crate::storage::{StorageEngine, StorageError};
-#[cfg(test)]
-use crate::core::{Value, vertex_edge_path::{Vertex, Edge, Direction}};
-#[cfg(test)]
 use crate::core::value::NullType;
+#[cfg(test)]
+use crate::core::{
+    vertex_edge_path::{Direction, Edge, Vertex},
+    Value,
+};
+#[cfg(test)]
+use crate::storage::{StorageEngine, StorageError};
 
 /// 测试用Mock存储引擎
 #[cfg(test)]
@@ -16,38 +19,23 @@ pub struct MockStorage;
 
 #[cfg(test)]
 impl StorageEngine for MockStorage {
-    fn insert_node(
-        &mut self,
-        _vertex: Vertex,
-    ) -> Result<Value, StorageError> {
+    fn insert_node(&mut self, _vertex: Vertex) -> Result<Value, StorageError> {
         Ok(Value::Null(NullType::NaN))
     }
 
-    fn get_node(
-        &self,
-        _id: &Value,
-    ) -> Result<Option<Vertex>, StorageError> {
+    fn get_node(&self, _id: &Value) -> Result<Option<Vertex>, StorageError> {
         Ok(None)
     }
 
-    fn update_node(
-        &mut self,
-        _vertex: Vertex,
-    ) -> Result<(), StorageError> {
+    fn update_node(&mut self, _vertex: Vertex) -> Result<(), StorageError> {
         Ok(())
     }
 
-    fn delete_node(
-        &mut self,
-        _id: &Value,
-    ) -> Result<(), StorageError> {
+    fn delete_node(&mut self, _id: &Value) -> Result<(), StorageError> {
         Ok(())
     }
 
-    fn insert_edge(
-        &mut self,
-        _edge: Edge,
-    ) -> Result<(), StorageError> {
+    fn insert_edge(&mut self, _edge: Edge) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -85,10 +73,7 @@ impl StorageEngine for MockStorage {
         Ok(())
     }
 
-    fn rollback_transaction(
-        &mut self,
-        _tx_id: u64,
-    ) -> Result<(), StorageError> {
+    fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), StorageError> {
         Ok(())
     }
 

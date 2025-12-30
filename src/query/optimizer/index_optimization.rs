@@ -9,7 +9,6 @@ use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Patt
 use crate::query::planner::plan::algorithms::IndexScan;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
-
 /// 基于过滤条件优化边索引扫描的规则
 #[derive(Debug)]
 pub struct OptimizeEdgeIndexScanByFilterRule;
@@ -78,7 +77,8 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
                                     {
                                         let new_filter_node = filter_node.clone();
                                         let mut new_filter_opt_node = dep_node.clone();
-                                        new_filter_opt_node.plan_node = PlanNodeEnum::Filter(new_filter_node);
+                                        new_filter_opt_node.plan_node =
+                                            PlanNodeEnum::Filter(new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_index_scan_opt_node.id];
 
@@ -180,7 +180,8 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                                         // 这里简化处理，直接返回原节点
 
                                         let mut new_filter_opt_node = dep_node.clone();
-                                        new_filter_opt_node.plan_node = PlanNodeEnum::Filter(new_filter_node);
+                                        new_filter_opt_node.plan_node =
+                                            PlanNodeEnum::Filter(new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_index_scan_opt_node.id];
 
@@ -1261,7 +1262,10 @@ mod tests {
         ctx.add_plan_node_and_group_node(2, &opt_node2);
 
         // 创建一个有多个依赖的节点
-        let mut union_node = OptGroupNode::new(3, PlanNodeEnum::IndexScan(IndexScan::new(3, 1, 2, 3, "RANGE")));
+        let mut union_node = OptGroupNode::new(
+            3,
+            PlanNodeEnum::IndexScan(IndexScan::new(3, 1, 2, 3, "RANGE")),
+        );
         union_node.dependencies = vec![1, 2];
 
         let result = rule

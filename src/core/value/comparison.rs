@@ -1,4 +1,7 @@
-use super::types::{Value, ValueTypeDef, NullType, DateValue, TimeValue, DateTimeValue, DurationValue, DataSet, GeographyValue};
+use super::types::{
+    DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
+    ValueTypeDef,
+};
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -61,7 +64,7 @@ impl Ord for Value {
             (Value::Geography(a), Value::Geography(b)) => Self::cmp_geography(a, b),
             (Value::Duration(a), Value::Duration(b)) => Self::cmp_duration(a, b),
             (Value::DataSet(a), Value::DataSet(b)) => Self::cmp_dataset(a, b),
-            
+
             // 不同类型之间的比较：基于类型优先级
             (a, b) => Self::cmp_by_type_priority(a, b),
         }
@@ -313,7 +316,10 @@ impl Value {
     }
 
     // 集合比较辅助函数
-    fn cmp_set(a: &std::collections::HashSet<Value>, b: &std::collections::HashSet<Value>) -> CmpOrdering {
+    fn cmp_set(
+        a: &std::collections::HashSet<Value>,
+        b: &std::collections::HashSet<Value>,
+    ) -> CmpOrdering {
         // 先比较集合大小
         match a.len().cmp(&b.len()) {
             CmpOrdering::Equal => {
@@ -339,12 +345,10 @@ impl Value {
     fn cmp_geography(a: &GeographyValue, b: &GeographyValue) -> CmpOrdering {
         // 比较点、线、面的顺序
         match (&a.point, &b.point) {
-            (Some(p1), Some(p2)) => {
-                match p1.0.total_cmp(&p2.0) {
-                    CmpOrdering::Equal => p1.1.total_cmp(&p2.1),
-                    ord => ord,
-                }
-            }
+            (Some(p1), Some(p2)) => match p1.0.total_cmp(&p2.0) {
+                CmpOrdering::Equal => p1.1.total_cmp(&p2.1),
+                ord => ord,
+            },
             (None, Some(_)) => CmpOrdering::Less,
             (Some(_), None) => CmpOrdering::Greater,
             (None, None) => {
@@ -388,7 +392,7 @@ impl Value {
 
     // 类型优先级比较辅助函数
     fn cmp_by_type_priority(a: &Value, b: &Value) -> CmpOrdering {
-        // 类型优先级：Empty < Null < Bool < Int < Float < String < Date < Time < DateTime < Duration < 
+        // 类型优先级：Empty < Null < Bool < Int < Float < String < Date < Time < DateTime < Duration <
         //             Vertex < Edge < Path < List < Map < Set < Geography < DataSet
         let type_a = a.get_type();
         let type_b = b.get_type();

@@ -79,7 +79,13 @@ pub struct SetConfig {
 }
 
 impl SetConfig {
-    pub fn new(id: i64, cost: f64, module_name: &str, config_name: &str, config_value: &str) -> Self {
+    pub fn new(
+        id: i64,
+        cost: f64,
+        module_name: &str,
+        config_name: &str,
+        config_value: &str,
+    ) -> Self {
         Self {
             id,
             cost,

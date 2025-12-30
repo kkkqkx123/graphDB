@@ -241,7 +241,6 @@ pub trait Planner: std::fmt::Debug {
 /// 顺序规划器（使用新的注册机制）
 #[derive(Debug)]
 pub struct SequentialPlanner {
-    
     planners: Vec<MatchAndInstantiate>,
 }
 

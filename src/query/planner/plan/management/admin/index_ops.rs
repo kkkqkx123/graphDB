@@ -414,7 +414,11 @@ pub struct ShowEdgeIndexes {
 
 impl ShowEdgeIndexes {
     pub fn new(id: i64, cost: f64, edge_name: Option<String>) -> Self {
-        Self { id, cost, edge_name }
+        Self {
+            id,
+            cost,
+            edge_name,
+        }
     }
 
     pub fn edge_name(&self) -> Option<&str> {
@@ -450,7 +454,11 @@ pub struct ShowIndexes {
 
 impl ShowIndexes {
     pub fn new(id: i64, cost: f64, schema_name: Option<String>) -> Self {
-        Self { id, cost, schema_name }
+        Self {
+            id,
+            cost,
+            schema_name,
+        }
     }
 
     pub fn schema_name(&self) -> Option<&str> {
@@ -526,7 +534,11 @@ pub struct ShowIndexStatus {
 
 impl ShowIndexStatus {
     pub fn new(id: i64, cost: f64, index_name: Option<String>) -> Self {
-        Self { id, cost, index_name }
+        Self {
+            id,
+            cost,
+            index_name,
+        }
     }
 
     pub fn index_name(&self) -> Option<&str> {

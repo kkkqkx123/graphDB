@@ -94,7 +94,10 @@ mod tests {
         // 测试基本功能
         assert_eq!(executor.name(), "ExpandExecutor");
         assert_eq!(executor.id(), 1);
-        assert!(matches!(executor.get_edge_direction(), EdgeDirection::Outgoing));
+        assert!(matches!(
+            executor.get_edge_direction(),
+            EdgeDirection::Outgoing
+        ));
         assert!(executor.get_edge_types().is_some());
         assert_eq!(executor.get_max_depth(), Some(1));
     }
@@ -131,7 +134,10 @@ mod tests {
 
         assert_eq!(executor.name(), "TraverseExecutor");
         assert_eq!(executor.id(), 3);
-        assert!(matches!(executor.get_edge_direction(), EdgeDirection::Outgoing));
+        assert!(matches!(
+            executor.get_edge_direction(),
+            EdgeDirection::Outgoing
+        ));
         assert!(executor.get_edge_types().is_some());
         assert_eq!(executor.get_max_depth(), Some(3));
     }
@@ -152,7 +158,10 @@ mod tests {
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 4);
-        assert!(matches!(executor.get_edge_direction(), EdgeDirection::Outgoing));
+        assert!(matches!(
+            executor.get_edge_direction(),
+            EdgeDirection::Outgoing
+        ));
         assert!(executor.get_edge_types().is_none());
     }
 }

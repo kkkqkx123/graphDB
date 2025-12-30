@@ -8,9 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -80,7 +78,7 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
     }
 
     /// 执行多表笛卡尔积
-    
+
     fn execute_multi_way_cartesian_product(&self) -> Result<DataSet, QueryError> {
         if self.input_vars.len() < 2 {
             return Err(QueryError::ExecutionError(
@@ -355,9 +353,15 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S> for CrossJoinExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for CrossJoinExecutor<S>
+{
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base_executor.get_base().storage.as_ref().expect("CrossJoinExecutor storage should be set")
+        self.base_executor
+            .get_base()
+            .storage
+            .as_ref()
+            .expect("CrossJoinExecutor storage should be set")
     }
 }
 

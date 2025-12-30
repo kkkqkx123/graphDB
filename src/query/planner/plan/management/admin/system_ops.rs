@@ -187,7 +187,11 @@ pub struct ShowStats {
 
 impl ShowStats {
     pub fn new(id: i64, cost: f64, space_name: Option<String>) -> Self {
-        Self { id, cost, space_name }
+        Self {
+            id,
+            cost,
+            space_name,
+        }
     }
 
     pub fn space_name(&self) -> Option<&str> {

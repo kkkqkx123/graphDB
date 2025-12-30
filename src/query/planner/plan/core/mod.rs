@@ -3,7 +3,9 @@ pub mod explain;
 pub mod nodes;
 
 pub use common::{EdgeProp, TagProp};
-pub use explain::{DescribeVisitor, Pair, PlanDescription, PlanNodeBranchInfo, PlanNodeDescription, ProfilingStats};
+pub use explain::{
+    DescribeVisitor, Pair, PlanDescription, PlanNodeBranchInfo, PlanNodeDescription, ProfilingStats,
+};
 pub use nodes::plan_node_enum::{PlanNodeEnum, PlanNodeVisitor};
 pub use nodes::plan_node_traits::PlanNode;
 pub use nodes::{

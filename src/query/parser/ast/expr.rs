@@ -99,7 +99,8 @@ impl Expr {
             }
             Expr::ListComprehension(e) => {
                 let generator_constant = e.generator.is_constant();
-                let condition_constant = e.condition.as_ref().map_or(true, |expr| expr.is_constant());
+                let condition_constant =
+                    e.condition.as_ref().map_or(true, |expr| expr.is_constant());
                 generator_constant && condition_constant
             }
             _ => false,
@@ -188,8 +189,14 @@ impl Expr {
             Expr::DestinationProperty(e) => format!("$${}.{}", e.tag, e.prop),
             Expr::TypeCast(e) => format!("CAST({} AS {})", e.expr.to_string(), e.target_type),
             Expr::Range(e) => {
-                let start_str = e.start.as_ref().map_or(String::new(), |expr| expr.to_string());
-                let end_str = e.end.as_ref().map_or(String::new(), |expr| expr.to_string());
+                let start_str = e
+                    .start
+                    .as_ref()
+                    .map_or(String::new(), |expr| expr.to_string());
+                let end_str = e
+                    .end
+                    .as_ref()
+                    .map_or(String::new(), |expr| expr.to_string());
                 format!("{}[{}..{}]", e.collection.to_string(), start_str, end_str)
             }
             Expr::Path(e) => {
@@ -210,9 +217,10 @@ impl Expr {
                 e.expr.to_string()
             ),
             Expr::ListComprehension(e) => {
-                let condition_str = e.condition.as_ref().map_or(String::new(), |expr| {
-                    format!(" WHERE {}", expr.to_string())
-                });
+                let condition_str = e
+                    .condition
+                    .as_ref()
+                    .map_or(String::new(), |expr| format!(" WHERE {}", expr.to_string()));
                 format!("[x IN {}{} | x]", e.generator.to_string(), condition_str)
             }
         }

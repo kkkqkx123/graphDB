@@ -1,5 +1,5 @@
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use bincode::{Encode, Decode};
 use std::hash::Hash;
 
 /// Value类型定义枚举
@@ -264,11 +264,10 @@ impl Value {
             Value::Int(i) => Ok(Value::Int(*i)),
             Value::Float(f) => Ok(Value::Int(*f as i64)),
             Value::Bool(b) => Ok(Value::Int(if *b { 1 } else { 0 })),
-            Value::String(s) => {
-                s.parse::<i64>()
-                    .map(Value::Int)
-                    .map_err(|_| format!("无法将字符串 '{}' 转换为整数", s))
-            }
+            Value::String(s) => s
+                .parse::<i64>()
+                .map(Value::Int)
+                .map_err(|_| format!("无法将字符串 '{}' 转换为整数", s)),
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
             Value::Empty => Ok(Value::Null(NullType::Null)),
             _ => Err(format!("无法将 {:?} 转换为整数", self.get_type())),
@@ -281,11 +280,10 @@ impl Value {
             Value::Float(f) => Ok(Value::Float(*f)),
             Value::Int(i) => Ok(Value::Float(*i as f64)),
             Value::Bool(b) => Ok(Value::Float(if *b { 1.0 } else { 0.0 })),
-            Value::String(s) => {
-                s.parse::<f64>()
-                    .map(Value::Float)
-                    .map_err(|_| format!("无法将字符串 '{}' 转换为浮点数", s))
-            }
+            Value::String(s) => s
+                .parse::<f64>()
+                .map(Value::Float)
+                .map_err(|_| format!("无法将字符串 '{}' 转换为浮点数", s)),
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
             Value::Empty => Ok(Value::Null(NullType::Null)),
             _ => Err(format!("无法将 {:?} 转换为浮点数", self.get_type())),
@@ -296,24 +294,42 @@ impl Value {
     pub fn cast_to_string(&self) -> Result<Value, String> {
         match self {
             Value::String(s) => Ok(Value::String(s.clone())),
-            Value::Bool(b) => Ok(Value::String(if *b { "true".to_string() } else { "false".to_string() })),
+            Value::Bool(b) => Ok(Value::String(if *b {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            })),
             Value::Int(i) => Ok(Value::String(i.to_string())),
             Value::Float(f) => Ok(Value::String(f.to_string())),
             Value::Null(_) => Ok(Value::String("null".to_string())),
             Value::Empty => Ok(Value::String("empty".to_string())),
             Value::List(list) => {
-                let items: Vec<String> = list.iter()
-                    .map(|v| v.cast_to_string().map(|s| {
-                        if let Value::String(s) = s { s } else { "?".to_string() }
-                    }))
+                let items: Vec<String> = list
+                    .iter()
+                    .map(|v| {
+                        v.cast_to_string().map(|s| {
+                            if let Value::String(s) = s {
+                                s
+                            } else {
+                                "?".to_string()
+                            }
+                        })
+                    })
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(Value::String(format!("[{}]", items.join(", "))))
             }
             Value::Map(map) => {
-                let items: Vec<String> = map.iter()
-                    .map(|(k, v)| v.cast_to_string().map(|s| {
-                        if let Value::String(s) = s { format!("{}: {}", k, s) } else { format!("{}: ?", k) }
-                    }))
+                let items: Vec<String> = map
+                    .iter()
+                    .map(|(k, v)| {
+                        v.cast_to_string().map(|s| {
+                            if let Value::String(s) = s {
+                                format!("{}: {}", k, s)
+                            } else {
+                                format!("{}: ?", k)
+                            }
+                        })
+                    })
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(Value::String(format!("{{{}}}", items.join(", "))))
             }
@@ -394,8 +410,16 @@ impl std::fmt::Display for Value {
             Value::Float(fl) => write!(f, "{}", fl),
             Value::String(s) => write!(f, "\"{}\"", s),
             Value::Date(d) => write!(f, "{:04}-{:02}-{:02}", d.year, d.month, d.day),
-            Value::Time(t) => write!(f, "{:02}:{:02}:{:02}.{:06}", t.hour, t.minute, t.sec, t.microsec),
-            Value::DateTime(dt) => write!(f, "{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:06}", dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.sec, dt.microsec),
+            Value::Time(t) => write!(
+                f,
+                "{:02}:{:02}:{:02}.{:06}",
+                t.hour, t.minute, t.sec, t.microsec
+            ),
+            Value::DateTime(dt) => write!(
+                f,
+                "{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:06}",
+                dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.sec, dt.microsec
+            ),
             Value::Vertex(v) => write!(f, "Vertex({:?})", v.id()),
             Value::Edge(e) => write!(f, "Edge({:?} -> {:?})", e.src(), e.dst()),
             Value::Path(p) => write!(f, "Path({:?})", p),

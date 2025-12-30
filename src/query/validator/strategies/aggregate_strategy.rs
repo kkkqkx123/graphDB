@@ -37,17 +37,22 @@ impl AggregateValidationStrategy {
             } => {
                 conditions.iter().any(|(cond, val)| {
                     self.has_aggregate_expr(cond) || self.has_aggregate_expr(val)
-                }) || default.as_ref().map_or(false, |d| self.has_aggregate_expr(d))
+                }) || default
+                    .as_ref()
+                    .map_or(false, |d| self.has_aggregate_expr(d))
             }
             Expression::ListComprehension {
                 generator,
                 condition,
             } => {
                 self.has_aggregate_expr(generator.as_ref())
-                    || condition.as_ref().map_or(false, |c| self.has_aggregate_expr(c))
+                    || condition
+                        .as_ref()
+                        .map_or(false, |c| self.has_aggregate_expr(c))
             }
             Expression::Predicate { list, condition } => {
-                self.has_aggregate_expr(list.as_ref()) || self.has_aggregate_expr(condition.as_ref())
+                self.has_aggregate_expr(list.as_ref())
+                    || self.has_aggregate_expr(condition.as_ref())
             }
             Expression::Reduce {
                 list,
@@ -138,7 +143,8 @@ impl AggregateValidationStrategy {
             Expression::Property { property, .. } if property == "*" => true,
             Expression::Unary { operand, .. } => self.has_wildcard_property(operand.as_ref()),
             Expression::Binary { left, right, .. } => {
-                self.has_wildcard_property(left.as_ref()) || self.has_wildcard_property(right.as_ref())
+                self.has_wildcard_property(left.as_ref())
+                    || self.has_wildcard_property(right.as_ref())
             }
             Expression::Function { args, .. } => {
                 args.iter().any(|arg| self.has_wildcard_property(arg))
@@ -153,17 +159,22 @@ impl AggregateValidationStrategy {
             } => {
                 conditions.iter().any(|(cond, val)| {
                     self.has_wildcard_property(cond) || self.has_wildcard_property(val)
-                }) || default.as_ref().map_or(false, |d| self.has_wildcard_property(d))
+                }) || default
+                    .as_ref()
+                    .map_or(false, |d| self.has_wildcard_property(d))
             }
             Expression::ListComprehension {
                 generator,
                 condition,
             } => {
                 self.has_wildcard_property(generator.as_ref())
-                    || condition.as_ref().map_or(false, |c| self.has_wildcard_property(c))
+                    || condition
+                        .as_ref()
+                        .map_or(false, |c| self.has_wildcard_property(c))
             }
             Expression::Predicate { list, condition } => {
-                self.has_wildcard_property(list.as_ref()) || self.has_wildcard_property(condition.as_ref())
+                self.has_wildcard_property(list.as_ref())
+                    || self.has_wildcard_property(condition.as_ref())
             }
             Expression::Reduce {
                 list,
@@ -352,18 +363,13 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试没有聚合函数的表达式
-        let non_agg_expr =
-            Expression::Literal(crate::core::Value::Int(1));
+        let non_agg_expr = Expression::Literal(crate::core::Value::Int(1));
         assert_eq!(strategy.has_aggregate_expr(&non_agg_expr), false);
 
         let binary_expr = Expression::Binary {
-            left: Box::new(Expression::Literal(
-                crate::core::Value::Int(1),
-            )),
+            left: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             op: BinaryOperator::Add,
-            right: Box::new(Expression::Literal(
-                crate::core::Value::Int(2),
-            )),
+            right: Box::new(Expression::Literal(crate::core::Value::Int(2))),
         };
         assert_eq!(strategy.has_aggregate_expr(&binary_expr), false);
     }
@@ -373,8 +379,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试没有聚合函数的UNWIND表达式
-        let non_agg_expr =
-            Expression::Literal(crate::core::Value::Int(1));
+        let non_agg_expr = Expression::Literal(crate::core::Value::Int(1));
         assert!(strategy.validate_unwind_aggregate(&non_agg_expr).is_ok());
 
         // 测试包含聚合函数的UNWIND表达式
@@ -390,14 +395,10 @@ mod tests {
         let nested_expr = Expression::Binary {
             left: Box::new(Expression::Unary {
                 op: crate::core::types::operators::UnaryOperator::Minus,
-                operand: Box::new(Expression::Literal(
-                    crate::core::Value::Int(5),
-                )),
+                operand: Box::new(Expression::Literal(crate::core::Value::Int(5))),
             }),
             op: crate::core::types::operators::BinaryOperator::Add,
-            right: Box::new(Expression::Literal(
-                crate::core::Value::Int(10),
-            )),
+            right: Box::new(Expression::Literal(crate::core::Value::Int(10))),
         };
 
         assert_eq!(strategy.has_aggregate_expr(&nested_expr), false);
@@ -408,9 +409,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
         let expr = Expression::Aggregate {
             func: AggregateFunction::Count,
-            arg: Box::new(Expression::Literal(
-                crate::core::Value::Int(1),
-            )),
+            arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
 
@@ -425,9 +424,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
         let inner_agg = Expression::Aggregate {
             func: AggregateFunction::Count,
-            arg: Box::new(Expression::Literal(
-                crate::core::Value::Int(1),
-            )),
+            arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
         let outer_agg = Expression::Aggregate {
@@ -507,9 +504,7 @@ mod tests {
         for func in valid_functions {
             let expr = Expression::Aggregate {
                 func,
-                arg: Box::new(Expression::Literal(
-                    crate::core::Value::Int(1),
-                )),
+                arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
                 distinct: false,
             };
 
@@ -525,9 +520,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
         let expr = Expression::Aggregate {
             func: AggregateFunction::Count,
-            arg: Box::new(Expression::Literal(
-                crate::core::Value::Int(1),
-            )),
+            arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: true,
         };
 
@@ -560,9 +553,7 @@ mod tests {
                 property: "*".to_string(),
             }),
             op: BinaryOperator::Add,
-            right: Box::new(Expression::Literal(
-                crate::core::Value::Int(1),
-            )),
+            right: Box::new(Expression::Literal(crate::core::Value::Int(1))),
         };
         assert!(strategy.has_wildcard_property(&expr3));
     }
@@ -577,9 +568,7 @@ mod tests {
                 property: "value".to_string(),
             }),
             op: BinaryOperator::Add,
-            right: Box::new(Expression::Literal(
-                crate::core::Value::Int(10),
-            )),
+            right: Box::new(Expression::Literal(crate::core::Value::Int(10))),
         };
 
         assert!(strategy.validate_expression_in_aggregate(&expr).is_ok());
@@ -615,15 +604,13 @@ mod tests {
                         property: "status".to_string(),
                     }),
                     op: BinaryOperator::Equal,
-                    right: Box::new(Expression::Literal(
-                        crate::core::Value::String("active".to_string()),
-                    )),
+                    right: Box::new(Expression::Literal(crate::core::Value::String(
+                        "active".to_string(),
+                    ))),
                 },
                 Expression::Literal(crate::core::Value::Int(1)),
             )],
-            default: Some(Box::new(Expression::Literal(
-                crate::core::Value::Int(0),
-            ))),
+            default: Some(Box::new(Expression::Literal(crate::core::Value::Int(0)))),
         };
 
         assert!(strategy.validate_expression_in_aggregate(&expr).is_ok());
@@ -687,9 +674,7 @@ mod tests {
         // 测试有效的COUNT聚合
         let expr = Expression::Aggregate {
             func: AggregateFunction::Count,
-            arg: Box::new(Expression::Literal(
-                crate::core::Value::Int(1),
-            )),
+            arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
 

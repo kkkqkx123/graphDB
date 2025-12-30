@@ -294,8 +294,7 @@ mod tests {
             .validate_pagination_expr(&int_expr, "LIMIT")
             .is_ok());
 
-        let string_expr =
-            Expression::Literal(crate::core::Value::String("invalid".to_string()));
+        let string_expr = Expression::Literal(crate::core::Value::String("invalid".to_string()));
         assert!(strategy
             .validate_pagination_expr(&string_expr, "LIMIT")
             .is_err());

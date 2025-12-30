@@ -319,8 +319,7 @@ mod tests {
         };
 
         // 测试布尔表达式
-        let bool_expr =
-            Expression::Literal(crate::core::Value::Bool(true));
+        let bool_expr = Expression::Literal(crate::core::Value::Bool(true));
         assert!(strategy.validate_filter(&bool_expr, &where_context).is_ok());
     }
 

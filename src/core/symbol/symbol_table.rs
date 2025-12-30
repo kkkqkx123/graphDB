@@ -498,7 +498,6 @@ mod tests {
         assert_eq!(new_var_readers[0].id(), "node1");
     }
 
-
     #[test]
     fn test_to_string() {
         let table = SymbolTable::new();

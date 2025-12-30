@@ -2,7 +2,6 @@
 //! 处理最短路径查询的规划
 //! 负责规划最短路径算法的执行
 
-
 use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::SubPlan;

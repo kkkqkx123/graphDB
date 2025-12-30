@@ -190,7 +190,11 @@ pub trait ExpressionVisitor {
         end: &Option<Box<Expression>>,
     ) -> Self::Result;
 
-    fn visit_match_path_pattern(&mut self, path_alias: &str, patterns: &[Expression]) -> Self::Result;
+    fn visit_match_path_pattern(
+        &mut self,
+        path_alias: &str,
+        patterns: &[Expression],
+    ) -> Self::Result;
 }
 
 /// 表达式访问者接受器 trait - 为Expression类型提供接受访问者的能力
@@ -300,7 +304,11 @@ pub trait ExpressionTransformer: ExpressionVisitor<Result = Expression> {
                     args: new_args,
                 }
             }
-            Expression::Aggregate { func, arg, distinct } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
                 let new_arg = self.transform(arg);
                 Expression::Aggregate {
                     func: func.clone(),

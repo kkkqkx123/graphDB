@@ -86,8 +86,8 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             state.executing_executors.insert(executor_id);
         }
 
-        let result: Result<ExecutionResult, QueryError> = executor.execute().await.map_err(|e| {
-            match e {
+        let result: Result<ExecutionResult, QueryError> =
+            executor.execute().await.map_err(|e| match e {
                 crate::core::error::DBError::Storage(storage_err) => {
                     QueryError::ExecutionError(storage_err.to_string())
                 }
@@ -115,8 +115,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                 crate::core::error::DBError::Index(msg) => QueryError::ExecutionError(msg),
                 crate::core::error::DBError::Transaction(msg) => QueryError::ExecutionError(msg),
                 crate::core::error::DBError::Internal(msg) => QueryError::ExecutionError(msg),
-            }
-        });
+            });
 
         {
             let mut state = safe_lock(&self.execution_state)

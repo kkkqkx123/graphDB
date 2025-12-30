@@ -35,8 +35,8 @@ pub use join::{
 // 数据转换执行器
 pub mod transformations;
 pub use transformations::{
-    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, PatternType,
-    RollUpApplyExecutor, UnwindExecutor,
+    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, PatternType, RollUpApplyExecutor,
+    UnwindExecutor,
 };
 
 // 循环控制

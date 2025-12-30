@@ -11,11 +11,11 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug, Clone)]
 pub struct CypherAstContext {
     base: AstContext,
-    query_parts: Vec<QueryPart>,                    // 查询分段（MATCH...WITH...MATCH...RETURN）
-    variables: HashMap<String, VariableInfo>,        // 变量信息
-    expressions: Vec<CypherExpression>,              // Cypher表达式
-    parameters: HashMap<String, String>,             // 查询参数
-    clause_references: HashMap<String, Vec<String>>,  // 子句间的引用关系
+    query_parts: Vec<QueryPart>, // 查询分段（MATCH...WITH...MATCH...RETURN）
+    variables: HashMap<String, VariableInfo>, // 变量信息
+    expressions: Vec<CypherExpression>, // Cypher表达式
+    parameters: HashMap<String, String>, // 查询参数
+    clause_references: HashMap<String, Vec<String>>, // 子句间的引用关系
 }
 
 /// 查询分段 - Cypher查询的逻辑分段
@@ -25,75 +25,75 @@ pub struct CypherAstContext {
 /// 包含两个QueryPart：MATCH (a) WITH a 和 MATCH (b) WHERE b.id = a.id RETURN b
 #[derive(Debug, Clone)]
 pub struct QueryPart {
-    pub part_id: String,                    // 分段ID
-    pub clauses: Vec<CypherClause>,         // 该分段包含的子句
-    pub input_variables: HashSet<String>,   // 输入变量（来自前一个分段）
-    pub output_variables: HashSet<String>,  // 输出变量（传递给下一个分段）
+    pub part_id: String,                   // 分段ID
+    pub clauses: Vec<CypherClause>,        // 该分段包含的子句
+    pub input_variables: HashSet<String>,  // 输入变量（来自前一个分段）
+    pub output_variables: HashSet<String>, // 输出变量（传递给下一个分段）
 }
 
 /// Cypher子句 - 专门化的子句结构
 #[derive(Debug, Clone)]
 pub struct CypherClause {
-    pub clause_kind: CypherClauseKind,      // 子句类型（强类型枚举）
-    pub content: String,                    // 子句内容
-    pub position: usize,                    // 在查询中的位置
-    pub referenced_clauses: Vec<String>,    // 引用的其他子句ID
+    pub clause_kind: CypherClauseKind,   // 子句类型（强类型枚举）
+    pub content: String,                 // 子句内容
+    pub position: usize,                 // 在查询中的位置
+    pub referenced_clauses: Vec<String>, // 引用的其他子句ID
 }
 
 /// Cypher模式定义 - 专门化的模式结构
 #[derive(Debug, Clone)]
 pub struct CypherPattern {
-    pub pattern_kind: PatternKind,          // 模式类型（强类型枚举）
-    pub variable_name: Option<String>,      // 变量名
-    pub labels: HashSet<String>,            // 标签列表（使用HashSet保证唯一性）
+    pub pattern_kind: PatternKind,           // 模式类型（强类型枚举）
+    pub variable_name: Option<String>,       // 变量名
+    pub labels: HashSet<String>,             // 标签列表（使用HashSet保证唯一性）
     pub properties: HashMap<String, String>, // 属性
-    pub alias_type: Option<AliasType>,      // 别名类型（强类型枚举）
+    pub alias_type: Option<AliasType>,       // 别名类型（强类型枚举）
 }
 
 /// 节点信息 - 专门化的节点结构
 #[derive(Debug, Clone)]
 pub struct NodeInfo {
-    pub variable_name: String,              // 变量名
-    pub labels: HashSet<String>,            // 标签列表
+    pub variable_name: String,               // 变量名
+    pub labels: HashSet<String>,             // 标签列表
     pub properties: HashMap<String, String>, // 属性
-    pub is_optional: bool,                  // 是否可选
+    pub is_optional: bool,                   // 是否可选
 }
 
 /// 边信息 - 专门化的边结构
 #[derive(Debug, Clone)]
 pub struct EdgeInfo {
-    pub variable_name: String,              // 变量名
-    pub edge_types: HashSet<String>,        // 边类型列表
-    pub direction: String,                  // 方向（"out", "in", "both"）
+    pub variable_name: String,               // 变量名
+    pub edge_types: HashSet<String>,         // 边类型列表
+    pub direction: String,                   // 方向（"out", "in", "both"）
     pub properties: HashMap<String, String>, // 属性
-    pub is_optional: bool,                  // 是否可选
+    pub is_optional: bool,                   // 是否可选
 }
 
 /// 路径信息 - 专门化的路径结构
 #[derive(Debug, Clone)]
 pub struct PathInfo {
-    pub variable_name: String,              // 变量名
-    pub nodes: Vec<String>,                 // 节点变量名列表
-    pub edges: Vec<String>,                 // 边变量名列表
-    pub is_shortest: bool,                  // 是否最短路径
+    pub variable_name: String, // 变量名
+    pub nodes: Vec<String>,    // 节点变量名列表
+    pub edges: Vec<String>,    // 边变量名列表
+    pub is_shortest: bool,     // 是否最短路径
 }
 
 /// Cypher表达式
 #[derive(Debug, Clone)]
 pub struct CypherExpression {
-    pub expression_type: String,           // "property", "function", "literal"
-    pub content: String,                   // 表达式内容
-    pub variable_name: Option<String>,     // 关联的变量名
+    pub expression_type: String,       // "property", "function", "literal"
+    pub content: String,               // 表达式内容
+    pub variable_name: Option<String>, // 关联的变量名
 }
 
 /// 变量信息 - 专门化的变量结构
 #[derive(Debug, Clone)]
 pub struct VariableInfo {
-    pub var_type: AliasType,               // 变量类型（强类型枚举）
-    pub labels: HashSet<String>,            // 标签列表
+    pub var_type: AliasType,                 // 变量类型（强类型枚举）
+    pub labels: HashSet<String>,             // 标签列表
     pub properties: HashMap<String, String>, // 属性
-    pub is_optional: bool,                  // 是否可选
-    pub scope: VariableScope,               // 变量作用域
+    pub is_optional: bool,                   // 是否可选
+    pub scope: VariableScope,                // 变量作用域
 }
 
 /// 变量作用域
@@ -127,7 +127,11 @@ impl CypherAstContext {
     pub fn add_pattern_to_part(&mut self, part_id: &str, pattern: CypherPattern) {
         if let Some(part) = self.query_parts.iter_mut().find(|p| p.part_id == part_id) {
             // 将模式信息添加到该分段的第一个MATCH子句中
-            if let Some(clause) = part.clauses.iter_mut().find(|c| c.clause_kind == CypherClauseKind::Match) {
+            if let Some(clause) = part
+                .clauses
+                .iter_mut()
+                .find(|c| c.clause_kind == CypherClauseKind::Match)
+            {
                 clause.content.push_str(&format!(" {:?}", pattern));
             }
         }
@@ -204,7 +208,11 @@ impl CypherAstContext {
     pub fn get_clauses_by_kind(&self, clause_kind: CypherClauseKind) -> Vec<&CypherClause> {
         self.query_parts
             .iter()
-            .flat_map(|part| part.clauses.iter().filter(move |c| c.clause_kind == clause_kind))
+            .flat_map(|part| {
+                part.clauses
+                    .iter()
+                    .filter(move |c| c.clause_kind == clause_kind)
+            })
             .collect()
     }
 

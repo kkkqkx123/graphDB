@@ -3,7 +3,9 @@
 
 use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
-use super::rule_traits::{create_basic_pattern, is_expression_tautology, is_tautology, BaseOptRule, EliminationRule};
+use super::rule_traits::{
+    create_basic_pattern, is_expression_tautology, is_tautology, BaseOptRule, EliminationRule,
+};
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::ProjectNode;
@@ -884,7 +886,6 @@ fn create_plan_node_with_output_var(
     plan_node: &PlanNodeEnum,
     output_var: crate::query::context::validate::types::Variable,
 ) -> PlanNodeEnum {
-    
     use crate::query::planner::plan::core::nodes::*;
 
     // 尝试将plan_node向下转换为具体类型，并创建带有新输出变量的新实例

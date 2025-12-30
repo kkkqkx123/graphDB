@@ -3,7 +3,9 @@
 
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::{BinaryInputNode, PlanNode, SingleInputNode};
+use crate::query::planner::plan::core::nodes::plan_node_traits::{
+    BinaryInputNode, PlanNode, SingleInputNode,
+};
 
 /// 多源最短路径计划节点
 #[derive(Debug, Clone)]

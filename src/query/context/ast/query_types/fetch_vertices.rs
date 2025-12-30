@@ -1,6 +1,6 @@
 //! Fetch Vertices查询上下文
 
-use crate::query::context::ast::{AstContext, ExpressionProps, Starts, FromType, YieldColumns};
+use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Starts, YieldColumns};
 
 // Fetch Vertices查询上下文
 #[derive(Debug, Clone)]

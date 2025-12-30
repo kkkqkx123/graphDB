@@ -14,7 +14,11 @@ pub struct DeleteVertices {
 
 impl DeleteVertices {
     pub fn new(id: i64, cost: f64, vertex_ids: Vec<String>) -> Self {
-        Self { id, cost, vertex_ids }
+        Self {
+            id,
+            cost,
+            vertex_ids,
+        }
     }
 
     pub fn vertex_ids(&self) -> &[String] {
@@ -51,7 +55,12 @@ pub struct DeleteTags {
 
 impl DeleteTags {
     pub fn new(id: i64, cost: f64, vertex_ids: Vec<String>, tags: Vec<String>) -> Self {
-        Self { id, cost, vertex_ids, tags }
+        Self {
+            id,
+            cost,
+            vertex_ids,
+            tags,
+        }
     }
 
     pub fn vertex_ids(&self) -> &[String] {

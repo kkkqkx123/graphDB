@@ -223,7 +223,11 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
         end: &Option<Box<Expression>>,
     ) -> Self::Result;
 
-    fn visit_match_path_pattern(&mut self, path_alias: &str, patterns: &[Expression]) -> Self::Result;
+    fn visit_match_path_pattern(
+        &mut self,
+        path_alias: &str,
+        patterns: &[Expression],
+    ) -> Self::Result;
 
     /// Expr类型（AST表达式）访问方法
     fn visit_constant_expr(&mut self, expr: &ConstantExpr) -> Self::Result;
@@ -563,7 +567,11 @@ pub trait ExpressionTransformer: ExpressionVisitor<Result = Expression> {
                     args: new_args,
                 }
             }
-            Expression::Aggregate { func, arg, distinct } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
                 let new_arg = self.transform(arg);
                 Expression::Aggregate {
                     func: func.clone(),
@@ -719,7 +727,11 @@ pub trait ExpressionVisitorExt: ExpressionVisitor {
         self.check_no_cycles(expr, &mut visited)
     }
 
-    fn check_no_cycles(&mut self, expr: &Expression, visited: &mut std::collections::HashSet<usize>) -> bool {
+    fn check_no_cycles(
+        &mut self,
+        expr: &Expression,
+        visited: &mut std::collections::HashSet<usize>,
+    ) -> bool {
         let expr_id = expr as *const _ as usize;
 
         if visited.contains(&expr_id) {

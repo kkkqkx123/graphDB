@@ -332,7 +332,11 @@ impl ExprParser {
             self.lexer.advance();
             text.parse().map_err(|_| {
                 let span = self.current_span();
-                ParseError::new(format!("Invalid integer: {}", text), span.start.line, span.start.column)
+                ParseError::new(
+                    format!("Invalid integer: {}", text),
+                    span.start.line,
+                    span.start.column,
+                )
             })
         } else {
             let span = self.current_span();
@@ -351,7 +355,11 @@ impl ExprParser {
             self.lexer.advance();
             text.parse().map_err(|_| {
                 let span = self.current_span();
-                ParseError::new(format!("Invalid float: {}", text), span.start.line, span.start.column)
+                ParseError::new(
+                    format!("Invalid float: {}", text),
+                    span.start.line,
+                    span.start.column,
+                )
             })
         } else {
             let span = self.current_span();
@@ -386,7 +394,11 @@ impl ExprParser {
             self.lexer.advance();
             text.parse().map_err(|_| {
                 let span = self.current_span();
-                ParseError::new(format!("Invalid boolean: {}", text), span.start.line, span.start.column)
+                ParseError::new(
+                    format!("Invalid boolean: {}", text),
+                    span.start.line,
+                    span.start.column,
+                )
             })
         } else {
             let span = self.current_span();

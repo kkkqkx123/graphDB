@@ -1,10 +1,10 @@
 //! 查询执行上下文 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
-use crate::core::context::{QueryExecutionContext, ValidationContext};
 use crate::core::context::request::RequestContext;
-use crate::core::{SymbolTable, Value};
+use crate::core::context::{QueryExecutionContext, ValidationContext};
 use crate::core::error::{ManagerError, ManagerResult};
+use crate::core::{SymbolTable, Value};
 use crate::graph::utils::IdGenerator;
 use crate::query::context::managers::{
     CharsetInfo, IndexManager, MetaClient, SchemaManager, StorageClient,
@@ -472,7 +472,12 @@ mod tests {
             self.schemas.contains_key(name)
         }
 
-        fn create_tag(&self, _space_id: i32, _tag_name: &str, _fields: Vec<crate::query::context::managers::FieldDef>) -> ManagerResult<i32> {
+        fn create_tag(
+            &self,
+            _space_id: i32,
+            _tag_name: &str,
+            _fields: Vec<crate::query::context::managers::FieldDef>,
+        ) -> ManagerResult<i32> {
             Ok(1)
         }
 
@@ -480,11 +485,18 @@ mod tests {
             Ok(())
         }
 
-        fn get_tag(&self, _space_id: i32, _tag_id: i32) -> Option<crate::query::context::managers::TagDef> {
+        fn get_tag(
+            &self,
+            _space_id: i32,
+            _tag_id: i32,
+        ) -> Option<crate::query::context::managers::TagDef> {
             None
         }
 
-        fn list_tags(&self, _space_id: i32) -> ManagerResult<Vec<crate::query::context::managers::TagDef>> {
+        fn list_tags(
+            &self,
+            _space_id: i32,
+        ) -> ManagerResult<Vec<crate::query::context::managers::TagDef>> {
             Ok(Vec::new())
         }
 
@@ -492,7 +504,12 @@ mod tests {
             false
         }
 
-        fn create_edge_type(&self, _space_id: i32, _edge_type_name: &str, _fields: Vec<crate::query::context::managers::FieldDef>) -> ManagerResult<i32> {
+        fn create_edge_type(
+            &self,
+            _space_id: i32,
+            _edge_type_name: &str,
+            _fields: Vec<crate::query::context::managers::FieldDef>,
+        ) -> ManagerResult<i32> {
             Ok(1)
         }
 
@@ -500,11 +517,18 @@ mod tests {
             Ok(())
         }
 
-        fn get_edge_type(&self, _space_id: i32, _edge_type_id: i32) -> Option<crate::query::context::managers::EdgeTypeDef> {
+        fn get_edge_type(
+            &self,
+            _space_id: i32,
+            _edge_type_id: i32,
+        ) -> Option<crate::query::context::managers::EdgeTypeDef> {
             None
         }
 
-        fn list_edge_types(&self, _space_id: i32) -> ManagerResult<Vec<crate::query::context::managers::EdgeTypeDef>> {
+        fn list_edge_types(
+            &self,
+            _space_id: i32,
+        ) -> ManagerResult<Vec<crate::query::context::managers::EdgeTypeDef>> {
             Ok(Vec::new())
         }
 
@@ -520,11 +544,19 @@ mod tests {
             Ok(())
         }
 
-        fn create_schema_version(&self, _space_id: i32, _comment: Option<String>) -> ManagerResult<i32> {
+        fn create_schema_version(
+            &self,
+            _space_id: i32,
+            _comment: Option<String>,
+        ) -> ManagerResult<i32> {
             Ok(1)
         }
 
-        fn get_schema_version(&self, _space_id: i32, _version: i32) -> Option<crate::query::context::managers::SchemaVersion> {
+        fn get_schema_version(
+            &self,
+            _space_id: i32,
+            _version: i32,
+        ) -> Option<crate::query::context::managers::SchemaVersion> {
             None
         }
 
@@ -532,7 +564,10 @@ mod tests {
             Some(1)
         }
 
-        fn get_schema_history(&self, _space_id: i32) -> ManagerResult<crate::query::context::managers::SchemaHistory> {
+        fn get_schema_history(
+            &self,
+            _space_id: i32,
+        ) -> ManagerResult<crate::query::context::managers::SchemaHistory> {
             Ok(crate::query::context::managers::SchemaHistory {
                 space_id: _space_id,
                 versions: Vec::new(),
@@ -595,8 +630,12 @@ mod tests {
         fn drop_index(&self, _space_id: i32, _index_id: i32) -> ManagerResult<()> {
             Ok(())
         }
-        
-        fn get_index_status(&self, _space_id: i32, _index_id: i32) -> Option<crate::query::context::managers::IndexStatus> {
+
+        fn get_index_status(
+            &self,
+            _space_id: i32,
+            _index_id: i32,
+        ) -> Option<crate::query::context::managers::IndexStatus> {
             Some(crate::query::context::managers::IndexStatus::Active)
         }
 
@@ -604,19 +643,41 @@ mod tests {
             Ok(self.indexes.values().cloned().collect())
         }
 
-        fn lookup_vertex_by_index(&self, _space_id: i32, _index_name: &str, _values: &[crate::core::Value]) -> ManagerResult<Vec<crate::core::Vertex>> {
+        fn lookup_vertex_by_index(
+            &self,
+            _space_id: i32,
+            _index_name: &str,
+            _values: &[crate::core::Value],
+        ) -> ManagerResult<Vec<crate::core::Vertex>> {
             Ok(Vec::new())
         }
 
-        fn lookup_edge_by_index(&self, _space_id: i32, _index_name: &str, _values: &[crate::core::Value]) -> ManagerResult<Vec<crate::core::Edge>> {
+        fn lookup_edge_by_index(
+            &self,
+            _space_id: i32,
+            _index_name: &str,
+            _values: &[crate::core::Value],
+        ) -> ManagerResult<Vec<crate::core::Edge>> {
             Ok(Vec::new())
         }
 
-        fn range_lookup_vertex(&self, _space_id: i32, _index_name: &str, _start: &crate::core::Value, _end: &crate::core::Value) -> ManagerResult<Vec<crate::core::Vertex>> {
+        fn range_lookup_vertex(
+            &self,
+            _space_id: i32,
+            _index_name: &str,
+            _start: &crate::core::Value,
+            _end: &crate::core::Value,
+        ) -> ManagerResult<Vec<crate::core::Vertex>> {
             Ok(Vec::new())
         }
 
-        fn range_lookup_edge(&self, _space_id: i32, _index_name: &str, _start: &crate::core::Value, _end: &crate::core::Value) -> ManagerResult<Vec<crate::core::Edge>> {
+        fn range_lookup_edge(
+            &self,
+            _space_id: i32,
+            _index_name: &str,
+            _start: &crate::core::Value,
+            _end: &crate::core::Value,
+        ) -> ManagerResult<Vec<crate::core::Edge>> {
             Ok(Vec::new())
         }
 
@@ -628,27 +689,53 @@ mod tests {
             Ok(())
         }
 
-        fn insert_vertex_to_index(&self, _space_id: i32, _vertex: &crate::core::Vertex) -> ManagerResult<()> {
+        fn insert_vertex_to_index(
+            &self,
+            _space_id: i32,
+            _vertex: &crate::core::Vertex,
+        ) -> ManagerResult<()> {
             Ok(())
         }
 
-        fn delete_vertex_from_index(&self, _space_id: i32, _vertex: &crate::core::Vertex) -> ManagerResult<()> {
+        fn delete_vertex_from_index(
+            &self,
+            _space_id: i32,
+            _vertex: &crate::core::Vertex,
+        ) -> ManagerResult<()> {
             Ok(())
         }
 
-        fn update_vertex_in_index(&self, _space_id: i32, _old_vertex: &crate::core::Vertex, _new_vertex: &crate::core::Vertex) -> ManagerResult<()> {
+        fn update_vertex_in_index(
+            &self,
+            _space_id: i32,
+            _old_vertex: &crate::core::Vertex,
+            _new_vertex: &crate::core::Vertex,
+        ) -> ManagerResult<()> {
             Ok(())
         }
 
-        fn insert_edge_to_index(&self, _space_id: i32, _edge: &crate::core::Edge) -> ManagerResult<()> {
+        fn insert_edge_to_index(
+            &self,
+            _space_id: i32,
+            _edge: &crate::core::Edge,
+        ) -> ManagerResult<()> {
             Ok(())
         }
 
-        fn delete_edge_from_index(&self, _space_id: i32, _edge: &crate::core::Edge) -> ManagerResult<()> {
+        fn delete_edge_from_index(
+            &self,
+            _space_id: i32,
+            _edge: &crate::core::Edge,
+        ) -> ManagerResult<()> {
             Ok(())
         }
 
-        fn update_edge_in_index(&self, _space_id: i32, _old_edge: &crate::core::Edge, _new_edge: &crate::core::Edge) -> ManagerResult<()> {
+        fn update_edge_in_index(
+            &self,
+            _space_id: i32,
+            _old_edge: &crate::core::Edge,
+            _new_edge: &crate::core::Edge,
+        ) -> ManagerResult<()> {
             Ok(())
         }
     }
@@ -672,87 +759,188 @@ mod tests {
             true
         }
 
-        fn add_vertex(&self, _space_id: i32, _vertex: crate::core::Vertex) -> ManagerResult<crate::query::context::managers::ExecResponse> {
+        fn add_vertex(
+            &self,
+            _space_id: i32,
+            _vertex: crate::core::Vertex,
+        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
             Ok(crate::query::context::managers::ExecResponse::ok())
         }
 
-        fn add_vertices(&self, _space_id: i32, _vertices: Vec<crate::query::context::managers::NewVertex>) -> ManagerResult<crate::query::context::managers::ExecResponse> {
+        fn add_vertices(
+            &self,
+            _space_id: i32,
+            _vertices: Vec<crate::query::context::managers::NewVertex>,
+        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
             Ok(crate::query::context::managers::ExecResponse::ok())
         }
 
-        fn get_vertex(&self, _space_id: i32, _vid: &crate::core::Value) -> ManagerResult<Option<crate::core::Vertex>> {
+        fn get_vertex(
+            &self,
+            _space_id: i32,
+            _vid: &crate::core::Value,
+        ) -> ManagerResult<Option<crate::core::Vertex>> {
             Ok(None)
         }
 
-        fn get_vertices(&self, _space_id: i32, _vids: &[crate::core::Value]) -> ManagerResult<Vec<Option<crate::core::Vertex>>> {
+        fn get_vertices(
+            &self,
+            _space_id: i32,
+            _vids: &[crate::core::Value],
+        ) -> ManagerResult<Vec<Option<crate::core::Vertex>>> {
             Ok(Vec::new())
         }
 
-        fn delete_vertex(&self, _space_id: i32, _vid: &crate::core::Value) -> ManagerResult<crate::query::context::managers::ExecResponse> {
+        fn delete_vertex(
+            &self,
+            _space_id: i32,
+            _vid: &crate::core::Value,
+        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
             Ok(crate::query::context::managers::ExecResponse::ok())
         }
 
-        fn delete_vertices(&self, _space_id: i32, _vids: &[crate::core::Value]) -> ManagerResult<crate::query::context::managers::ExecResponse> {
+        fn delete_vertices(
+            &self,
+            _space_id: i32,
+            _vids: &[crate::core::Value],
+        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
             Ok(crate::query::context::managers::ExecResponse::ok())
         }
 
-        fn delete_tags(&self, _space_id: i32, _del_tags: Vec<crate::query::context::managers::DelTags>) -> ManagerResult<crate::query::context::managers::ExecResponse> {
+        fn delete_tags(
+            &self,
+            _space_id: i32,
+            _del_tags: Vec<crate::query::context::managers::DelTags>,
+        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
             Ok(crate::query::context::managers::ExecResponse::ok())
         }
 
-        fn update_vertex(&self, _space_id: i32, _vid: &crate::core::Value, _tag_id: i32, _updated_props: Vec<crate::query::context::managers::UpdatedProp>, _insertable: bool, _return_props: Vec<String>, _condition: Option<String>) -> ManagerResult<crate::query::context::managers::UpdateResponse> {
-            Ok(crate::query::context::managers::UpdateResponse::ok(false, None))
+        fn update_vertex(
+            &self,
+            _space_id: i32,
+            _vid: &crate::core::Value,
+            _tag_id: i32,
+            _updated_props: Vec<crate::query::context::managers::UpdatedProp>,
+            _insertable: bool,
+            _return_props: Vec<String>,
+            _condition: Option<String>,
+        ) -> ManagerResult<crate::query::context::managers::UpdateResponse> {
+            Ok(crate::query::context::managers::UpdateResponse::ok(
+                false, None,
+            ))
         }
 
-        fn add_edge(&self, _space_id: i32, _edge: crate::core::Edge) -> ManagerResult<crate::query::context::managers::ExecResponse> {
+        fn add_edge(
+            &self,
+            _space_id: i32,
+            _edge: crate::core::Edge,
+        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
             Ok(crate::query::context::managers::ExecResponse::ok())
         }
 
-        fn add_edges(&self, _space_id: i32, _edges: Vec<crate::query::context::managers::NewEdge>) -> ManagerResult<crate::query::context::managers::ExecResponse> {
+        fn add_edges(
+            &self,
+            _space_id: i32,
+            _edges: Vec<crate::query::context::managers::NewEdge>,
+        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
             Ok(crate::query::context::managers::ExecResponse::ok())
         }
 
-        fn get_edge(&self, _space_id: i32, _edge_key: &crate::query::context::managers::EdgeKey) -> ManagerResult<Option<crate::core::Edge>> {
+        fn get_edge(
+            &self,
+            _space_id: i32,
+            _edge_key: &crate::query::context::managers::EdgeKey,
+        ) -> ManagerResult<Option<crate::core::Edge>> {
             Ok(None)
         }
 
-        fn get_edges(&self, _space_id: i32, _edge_keys: &[crate::query::context::managers::EdgeKey]) -> ManagerResult<Vec<Option<crate::core::Edge>>> {
+        fn get_edges(
+            &self,
+            _space_id: i32,
+            _edge_keys: &[crate::query::context::managers::EdgeKey],
+        ) -> ManagerResult<Vec<Option<crate::core::Edge>>> {
             Ok(Vec::new())
         }
 
-        fn delete_edge(&self, _space_id: i32, _edge_key: &crate::query::context::managers::EdgeKey) -> ManagerResult<crate::query::context::managers::ExecResponse> {
+        fn delete_edge(
+            &self,
+            _space_id: i32,
+            _edge_key: &crate::query::context::managers::EdgeKey,
+        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
             Ok(crate::query::context::managers::ExecResponse::ok())
         }
 
-        fn delete_edges(&self, _space_id: i32, _edge_keys: &[crate::query::context::managers::EdgeKey]) -> ManagerResult<crate::query::context::managers::ExecResponse> {
+        fn delete_edges(
+            &self,
+            _space_id: i32,
+            _edge_keys: &[crate::query::context::managers::EdgeKey],
+        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
             Ok(crate::query::context::managers::ExecResponse::ok())
         }
 
-        fn update_edge(&self, _space_id: i32, _edge_key: &crate::query::context::managers::EdgeKey, _updated_props: Vec<crate::query::context::managers::UpdatedProp>, _insertable: bool, _return_props: Vec<String>, _condition: Option<String>) -> ManagerResult<crate::query::context::managers::UpdateResponse> {
-            Ok(crate::query::context::managers::UpdateResponse::ok(false, None))
+        fn update_edge(
+            &self,
+            _space_id: i32,
+            _edge_key: &crate::query::context::managers::EdgeKey,
+            _updated_props: Vec<crate::query::context::managers::UpdatedProp>,
+            _insertable: bool,
+            _return_props: Vec<String>,
+            _condition: Option<String>,
+        ) -> ManagerResult<crate::query::context::managers::UpdateResponse> {
+            Ok(crate::query::context::managers::UpdateResponse::ok(
+                false, None,
+            ))
         }
 
-        fn scan_vertices(&self, _space_id: i32, _limit: Option<usize>) -> ManagerResult<Vec<crate::core::Vertex>> {
+        fn scan_vertices(
+            &self,
+            _space_id: i32,
+            _limit: Option<usize>,
+        ) -> ManagerResult<Vec<crate::core::Vertex>> {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_tag(&self, _space_id: i32, _tag_id: i32, _limit: Option<usize>) -> ManagerResult<Vec<crate::core::Vertex>> {
+        fn scan_vertices_by_tag(
+            &self,
+            _space_id: i32,
+            _tag_id: i32,
+            _limit: Option<usize>,
+        ) -> ManagerResult<Vec<crate::core::Vertex>> {
             Ok(Vec::new())
         }
 
-        fn scan_edges(&self, _space_id: i32, _limit: Option<usize>) -> ManagerResult<Vec<crate::core::Edge>> {
+        fn scan_edges(
+            &self,
+            _space_id: i32,
+            _limit: Option<usize>,
+        ) -> ManagerResult<Vec<crate::core::Edge>> {
             Ok(Vec::new())
         }
 
-        fn scan_edges_by_type(&self, _space_id: i32, _edge_type: &str, _limit: Option<usize>) -> ManagerResult<Vec<crate::core::Edge>> {
+        fn scan_edges_by_type(
+            &self,
+            _space_id: i32,
+            _edge_type: &str,
+            _limit: Option<usize>,
+        ) -> ManagerResult<Vec<crate::core::Edge>> {
             Ok(Vec::new())
         }
 
-        fn scan_edges_by_src(&self, _space_id: i32, _src: &crate::core::Value, _limit: Option<usize>) -> ManagerResult<Vec<crate::core::Edge>> {
+        fn scan_edges_by_src(
+            &self,
+            _space_id: i32,
+            _src: &crate::core::Value,
+            _limit: Option<usize>,
+        ) -> ManagerResult<Vec<crate::core::Edge>> {
             Ok(Vec::new())
         }
 
-        fn scan_edges_by_dst(&self, _space_id: i32, _dst: &crate::core::Value, _limit: Option<usize>) -> ManagerResult<Vec<crate::core::Edge>> {
+        fn scan_edges_by_dst(
+            &self,
+            _space_id: i32,
+            _dst: &crate::core::Value,
+            _limit: Option<usize>,
+        ) -> ManagerResult<Vec<crate::core::Edge>> {
             Ok(Vec::new())
         }
     }
@@ -785,7 +973,12 @@ mod tests {
             true
         }
 
-        fn create_space(&self, _space_name: &str, _partition_num: i32, _replica_factor: i32) -> ManagerResult<i32> {
+        fn create_space(
+            &self,
+            _space_name: &str,
+            _partition_num: i32,
+            _replica_factor: i32,
+        ) -> ManagerResult<i32> {
             Ok(1)
         }
 

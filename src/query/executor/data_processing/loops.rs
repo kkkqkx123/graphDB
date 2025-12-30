@@ -6,16 +6,16 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::expression::DefaultExpressionContext;
-use crate::expression::evaluator::traits::ExpressionContext;
-use crate::core::Value;
 use crate::core::Expression;
+use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::evaluator::traits::ExpressionContext;
+use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
+use crate::query::executor::recursion_detector::{
+    ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
-use crate::query::executor::recursion_detector::{RecursionDetector, ExecutorSafetyValidator, ExecutorSafetyConfig};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 循环状态
@@ -57,9 +57,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
         max_iterations: Option<usize>,
     ) -> Self {
         let recursion_detector = RecursionDetector::new(100);
-        let safety_validator = ExecutorSafetyValidator::new(
-            ExecutorSafetyConfig::default()
-        );
+        let safety_validator = ExecutorSafetyValidator::new(ExecutorSafetyConfig::default());
 
         Self {
             base: BaseExecutor::new(id, "LoopExecutor".to_string(), storage),
@@ -81,9 +79,9 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
     pub fn validate_no_self_reference(&self) -> Result<(), DBError> {
         // 检查body_executor是否指向自身
         if self.body_executor.id() == self.base.id {
-            return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
-                "循环执行器不能自引用".to_string()
-            )));
+            return Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError("循环执行器不能自引用".to_string()),
+            ));
         }
         Ok(())
     }
@@ -92,8 +90,8 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
     async fn evaluate_condition(&mut self) -> DBResult<bool> {
         match &self.condition {
             Some(expr) => {
-                let result = ExpressionEvaluator::evaluate(expr, &mut self.loop_context)
-                    .map_err(|e| {
+                let result =
+                    ExpressionEvaluator::evaluate(expr, &mut self.loop_context).map_err(|e| {
                         DBError::Expression(crate::core::error::ExpressionError::function_error(
                             e.to_string(),
                         ))
@@ -265,16 +263,13 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.validate_no_self_reference()?;
-        
-        self.safety_validator.validate_loop_config(
-            self.max_iterations,
-        )?;
-        
-        self.recursion_detector.validate_executor(
-            self.body_executor.id(),
-            self.body_executor.name(),
-        )?;
-        
+
+        self.safety_validator
+            .validate_loop_config(self.max_iterations)?;
+
+        self.recursion_detector
+            .validate_executor(self.body_executor.id(), self.body_executor.name())?;
+
         self.loop_state = LoopState::Running;
         self.results.clear();
         self.current_iteration = 0;
@@ -311,7 +306,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
         }
 
         let _ = self.body_executor.close();
-        
+
         self.recursion_detector.leave_executor();
 
         if !matches!(self.loop_state, LoopState::Error(_)) {

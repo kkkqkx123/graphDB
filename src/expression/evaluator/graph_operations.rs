@@ -17,12 +17,17 @@ impl GraphOperationEvaluator {
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
         if let Some(vertex) = context.get_vertex() {
-            let label_list: Vec<Value> = vertex.tags.iter()
+            let label_list: Vec<Value> = vertex
+                .tags
+                .iter()
                 .map(|tag| Value::String(tag.name.clone()))
                 .collect();
             Ok(Value::List(label_list))
         } else {
-            Err(ExpressionError::runtime_error(format!("标签表达式需要顶点上下文: {}", label_name)))
+            Err(ExpressionError::runtime_error(format!(
+                "标签表达式需要顶点上下文: {}",
+                label_name
+            )))
         }
     }
 
@@ -42,11 +47,13 @@ impl GraphOperationEvaluator {
                 }
             }
             Err(ExpressionError::runtime_error(format!(
-                "标签属性不存在: {}.{}", tag_name, prop_name
+                "标签属性不存在: {}.{}",
+                tag_name, prop_name
             )))
         } else {
             Err(ExpressionError::runtime_error(format!(
-                "标签属性表达式需要顶点上下文: {}.{}", tag_name, prop_name
+                "标签属性表达式需要顶点上下文: {}.{}",
+                tag_name, prop_name
             )))
         }
     }
@@ -64,16 +71,20 @@ impl GraphOperationEvaluator {
                     return Ok(value.clone());
                 }
                 Err(ExpressionError::runtime_error(format!(
-                    "边属性不存在: {}.{}", edge_name, prop_name
+                    "边属性不存在: {}.{}",
+                    edge_name, prop_name
                 )))
             } else {
                 Err(ExpressionError::runtime_error(format!(
-                    "边名称不匹配: 期望 '{}', 实际 '{}'", edge_name, edge.edge_type()
+                    "边名称不匹配: 期望 '{}', 实际 '{}'",
+                    edge_name,
+                    edge.edge_type()
                 )))
             }
         } else {
             Err(ExpressionError::runtime_error(format!(
-                "边属性表达式需要边上下文: {}.{}", edge_name, prop_name
+                "边属性表达式需要边上下文: {}.{}",
+                edge_name, prop_name
             )))
         }
     }
@@ -92,7 +103,8 @@ impl GraphOperationEvaluator {
                         Ok(prop_value.clone())
                     } else {
                         Err(ExpressionError::runtime_error(format!(
-                            "顶点属性不存在: {}.{}", var_name, prop_name
+                            "顶点属性不存在: {}.{}",
+                            var_name, prop_name
                         )))
                     }
                 }
@@ -101,7 +113,8 @@ impl GraphOperationEvaluator {
                         Ok(prop_value.clone())
                     } else {
                         Err(ExpressionError::runtime_error(format!(
-                            "边属性不存在: {}.{}", var_name, prop_name
+                            "边属性不存在: {}.{}",
+                            var_name, prop_name
                         )))
                     }
                 }
@@ -110,12 +123,14 @@ impl GraphOperationEvaluator {
                         Ok(prop_value.clone())
                     } else {
                         Err(ExpressionError::runtime_error(format!(
-                            "映射属性不存在: {}.{}", var_name, prop_name
+                            "映射属性不存在: {}.{}",
+                            var_name, prop_name
                         )))
                     }
                 }
                 _ => Err(ExpressionError::type_error(format!(
-                    "变量属性访问需要顶点、边或映射类型: {}", var_name
+                    "变量属性访问需要顶点、边或映射类型: {}",
+                    var_name
                 ))),
             }
         } else {
@@ -142,11 +157,13 @@ impl GraphOperationEvaluator {
                         }
                     }
                     Err(ExpressionError::runtime_error(format!(
-                        "源标签属性不存在: $^.{}.{}", tag_name, prop_name
+                        "源标签属性不存在: $^.{}.{}",
+                        tag_name, prop_name
                     )))
                 } else {
                     Err(ExpressionError::type_error(format!(
-                        "源属性表达式需要顶点类型: $^.{}.{}", tag_name, prop_name
+                        "源属性表达式需要顶点类型: $^.{}.{}",
+                        tag_name, prop_name
                     )))
                 }
             } else {
@@ -154,7 +171,8 @@ impl GraphOperationEvaluator {
             }
         } else {
             Err(ExpressionError::runtime_error(format!(
-                "源属性表达式需要边上下文: $^.{}.{}", tag_name, prop_name
+                "源属性表达式需要边上下文: $^.{}.{}",
+                tag_name, prop_name
             )))
         }
     }
@@ -178,11 +196,13 @@ impl GraphOperationEvaluator {
                         }
                     }
                     Err(ExpressionError::runtime_error(format!(
-                        "目的标签属性不存在: $$.{}.{}", tag_name, prop_name
+                        "目的标签属性不存在: $$.{}.{}",
+                        tag_name, prop_name
                     )))
                 } else {
                     Err(ExpressionError::type_error(format!(
-                        "目的属性表达式需要顶点类型: $$.{}.{}", tag_name, prop_name
+                        "目的属性表达式需要顶点类型: $$.{}.{}",
+                        tag_name, prop_name
                     )))
                 }
             } else {
@@ -190,7 +210,8 @@ impl GraphOperationEvaluator {
             }
         } else {
             Err(ExpressionError::runtime_error(format!(
-                "目的属性表达式需要边上下文: $$.{}.{}", tag_name, prop_name
+                "目的属性表达式需要边上下文: $$.{}.{}",
+                tag_name, prop_name
             )))
         }
     }

@@ -10,7 +10,6 @@ use crate::query::planner::planner::{Planner, PlannerError};
 /// 处理Cypher MATCH语句的转换为执行计划
 #[derive(Debug)]
 pub struct MatchPlanner {
-    
     tail_connected: bool,
 }
 

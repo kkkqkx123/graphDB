@@ -56,10 +56,7 @@ impl ThreadPool {
 struct Worker {}
 
 impl Worker {
-    fn new(
-        _tasks: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send>>>>,
-        _notifier: Arc<Notify>,
-    ) -> Self {
+    fn new(_tasks: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send>>>>, _notifier: Arc<Notify>) -> Self {
         thread::spawn(move || {
             loop {
                 // Wait for a task notification

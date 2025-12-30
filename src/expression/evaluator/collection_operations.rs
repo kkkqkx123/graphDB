@@ -2,8 +2,8 @@
 //!
 //! 提供集合类型的求值功能，包括下标访问、范围访问和属性访问
 
-use crate::core::Value;
 use crate::core::error::ExpressionError;
+use crate::core::Value;
 
 /// 集合操作求值器
 pub struct CollectionOperationEvaluator;
@@ -51,9 +51,9 @@ impl CollectionOperationEvaluator {
             }
             Value::Map(map) => {
                 if let Value::String(key) = index {
-                    map.get(key)
-                        .cloned()
-                        .ok_or_else(|| ExpressionError::runtime_error(format!("映射键不存在: {}", key)))
+                    map.get(key).cloned().ok_or_else(|| {
+                        ExpressionError::runtime_error(format!("映射键不存在: {}", key))
+                    })
                 } else {
                     Err(ExpressionError::type_error("映射键必须是字符串"))
                 }

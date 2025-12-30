@@ -1,7 +1,7 @@
 //! 递归检测器 - 防止执行器循环引用
 
-use std::collections::{HashSet, HashMap};
 use crate::core::error::{DBError, DBResult};
+use std::collections::{HashMap, HashSet};
 
 /// 递归检测器
 #[derive(Debug, Clone)]
@@ -27,31 +27,32 @@ impl RecursionDetector {
     pub fn validate_executor(&mut self, executor_id: i64, executor_name: &str) -> DBResult<()> {
         // 检查访问深度
         if self.visited_stack.len() >= self.max_depth {
-            return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
-                format!(
+            return Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(format!(
                     "执行器调用深度超过最大限制 {}: 路径 {:?}",
                     self.max_depth,
                     self.get_recursion_path()
-                )
-            )));
+                )),
+            ));
         }
 
         // 检查循环引用
         if self.visited_set.contains(&executor_id) {
-            return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
-                format!(
+            return Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(format!(
                     "检测到执行器循环引用: {} (ID: {}) 在路径 {:?}",
                     executor_name,
                     executor_id,
                     self.get_recursion_path()
-                )
-            )));
+                )),
+            ));
         }
 
         // 记录访问
         self.visited_stack.push(executor_id);
         self.visited_set.insert(executor_id);
-        self.recursion_path.push(format!("{}({})", executor_name, executor_id));
+        self.recursion_path
+            .push(format!("{}({})", executor_name, executor_id));
 
         Ok(())
     }
@@ -140,7 +141,8 @@ impl ExecutorSafetyValidator {
         executor_name: &str,
     ) -> DBResult<()> {
         if self.config.enable_recursion_detection {
-            self.recursion_detector.validate_executor(executor_id, executor_name)?;
+            self.recursion_detector
+                .validate_executor(executor_id, executor_name)?;
         }
         Ok(())
     }
@@ -149,12 +151,12 @@ impl ExecutorSafetyValidator {
     pub fn validate_loop_config(&self, max_iterations: Option<usize>) -> DBResult<()> {
         if let Some(iterations) = max_iterations {
             if iterations > self.config.max_loop_iterations {
-                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    format!(
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(format!(
                         "循环最大迭代次数 {} 超过限制 {}",
                         iterations, self.config.max_loop_iterations
-                    )
-                )));
+                    )),
+                ));
             }
         }
         Ok(())
@@ -164,12 +166,12 @@ impl ExecutorSafetyValidator {
     pub fn validate_expand_config(&self, max_depth: Option<usize>) -> DBResult<()> {
         if let Some(depth) = max_depth {
             if depth > self.config.max_expand_depth {
-                return Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    format!(
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(format!(
                         "扩展最大深度 {} 超过限制 {}",
                         depth, self.config.max_expand_depth
-                    )
-                )));
+                    )),
+                ));
             }
         }
         Ok(())

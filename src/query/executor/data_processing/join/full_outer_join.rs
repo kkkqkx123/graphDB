@@ -5,11 +5,10 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, Value};
 use crate::query::executor::data_processing::join::{
-    base_join::BaseJoinExecutor, hash_table::{build_hash_table, extract_key_values, JoinKey},
+    base_join::BaseJoinExecutor,
+    hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 全外连接执行器
@@ -29,7 +28,8 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
         output_columns: Vec<String>,
     ) -> Self {
         let hash_keys: Vec<Expression> = left_keys.into_iter().map(Expression::Variable).collect();
-        let probe_keys: Vec<Expression> = right_keys.into_iter().map(Expression::Variable).collect();
+        let probe_keys: Vec<Expression> =
+            right_keys.into_iter().map(Expression::Variable).collect();
         Self {
             base: BaseJoinExecutor::with_description(
                 id,
@@ -112,8 +112,8 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
             .collect();
 
         // 构建左表哈希表：以左表连接键作为键，行索引作为值
-        let left_hash_table_indices =
-            build_hash_table(&left_dataset, self.base.hash_keys()).map_err(|e| {
+        let left_hash_table_indices = build_hash_table(&left_dataset, self.base.hash_keys())
+            .map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
                     "Failed to build left hash table: {}",
                     e
@@ -130,8 +130,8 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
         }
 
         // 构建右表哈希表：以右表连接键作为键，行索引作为值
-        let right_hash_table_indices =
-            build_hash_table(&right_dataset, self.base.probe_keys()).map_err(|e| {
+        let right_hash_table_indices = build_hash_table(&right_dataset, self.base.probe_keys())
+            .map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
                     "Failed to build right hash table: {}",
                     e
@@ -257,6 +257,10 @@ impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStora
     for FullOuterJoinExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.get_base().storage.as_ref().expect("FullOuterJoinExecutor storage should be set")
+        self.base
+            .get_base()
+            .storage
+            .as_ref()
+            .expect("FullOuterJoinExecutor storage should be set")
     }
 }

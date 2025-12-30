@@ -66,7 +66,7 @@ pub type DBResult<T> = Result<T, DBError>;
 pub type ManagerResult<T> = Result<T, ManagerError>;
 
 /// 存储层错误类型
-/// 
+///
 /// 涵盖数据库底层存储操作相关的错误
 #[derive(Error, Debug, Clone)]
 pub enum StorageError {
@@ -83,7 +83,7 @@ pub enum StorageError {
 }
 
 /// 查询层错误类型
-/// 
+///
 /// 涵盖查询解析、验证和执行过程中的错误
 #[derive(Error, Debug, Clone)]
 pub enum QueryError {
@@ -100,7 +100,7 @@ pub enum QueryError {
 }
 
 /// 表达式错误（结构化设计）
-/// 
+///
 /// 包含错误类型、错误消息和可选的位置信息
 /// 支持序列化/反序列化，用于跨模块传递
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -300,10 +300,17 @@ impl ExpressionError {
     }
 
     /// 创建不支持的操作错误
-    pub fn unsupported_operation(operation: impl Into<String>, suggestion: impl Into<String>) -> Self {
+    pub fn unsupported_operation(
+        operation: impl Into<String>,
+        suggestion: impl Into<String>,
+    ) -> Self {
         Self::new(
             ExpressionErrorType::UnsupportedOperation,
-            format!("不支持的操作: {}, 建议: {}", operation.into(), suggestion.into()),
+            format!(
+                "不支持的操作: {}, 建议: {}",
+                operation.into(),
+                suggestion.into()
+            ),
         )
     }
 
@@ -311,7 +318,11 @@ impl ExpressionError {
     pub fn type_conversion_error(from_type: impl Into<String>, to_type: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::TypeConversionError,
-            format!("类型转换错误: 无法从 {} 转换为 {}", from_type.into(), to_type.into()),
+            format!(
+                "类型转换错误: 无法从 {} 转换为 {}",
+                from_type.into(),
+                to_type.into()
+            ),
         )
     }
 
@@ -367,7 +378,7 @@ impl fmt::Display for ExpressionError {
 }
 
 /// 计划节点访问错误类型
-/// 
+///
 /// 涵盖查询计划遍历和验证过程中的错误
 #[derive(Error, Debug, Clone)]
 pub enum PlanNodeVisitError {
@@ -380,7 +391,7 @@ pub enum PlanNodeVisitError {
 }
 
 /// 锁操作错误类型
-/// 
+///
 /// 涵盖并发控制中锁相关的错误
 #[derive(Error, Debug, Clone)]
 pub enum LockError {
@@ -398,7 +409,7 @@ pub enum LockError {
 }
 
 /// 管理器错误类型
-/// 
+///
 /// 涵盖Schema管理器、索引管理器、存储客户端等Manager层的错误
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum ManagerError {
@@ -440,9 +451,9 @@ impl ManagerError {
     /// 获取错误分类
     pub fn category(&self) -> ErrorCategory {
         match self {
-            ManagerError::StorageError(_) |
-            ManagerError::ConnectionError(_) |
-            ManagerError::TimeoutError(_) => ErrorCategory::Retryable,
+            ManagerError::StorageError(_)
+            | ManagerError::ConnectionError(_)
+            | ManagerError::TimeoutError(_) => ErrorCategory::Retryable,
             _ => ErrorCategory::NonRetryable,
         }
     }

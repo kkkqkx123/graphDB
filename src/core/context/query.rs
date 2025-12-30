@@ -86,7 +86,9 @@ impl QueryContext {
 
     /// 检查是否超时
     pub fn is_timeout(&self) -> bool {
-        self.options.timeout_ms.map_or(false, |timeout| self.elapsed_ms() > timeout)
+        self.options
+            .timeout_ms
+            .map_or(false, |timeout| self.elapsed_ms() > timeout)
     }
 }
 
@@ -111,11 +113,9 @@ impl BaseContext for QueryContext {
         !self.is_timeout()
     }
 
-    fn touch(&mut self) {
-    }
+    fn touch(&mut self) {}
 
-    fn invalidate(&mut self) {
-    }
+    fn invalidate(&mut self) {}
 
     fn revalidate(&mut self) -> bool {
         !self.is_timeout()

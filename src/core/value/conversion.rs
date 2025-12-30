@@ -1,4 +1,4 @@
-use super::types::{Value, NullType};
+use super::types::{NullType, Value};
 
 impl From<bool> for Value {
     fn from(value: bool) -> Self {
@@ -91,10 +91,9 @@ impl Value {
         match self {
             Value::Int(i) => Ok(*i),
             Value::Float(f) => Ok(*f as i64),
-            Value::String(s) => {
-                s.parse::<i64>()
-                    .map_err(|e| format!("无法将字符串 '{}' 转换为整数: {}", s, e))
-            }
+            Value::String(s) => s
+                .parse::<i64>()
+                .map_err(|e| format!("无法将字符串 '{}' 转换为整数: {}", s, e)),
             Value::Bool(b) => Ok(if *b { 1 } else { 0 }),
             _ => Err(format!("无法将 {:?} 转换为整数", self)),
         }
@@ -105,10 +104,9 @@ impl Value {
         match self {
             Value::Float(f) => Ok(*f),
             Value::Int(i) => Ok(*i as f64),
-            Value::String(s) => {
-                s.parse::<f64>()
-                    .map_err(|e| format!("无法将字符串 '{}' 转换为浮点数: {}", s, e))
-            }
+            Value::String(s) => s
+                .parse::<f64>()
+                .map_err(|e| format!("无法将字符串 '{}' 转换为浮点数: {}", s, e)),
             Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
             _ => Err(format!("无法将 {:?} 转换为浮点数", self)),
         }
@@ -124,7 +122,10 @@ impl Value {
             Value::Null(n) => Ok(format!("{:?}", n)),
             Value::Empty => Ok("Empty".to_string()),
             Value::Date(d) => Ok(format!("{}-{:02}-{:02}", d.year, d.month, d.day)),
-            Value::Time(t) => Ok(format!("{:02}:{:02}:{:02}.{:06}", t.hour, t.minute, t.sec, t.microsec)),
+            Value::Time(t) => Ok(format!(
+                "{:02}:{:02}:{:02}.{:06}",
+                t.hour, t.minute, t.sec, t.microsec
+            )),
             Value::DateTime(dt) => Ok(format!(
                 "{}-{:02}-{:02} {:02}:{:02}:{:02}.{:06}",
                 dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.sec, dt.microsec

@@ -462,12 +462,12 @@ mod tests {
     use super::*;
     use crate::core::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+    use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
     use crate::query::planner::plan::core::nodes::{
         DedupNode as Dedup, FilterNode as Filter, GetNeighborsNode as GetNeighbors,
         GetVerticesNode as GetVertices, ProjectNode as Project, StartNode,
     };
-    use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-    use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
@@ -494,7 +494,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let filter_node = match Filter::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string())) {
+        let filter_node = match Filter::new(
+            start_node,
+            crate::core::Expression::Variable("col1 > 100".to_string()),
+        ) {
             Ok(node) => node,
             Err(_) => return,
         };

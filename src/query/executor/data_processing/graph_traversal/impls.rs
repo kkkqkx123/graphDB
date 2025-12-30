@@ -1,17 +1,20 @@
 use super::*;
+use crate::core::error::DBResult;
 use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
 use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
 use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathExecutor;
-use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
 use crate::query::executor::data_processing::graph_traversal::traits::TraversalStats;
-use crate::core::error::DBResult;
+use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
 use crate::query::executor::traits::ExecutionResult;
 
 /// 宏定义：为图遍历执行器实现通用特征
 macro_rules! impl_graph_traversal_executor {
     ($executor:ty) => {
         impl<S: crate::storage::StorageEngine> GraphTraversalExecutor<S> for $executor {
-            fn set_edge_direction(&mut self, direction: crate::query::executor::base::EdgeDirection) {
+            fn set_edge_direction(
+                &mut self,
+                direction: crate::query::executor::base::EdgeDirection,
+            ) {
                 self.edge_direction = direction;
             }
 
@@ -34,8 +37,6 @@ macro_rules! impl_graph_traversal_executor {
             fn get_max_depth(&self) -> Option<usize> {
                 self.max_depth
             }
-
-
 
             fn validate_config(&self) -> Result<(), String> {
                 // 基本配置验证
@@ -91,8 +92,6 @@ impl<S: crate::storage::StorageEngine> GraphTraversalExecutor<S> for ShortestPat
         self.max_depth
     }
 
-
-
     fn validate_config(&self) -> Result<(), String> {
         // 最短路径的特殊验证
         if let Some(max_depth) = self.max_depth {
@@ -100,11 +99,11 @@ impl<S: crate::storage::StorageEngine> GraphTraversalExecutor<S> for ShortestPat
                 return Err("最短路径的最大深度不能为0".to_string());
             }
         }
-        
+
         // 验证算法选择是否有效
         // 注意：algorithm字段是私有的，这里暂时跳过验证
         // 在实际实现中，应该通过公共方法来获取算法类型
-        
+
         Ok(())
     }
 

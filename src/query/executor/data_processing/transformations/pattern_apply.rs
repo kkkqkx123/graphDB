@@ -8,15 +8,13 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::EdgeDirection;
-use crate::expression::DefaultExpressionContext;
-use crate::expression::evaluator::traits::ExpressionContext;
-use crate::core::{DataSet, Edge, Path, Value, Vertex};
 use crate::core::Expression;
+use crate::core::{DataSet, Edge, Path, Value, Vertex};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::evaluator::traits::ExpressionContext;
+use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 模式类型
@@ -427,9 +425,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for PatternApplyExecu
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S> for PatternApplyExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for PatternApplyExecutor<S>
+{
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("PatternApplyExecutor storage should be set")
+        self.base
+            .storage
+            .as_ref()
+            .expect("PatternApplyExecutor storage should be set")
     }
 }
 

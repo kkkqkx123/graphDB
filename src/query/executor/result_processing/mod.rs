@@ -18,7 +18,7 @@ pub use projection::{ProjectExecutor, ProjectionColumn};
 
 // 排序执行器
 pub mod sort;
-pub use sort::{SortExecutor, SortKey, SortOrder, SortConfig};
+pub use sort::{SortConfig, SortExecutor, SortKey, SortOrder};
 
 // 限制执行器
 pub mod limit;
@@ -27,7 +27,8 @@ pub use limit::LimitExecutor;
 // 聚合执行器
 pub mod aggregation;
 pub use aggregation::{
-    AggregateExecutor, AggregateFunctionSpec, AggregateState, GroupAggregateState, GroupByExecutor, HavingExecutor,
+    AggregateExecutor, AggregateFunctionSpec, AggregateState, GroupAggregateState, GroupByExecutor,
+    HavingExecutor,
 };
 
 // Re-export AggregateFunction directly from its source

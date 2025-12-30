@@ -5,11 +5,10 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, Value};
 use crate::query::executor::data_processing::join::{
-    base_join::BaseJoinExecutor, hash_table::{build_hash_table, extract_key_values, JoinKey},
+    base_join::BaseJoinExecutor,
+    hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 右外连接执行器
@@ -29,7 +28,8 @@ impl<S: StorageEngine + Send + 'static> RightJoinExecutor<S> {
         output_columns: Vec<String>,
     ) -> Self {
         let hash_keys: Vec<Expression> = left_keys.into_iter().map(Expression::Variable).collect();
-        let probe_keys: Vec<Expression> = right_keys.into_iter().map(Expression::Variable).collect();
+        let probe_keys: Vec<Expression> =
+            right_keys.into_iter().map(Expression::Variable).collect();
         Self {
             base: BaseJoinExecutor::with_description(
                 id,

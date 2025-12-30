@@ -1,9 +1,7 @@
 //! 角色操作相关的计划节点
 //! 包括创建/删除角色等操作
 
-use crate::query::planner::plan::core::nodes::{
-    ManagementNode, ManagementNodeEnum,
-};
+use crate::query::planner::plan::core::nodes::{ManagementNode, ManagementNodeEnum};
 
 /// 创建角色计划节点
 #[derive(Debug, Clone)]

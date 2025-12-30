@@ -63,8 +63,11 @@ impl AggregateExpression {
         context: &mut C,
         state: &mut AggregateState,
     ) -> Result<Value, ExpressionError> {
-        let arg_value = crate::expression::evaluator::expression_evaluator::ExpressionEvaluator
-            ::evaluate(&self.argument, context)
+        let arg_value =
+            crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(
+                &self.argument,
+                context,
+            )
             .map_err(|e| ExpressionError::function_error(e.to_string()))?;
 
         // 更新聚合状态
@@ -103,9 +106,7 @@ impl AggregateExpression {
                     .into_iter()
                     .collect(),
             )),
-            AggregateFunction::Percentile => {
-                state.calculate_percentile(50.0)
-            }
+            AggregateFunction::Percentile => state.calculate_percentile(50.0),
         }
     }
 }

@@ -146,7 +146,6 @@ impl CacheFactory {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

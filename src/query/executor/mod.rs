@@ -16,13 +16,11 @@ pub mod cypher;
 
 // Re-export the new trait types
 pub use traits::{
-    BaseExecutor as NewBaseExecutor, ExecutionResult, Executor, HasStorage, HasInput,
+    BaseExecutor as NewBaseExecutor, ExecutionResult, Executor, HasInput, HasStorage,
 };
 
 // Re-export the base types
-pub use base::{
-    BaseExecutor, ChainableExecutor, ExecutionContext, InputExecutor, StartExecutor,
-};
+pub use base::{BaseExecutor, ChainableExecutor, ExecutionContext, InputExecutor, StartExecutor};
 
 // Re-export result processing executors
 pub use result_processing::{

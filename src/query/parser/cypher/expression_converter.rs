@@ -2,8 +2,8 @@
 //!
 //! 提供Cypher表达式与统一表达式系统之间的转换功能
 
-use crate::core::types::expression::Expression;
 use crate::core::error::ExpressionError;
+use crate::core::types::expression::Expression;
 
 /// Cypher表达式转换器
 pub struct ExpressionConverter;
@@ -15,7 +15,8 @@ impl ExpressionConverter {
     ) -> Result<Expression, ExpressionError> {
         match cypher_expr {
             crate::query::parser::cypher::ast::expressions::Expression::Literal(literal) => {
-                let value = super::expression_evaluator::CypherEvaluator::cypher_literal_to_value(literal)?;
+                let value =
+                    super::expression_evaluator::CypherEvaluator::cypher_literal_to_value(literal)?;
                 Ok(Expression::Literal(value))
             }
             crate::query::parser::cypher::ast::expressions::Expression::Variable(name) => {
@@ -76,9 +77,9 @@ impl ExpressionConverter {
                     .collect();
                 Ok(Expression::Map(pairs?))
             }
-            crate::query::parser::cypher::ast::expressions::Expression::PatternExpression(_) => {
-                Ok(Expression::Literal(crate::core::Value::String("Pattern".to_string())))
-            }
+            crate::query::parser::cypher::ast::expressions::Expression::PatternExpression(_) => Ok(
+                Expression::Literal(crate::core::Value::String("Pattern".to_string())),
+            ),
             crate::query::parser::cypher::ast::expressions::Expression::Case(case_expr) => {
                 let mut conditions = Vec::new();
                 for alternative in &case_expr.alternatives {
@@ -86,14 +87,14 @@ impl ExpressionConverter {
                     let then_expr = Self::convert_cypher_to_unified(&alternative.then_expression)?;
                     conditions.push((when_expr, then_expr));
                 }
-                
+
                 let default = match &case_expr.default_alternative {
                     Some(default_expr) => {
                         Some(Box::new(Self::convert_cypher_to_unified(default_expr)?))
                     }
                     None => None,
                 };
-                
+
                 Ok(Expression::Case {
                     conditions,
                     default,
@@ -132,64 +133,84 @@ impl ExpressionConverter {
                         ))
                     }
                 };
-                Ok(crate::query::parser::cypher::ast::expressions::Expression::Literal(cypher_literal))
+                Ok(
+                    crate::query::parser::cypher::ast::expressions::Expression::Literal(
+                        cypher_literal,
+                    ),
+                )
             }
-            Expression::Variable(name) => {
-                Ok(crate::query::parser::cypher::ast::expressions::Expression::Variable(name.clone()))
-            }
+            Expression::Variable(name) => Ok(
+                crate::query::parser::cypher::ast::expressions::Expression::Variable(name.clone()),
+            ),
             Expression::Property { object, property } => {
                 let object_expr = Self::convert_unified_to_cypher(object)?;
-                Ok(crate::query::parser::cypher::ast::expressions::Expression::Property(
-                    crate::query::parser::cypher::ast::expressions::PropertyExpression {
-                        expression: Box::new(object_expr),
-                        property_name: property.clone(),
-                    },
-                ))
+                Ok(
+                    crate::query::parser::cypher::ast::expressions::Expression::Property(
+                        crate::query::parser::cypher::ast::expressions::PropertyExpression {
+                            expression: Box::new(object_expr),
+                            property_name: property.clone(),
+                        },
+                    ),
+                )
             }
             Expression::Function { name, args } => {
-                let converted_args: Result<Vec<crate::query::parser::cypher::ast::expressions::Expression>, ExpressionError> = args
+                let converted_args: Result<
+                    Vec<crate::query::parser::cypher::ast::expressions::Expression>,
+                    ExpressionError,
+                > = args
                     .iter()
                     .map(|arg| Self::convert_unified_to_cypher(arg))
                     .collect();
-                Ok(crate::query::parser::cypher::ast::expressions::Expression::FunctionCall(
-                    crate::query::parser::cypher::ast::expressions::FunctionCall {
-                        function_name: name.clone(),
-                        arguments: converted_args?,
-                    },
-                ))
+                Ok(
+                    crate::query::parser::cypher::ast::expressions::Expression::FunctionCall(
+                        crate::query::parser::cypher::ast::expressions::FunctionCall {
+                            function_name: name.clone(),
+                            arguments: converted_args?,
+                        },
+                    ),
+                )
             }
             Expression::Binary { left, op, right } => {
                 let left_expr = Self::convert_unified_to_cypher(left)?;
                 let right_expr = Self::convert_unified_to_cypher(right)?;
                 // BinaryOperator已统一，直接使用
-                Ok(crate::query::parser::cypher::ast::expressions::Expression::Binary(
-                    crate::query::parser::cypher::ast::expressions::BinaryExpression {
-                        left: Box::new(left_expr),
-                        operator: *op,
-                        right: Box::new(right_expr),
-                    },
-                ))
+                Ok(
+                    crate::query::parser::cypher::ast::expressions::Expression::Binary(
+                        crate::query::parser::cypher::ast::expressions::BinaryExpression {
+                            left: Box::new(left_expr),
+                            operator: *op,
+                            right: Box::new(right_expr),
+                        },
+                    ),
+                )
             }
             Expression::Unary { op, operand } => {
                 let operand_expr = Self::convert_unified_to_cypher(operand)?;
                 // UnaryOperator已统一，直接使用
-                Ok(crate::query::parser::cypher::ast::expressions::Expression::Unary(
-                    crate::query::parser::cypher::ast::expressions::UnaryExpression {
-                        operator: *op,
-                        expression: Box::new(operand_expr),
-                    },
-                ))
+                Ok(
+                    crate::query::parser::cypher::ast::expressions::Expression::Unary(
+                        crate::query::parser::cypher::ast::expressions::UnaryExpression {
+                            operator: *op,
+                            expression: Box::new(operand_expr),
+                        },
+                    ),
+                )
             }
             Expression::List(elements) => {
-                let converted_elements: Result<Vec<crate::query::parser::cypher::ast::expressions::Expression>, ExpressionError> = elements
+                let converted_elements: Result<
+                    Vec<crate::query::parser::cypher::ast::expressions::Expression>,
+                    ExpressionError,
+                > = elements
                     .iter()
                     .map(|elem| Self::convert_unified_to_cypher(elem))
                     .collect();
-                Ok(crate::query::parser::cypher::ast::expressions::Expression::List(
-                    crate::query::parser::cypher::ast::expressions::ListExpression {
-                        elements: converted_elements?,
-                    },
-                ))
+                Ok(
+                    crate::query::parser::cypher::ast::expressions::Expression::List(
+                        crate::query::parser::cypher::ast::expressions::ListExpression {
+                            elements: converted_elements?,
+                        },
+                    ),
+                )
             }
             Expression::Map(pairs) => {
                 let mut properties = std::collections::HashMap::new();
@@ -197,11 +218,18 @@ impl ExpressionConverter {
                     let value_expr = Self::convert_unified_to_cypher(value)?;
                     properties.insert(key.clone(), value_expr);
                 }
-                Ok(crate::query::parser::cypher::ast::expressions::Expression::Map(
-                    crate::query::parser::cypher::ast::expressions::MapExpression { properties },
-                ))
+                Ok(
+                    crate::query::parser::cypher::ast::expressions::Expression::Map(
+                        crate::query::parser::cypher::ast::expressions::MapExpression {
+                            properties,
+                        },
+                    ),
+                )
             }
-            Expression::Case { conditions, default } => {
+            Expression::Case {
+                conditions,
+                default,
+            } => {
                 let mut alternatives = Vec::new();
                 for (when_expr, then_expr) in conditions {
                     let when_cypher = Self::convert_unified_to_cypher(when_expr)?;
@@ -213,21 +241,23 @@ impl ExpressionConverter {
                         },
                     );
                 }
-                
+
                 let default_alternative = match default {
                     Some(default_expr) => {
                         Some(Box::new(Self::convert_unified_to_cypher(default_expr)?))
                     }
                     None => None,
                 };
-                
-                Ok(crate::query::parser::cypher::ast::expressions::Expression::Case(
-                    crate::query::parser::cypher::ast::expressions::CaseExpression {
-                        expression: None,
-                        alternatives,
-                        default_alternative,
-                    },
-                ))
+
+                Ok(
+                    crate::query::parser::cypher::ast::expressions::Expression::Case(
+                        crate::query::parser::cypher::ast::expressions::CaseExpression {
+                            expression: None,
+                            alternatives,
+                            default_alternative,
+                        },
+                    ),
+                )
             }
             // 对于其他未处理的情况，返回错误
             _ => Err(ExpressionError::invalid_operation(format!(
@@ -251,7 +281,8 @@ impl ExpressionConverter {
     /// 批量转换统一表达式为Cypher表达式
     pub fn convert_unified_batch_to_cypher(
         exprs: &[Expression],
-    ) -> Result<Vec<crate::query::parser::cypher::ast::expressions::Expression>, ExpressionError> {
+    ) -> Result<Vec<crate::query::parser::cypher::ast::expressions::Expression>, ExpressionError>
+    {
         let mut results = Vec::new();
         for expr in exprs {
             results.push(Self::convert_unified_to_cypher(expr)?);
@@ -265,9 +296,8 @@ mod tests {
     use super::*;
     use crate::core::types::expression::Expression as UnifiedExpression;
     use crate::query::parser::cypher::ast::expressions::{
-        BinaryExpression, Expression as CypherExpression,
-        FunctionCall, ListExpression, Literal as CypherLiteral, MapExpression, PropertyExpression,
-        UnaryExpression,
+        BinaryExpression, Expression as CypherExpression, FunctionCall, ListExpression,
+        Literal as CypherLiteral, MapExpression, PropertyExpression, UnaryExpression,
     };
     use crate::query::parser::cypher::ast::BinaryOperator;
 

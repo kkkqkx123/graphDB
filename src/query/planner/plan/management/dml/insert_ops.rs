@@ -49,7 +49,11 @@ pub struct InsertEdges {
 }
 
 impl InsertEdges {
-    pub fn new(id: i64, cost: f64, edges: Vec<(String, String, String, Vec<(String, String)>)>) -> Self {
+    pub fn new(
+        id: i64,
+        cost: f64,
+        edges: Vec<(String, String, String, Vec<(String, String)>)>,
+    ) -> Self {
         Self { id, cost, edges }
     }
 

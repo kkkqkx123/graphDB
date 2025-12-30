@@ -1,7 +1,7 @@
 //! 元数据客户端接口 - 定义元数据访问的基本操作
 
-use serde::{Deserialize, Serialize};
 use crate::core::error::{ManagerError, ManagerResult};
+use serde::{Deserialize, Serialize};
 
 /// 集群信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,16 +28,21 @@ pub trait MetaClient: Send + Sync + std::fmt::Debug {
     fn get_space_info(&self, space_id: i32) -> ManagerResult<SpaceInfo>;
     /// 检查连接状态
     fn is_connected(&self) -> bool;
-    
+
     /// 创建空间
-    fn create_space(&self, space_name: &str, partition_num: i32, replica_factor: i32) -> ManagerResult<i32>;
+    fn create_space(
+        &self,
+        space_name: &str,
+        partition_num: i32,
+        replica_factor: i32,
+    ) -> ManagerResult<i32>;
     /// 删除空间
     fn drop_space(&self, space_id: i32) -> ManagerResult<()>;
     /// 列出所有空间
     fn list_spaces(&self) -> ManagerResult<Vec<SpaceInfo>>;
     /// 检查空间是否存在
     fn has_space(&self, space_id: i32) -> bool;
-    
+
     /// 从磁盘加载元数据
     fn load_from_disk(&self) -> ManagerResult<()>;
     /// 保存元数据到磁盘

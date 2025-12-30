@@ -2,25 +2,30 @@
 //!
 //! 简化的PlanNodeEnum定义，只包含枚举和基本方法
 
-use crate::query::planner::plan::core::explain::PlanNodeDescription;
 use super::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::explain::PlanNodeDescription;
 
 // 导入并重新导出所有具体的节点类型
 pub use super::aggregate_node::AggregateNode;
 pub use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
 pub use super::data_processing_node::{
-    DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode, AssignNode,
+    AssignNode, DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode,
+    UnwindNode,
 };
 pub use super::filter_node::FilterNode;
 pub use super::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
-pub use super::join_node::{CrossJoinNode, InnerJoinNode, LeftJoinNode, HashInnerJoinNode, HashLeftJoinNode};
+pub use super::join_node::{
+    CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode,
+};
 pub use super::project_node::ProjectNode;
 pub use super::sort_node::{LimitNode, SortNode, TopNNode};
 pub use super::start_node::StartNode;
 pub use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
-pub use crate::query::planner::plan::algorithms::{FulltextIndexScan, IndexScan, MultiShortestPath, BFSShortest, AllPaths, ShortestPath};
+pub use crate::query::planner::plan::algorithms::{
+    AllPaths, BFSShortest, FulltextIndexScan, IndexScan, MultiShortestPath, ShortestPath,
+};
 
 /// PlanNode 枚举，包含所有可能的节点类型
 ///

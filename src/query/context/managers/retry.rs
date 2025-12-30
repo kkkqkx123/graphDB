@@ -2,9 +2,9 @@
 //!
 //! 提供可配置的重试策略和指数退避算法
 
-use std::time::Duration;
+use crate::core::error::{ErrorCategory, ManagerError};
 use std::thread;
-use crate::core::error::{ManagerError, ErrorCategory};
+use std::time::Duration;
 
 /// 重试配置
 #[derive(Debug, Clone)]
@@ -93,10 +93,7 @@ impl RetryConfig {
 ///     Ok::<i32, ManagerError>(42)
 /// });
 /// ```
-pub fn retry_with_backoff<F, T, E>(
-    config: &RetryConfig,
-    mut operation: F,
-) -> Result<T, E>
+pub fn retry_with_backoff<F, T, E>(config: &RetryConfig, mut operation: F) -> Result<T, E>
 where
     F: FnMut() -> Result<T, E>,
     E: Into<ManagerError> + Clone + std::fmt::Display,
@@ -109,7 +106,7 @@ where
             Ok(result) => return Ok(result),
             Err(e) => {
                 let manager_error: ManagerError = e.clone().into();
-                
+
                 // 检查是否应该重试
                 if config.retry_only_retryable && !manager_error.is_retryable() {
                     return Err(e);
@@ -144,10 +141,7 @@ where
 ///
 /// # 返回
 /// 操作成功的结果或最后一次失败的错误
-pub fn retry_with_backoff_async<F, T, E>(
-    config: &RetryConfig,
-    mut operation: F,
-) -> Result<T, E>
+pub fn retry_with_backoff_async<F, T, E>(config: &RetryConfig, mut operation: F) -> Result<T, E>
 where
     F: FnMut() -> Result<T, E>,
     E: Into<ManagerError> + Clone + std::fmt::Display,
@@ -184,7 +178,7 @@ where
             Ok(result) => return Ok(result),
             Err(e) => {
                 let manager_error: ManagerError = e.clone().into();
-                
+
                 if config.retry_only_retryable && !manager_error.is_retryable() {
                     return Err(e);
                 }
@@ -202,9 +196,7 @@ where
                 delay = match strategy {
                     RetryStrategy::Fixed => config.initial_delay_ms,
                     RetryStrategy::Linear => delay + config.initial_delay_ms,
-                    RetryStrategy::Exponential => {
-                        (delay as f64 * config.backoff_multiplier) as u64
-                    }
+                    RetryStrategy::Exponential => (delay as f64 * config.backoff_multiplier) as u64,
                 };
             }
         }

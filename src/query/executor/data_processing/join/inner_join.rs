@@ -13,9 +13,7 @@ use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::data_processing::join::hash_table::{
     HashTableBuilder, HashTableProbe, MultiKeyHashTable, SingleKeyHashTable,
 };
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
@@ -72,10 +70,10 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
         // 创建简单的表达式上下文（需要根据实际需求实现）
         // 注意：这里需要根据实际的执行上下文来实现 ExpressionContext
         // 暂时使用简化的实现，实际需要从 BaseExecutor 获取完整的上下文
-        
+
         // 由于 ExpressionContext 需要具体的实现，这里暂时保留原有的字符串解析逻辑
         // 在后续实现中，需要将 Expression 转换为列索引或直接求值
-        
+
         // 解析键索引（临时方案，需要后续重构为表达式求值）
         let left_key_idx = 0;
         let right_key_idx = 0;
@@ -140,7 +138,7 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
     ) -> Result<DataSet, QueryError> {
         // 由于 ExpressionContext 需要具体的实现，这里暂时保留原有的字符串解析逻辑
         // 在后续实现中，需要将 Expression 转换为列索引或直接求值
-        
+
         // 解析键索引（临时方案，需要后续重构为表达式求值）
         let mut left_key_indices = Vec::new();
         let mut right_key_indices = Vec::new();
@@ -258,7 +256,11 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
 
 impl<S: StorageEngine + Send + 'static> HasStorage<S> for InnerJoinExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base_executor.get_base().storage.as_ref().expect("InnerJoinExecutor storage should be set")
+        self.base_executor
+            .get_base()
+            .storage
+            .as_ref()
+            .expect("InnerJoinExecutor storage should be set")
     }
 }
 

@@ -1,7 +1,10 @@
 //! DeduceTypeVisitor - 用于推导表达式类型的访问器
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
-use crate::core::{visitor::{Visitor, VisitorState}, Expression, TypeUtils, ValueTypeDef};
+use crate::core::{
+    visitor::{Visitor, VisitorState},
+    Expression, TypeUtils, ValueTypeDef,
+};
 use crate::core::{BinaryOperator, UnaryOperator, Value};
 use crate::query::validator::ValidationContext;
 use crate::storage::StorageEngine;
@@ -363,10 +366,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导字面量表达式的类型
-    fn visit_literal(
-        &mut self,
-        value: &crate::core::Value,
-    ) -> Result<(), TypeDeductionError> {
+    fn visit_literal(&mut self, value: &crate::core::Value) -> Result<(), TypeDeductionError> {
         self.type_ = match value {
             Value::Bool(_) => ValueTypeDef::Bool,
             Value::Int(_) => ValueTypeDef::Int,
@@ -492,7 +492,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导属性表达式的类型
-    
+
     fn visit_property(&mut self, _property: &str) -> Result<(), TypeDeductionError> {
         // 属性访问的结果类型需要根据上下文来确定
         // 简化实现，返回Empty类型
@@ -644,7 +644,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导集合表达式的类型
-    
+
     fn visit_set(&mut self, _items: &[Expression]) -> Result<(), TypeDeductionError> {
         self.type_ = ValueTypeDef::Set;
         Ok(())
@@ -671,7 +671,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 将字符串解析为ValueTypeDef
-    
+
     fn parse_type_def(&self, type_str: &str) -> ValueTypeDef {
         match type_str.to_uppercase().as_str() {
             "INT" => ValueTypeDef::Int,

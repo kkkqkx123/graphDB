@@ -2,20 +2,20 @@
 //!
 //! 提供高效的哈希表用于join操作，支持内存限制和磁盘溢出
 
-use crate::core::{Value, DataSet, DBError, DBResult};
 use crate::core::types::expression::Expression;
-use crate::query::executor::memory_manager::{MemoryTracker, MemoryConfig, TrackedVec};
+use crate::core::{DBError, DBResult, DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
-use bincode::{encode_to_vec, decode_from_slice, Encode, Decode};
+use crate::query::executor::memory_manager::{MemoryConfig, MemoryTracker, TrackedVec};
+use bincode::{decode_from_slice, encode_to_vec, Decode, Encode};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
-use std::hash::{Hash, Hasher};
-use std::sync::{Arc, Mutex};
-use std::path::{Path, PathBuf};
 use std::fs::{File, OpenOptions};
-use std::io::{Write, Read, BufWriter, BufReader};
-use serde::{Serialize, Deserialize};
+use std::hash::{Hash, Hasher};
+use std::io::{BufReader, BufWriter, Read, Write};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 /// Join键，支持高效的哈希和序列化
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
@@ -58,9 +58,13 @@ impl JoinKey {
     /// 估算内存大小（字节）
     pub fn estimated_size(&self) -> usize {
         // 基础结构大小 + 向量开销 + 值大小估算
-        std::mem::size_of::<Self>() + 
-        self.values.capacity() * std::mem::size_of::<Value>() +
-        self.values.iter().map(|v| Self::estimate_value_size(v)).sum::<usize>()
+        std::mem::size_of::<Self>()
+            + self.values.capacity() * std::mem::size_of::<Value>()
+            + self
+                .values
+                .iter()
+                .map(|v| Self::estimate_value_size(v))
+                .sum::<usize>()
     }
 
     fn estimate_value_size(value: &Value) -> usize {
@@ -68,7 +72,12 @@ impl JoinKey {
             Value::Int(_) | Value::Float(_) | Value::Bool(_) => 8,
             Value::String(s) => s.len(),
             Value::List(l) => l.iter().map(Self::estimate_value_size).sum::<usize>() + 24,
-            Value::Map(m) => m.iter().map(|(k, v)| k.len() + Self::estimate_value_size(v)).sum::<usize>() + 48,
+            Value::Map(m) => {
+                m.iter()
+                    .map(|(k, v)| k.len() + Self::estimate_value_size(v))
+                    .sum::<usize>()
+                    + 48
+            }
             _ => 16, // 其他类型的估算
         }
     }
@@ -102,9 +111,12 @@ impl HashTableEntry {
     }
 
     fn estimate_row_size(row: &[Value]) -> usize {
-        std::mem::size_of::<Self>() + 
-        row.iter().map(|v| JoinKey::estimate_value_size(v)).sum::<usize>() +
-        row.len() * std::mem::size_of::<Value>()
+        std::mem::size_of::<Self>()
+            + row
+                .iter()
+                .map(|v| JoinKey::estimate_value_size(v))
+                .sum::<usize>()
+            + row.len() * std::mem::size_of::<Value>()
     }
 }
 
@@ -129,10 +141,10 @@ impl LruTracker {
     fn record_access(&mut self, key: &JoinKey) {
         // 移除已存在的键（如果存在）
         self.access_order.retain(|k| k != key);
-        
+
         // 添加到队列前端
         self.access_order.push_front(key.clone());
-        
+
         // 如果超过容量，移除最老的
         if self.access_order.len() > self.max_capacity {
             self.access_order.pop_back();
@@ -177,11 +189,10 @@ pub struct SpillManager {
 impl SpillManager {
     pub fn new(spill_dir: impl AsRef<Path>, max_file_size: usize) -> DBResult<Self> {
         let spill_dir = spill_dir.as_ref().to_path_buf();
-        
+
         // 创建溢出目录
-        std::fs::create_dir_all(&spill_dir)
-            .map_err(|e| DBError::Io(e))?;
-        
+        std::fs::create_dir_all(&spill_dir).map_err(|e| DBError::Io(e))?;
+
         Ok(Self {
             spill_dir,
             current_file: None,
@@ -197,25 +208,27 @@ impl SpillManager {
         if self.current_file.is_none() || self.current_file_size >= self.max_file_size {
             self.rotate_file()?;
         }
-        
+
         if let Some(ref mut writer) = self.current_file {
             // 序列化并写入数据
-            let serialized = encode_to_vec(&(key, entries), bincode::config::standard())
-                .map_err(|e| DBError::Serialization(format!("Failed to serialize spill data: {}", e)))?;
-            
+            let serialized =
+                encode_to_vec(&(key, entries), bincode::config::standard()).map_err(|e| {
+                    DBError::Serialization(format!("Failed to serialize spill data: {}", e))
+                })?;
+
             let data_size = serialized.len() as usize;
-            
+
             // 写入大小前缀
-            writer.write_all(&(data_size as u32).to_le_bytes())
+            writer
+                .write_all(&(data_size as u32).to_le_bytes())
                 .map_err(|e| DBError::Io(e))?;
-            
+
             // 写入数据
-            writer.write_all(&serialized)
-                .map_err(|e| DBError::Io(e))?;
-            
+            writer.write_all(&serialized).map_err(|e| DBError::Io(e))?;
+
             self.current_file_size += data_size + 4; // +4 for size prefix
         }
-        
+
         Ok(())
     }
 
@@ -223,56 +236,60 @@ impl SpillManager {
     fn rotate_file(&mut self) -> DBResult<()> {
         // 关闭当前文件
         if let Some(mut writer) = self.current_file.take() {
-            writer.flush()
-                .map_err(|e| DBError::Io(e))?;
+            writer.flush().map_err(|e| DBError::Io(e))?;
         }
-        
+
         // 创建新文件
-        let file_path = self.spill_dir.join(format!("spill_{}.dat", self.file_counter));
+        let file_path = self
+            .spill_dir
+            .join(format!("spill_{}.dat", self.file_counter));
         self.file_counter += 1;
-        
+
         let file = OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
             .open(&file_path)
             .map_err(|e| DBError::Io(e))?;
-        
+
         self.current_file = Some(BufWriter::new(file));
         self.current_file_size = 0;
-        
+
         Ok(())
     }
 
     /// 读取所有溢出数据
     pub fn read_all_spills(&self) -> DBResult<Vec<(JoinKey, Vec<HashTableEntry>)>> {
         let mut results = Vec::new();
-        
+
         for i in 0..self.file_counter {
             let file_path = self.spill_dir.join(format!("spill_{}.dat", i));
             if file_path.exists() {
-                let file = File::open(&file_path)
-                    .map_err(|e| DBError::Io(e))?;
+                let file = File::open(&file_path).map_err(|e| DBError::Io(e))?;
                 let mut reader = BufReader::new(file);
-                
+
                 loop {
                     // 读取大小前缀
                     let mut size_bytes = [0u8; 4];
                     match reader.read_exact(&mut size_bytes) {
                         Ok(_) => {
                             let data_size = u32::from_le_bytes(size_bytes) as usize;
-                            
+
                             // 读取数据
                             let mut data = vec![0u8; data_size];
-                            reader.read_exact(&mut data)
-                                .map_err(|e| DBError::Io(e))?;
-                            
+                            reader.read_exact(&mut data).map_err(|e| DBError::Io(e))?;
+
                             // 反序列化
-                            let (key, entries): (JoinKey, Vec<HashTableEntry>) = 
+                            let (key, entries): (JoinKey, Vec<HashTableEntry>) =
                                 decode_from_slice(&data, bincode::config::standard())
-                                .map_err(|e| DBError::Serialization(format!("Failed to deserialize spill data: {}", e)))?
-                                .0;
-                            
+                                    .map_err(|e| {
+                                        DBError::Serialization(format!(
+                                            "Failed to deserialize spill data: {}",
+                                            e
+                                        ))
+                                    })?
+                                    .0;
+
                             results.push((key, entries));
                         }
                         Err(_) => break, // 文件结束
@@ -280,7 +297,7 @@ impl SpillManager {
                 }
             }
         }
-        
+
         Ok(results)
     }
 
@@ -289,11 +306,10 @@ impl SpillManager {
         for i in 0..self.file_counter {
             let file_path = self.spill_dir.join(format!("spill_{}.dat", i));
             if file_path.exists() {
-                std::fs::remove_file(&file_path)
-                    .map_err(|e| DBError::Io(e))?;
+                std::fs::remove_file(&file_path).map_err(|e| DBError::Io(e))?;
             }
         }
-        
+
         Ok(())
     }
 }
@@ -363,7 +379,7 @@ impl HashTable {
     /// 创建新的哈希表
     pub fn new(memory_tracker: Arc<MemoryTracker>, config: HashTableConfig) -> DBResult<Self> {
         let initial_capacity = config.initial_capacity;
-        
+
         let spill_manager = if config.spill_dir.is_some() && config.memory_config.spill_enabled {
             Some(SpillManager::new(
                 config.spill_dir.as_ref().unwrap(),
@@ -372,7 +388,7 @@ impl HashTable {
         } else {
             None
         };
-        
+
         Ok(Self {
             memory_table: HashMap::with_capacity(initial_capacity),
             memory_tracker,
@@ -388,32 +404,31 @@ impl HashTable {
         // 检查内存使用
         let entry_size = entry.estimated_size;
         self.memory_tracker.allocate(entry_size)?;
-        
+
         // 检查是否需要溢出
         if self.should_spill() {
             self.spill_to_disk()?;
         }
-        
+
         // 插入到内存表
         let entries = self.memory_table.entry(key.clone()).or_insert_with(|| {
-            TrackedVec::with_capacity(10, self.memory_tracker.clone()).unwrap_or_else(|_| {
-                TrackedVec::new(self.memory_tracker.clone())
-            })
+            TrackedVec::with_capacity(10, self.memory_tracker.clone())
+                .unwrap_or_else(|_| TrackedVec::new(self.memory_tracker.clone()))
         });
-        
+
         entries.push(entry)?;
-        
+
         // 记录LRU访问
         if let Ok(mut tracker) = self.lru_tracker.lock() {
             tracker.record_access(&key);
         }
-        
+
         if let Ok(mut stats) = self.stats.lock() {
             stats.total_entries += 1;
             stats.memory_entries += 1;
             stats.memory_usage += entry_size;
         }
-        
+
         Ok(())
     }
 
@@ -428,7 +443,7 @@ impl HashTable {
             // 使用LRU策略选择要溢出的键（溢出25%的键）
             let spill_count = std::cmp::max(1, self.memory_table.len() / 4);
             let mut spilled_count = 0;
-            
+
             // 从LRU追踪器获取最久未使用的键
             let keys_to_spill = {
                 if let Ok(tracker) = self.lru_tracker.lock() {
@@ -437,36 +452,36 @@ impl HashTable {
                     Vec::new()
                 }
             };
-            
+
             for key in keys_to_spill {
                 if let Some(entries) = self.memory_table.remove(&key) {
                     let entries_vec: Vec<_> = entries.as_slice().to_vec();
                     let total_size: usize = entries_vec.iter().map(|e| e.estimated_size).sum();
-                    
+
                     spill_manager.spill_entry(&key, &entries_vec)?;
-                    
+
                     // 从LRU追踪器中移除键
                     if let Ok(mut tracker) = self.lru_tracker.lock() {
                         tracker.remove_key(&key);
                     }
-                    
+
                     if let Ok(mut stats) = self.stats.lock() {
                         stats.memory_entries -= entries_vec.len();
                         stats.spilled_entries += entries_vec.len();
                         stats.memory_usage -= total_size;
                         stats.spill_file_count += 1;
                     }
-                    
+
                     spilled_count += 1;
                 }
             }
-            
+
             if spilled_count > 0 {
                 // 重置内存计数器
                 self.memory_tracker.reset();
             }
         }
-        
+
         Ok(())
     }
 
@@ -475,12 +490,12 @@ impl HashTable {
         if let Ok(mut stats) = self.stats.lock() {
             stats.probe_count += 1;
         }
-        
+
         // 记录LRU访问
         if let Ok(mut tracker) = self.lru_tracker.lock() {
             tracker.record_access(key);
         }
-        
+
         // 先在内存中查找
         if let Some(entries) = self.memory_table.get(key) {
             if let Ok(mut stats) = self.stats.lock() {
@@ -488,7 +503,7 @@ impl HashTable {
             }
             return entries.as_slice().to_vec();
         }
-        
+
         // 如果启用了溢出，需要在溢出文件中查找
         if self.spill_manager.is_some() {
             self.probe_spilled_data(key)
@@ -531,10 +546,10 @@ impl HashTable {
         if let Some(ref mut spill_manager) = self.spill_manager {
             spill_manager.cleanup()?;
         }
-        
+
         self.memory_table.clear();
         self.memory_tracker.reset();
-        
+
         Ok(())
     }
 }
@@ -551,7 +566,7 @@ impl HashTableBuilder {
         config: HashTableConfig,
     ) -> DBResult<HashTable> {
         let mut hash_table = HashTable::new(memory_tracker, config)?;
-        
+
         for (idx, row) in dataset.rows.iter().enumerate() {
             // 构建连接键
             let mut key_values = Vec::new();
@@ -566,50 +581,48 @@ impl HashTableBuilder {
                     )));
                 }
             }
-            
+
             let key = JoinKey::new(key_values);
             let entry = HashTableEntry::new(row.clone(), idx);
-            
+
             hash_table.insert(key, entry)?;
         }
-        
+
         Ok(hash_table)
     }
 
     /// 构建单键哈希表（向后兼容）
-    pub fn build_single_key_table(dataset: &DataSet, key_index: usize) -> Result<SingleKeyHashTable, String> {
+    pub fn build_single_key_table(
+        dataset: &DataSet,
+        key_index: usize,
+    ) -> Result<SingleKeyHashTable, String> {
         let memory_config = MemoryConfig::default();
         let memory_tracker = Arc::new(MemoryTracker::new(
             memory_config.max_query_memory,
             memory_config.clone(),
         ));
-        
+
         let config = HashTableConfig::default();
-        
-        HashTableBuilder::build_from_dataset(
-            dataset,
-            &[key_index],
-            memory_tracker,
-            config,
-        ).map_err(|e| e.to_string())
+
+        HashTableBuilder::build_from_dataset(dataset, &[key_index], memory_tracker, config)
+            .map_err(|e| e.to_string())
     }
-    
+
     /// 构建多键哈希表（向后兼容）
-    pub fn build_multi_key_table(dataset: &DataSet, key_indices: &[usize]) -> Result<MultiKeyHashTable, String> {
+    pub fn build_multi_key_table(
+        dataset: &DataSet,
+        key_indices: &[usize],
+    ) -> Result<MultiKeyHashTable, String> {
         let memory_config = MemoryConfig::default();
         let memory_tracker = Arc::new(MemoryTracker::new(
             memory_config.max_query_memory,
             memory_config.clone(),
         ));
-        
+
         let config = HashTableConfig::default();
-        
-        HashTableBuilder::build_from_dataset(
-            dataset,
-            key_indices,
-            memory_tracker,
-            config,
-        ).map_err(|e| e.to_string())
+
+        HashTableBuilder::build_from_dataset(dataset, key_indices, memory_tracker, config)
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -622,10 +635,10 @@ mod tests {
         let key1 = JoinKey::new(vec![Value::Int(1), Value::String("test".to_string())]);
         let key2 = JoinKey::new(vec![Value::Int(1), Value::String("test".to_string())]);
         let key3 = JoinKey::new(vec![Value::Int(2), Value::String("test".to_string())]);
-        
+
         assert_eq!(key1, key2); // 相同内容应该相等
         assert_ne!(key1, key3); // 不同内容不应该相等
-        
+
         // 测试哈希一致性
         use std::collections::hash_map::DefaultHasher;
         let mut hasher1 = DefaultHasher::new();
@@ -637,11 +650,8 @@ mod tests {
 
     #[test]
     fn test_hash_table_entry() {
-        let entry = HashTableEntry::new(
-            vec![Value::Int(1), Value::String("test".to_string())],
-            0,
-        );
-        
+        let entry = HashTableEntry::new(vec![Value::Int(1), Value::String("test".to_string())], 0);
+
         assert_eq!(entry.original_index, 0);
         assert_eq!(entry.row.len(), 2);
         assert!(entry.estimated_size > 0);
@@ -654,25 +664,25 @@ mod tests {
             1024 * 1024, // 1MB limit
             config.memory_config.clone(),
         ));
-        
+
         let mut hash_table = HashTable::new(memory_tracker, config).unwrap();
-        
+
         // 插入测试数据
         let key = JoinKey::new(vec![Value::Int(1)]);
         let entry = HashTableEntry::new(vec![Value::String("test".to_string())], 0);
-        
+
         hash_table.insert(key.clone(), entry).unwrap();
-        
+
         // 探测测试
         let results = hash_table.probe(&key);
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].row[0], Value::String("test".to_string()));
-        
+
         // 检查统计
         let stats = hash_table.get_stats();
         assert_eq!(stats.total_entries, 1);
         assert_eq!(stats.memory_entries, 1);
-        
+
         // 清理
         hash_table.cleanup().unwrap();
     }
@@ -682,17 +692,17 @@ mod tests {
         let mut config = HashTableConfig::default();
         config.memory_config.max_query_memory = 100; // 很小的内存限制
         config.memory_config.spill_enabled = false; // 禁用溢出
-        
+
         let memory_tracker = Arc::new(MemoryTracker::new(
             config.memory_config.max_query_memory,
             config.memory_config.clone(),
         ));
-        
+
         let mut hash_table = HashTable::new(memory_tracker, config).unwrap();
-        
+
         // 这里可以添加内存限制测试逻辑
         // 例如尝试插入大量数据并验证行为
-        
+
         // 清理
         hash_table.cleanup().unwrap();
     }
@@ -726,27 +736,27 @@ impl HashTableProbe {
         key_index: usize,
     ) -> Vec<(Vec<Value>, Vec<Vec<Value>>)> {
         let mut results = Vec::new();
-        
+
         for probe_row in &probe_dataset.rows {
             if key_index < probe_row.len() {
                 let key_value = &probe_row[key_index];
                 let key = JoinKey::new(vec![key_value.clone()]);
-                
+
                 let matching_entries = hash_table.probe(&key);
                 let matching_rows: Vec<Vec<Value>> = matching_entries
                     .into_iter()
                     .map(|entry| entry.row)
                     .collect();
-                
+
                 if !matching_rows.is_empty() {
                     results.push((probe_row.clone(), matching_rows));
                 }
             }
         }
-        
+
         results
     }
-    
+
     /// 多键探测（向后兼容）
     pub fn probe_multi_key(
         hash_table: &MultiKeyHashTable,
@@ -754,31 +764,31 @@ impl HashTableProbe {
         key_indices: &[usize],
     ) -> Vec<(Vec<Value>, Vec<Vec<Value>>)> {
         let mut results = Vec::new();
-        
+
         for probe_row in &probe_dataset.rows {
             let mut key_values = Vec::new();
-            
+
             for &key_index in key_indices {
                 if key_index < probe_row.len() {
                     key_values.push(probe_row[key_index].clone());
                 }
             }
-            
+
             if key_values.len() == key_indices.len() {
                 let key = JoinKey::new(key_values);
-                
+
                 let matching_entries = hash_table.probe(&key);
                 let matching_rows: Vec<Vec<Value>> = matching_entries
                     .into_iter()
                     .map(|entry| entry.row)
                     .collect();
-                
+
                 if !matching_rows.is_empty() {
                     results.push((probe_row.clone(), matching_rows));
                 }
             }
         }
-        
+
         results
     }
 }
@@ -790,7 +800,7 @@ pub fn build_hash_table(
 ) -> Result<HashMap<JoinKey, Vec<usize>>, String> {
     let mut hash_table = HashMap::new();
     let evaluator = ExpressionEvaluator;
-    
+
     for (idx, row) in dataset.rows.iter().enumerate() {
         // 创建表达式上下文
         let mut expr_context = DefaultExpressionContext::new();
@@ -799,7 +809,7 @@ pub fn build_hash_table(
                 expr_context.set_variable(col_name.clone(), row[i].clone());
             }
         }
-        
+
         // 评估表达式获取键值
         let mut key_values = Vec::new();
         for key_expr in key_exprs {
@@ -808,11 +818,11 @@ pub fn build_hash_table(
                 Err(e) => return Err(format!("键表达式求值失败: {}", e)),
             }
         }
-        
+
         let key = JoinKey::new(key_values);
         hash_table.entry(key).or_insert_with(Vec::new).push(idx);
     }
-    
+
     Ok(hash_table)
 }
 
@@ -822,7 +832,7 @@ pub fn build_hash_table_with_indices(
     key_indices: &[usize],
 ) -> Result<HashMap<JoinKey, Vec<usize>>, String> {
     let mut hash_table = HashMap::new();
-    
+
     for (idx, row) in dataset.rows.iter().enumerate() {
         let mut key_values = Vec::new();
         for &key_index in key_indices {
@@ -830,13 +840,13 @@ pub fn build_hash_table_with_indices(
                 key_values.push(row[key_index].clone());
             }
         }
-        
+
         if key_values.len() == key_indices.len() {
             let key = JoinKey::new(key_values);
             hash_table.entry(key).or_insert_with(Vec::new).push(idx);
         }
     }
-    
+
     Ok(hash_table)
 }
 
@@ -853,15 +863,15 @@ pub fn extract_key_values(
             expr_context.set_variable(col_name.clone(), row[i].clone());
         }
     }
-    
+
     let mut key_values = Vec::new();
-    
+
     for key_expr in key_exprs {
         if let Ok(value) = ExpressionEvaluator::evaluate(key_expr, &mut expr_context) {
             key_values.push(value);
         }
     }
-    
+
     key_values
 }
 

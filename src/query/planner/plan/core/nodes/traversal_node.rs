@@ -3,15 +3,15 @@
 //! 包含Expand、ExpandAll、Traverse等图遍历相关的计划节点
 
 use super::super::common::{EdgeProp, TagProp};
+use crate::core::types::EdgeDirection;
 use crate::core::Value;
 use crate::query::context::validate::types::Variable;
-use crate::core::types::EdgeDirection;
 
 /// 扩展节点
 #[derive(Debug)]
 pub struct ExpandNode {
     id: i64,
-    
+
     space_id: i32,
     edge_types: Vec<String>,
     direction: EdgeDirection,
@@ -203,14 +203,14 @@ impl super::plan_node_traits::PlanNodeClonable for ExpandNode {
 #[derive(Debug)]
 pub struct ExpandAllNode {
     id: i64,
-    
+
     space_id: i32,
     edge_types: Vec<String>,
     direction: String,
     step_limit: Option<u32>,
-    
+
     edge_props: Vec<EdgeProp>,
-    
+
     vertex_props: Vec<TagProp>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
@@ -401,7 +401,7 @@ impl super::plan_node_traits::PlanNodeClonable for ExpandAllNode {
 #[derive(Debug)]
 pub struct TraverseNode {
     id: i64,
-    
+
     space_id: i32,
     edge_types: Vec<String>,
     direction: String,

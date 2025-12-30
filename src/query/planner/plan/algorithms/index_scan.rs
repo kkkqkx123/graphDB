@@ -3,7 +3,9 @@
 
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::nodes::plan_node_enum::{PlanNodeEnum, PlanNodeVisitor};
-use crate::query::planner::plan::core::nodes::plan_node_traits::{PlanNode, PlanNodeClonable, ZeroInputNode};
+use crate::query::planner::plan::core::nodes::plan_node_traits::{
+    PlanNode, PlanNodeClonable, ZeroInputNode,
+};
 
 #[derive(Debug, Clone)]
 pub struct IndexLimit {

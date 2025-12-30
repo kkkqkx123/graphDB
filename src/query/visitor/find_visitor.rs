@@ -2,7 +2,10 @@
 //! 对应 NebulaGraph FindVisitor.h/.cpp 的功能
 
 use crate::core::types::expression::DataType;
-use crate::core::{visitor::{Visitor, VisitorState}, Value};
+use crate::core::{
+    visitor::{Visitor, VisitorState},
+    Value,
+};
 use crate::expression::{Expression, ExpressionType};
 use std::collections::HashSet;
 
@@ -82,7 +85,6 @@ impl FindVisitor {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,9 +123,7 @@ mod tests {
             }),
         };
 
-        let literals = visitor.find_if(&expr, |e| {
-            matches!(e, Expression::Literal(Value::Int(_)))
-        });
+        let literals = visitor.find_if(&expr, |e| matches!(e, Expression::Literal(Value::Int(_))));
 
         assert_eq!(literals.len(), 3);
     }
@@ -141,7 +141,8 @@ impl Visitor<Expression> for FindVisitor {
             }
             Expression::Variable(name) => {
                 if self.target_types.contains(&ExpressionType::Variable) {
-                    self.found_exprs.push(Expression::Variable(name.to_string()));
+                    self.found_exprs
+                        .push(Expression::Variable(name.to_string()));
                 }
             }
             Expression::Property { object, property } => {
@@ -184,7 +185,11 @@ impl Visitor<Expression> for FindVisitor {
                     self.visit(arg);
                 }
             }
-            Expression::Aggregate { func, arg, distinct } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
                 if self.target_types.contains(&ExpressionType::Aggregate) {
                     self.found_exprs.push(Expression::Aggregate {
                         func: func.clone(),
@@ -210,7 +215,10 @@ impl Visitor<Expression> for FindVisitor {
                     self.visit(value);
                 }
             }
-            Expression::Case { conditions, default } => {
+            Expression::Case {
+                conditions,
+                default,
+            } => {
                 if self.target_types.contains(&ExpressionType::Case) {
                     self.found_exprs.push(Expression::Case {
                         conditions: conditions.to_vec(),
@@ -244,7 +252,11 @@ impl Visitor<Expression> for FindVisitor {
                 self.visit(collection);
                 self.visit(index);
             }
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 if self.target_types.contains(&ExpressionType::Range) {
                     self.found_exprs.push(Expression::Range {
                         collection: collection.clone(),
@@ -291,11 +303,15 @@ impl Visitor<Expression> for FindVisitor {
             }
             Expression::InputProperty(prop) => {
                 if self.target_types.contains(&ExpressionType::InputProperty) {
-                    self.found_exprs.push(Expression::InputProperty(prop.to_string()));
+                    self.found_exprs
+                        .push(Expression::InputProperty(prop.to_string()));
                 }
             }
             Expression::VariableProperty { var, prop } => {
-                if self.target_types.contains(&ExpressionType::VariableProperty) {
+                if self
+                    .target_types
+                    .contains(&ExpressionType::VariableProperty)
+                {
                     self.found_exprs.push(Expression::VariableProperty {
                         var: var.to_string(),
                         prop: prop.to_string(),
@@ -311,7 +327,10 @@ impl Visitor<Expression> for FindVisitor {
                 }
             }
             Expression::DestinationProperty { tag, prop } => {
-                if self.target_types.contains(&ExpressionType::DestinationProperty) {
+                if self
+                    .target_types
+                    .contains(&ExpressionType::DestinationProperty)
+                {
                     self.found_exprs.push(Expression::DestinationProperty {
                         tag: tag.to_string(),
                         prop: prop.to_string(),
@@ -372,7 +391,10 @@ impl Visitor<Expression> for FindVisitor {
                 }
                 self.visit(expr);
             }
-            Expression::ListComprehension { generator, condition } => {
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => {
                 if self.target_types.contains(&ExpressionType::List) {
                     self.found_exprs.push(Expression::ListComprehension {
                         generator: generator.clone(),
@@ -394,7 +416,12 @@ impl Visitor<Expression> for FindVisitor {
                 self.visit(list);
                 self.visit(condition);
             }
-            Expression::Reduce { list, var, initial, expr } => {
+            Expression::Reduce {
+                list,
+                var,
+                initial,
+                expr,
+            } => {
                 if self.target_types.contains(&ExpressionType::Aggregate) {
                     self.found_exprs.push(Expression::Reduce {
                         list: list.clone(),
@@ -409,7 +436,8 @@ impl Visitor<Expression> for FindVisitor {
             }
             Expression::ESQuery(query) => {
                 if self.target_types.contains(&ExpressionType::Function) {
-                    self.found_exprs.push(Expression::ESQuery(query.to_string()));
+                    self.found_exprs
+                        .push(Expression::ESQuery(query.to_string()));
                 }
             }
             Expression::UUID => {
@@ -417,7 +445,10 @@ impl Visitor<Expression> for FindVisitor {
                     self.found_exprs.push(Expression::UUID);
                 }
             }
-            Expression::MatchPathPattern { path_alias, patterns } => {
+            Expression::MatchPathPattern {
+                path_alias,
+                patterns,
+            } => {
                 if self.target_types.contains(&ExpressionType::Path) {
                     self.found_exprs.push(Expression::MatchPathPattern {
                         path_alias: path_alias.to_string(),

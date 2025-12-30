@@ -3,10 +3,10 @@
 //! 提供执行器对象池，减少频繁的内存分配和释放
 //! 提高查询执行性能
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use crate::query::executor::traits::Executor;
 use crate::storage::StorageEngine;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 /// 对象池配置
 #[derive(Debug, Clone)]
@@ -97,7 +97,10 @@ impl<S: StorageEngine + 'static> ExecutorObjectPool<S> {
 
         self.stats.total_releases += 1;
 
-        let pool = self.pools.entry(executor_type.to_string()).or_insert_with(Vec::new);
+        let pool = self
+            .pools
+            .entry(executor_type.to_string())
+            .or_insert_with(Vec::new);
 
         if pool.len() < self.config.max_pool_size {
             pool.push(executor);
@@ -126,7 +129,10 @@ impl<S: StorageEngine + 'static> ExecutorObjectPool<S> {
 
     /// 获取指定类型的池大小
     pub fn pool_size(&self, executor_type: &str) -> usize {
-        self.pools.get(executor_type).map(|pool| pool.len()).unwrap_or(0)
+        self.pools
+            .get(executor_type)
+            .map(|pool| pool.len())
+            .unwrap_or(0)
     }
 
     /// 获取总池大小
@@ -239,7 +245,7 @@ mod tests {
     #[test]
     fn test_object_pool_release_and_acquire() {
         let mut pool = ExecutorObjectPool::<MockStorage>::default_pool();
-        
+
         // 由于没有实际的执行器实现，这里只测试接口
         // 在实际使用中，会释放真实的执行器实例
         assert_eq!(pool.pool_size("TestExecutor"), 0);
@@ -249,7 +255,7 @@ mod tests {
     fn test_thread_safe_pool() {
         let pool = ThreadSafeExecutorPool::<MockStorage>::default_pool();
         assert_eq!(pool.total_size(), 0);
-        
+
         let executor = pool.acquire("TestExecutor");
         assert!(executor.is_none());
     }
@@ -259,7 +265,7 @@ mod tests {
         let mut pool = ExecutorObjectPool::<MockStorage>::default_pool();
         pool.acquire("TestExecutor");
         pool.acquire("TestExecutor");
-        
+
         assert_eq!(pool.stats().total_acquires, 2);
         assert_eq!(pool.stats().cache_misses, 2);
         assert_eq!(pool.stats().cache_hits, 0);

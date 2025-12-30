@@ -142,5 +142,3 @@ impl<S: StorageEngine> HasStorage<S> for BaseExecutor<S> {
         self.storage.as_ref().expect("Storage not set")
     }
 }
-
-

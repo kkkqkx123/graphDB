@@ -270,18 +270,42 @@ impl PlanNodeEnum {
             PlanNodeEnum::Assign(node) => vec![Box::new(node.input().clone())],
 
             // 双输入节点
-            PlanNodeEnum::InnerJoin(node) => vec![Box::new(node.left_input().clone()), Box::new(node.right_input().clone())],
-            PlanNodeEnum::LeftJoin(node) => vec![Box::new(node.left_input().clone()), Box::new(node.right_input().clone())],
-            PlanNodeEnum::CrossJoin(node) => vec![Box::new(node.left_input().clone()), Box::new(node.right_input().clone())],
-            PlanNodeEnum::HashInnerJoin(node) => vec![Box::new(node.left_input().clone()), Box::new(node.right_input().clone())],
-            PlanNodeEnum::HashLeftJoin(node) => vec![Box::new(node.left_input().clone()), Box::new(node.right_input().clone())],
-            PlanNodeEnum::CartesianProduct(node) => vec![Box::new(node.left_input().clone()), Box::new(node.right_input().clone())],
+            PlanNodeEnum::InnerJoin(node) => vec![
+                Box::new(node.left_input().clone()),
+                Box::new(node.right_input().clone()),
+            ],
+            PlanNodeEnum::LeftJoin(node) => vec![
+                Box::new(node.left_input().clone()),
+                Box::new(node.right_input().clone()),
+            ],
+            PlanNodeEnum::CrossJoin(node) => vec![
+                Box::new(node.left_input().clone()),
+                Box::new(node.right_input().clone()),
+            ],
+            PlanNodeEnum::HashInnerJoin(node) => vec![
+                Box::new(node.left_input().clone()),
+                Box::new(node.right_input().clone()),
+            ],
+            PlanNodeEnum::HashLeftJoin(node) => vec![
+                Box::new(node.left_input().clone()),
+                Box::new(node.right_input().clone()),
+            ],
+            PlanNodeEnum::CartesianProduct(node) => vec![
+                Box::new(node.left_input().clone()),
+                Box::new(node.right_input().clone()),
+            ],
 
             // 多输入节点
             PlanNodeEnum::Expand(node) => node.inputs().iter().map(|input| input.clone()).collect(),
-            PlanNodeEnum::ExpandAll(node) => node.inputs().iter().map(|input| input.clone()).collect(),
-            PlanNodeEnum::Traverse(node) => node.inputs().iter().map(|input| input.clone()).collect(),
-            PlanNodeEnum::AppendVertices(node) => node.inputs().iter().map(|input| input.clone()).collect(),
+            PlanNodeEnum::ExpandAll(node) => {
+                node.inputs().iter().map(|input| input.clone()).collect()
+            }
+            PlanNodeEnum::Traverse(node) => {
+                node.inputs().iter().map(|input| input.clone()).collect()
+            }
+            PlanNodeEnum::AppendVertices(node) => {
+                node.inputs().iter().map(|input| input.clone()).collect()
+            }
 
             // 其他节点
             PlanNodeEnum::Argument(_node) => vec![],

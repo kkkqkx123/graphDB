@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 
 /// 索引错误类型
-/// 
+///
 /// 涵盖索引创建和更新过程中的错误
 #[derive(Error, Debug)]
 pub enum IndexError {

@@ -1,11 +1,9 @@
 //! EvaluableExprVisitor - 用于判断表达式是否可求值的访问器
 //! 对应 NebulaGraph EvaluableExprVisitor.h/.cpp 的功能
 
-use crate::core::{
-    AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator,
-};
-use crate::core::Value;
 use crate::core::visitor::{Visitor, VisitorState};
+use crate::core::Value;
+use crate::core::{AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator};
 
 #[derive(Debug)]
 pub struct EvaluableExprVisitor {
@@ -120,12 +118,20 @@ impl EvaluableExprVisitor {
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expression, _target_type: &DataType) -> Result<(), String> {
+    fn visit_type_cast(
+        &mut self,
+        expr: &Expression,
+        _target_type: &DataType,
+    ) -> Result<(), String> {
         self.visit(expr)?;
         Ok(())
     }
 
-    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Result<(), String> {
+    fn visit_subscript(
+        &mut self,
+        collection: &Expression,
+        index: &Expression,
+    ) -> Result<(), String> {
         self.visit(collection)?;
         self.visit(index)?;
         Ok(())
@@ -301,15 +307,17 @@ impl EvaluableExprVisitor {
         Ok(())
     }
 
-    fn visit_match_path_pattern(&mut self, _path_alias: &str, patterns: &[Expression]) -> Result<(), String> {
+    fn visit_match_path_pattern(
+        &mut self,
+        _path_alias: &str,
+        patterns: &[Expression],
+    ) -> Result<(), String> {
         for pattern in patterns {
             self.visit(pattern)?;
         }
         Ok(())
     }
 }
-
-
 
 impl<'a> Visitor<Expression> for EvaluableExprVisitor {
     type Result = Result<(), String>;
@@ -319,22 +327,28 @@ impl<'a> Visitor<Expression> for EvaluableExprVisitor {
         match target {
             Expression::Literal(value) => self.visit_literal(value),
             Expression::Variable(name) => self.visit_variable(name),
-            Expression::Property {
-                object,
-                property,
-            } => self.visit_property(object, property),
+            Expression::Property { object, property } => self.visit_property(object, property),
             Expression::Binary { left, op, right } => self.visit_binary(left, op, right),
             Expression::Unary { op, operand } => self.visit_unary(op, operand),
             Expression::Function { name, args } => self.visit_function(name, args),
-            Expression::Aggregate { func, arg, distinct } => {
-                self.visit_aggregate(func, arg, *distinct)
-            }
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => self.visit_aggregate(func, arg, *distinct),
             Expression::List(items) => self.visit_list(items),
             Expression::Map(pairs) => self.visit_map(pairs),
-            Expression::Case { conditions, default } => self.visit_case(conditions, default),
+            Expression::Case {
+                conditions,
+                default,
+            } => self.visit_case(conditions, default),
             Expression::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
             Expression::Subscript { collection, index } => self.visit_subscript(collection, index),
-            Expression::Range { collection, start, end } => self.visit_range(collection, start, end),
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => self.visit_range(collection, start, end),
             Expression::Path(items) => self.visit_path(items),
             Expression::Label(name) => self.visit_label(name),
             Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
@@ -354,18 +368,23 @@ impl<'a> Visitor<Expression> for EvaluableExprVisitor {
             Expression::IsNotNull(expr) => self.visit_is_not_null(expr),
             Expression::IsEmpty(expr) => self.visit_is_empty(expr),
             Expression::IsNotEmpty(expr) => self.visit_is_not_empty(expr),
-            Expression::ListComprehension { generator, condition } => {
-                self.visit_list_comprehension(generator, condition)
-            }
+            Expression::ListComprehension {
+                generator,
+                condition,
+            } => self.visit_list_comprehension(generator, condition),
             Expression::Predicate { list, condition } => self.visit_predicate(list, condition),
-            Expression::Reduce { list, var, initial, expr } => {
-                self.visit_reduce(list, var, initial, expr)
-            }
+            Expression::Reduce {
+                list,
+                var,
+                initial,
+                expr,
+            } => self.visit_reduce(list, var, initial, expr),
             Expression::ESQuery(query) => self.visit_es_query(query),
             Expression::UUID => self.visit_uuid(),
-            Expression::MatchPathPattern { path_alias, patterns } => {
-                self.visit_match_path_pattern(path_alias, patterns)
-            }
+            Expression::MatchPathPattern {
+                path_alias,
+                patterns,
+            } => self.visit_match_path_pattern(path_alias, patterns),
         }
     }
 

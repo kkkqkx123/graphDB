@@ -2,9 +2,9 @@
 //! 包括创建/删除标签等操作
 
 use super::space_ops::Schema;
+use super::space_ops::SchemaField;
 use crate::query::planner::plan::core::nodes::management_node_enum::ManagementNodeEnum;
 use crate::query::planner::plan::core::nodes::management_node_traits::ManagementNode;
-use super::space_ops::SchemaField;
 
 /// 创建标签计划节点
 #[derive(Debug, Clone)]
@@ -203,9 +203,9 @@ pub enum TagAlterOperation {
     AddField(SchemaField),
     DropField(String),
     ModifyField(String, SchemaField), // 字段名, 新字段定义
-    SetTtlDuration(i64), // 设置 TTL 时长
-    SetTtlCol(String),   // 设置 TTL 列
-    DropTtl,             // 删除 TTL 设置
+    SetTtlDuration(i64),              // 设置 TTL 时长
+    SetTtlCol(String),                // 设置 TTL 列
+    DropTtl,                          // 删除 TTL 设置
 }
 
 /// 修改标签计划节点
@@ -219,7 +219,13 @@ pub struct AlterTag {
 }
 
 impl AlterTag {
-    pub fn new(id: i64, cost: f64, if_exists: bool, tag_name: &str, operations: Vec<TagAlterOperation>) -> Self {
+    pub fn new(
+        id: i64,
+        cost: f64,
+        if_exists: bool,
+        tag_name: &str,
+        operations: Vec<TagAlterOperation>,
+    ) -> Self {
         Self {
             id,
             cost,

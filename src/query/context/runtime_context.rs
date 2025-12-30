@@ -4,8 +4,8 @@
 //! 对应C++版本中的RuntimeContext结构
 
 use crate::common::base::id::{EdgeType, TagId};
-use crate::core::Value;
 use crate::core::error::{ManagerError, ManagerResult};
+use crate::core::Value;
 use std::sync::Arc;
 
 use crate::query::context::managers::SchemaManager;
@@ -361,7 +361,12 @@ mod tests {
             self.schemas.contains_key(name)
         }
 
-        fn create_tag(&self, _space_id: i32, _tag_name: &str, _fields: Vec<crate::query::context::managers::FieldDef>) -> ManagerResult<i32> {
+        fn create_tag(
+            &self,
+            _space_id: i32,
+            _tag_name: &str,
+            _fields: Vec<crate::query::context::managers::FieldDef>,
+        ) -> ManagerResult<i32> {
             Ok(1)
         }
 
@@ -369,11 +374,18 @@ mod tests {
             Ok(())
         }
 
-        fn get_tag(&self, _space_id: i32, _tag_id: i32) -> Option<crate::query::context::managers::TagDef> {
+        fn get_tag(
+            &self,
+            _space_id: i32,
+            _tag_id: i32,
+        ) -> Option<crate::query::context::managers::TagDef> {
             None
         }
 
-        fn list_tags(&self, _space_id: i32) -> ManagerResult<Vec<crate::query::context::managers::TagDef>> {
+        fn list_tags(
+            &self,
+            _space_id: i32,
+        ) -> ManagerResult<Vec<crate::query::context::managers::TagDef>> {
             Ok(Vec::new())
         }
 
@@ -381,7 +393,12 @@ mod tests {
             false
         }
 
-        fn create_edge_type(&self, _space_id: i32, _edge_type_name: &str, _fields: Vec<crate::query::context::managers::FieldDef>) -> ManagerResult<i32> {
+        fn create_edge_type(
+            &self,
+            _space_id: i32,
+            _edge_type_name: &str,
+            _fields: Vec<crate::query::context::managers::FieldDef>,
+        ) -> ManagerResult<i32> {
             Ok(1)
         }
 
@@ -389,11 +406,18 @@ mod tests {
             Ok(())
         }
 
-        fn get_edge_type(&self, _space_id: i32, _edge_type_id: i32) -> Option<crate::query::context::managers::EdgeTypeDef> {
+        fn get_edge_type(
+            &self,
+            _space_id: i32,
+            _edge_type_id: i32,
+        ) -> Option<crate::query::context::managers::EdgeTypeDef> {
             None
         }
 
-        fn list_edge_types(&self, _space_id: i32) -> ManagerResult<Vec<crate::query::context::managers::EdgeTypeDef>> {
+        fn list_edge_types(
+            &self,
+            _space_id: i32,
+        ) -> ManagerResult<Vec<crate::query::context::managers::EdgeTypeDef>> {
             Ok(Vec::new())
         }
 
@@ -409,11 +433,19 @@ mod tests {
             Ok(())
         }
 
-        fn create_schema_version(&self, _space_id: i32, _comment: Option<String>) -> ManagerResult<i32> {
+        fn create_schema_version(
+            &self,
+            _space_id: i32,
+            _comment: Option<String>,
+        ) -> ManagerResult<i32> {
             Ok(1)
         }
 
-        fn get_schema_version(&self, _space_id: i32, _version: i32) -> Option<crate::query::context::managers::SchemaVersion> {
+        fn get_schema_version(
+            &self,
+            _space_id: i32,
+            _version: i32,
+        ) -> Option<crate::query::context::managers::SchemaVersion> {
             None
         }
 
@@ -421,7 +453,10 @@ mod tests {
             Some(1)
         }
 
-        fn get_schema_history(&self, _space_id: i32) -> ManagerResult<crate::query::context::managers::SchemaHistory> {
+        fn get_schema_history(
+            &self,
+            _space_id: i32,
+        ) -> ManagerResult<crate::query::context::managers::SchemaHistory> {
             Ok(crate::query::context::managers::SchemaHistory {
                 space_id: _space_id,
                 versions: Vec::new(),
@@ -524,7 +559,14 @@ mod tests {
             nullable: false,
         }];
         runtime_ctx.set_props_ref(&props);
-        assert_eq!(runtime_ctx.props.as_ref().expect("Props should exist").len(), 1);
+        assert_eq!(
+            runtime_ctx
+                .props
+                .as_ref()
+                .expect("Props should exist")
+                .len(),
+            1
+        );
 
         // 设置标志
         runtime_ctx.set_insert(true);

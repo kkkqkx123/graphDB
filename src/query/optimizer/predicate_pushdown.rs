@@ -1134,9 +1134,9 @@ mod tests {
     use super::*;
     use crate::core::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::core::nodes::{FilterNode, StartNode};
     use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
     use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
+    use crate::query::planner::plan::core::nodes::{FilterNode, StartNode};
 
     fn create_test_context() -> OptContext {
         let session_info = crate::core::context::session::SessionInfo::new(
@@ -1163,8 +1163,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
-            .expect("Filter node should be created successfully");
+        let filter_node = FilterNode::new(
+            start_node,
+            crate::core::Expression::Variable("col1 > 100".to_string()),
+        )
+        .expect("Filter node should be created successfully");
         let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
@@ -1180,8 +1183,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
-            .expect("Filter node should be created successfully");
+        let filter_node = FilterNode::new(
+            start_node,
+            crate::core::Expression::Variable("col1 > 100".to_string()),
+        )
+        .expect("Filter node should be created successfully");
         let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
@@ -1197,8 +1203,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
-            .expect("Filter node should be created successfully");
+        let filter_node = FilterNode::new(
+            start_node,
+            crate::core::Expression::Variable("col1 > 100".to_string()),
+        )
+        .expect("Filter node should be created successfully");
         let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
@@ -1214,8 +1223,11 @@ mod tests {
         let mut ctx = create_test_context();
 
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
-            .expect("Filter node should be created successfully");
+        let filter_node = FilterNode::new(
+            start_node,
+            crate::core::Expression::Variable("col1 > 100".to_string()),
+        )
+        .expect("Filter node should be created successfully");
         let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
@@ -1232,8 +1244,11 @@ mod tests {
 
         // 创建一个过滤节点
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
-            .expect("Filter node should be created successfully");
+        let filter_node = FilterNode::new(
+            start_node,
+            crate::core::Expression::Variable("col1 > 100".to_string()),
+        )
+        .expect("Filter node should be created successfully");
         let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
@@ -1250,8 +1265,11 @@ mod tests {
 
         // 创建一个过滤节点
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
-            .expect("Filter node should be created successfully");
+        let filter_node = FilterNode::new(
+            start_node,
+            crate::core::Expression::Variable("col1 > 100".to_string()),
+        )
+        .expect("Filter node should be created successfully");
         let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
@@ -1268,8 +1286,11 @@ mod tests {
 
         // 创建一个过滤节点
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let filter_node = FilterNode::new(start_node, crate::core::Expression::Variable("col1 > 100".to_string()))
-            .expect("Filter node should be created successfully");
+        let filter_node = FilterNode::new(
+            start_node,
+            crate::core::Expression::Variable("col1 > 100".to_string()),
+        )
+        .expect("Filter node should be created successfully");
         let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule

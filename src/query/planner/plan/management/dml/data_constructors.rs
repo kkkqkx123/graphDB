@@ -15,7 +15,12 @@ pub struct NewVertex {
 
 impl NewVertex {
     pub fn new(id: i64, cost: f64, tag_id: i32, props: Vec<(String, String)>) -> Self {
-        Self { id, cost, tag_id, props }
+        Self {
+            id,
+            cost,
+            tag_id,
+            props,
+        }
     }
 
     pub fn tag_id(&self) -> i32 {
@@ -56,7 +61,12 @@ pub struct NewTag {
 
 impl NewTag {
     pub fn new(id: i64, cost: f64, tag_id: i32, props: Vec<(String, String)>) -> Self {
-        Self { id, cost, tag_id, props }
+        Self {
+            id,
+            cost,
+            tag_id,
+            props,
+        }
     }
 
     pub fn tag_id(&self) -> i32 {

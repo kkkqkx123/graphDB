@@ -18,7 +18,6 @@ pub mod scan_optimization;
 pub mod transformation_rules;
 
 // Re-export all rule structs for convenient access
-pub use rule_traits::{BaseOptRule, EliminationRule, MergeRule, PushDownRule};
 pub use elimination_rules::{
     DedupEliminationRule, EliminateAppendVerticesRule, EliminateFilterRule,
     RemoveAppendVerticesBelowJoinRule, RemoveNoopProjectRule,
@@ -44,6 +43,7 @@ pub use predicate_pushdown::{
     PushFilterDownTraverseRule,
 };
 pub use projection_pushdown::{ProjectionPushDownRule, PushProjectDownRule};
+pub use rule_traits::{BaseOptRule, EliminationRule, MergeRule, PushDownRule};
 pub use scan_optimization::{IndexFullScanRule, ScanWithFilterOptimizationRule};
 pub use transformation_rules::TopNRule;
 

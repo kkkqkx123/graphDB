@@ -1,6 +1,6 @@
+use crate::core::context::session::{SessionInfo, SessionStatus};
 use crate::core::error::DBError;
 use crate::core::Value;
-use crate::core::context::session::{SessionInfo, SessionStatus};
 use crate::utils::{safe_lock, safe_read, safe_write};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -42,12 +42,12 @@ impl Session {
             SessionId::new().to_string(),
             user_id.unwrap_or_else(|| "anonymous".to_string()),
             vec![], // 默认无角色
-            "", // 客户端IP
-            0,  // 客户端端口
+            "",     // 客户端IP
+            0,      // 客户端端口
             client_info,
             connection_info,
         );
-        
+
         Self {
             session_info,
             variables: Arc::new(RwLock::new(HashMap::new())),

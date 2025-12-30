@@ -1,6 +1,7 @@
 //! PATH查询规划器
 //! 处理Nebula PATH查询的规划
 
+use crate::core::types::EdgeDirection;
 use crate::query::context::ast::{AstContext, PathContext};
 use crate::query::planner::plan::core::{
     ArgumentNode, DedupNode, ExpandAllNode, ExpandNode, FilterNode, GetVerticesNode, PlanNodeEnum,
@@ -8,7 +9,6 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::core::types::EdgeDirection;
 
 /// PATH查询规划器
 /// 负责将PATH查询转换为执行计划
@@ -52,10 +52,7 @@ impl Planner for PathPlanner {
         let _end_arg_node = ArgumentNode::new(2, &path_ctx.to.user_defined_var_name);
 
         // 2. 创建GetVertices节点来获取顶点
-        let _get_vertices_node = GetVerticesNode::new(
-            1,
-            &path_ctx.from.user_defined_var_name,
-        );
+        let _get_vertices_node = GetVerticesNode::new(1, &path_ctx.from.user_defined_var_name);
 
         // 3. 创建扩展节点进行路径搜索
         let expand_direction: EdgeDirection = path_ctx.over.direction.into();
@@ -79,7 +76,8 @@ impl Planner for PathPlanner {
             EdgeDirection::Incoming => "in",
             EdgeDirection::Both => "both",
         };
-        let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAllNode::new(2, edge_types, direction_str));
+        let expand_all_node =
+            PlanNodeEnum::ExpandAll(ExpandAllNode::new(2, edge_types, direction_str));
 
         // 6. 创建过滤节点（如果有过滤条件）
         let filter_node: PlanNodeEnum = if let Some(ref condition) = path_ctx.filter {
@@ -102,7 +100,8 @@ impl Planner for PathPlanner {
             is_matched: false,
         }];
 
-        let project_node: PlanNodeEnum = match ProjectNode::new(filter_node.clone(), yield_columns) {
+        let project_node: PlanNodeEnum = match ProjectNode::new(filter_node.clone(), yield_columns)
+        {
             Ok(node) => PlanNodeEnum::Project(node),
             Err(_) => filter_node.clone(),
         };
@@ -118,7 +117,10 @@ impl Planner for PathPlanner {
         };
 
         // 创建SubPlan
-        let sub_plan = SubPlan::new(Some(final_node), Some(PlanNodeEnum::Argument(start_arg_node)));
+        let sub_plan = SubPlan::new(
+            Some(final_node),
+            Some(PlanNodeEnum::Argument(start_arg_node)),
+        );
 
         Ok(sub_plan)
     }

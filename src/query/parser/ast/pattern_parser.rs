@@ -352,7 +352,8 @@ impl PatternParser {
         if let LexerToken::IntegerLiteral(_) = token.kind {
             let text = token.lexeme.clone();
             self.lexer.advance();
-            text.parse().map_err(|_| self.parse_error(format!("Invalid integer: {}", text)))
+            text.parse()
+                .map_err(|_| self.parse_error(format!("Invalid integer: {}", text)))
         } else {
             Err(self.parse_error(format!("Expected integer, found {:?}", token.kind)))
         }

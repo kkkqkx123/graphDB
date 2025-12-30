@@ -5,9 +5,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Step, Value};
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
@@ -33,7 +31,7 @@ pub struct ShortestPathExecutor<S: StorageEngine> {
     end_vertex_ids: Vec<Value>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
-    pub max_depth: Option<usize>, // 最大搜索深度限制
+    pub max_depth: Option<usize>,     // 最大搜索深度限制
     algorithm: ShortestPathAlgorithm, // 使用的算法
     input_executor: Option<Box<dyn Executor<S>>>,
     // 路径缓存
@@ -482,6 +480,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
 
 impl<S: StorageEngine + Send> HasStorage<S> for ShortestPathExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("ShortestPathExecutor storage should be set")
+        self.base
+            .storage
+            .as_ref()
+            .expect("ShortestPathExecutor storage should be set")
     }
 }

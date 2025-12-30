@@ -177,9 +177,11 @@ impl Default for PlanDescription {
     }
 }
 
+use crate::query::planner::plan::algorithms::{
+    AllPaths, BFSShortest, FulltextIndexScan, IndexScan, MultiShortestPath, ShortestPath,
+};
 use crate::query::planner::plan::core::nodes::plan_node_enum::*;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::algorithms::{IndexScan, FulltextIndexScan, MultiShortestPath, BFSShortest, AllPaths, ShortestPath};
 
 /// DescribeVisitor - 计划节点描述访问者
 ///

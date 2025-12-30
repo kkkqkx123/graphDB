@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{Edge, Value, Vertex};
-use crate::query::executor::traits::{
-    DBResult, ExecutionResult, Executor, HasInput, HasStorage,
-};
+use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasInput, HasStorage};
 use crate::storage::StorageEngine;
 
 pub use crate::core::types::EdgeDirection;
@@ -128,7 +126,9 @@ impl<S: StorageEngine> BaseExecutor<S> {
 
 impl<S: StorageEngine> HasStorage<S> for BaseExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.storage.as_ref().expect("BaseExecutor storage should be set")
+        self.storage
+            .as_ref()
+            .expect("BaseExecutor storage should be set")
     }
 }
 
@@ -193,10 +193,7 @@ pub struct StartExecutor<S: StorageEngine> {
 impl<S: StorageEngine> StartExecutor<S> {
     pub fn new(id: i64) -> Self {
         Self {
-            base: BaseExecutor::without_storage(
-                id,
-                "StartExecutor".to_string(),
-            ),
+            base: BaseExecutor::without_storage(id, "StartExecutor".to_string()),
         }
     }
 }

@@ -1,6 +1,8 @@
 //! GO查询上下文
 
-use crate::query::context::ast::{AstContext, ExpressionProps, Over, Starts, StepClause, FromType, YieldColumns};
+use crate::query::context::ast::{
+    AstContext, ExpressionProps, FromType, Over, Starts, StepClause, YieldColumns,
+};
 
 // GO查询上下文
 #[derive(Debug, Clone)]

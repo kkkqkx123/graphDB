@@ -445,9 +445,7 @@ mod tests {
 fn get_system_available_memory() -> Result<u64, String> {
     #[cfg(target_os = "windows")]
     {
-        use windows_sys::Win32::System::SystemInformation::{
-            GlobalMemoryStatusEx, MEMORYSTATUSEX,
-        };
+        use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 
         let mut status: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
         status.dwLength = std::mem::size_of::<MEMORYSTATUSEX>() as u32;
@@ -505,10 +503,7 @@ fn get_system_available_memory() -> Result<u64, String> {
             if line.contains("Pages free:") {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 3 {
-                    free_pages = parts[2]
-                        .trim_end_matches('.')
-                        .parse()
-                        .unwrap_or(0);
+                    free_pages = parts[2].trim_end_matches('.').parse().unwrap_or(0);
                 }
             }
         }

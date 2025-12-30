@@ -19,20 +19,20 @@ pub struct QueryAstContext {
 /// 查询变量信息
 #[derive(Debug, Clone)]
 pub struct QueryVariableInfo {
-    pub variable_name: String,              // 变量名
-    pub variable_type: String,              // 变量类型（如 "vertex", "edge", "path"）
-    pub source_clause: String,              // 来源子句（如 "MATCH", "GO"）
-    pub is_aggregated: bool,                // 是否聚合变量
-    pub properties: Vec<String>,            // 访问的属性列表
+    pub variable_name: String,   // 变量名
+    pub variable_type: String,   // 变量类型（如 "vertex", "edge", "path"）
+    pub source_clause: String,   // 来源子句（如 "MATCH", "GO"）
+    pub is_aggregated: bool,     // 是否聚合变量
+    pub properties: Vec<String>, // 访问的属性列表
 }
 
 /// 表达式上下文
 #[derive(Debug, Clone)]
 pub struct ExpressionContext {
-    pub expression_id: String,              // 表达式ID
-    pub expression_text: String,            // 表达式文本
-    pub referenced_variables: Vec<String>,  // 引用的变量
-    pub expression_type: String,            // 表达式类型（如 "predicate", "projection"）
+    pub expression_id: String,             // 表达式ID
+    pub expression_text: String,           // 表达式文本
+    pub referenced_variables: Vec<String>, // 引用的变量
+    pub expression_type: String,           // 表达式类型（如 "predicate", "projection"）
 }
 
 impl QueryAstContext {
@@ -237,7 +237,10 @@ mod tests {
         let dependencies = vec!["scan_vertex".to_string()];
         context.add_dependency("go_step".to_string(), dependencies.clone());
 
-        assert_eq!(context.get_node_dependencies("go_step"), Some(&dependencies));
+        assert_eq!(
+            context.get_node_dependencies("go_step"),
+            Some(&dependencies)
+        );
     }
 
     #[test]

@@ -9,19 +9,17 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use crate::core::types::operators::AggregateFunction;
+use crate::core::Expression;
+use crate::core::Value;
+use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
-use crate::core::types::operators::AggregateFunction;
-use crate::core::Value;
-use crate::core::Expression;
-use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
-use crate::query::executor::traits::{
-    DBResult, ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 聚合函数规范
@@ -366,14 +364,15 @@ impl<S: StorageEngine> AggregateExecutor<S> {
             // 计算分组键
             let mut group_key = Vec::new();
             for group_expr in &self.group_keys {
-                let key_value = ExpressionEvaluator::evaluate(group_expr, &mut context).map_err(|e| {
-                    crate::core::error::DBError::Expression(
-                        crate::core::error::ExpressionError::function_error(format!(
-                            "Failed to evaluate group key: {}",
-                            e
-                        )),
-                    )
-                })?;
+                let key_value =
+                    ExpressionEvaluator::evaluate(group_expr, &mut context).map_err(|e| {
+                        crate::core::error::DBError::Expression(
+                            crate::core::error::ExpressionError::function_error(format!(
+                                "Failed to evaluate group key: {}",
+                                e
+                            )),
+                        )
+                    })?;
                 group_key.push(key_value);
             }
 
@@ -592,7 +591,8 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                         // PERCENTILE函数 - 计算百分位数
                         // 这里简化处理，使用默认的50%百分位数（中位数）
                         // 在实际应用中，应该从查询参数中获取百分位数值
-                        agg_state.calculate_percentile(50.0)
+                        agg_state
+                            .calculate_percentile(50.0)
                             .unwrap_or(Value::Null(crate::core::value::NullType::NaN))
                     }
                 };
@@ -827,16 +827,15 @@ impl<S: StorageEngine> HavingExecutor<S> {
                 }
             }
 
-            let condition_result =
-                ExpressionEvaluator::evaluate(&self.condition, &mut context)
-                    .map_err(|e| {
-                        crate::core::error::DBError::Expression(
-                            crate::core::error::ExpressionError::function_error(format!(
-                                "Failed to evaluate HAVING condition: {}",
-                                e
-                            )),
-                        )
-                    })?;
+            let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
+                .map_err(|e| {
+                    crate::core::error::DBError::Expression(
+                        crate::core::error::ExpressionError::function_error(format!(
+                            "Failed to evaluate HAVING condition: {}",
+                            e
+                        )),
+                    )
+                })?;
 
             if let Value::Bool(true) = condition_result {
                 filtered_rows.push(row.clone());

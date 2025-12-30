@@ -7,7 +7,9 @@ use crate::core::context::traits::{BaseContext, ContextExt};
 use crate::core::context::ContextType;
 use crate::core::Value;
 use crate::expression::cache::{ExpressionCacheManager, ExpressionCacheStats};
-use crate::expression::functions::{BuiltinFunction, CustomFunction, ExpressionFunction, FunctionRef};
+use crate::expression::functions::{
+    BuiltinFunction, CustomFunction, ExpressionFunction, FunctionRef,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -384,11 +386,9 @@ impl BaseContext for BasicExpressionContext {
         true
     }
 
-    fn touch(&mut self) {
-    }
+    fn touch(&mut self) {}
 
-    fn invalidate(&mut self) {
-    }
+    fn invalidate(&mut self) {}
 
     fn revalidate(&mut self) -> bool {
         true
@@ -432,7 +432,10 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
     }
 
     fn set_vertex(&mut self, vertex: crate::core::Vertex) {
-        self.set_variable("_vertex".to_string(), crate::core::Value::Vertex(Box::new(vertex)));
+        self.set_variable(
+            "_vertex".to_string(),
+            crate::core::Value::Vertex(Box::new(vertex)),
+        );
     }
 
     fn set_edge(&mut self, edge: crate::core::Edge) {

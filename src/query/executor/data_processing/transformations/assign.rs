@@ -6,15 +6,13 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::expression::DefaultExpressionContext;
-use crate::expression::evaluator::traits::ExpressionContext;
-use crate::core::Value;
 use crate::core::Expression;
+use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::evaluator::traits::ExpressionContext;
+use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// Assign执行器
@@ -137,9 +135,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AssignExecutor<S>
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S> for AssignExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for AssignExecutor<S>
+{
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("AssignExecutor storage should be set")
+        self.base
+            .storage
+            .as_ref()
+            .expect("AssignExecutor storage should be set")
     }
 }
 

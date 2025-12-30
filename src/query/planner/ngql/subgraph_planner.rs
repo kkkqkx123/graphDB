@@ -1,6 +1,7 @@
 //! SUBGRAPH查询规划器
 //! 处理Nebula SUBGRAPH查询的规划
 
+use crate::core::types::EdgeDirection;
 use crate::query::context::ast::{AstContext, SubgraphContext};
 use crate::query::planner::plan::core::nodes::{
     ArgumentNode as Argument, ExpandAllNode as ExpandAll, ExpandNode as Expand,
@@ -8,7 +9,6 @@ use crate::query::planner::plan::core::nodes::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::core::types::EdgeDirection;
 
 /// SUBGRAPH查询规划器
 /// 负责将SUBGRAPH查询转换为执行计划
@@ -49,9 +49,17 @@ impl Planner for SubgraphPlanner {
 
         let arg_node = Argument::new(1, &subgraph_ctx.from.user_defined_var_name);
 
-        let expand_node = Expand::new(1, subgraph_ctx.edge_types.iter().cloned().collect::<Vec<_>>(), EdgeDirection::Outgoing);
+        let expand_node = Expand::new(
+            1,
+            subgraph_ctx.edge_types.iter().cloned().collect::<Vec<_>>(),
+            EdgeDirection::Outgoing,
+        );
 
-        let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAll::new(2, subgraph_ctx.edge_types.iter().cloned().collect::<Vec<_>>(), "out"));
+        let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAll::new(
+            2,
+            subgraph_ctx.edge_types.iter().cloned().collect::<Vec<_>>(),
+            "out",
+        ));
 
         let filter_node: PlanNodeEnum = if let Some(ref condition) = subgraph_ctx.filter {
             match Filter::new(
@@ -65,7 +73,8 @@ impl Planner for SubgraphPlanner {
             expand_all_node.clone()
         };
 
-        let tag_filter_node: PlanNodeEnum = if let Some(ref tag_condition) = subgraph_ctx.tag_filter {
+        let tag_filter_node: PlanNodeEnum = if let Some(ref tag_condition) = subgraph_ctx.tag_filter
+        {
             match Filter::new(
                 filter_node.clone(),
                 crate::core::Expression::Variable(tag_condition.clone()),
@@ -77,17 +86,18 @@ impl Planner for SubgraphPlanner {
             filter_node
         };
 
-        let edge_filter_node: PlanNodeEnum = if let Some(ref edge_condition) = subgraph_ctx.edge_filter {
-            match Filter::new(
-                tag_filter_node.clone(),
-                crate::core::Expression::Variable(edge_condition.clone()),
-            ) {
-                Ok(node) => PlanNodeEnum::Filter(node),
-                Err(_) => tag_filter_node.clone(),
-            }
-        } else {
-            tag_filter_node
-        };
+        let edge_filter_node: PlanNodeEnum =
+            if let Some(ref edge_condition) = subgraph_ctx.edge_filter {
+                match Filter::new(
+                    tag_filter_node.clone(),
+                    crate::core::Expression::Variable(edge_condition.clone()),
+                ) {
+                    Ok(node) => PlanNodeEnum::Filter(node),
+                    Err(_) => tag_filter_node.clone(),
+                }
+            } else {
+                tag_filter_node
+            };
 
         let project_node: PlanNodeEnum = match Project::new(edge_filter_node.clone(), vec![]) {
             Ok(node) => PlanNodeEnum::Project(node),

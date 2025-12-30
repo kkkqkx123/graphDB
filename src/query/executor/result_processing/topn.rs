@@ -8,17 +8,15 @@ use std::collections::BinaryHeap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::expression::{DefaultExpressionContext, ExpressionContext};
-use crate::core::{DataSet, Value};
 use crate::core::Expression;
+use crate::core::{DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// TopNExecutor - TOP N 结果执行器
@@ -214,11 +212,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
     }
 
     /// 计算行的排序值
-    fn calculate_sort_value(
-        &self,
-        row: &[Value],
-        col_names: &[String],
-    ) -> DBResult<Vec<Value>> {
+    fn calculate_sort_value(&self, row: &[Value], col_names: &[String]) -> DBResult<Vec<Value>> {
         let mut context = DefaultExpressionContext::new();
         for (i, col_name) in col_names.iter().enumerate() {
             if i < row.len() {
@@ -228,9 +222,8 @@ impl<S: StorageEngine> TopNExecutor<S> {
 
         let mut sort_values = Vec::new();
         for sort_key in &self.sort_keys {
-            let value = ExpressionEvaluator
-                ::evaluate(&sort_key.expression, &mut context)
-                .map_err(|e| {
+            let value =
+                ExpressionEvaluator::evaluate(&sort_key.expression, &mut context).map_err(|e| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
                         "Failed to evaluate sort expression: {}",
                         e

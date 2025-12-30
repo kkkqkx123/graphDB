@@ -5,9 +5,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
@@ -365,6 +363,9 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
 
 impl<S: StorageEngine + Send> HasStorage<S> for ExpandAllExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("ExpandAllExecutor storage should be set")
+        self.base
+            .storage
+            .as_ref()
+            .expect("ExpandAllExecutor storage should be set")
     }
 }

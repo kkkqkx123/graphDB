@@ -10,12 +10,11 @@ use crate::query::planner::plan::management::admin::host_ops::{
     AddHosts, DropHosts, ShowHosts, ShowHostsStatus,
 };
 use crate::query::planner::plan::management::admin::index_ops::{
-    CreateIndex, CreateEdgeIndex, CreateTagIndex, DescIndex, DropEdgeIndex, DropIndex, DropTagIndex,
-    ShowEdgeIndexes, ShowIndexStatus, ShowIndexes, ShowTagIndexes,
+    CreateEdgeIndex, CreateIndex, CreateTagIndex, DescIndex, DropEdgeIndex, DropIndex,
+    DropTagIndex, ShowEdgeIndexes, ShowIndexStatus, ShowIndexes, ShowTagIndexes,
 };
 use crate::query::planner::plan::management::admin::system_ops::{
-    CreateSnapshot, DropSnapshot, ShowCharset, ShowCollation, ShowSnapshots,
-    ShowStats, SubmitJob,
+    CreateSnapshot, DropSnapshot, ShowCharset, ShowCollation, ShowSnapshots, ShowStats, SubmitJob,
 };
 use crate::query::planner::plan::management::ddl::edge_ops::{
     AlterEdge, CreateEdge, DropEdge, ShowCreateEdge, ShowEdges,

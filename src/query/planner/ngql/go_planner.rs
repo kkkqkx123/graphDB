@@ -1,6 +1,7 @@
 //! GO语句规划器
 //! 处理Nebula GO查询的规划
 
+use crate::core::types::EdgeDirection;
 use crate::query::context::ast::{AstContext, GoContext};
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::plan::core::PlanNodeEnum;
@@ -9,7 +10,6 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::core::types::EdgeDirection;
 
 /// GO查询规划器
 /// 负责将GO语句转换为执行计划
@@ -104,13 +104,15 @@ impl Planner for GoPlanner {
         };
 
         let yield_columns = if let Some(ref yield_expr) = go_ctx.yield_expr {
-            yield_expr.columns.iter().map(|col| {
-                crate::query::validator::YieldColumn {
+            yield_expr
+                .columns
+                .iter()
+                .map(|col| crate::query::validator::YieldColumn {
                     expr: crate::core::Expression::Variable(col.alias.clone()),
                     alias: col.alias.clone(),
                     is_matched: false,
-                }
-            }).collect()
+                })
+                .collect()
         } else {
             vec![crate::query::validator::YieldColumn {
                 expr: crate::core::Expression::Variable("DEFAULT".to_string()),

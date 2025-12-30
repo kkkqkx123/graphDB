@@ -2,9 +2,9 @@
 //!
 //! 提供表达式求值过程中的缓存功能，包括函数结果缓存、表达式解析缓存等
 
-use crate::cache::{Cache, CacheConfig, CacheFactory, StatsCache, StatsCacheWrapper};
 use crate::cache::cache_impl::*;
 use crate::cache::stats_marker::StatsEnabled;
+use crate::cache::{Cache, CacheConfig, CacheFactory, StatsCache, StatsCacheWrapper};
 use crate::core::types::expression::Expression;
 use crate::core::Value;
 use serde::{Deserialize, Serialize};
@@ -14,11 +14,15 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct ExpressionCacheManager {
     /// 函数执行结果缓存
-    function_cache: Arc<StatsCacheWrapper<String, Value, ConcurrentLruCache<String, Value>, StatsEnabled>>,
+    function_cache:
+        Arc<StatsCacheWrapper<String, Value, ConcurrentLruCache<String, Value>, StatsEnabled>>,
     /// 表达式解析结果缓存
-    expression_cache: Arc<StatsCacheWrapper<String, Expression, ConcurrentLruCache<String, Expression>, StatsEnabled>>,
+    expression_cache: Arc<
+        StatsCacheWrapper<String, Expression, ConcurrentLruCache<String, Expression>, StatsEnabled>,
+    >,
     /// 变量查找缓存
-    variable_cache: Arc<StatsCacheWrapper<String, Value, ConcurrentLruCache<String, Value>, StatsEnabled>>,
+    variable_cache:
+        Arc<StatsCacheWrapper<String, Value, ConcurrentLruCache<String, Value>, StatsEnabled>>,
     /// 缓存配置
     config: CacheConfig,
 }
@@ -26,13 +30,16 @@ pub struct ExpressionCacheManager {
 impl ExpressionCacheManager {
     /// 创建新的表达式缓存管理器
     pub fn new(config: CacheConfig) -> Self {
-        let function_cache = CacheFactory::create_lru_cache(config.parser_cache.expression_cache_capacity);
+        let function_cache =
+            CacheFactory::create_lru_cache(config.parser_cache.expression_cache_capacity);
         let function_cache = CacheFactory::create_stats_wrapper(function_cache);
 
-        let expression_cache = CacheFactory::create_lru_cache(config.parser_cache.expression_cache_capacity);
+        let expression_cache =
+            CacheFactory::create_lru_cache(config.parser_cache.expression_cache_capacity);
         let expression_cache = CacheFactory::create_stats_wrapper(expression_cache);
 
-        let variable_cache = CacheFactory::create_lru_cache(config.parser_cache.expression_cache_capacity);
+        let variable_cache =
+            CacheFactory::create_lru_cache(config.parser_cache.expression_cache_capacity);
         let variable_cache = CacheFactory::create_stats_wrapper(variable_cache);
 
         Self {

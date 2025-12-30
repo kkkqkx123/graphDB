@@ -1,11 +1,9 @@
 //! ExtractFilterExprVisitor - 用于提取过滤表达式的访问器
 //! 对应 NebulaGraph ExtractFilterExprVisitor.h/.cpp 的功能
 
-use crate::core::{
-    AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator,
-};
-use crate::core::Value;
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
+use crate::core::Value;
+use crate::core::{AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator};
 
 #[derive(Debug)]
 pub struct ExtractFilterExprVisitor {
@@ -374,7 +372,11 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         Ok(())
     }
 
-    fn visit_match_path_pattern(&mut self, _path_alias: &str, patterns: &[Expression]) -> Self::Result {
+    fn visit_match_path_pattern(
+        &mut self,
+        _path_alias: &str,
+        patterns: &[Expression],
+    ) -> Self::Result {
         for pattern in patterns {
             self.visit_expression(pattern)?;
         }
@@ -390,31 +392,52 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
     }
 
     /// Expr类型（AST表达式）访问方法 - 默认实现
-    fn visit_constant_expr(&mut self, _expr: &crate::query::parser::ast::expr::ConstantExpr) -> Self::Result {
+    fn visit_constant_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::ConstantExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_variable_expr(&mut self, _expr: &crate::query::parser::ast::expr::VariableExpr) -> Self::Result {
+    fn visit_variable_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::VariableExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_binary_expr(&mut self, _expr: &crate::query::parser::ast::expr::BinaryExpr) -> Self::Result {
+    fn visit_binary_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::BinaryExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_unary_expr(&mut self, _expr: &crate::query::parser::ast::expr::UnaryExpr) -> Self::Result {
+    fn visit_unary_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::UnaryExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_function_call_expr(&mut self, _expr: &crate::query::parser::ast::expr::FunctionCallExpr) -> Self::Result {
+    fn visit_function_call_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::FunctionCallExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_property_access_expr(&mut self, _expr: &crate::query::parser::ast::expr::PropertyAccessExpr) -> Self::Result {
+    fn visit_property_access_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::PropertyAccessExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_list_expr(&mut self, _expr: &crate::query::parser::ast::expr::ListExpr) -> Self::Result {
+    fn visit_list_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::ListExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
@@ -422,63 +445,108 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         Ok(())
     }
 
-    fn visit_case_expr(&mut self, _expr: &crate::query::parser::ast::expr::CaseExpr) -> Self::Result {
+    fn visit_case_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::CaseExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_subscript_expr(&mut self, _expr: &crate::query::parser::ast::expr::SubscriptExpr) -> Self::Result {
+    fn visit_subscript_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::SubscriptExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_predicate_expr(&mut self, _expr: &crate::query::parser::ast::expr::PredicateExpr) -> Self::Result {
+    fn visit_predicate_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::PredicateExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_tag_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::TagPropertyExpr) -> Self::Result {
+    fn visit_tag_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::TagPropertyExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_edge_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::EdgePropertyExpr) -> Self::Result {
+    fn visit_edge_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::EdgePropertyExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_input_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::InputPropertyExpr) -> Self::Result {
+    fn visit_input_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::InputPropertyExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_variable_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::VariablePropertyExpr) -> Self::Result {
+    fn visit_variable_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::VariablePropertyExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_source_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::SourcePropertyExpr) -> Self::Result {
+    fn visit_source_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::SourcePropertyExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_destination_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::DestinationPropertyExpr) -> Self::Result {
+    fn visit_destination_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::DestinationPropertyExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_type_cast_expr(&mut self, _expr: &crate::query::parser::ast::expr::TypeCastExpr) -> Self::Result {
+    fn visit_type_cast_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::TypeCastExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_range_expr(&mut self, _expr: &crate::query::parser::ast::expr::RangeExpr) -> Self::Result {
+    fn visit_range_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::RangeExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_path_expr(&mut self, _expr: &crate::query::parser::ast::expr::PathExpr) -> Self::Result {
+    fn visit_path_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::PathExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_label_expr(&mut self, _expr: &crate::query::parser::ast::expr::LabelExpr) -> Self::Result {
+    fn visit_label_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::LabelExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_reduce_expr(&mut self, _expr: &crate::query::parser::ast::expr::ReduceExpr) -> Self::Result {
+    fn visit_reduce_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::ReduceExpr,
+    ) -> Self::Result {
         Ok(())
     }
 
-    fn visit_list_comprehension_expr(&mut self, _expr: &crate::query::parser::ast::expr::ListComprehensionExpr) -> Self::Result {
+    fn visit_list_comprehension_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::ListComprehensionExpr,
+    ) -> Self::Result {
         Ok(())
     }
 }

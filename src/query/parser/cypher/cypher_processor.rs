@@ -2,8 +2,8 @@
 //!
 //! 提供Cypher表达式处理的统一接口
 
-use crate::expression::ExpressionContext;
 use crate::core::value::Value;
+use crate::expression::ExpressionContext;
 use crate::expression::ExpressionError;
 
 /// Cypher表达式处理的统一接口
@@ -17,9 +17,15 @@ impl CypherProcessor {
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
-        let optimized_expr = super::expression_optimizer::CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr);
+        let optimized_expr =
+            super::expression_optimizer::CypherExpressionOptimizer::optimize_cypher_expression(
+                cypher_expr,
+            );
 
-        let unified_expr = super::expression_converter::ExpressionConverter::convert_cypher_to_unified(&optimized_expr)?;
+        let unified_expr =
+            super::expression_converter::ExpressionConverter::convert_cypher_to_unified(
+                &optimized_expr,
+            )?;
 
         crate::expression::evaluator::ExpressionEvaluator::evaluate(&unified_expr, context)
     }
@@ -28,9 +34,15 @@ impl CypherProcessor {
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
-        let optimized_expr = super::expression_optimizer::CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr);
+        let optimized_expr =
+            super::expression_optimizer::CypherExpressionOptimizer::optimize_cypher_expression(
+                cypher_expr,
+            );
 
-        let unified_expr = super::expression_converter::ExpressionConverter::convert_cypher_to_unified(&optimized_expr)?;
+        let unified_expr =
+            super::expression_converter::ExpressionConverter::convert_cypher_to_unified(
+                &optimized_expr,
+            )?;
 
         crate::expression::evaluator::ExpressionEvaluator::evaluate(&unified_expr, context)
     }

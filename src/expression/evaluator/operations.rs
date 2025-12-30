@@ -1,10 +1,9 @@
+use crate::core::error::{ExpressionError, ExpressionErrorType};
+use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 /// 算术和逻辑运算模块
 ///
 /// 本模块负责处理表达式求值中的算术运算、比较运算、逻辑运算等基础运算操作。
-
 use crate::core::value::types::Value;
-use crate::core::types::operators::{BinaryOperator, UnaryOperator};
-use crate::core::error::{ExpressionError, ExpressionErrorType};
 
 /// 二元运算求值器
 pub struct BinaryOperationEvaluator;
@@ -136,9 +135,7 @@ impl BinaryOperationEvaluator {
 
     fn eval_like(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
         match (left, right) {
-            (Value::String(l), Value::String(r)) => {
-                Self::eval_like_operation(l, r)
-            }
+            (Value::String(l), Value::String(r)) => Self::eval_like_operation(l, r),
             _ => Err(ExpressionError::type_error("LIKE操作需要字符串值")),
         }
     }
@@ -152,11 +149,11 @@ impl BinaryOperationEvaluator {
                 '%' => {
                     let remaining_pattern: String = pattern_chars.collect();
                     let remaining_text: String = text_chars.collect();
-                    
+
                     if remaining_pattern.is_empty() {
                         return Ok(Value::Bool(true));
                     }
-                    
+
                     for i in 0..=remaining_text.len() {
                         match Self::eval_like_operation(&remaining_pattern, &remaining_text[i..])? {
                             Value::Bool(b) => {
@@ -167,7 +164,7 @@ impl BinaryOperationEvaluator {
                             _ => {}
                         }
                     }
-                    
+
                     return Ok(Value::Bool(false));
                 }
                 '_' => {
@@ -266,7 +263,8 @@ impl BinaryOperationEvaluator {
 
     fn eval_property_access(value: &Value, property: &str) -> Result<Value, ExpressionError> {
         match value {
-            Value::Map(map) => map.get(property)
+            Value::Map(map) => map
+                .get(property)
                 .cloned()
                 .ok_or_else(|| ExpressionError::runtime_error(format!("属性不存在: {}", property))),
             _ => Err(ExpressionError::type_error("属性访问需要映射类型")),
@@ -312,10 +310,7 @@ pub struct UnaryOperationEvaluator;
 
 impl UnaryOperationEvaluator {
     /// 求值一元运算
-    pub fn evaluate(
-        op: &UnaryOperator,
-        value: &Value,
-    ) -> Result<Value, ExpressionError> {
+    pub fn evaluate(op: &UnaryOperator, value: &Value) -> Result<Value, ExpressionError> {
         match op {
             // 算术运算
             UnaryOperator::Plus => Self::eval_plus(value),
@@ -341,13 +336,11 @@ impl UnaryOperationEvaluator {
     }
 
     fn eval_minus(value: &Value) -> Result<Value, ExpressionError> {
-        value.neg()
-            .map_err(|e| ExpressionError::runtime_error(e))
+        value.neg().map_err(|e| ExpressionError::runtime_error(e))
     }
 
     fn eval_not(value: &Value) -> Result<Value, ExpressionError> {
-        value.not()
-            .map_err(|e| ExpressionError::runtime_error(e))
+        value.not().map_err(|e| ExpressionError::runtime_error(e))
     }
 
     fn eval_is_null(value: &Value) -> Result<Value, ExpressionError> {

@@ -2,9 +2,9 @@
 //!
 //! 提供对Cypher表达式的求值功能
 
-use crate::expression::ExpressionContext;
-use crate::core::value::Value;
 use crate::core::error::ExpressionError;
+use crate::core::value::Value;
+use crate::expression::ExpressionContext;
 
 /// Cypher表达式求值器
 pub struct CypherEvaluator;
@@ -19,11 +19,9 @@ impl CypherEvaluator {
             crate::query::parser::cypher::ast::expressions::Expression::Literal(literal) => {
                 Ok(Self::cypher_literal_to_value(literal)?)
             }
-            crate::query::parser::cypher::ast::expressions::Expression::Variable(name) => {
-                context
-                    .get_variable(name)
-                    .ok_or_else(|| ExpressionError::undefined_variable(name))
-            }
+            crate::query::parser::cypher::ast::expressions::Expression::Variable(name) => context
+                .get_variable(name)
+                .ok_or_else(|| ExpressionError::undefined_variable(name)),
             crate::query::parser::cypher::ast::expressions::Expression::Property(prop_expr) => {
                 let obj_value = Self::evaluate_cypher(&prop_expr.expression, context)?;
                 // 简单实现：对于Vertex类型的对象，获取其属性
@@ -82,12 +80,13 @@ impl CypherEvaluator {
             crate::query::parser::cypher::ast::expressions::Expression::Case(case_expr) => {
                 // 简单实现CASE表达式
                 for alternative in &case_expr.alternatives {
-                    let condition_result = Self::evaluate_cypher(&alternative.when_expression, context)?;
+                    let condition_result =
+                        Self::evaluate_cypher(&alternative.when_expression, context)?;
                     if matches!(condition_result, Value::Bool(true)) {
                         return Self::evaluate_cypher(&alternative.then_expression, context);
                     }
                 }
-                
+
                 if let Some(default_expr) = &case_expr.default_alternative {
                     Self::evaluate_cypher(default_expr, context)
                 } else {
@@ -95,9 +94,7 @@ impl CypherEvaluator {
                 }
             }
             crate::query::parser::cypher::ast::expressions::Expression::PatternExpression(_) => {
-                Err(ExpressionError::runtime_error(
-                    "模式表达式求值".to_string(),
-                ))
+                Err(ExpressionError::runtime_error("模式表达式求值".to_string()))
             }
         }
     }

@@ -503,9 +503,9 @@ mod tests {
         let seeker = IndexSeek::new_variable_property(node_info.clone(), valid_exprs);
         assert!(seeker.match_node());
 
-        let invalid_exprs = vec![Expression::Literal(
-            crate::core::Value::String("test".to_string()),
-        )];
+        let invalid_exprs = vec![Expression::Literal(crate::core::Value::String(
+            "test".to_string(),
+        ))];
         let invalid_seeker = IndexSeek::new_variable_property(node_info, invalid_exprs);
         assert!(!invalid_seeker.match_node());
     }
@@ -668,9 +668,9 @@ mod tests {
         assert!(result.is_err());
 
         // 无效表达式列表
-        let invalid_exprs = vec![Expression::Literal(
-            crate::core::Value::String("test".to_string()),
-        )];
+        let invalid_exprs = vec![Expression::Literal(crate::core::Value::String(
+            "test".to_string(),
+        ))];
         let result = seeker.create_variable_property_filter_expression(&invalid_exprs);
         assert!(result.is_err());
 
@@ -702,9 +702,9 @@ mod tests {
         let valid_exprs = vec![Expression::Binary {
             left: Box::new(Expression::Variable("x".to_string())),
             op: crate::core::BinaryOperator::Equal,
-            right: Box::new(Expression::Literal(
-                crate::core::Value::String("test".to_string()),
-            )),
+            right: Box::new(Expression::Literal(crate::core::Value::String(
+                "test".to_string(),
+            ))),
         }];
         let result = seeker.validate_property_expressions(&valid_exprs);
         assert!(result.is_ok());
@@ -713,9 +713,7 @@ mod tests {
         let invalid_exprs = vec![Expression::Binary {
             left: Box::new(Expression::Variable("x".to_string())),
             op: crate::core::BinaryOperator::Add,
-            right: Box::new(Expression::Literal(
-                crate::core::Value::Int(1),
-            )),
+            right: Box::new(Expression::Literal(crate::core::Value::Int(1))),
         }];
         let result = seeker.validate_property_expressions(&invalid_exprs);
         assert!(result.is_err());
@@ -739,9 +737,9 @@ mod tests {
         let prop_exprs = vec![Expression::Binary {
             left: Box::new(Expression::Variable("x".to_string())),
             op: crate::core::BinaryOperator::Equal,
-            right: Box::new(Expression::Literal(
-                crate::core::Value::String("test".to_string()),
-            )),
+            right: Box::new(Expression::Literal(crate::core::Value::String(
+                "test".to_string(),
+            ))),
         }];
         let seeker = IndexSeek::new_property(node_info, prop_exprs);
         let result = seeker.build_plan();

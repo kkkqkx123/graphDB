@@ -151,9 +151,17 @@ impl JoinExecutorFactory {
     {
         match config.join_type {
             JoinType::Inner => {
-                let hash_keys: Vec<Expression> = config.left_keys.into_iter().map(Expression::Variable).collect();
-                let probe_keys: Vec<Expression> = config.right_keys.into_iter().map(Expression::Variable).collect();
-                
+                let hash_keys: Vec<Expression> = config
+                    .left_keys
+                    .into_iter()
+                    .map(Expression::Variable)
+                    .collect();
+                let probe_keys: Vec<Expression> = config
+                    .right_keys
+                    .into_iter()
+                    .map(Expression::Variable)
+                    .collect();
+
                 if config.enable_parallel {
                     Ok(Box::new(HashInnerJoinExecutor::new(
                         id,
@@ -177,9 +185,17 @@ impl JoinExecutorFactory {
                 }
             }
             JoinType::Left => {
-                let hash_keys: Vec<Expression> = config.left_keys.into_iter().map(Expression::Variable).collect();
-                let probe_keys: Vec<Expression> = config.right_keys.into_iter().map(Expression::Variable).collect();
-                
+                let hash_keys: Vec<Expression> = config
+                    .left_keys
+                    .into_iter()
+                    .map(Expression::Variable)
+                    .collect();
+                let probe_keys: Vec<Expression> = config
+                    .right_keys
+                    .into_iter()
+                    .map(Expression::Variable)
+                    .collect();
+
                 if config.enable_parallel {
                     Ok(Box::new(HashLeftJoinExecutor::new(
                         id,
@@ -202,36 +218,30 @@ impl JoinExecutorFactory {
                     )))
                 }
             }
-            JoinType::Right => {
-                Ok(Box::new(RightJoinExecutor::new(
-                    id,
-                    storage,
-                    config.left_var,
-                    config.right_var,
-                    config.left_keys,
-                    config.right_keys,
-                    config.output_columns,
-                )))
-            }
-            JoinType::Full => {
-                Ok(Box::new(FullOuterJoinExecutor::new(
-                    id,
-                    storage,
-                    config.left_var,
-                    config.right_var,
-                    config.left_keys,
-                    config.right_keys,
-                    config.output_columns,
-                )))
-            }
-            JoinType::Cross => {
-                Ok(Box::new(CrossJoinExecutor::new(
-                    id,
-                    storage,
-                    vec![config.left_var, config.right_var],
-                    config.output_columns,
-                )))
-            }
+            JoinType::Right => Ok(Box::new(RightJoinExecutor::new(
+                id,
+                storage,
+                config.left_var,
+                config.right_var,
+                config.left_keys,
+                config.right_keys,
+                config.output_columns,
+            ))),
+            JoinType::Full => Ok(Box::new(FullOuterJoinExecutor::new(
+                id,
+                storage,
+                config.left_var,
+                config.right_var,
+                config.left_keys,
+                config.right_keys,
+                config.output_columns,
+            ))),
+            JoinType::Cross => Ok(Box::new(CrossJoinExecutor::new(
+                id,
+                storage,
+                vec![config.left_var, config.right_var],
+                config.output_columns,
+            ))),
         }
     }
 }

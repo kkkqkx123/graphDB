@@ -34,8 +34,8 @@ pub mod request;
 pub mod runtime;
 pub mod session;
 pub mod storage;
-pub mod validation;
 pub mod traits;
+pub mod validation;
 
 // 重新导出常用类型
 pub use base::*;
@@ -47,5 +47,5 @@ pub use request::*;
 pub use runtime::*;
 pub use session::*;
 pub use storage::*;
-pub use validation::*;
 pub use traits::*;
+pub use validation::*;

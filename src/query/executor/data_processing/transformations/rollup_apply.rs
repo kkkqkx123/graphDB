@@ -7,14 +7,12 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::expression::{DefaultExpressionContext, ExpressionContext};
-use crate::core::{DataSet, List, Value};
 use crate::core::Expression;
+use crate::core::{DataSet, List, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{
-    ExecutionResult, Executor, HasStorage,
-};
+use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// RollUpApply执行器
@@ -135,11 +133,12 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
                 key_list.values.push(val);
             }
 
-            let collect_val = ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    e.to_string(),
-                ))
-            })?;
+            let collect_val =
+                ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
+                })?;
 
             let entry = hash_table
                 .entry(key_list)
@@ -164,18 +163,20 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             expr_context.set_variable("_".to_string(), value.clone());
 
             // 获取键值
-            let key_val = ExpressionEvaluator::evaluate(compare_col, expr_context).map_err(|e| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    e.to_string(),
-                ))
-            })?;
+            let key_val =
+                ExpressionEvaluator::evaluate(compare_col, expr_context).map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
+                })?;
 
             // 获取收集列的值
-            let collect_val = ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    e.to_string(),
-                ))
-            })?;
+            let collect_val =
+                ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
+                })?;
 
             // 添加到哈希表
             let entry = hash_table
@@ -200,11 +201,12 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         for value in iter {
             expr_context.set_variable("_".to_string(), value.clone());
 
-            let collect_val = ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    e.to_string(),
-                ))
-            })?;
+            let collect_val =
+                ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
+                })?;
 
             hash_table.values.push(collect_val);
         }
@@ -492,9 +494,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RollUpApplyExecut
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S> for RollUpApplyExecutor<S> {
+impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+    for RollUpApplyExecutor<S>
+{
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("RollUpApplyExecutor storage should be set")
+        self.base
+            .storage
+            .as_ref()
+            .expect("RollUpApplyExecutor storage should be set")
     }
 }
 

@@ -2,8 +2,8 @@
 //!
 //! 在query层提供Cypher表达式评估功能，避免core层依赖query层
 
-use crate::expression::ExpressionContext;
 use crate::core::value::Value;
+use crate::expression::ExpressionContext;
 use crate::expression::ExpressionError;
 
 /// Cypher表达式评估器
@@ -125,29 +125,41 @@ impl CypherExpressionEvaluator {
             crate::query::parser::cypher::ast::expressions::Expression::FunctionCall(func_call) => {
                 // 检查函数名是否为聚合函数
                 let agg_functions = [
-                    "count", "sum", "avg", "min", "max", "collect", "collect_distinct"
+                    "count",
+                    "sum",
+                    "avg",
+                    "min",
+                    "max",
+                    "collect",
+                    "collect_distinct",
                 ];
                 agg_functions.contains(&func_call.function_name.to_lowercase().as_str())
             }
             crate::query::parser::cypher::ast::expressions::Expression::Binary(bin_expr) => {
-                self.contains_cypher_aggregate(&bin_expr.left) || 
-                self.contains_cypher_aggregate(&bin_expr.right)
+                self.contains_cypher_aggregate(&bin_expr.left)
+                    || self.contains_cypher_aggregate(&bin_expr.right)
             }
             crate::query::parser::cypher::ast::expressions::Expression::Unary(unary_expr) => {
                 self.contains_cypher_aggregate(&unary_expr.expression)
             }
             crate::query::parser::cypher::ast::expressions::Expression::List(list_expr) => {
-                list_expr.elements.iter().any(|e| self.contains_cypher_aggregate(e))
+                list_expr
+                    .elements
+                    .iter()
+                    .any(|e| self.contains_cypher_aggregate(e))
             }
-            crate::query::parser::cypher::ast::expressions::Expression::Map(map_expr) => {
-                map_expr.properties.values().any(|v| self.contains_cypher_aggregate(v))
-            }
+            crate::query::parser::cypher::ast::expressions::Expression::Map(map_expr) => map_expr
+                .properties
+                .values()
+                .any(|v| self.contains_cypher_aggregate(v)),
             crate::query::parser::cypher::ast::expressions::Expression::Case(case_expr) => {
                 case_expr.alternatives.iter().any(|alt| {
-                    self.contains_cypher_aggregate(&alt.when_expression) ||
-                    self.contains_cypher_aggregate(&alt.then_expression)
-                }) || 
-                case_expr.default_alternative.as_ref().map_or(false, |e| self.contains_cypher_aggregate(e))
+                    self.contains_cypher_aggregate(&alt.when_expression)
+                        || self.contains_cypher_aggregate(&alt.then_expression)
+                }) || case_expr
+                    .default_alternative
+                    .as_ref()
+                    .map_or(false, |e| self.contains_cypher_aggregate(e))
             }
             _ => false,
         }
@@ -159,7 +171,9 @@ impl CypherExpressionEvaluator {
         cypher_expr: &crate::query::parser::cypher::ast::expressions::Expression,
     ) -> crate::query::parser::cypher::ast::expressions::Expression {
         // 使用我们在parser/cypher中创建的优化器
-        crate::query::parser::cypher::CypherExpressionOptimizer::optimize_cypher_expression(cypher_expr)
+        crate::query::parser::cypher::CypherExpressionOptimizer::optimize_cypher_expression(
+            cypher_expr,
+        )
     }
 }
 
@@ -186,11 +200,11 @@ mod tests {
     #[test]
     fn test_is_cypher_constant() {
         let evaluator = CypherExpressionEvaluator;
-        
+
         // 字面量是常量
         let literal_expr = CypherExpression::Literal(CypherLiteral::Integer(42));
         assert!(evaluator.is_cypher_constant(&literal_expr));
-        
+
         // 变量不是常量
         let var_expr = CypherExpression::Variable("x".to_string());
         assert!(!evaluator.is_cypher_constant(&var_expr));

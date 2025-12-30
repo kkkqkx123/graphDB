@@ -15,8 +15,8 @@ pub mod visitor;
 
 // 新增的子模块
 pub mod context;
-pub mod types;
 pub mod expression_visitor;
+pub mod types;
 
 // 查询处理模块
 pub mod query_pipeline_manager;

@@ -203,17 +203,17 @@ impl super::plan_node_traits::PlanNodeClonable for GetVerticesNode {
 pub struct GetEdgesNode {
     id: i64,
     space_id: i32,
-    
+
     edge_ref: Expression,
     src: String,
     edge_type: String,
     rank: String,
     dst: String,
-    
+
     edge_props: Vec<EdgeProp>,
-    
+
     expr: Option<String>,
-    
+
     dedup: bool,
     limit: Option<i64>,
     output_var: Option<Variable>,
@@ -389,19 +389,19 @@ impl super::plan_node_traits::PlanNodeClonable for GetEdgesNode {
 #[derive(Debug)]
 pub struct GetNeighborsNode {
     id: i64,
-    
+
     space_id: i32,
-    
+
     src_vids: String,
-    
+
     edge_types: Vec<String>,
-    
+
     tag_props: Vec<TagProp>,
-    
+
     edge_props: Vec<EdgeProp>,
-    
+
     expr: Option<String>,
-    
+
     dedup: bool,
     limit: Option<i64>,
     output_var: Option<Variable>,
@@ -712,7 +712,7 @@ pub struct ScanEdgesNode {
     edge_type: String,
     limit: Option<i64>,
     filter: Option<String>,
-    
+
     props: Vec<EdgeProp>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
