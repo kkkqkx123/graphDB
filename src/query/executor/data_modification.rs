@@ -8,6 +8,9 @@ use crate::query::executor::traits::{
 };
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
+use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::context::basic_context::BasicExpressionContext;
+use crate::query::parser::expressions::expression_converter::parse_expression_from_string;
 
 // Executor for inserting new vertices/edges
 pub struct InsertExecutor<S: StorageEngine> {
@@ -151,21 +154,87 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut _total_updated = 0;
 
-        // Update vertices if provided
+        let condition_expr = if let Some(ref condition_str) = self.condition {
+            Some(parse_expression_from_string(condition_str)
+                .map_err(|e| crate::query::executor::traits::DBError::ExecutionError(format!("条件解析失败: {}", e)))?)
+        } else {
+            None
+        };
+
+        let mut storage = safe_lock(self.get_storage())
+            .expect("UpdateExecutor storage lock should not be poisoned");
+
         if let Some(updates) = &self.vertex_updates {
-            let _storage = safe_lock(self.get_storage())
-                .expect("UpdateExecutor storage lock should not be poisoned");
-            for _update in updates {
-                _total_updated += 1;
+            for update in updates {
+                if let Some(ref expr) = condition_expr {
+                    let mut context = BasicExpressionContext::default();
+                    context.set_variable("vertex_id", update.vertex_id.clone());
+                    for (key, value) in &update.properties {
+                        context.set_variable(key.clone(), value.clone());
+                    }
+
+                    let result = ExpressionEvaluator::evaluate(expr, &mut context)
+                        .map_err(|e| crate::query::executor::traits::DBError::ExecutionError(format!("条件求值失败: {}", e)))?;
+
+                    if let Value::Bool(true) = result {
+                        if let Value::String(id_str) = &update.vertex_id {
+                            if let Some(mut vertex) = storage.get_node(id_str) {
+                                for (key, value) in &update.properties {
+                                    vertex.properties.insert(key.clone(), value.clone());
+                                }
+                                storage.update_node(vertex)?;
+                                _total_updated += 1;
+                            }
+                        }
+                    }
+                } else {
+                    if let Value::String(id_str) = &update.vertex_id {
+                        if let Some(mut vertex) = storage.get_node(id_str) {
+                            for (key, value) in &update.properties {
+                                vertex.properties.insert(key.clone(), value.clone());
+                            }
+                            storage.update_node(vertex)?;
+                            _total_updated += 1;
+                        }
+                    }
+                }
             }
         }
 
-        // Update edges if provided
         if let Some(updates) = &self.edge_updates {
-            let _storage = safe_lock(&*self.get_storage())
-                .expect("UpdateExecutor storage lock should not be poisoned");
-            for _update in updates {
-                _total_updated += 1;
+            for update in updates {
+                if let Some(ref expr) = condition_expr {
+                    let mut context = BasicExpressionContext::default();
+                    context.set_variable("edge_id", update.edge_id.clone());
+                    for (key, value) in &update.properties {
+                        context.set_variable(key.clone(), value.clone());
+                    }
+
+                    let result = ExpressionEvaluator::evaluate(expr, &mut context)
+                        .map_err(|e| crate::query::executor::traits::DBError::ExecutionError(format!("条件求值失败: {}", e)))?;
+
+                    if let Value::Bool(true) = result {
+                        if let Value::String(id_str) = &update.edge_id {
+                            if let Some(mut edge) = storage.get_edge(id_str) {
+                                for (key, value) in &update.properties {
+                                    edge.properties.insert(key.clone(), value.clone());
+                                }
+                                storage.update_edge(edge)?;
+                                _total_updated += 1;
+                            }
+                        }
+                    }
+                } else {
+                    if let Value::String(id_str) = &update.edge_id {
+                        if let Some(mut edge) = storage.get_edge(id_str) {
+                            for (key, value) in &update.properties {
+                                edge.properties.insert(key.clone(), value.clone());
+                            }
+                            storage.update_edge(edge)?;
+                            _total_updated += 1;
+                        }
+                    }
+                }
             }
         }
 
@@ -215,9 +284,7 @@ pub struct DeleteExecutor<S: StorageEngine> {
     vertex_ids: Option<Vec<Value>>, // IDs of vertices to delete
     edge_ids: Option<Vec<Value>>,   // IDs of edges to delete
     
-    condition: Option<String>, // Condition for selecting items to delete
-    
-    cascade: bool, // Whether to delete related items
+    _condition: Option<String>, // Condition for selecting items to delete
 }
 
 impl<S: StorageEngine> DeleteExecutor<S> {
@@ -227,14 +294,12 @@ impl<S: StorageEngine> DeleteExecutor<S> {
         vertex_ids: Option<Vec<Value>>,
         edge_ids: Option<Vec<Value>>,
         _condition: Option<String>,
-        _cascade: bool,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DeleteExecutor".to_string(), storage),
             vertex_ids,
             edge_ids,
             _condition,
-            _cascade,
         }
     }
 }
@@ -311,17 +376,17 @@ impl<S: StorageEngine> CreateIndexExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        _index_name: String,
-        _index_type: IndexType,
-        _properties: Vec<String>,
-        _tag_name: Option<String>,
+        index_name: String,
+        index_type: IndexType,
+        properties: Vec<String>,
+        tag_name: Option<String>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateIndexExecutor".to_string(), storage),
-            _index_name,
-            _index_type,
-            _properties,
-            _tag_name,
+            index_name,
+            index_type,
+            properties,
+            tag_name,
         }
     }
 }
@@ -361,7 +426,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
 pub struct DropIndexExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     
-    index_name: String,
+    _index_name: String,
 }
 
 impl<S: StorageEngine> DropIndexExecutor<S> {

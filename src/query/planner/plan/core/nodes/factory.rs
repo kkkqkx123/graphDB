@@ -29,20 +29,19 @@ pub struct PlanNodeFactory;
 impl PlanNodeFactory {
     /// 创建过滤节点
     pub fn create_filter(
-        _input: PlanNodeEnum,
+        input: PlanNodeEnum,
         condition: Expr,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        use super::filter_node::FilterNode;
+
         // 将 Expr 转换为 Expression
-        let _expr = convert_ast_to_graph_expression(&condition).map_err(|e| {
+        let expr = convert_ast_to_graph_expression(&condition).map_err(|e| {
             crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
         })?;
 
-        // 这里需要重构 FilterNode::new 来接受 PlanNodeEnum 而不是 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(
-            -1,
-            "filter_placeholder",
-        )))
+        // 创建 FilterNode
+        let filter_node = FilterNode::new(input, expr)?;
+        Ok(PlanNodeEnum::Filter(filter_node))
     }
 
     /// 创建投影节点
@@ -314,17 +313,16 @@ impl PlanNodeFactory {
 
     /// 创建索引扫描节点
     pub fn create_index_scan(
-        _space_id: i32,
-        _tag_id: i32,
-        _index_id: i32,
-        _scan_type: &str,
+        space_id: i32,
+        tag_id: i32,
+        index_id: i32,
+        scan_type: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 这里需要重构 IndexScan::new 来返回 PlanNodeEnum
-        // 暂时返回一个参数节点作为占位符
-        Ok(PlanNodeEnum::Argument(ArgumentNode::new(
-            -1,
-            "index_scan_placeholder",
-        )))
+        use crate::query::planner::plan::algorithms::IndexScan;
+
+        // 创建 IndexScan 节点
+        let index_scan_node = IndexScan::new(-1, space_id, tag_id, index_id, scan_type);
+        Ok(PlanNodeEnum::IndexScan(index_scan_node))
     }
 }
 

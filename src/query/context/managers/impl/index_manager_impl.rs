@@ -3,25 +3,65 @@
 use super::super::{Index, IndexManager, IndexStatus, IndexType, IndexBuildProgress};
 use crate::core::{Value, Vertex, Edge};
 use crate::core::error::{ManagerError, ManagerResult};
+use super::index_binary::{IndexBinaryEncoder, ValueType};
+use crate::storage::StorageEngine;
 use std::collections::{HashMap, BTreeMap};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, atomic::{AtomicBool, AtomicU64, Ordering}};
 use std::thread;
 use std::time::Duration;
 
-/// 索引数据结构
+/// 索引数据结构 - 使用二进制编码的键
 #[derive(Debug)]
 struct IndexData {
-    vertex_index: BTreeMap<Vec<Value>, Vec<Vertex>>,
-    edge_index: BTreeMap<Vec<Value>, Vec<Edge>>,
+    vertex_index: BTreeMap<Vec<u8>, Vec<Vertex>>,
+    edge_index: BTreeMap<Vec<u8>, Vec<Edge>>,
 }
 
 impl IndexData {
-    fn _new() -> Self {
+    fn new() -> Self {
         Self {
             vertex_index: BTreeMap::new(),
             edge_index: BTreeMap::new(),
         }
+    }
+
+    /// 插入顶点索引
+    fn insert_vertex(&mut self, key: Vec<u8>, vertex: Vertex) {
+        self.vertex_index.entry(key).or_insert_with(Vec::new).push(vertex);
+    }
+
+    /// 插入边索引
+    fn insert_edge(&mut self, key: Vec<u8>, edge: Edge) {
+        self.edge_index.entry(key).or_insert_with(Vec::new).push(edge);
+    }
+
+    /// 查找顶点
+    fn lookup_vertex(&self, key: &[u8]) -> Option<&Vec<Vertex>> {
+        self.vertex_index.get(key)
+    }
+
+    /// 查找边
+    fn lookup_edge(&self, key: &[u8]) -> Option<&Vec<Edge>> {
+        self.edge_index.get(key)
+    }
+
+    /// 范围查找顶点
+    fn range_lookup_vertex(&self, start: &[u8], end: &[u8]) -> Vec<Vertex> {
+        let mut result = Vec::new();
+        for (_, vertices) in self.vertex_index.range(start.to_vec()..=end.to_vec()) {
+            result.extend(vertices.clone());
+        }
+        result
+    }
+
+    /// 范围查找边
+    fn range_lookup_edge(&self, start: &[u8], end: &[u8]) -> Vec<Edge> {
+        let mut result = Vec::new();
+        for (_, edges) in self.edge_index.range(start.to_vec()..=end.to_vec()) {
+            result.extend(edges.clone());
+        }
+        result
     }
 }
 
@@ -37,13 +77,14 @@ struct IndexBuildTask {
 }
 
 /// 内存中的索引管理器实现
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MemoryIndexManager {
     indexes: Arc<RwLock<HashMap<String, Index>>>,
     next_index_id: Arc<RwLock<i32>>,
     storage_path: PathBuf,
     build_tasks: Arc<RwLock<HashMap<i32, IndexBuildTask>>>,
     index_data: Arc<RwLock<HashMap<i32, IndexData>>>,
+    storage_engine: Option<Arc<dyn StorageEngine>>,
 }
 
 impl MemoryIndexManager {
@@ -55,9 +96,29 @@ impl MemoryIndexManager {
             storage_path,
             build_tasks: Arc::new(RwLock::new(HashMap::new())),
             index_data: Arc::new(RwLock::new(HashMap::new())),
+            storage_engine: None,
         };
         let _ = manager.load_from_disk();
         manager
+    }
+
+    /// 创建新的内存索引管理器并设置存储引擎
+    pub fn with_storage_engine(storage_path: PathBuf, storage_engine: Arc<dyn StorageEngine>) -> Self {
+        let manager = Self {
+            indexes: Arc::new(RwLock::new(HashMap::new())),
+            next_index_id: Arc::new(RwLock::new(1)),
+            storage_path,
+            build_tasks: Arc::new(RwLock::new(HashMap::new())),
+            index_data: Arc::new(RwLock::new(HashMap::new())),
+            storage_engine: Some(storage_engine),
+        };
+        let _ = manager.load_from_disk();
+        manager
+    }
+
+    /// 设置存储引擎
+    pub fn set_storage_engine(&mut self, storage_engine: Arc<dyn StorageEngine>) {
+        self.storage_engine = Some(storage_engine);
     }
 
     /// 添加索引
@@ -233,7 +294,7 @@ impl IndexManager for MemoryIndexManager {
     }
 
     fn build_index_async(&self, space_id: i32, index_id: i32) -> ManagerResult<()> {
-        let index_name = {
+        let (index_name, index_type, schema_name, fields) = {
             let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
             let index = indexes
                 .values()
@@ -244,7 +305,7 @@ impl IndexManager for MemoryIndexManager {
                 return Err(ManagerError::IndexError(format!("索引 {} 状态为 {:?}，无法开始构建", index.name, index.status)));
             }
             
-            index.name.clone()
+            (index.name.clone(), index.index_type.clone(), index.schema_name.clone(), index.fields.clone())
         };
         
         let mut indexes = self.indexes.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
@@ -257,11 +318,19 @@ impl IndexManager for MemoryIndexManager {
         let status = Arc::new(RwLock::new(IndexStatus::Building));
         let error_message = Arc::new(RwLock::new(None));
         
-        let total_count = 1000;
+        let storage_engine = self.storage_engine.clone();
+        
+        let indexes_clone = self.indexes.clone();
+        let build_tasks_clone = self.build_tasks.clone();
+        let index_data_clone = self.index_data.clone();
+        let index_name_clone = index_name.clone();
+        let index_type_clone = index_type.clone();
+        let schema_name_clone = schema_name.clone();
+        let fields_clone = fields.clone();
         
         let build_task = IndexBuildTask {
             index_id,
-            total_count,
+            total_count: 0,
             processed_count: processed_count.clone(),
             is_cancelled: is_cancelled.clone(),
             status: status.clone(),
@@ -272,53 +341,196 @@ impl IndexManager for MemoryIndexManager {
         build_tasks.insert(index_id, build_task);
         drop(build_tasks);
         
-        let indexes_clone = self.indexes.clone();
-        let build_tasks_clone = self.build_tasks.clone();
-        let index_name_clone = index_name.clone();
-        
         thread::spawn(move || {
-            for i in 0..=total_count {
-                if is_cancelled.load(Ordering::Relaxed) {
+            let result = if let Some(storage) = storage_engine {
+                Self::build_index_from_storage(
+                    &storage,
+                    index_id,
+                    &index_type_clone,
+                    &schema_name_clone,
+                    &fields_clone,
+                    &processed_count,
+                    &is_cancelled,
+                    &index_data_clone,
+                )
+            } else {
+                Err("存储引擎未设置".to_string())
+            };
+            
+            match result {
+                Ok(total_count) => {
+                    let mut build_tasks = build_tasks_clone.write().expect("无法获取构建任务锁");
+                    if let Some(task) = build_tasks.get_mut(&index_id) {
+                        task.total_count = total_count;
+                    }
+                    drop(build_tasks);
+                    
                     let mut status_guard = status.write().expect("无法获取状态锁");
-                    *status_guard = IndexStatus::Cancelled;
+                    *status_guard = IndexStatus::Active;
                     
                     let mut indexes = indexes_clone.write().expect("无法获取索引锁");
                     if let Some(index) = indexes.get_mut(&index_name_clone) {
-                        index.status = IndexStatus::Cancelled;
+                        index.status = IndexStatus::Active;
                     }
                     drop(indexes);
                     
                     let mut build_tasks = build_tasks_clone.write().expect("无法获取构建任务锁");
                     build_tasks.remove(&index_id);
-                    return;
                 }
-                
-                processed_count.store(i, Ordering::Relaxed);
-                
-                if i % 100 == 0 {
+                Err(error) => {
+                    let mut error_guard = error_message.write().expect("无法获取错误信息锁");
+                    *error_guard = Some(error.clone());
+                    drop(error_guard);
+                    
+                    let mut status_guard = status.write().expect("无法获取状态锁");
+                    *status_guard = IndexStatus::Failed;
+                    drop(status_guard);
+                    
                     let mut indexes = indexes_clone.write().expect("无法获取索引锁");
                     if let Some(index) = indexes.get_mut(&index_name_clone) {
-                        let _ = indexes_clone.clone();
+                        index.status = IndexStatus::Failed;
                     }
+                    drop(indexes);
+                    
+                    let mut build_tasks = build_tasks_clone.write().expect("无法获取构建任务锁");
+                    build_tasks.remove(&index_id);
                 }
-                
-                thread::sleep(Duration::from_millis(1));
             }
-            
-            let mut status_guard = status.write().expect("无法获取状态锁");
-            *status_guard = IndexStatus::Active;
-            
-            let mut indexes = indexes_clone.write().expect("无法获取索引锁");
-            if let Some(index) = indexes.get_mut(&index_name_clone) {
-                index.status = IndexStatus::Active;
-            }
-            drop(indexes);
-            
-            let mut build_tasks = build_tasks_clone.write().expect("无法获取构建任务锁");
-            build_tasks.remove(&index_id);
         });
         
         Ok(())
+    }
+}
+
+impl MemoryIndexManager {
+    /// 从存储引擎构建索引
+    fn build_index_from_storage(
+        storage: &Arc<dyn StorageEngine>,
+        index_id: i32,
+        index_type: &IndexType,
+        schema_name: &str,
+        fields: &[String],
+        processed_count: &Arc<AtomicU64>,
+        is_cancelled: &Arc<AtomicBool>,
+        index_data: &Arc<RwLock<HashMap<i32, IndexData>>>,
+    ) -> Result<u64, String> {
+        match index_type {
+            IndexType::TagIndex => {
+                Self::build_vertex_index(storage, index_id, schema_name, fields, processed_count, is_cancelled, index_data)
+            }
+            IndexType::EdgeIndex => {
+                Self::build_edge_index(storage, index_id, schema_name, fields, processed_count, is_cancelled, index_data)
+            }
+            IndexType::FulltextIndex => {
+                return Err("全文索引暂不支持".to_string());
+            }
+        }
+    }
+
+    /// 构建顶点索引
+    fn build_vertex_index(
+        storage: &Arc<dyn StorageEngine>,
+        index_id: i32,
+        tag_name: &str,
+        fields: &[String],
+        processed_count: &Arc<AtomicU64>,
+        is_cancelled: &Arc<AtomicBool>,
+        index_data: &Arc<RwLock<HashMap<i32, IndexData>>>,
+    ) -> Result<u64, String> {
+        let vertices = storage.scan_vertices_by_tag(tag_name)
+            .map_err(|e| format!("扫描顶点失败: {}", e))?;
+        
+        let total_count = vertices.len() as u64;
+        
+        let mut index_data_guard = index_data.write()
+            .map_err(|e| format!("获取索引数据锁失败: {}", e))?;
+        
+        let data = index_data_guard.entry(index_id).or_insert_with(IndexData::new);
+        
+        for vertex in vertices {
+            if is_cancelled.load(Ordering::Relaxed) {
+                return Err("索引构建已取消".to_string());
+            }
+            
+            let index_values = Self::extract_vertex_index_values(&vertex, tag_name, fields);
+            let key = IndexBinaryEncoder::encode(&index_values);
+            
+            data.insert_vertex(key, vertex);
+            
+            let count = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
+        }
+        
+        drop(index_data_guard);
+        
+        Ok(total_count)
+    }
+
+    /// 构建边索引
+    fn build_edge_index(
+        storage: &Arc<dyn StorageEngine>,
+        index_id: i32,
+        edge_type: &str,
+        fields: &[String],
+        processed_count: &Arc<AtomicU64>,
+        is_cancelled: &Arc<AtomicBool>,
+        index_data: &Arc<RwLock<HashMap<i32, IndexData>>>,
+    ) -> Result<u64, String> {
+        let edges = storage.scan_edges_by_type(edge_type)
+            .map_err(|e| format!("扫描边失败: {}", e))?;
+        
+        let total_count = edges.len() as u64;
+        
+        let mut index_data_guard = index_data.write()
+            .map_err(|e| format!("获取索引数据锁失败: {}", e))?;
+        
+        let data = index_data_guard.entry(index_id).or_insert_with(IndexData::new);
+        
+        for edge in edges {
+            if is_cancelled.load(Ordering::Relaxed) {
+                return Err("索引构建已取消".to_string());
+            }
+            
+            let index_values = Self::extract_edge_index_values(&edge, edge_type, fields);
+            let key = IndexBinaryEncoder::encode(&index_values);
+            
+            data.insert_edge(key, edge);
+            
+            let count = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
+        }
+        
+        drop(index_data_guard);
+        
+        Ok(total_count)
+    }
+
+    /// 从顶点提取索引值
+    fn extract_vertex_index_values(vertex: &Vertex, tag_name: &str, fields: &[String]) -> Vec<Value> {
+        let mut values = Vec::new();
+        
+        if let Some(tag) = vertex.tags.iter().find(|t| t.name == tag_name) {
+            for field_name in fields {
+                if let Some(value) = tag.properties.get(field_name) {
+                    values.push(value.clone());
+                }
+            }
+        }
+        
+        values
+    }
+
+    /// 从边提取索引值
+    fn extract_edge_index_values(edge: &Edge, edge_type: &str, fields: &[String]) -> Vec<Value> {
+        let mut values = Vec::new();
+        
+        if edge.edge_type == edge_type {
+            for field_name in fields {
+                if let Some(value) = edge.props.get(field_name) {
+                    values.push(value.clone());
+                }
+            }
+        }
+        
+        values
     }
 
     fn get_build_progress(&self, space_id: i32, index_id: i32) -> Option<IndexBuildProgress> {
@@ -396,14 +608,14 @@ impl IndexManager for MemoryIndexManager {
             return Err(ManagerError::InvalidInput(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status)));
         }
         
+        let key = IndexBinaryEncoder::encode(values);
+        
         let index_data = self.index_data.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let data = index_data
             .get(&index.id)
             .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 的数据不存在", index_name)))?;
         
-        let key = values.to_vec();
-        data.vertex_index
-            .get(&key)
+        data.lookup_vertex(&key)
             .map(|vertices| vertices.clone())
             .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 中未找到匹配的顶点", index_name)))
     }
@@ -431,14 +643,14 @@ impl IndexManager for MemoryIndexManager {
             return Err(ManagerError::InvalidInput(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status)));
         }
         
+        let key = IndexBinaryEncoder::encode(values);
+        
         let index_data = self.index_data.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let data = index_data
             .get(&index.id)
             .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 的数据不存在", index_name)))?;
         
-        let key = values.to_vec();
-        data.edge_index
-            .get(&key)
+        data.lookup_edge(&key)
             .map(|edges| edges.clone())
             .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 中未找到匹配的边", index_name)))
     }
@@ -467,20 +679,15 @@ impl IndexManager for MemoryIndexManager {
             return Err(ManagerError::InvalidInput(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status)));
         }
         
+        let start_key = IndexBinaryEncoder::encode(&[start.clone()]);
+        let end_key = IndexBinaryEncoder::encode(&[end.clone()]);
+        
         let index_data = self.index_data.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let data = index_data
             .get(&index.id)
             .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 的数据不存在", index_name)))?;
         
-        let start_key = vec![start.clone()];
-        let end_key = vec![end.clone()];
-        
-        let mut result = Vec::new();
-        for (key, vertices) in data.vertex_index.range(start_key..=end_key) {
-            result.extend(vertices.clone());
-        }
-        
-        Ok(result)
+        Ok(data.range_lookup_vertex(&start_key, &end_key))
     }
 
     fn range_lookup_edge(
@@ -507,20 +714,151 @@ impl IndexManager for MemoryIndexManager {
             return Err(ManagerError::InvalidInput(format!("索引 {} 状态为 {:?}，不可用", index_name, index.status)));
         }
         
+        let start_key = IndexBinaryEncoder::encode(&[start.clone()]);
+        let end_key = IndexBinaryEncoder::encode(&[end.clone()]);
+        
         let index_data = self.index_data.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let data = index_data
             .get(&index.id)
             .ok_or_else(|| ManagerError::NotFound(format!("索引 {} 的数据不存在", index_name)))?;
         
-        let start_key = vec![start.clone()];
-        let end_key = vec![end.clone()];
+        Ok(data.range_lookup_edge(&start_key, &end_key))
+    }
+
+    fn insert_vertex_to_index(&self, space_id: i32, vertex: &Vertex) -> ManagerResult<()> {
+        let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
         
-        let mut result = Vec::new();
-        for (key, edges) in data.edge_index.range(start_key..=end_key) {
-            result.extend(edges.clone());
+        let vertex_indexes: Vec<_> = indexes
+            .values()
+            .filter(|index| {
+                index.space_id == space_id
+                    && index.index_type == IndexType::TagIndex
+                    && index.status == IndexStatus::Active
+                    && vertex.tags.iter().any(|tag| tag.name == index.schema_name)
+            })
+            .collect();
+        
+        drop(indexes);
+        
+        let mut index_data = self.index_data.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        
+        for index in vertex_indexes {
+            if let Some(data) = index_data.get_mut(&index.id) {
+                let index_values = Self::extract_vertex_index_values(vertex, &index.schema_name, &index.fields);
+                let key = IndexBinaryEncoder::encode(&index_values);
+                data.insert_vertex(key, vertex.clone());
+            }
         }
         
-        Ok(result)
+        Ok(())
+    }
+
+    fn delete_vertex_from_index(&self, space_id: i32, vertex: &Vertex) -> ManagerResult<()> {
+        let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        
+        let vertex_indexes: Vec<_> = indexes
+            .values()
+            .filter(|index| {
+                index.space_id == space_id
+                    && index.index_type == IndexType::TagIndex
+                    && index.status == IndexStatus::Active
+                    && vertex.tags.iter().any(|tag| tag.name == index.schema_name)
+            })
+            .collect();
+        
+        drop(indexes);
+        
+        let mut index_data = self.index_data.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        
+        for index in vertex_indexes {
+            if let Some(data) = index_data.get_mut(&index.id) {
+                let index_values = Self::extract_vertex_index_values(vertex, &index.schema_name, &index.fields);
+                let key = IndexBinaryEncoder::encode(&index_values);
+                
+                if let Some(vertices) = data.vertex_index.get_mut(&key) {
+                    vertices.retain(|v| v.id() != vertex.id());
+                    if vertices.is_empty() {
+                        data.vertex_index.remove(&key);
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    fn update_vertex_in_index(&self, space_id: i32, old_vertex: &Vertex, new_vertex: &Vertex) -> ManagerResult<()> {
+        self.delete_vertex_from_index(space_id, old_vertex)?;
+        self.insert_vertex_to_index(space_id, new_vertex)?;
+        Ok(())
+    }
+
+    fn insert_edge_to_index(&self, space_id: i32, edge: &Edge) -> ManagerResult<()> {
+        let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        
+        let edge_indexes: Vec<_> = indexes
+            .values()
+            .filter(|index| {
+                index.space_id == space_id
+                    && index.index_type == IndexType::EdgeIndex
+                    && index.status == IndexStatus::Active
+                    && index.schema_name == edge.edge_type
+            })
+            .collect();
+        
+        drop(indexes);
+        
+        let mut index_data = self.index_data.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        
+        for index in edge_indexes {
+            if let Some(data) = index_data.get_mut(&index.id) {
+                let index_values = Self::extract_edge_index_values(edge, &index.schema_name, &index.fields);
+                let key = IndexBinaryEncoder::encode(&index_values);
+                data.insert_edge(key, edge.clone());
+            }
+        }
+        
+        Ok(())
+    }
+
+    fn delete_edge_from_index(&self, space_id: i32, edge: &Edge) -> ManagerResult<()> {
+        let indexes = self.indexes.read().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        
+        let edge_indexes: Vec<_> = indexes
+            .values()
+            .filter(|index| {
+                index.space_id == space_id
+                    && index.index_type == IndexType::EdgeIndex
+                    && index.status == IndexStatus::Active
+                    && index.schema_name == edge.edge_type
+            })
+            .collect();
+        
+        drop(indexes);
+        
+        let mut index_data = self.index_data.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        
+        for index in edge_indexes {
+            if let Some(data) = index_data.get_mut(&index.id) {
+                let index_values = Self::extract_edge_index_values(edge, &index.schema_name, &index.fields);
+                let key = IndexBinaryEncoder::encode(&index_values);
+                
+                if let Some(edges) = data.edge_index.get_mut(&key) {
+                    edges.retain(|e| e.src != edge.src || e.dst != edge.dst || e.edge_type != edge.edge_type);
+                    if edges.is_empty() {
+                        data.edge_index.remove(&key);
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    fn update_edge_in_index(&self, space_id: i32, old_edge: &Edge, new_edge: &Edge) -> ManagerResult<()> {
+        self.delete_edge_from_index(space_id, old_edge)?;
+        self.insert_edge_to_index(space_id, new_edge)?;
+        Ok(())
     }
 }
 

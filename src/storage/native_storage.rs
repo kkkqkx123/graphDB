@@ -283,10 +283,8 @@ impl StorageEngine for NativeStorage {
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
         if self.edges_tree.get(&edge_key_bytes).map_err(Self::sled_error_to_storage_error)?.is_some() {
-            // 从边存储中删除
             self.edges_tree.remove(&edge_key_bytes).map_err(Self::sled_error_to_storage_error)?;
 
-            // 更新节点边索引
             self.update_node_edge_index(src, &edge_key_bytes, false)?;
             self.update_node_edge_index(dst, &edge_key_bytes, false)?;
 
@@ -295,6 +293,22 @@ impl StorageEngine for NativeStorage {
         } else {
             Err(StorageError::EdgeNotFound(Value::String(edge_key)))
         }
+    }
+
+    fn scan_edges_by_type(&self, edge_type: &str) -> Result<Vec<Edge>, StorageError> {
+        let mut edges = Vec::new();
+
+        for item in self.edges_tree.iter() {
+            let (_, edge_bytes) = item.map_err(Self::sled_error_to_storage_error)?;
+            let edge: Edge = serde_json::from_slice(&edge_bytes)
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            
+            if edge.edge_type == edge_type {
+                edges.push(edge);
+            }
+        }
+
+        Ok(edges)
     }
 
     fn begin_transaction(&mut self) -> Result<TransactionId, StorageError> {

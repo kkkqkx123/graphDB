@@ -110,6 +110,26 @@ pub trait IndexManager: Send + Sync + std::fmt::Debug {
         end: &Value,
     ) -> ManagerResult<Vec<Edge>>;
     
+    /// ==================== 索引写入操作 ====================
+    
+    /// 插入顶点到索引
+    fn insert_vertex_to_index(&self, space_id: i32, vertex: &Vertex) -> ManagerResult<()>;
+    
+    /// 从索引中删除顶点
+    fn delete_vertex_from_index(&self, space_id: i32, vertex: &Vertex) -> ManagerResult<()>;
+    
+    /// 更新索引中的顶点
+    fn update_vertex_in_index(&self, space_id: i32, old_vertex: &Vertex, new_vertex: &Vertex) -> ManagerResult<()>;
+    
+    /// 插入边到索引
+    fn insert_edge_to_index(&self, space_id: i32, edge: &Edge) -> ManagerResult<()>;
+    
+    /// 从索引中删除边
+    fn delete_edge_from_index(&self, space_id: i32, edge: &Edge) -> ManagerResult<()>;
+    
+    /// 更新索引中的边
+    fn update_edge_in_index(&self, space_id: i32, old_edge: &Edge, new_edge: &Edge) -> ManagerResult<()>;
+    
     /// 从磁盘加载索引
     fn load_from_disk(&self) -> ManagerResult<()>;
     /// 保存索引到磁盘
