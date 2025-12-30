@@ -14,7 +14,6 @@ pub struct ArgumentNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 ArgumentNode 实现 Clone
@@ -26,7 +25,6 @@ impl Clone for ArgumentNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -39,7 +37,6 @@ impl ArgumentNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Vec::new(),
         }
     }
 
@@ -108,7 +105,6 @@ pub struct SelectNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 SelectNode 实现 Clone
@@ -122,7 +118,6 @@ impl Clone for SelectNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -137,7 +132,6 @@ impl SelectNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Vec::new(),
         }
     }
 
@@ -221,7 +215,6 @@ pub struct LoopNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 LoopNode 实现 Clone
@@ -234,7 +227,6 @@ impl Clone for LoopNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -248,7 +240,6 @@ impl LoopNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Vec::new(),
         }
     }
 
@@ -322,7 +313,6 @@ pub struct PassThroughNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
 }
 
 // 为 PassThroughNode 实现 Clone
@@ -333,7 +323,6 @@ impl Clone for PassThroughNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
         }
     }
 }
@@ -345,7 +334,6 @@ impl PassThroughNode {
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
-            dependencies: Vec::new(),
         }
     }
 

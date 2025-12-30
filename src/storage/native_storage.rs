@@ -359,6 +359,20 @@ impl StorageEngine for NativeStorage {
         Ok(edges)
     }
 
+    fn scan_all_edges(&self) -> Result<Vec<Edge>, StorageError> {
+        let mut edges = Vec::new();
+
+        for item in self.edges_tree.iter() {
+            let (_, edge_bytes) =
+                item.map_err(Self::sled_error_to_storage_error)?;
+            let edge: Edge = serde_json::from_slice(&edge_bytes)
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            edges.push(edge);
+        }
+
+        Ok(edges)
+    }
+
     fn begin_transaction(&mut self) -> Result<TransactionId, StorageError> {
         // TODO: 实现实际的事务支持
         let id = SystemTime::now()

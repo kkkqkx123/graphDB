@@ -13,6 +13,3 @@ pub mod conversion;
 
 // 重新导出所有公共类型和功能，保持API兼容性
 pub use types::*;
-pub use comparison::*;
-pub use operations::*;
-pub use conversion::*;

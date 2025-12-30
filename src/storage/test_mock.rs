@@ -103,6 +103,10 @@ impl StorageEngine for MockStorage {
     fn scan_edges_by_type(&self, _edge_type: &str) -> Result<Vec<Edge>, StorageError> {
         Ok(Vec::new())
     }
+
+    fn scan_all_edges(&self) -> Result<Vec<Edge>, StorageError> {
+        Ok(Vec::new())
+    }
 }
 
 #[cfg(test)]

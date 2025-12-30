@@ -35,6 +35,8 @@ pub trait StorageEngine: Send + Sync {
     ) -> Result<(), StorageError>;
     /// 按类型扫描边
     fn scan_edges_by_type(&self, edge_type: &str) -> Result<Vec<Edge>, StorageError>;
+    /// 全表扫描所有边
+    fn scan_all_edges(&self) -> Result<Vec<Edge>, StorageError>;
 
     fn begin_transaction(&mut self) -> Result<TransactionId, StorageError>;
     fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError>;

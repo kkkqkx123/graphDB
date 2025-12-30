@@ -22,8 +22,8 @@ impl ThreadPool {
         let tasks = Arc::new(Mutex::new(VecDeque::new()));
         let notifier = Arc::new(Notify::new());
 
-        for id in 0..size {
-            workers.push(Worker::new(id, Arc::clone(&tasks), Arc::clone(&notifier)));
+        for _ in 0..size {
+            workers.push(Worker::new(Arc::clone(&tasks), Arc::clone(&notifier)));
         }
 
         Self {
@@ -53,15 +53,11 @@ impl ThreadPool {
     }
 }
 
-struct Worker {
-    
-    id: usize,
-}
+struct Worker {}
 
 impl Worker {
     fn new(
-        id: usize,
-        tasks: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send>>>>,
+        _tasks: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send>>>>,
         _notifier: Arc<Notify>,
     ) -> Self {
         thread::spawn(move || {
@@ -72,7 +68,7 @@ impl Worker {
 
                 // Check for tasks in a blocking way
                 let task = {
-                    let mut tasks = tasks
+                    let mut tasks = _tasks
                         .lock()
                         .expect("Worker tasks lock should not be poisoned");
                     tasks.pop_front()
@@ -86,7 +82,7 @@ impl Worker {
             }
         });
 
-        Self { id }
+        Self {}
     }
 }
 
@@ -171,15 +167,12 @@ impl<T> Lazy<T> {
 /// A condition variable for thread synchronization
 #[derive(Debug)]
 pub struct ConditionVariable {
-    
-    mutex: Mutex<()>,
     condvar: Condvar,
 }
 
 impl ConditionVariable {
     pub fn new() -> Self {
         Self {
-            mutex: Mutex::new(()),
             condvar: Condvar::new(),
         }
     }
