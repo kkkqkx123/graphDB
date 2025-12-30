@@ -12,6 +12,5 @@ pub mod expression;
 pub mod graph;
 pub mod query;
 pub mod services;
-pub mod stats;
 pub mod storage;
 pub mod utils;

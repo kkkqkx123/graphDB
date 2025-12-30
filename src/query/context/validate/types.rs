@@ -4,9 +4,9 @@
 /// 图空间信息
 #[derive(Debug, Clone)]
 pub struct SpaceInfo {
-    pub id: i32,
-    pub name: String,
-    pub vid_type: String, // 顶点ID类型
+    pub space_name: String,
+    pub space_id: Option<u32>,
+    pub is_default: bool,
 }
 
 /// 列定义
@@ -54,9 +54,22 @@ impl Column {
 }
 
 impl SpaceInfo {
-    /// 创建新的空间信息
-    pub fn new(id: i32, name: String, vid_type: String) -> Self {
-        Self { id, name, vid_type }
+    pub fn new(space_name: String, space_id: Option<u32>, is_default: bool) -> Self {
+        Self {
+            space_name,
+            space_id,
+            is_default,
+        }
+    }
+}
+
+impl Default for SpaceInfo {
+    fn default() -> Self {
+        Self {
+            space_name: String::new(),
+            space_id: None,
+            is_default: false,
+        }
     }
 }
 
@@ -104,10 +117,10 @@ mod tests {
 
     #[test]
     fn test_space_info_creation() {
-        let space = SpaceInfo::new(1, "test_space".to_string(), "INT".to_string());
-        assert_eq!(space.id, 1);
-        assert_eq!(space.name, "test_space");
-        assert_eq!(space.vid_type, "INT");
+        let space = SpaceInfo::new("test_space".to_string(), Some(1), false);
+        assert_eq!(space.space_name, "test_space");
+        assert_eq!(space.space_id, Some(1));
+        assert_eq!(space.is_default, false);
     }
 
     #[test]

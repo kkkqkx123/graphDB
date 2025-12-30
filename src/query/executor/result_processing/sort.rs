@@ -194,6 +194,17 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
             return Ok(());
         }
 
+        // 检查内存使用是否超过限制
+        let estimated_memory = self.estimate_memory_usage(data_set);
+        if estimated_memory > self.config.memory_limit {
+            return Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(format!(
+                    "排序操作内存使用超出限制: {} > {}",
+                    estimated_memory, self.config.memory_limit
+                )),
+            ));
+        }
+
         // 检查是否所有排序键都使用列索引
         let all_use_column_index = self.sort_keys.iter().all(|key| key.uses_column_index());
 
@@ -201,9 +212,6 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
             // 使用列索引进行排序
             return self.execute_column_index_sort(data_set);
         }
-
-        // 估算内存使用
-        let estimated_memory = self.estimate_memory_usage(data_set);
 
         // 如果有LIMIT且数据量很大，使用Top-N算法
         if let Some(limit) = self.limit {

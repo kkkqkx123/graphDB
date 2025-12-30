@@ -505,7 +505,7 @@ impl ValidationContext {
         result.push_str("ValidationContext {\n");
         result.push_str(&format!(
             "  spaces: {:?},\n",
-            self.basic_context.current_space().map(|s| s.name.as_str())
+            self.basic_context.current_space().map(|s| s.space_name.as_str())
         ));
         result.push_str(&format!(
             "  variables: {:?},\n",
@@ -997,13 +997,13 @@ mod tests {
     fn test_from_basic_context() {
         let mut basic = BasicValidationContext::new();
         basic.switch_to_space(SpaceInfo {
-            id: 1,
-            name: "test_space".to_string(),
-            vid_type: "INT".to_string(),
+            space_id: Some(1),
+            space_name: "test_space".to_string(),
+            is_default: false,
         });
 
         let ctx = ValidationContext::from_basic(basic);
         assert!(ctx.space_chosen());
-        assert_eq!(ctx.which_space().name, "test_space");
+        assert_eq!(ctx.which_space().space_name, "test_space");
     }
 }

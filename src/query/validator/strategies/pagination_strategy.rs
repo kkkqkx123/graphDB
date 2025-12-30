@@ -3,7 +3,6 @@
 
 use super::super::structs::*;
 use super::super::validation_interface::*;
-use crate::config::test_config::test_config;
 use crate::core::Expression;
 use crate::core::ValueTypeDef;
 
@@ -54,62 +53,56 @@ impl PaginationValidationStrategy {
         expr: &Expression,
         clause_name: &str,
     ) -> Result<(), ValidationError> {
-        // 简化验证：直接检查表达式是否为整数常量
+        use crate::query::visitor::EvaluableExprVisitor;
+
+        let mut visitor = EvaluableExprVisitor::new();
+        if !visitor.is_evaluable(expr) {
+            return Err(ValidationError::new(
+                format!("{}表达式必须是可立即计算的常量表达式", clause_name),
+                ValidationErrorType::PaginationError,
+            ));
+        }
+
         match expr {
-            Expression::Literal(crate::core::Value::Int(_)) => Ok(()),
+            Expression::Literal(crate::core::Value::Int(n)) => {
+                if *n >= 0 {
+                    Ok(())
+                } else {
+                    Err(ValidationError::new(
+                        format!("{}表达式必须是非负整数", clause_name),
+                        ValidationErrorType::PaginationError,
+                    ))
+                }
+            }
             Expression::Literal(_) => Err(ValidationError::new(
                 format!("{}表达式必须求值为整数类型", clause_name),
                 ValidationErrorType::PaginationError,
             )),
             _ => {
-                // 对于非常量表达式，使用类型推导
-                use crate::query::visitor::DeduceTypeVisitor;
-                use crate::storage::NativeStorage;
+                use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+                use crate::expression::context::basic_context::BasicExpressionContext;
 
-                // 创建临时存储引擎用于类型推导
-                let config = test_config();
-                let temp_dir = config.temp_storage_path();
-                std::fs::create_dir_all(&temp_dir).map_err(|e| {
-                    ValidationError::new(
-                        format!("创建临时目录失败: {}", e),
+                let mut context = BasicExpressionContext::new();
+                match ExpressionEvaluator::evaluate(expr, &mut context) {
+                    Ok(crate::core::Value::Int(n)) => {
+                        if n >= 0 {
+                            Ok(())
+                        } else {
+                            Err(ValidationError::new(
+                                format!("{}表达式必须是非负整数", clause_name),
+                                ValidationErrorType::PaginationError,
+                            ))
+                        }
+                    }
+                    Ok(_) => Err(ValidationError::new(
+                        format!("{}表达式必须求值为整数类型", clause_name),
                         ValidationErrorType::PaginationError,
-                    )
-                })?;
-                let storage = NativeStorage::new(&temp_dir).map_err(|e| {
-                    ValidationError::new(
-                        format!("创建存储失败: {}", e),
+                    )),
+                    Err(e) => Err(ValidationError::new(
+                        format!("{}表达式求值失败: {}", clause_name, e),
                         ValidationErrorType::PaginationError,
-                    )
-                })?;
-
-                let inputs = vec![];
-                let space = "default".to_string();
-
-                let default_context = Default::default();
-                let mut type_visitor =
-                    DeduceTypeVisitor::new(&storage, &default_context, inputs, space);
-
-                let expr_type = type_visitor.deduce_type(expr).map_err(|e| {
-                    ValidationError::new(
-                        format!("类型推导失败: {:?}", e),
-                        ValidationErrorType::PaginationError,
-                    )
-                })?;
-
-                if expr_type != ValueTypeDef::Int
-                    && expr_type != ValueTypeDef::Empty
-                    && expr_type != ValueTypeDef::Null
-                {
-                    return Err(ValidationError::new(
-                        format!(
-                            "{}表达式必须求值为整数类型，得到{:?}",
-                            clause_name, expr_type
-                        ),
-                        ValidationErrorType::PaginationError,
-                    ));
+                    )),
                 }
-
-                Ok(())
             }
         }
     }

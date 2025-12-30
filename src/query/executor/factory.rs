@@ -7,7 +7,7 @@ use crate::core::error::QueryError;
 use crate::query::executor::traits::Executor;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
-    BinaryInputNode, JoinNode, PlanNode,
+    BinaryInputNode, JoinNode, MultipleInputNode, PlanNode, SingleInputNode,
 };
 
 use crate::storage::StorageEngine;
@@ -25,6 +25,7 @@ use crate::query::executor::recursion_detector::{
 };
 use crate::query::executor::result_processing::{
     AggregateExecutor, DedupExecutor, FilterExecutor, LimitExecutor, ProjectExecutor, SortExecutor,
+    TopNExecutor,
 };
 
 /// 执行器工厂
@@ -76,6 +77,126 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
             .map(|v| v.name.clone())
             .unwrap_or_else(|| format!("right_{}", node.id()));
         (left_var, right_var)
+    }
+
+    /// 分析执行计划的生命周期和安全性
+    ///
+    /// 参考nebula-graph的Scheduler::analyzeLifetime实现
+    /// 使用DFS遍历执行计划树，检测循环引用并验证安全性
+    pub fn analyze_plan_lifecycle(
+        &mut self,
+        root: &PlanNodeEnum,
+    ) -> Result<(), QueryError> {
+        self.recursion_detector.reset();
+        self.analyze_plan_node(root, 0)?;
+        Ok(())
+    }
+
+    /// 递归分析单个计划节点
+    fn analyze_plan_node(
+        &mut self,
+        node: &PlanNodeEnum,
+        loop_layers: usize,
+    ) -> Result<(), QueryError> {
+        let node_id = node.id();
+        let node_name = node.name();
+
+        // 验证执行器是否会导致递归
+        self.recursion_detector
+            .validate_executor(node_id, node_name)
+            .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
+
+        // 验证计划节点的安全性
+        self.validate_plan_node(node)?;
+
+        // 根据节点类型处理依赖关系
+        match node {
+            // 单输入节点
+            PlanNodeEnum::Filter(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+            PlanNodeEnum::Project(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+            PlanNodeEnum::Limit(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+            PlanNodeEnum::Sort(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+            PlanNodeEnum::TopN(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+            PlanNodeEnum::Aggregate(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+            PlanNodeEnum::Dedup(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+            PlanNodeEnum::Expand(n) => {
+                if let Some(input) = n.inputs().first() {
+                    self.analyze_plan_node(input, loop_layers)?;
+                }
+            }
+            PlanNodeEnum::Unwind(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+            PlanNodeEnum::Assign(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+
+            // 双输入节点（连接操作）
+            PlanNodeEnum::InnerJoin(n) => {
+                self.analyze_plan_node(n.left_input(), loop_layers)?;
+                self.analyze_plan_node(n.right_input(), loop_layers)?;
+            }
+            PlanNodeEnum::HashInnerJoin(n) => {
+                self.analyze_plan_node(n.left_input(), loop_layers)?;
+                self.analyze_plan_node(n.right_input(), loop_layers)?;
+            }
+            PlanNodeEnum::LeftJoin(n) => {
+                self.analyze_plan_node(n.left_input(), loop_layers)?;
+                self.analyze_plan_node(n.right_input(), loop_layers)?;
+            }
+            PlanNodeEnum::HashLeftJoin(n) => {
+                self.analyze_plan_node(n.left_input(), loop_layers)?;
+                self.analyze_plan_node(n.right_input(), loop_layers)?;
+            }
+            PlanNodeEnum::CrossJoin(n) | PlanNodeEnum::CartesianProduct(n) => {
+                self.analyze_plan_node(n.left_input(), loop_layers)?;
+                self.analyze_plan_node(n.right_input(), loop_layers)?;
+            }
+
+            // 循环节点 - 递增循环层级
+            PlanNodeEnum::Loop(n) => {
+                // 循环节点的body需要在新的循环层级下分析
+                // 注意：这里简化处理，实际可能需要更复杂的逻辑
+                if let Some(body) = n.body() {
+                    self.analyze_plan_node(body, loop_layers)?;
+                }
+            }
+
+            // 无输入节点
+            PlanNodeEnum::Start(_) => {}
+
+            // 数据访问节点
+            PlanNodeEnum::ScanVertices(_) | PlanNodeEnum::GetVertices(_) => {}
+
+            // 暂不支持的节点
+            PlanNodeEnum::ScanEdges(_) => {}
+
+            _ => {
+                return Err(QueryError::ExecutionError(format!(
+                    "暂不支持分析执行器类型: {:?}",
+                    node.type_name()
+                )));
+            }
+        }
+
+        // 离开当前节点
+        self.recursion_detector.leave_executor();
+
+        Ok(())
     }
 
     /// 创建内连接执行器（通用方法）
@@ -152,7 +273,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
         &self,
         plan_node: &PlanNodeEnum,
         storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
+        _context: &ExecutionContext,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         // 验证执行器类型和配置
         self.validate_plan_node(plan_node)?;
@@ -249,11 +370,21 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                 .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
                 Ok(Box::new(executor))
             }
+            PlanNodeEnum::TopN(node) => {
+                let executor = TopNExecutor::new(
+                    node.id(),
+                    storage,
+                    node.limit() as usize,
+                    node.sort_items().to_vec(),
+                    true,
+                );
+                Ok(Box::new(executor))
+            }
             PlanNodeEnum::Aggregate(node) => {
                 let aggregate_functions = node
                     .agg_exprs()
                     .iter()
-                    .map(|expr| {
+                    .map(|_expr| {
                         crate::query::executor::result_processing::AggregateFunctionSpec::new(
                             crate::core::types::operators::AggregateFunction::Count,
                         )
@@ -359,7 +490,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
             }
 
             // 循环执行器
-            PlanNodeEnum::Loop(node) => {
+            PlanNodeEnum::Loop(_node) => {
                 // 注意：循环执行器需要body_executor，这里暂时返回错误
                 // 在实际使用中，需要在构建循环执行器时传入body_executor
                 Err(QueryError::ExecutionError(
@@ -376,7 +507,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
 
     /// 执行执行计划
     pub async fn execute_plan(
-        &self,
+        &mut self,
         _query_context: &mut crate::core::context::query::QueryContext,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> Result<crate::query::executor::traits::ExecutionResult, QueryError> {
@@ -386,18 +517,21 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
             None => return Err(QueryError::ExecutionError("存储引擎未设置".to_string())),
         };
 
+        // 获取根节点
+        let root_node = match plan.root() {
+            Some(node) => node,
+            None => return Err(QueryError::ExecutionError("执行计划没有根节点".to_string())),
+        };
+
+        // 分析执行计划的生命周期和安全性
+        self.analyze_plan_lifecycle(root_node)?;
+
         // 创建执行上下文
         let execution_context = ExecutionContext::new();
 
         // 设置会话和数据库信息到执行上下文中
         // 注意：ExecutionContext 结构可能需要扩展以支持这些字段
         // 目前我们使用基本的执行上下文，后续可以根据需要扩展
-
-        // 获取根节点
-        let root_node = match plan.root() {
-            Some(node) => node,
-            None => return Err(QueryError::ExecutionError("执行计划没有根节点".to_string())),
-        };
 
         // 创建根执行器
         let mut executor = self.create_executor(root_node, storage, &execution_context)?;
@@ -427,21 +561,30 @@ mod tests {
     #[test]
     fn test_factory_creation() {
         let _factory = ExecutorFactory::<MockStorage>::new();
-        // 工厂创建成功
     }
 
     #[test]
-    fn test_create_unsupported_executor() {
-        let factory = ExecutorFactory::<MockStorage>::new();
+    fn test_recursion_detector_basic() {
+        let mut factory = ExecutorFactory::<MockStorage>::new();
         let storage = Arc::new(Mutex::new(MockStorage));
-        let plan_node =
-            PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
         let context = ExecutionContext::new();
 
-        let result = factory.create_executor(&plan_node, storage, &context);
-        match result {
-            Err(e) => assert!(e.to_string().contains("尚未实现")),
-            Ok(_) => panic!("Expected error but got Ok"),
-        }
+        let start_node = PlanNodeEnum::Start(
+            crate::query::planner::plan::core::nodes::StartNode::new(),
+        );
+
+        let result = factory.create_executor(&start_node, storage, &context);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_analyze_plan_lifecycle() {
+        let mut factory = ExecutorFactory::<MockStorage>::new();
+        let start_node = PlanNodeEnum::Start(
+            crate::query::planner::plan::core::nodes::StartNode::new(),
+        );
+
+        let result = factory.analyze_plan_lifecycle(&start_node);
+        assert!(result.is_ok());
     }
 }

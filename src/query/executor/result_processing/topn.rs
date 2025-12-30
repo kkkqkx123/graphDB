@@ -16,8 +16,60 @@ use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageEngine;
+
+/// 排序方向枚举
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SortDirection {
+    /// 升序
+    Ascending,
+    /// 降序
+    Descending,
+}
+
+/// 排序列定义
+#[derive(Debug, Clone)]
+pub struct SortColumn {
+    /// 列索引
+    pub column_index: usize,
+    /// 数据类型
+    pub data_type: crate::core::DataType,
+    /// NULL 值是否排在前面
+    pub nulls_first: bool,
+}
+
+impl SortColumn {
+    pub fn new(column_index: usize, data_type: crate::core::DataType, nulls_first: bool) -> Self {
+        Self {
+            column_index,
+            data_type,
+            nulls_first,
+        }
+    }
+}
+
+/// TopN 错误类型
+#[derive(Debug, thiserror::Error)]
+pub enum TopNError {
+    #[error("执行器已打开")]
+    ExecutorAlreadyOpen,
+
+    #[error("内存限制超出")]
+    MemoryLimitExceeded,
+
+    #[error("无效的列索引: {0}")]
+    InvalidColumnIndex(usize),
+
+    #[error("排序值提取失败: {0}")]
+    SortValueExtractionFailed(String),
+
+    #[error("堆操作失败: {0}")]
+    HeapOperationFailed(String),
+
+    #[error("输入执行器错误: {0}")]
+    InputExecutorError(#[from] DBError),
+}
 
 /// TopNExecutor - TOP N 结果执行器
 ///
@@ -36,6 +88,18 @@ pub struct TopNExecutor<S: StorageEngine> {
     input_executor: Option<Box<dyn Executor<S>>>,
     /// 是否使用堆优化
     use_heap_optimization: bool,
+    /// 排序列定义
+    sort_columns: Vec<SortColumn>,
+    /// 排序方向
+    sort_direction: SortDirection,
+    /// 堆数据结构（最大堆或最小堆）
+    heap: Option<BinaryHeap<TopNItem>>,
+    /// 是否已打开
+    is_open: bool,
+    /// 是否已关闭
+    is_closed: bool,
+    /// 已处理记录数
+    processed_count: usize,
 }
 
 impl<S: StorageEngine> TopNExecutor<S> {
@@ -79,6 +143,62 @@ impl<S: StorageEngine> TopNExecutor<S> {
             sort_keys,
             input_executor: None,
             use_heap_optimization: true,
+            sort_columns: Vec::new(),
+            sort_direction: if ascending {
+                SortDirection::Ascending
+            } else {
+                SortDirection::Descending
+            },
+            heap: None,
+            is_open: false,
+            is_closed: false,
+            processed_count: 0,
+        }
+    }
+
+    /// 创建带有排序列定义的 TopN 执行器
+    pub fn with_sort_columns(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        n: usize,
+        sort_columns: Vec<SortColumn>,
+        sort_direction: SortDirection,
+    ) -> Self {
+        let base = BaseResultProcessor::new(
+            id,
+            "TopNExecutor".to_string(),
+            "Returns the top N results using optimized heap algorithm".to_string(),
+            storage,
+        );
+
+        let sort_keys = sort_columns
+            .iter()
+            .map(|col| {
+                let order = if sort_direction == SortDirection::Ascending {
+                    crate::query::executor::result_processing::sort::SortOrder::Asc
+                } else {
+                    crate::query::executor::result_processing::sort::SortOrder::Desc
+                };
+                crate::query::executor::result_processing::sort::SortKey::new(
+                    Expression::Variable(format!("col_{}", col.column_index)),
+                    order,
+                )
+            })
+            .collect();
+
+        Self {
+            base,
+            n,
+            offset: 0,
+            sort_keys,
+            input_executor: None,
+            use_heap_optimization: true,
+            sort_columns,
+            sort_direction,
+            heap: None,
+            is_open: false,
+            is_closed: false,
+            processed_count: 0,
         }
     }
 
@@ -160,7 +280,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
             let sort_value = self.calculate_sort_value(row, &dataset.col_names)?;
             heap.push(TopNItem {
                 sort_value,
-                original_index: i,
+                _original_index: i,
                 row: row.clone(),
             });
         }
@@ -170,7 +290,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
             let sort_value = self.calculate_sort_value(row, &dataset.col_names)?;
             let new_item = TopNItem {
                 sort_value,
-                original_index: i,
+                _original_index: i,
                 row: row.clone(),
             };
 
@@ -361,13 +481,136 @@ impl<S: StorageEngine> TopNExecutor<S> {
 
         Ok(values[start..end].to_vec())
     }
+
+    /// 提取排序值
+    fn extract_sort_values(&self, row: &[Value]) -> Result<Vec<Value>, TopNError> {
+        let mut sort_values = Vec::with_capacity(self.sort_columns.len());
+
+        for sort_col in &self.sort_columns {
+            if sort_col.column_index >= row.len() {
+                return Err(TopNError::InvalidColumnIndex(sort_col.column_index));
+            }
+
+            let value = &row[sort_col.column_index];
+
+            // 处理 NULL 值排序
+            let adjusted_value = if value.is_null() {
+                if sort_col.nulls_first {
+                    Value::Null
+                } else {
+                    Value::Null
+                }
+            } else {
+                value.clone()
+            };
+
+            sort_values.push(adjusted_value);
+        }
+
+        Ok(sort_values)
+    }
+
+    /// 反转排序值（用于最大堆）
+    fn invert_sort_values(&self, mut sort_values: Vec<Value>) -> Result<Vec<Value>, TopNError> {
+        for value in &mut sort_values {
+            if !value.is_null() {
+                *value = self.invert_value_for_sorting(value)?;
+            }
+        }
+        Ok(sort_values)
+    }
+
+    /// 反转单个值的比较逻辑
+    fn invert_value_for_sorting(&self, value: &Value) -> Result<Value, TopNError> {
+        match value {
+            Value::Int(i) => Ok(Value::Int(-i)),
+            Value::Float(f) => Ok(Value::Float(-f)),
+            Value::String(s) => {
+                let reversed: String = s.chars().rev().collect();
+                Ok(Value::String(reversed))
+            }
+            Value::Bool(b) => Ok(Value::Bool(!b)),
+            _ => Ok(value.clone()),
+        }
+    }
+
+    /// 动态调整堆容量
+    fn optimize_heap_capacity(&mut self) {
+        if let Some(ref mut heap) = self.heap {
+            let current_capacity = heap.capacity();
+            let ideal_capacity = self.n + 10;
+
+            if current_capacity > ideal_capacity * 2 {
+                let mut new_heap = BinaryHeap::with_capacity(ideal_capacity);
+                while let Some(item) = heap.pop() {
+                    new_heap.push(item);
+                    if new_heap.len() >= self.n {
+                        break;
+                    }
+                }
+                self.heap = Some(new_heap);
+            }
+        }
+    }
+
+    /// 检查是否超出内存限制
+    fn exceeds_memory_limit(&self) -> bool {
+        let estimated_memory = self.heap.as_ref().map_or(0, |h| h.len()) * 100;
+        estimated_memory > 100 * 1024 * 1024
+    }
+
+    /// 获取堆大小
+    pub fn get_heap_size(&self) -> usize {
+        self.heap.as_ref().map_or(0, |h| h.len())
+    }
+
+    /// 获取已处理记录数
+    pub fn get_processed_count(&self) -> usize {
+        self.processed_count
+    }
+
+    /// 配置排序参数
+    pub fn configure_sorting(
+        &mut self,
+        sort_columns: Vec<SortColumn>,
+        sort_direction: SortDirection,
+    ) -> Result<(), TopNError> {
+        if self.is_open {
+            return Err(TopNError::ExecutorAlreadyOpen);
+        }
+        self.sort_columns = sort_columns;
+        self.sort_direction = sort_direction;
+        Ok(())
+    }
+
+    /// 推入堆中
+    pub fn push_to_heap(&mut self, item: TopNItem) -> Result<(), TopNError> {
+        if self.heap.is_none() {
+            self.heap = Some(BinaryHeap::with_capacity(self.n + 1));
+        }
+
+        let heap = self.heap.as_mut().expect("heap should be initialized");
+
+        heap.push(item);
+
+        if heap.len() > self.n {
+            heap.pop();
+        }
+
+        Ok(())
+    }
+
+    /// 从堆中弹出
+    pub fn pop_from_heap(&mut self) -> Option<TopNItem> {
+        self.heap.as_mut()?.pop()
+    }
 }
 
 /// TopN 堆项
 #[derive(Debug, Clone)]
 struct TopNItem {
     sort_value: Vec<Value>,
-    original_index: usize,
+    _original_index: usize,
     row: Vec<Value>,
 }
 
@@ -451,16 +694,44 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
     }
 
     fn open(&mut self) -> DBResult<()> {
+        if self.is_open {
+            return Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(
+                    "Executor already open".to_string(),
+                ),
+            ));
+        }
+
+        if self.input_executor.is_none() {
+            return Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(
+                    "Missing input executor".to_string(),
+                ),
+            ));
+        }
+
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
         }
+
+        self.is_open = true;
+        self.is_closed = false;
+        self.heap = Some(BinaryHeap::with_capacity(self.n + 1));
+        self.processed_count = 0;
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
+        if !self.is_open || self.is_closed {
+            return Ok(());
+        }
+
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;
         }
+
+        self.heap = None;
+        self.is_closed = true;
         Ok(())
     }
 
@@ -481,10 +752,114 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
     }
 }
 
+impl<S: StorageEngine> TopNExecutor<S> {
+    /// 带错误恢复的执行方法
+    pub async fn execute_with_recovery(&mut self) -> DBResult<ExecutionResult> {
+        match self.execute().await {
+            Ok(result) => Ok(result),
+            Err(DBError::Query(crate::core::error::QueryError::ExecutionError(ref msg)))
+                if msg.contains("memory") || msg.contains("limit") =>
+            {
+                self.fallback_to_external_sort().await
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// 外部排序降级方案
+    async fn fallback_to_external_sort(&mut self) -> DBResult<ExecutionResult> {
+        Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
+            "Memory limit exceeded, consider reducing the dataset size or N value".to_string(),
+        )))
+    }
+
+    /// 批量处理输入数据
+    pub async fn process_input_batch(&mut self, batch_size: usize) -> DBResult<ExecutionResult> {
+        if let Some(ref mut input_exec) = self.input_executor {
+            let input_result = input_exec.execute().await?;
+
+            match input_result {
+                ExecutionResult::DataSet(dataset) => {
+                    let mut batch = Vec::with_capacity(batch_size);
+                    let mut all_results = Vec::new();
+
+                    for row in dataset.rows {
+                        batch.push(row);
+
+                        if batch.len() >= batch_size {
+                            let processed = self.process_batch(&batch)?;
+                            all_results.extend(processed);
+                            batch.clear();
+                        }
+                    }
+
+                    if !batch.is_empty() {
+                        let processed = self.process_batch(&batch)?;
+                        all_results.extend(processed);
+                    }
+
+                    let mut result_dataset = dataset;
+                    result_dataset.rows = all_results;
+                    Ok(ExecutionResult::DataSet(result_dataset))
+                }
+                _ => Ok(input_result),
+            }
+        } else {
+            Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(
+                    "TopN executor requires input executor".to_string(),
+                ),
+            ))
+        }
+    }
+
+    /// 处理批量数据
+    fn process_batch(&mut self, batch: &[Vec<Value>]) -> DBResult<Vec<Vec<Value>>> {
+        let mut results = Vec::new();
+
+        for row in batch {
+            if let Some(sort_value) = self.calculate_sort_value(row, &[]).ok() {
+                let item = TopNItem {
+                    sort_value,
+                    _original_index: self.processed_count,
+                    row: row.clone(),
+                };
+
+                if self.heap.is_none() {
+                    self.heap = Some(BinaryHeap::with_capacity(self.n + 1));
+                }
+
+                if let Some(ref mut heap) = self.heap {
+                    heap.push(item);
+                    self.processed_count += 1;
+
+                    if heap.len() > self.n {
+                        heap.pop();
+                    }
+                }
+            }
+        }
+
+        if let Some(ref mut heap) = self.heap {
+            let mut items: Vec<TopNItem> = heap.drain().collect();
+            items.sort_by(|a, b| {
+                if self.is_ascending() {
+                    a.sort_value.cmp(&b.sort_value)
+                } else {
+                    b.sort_value.cmp(&a.sort_value)
+                }
+            });
+
+            results = items.into_iter().map(|item| item.row).collect();
+        }
+
+        Ok(results)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::value::NullType;
     use crate::storage::test_mock::MockStorage;
 
     #[tokio::test]

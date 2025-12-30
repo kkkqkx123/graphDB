@@ -11,8 +11,6 @@ pub struct Counter {
     pub name: String,
     pub description: String,
     value: Arc<Mutex<u64>>,
-
-    created_at: std::time::SystemTime,
 }
 
 impl Counter {
@@ -21,7 +19,6 @@ impl Counter {
             name: name.to_string(),
             description: description.to_string(),
             value: Arc::new(Mutex::new(0)),
-            created_at: SystemTime::now(),
         }
     }
 
@@ -49,8 +46,6 @@ pub struct Gauge {
     pub name: String,
     pub description: String,
     value: Arc<Mutex<f64>>,
-
-    created_at: std::time::SystemTime,
 }
 
 impl Gauge {
@@ -59,7 +54,6 @@ impl Gauge {
             name: name.to_string(),
             description: description.to_string(),
             value: Arc::new(Mutex::new(0.0)),
-            created_at: SystemTime::now(),
         }
     }
 
@@ -84,8 +78,6 @@ pub struct Histogram {
     buckets: Vec<f64>,
     counts: Arc<Mutex<Vec<u64>>>,
     sum: Arc<Mutex<f64>>,
-
-    _created_at: std::time::SystemTime,
 }
 
 impl Histogram {
@@ -97,7 +89,6 @@ impl Histogram {
             buckets: buckets.clone(),
             counts: Arc::new(Mutex::new(vec![0; buckets.len()])),
             sum: Arc::new(Mutex::new(0.0)),
-            _created_at: SystemTime::now(),
         }
     }
 
@@ -140,14 +131,12 @@ impl Histogram {
     }
 }
 
-/// Timer for measuring execution time
+/// Timer for measuring time durations
 #[derive(Debug, Clone)]
 pub struct Timer {
     pub name: String,
     pub description: String,
     value: Arc<Mutex<Vec<Duration>>>,
-
-    created_at: std::time::SystemTime,
 }
 
 impl Timer {
@@ -156,7 +145,6 @@ impl Timer {
             name: name.to_string(),
             description: description.to_string(),
             value: Arc::new(Mutex::new(Vec::new())),
-            created_at: SystemTime::now(),
         }
     }
 
@@ -212,8 +200,6 @@ pub struct StatsRegistry {
     gauges: Arc<Mutex<HashMap<String, Gauge>>>,
     histograms: Arc<Mutex<HashMap<String, Histogram>>>,
     timers: Arc<Mutex<HashMap<String, Timer>>>,
-
-    created_at: std::time::SystemTime,
 }
 
 impl StatsRegistry {
@@ -223,7 +209,6 @@ impl StatsRegistry {
             gauges: Arc::new(Mutex::new(HashMap::new())),
             histograms: Arc::new(Mutex::new(HashMap::new())),
             timers: Arc::new(Mutex::new(HashMap::new())),
-            created_at: SystemTime::now(),
         }
     }
 
@@ -401,6 +386,209 @@ where
     Ok(result)
 }
 
+/// Statistics type identifiers
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum StatType {
+    NumQueries,
+    NumActiveQueries,
+    NumSlowQueries,
+    NumQueryErrors,
+    NumQueryErrorsLeaderChanges,
+    NumSentences,
+    QueryLatencyUs,
+    SlowQueryLatencyUs,
+    NumKilledQueries,
+    NumQueriesHitMemoryWatermark,
+    OptimizerLatencyUs,
+    NumAggregateExecutors,
+    NumSortExecutors,
+    NumIndexScanExecutors,
+    NumOpenedSessions,
+    NumAuthFailedSessions,
+    NumAuthFailedSessionsBadUserNamePassword,
+    NumAuthFailedSessionsOutOfMaxAllowed,
+    NumActiveSessions,
+    NumReclaimedExpiredSessions,
+}
+
+impl StatType {
+    fn name(&self) -> &'static str {
+        match self {
+            StatType::NumQueries => "num_queries",
+            StatType::NumActiveQueries => "num_active_queries",
+            StatType::NumSlowQueries => "num_slow_queries",
+            StatType::NumQueryErrors => "num_query_errors",
+            StatType::NumQueryErrorsLeaderChanges => "num_query_errors_leader_changes",
+            StatType::NumSentences => "num_sentences",
+            StatType::QueryLatencyUs => "query_latency_us",
+            StatType::SlowQueryLatencyUs => "slow_query_latency_us",
+            StatType::NumKilledQueries => "num_killed_queries",
+            StatType::NumQueriesHitMemoryWatermark => "num_queries_hit_memory_watermark",
+            StatType::OptimizerLatencyUs => "optimizer_latency_us",
+            StatType::NumAggregateExecutors => "num_aggregate_executors",
+            StatType::NumSortExecutors => "num_sort_executors",
+            StatType::NumIndexScanExecutors => "num_index_scan_executors",
+            StatType::NumOpenedSessions => "num_opened_sessions",
+            StatType::NumAuthFailedSessions => "num_auth_failed_sessions",
+            StatType::NumAuthFailedSessionsBadUserNamePassword => {
+                "num_auth_failed_sessions_bad_username_password"
+            }
+            StatType::NumAuthFailedSessionsOutOfMaxAllowed => {
+                "num_auth_failed_sessions_out_of_max_allowed"
+            }
+            StatType::NumActiveSessions => "num_active_sessions",
+            StatType::NumReclaimedExpiredSessions => "num_reclaimed_expired_sessions",
+        }
+    }
+
+    fn description(&self) -> &'static str {
+        match self {
+            StatType::NumQueries => "Total number of queries executed",
+            StatType::NumActiveQueries => "Number of currently active queries",
+            StatType::NumSlowQueries => "Number of slow queries executed",
+            StatType::NumQueryErrors => "Total number of query errors",
+            StatType::NumQueryErrorsLeaderChanges => {
+                "Number of query errors due to leader changes"
+            }
+            StatType::NumSentences => "Total number of sentences processed",
+            StatType::QueryLatencyUs => "Total query latency in microseconds",
+            StatType::SlowQueryLatencyUs => "Total slow query latency in microseconds",
+            StatType::NumKilledQueries => "Number of queries that were killed",
+            StatType::NumQueriesHitMemoryWatermark => {
+                "Number of queries that hit memory watermark"
+            }
+            StatType::OptimizerLatencyUs => "Total optimizer latency in microseconds",
+            StatType::NumAggregateExecutors => "Number of aggregate executors used",
+            StatType::NumSortExecutors => "Number of sort executors used",
+            StatType::NumIndexScanExecutors => "Number of index scan executors used",
+            StatType::NumOpenedSessions => "Total number of sessions opened",
+            StatType::NumAuthFailedSessions => "Total number of authentication failures",
+            StatType::NumAuthFailedSessionsBadUserNamePassword => {
+                "Number of authentication failures due to bad username/password"
+            }
+            StatType::NumAuthFailedSessionsOutOfMaxAllowed => {
+                "Number of authentication failures due to max allowed sessions"
+            }
+            StatType::NumActiveSessions => "Number of currently active sessions",
+            StatType::NumReclaimedExpiredSessions => {
+                "Number of expired sessions that were reclaimed"
+            }
+        }
+    }
+}
+
+/// Statistics manager
+#[derive(Debug, Clone)]
+pub struct GraphStats {
+    registry: Arc<StatsRegistry>,
+    slow_query_threshold_us: u64,
+}
+
+impl GraphStats {
+    pub fn new() -> Self {
+        let registry = Arc::new(StatsRegistry::new());
+        Self::with_registry(registry)
+    }
+
+    pub fn with_registry(registry: Arc<StatsRegistry>) -> Self {
+        let stats = Self {
+            registry,
+            slow_query_threshold_us: 5_000_000,
+        };
+
+        stats.init_counters();
+        stats
+    }
+
+    fn init_counters(&self) {
+        let stat_types = [
+            StatType::NumQueries,
+            StatType::NumActiveQueries,
+            StatType::NumSlowQueries,
+            StatType::NumQueryErrors,
+            StatType::NumQueryErrorsLeaderChanges,
+            StatType::NumSentences,
+            StatType::QueryLatencyUs,
+            StatType::SlowQueryLatencyUs,
+            StatType::NumKilledQueries,
+            StatType::NumQueriesHitMemoryWatermark,
+            StatType::OptimizerLatencyUs,
+            StatType::NumAggregateExecutors,
+            StatType::NumSortExecutors,
+            StatType::NumIndexScanExecutors,
+            StatType::NumOpenedSessions,
+            StatType::NumAuthFailedSessions,
+            StatType::NumAuthFailedSessionsBadUserNamePassword,
+            StatType::NumAuthFailedSessionsOutOfMaxAllowed,
+            StatType::NumActiveSessions,
+            StatType::NumReclaimedExpiredSessions,
+        ];
+
+        for stat_type in stat_types {
+            let _ = self
+                .registry
+                .register_counter(stat_type.name(), stat_type.description());
+        }
+    }
+
+    pub fn increment_counter(&self, stat_type: StatType) {
+        if let Ok(Some(counter)) = self.registry.get_counter(stat_type.name()) {
+            let _ = counter.inc();
+        }
+    }
+
+    pub fn add_value(&self, stat_type: StatType, value: u64) {
+        if let Ok(Some(counter)) = self.registry.get_counter(stat_type.name()) {
+            let _ = counter.inc_by(value);
+        }
+    }
+
+    pub fn get_counter(&self, stat_type: StatType) -> u64 {
+        self.registry
+            .get_counter(stat_type.name())
+            .ok()
+            .flatten()
+            .and_then(|c| c.get().ok())
+            .unwrap_or(0)
+    }
+
+    pub fn record_query_execution(&self, latency_us: u64) {
+        self.increment_counter(StatType::NumQueries);
+        self.add_value(StatType::QueryLatencyUs, latency_us);
+
+        if latency_us > self.slow_query_threshold_us {
+            self.increment_counter(StatType::NumSlowQueries);
+            self.add_value(StatType::SlowQueryLatencyUs, latency_us);
+        }
+    }
+
+    pub fn record_session_opened(&self) {
+        self.increment_counter(StatType::NumOpenedSessions);
+    }
+
+    pub fn record_session_closed(&self) {
+        self.increment_counter(StatType::NumActiveSessions);
+    }
+
+    pub fn record_auth_failure(&self) {
+        self.increment_counter(StatType::NumAuthFailedSessions);
+    }
+
+    pub fn record_expired_session_reclaimed(&self) {
+        self.increment_counter(StatType::NumReclaimedExpiredSessions);
+    }
+
+    pub fn get_session_stats(&self) -> (u64, u64, u64, u64) {
+        (
+            self.get_counter(StatType::NumOpenedSessions),
+            self.get_counter(StatType::NumActiveSessions),
+            self.get_counter(StatType::NumAuthFailedSessions),
+            self.get_counter(StatType::NumReclaimedExpiredSessions),
+        )
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -533,13 +721,6 @@ mod tests {
     async fn test_global_registry() {
         let registry = global_registry();
 
-        // Clean up in case of previous tests
-        {
-            let mut counters = safe_lock(&registry.counters)
-                .expect("Registry counters lock should not be poisoned");
-            counters.clear();
-        }
-
         let counter = registry
             .register_counter("global_test", "Global test counter")
             .expect("Registry register_counter should succeed");
@@ -556,5 +737,70 @@ mod tests {
                 .expect("Counter get should succeed"),
             10
         );
+    }
+
+    #[test]
+    fn test_graph_stats_creation() {
+        let stats = GraphStats::new();
+
+        assert_eq!(stats.get_counter(StatType::NumQueries), 0);
+        assert_eq!(stats.get_counter(StatType::NumActiveQueries), 0);
+    }
+
+    #[test]
+    fn test_graph_stats_increment() {
+        let stats = GraphStats::new();
+
+        stats.increment_counter(StatType::NumQueries);
+        assert_eq!(stats.get_counter(StatType::NumQueries), 1);
+
+        stats.increment_counter(StatType::NumQueries);
+        assert_eq!(stats.get_counter(StatType::NumQueries), 2);
+    }
+
+    #[test]
+    fn test_graph_stats_add_value() {
+        let stats = GraphStats::new();
+
+        stats.add_value(StatType::QueryLatencyUs, 1000);
+        assert_eq!(stats.get_counter(StatType::QueryLatencyUs), 1000);
+
+        stats.add_value(StatType::QueryLatencyUs, 500);
+        assert_eq!(stats.get_counter(StatType::QueryLatencyUs), 1500);
+    }
+
+    #[test]
+    fn test_graph_stats_record_query_execution() {
+        let stats = GraphStats::new();
+
+        stats.record_query_execution(1000);
+        assert_eq!(stats.get_counter(StatType::NumQueries), 1);
+        assert_eq!(stats.get_counter(StatType::QueryLatencyUs), 1000);
+        assert_eq!(stats.get_counter(StatType::NumSlowQueries), 0);
+
+        stats.record_query_execution(10_000_000);
+        assert_eq!(stats.get_counter(StatType::NumQueries), 2);
+        assert_eq!(stats.get_counter(StatType::QueryLatencyUs), 10_001_000);
+        assert_eq!(stats.get_counter(StatType::NumSlowQueries), 1);
+    }
+
+    #[test]
+    fn test_graph_stats_session_stats() {
+        let stats = GraphStats::new();
+
+        stats.record_session_opened();
+        let (opened, _active, failed, _reclaimed) = stats.get_session_stats();
+        assert_eq!(opened, 1);
+        assert_eq!(failed, 0);
+
+        stats.record_auth_failure();
+        let (opened, _active, failed, _reclaimed) = stats.get_session_stats();
+        assert_eq!(failed, 1);
+        assert_eq!(opened, 1);
+
+        stats.record_expired_session_reclaimed();
+        let (opened, _active, _failed, reclaimed) = stats.get_session_stats();
+        assert_eq!(reclaimed, 1);
+        assert_eq!(opened, 1);
     }
 }

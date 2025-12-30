@@ -1006,6 +1006,10 @@ mod tests {
         fn scan_all_vertices(&self) -> Result<Vec<Vertex>, StorageError> {
             Ok(Vec::new())
         }
+        
+        fn scan_all_edges(&self) -> Result<Vec<Edge>, StorageError> {
+            Ok(Vec::new())
+        }
 
         fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<Vertex>, StorageError> {
             Ok(Vec::new())

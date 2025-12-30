@@ -307,16 +307,16 @@ mod tests {
         assert!(!ctx.space_chosen());
 
         let space = SpaceInfo {
-            id: 1,
-            name: "test_space".to_string(),
-            vid_type: "INT".to_string(),
+            space_id: Some(1),
+            space_name: "test_space".to_string(),
+            is_default: false,
         };
 
         ctx.switch_to_space(space.clone());
 
         assert!(ctx.space_chosen());
-        assert_eq!(ctx.which_space().name, "test_space");
-        assert_eq!(ctx.current_space().map(|s| s.id), Some(1));
+        assert_eq!(ctx.which_space().space_name, "test_space");
+        assert_eq!(ctx.current_space().map(|s| s.space_id), Some(Some(1)));
     }
 
     #[test]
