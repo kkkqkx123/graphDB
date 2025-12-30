@@ -237,6 +237,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
             // 创建顶点
             let vertex = Vertex {
                 vid: Box::new(vid.clone()),
+                id: 0,
                 tags: Vec::new(),                             // 空标签
                 properties: std::collections::HashMap::new(), // 空属性
             };

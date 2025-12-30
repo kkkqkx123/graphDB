@@ -525,18 +525,19 @@ impl StorageClient for MemoryStorageClient {
         let space_index = edge_index.entry(space_id).or_insert_with(HashMap::new);
 
         for new_edge in new_edges {
+            let idx = space_edges.len();
             let edge = Edge {
                 src: Box::new(new_edge.key.src.clone()),
                 dst: Box::new(new_edge.key.dst.clone()),
                 edge_type: new_edge.key.edge_type.clone(),
                 ranking: new_edge.key.ranking,
+                id: idx as i64,
                 props: HashMap::new(),
             };
             
-            if let Some(&idx) = space_index.get(&new_edge.key) {
-                space_edges[idx] = edge;
+            if let Some(&existing_idx) = space_index.get(&new_edge.key) {
+                space_edges[existing_idx] = edge;
             } else {
-                let idx = space_edges.len();
                 space_edges.push(edge);
                 space_index.insert(new_edge.key, idx);
             }
@@ -671,14 +672,15 @@ impl StorageClient for MemoryStorageClient {
             for updated_prop in updated_props {
                 edge_props.insert(updated_prop.name.clone(), updated_prop.value);
             }
+            let idx = space_edges.len();
             let edge = Edge {
                 src: Box::new(edge_key.src.clone()),
                 dst: Box::new(edge_key.dst.clone()),
                 edge_type: edge_key.edge_type.clone(),
                 ranking: edge_key.ranking,
+                id: idx as i64,
                 props: edge_props.clone(),
             };
-            let idx = space_edges.len();
             space_edges.push(edge);
             space_index.insert(edge_key.clone(), idx);
             inserted = true;

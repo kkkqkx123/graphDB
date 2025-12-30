@@ -457,6 +457,7 @@ mod tests {
 
         let vertex = Vertex {
             vid: Box::new(Value::String("vertex1".to_string())),
+            id: 1,
             tags: vec![tag],
             properties: HashMap::new(),
         };

@@ -8,11 +8,9 @@ use crate::core::error::{ManagerError, ManagerResult};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IndexStatus {
     Creating,
-    Building,
     Active,
     Dropped,
     Failed,
-    Cancelled,
 }
 
 /// 索引类型
@@ -21,18 +19,6 @@ pub enum IndexType {
     TagIndex,
     EdgeIndex,
     FulltextIndex,
-}
-
-/// 索引构建进度
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IndexBuildProgress {
-    pub index_id: i32,
-    pub index_name: String,
-    pub total_count: u64,
-    pub processed_count: u64,
-    pub progress_percent: f64,
-    pub status: IndexStatus,
-    pub error_message: Option<String>,
 }
 
 /// 索引信息 - 表示数据库索引
@@ -66,13 +52,6 @@ pub trait IndexManager: Send + Sync + std::fmt::Debug {
     fn get_index_status(&self, space_id: i32, index_id: i32) -> Option<IndexStatus>;
     /// 列出指定Space的所有索引
     fn list_indexes_by_space(&self, space_id: i32) -> ManagerResult<Vec<Index>>;
-    
-    /// 异步构建索引
-    fn build_index_async(&self, space_id: i32, index_id: i32) -> ManagerResult<()>;
-    /// 获取索引构建进度
-    fn get_build_progress(&self, space_id: i32, index_id: i32) -> Option<IndexBuildProgress>;
-    /// 取消索引构建
-    fn cancel_build(&self, space_id: i32, index_id: i32) -> ManagerResult<()>;
     
     /// ==================== 索引查询功能 ====================
     

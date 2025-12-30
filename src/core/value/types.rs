@@ -164,7 +164,7 @@ impl List {
 
 /// 表示可以存储在节点/边属性中的值
 /// 遵循Nebula的Value类型设计模式
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, Hash, PartialEq, Eq)]
 pub enum Value {
     Empty,
     Null(NullType),

@@ -35,6 +35,7 @@ impl Tag {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
 pub struct Vertex {
     pub vid: Box<Value>, // Vertex ID can now be any Value type, using Box to break cycles
+    pub id: i64, // Internal integer ID for indexing and fast lookup
     pub tags: Vec<Tag>,  // A vertex can have multiple tags
     pub properties: HashMap<String, Value>, // Vertex properties
 }
@@ -60,6 +61,7 @@ impl Vertex {
     pub fn new(vid: Value, tags: Vec<Tag>) -> Self {
         Self {
             vid: Box::new(vid),
+            id: 0,
             tags,
             properties: HashMap::new(),
         }
@@ -72,6 +74,7 @@ impl Vertex {
     ) -> Self {
         Self {
             vid: Box::new(vid),
+            id: 0,
             tags,
             properties,
         }
@@ -82,8 +85,13 @@ impl Vertex {
         self.tags.push(tag);
     }
 
-    /// Get vertex ID
-    pub fn id(&self) -> &Value {
+    /// Get vertex ID (internal integer ID)
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    /// Get vertex VID (user-visible ID)
+    pub fn vid(&self) -> &Value {
         &self.vid
     }
 
@@ -198,6 +206,7 @@ impl Default for Vertex {
     fn default() -> Self {
         Self {
             vid: Box::new(Value::Null(NullType::NaN)),
+            id: 0,
             tags: Vec::new(),
             properties: HashMap::new(),
         }
@@ -250,6 +259,7 @@ pub struct Edge {
     pub dst: Box<Value>, // Destination vertex ID (can be any Value type, using Box to break cycles)
     pub edge_type: String, // Edge type name
     pub ranking: i64,    // Edge ranking
+    pub id: i64, // Internal integer ID for indexing and fast lookup
     pub props: HashMap<String, Value>, // Edge properties
 }
 
@@ -322,6 +332,7 @@ impl Edge {
             dst: Box::new(dst),
             edge_type,
             ranking,
+            id: 0,
             props: HashMap::new(),
         }
     }
@@ -365,6 +376,7 @@ impl Edge {
             dst: Box::new(dst),
             edge_type,
             ranking,
+            id: 0,
             props,
         }
     }

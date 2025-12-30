@@ -128,7 +128,9 @@ pub struct VertexUpdate {
 
 #[derive(Debug, Clone)]
 pub struct EdgeUpdate {
-    pub edge_id: Value,
+    pub src: Value,
+    pub dst: Value,
+    pub edge_type: String,
     pub properties: std::collections::HashMap<String, Value>,
 }
 
@@ -156,7 +158,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
 
         let condition_expr = if let Some(ref condition_str) = self.condition {
             Some(parse_expression_from_string(condition_str)
-                .map_err(|e| crate::query::executor::traits::DBError::ExecutionError(format!("条件解析失败: {}", e)))?)
+                .map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(format!("条件解析失败: {}", e))))?)
         } else {
             None
         };
@@ -174,11 +176,11 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
                     }
 
                     let result = ExpressionEvaluator::evaluate(expr, &mut context)
-                        .map_err(|e| crate::query::executor::traits::DBError::ExecutionError(format!("条件求值失败: {}", e)))?;
+                        .map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(format!("条件求值失败: {}", e))))?;
 
                     if let Value::Bool(true) = result {
                         if let Value::String(id_str) = &update.vertex_id {
-                            if let Some(mut vertex) = storage.get_node(id_str) {
+                            if let Some(mut vertex) = storage.get_node(&update.vertex_id)? {
                                 for (key, value) in &update.properties {
                                     vertex.properties.insert(key.clone(), value.clone());
                                 }
@@ -188,14 +190,12 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
                         }
                     }
                 } else {
-                    if let Value::String(id_str) = &update.vertex_id {
-                        if let Some(mut vertex) = storage.get_node(id_str) {
-                            for (key, value) in &update.properties {
-                                vertex.properties.insert(key.clone(), value.clone());
-                            }
-                            storage.update_node(vertex)?;
-                            _total_updated += 1;
+                    if let Some(mut vertex) = storage.get_node(&update.vertex_id)? {
+                        for (key, value) in &update.properties {
+                            vertex.properties.insert(key.clone(), value.clone());
                         }
+                        storage.update_node(vertex)?;
+                        _total_updated += 1;
                     }
                 }
             }
@@ -205,34 +205,34 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
             for update in updates {
                 if let Some(ref expr) = condition_expr {
                     let mut context = BasicExpressionContext::default();
-                    context.set_variable("edge_id", update.edge_id.clone());
+                    context.set_variable("src", update.src.clone());
+                    context.set_variable("dst", update.dst.clone());
+                    context.set_variable("edge_type", Value::String(update.edge_type.clone()));
                     for (key, value) in &update.properties {
                         context.set_variable(key.clone(), value.clone());
                     }
 
                     let result = ExpressionEvaluator::evaluate(expr, &mut context)
-                        .map_err(|e| crate::query::executor::traits::DBError::ExecutionError(format!("条件求值失败: {}", e)))?;
+                        .map_err(|e| crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(format!("条件求值失败: {}", e))))?;
 
                     if let Value::Bool(true) = result {
-                        if let Value::String(id_str) = &update.edge_id {
-                            if let Some(mut edge) = storage.get_edge(id_str) {
-                                for (key, value) in &update.properties {
-                                    edge.properties.insert(key.clone(), value.clone());
-                                }
-                                storage.update_edge(edge)?;
-                                _total_updated += 1;
+                        if let Some(mut edge) = storage.get_edge(&update.src, &update.dst, &update.edge_type)? {
+                            for (key, value) in &update.properties {
+                                edge.props.insert(key.clone(), value.clone());
                             }
+                            storage.delete_edge(&update.src, &update.dst, &update.edge_type)?;
+                            storage.insert_edge(edge)?;
+                            _total_updated += 1;
                         }
                     }
                 } else {
-                    if let Value::String(id_str) = &update.edge_id {
-                        if let Some(mut edge) = storage.get_edge(id_str) {
-                            for (key, value) in &update.properties {
-                                edge.properties.insert(key.clone(), value.clone());
-                            }
-                            storage.update_edge(edge)?;
-                            _total_updated += 1;
+                    if let Some(mut edge) = storage.get_edge(&update.src, &update.dst, &update.edge_type)? {
+                        for (key, value) in &update.properties {
+                            edge.props.insert(key.clone(), value.clone());
                         }
+                        storage.delete_edge(&update.src, &update.dst, &update.edge_type)?;
+                        storage.insert_edge(edge)?;
+                        _total_updated += 1;
                     }
                 }
             }

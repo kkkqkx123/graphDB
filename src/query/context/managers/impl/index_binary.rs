@@ -28,7 +28,7 @@ impl IndexBinaryEncoder {
                 Value::Int(i) => {
                     buffer.extend_from_slice(&i.to_le_bytes());
                 }
-                Value::Double(f) => {
+                Value::Float(f) => {
                     buffer.extend_from_slice(&f.to_le_bytes());
                 }
                 Value::Bool(b) => {
@@ -75,11 +75,11 @@ impl IndexBinaryEncoder {
                     let i = i64::from_le_bytes(buf);
                     values.push(Value::Int(i));
                 }
-                ValueType::Double => {
+                ValueType::Float => {
                     let mut buf = [0u8; 8];
                     cursor.read_exact(&mut buf).unwrap();
                     let f = f64::from_le_bytes(buf);
-                    values.push(Value::Double(f));
+                    values.push(Value::Float(f));
                 }
                 ValueType::Bool => {
                     let mut buf = [0u8; 1];
@@ -133,7 +133,7 @@ impl IndexBinaryEncoder {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValueType {
     Int,
-    Double,
+    Float,
     Bool,
     String,
 }
@@ -143,7 +143,7 @@ impl ValueType {
     pub fn from_value(value: &Value) -> Self {
         match value {
             Value::Int(_) => ValueType::Int,
-            Value::Double(_) => ValueType::Double,
+            Value::Float(_) => ValueType::Float,
             Value::Bool(_) => ValueType::Bool,
             Value::String(_) => ValueType::String,
             _ => panic!("不支持的索引类型: {:?}", value),

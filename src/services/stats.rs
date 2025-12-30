@@ -156,7 +156,7 @@ impl Timer {
             name: name.to_string(),
             description: description.to_string(),
             value: Arc::new(Mutex::new(Vec::new())),
-            _created_at: SystemTime::now(),
+            created_at: SystemTime::now(),
         }
     }
 
@@ -223,7 +223,7 @@ impl StatsRegistry {
             gauges: Arc::new(Mutex::new(HashMap::new())),
             histograms: Arc::new(Mutex::new(HashMap::new())),
             timers: Arc::new(Mutex::new(HashMap::new())),
-            _created_at: SystemTime::now(),
+            created_at: SystemTime::now(),
         }
     }
 

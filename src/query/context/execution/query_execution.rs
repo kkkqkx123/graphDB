@@ -604,18 +604,6 @@ mod tests {
             Ok(self.indexes.values().cloned().collect())
         }
 
-        fn build_index_async(&self, _space_id: i32, _index_id: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn get_build_progress(&self, _space_id: i32, _index_id: i32) -> Option<crate::query::context::managers::IndexBuildProgress> {
-            None
-        }
-
-        fn cancel_build(&self, _space_id: i32, _index_id: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
         fn lookup_vertex_by_index(&self, _space_id: i32, _index_name: &str, _values: &[crate::core::Value]) -> ManagerResult<Vec<crate::core::Vertex>> {
             Ok(Vec::new())
         }
