@@ -3,7 +3,7 @@
 
 use crate::core::types::expression::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
-use crate::core::{NullType, Value};
+use crate::core::Value;
 use crate::query::parser::ast::{
     BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, DestinationPropertyExpr, EdgePropertyExpr, Expr,
     FunctionCallExpr, InputPropertyExpr, LabelExpr, ListComprehensionExpr, ListExpr, MapExpr,

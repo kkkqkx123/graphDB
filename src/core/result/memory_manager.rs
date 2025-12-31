@@ -441,7 +441,7 @@ mod tests {
     }
 }
 
-#[cfg(feature = "system-monitor")]
+#[cfg(feature = "system_monitor")]
 fn get_system_available_memory() -> Result<u64, String> {
     #[cfg(target_os = "windows")]
     {
@@ -517,7 +517,7 @@ fn get_system_available_memory() -> Result<u64, String> {
     }
 }
 
-#[cfg(not(feature = "system-monitor"))]
+#[cfg(not(feature = "system_monitor"))]
 fn get_system_available_memory() -> Result<u64, String> {
     Err("System memory monitoring is disabled".to_string())
 }

@@ -86,8 +86,6 @@ pub struct TopNExecutor<S: StorageEngine> {
     sort_keys: Vec<crate::query::executor::result_processing::sort::SortKey>,
     /// 输入执行器
     input_executor: Option<Box<dyn Executor<S>>>,
-    /// 是否使用堆优化
-    use_heap_optimization: bool,
     /// 排序列定义
     sort_columns: Vec<SortColumn>,
     /// 排序方向
@@ -127,10 +125,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
                     crate::query::executor::result_processing::sort::SortOrder::Desc
                 };
                 crate::query::executor::result_processing::sort::SortKey::new(
-                    Expression::Property {
-                        object: Box::new(Expression::Variable("row".to_string())),
-                        property: col,
-                    },
+                    Expression::Variable(col),
                     order,
                 )
             })
@@ -142,7 +137,6 @@ impl<S: StorageEngine> TopNExecutor<S> {
             offset: 0,
             sort_keys,
             input_executor: None,
-            use_heap_optimization: true,
             sort_columns: Vec::new(),
             sort_direction: if ascending {
                 SortDirection::Ascending
@@ -192,7 +186,6 @@ impl<S: StorageEngine> TopNExecutor<S> {
             offset: 0,
             sort_keys,
             input_executor: None,
-            use_heap_optimization: true,
             sort_columns,
             sort_direction,
             heap: None,
@@ -208,15 +201,33 @@ impl<S: StorageEngine> TopNExecutor<S> {
         self
     }
 
-    /// 启用/禁用堆优化
-    pub fn with_heap_optimization(mut self, enable: bool) -> Self {
-        self.use_heap_optimization = enable;
-        self
-    }
-
     /// 处理输入数据并执行 TopN
     async fn process_input(&mut self) -> DBResult<ExecutionResult> {
-        if let Some(ref mut input_exec) = self.input_executor {
+        if let Some(input) = self.base.input.take() {
+            match input {
+                ExecutionResult::DataSet(dataset) => {
+                    let topn_result = self.execute_topn_dataset(dataset)?;
+                    Ok(ExecutionResult::DataSet(topn_result))
+                }
+                ExecutionResult::Vertices(vertices) => {
+                    let topn_result = self.execute_topn_vertices(vertices)?;
+                    Ok(ExecutionResult::Vertices(topn_result))
+                }
+                ExecutionResult::Edges(edges) => {
+                    let topn_result = self.execute_topn_edges(edges)?;
+                    Ok(ExecutionResult::Edges(topn_result))
+                }
+                ExecutionResult::Values(values) => {
+                    let topn_result = self.execute_topn_values(values)?;
+                    Ok(ExecutionResult::Values(topn_result))
+                }
+                _ => Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "TopN executor expects supported input type".to_string(),
+                    ),
+                )),
+            }
+        } else if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute().await?;
 
             match input_result {
@@ -258,35 +269,42 @@ impl<S: StorageEngine> TopNExecutor<S> {
             return self.apply_limit_and_offset(dataset);
         }
 
-        if self.use_heap_optimization && dataset.rows.len() > self.n + self.offset {
-            self.heap_optimized_topn_dataset(&mut dataset)?;
+        // 统一使用堆排序算法
+        let heap_size = self.n + self.offset;
+        
+        if self.is_ascending() {
+            // 升序：使用最大堆，保留最小的N个元素
+            self.heap_ascending(&mut dataset, heap_size)?;
         } else {
-            // 对于小数据集，直接排序
-            self.sort_dataset(&mut dataset)?;
+            // 降序：使用最小堆，保留最大的N个元素
+            self.heap_descending(&mut dataset, heap_size)?;
         }
 
-        self.apply_limit_and_offset(dataset)
+        Ok(dataset)
     }
 
-    /// 使用堆优化的 TopN 算法处理数据集
-    fn heap_optimized_topn_dataset(&self, dataset: &mut DataSet) -> DBResult<()> {
+    /// 使用堆的 TopN 算法处理数据集
+    fn heap_topn_dataset(&self, dataset: &mut DataSet) -> DBResult<()> {
         let heap_size = self.n + self.offset;
 
-        // 创建最小堆（用于升序）或最大堆（用于降序）
-        let mut heap = BinaryHeap::with_capacity(heap_size);
-
-        // 处理前 heap_size 个元素
-        for (i, row) in dataset.rows.iter().enumerate().take(heap_size) {
-            let sort_value = self.calculate_sort_value(row, &dataset.col_names)?;
-            heap.push(TopNItem {
-                sort_value,
-                _original_index: i,
-                row: row.clone(),
-            });
+        // 根据排序方向选择堆类型
+        if self.is_ascending() {
+            // 升序：使用最大堆，保留最小的N个元素
+            self.heap_ascending(dataset, heap_size)?;
+        } else {
+            // 降序：使用最小堆，保留最大的N个元素
+            self.heap_descending(dataset, heap_size)?;
         }
 
-        // 处理剩余元素
-        for (i, row) in dataset.rows.iter().enumerate().skip(heap_size) {
+        Ok(())
+    }
+
+    /// 升序排序的堆实现
+    fn heap_ascending(&self, dataset: &mut DataSet, heap_size: usize) -> DBResult<()> {
+        let mut heap = BinaryHeap::with_capacity(heap_size);
+
+        // 处理所有元素
+        for (i, row) in dataset.rows.iter().enumerate() {
             let sort_value = self.calculate_sort_value(row, &dataset.col_names)?;
             let new_item = TopNItem {
                 sort_value,
@@ -294,32 +312,68 @@ impl<S: StorageEngine> TopNExecutor<S> {
                 row: row.clone(),
             };
 
-            // 根据排序方向决定是否替换堆顶元素
-            if let Some(peeked) = heap.peek() {
-                let should_replace = if self.is_ascending() {
-                    // 升序：维护最大堆，如果新元素小于堆顶，则替换
-                    new_item < *peeked
-                } else {
-                    // 降序：维护最小堆，如果新元素大于堆顶，则替换
-                    new_item > *peeked
-                };
-
-                if should_replace {
-                    heap.pop();
-                    heap.push(new_item);
+            if heap.len() < heap_size {
+                heap.push(new_item);
+            } else {
+                // 对于升序（取最小的N个元素）：使用最大堆
+                // 如果新元素小于堆顶（最大堆的堆顶是当前最大的元素），则替换
+                if let Some(peeked) = heap.peek() {
+                    if new_item < *peeked {
+                        heap.pop();
+                        heap.push(new_item);
+                    }
                 }
             }
         }
 
-        // 提取并排序结果
+        // 提取并排序结果（升序）
         let mut items: Vec<TopNItem> = heap.into_iter().collect();
-        items.sort_by(|a, b| {
-            if self.is_ascending() {
-                a.sort_value.cmp(&b.sort_value)
+        items.sort_by(|a, b| a.sort_value.cmp(&b.sort_value));
+
+        // 更新数据集
+        dataset.rows = items
+            .into_iter()
+            .skip(self.offset)
+            .map(|item| item.row)
+            .collect();
+
+        Ok(())
+    }
+
+    /// 降序排序的堆实现
+    fn heap_descending(&self, dataset: &mut DataSet, heap_size: usize) -> DBResult<()> {
+        // 对于降序（取最大的N个元素）：使用最小堆
+        // 使用 TopNItemDesc 实现最小堆效果
+        let mut heap = BinaryHeap::with_capacity(heap_size);
+
+        // 处理所有元素
+        for (i, row) in dataset.rows.iter().enumerate() {
+            let sort_value = self.calculate_sort_value(row, &dataset.col_names)?;
+            let new_item = TopNItemDesc {
+                sort_value,
+                _original_index: i,
+                row: row.clone(),
+            };
+
+            if heap.len() < heap_size {
+                heap.push(new_item);
             } else {
-                b.sort_value.cmp(&a.sort_value)
+                // 对于降序TopN（取最大的N个元素）：
+                // 使用最小堆，如果新元素大于堆顶（当前最小的元素），则替换
+                if let Some(peeked) = heap.peek() {
+                    // 注意：由于TopNItemDesc的比较逻辑是反向的，
+                    // 所以这里应该使用小于比较，而不是大于
+                    if new_item < *peeked {
+                        heap.pop();
+                        heap.push(new_item);
+                    }
+                }
             }
-        });
+        }
+
+        // 提取并排序结果（降序）
+        let mut items: Vec<TopNItemDesc> = heap.into_iter().collect();
+        items.sort_by(|a, b| b.sort_value.cmp(&a.sort_value));
 
         // 更新数据集
         dataset.rows = items
@@ -496,9 +550,9 @@ impl<S: StorageEngine> TopNExecutor<S> {
             // 处理 NULL 值排序
             let adjusted_value = if value.is_null() {
                 if sort_col.nulls_first {
-                    Value::Null
+                    Value::Null(crate::core::value::NullType::Null)
                 } else {
-                    Value::Null
+                    Value::Null(crate::core::value::NullType::Null)
                 }
             } else {
                 value.clone()
@@ -606,6 +660,8 @@ impl<S: StorageEngine> TopNExecutor<S> {
     }
 }
 
+use std::cmp::Reverse;
+
 /// TopN 堆项
 #[derive(Debug, Clone)]
 struct TopNItem {
@@ -630,7 +686,39 @@ impl PartialOrd for TopNItem {
 
 impl Ord for TopNItem {
     fn cmp(&self, other: &Self) -> Ordering {
-        // 反向比较，以便 BinaryHeap 作为最大堆使用
+        // 正常比较，BinaryHeap 是最大堆
+        self.sort_value.cmp(&other.sort_value)
+    }
+}
+
+/// 用于降序排序的堆项（实现最小堆效果）
+#[derive(Debug, Clone)]
+struct TopNItemDesc {
+    sort_value: Vec<Value>,
+    _original_index: usize,
+    row: Vec<Value>,
+}
+
+impl PartialEq for TopNItemDesc {
+    fn eq(&self, other: &Self) -> bool {
+        self.sort_value == other.sort_value
+    }
+}
+
+impl Eq for TopNItemDesc {}
+
+impl PartialOrd for TopNItemDesc {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TopNItemDesc {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // 对于降序TopN（取最大的N个元素），我们需要最小堆
+        // 所以比较时让较小的元素排在前面（在BinaryHeap中，较大的元素会排在堆顶）
+        // 但我们需要的是最小堆效果，所以应该让较小的元素有更高的优先级
+        // 正确的实现：让较小的元素排在前面，这样在最大堆中，较小的元素会被放在堆顶
         other.sort_value.cmp(&self.sort_value)
     }
 }
@@ -752,7 +840,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> TopNExecutor<S> {
+impl<S: StorageEngine + Send + Sync + 'static> TopNExecutor<S> {
     /// 带错误恢复的执行方法
     pub async fn execute_with_recovery(&mut self) -> DBResult<ExecutionResult> {
         match self.execute().await {
@@ -783,7 +871,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
                     let mut batch = Vec::with_capacity(batch_size);
                     let mut all_results = Vec::new();
 
-                    for row in dataset.rows {
+                    for row in dataset.rows.into_iter() {
                         batch.push(row);
 
                         if batch.len() >= batch_size {
@@ -798,8 +886,10 @@ impl<S: StorageEngine> TopNExecutor<S> {
                         all_results.extend(processed);
                     }
 
-                    let mut result_dataset = dataset;
-                    result_dataset.rows = all_results;
+                    let result_dataset = DataSet {
+                        col_names: dataset.col_names,
+                        rows: all_results,
+                    };
                     Ok(ExecutionResult::DataSet(result_dataset))
                 }
                 _ => Ok(input_result),
@@ -879,12 +969,9 @@ mod tests {
         // 创建 TopN 执行器 (取前3名，按分数降序)
         let mut executor = TopNExecutor::new(1, storage, 3, vec!["score".to_string()], false);
 
-        // 设置输入数据
-        ResultProcessor::set_input(&mut executor, ExecutionResult::DataSet(dataset));
-
         // 执行 TopN
         let result = executor
-            .process(ExecutionResult::DataSet(DataSet::new()))
+            .process(ExecutionResult::DataSet(dataset))
             .await
             .expect("TopN executor should process successfully");
 
@@ -912,12 +999,9 @@ mod tests {
         let mut executor =
             TopNExecutor::new(1, storage, 3, vec!["value".to_string()], true).with_offset(2);
 
-        // 设置输入数据
-        ResultProcessor::set_input(&mut executor, ExecutionResult::Values(values));
-
         // 执行 TopN
         let result = executor
-            .process(ExecutionResult::DataSet(DataSet::new()))
+            .process(ExecutionResult::Values(values))
             .await
             .expect("TopN executor should process successfully");
 

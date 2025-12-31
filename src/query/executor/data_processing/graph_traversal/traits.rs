@@ -1,4 +1,3 @@
-use crate::core::error::DBResult;
 use crate::query::executor::base::EdgeDirection;
 use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageEngine;

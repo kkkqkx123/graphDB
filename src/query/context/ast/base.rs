@@ -46,7 +46,10 @@ impl VariableInfo {
     }
 }
 
-/// 变量作用域
+/// 变量作用域管理器
+/// 
+/// 负责管理查询中的变量作用域层级结构，支持嵌套作用域和变量查找。
+/// 与 `VariableVisibility` 枚举不同，此结构体用于管理复杂的变量作用域关系。
 #[derive(Debug, Clone)]
 pub struct VariableScope {
     pub current_scope: std::collections::HashMap<String, VariableInfo>,

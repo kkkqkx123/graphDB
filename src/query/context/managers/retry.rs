@@ -2,7 +2,7 @@
 //!
 //! 提供可配置的重试策略和指数退避算法
 
-use crate::core::error::{ErrorCategory, ManagerError};
+use crate::core::error::ManagerError;
 use std::thread;
 use std::time::Duration;
 

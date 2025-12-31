@@ -93,12 +93,15 @@ pub struct VariableInfo {
     pub labels: HashSet<String>,             // 标签列表
     pub properties: HashMap<String, String>, // 属性
     pub is_optional: bool,                   // 是否可选
-    pub scope: VariableScope,                // 变量作用域
+    pub scope: VariableVisibility,           // 变量可见性
 }
 
-/// 变量作用域
+/// 变量可见性级别
+/// 
+/// 表示变量在查询中的可见性范围，与 `VariableScope` 结构体不同，
+/// 此枚举仅描述变量的可见性级别，不管理作用域层级结构。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum VariableScope {
+pub enum VariableVisibility {
     /// 局部变量（仅在当前QueryPart中可见）
     Local,
     /// 全局变量（在整个查询中可见）
@@ -326,7 +329,7 @@ mod tests {
             labels: ["Person"].iter().map(|s| s.to_string()).collect(),
             properties: HashMap::new(),
             is_optional: false,
-            scope: VariableScope::Local,
+            scope: VariableVisibility::Local,
         };
 
         context.add_variable("n".to_string(), var_info);
