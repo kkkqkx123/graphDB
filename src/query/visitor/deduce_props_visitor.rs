@@ -2,7 +2,6 @@
 //! 对应 NebulaGraph DeducePropsVisitor.h/.cpp 的功能
 
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
-use crate::core::visitor::VisitorConfig;
 use crate::core::Value;
 use crate::core::{AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator};
 use crate::query::parser::ast::expr::*;
@@ -216,8 +215,6 @@ pub struct DeducePropsVisitor {
     user_defined_vars: HashSet<String>,
     /// 错误状态
     error: Option<String>,
-    /// 访问者配置
-    config: VisitorConfig,
     /// 访问者状态
     state: ExpressionVisitorState,
 }
@@ -231,20 +228,6 @@ impl DeducePropsVisitor {
             edge_info: Vec::new(),
             user_defined_vars: HashSet::new(),
             error: None,
-            config: VisitorConfig::new(),
-            state: ExpressionVisitorState::new(),
-        }
-    }
-
-    /// 创建带有配置的属性推导访问器
-    pub fn with_config(config: VisitorConfig) -> Self {
-        Self {
-            props: ExpressionProps::new(),
-            node_info: Vec::new(),
-            edge_info: Vec::new(),
-            user_defined_vars: HashSet::new(),
-            error: None,
-            config,
             state: ExpressionVisitorState::new(),
         }
     }
@@ -257,7 +240,6 @@ impl DeducePropsVisitor {
             edge_info: Vec::new(),
             user_defined_vars,
             error: None,
-            config: VisitorConfig::new(),
             state: ExpressionVisitorState::new(),
         }
     }

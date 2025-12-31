@@ -1,7 +1,7 @@
 //! EvaluableExprVisitor - 用于判断表达式是否可求值的访问器
 //! 对应 NebulaGraph EvaluableExprVisitor.h/.cpp 的功能
 
-use crate::core::visitor::{Visitor, VisitorState};
+use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
 use crate::core::{AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator};
 
@@ -12,7 +12,7 @@ pub struct EvaluableExprVisitor {
     /// 错误信息
     error: Option<String>,
     /// 访问者状态
-    state: VisitorState,
+    state: ExpressionVisitorState,
 }
 
 impl EvaluableExprVisitor {
@@ -20,19 +20,14 @@ impl EvaluableExprVisitor {
         Self {
             evaluable: true,
             error: None,
-            state: VisitorState::new(),
+            state: ExpressionVisitorState::new(),
         }
     }
 
     pub fn is_evaluable(&mut self, expr: &Expression) -> bool {
         self.evaluable = true;
         self.error = None;
-
-        if let Err(e) = self.visit(expr) {
-            self.evaluable = false;
-            self.error = Some(e);
-        }
-
+        self.visit_expression(expr);
         self.evaluable
     }
 
@@ -41,254 +36,78 @@ impl EvaluableExprVisitor {
     }
 }
 
-impl EvaluableExprVisitor {
-    fn visit_literal(&mut self, _value: &Value) -> Result<(), String> {
-        Ok(())
+impl ExpressionVisitor for EvaluableExprVisitor {
+    type Result = ();
+
+    fn visit_literal(&mut self, _value: &Value) -> Self::Result {
+        // 字面量总是可求值的
     }
 
-    fn visit_variable(&mut self, _name: &str) -> Result<(), String> {
+    fn visit_variable(&mut self, _name: &str) -> Self::Result {
+        // 变量引用不可求值
         self.evaluable = false;
-        Ok(())
     }
 
-    fn visit_property(&mut self, _object: &Expression, _property: &str) -> Result<(), String> {
+    fn visit_property(&mut self, _object: &Expression, _property: &str) -> Self::Result {
+        // 属性访问不可求值
         self.evaluable = false;
-        Ok(())
     }
 
-    fn visit_binary(
-        &mut self,
-        left: &Expression,
-        _op: &BinaryOperator,
-        right: &Expression,
-    ) -> Result<(), String> {
-        self.visit(left)?;
-        self.visit(right)?;
-        Ok(())
+    fn visit_tag_property(&mut self, _tag: &str, _prop: &str) -> Self::Result {
+        // 标签属性不可求值
+        self.evaluable = false;
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Result<(), String> {
-        self.visit(operand)?;
-        Ok(())
+    fn visit_edge_property(&mut self, _edge: &str, _prop: &str) -> Self::Result {
+        // 边属性不可求值
+        self.evaluable = false;
     }
 
-    fn visit_function(&mut self, _name: &str, args: &[Expression]) -> Result<(), String> {
-        for arg in args {
-            self.visit(arg)?;
-        }
-        Ok(())
+    fn visit_input_property(&mut self, _prop: &str) -> Self::Result {
+        // 输入属性不可求值
+        self.evaluable = false;
     }
 
-    fn visit_aggregate(
-        &mut self,
-        _func: &AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) -> Result<(), String> {
-        self.visit(arg)?;
-        Ok(())
+    fn visit_variable_property(&mut self, _var: &str, _prop: &str) -> Self::Result {
+        // 变量属性不可求值
+        self.evaluable = false;
     }
 
-    fn visit_list(&mut self, items: &[Expression]) -> Result<(), String> {
+    fn visit_source_property(&mut self, _tag: &str, _prop: &str) -> Self::Result {
+        // 源属性不可求值
+        self.evaluable = false;
+    }
+
+    fn visit_destination_property(&mut self, _tag: &str, _prop: &str) -> Self::Result {
+        // 目标属性不可求值
+        self.evaluable = false;
+    }
+
+    fn visit_es_query(&mut self, _query: &str) -> Self::Result {
+        // ES查询不可求值
+        self.evaluable = false;
+    }
+
+    // 其他方法使用默认实现，自动处理遍历
+    // ExpressionVisitor 的默认实现会自动调用子表达式的 visit_expression
+    // 因此我们不需要手动实现遍历逻辑
+
+    fn state(&self) -> &ExpressionVisitorState {
+        &self.state
+    }
+
+    fn state_mut(&mut self) -> &mut ExpressionVisitorState {
+        &mut self.state
+    }
+
+    fn visit_type_casting(&mut self, expr: &Expression, _target_type: &str) -> Self::Result {
+        self.visit_expression(expr)
+    }
+
+    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result {
         for item in items {
-            self.visit(item)?;
+            self.visit_expression(item);
         }
-        Ok(())
-    }
-
-    fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Result<(), String> {
-        for (_, value) in pairs {
-            self.visit(value)?;
-        }
-        Ok(())
-    }
-
-    fn visit_case(
-        &mut self,
-        conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
-    ) -> Result<(), String> {
-        for (condition, value) in conditions {
-            self.visit(condition)?;
-            self.visit(value)?;
-        }
-        if let Some(default_expr) = default {
-            self.visit(default_expr)?;
-        }
-        Ok(())
-    }
-
-    fn visit_type_cast(
-        &mut self,
-        expr: &Expression,
-        _target_type: &DataType,
-    ) -> Result<(), String> {
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_subscript(
-        &mut self,
-        collection: &Expression,
-        index: &Expression,
-    ) -> Result<(), String> {
-        self.visit(collection)?;
-        self.visit(index)?;
-        Ok(())
-    }
-
-    fn visit_range(
-        &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
-    ) -> Result<(), String> {
-        self.visit(collection)?;
-        if let Some(start_expr) = start {
-            self.visit(start_expr)?;
-        }
-        if let Some(end_expr) = end {
-            self.visit(end_expr)?;
-        }
-        Ok(())
-    }
-
-    fn visit_path(&mut self, items: &[Expression]) -> Result<(), String> {
-        for item in items {
-            self.visit(item)?;
-        }
-        Ok(())
-    }
-
-    fn visit_label(&mut self, _name: &str) -> Result<(), String> {
-        Ok(())
-    }
-
-    fn visit_tag_property(&mut self, _tag: &str, _prop: &str) -> Result<(), String> {
-        self.evaluable = false;
-        Ok(())
-    }
-
-    fn visit_edge_property(&mut self, _edge: &str, _prop: &str) -> Result<(), String> {
-        self.evaluable = false;
-        Ok(())
-    }
-
-    fn visit_input_property(&mut self, _prop: &str) -> Result<(), String> {
-        self.evaluable = false;
-        Ok(())
-    }
-
-    fn visit_variable_property(&mut self, _var: &str, _prop: &str) -> Result<(), String> {
-        self.evaluable = false;
-        Ok(())
-    }
-
-    fn visit_source_property(&mut self, _tag: &str, _prop: &str) -> Result<(), String> {
-        self.evaluable = false;
-        Ok(())
-    }
-
-    fn visit_destination_property(&mut self, _tag: &str, _prop: &str) -> Result<(), String> {
-        self.evaluable = false;
-        Ok(())
-    }
-
-    fn visit_unary_plus(&mut self, expr: &Expression) -> Result<(), String> {
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_unary_negate(&mut self, expr: &Expression) -> Result<(), String> {
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_unary_not(&mut self, expr: &Expression) -> Result<(), String> {
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_unary_incr(&mut self, expr: &Expression) -> Result<(), String> {
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_unary_decr(&mut self, expr: &Expression) -> Result<(), String> {
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_is_null(&mut self, expr: &Expression) -> Result<(), String> {
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_is_not_null(&mut self, expr: &Expression) -> Result<(), String> {
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_is_empty(&mut self, expr: &Expression) -> Result<(), String> {
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_is_not_empty(&mut self, expr: &Expression) -> Result<(), String> {
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_type_casting(&mut self, expr: &Expression, _target_type: &str) -> Result<(), String> {
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_list_comprehension(
-        &mut self,
-        generator: &Expression,
-        condition: &Option<Box<Expression>>,
-    ) -> Result<(), String> {
-        self.visit(generator)?;
-        if let Some(cond) = condition {
-            self.visit(cond)?;
-        }
-        Ok(())
-    }
-
-    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Result<(), String> {
-        self.visit(list)?;
-        self.visit(condition)?;
-        Ok(())
-    }
-
-    fn visit_reduce(
-        &mut self,
-        list: &Expression,
-        _var: &str,
-        initial: &Expression,
-        expr: &Expression,
-    ) -> Result<(), String> {
-        self.visit(list)?;
-        self.visit(initial)?;
-        self.visit(expr)?;
-        Ok(())
-    }
-
-    fn visit_path_build(&mut self, items: &[Expression]) -> Result<(), String> {
-        for item in items {
-            self.visit(item)?;
-        }
-        Ok(())
-    }
-
-    fn visit_es_query(&mut self, _query: &str) -> Result<(), String> {
-        self.evaluable = false;
-        Ok(())
-    }
-
-    fn visit_uuid(&mut self) -> Result<(), String> {
-        Ok(())
     }
 
     fn visit_subscript_range(
@@ -296,103 +115,277 @@ impl EvaluableExprVisitor {
         collection: &Expression,
         start: &Option<Box<Expression>>,
         end: &Option<Box<Expression>>,
-    ) -> Result<(), String> {
-        self.visit(collection)?;
-        if let Some(start_expr) = start {
-            self.visit(start_expr)?;
+    ) -> Self::Result {
+        self.visit_expression(collection);
+        if let Some(s) = start {
+            self.visit_expression(s);
         }
-        if let Some(end_expr) = end {
-            self.visit(end_expr)?;
+        if let Some(e) = end {
+            self.visit_expression(e);
         }
-        Ok(())
     }
 
     fn visit_match_path_pattern(
         &mut self,
         _path_alias: &str,
-        patterns: &[Expression],
-    ) -> Result<(), String> {
-        for pattern in patterns {
-            self.visit(pattern)?;
-        }
-        Ok(())
+        _patterns: &[Expression],
+    ) -> Self::Result {
+        // 匹配路径模式不可求值
+        self.evaluable = false;
     }
-}
 
-impl<'a> Visitor<Expression> for EvaluableExprVisitor {
-    type Result = Result<(), String>;
+    fn visit_constant_expr(&mut self, _expr: &crate::query::parser::ast::expr::ConstantExpr) -> Self::Result {
+        // 常量表达式总是可求值的
+    }
 
-    fn visit(&mut self, target: &Expression) -> <Self as Visitor<Expression>>::Result {
-        // 避免递归调用，直接调用内部方法
-        match target {
-            Expression::Literal(value) => self.visit_literal(value),
-            Expression::Variable(name) => self.visit_variable(name),
-            Expression::Property { object, property } => self.visit_property(object, property),
-            Expression::Binary { left, op, right } => self.visit_binary(left, op, right),
-            Expression::Unary { op, operand } => self.visit_unary(op, operand),
-            Expression::Function { name, args } => self.visit_function(name, args),
-            Expression::Aggregate {
-                func,
-                arg,
-                distinct,
-            } => self.visit_aggregate(func, arg, *distinct),
-            Expression::List(items) => self.visit_list(items),
-            Expression::Map(pairs) => self.visit_map(pairs),
-            Expression::Case {
-                conditions,
-                default,
-            } => self.visit_case(conditions, default),
-            Expression::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
-            Expression::Subscript { collection, index } => self.visit_subscript(collection, index),
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => self.visit_range(collection, start, end),
-            Expression::Path(items) => self.visit_path(items),
-            Expression::Label(name) => self.visit_label(name),
-            Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
-            Expression::EdgeProperty { edge, prop } => self.visit_edge_property(edge, prop),
-            Expression::InputProperty(prop) => self.visit_input_property(prop),
-            Expression::VariableProperty { var, prop } => self.visit_variable_property(var, prop),
-            Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
-            Expression::DestinationProperty { tag, prop } => {
-                self.visit_destination_property(tag, prop)
-            }
-            Expression::UnaryPlus(expr) => self.visit_unary_plus(expr),
-            Expression::UnaryNegate(expr) => self.visit_unary_negate(expr),
-            Expression::UnaryNot(expr) => self.visit_unary_not(expr),
-            Expression::UnaryIncr(expr) => self.visit_unary_incr(expr),
-            Expression::UnaryDecr(expr) => self.visit_unary_decr(expr),
-            Expression::IsNull(expr) => self.visit_is_null(expr),
-            Expression::IsNotNull(expr) => self.visit_is_not_null(expr),
-            Expression::IsEmpty(expr) => self.visit_is_empty(expr),
-            Expression::IsNotEmpty(expr) => self.visit_is_not_empty(expr),
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => self.visit_list_comprehension(generator, condition),
-            Expression::Predicate { list, condition } => self.visit_predicate(list, condition),
-            Expression::Reduce {
-                list,
-                var,
-                initial,
-                expr,
-            } => self.visit_reduce(list, var, initial, expr),
-            Expression::ESQuery(query) => self.visit_es_query(query),
-            Expression::UUID => self.visit_uuid(),
-            Expression::MatchPathPattern {
-                path_alias,
-                patterns,
-            } => self.visit_match_path_pattern(path_alias, patterns),
+    fn visit_variable_expr(&mut self, _expr: &crate::query::parser::ast::expr::VariableExpr) -> Self::Result {
+        // 变量表达式不可求值
+        self.evaluable = false;
+    }
+
+    fn visit_binary_expr(&mut self, expr: &crate::query::parser::ast::expr::BinaryExpr) -> Self::Result {
+        self.visit_expr(&expr.left);
+        self.visit_expr(&expr.right);
+    }
+
+    fn visit_unary_expr(&mut self, expr: &crate::query::parser::ast::expr::UnaryExpr) -> Self::Result {
+        self.visit_expr(&expr.operand);
+    }
+
+    fn visit_function_call_expr(&mut self, expr: &crate::query::parser::ast::expr::FunctionCallExpr) -> Self::Result {
+        for arg in &expr.args {
+            self.visit_expr(arg);
         }
     }
 
-    fn state(&self) -> &VisitorState {
-        &self.state
+    fn visit_property_access_expr(&mut self, expr: &crate::query::parser::ast::expr::PropertyAccessExpr) -> Self::Result {
+        self.visit_expr(&expr.object);
     }
 
-    fn state_mut(&mut self) -> &mut VisitorState {
-        &mut self.state
+    fn visit_list_expr(&mut self, expr: &crate::query::parser::ast::expr::ListExpr) -> Self::Result {
+        for item in &expr.elements {
+            self.visit_expr(item);
+        }
+    }
+
+    fn visit_map_expr(&mut self, expr: &crate::query::parser::ast::expr::MapExpr) -> Self::Result {
+        for (_, value) in &expr.pairs {
+            self.visit_expr(value);
+        }
+    }
+
+    fn visit_case_expr(&mut self, expr: &crate::query::parser::ast::expr::CaseExpr) -> Self::Result {
+        for (cond, val) in &expr.when_then_pairs {
+            self.visit_expr(cond);
+            self.visit_expr(val);
+        }
+        if let Some(d) = &expr.default {
+            self.visit_expr(d);
+        }
+    }
+
+    fn visit_subscript_expr(&mut self, expr: &crate::query::parser::ast::expr::SubscriptExpr) -> Self::Result {
+        self.visit_expr(&expr.collection);
+        self.visit_expr(&expr.index);
+    }
+
+    fn visit_predicate_expr(&mut self, expr: &crate::query::parser::ast::expr::PredicateExpr) -> Self::Result {
+        self.visit_expr(&expr.list);
+        self.visit_expr(&expr.condition);
+    }
+
+    fn visit_tag_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::TagPropertyExpr) -> Self::Result {
+        // 标签属性不可求值
+        self.evaluable = false;
+    }
+
+    fn visit_edge_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::EdgePropertyExpr) -> Self::Result {
+        // 边属性不可求值
+        self.evaluable = false;
+    }
+
+    fn visit_input_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::InputPropertyExpr) -> Self::Result {
+        // 输入属性不可求值
+        self.evaluable = false;
+    }
+
+    fn visit_variable_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::VariablePropertyExpr) -> Self::Result {
+        // 变量属性不可求值
+        self.evaluable = false;
+    }
+
+    fn visit_source_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::SourcePropertyExpr) -> Self::Result {
+        // 源属性不可求值
+        self.evaluable = false;
+    }
+
+    fn visit_destination_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::DestinationPropertyExpr) -> Self::Result {
+        // 目标属性不可求值
+        self.evaluable = false;
+    }
+
+    fn visit_type_cast_expr(&mut self, expr: &crate::query::parser::ast::expr::TypeCastExpr) -> Self::Result {
+        self.visit_expr(&expr.expr);
+    }
+
+    fn visit_range_expr(&mut self, expr: &crate::query::parser::ast::expr::RangeExpr) -> Self::Result {
+        self.visit_expr(&expr.collection);
+        if let Some(s) = &expr.start {
+            self.visit_expr(s);
+        }
+        if let Some(e) = &expr.end {
+            self.visit_expr(e);
+        }
+    }
+
+    fn visit_path_expr(&mut self, expr: &crate::query::parser::ast::expr::PathExpr) -> Self::Result {
+        for item in &expr.elements {
+            self.visit_expr(item);
+        }
+    }
+
+    fn visit_label_expr(&mut self, _expr: &crate::query::parser::ast::expr::LabelExpr) -> Self::Result {
+        // 标签总是可求值的
+    }
+
+    fn visit_reduce_expr(&mut self, expr: &crate::query::parser::ast::expr::ReduceExpr) -> Self::Result {
+        self.visit_expr(expr.list.as_ref());
+        self.visit_expr(expr.initial.as_ref());
+        self.visit_expr(expr.expr.as_ref());
+    }
+
+    fn visit_list_comprehension_expr(&mut self, expr: &crate::query::parser::ast::expr::ListComprehensionExpr) -> Self::Result {
+        self.visit_expr(expr.generator.as_ref());
+        if let Some(c) = &expr.condition {
+            self.visit_expr(c.as_ref());
+        }
+    }
+
+    fn visit_binary(&mut self, left: &Expression, _op: &BinaryOperator, right: &Expression) -> Self::Result {
+        self.visit_expression(left);
+        self.visit_expression(right);
+    }
+
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
+        self.visit_expression(operand);
+    }
+
+    fn visit_function(&mut self, _name: &str, args: &[Expression]) -> Self::Result {
+        for arg in args {
+            self.visit_expression(arg);
+        }
+    }
+
+    fn visit_aggregate(&mut self, _func: &AggregateFunction, arg: &Expression, _distinct: bool) -> Self::Result {
+        self.visit_expression(arg);
+    }
+
+    fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            self.visit_expression(item);
+        }
+    }
+
+    fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
+        for (_, value) in pairs {
+            self.visit_expression(value);
+        }
+    }
+
+    fn visit_case(&mut self, conditions: &[(Expression, Expression)], default: &Option<Box<Expression>>) -> Self::Result {
+        for (cond, val) in conditions {
+            self.visit_expression(cond);
+            self.visit_expression(val);
+        }
+        if let Some(d) = default {
+            self.visit_expression(d);
+        }
+    }
+
+    fn visit_type_cast(&mut self, expr: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expr);
+    }
+
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
+        self.visit_expression(collection);
+        self.visit_expression(index);
+    }
+
+    fn visit_range(&mut self, collection: &Expression, start: &Option<Box<Expression>>, end: &Option<Box<Expression>>) -> Self::Result {
+        self.visit_expression(collection);
+        if let Some(s) = start {
+            self.visit_expression(s);
+        }
+        if let Some(e) = end {
+            self.visit_expression(e);
+        }
+    }
+
+    fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            self.visit_expression(item);
+        }
+    }
+
+    fn visit_label(&mut self, _name: &str) -> Self::Result {
+        // 标签总是可求值的
+    }
+
+    fn visit_unary_plus(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr);
+    }
+
+    fn visit_unary_negate(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr);
+    }
+
+    fn visit_unary_not(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr);
+    }
+
+    fn visit_unary_incr(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr);
+    }
+
+    fn visit_unary_decr(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr);
+    }
+
+    fn visit_is_null(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr);
+    }
+
+    fn visit_is_not_null(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr);
+    }
+
+    fn visit_is_empty(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr);
+    }
+
+    fn visit_is_not_empty(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr);
+    }
+
+    fn visit_list_comprehension(&mut self, generator: &Expression, condition: &Option<Box<Expression>>) -> Self::Result {
+        self.visit_expression(generator);
+        if let Some(c) = condition {
+            self.visit_expression(c);
+        }
+    }
+
+    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Self::Result {
+        self.visit_expression(list);
+        self.visit_expression(condition);
+    }
+
+    fn visit_reduce(&mut self, list: &Expression, _var: &str, initial: &Expression, expr: &Expression) -> Self::Result {
+        self.visit_expression(list);
+        self.visit_expression(initial);
+        self.visit_expression(expr);
+    }
+
+    fn visit_uuid(&mut self) -> Self::Result {
+        // UUID总是可求值的
     }
 }

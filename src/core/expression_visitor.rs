@@ -1,13 +1,47 @@
 //! 表达式访问者模式
 //!
-//! 这个模块提供了统一的表达式访问者接口，合并了原有的ExpressionVisitor和ExprVisitor
-//! 提供了所有表达式访问需要的统一接口
+//! 这个模块提供了统一的表达式访问者接口，支持泛型和特化两种模式
+//! 主要组件：
+//! - ExpressionVisitor: 特化的访问者trait，同时支持Expression和Expr类型
+//! - GenericExpressionVisitor<T>: 泛型访问者接口，支持任意表达式类型
 
 use crate::core::types::expression::{DataType, Expression, ExpressionType};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use crate::query::parser::ast::expr::*;
 use std::collections::HashMap;
+
+pub mod prelude {
+    pub use super::{ExpressionVisitor, GenericExpressionVisitor};
+}
+
+/// 泛型表达式访问者trait
+///
+/// 使用泛型参数T来支持不同的表达式类型
+/// 通过impl Trait约束实现零开销抽象
+pub trait GenericExpressionVisitor<T: ?Sized> {
+    /// 访问者结果类型
+    type Result;
+
+    /// 主入口点 - 访问表达式
+    fn visit(&mut self, expr: &T) -> Self::Result;
+}
+
+/// 表达式可访问 trait
+/// 定义表达式类型如何接受访问者
+pub trait ExpressionVisitable {
+    type Result;
+    fn accept<V: GenericExpressionVisitor<Self> + ?Sized>(&self, visitor: &mut V) -> V::Result;
+}
+
+/// 为Expression实现可访问 trait
+impl ExpressionVisitable for Expression {
+    type Result = Result<Value, crate::core::error::ExpressionError>;
+
+    fn accept<V: GenericExpressionVisitor<Self> + ?Sized>(&self, visitor: &mut V) -> V::Result {
+        visitor.visit(self)
+    }
+}
 
 /// 表达式访问者trait
 ///

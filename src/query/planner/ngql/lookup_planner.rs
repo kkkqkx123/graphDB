@@ -1,9 +1,12 @@
 //! LOOKUP语句规划器
 //! 处理Nebula LOOKUP查询的规划
 
+use crate::core::types::expression::Expression;
+use crate::core::types::operators::BinaryOperator;
 use crate::query::context::ast::{AstContext, LookupContext};
 use crate::query::planner::plan::core::{
-    DedupNode, FilterNode, GetEdgesNode, GetVerticesNode, ProjectNode,
+    ArgumentNode, DedupNode, FilterNode, GetEdgesNode, GetVerticesNode, HashInnerJoinNode,
+    ProjectNode,
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -42,111 +45,188 @@ impl LookupPlanner {
 
 impl Planner for LookupPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // 创建LOOKUP查询上下文
         let lookup_ctx = LookupContext::new(ast_ctx.clone());
+        let space_id = ast_ctx.space().space_id
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("Space ID is required for LOOKUP query".to_string()))?;
         
-        // 从AstContext中获取空间信息
-        let space_id = ast_ctx.space().space_id;
-        
-        // LOOKUP查询规划逻辑
-        // 根据查询类型（边/顶点）和索引类型（全文/普通）创建不同的执行计划
+        if space_id == 0 {
+            return Err(PlannerError::PlanGenerationFailed("Invalid space ID: 0".to_string()));
+        }
+
+        if lookup_ctx.schema_id == 0 {
+            return Err(PlannerError::PlanGenerationFailed("Invalid schema ID: 0".to_string()));
+        }
+
         let mut sub_plan = SubPlan {
             root: None,
             tail: None,
         };
 
-        // 创建索引扫描节点 - IndexScan实现
-        let index_scan_node = if lookup_ctx.is_edge {
-            // 边索引扫描：使用EdgeIndexScan节点
-            // 在完整实现中，这里应该从元数据中获取索引信息
-            let edge_index_scan = crate::query::planner::plan::algorithms::IndexScan::new(
-                -1, // 节点ID（临时值）
-                space_id.unwrap_or(0) as i32,
-                lookup_ctx.schema_id, // 使用schema_id作为索引ID
-                lookup_ctx.schema_id, // 使用schema_id作为标签ID
-                if lookup_ctx.is_fulltext_index { "FULLTEXT" } else { "RANGE" }
-            );
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::IndexScan(
-                edge_index_scan,
-            )
+        let index_scan_node = if lookup_ctx.is_fulltext_index {
+            if lookup_ctx.is_edge {
+                let edge_index_scan = crate::query::planner::plan::algorithms::IndexScan::new(
+                    -1,
+                    space_id as i32,
+                    lookup_ctx.schema_id,
+                    lookup_ctx.schema_id,
+                    "FULLTEXT",
+                );
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::IndexScan(
+                    edge_index_scan,
+                )
+            } else {
+                let tag_index_scan = crate::query::planner::plan::algorithms::IndexScan::new(
+                    -1,
+                    space_id as i32,
+                    lookup_ctx.schema_id,
+                    lookup_ctx.schema_id,
+                    "FULLTEXT",
+                );
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::IndexScan(
+                    tag_index_scan,
+                )
+            }
         } else {
-            // 顶点索引扫描：使用TagIndexScan节点
-            let tag_index_scan = crate::query::planner::plan::algorithms::IndexScan::new(
-                -1, // 节点ID（临时值）
-                space_id.unwrap_or(0) as i32,
-                lookup_ctx.schema_id, // 使用schema_id作为索引ID
-                lookup_ctx.schema_id, // 使用schema_id作为标签ID
-                if lookup_ctx.is_fulltext_index { "FULLTEXT" } else { "RANGE" }
-            );
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::IndexScan(
-                tag_index_scan,
-            )
+            if lookup_ctx.is_edge {
+                let edge_index_scan = crate::query::planner::plan::algorithms::IndexScan::new(
+                    -1,
+                    space_id as i32,
+                    lookup_ctx.schema_id,
+                    lookup_ctx.schema_id,
+                    "RANGE",
+                );
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::IndexScan(
+                    edge_index_scan,
+                )
+            } else {
+                let tag_index_scan = crate::query::planner::plan::algorithms::IndexScan::new(
+                    -1,
+                    space_id as i32,
+                    lookup_ctx.schema_id,
+                    lookup_ctx.schema_id,
+                    "RANGE",
+                );
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::IndexScan(
+                    tag_index_scan,
+                )
+            }
         };
 
-        // 设置执行计划的尾节点
         sub_plan.tail = Some(index_scan_node.clone());
-        
-        // 处理过滤条件
         let mut current_node = index_scan_node;
-        
+
+        if lookup_ctx.is_fulltext_index && lookup_ctx.has_score {
+            let id_expr = Expression::Variable("id".to_string());
+            let score_expr = Expression::Variable("_score".to_string());
+
+            let get_node = if lookup_ctx.is_edge {
+                let get_edges = GetEdgesNode::new(
+                    space_id as i32,
+                    "",
+                    "",
+                    "",
+                    "",
+                );
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(
+                    get_edges,
+                )
+            } else {
+                let get_vertices = GetVerticesNode::new(
+                    space_id as i32,
+                    "",
+                );
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(
+                    get_vertices,
+                )
+            };
+
+            let argument_node = ArgumentNode::new(-1, "id");
+            let argument_enum = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Argument(argument_node);
+
+            let hash_join = HashInnerJoinNode::new(
+                get_node,
+                argument_enum,
+                vec![id_expr.clone()],
+                vec![id_expr],
+            )
+            .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create HashInnerJoinNode: {}", e)))?;
+
+            current_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::HashInnerJoin(hash_join);
+        } else if lookup_ctx.is_fulltext_index {
+            let get_node = if lookup_ctx.is_edge {
+                let get_edges = GetEdgesNode::new(
+                    space_id as i32,
+                    "",
+                    "",
+                    "",
+                    "",
+                );
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(
+                    get_edges,
+                )
+            } else {
+                let get_vertices = GetVerticesNode::new(
+                    space_id as i32,
+                    "",
+                );
+                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(
+                    get_vertices,
+                )
+            };
+
+            current_node = get_node;
+        }
+
         if let Some(ref condition) = lookup_ctx.filter {
-            // 创建过滤节点
-            use crate::core::Expression;
-            let expr = Expression::Variable(condition.clone());
+            let expr = parse_filter_expression(condition)
+                .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to parse filter expression: {}", e)))?;
             let filter_node = FilterNode::new(current_node, expr)
-                .expect("FilterNode creation should succeed with valid input");
+                .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create FilterNode: {}", e)))?;
             current_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Filter(
                 filter_node,
             );
         }
 
-        // 处理全文索引的特殊逻辑
-        if lookup_ctx.is_fulltext_index && lookup_ctx.has_score {
-            // 全文索引需要额外的评分处理
-            // 这里可以添加ScoreProjection节点来处理评分
-        }
+        sub_plan.root = Some(current_node.clone());
 
-        // 设置执行计划的根节点
-        sub_plan.root = Some(current_node);
-
-        // 创建投影节点（基于NebulaGraph的实现，总是创建投影节点）
         use crate::query::validator::YieldColumn;
 
         let yield_columns = if let Some(ref yield_expr) = lookup_ctx.yield_expr {
             yield_expr
                 .columns
                 .iter()
-                .map(|col| YieldColumn {
-                    expr: crate::core::Expression::Variable(col.name().to_string()),
-                    alias: col.alias.clone(),
-                    is_matched: false,
+                .map(|col| {
+                    let expr = parse_yield_expression(col.name(), lookup_ctx.is_edge)
+                        .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to parse yield expression: {}", e)))?;
+                    Ok(YieldColumn {
+                        expr,
+                        alias: col.alias.clone(),
+                        is_matched: false,
+                    })
                 })
-                .collect()
+                .collect::<Result<Vec<_>, PlannerError>>()?
         } else {
             vec![YieldColumn {
-                expr: crate::core::Expression::Variable("*".to_string()),
+                expr: Expression::Variable("*".to_string()),
                 alias: "result".to_string(),
                 is_matched: false,
             }]
         };
 
-        let project_node = ProjectNode::new(sub_plan.root.clone().unwrap(), yield_columns)
-            .expect("ProjectNode creation should succeed with valid input");
-        sub_plan.root = Some(
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Project(
-                project_node,
-            ),
+        let project_node = ProjectNode::new(current_node, yield_columns)
+            .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e)))?;
+        current_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Project(
+            project_node,
         );
+        sub_plan.root = Some(current_node.clone());
 
-        // 如果需要去重，创建去重节点
         if lookup_ctx.dedup {
-            let dedup_node = DedupNode::new(sub_plan.root.clone().unwrap())
-                .expect("DedupNode creation should succeed with valid input");
-            sub_plan.root = Some(
-                crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Dedup(
-                    dedup_node,
-                ),
+            let dedup_node = DedupNode::new(current_node)
+                .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create DedupNode: {}", e)))?;
+            current_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Dedup(
+                dedup_node,
             );
+            sub_plan.root = Some(current_node);
         }
 
         Ok(sub_plan)
@@ -161,4 +241,89 @@ impl Default for LookupPlanner {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// 解析过滤条件表达式
+fn parse_filter_expression(condition: &str) -> Result<Expression, String> {
+    if condition.contains("=") {
+        let parts: Vec<&str> = condition.split("=").collect();
+        if parts.len() == 2 {
+            return Ok(Expression::Binary {
+                left: Box::new(Expression::Variable(parts[0].trim().to_string())),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Variable(parts[1].trim().to_string())),
+            });
+        }
+    }
+
+    if condition.contains(">") {
+        let parts: Vec<&str> = condition.split(">").collect();
+        if parts.len() == 2 {
+            return Ok(Expression::Binary {
+                left: Box::new(Expression::Variable(parts[0].trim().to_string())),
+                op: BinaryOperator::GreaterThan,
+                right: Box::new(Expression::Variable(parts[1].trim().to_string())),
+            });
+        }
+    }
+
+    if condition.contains("<") {
+        let parts: Vec<&str> = condition.split("<").collect();
+        if parts.len() == 2 {
+            return Ok(Expression::Binary {
+                left: Box::new(Expression::Variable(parts[0].trim().to_string())),
+                op: BinaryOperator::LessThan,
+                right: Box::new(Expression::Variable(parts[1].trim().to_string())),
+            });
+        }
+    }
+
+    Ok(Expression::Variable(condition.trim().to_string()))
+}
+
+/// 解析 yield 表达式
+fn parse_yield_expression(expr_str: &str, is_edge: bool) -> Result<Expression, PlannerError> {
+    if expr_str.starts_with("src(") {
+        return Ok(Expression::Function {
+            name: "src".to_string(),
+            args: vec![],
+        });
+    }
+
+    if expr_str.starts_with("dst(") {
+        return Ok(Expression::Function {
+            name: "dst".to_string(),
+            args: vec![],
+        });
+    }
+
+    if expr_str.starts_with("rank(") {
+        return Ok(Expression::Function {
+            name: "rank".to_string(),
+            args: vec![],
+        });
+    }
+
+    if expr_str.starts_with("id(") {
+        return Ok(Expression::Function {
+            name: "id".to_string(),
+            args: vec![],
+        });
+    }
+
+    if expr_str == "*" {
+        return Ok(Expression::Variable("*".to_string()));
+    }
+
+    if expr_str.contains(".") {
+        let parts: Vec<&str> = expr_str.split(".").collect();
+        if parts.len() == 2 {
+            return Ok(Expression::Property {
+                object: Box::new(Expression::Variable(parts[0].to_string())),
+                property: parts[1].to_string(),
+            });
+        }
+    }
+
+    Ok(Expression::Variable(expr_str.to_string()))
 }

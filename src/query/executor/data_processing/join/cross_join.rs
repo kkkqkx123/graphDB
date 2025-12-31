@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 

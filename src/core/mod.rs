@@ -11,7 +11,6 @@ pub mod symbol;
 pub mod type_utils;
 pub mod value;
 pub mod vertex_edge_path;
-pub mod visitor;
 
 // 新增的子模块
 pub mod context;
@@ -47,7 +46,6 @@ pub use types::operators::{
 // 其他核心类型
 pub use symbol::*;
 pub use type_utils::TypeUtils;
-pub use visitor::*;
 
 // 计划节点引用
 pub use plan_node_ref::*;

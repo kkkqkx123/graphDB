@@ -660,8 +660,6 @@ impl<S: StorageEngine> TopNExecutor<S> {
     }
 }
 
-use std::cmp::Reverse;
-
 /// TopN 堆项
 #[derive(Debug, Clone)]
 struct TopNItem {

@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::QueryError;
 use crate::core::{DataSet, Value};
-use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
+use crate::query::executor::traits::{DBResult, ExecutionResult, Executor};
 use crate::storage::StorageEngine;
 
 use super::base::SetExecutor;

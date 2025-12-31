@@ -2,10 +2,10 @@
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
 use crate::core::{
-    visitor::{Visitor, VisitorState},
+    expression_visitor::{ExpressionVisitor, ExpressionVisitorState, GenericExpressionVisitor},
     Expression, TypeUtils, ValueTypeDef,
 };
-use crate::core::{BinaryOperator, UnaryOperator, Value};
+use crate::core::{BinaryOperator, DataType, UnaryOperator, Value};
 use crate::query::validator::ValidationContext;
 use crate::storage::StorageEngine;
 use thiserror::Error;
@@ -43,7 +43,7 @@ pub struct DeduceTypeVisitor<'a, S: StorageEngine> {
     /// VID(顶点ID)类型
     vid_type: ValueTypeDef,
     /// 访问者状态
-    state: VisitorState,
+    state: ExpressionVisitorState,
 }
 
 impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
@@ -64,7 +64,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             status: None,
             type_: ValueTypeDef::Empty,
             vid_type,
-            state: VisitorState::new(),
+            state: ExpressionVisitorState::new(),
         }
     }
 
@@ -103,266 +103,8 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
 
     /// 主推导方法 - 推导表达式的类型
     pub fn deduce_type(&mut self, expr: &Expression) -> Result<ValueTypeDef, TypeDeductionError> {
-        self.visit_expr(expr)?;
+        self.visit_expression(expr)?;
         Ok(self.type_.clone())
-    }
-
-    /// 递归访问表达式树
-    fn visit_expr(&mut self, expr: &Expression) -> Result<(), TypeDeductionError> {
-        match expr {
-            Expression::Literal(value) => self.visit_literal(value),
-            Expression::Variable(name) => self.visit_variable(name),
-            Expression::Property {
-                object,
-                property: _,
-            } => {
-                self.visit_expr(object)?;
-                // 属性访问返回Empty类型（实际类型应该查询Schema）
-                self.type_ = ValueTypeDef::Empty;
-                Ok(())
-            }
-            Expression::Function { name, args } => self.visit_function_call(name, args),
-            Expression::Binary { left, op, right } => {
-                self.visit_expr(left)?;
-                let left_type = self.type_.clone();
-                self.visit_expr(right)?;
-                let right_type = self.type_.clone();
-                self.visit_binary(op, left_type, right_type)
-            }
-            Expression::Unary { op, operand } => {
-                self.visit_expr(operand)?;
-                self.visit_unary(op)
-            }
-            Expression::List(items) => self.visit_list(items),
-            Expression::Map(pairs) => self.visit_map_items(pairs),
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => {
-                self.visit_expr(collection)?;
-                if let Some(start_expr) = start {
-                    self.visit_expr(start_expr)?;
-                }
-                if let Some(end_expr) = end {
-                    self.visit_expr(end_expr)?;
-                }
-                // 范围访问始终返回列表
-                self.type_ = ValueTypeDef::List;
-                Ok(())
-            }
-            Expression::Path(items) => {
-                for item in items {
-                    self.visit_expr(item)?;
-                }
-                self.type_ = ValueTypeDef::Path;
-                Ok(())
-            }
-            Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
-            Expression::EdgeProperty { edge, prop } => self.visit_edge_property(edge, prop),
-            Expression::InputProperty(prop) => self.visit_input_property(prop),
-            Expression::VariableProperty { var, prop } => self.visit_variable_property(var, prop),
-            Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
-            Expression::DestinationProperty { tag, prop } => self.visit_dest_property(tag, prop),
-            Expression::UnaryPlus(operand) => {
-                self.visit_expr(operand)?;
-                Ok(())
-            }
-            Expression::UnaryNegate(operand) => {
-                self.visit_expr(operand)?;
-                // 检查是否可以取反
-                match &self.type_ {
-                    ValueTypeDef::Int
-                    | ValueTypeDef::Float
-                    | ValueTypeDef::Empty
-                    | ValueTypeDef::Null => Ok(()),
-                    _ => {
-                        let msg = format!("无法对类型 {:?} 执行取反操作", self.type_);
-                        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
-                        Err(TypeDeductionError::SemanticError(msg))
-                    }
-                }
-            }
-            Expression::UnaryNot(operand) => {
-                self.visit_expr(operand)?;
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::UnaryIncr(operand) => {
-                self.visit_expr(operand)?;
-                // 自增后类型保持不变（如果是数字类型）
-                match &self.type_ {
-                    ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
-                    _ => {
-                        let msg = format!("无法对类型 {:?} 执行自增操作", self.type_);
-                        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
-                        Err(TypeDeductionError::SemanticError(msg))
-                    }
-                }
-            }
-            Expression::UnaryDecr(operand) => {
-                self.visit_expr(operand)?;
-                // 自减后类型保持不变（如果是数字类型）
-                match &self.type_ {
-                    ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
-                    _ => {
-                        let msg = format!("无法对类型 {:?} 执行自减操作", self.type_);
-                        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
-                        Err(TypeDeductionError::SemanticError(msg))
-                    }
-                }
-            }
-            Expression::IsNull(operand) => {
-                self.visit_expr(operand)?;
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::IsNotNull(operand) => {
-                self.visit_expr(operand)?;
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::IsEmpty(operand) => {
-                self.visit_expr(operand)?;
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::IsNotEmpty(operand) => {
-                self.visit_expr(operand)?;
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::TypeCast { expr, target_type } => {
-                self.visit_expr(expr)?;
-                self.type_ = self.parse_data_type(target_type);
-                Ok(())
-            }
-            Expression::Case {
-                conditions,
-                default,
-            } => {
-                // 检查所有条件和默认分支的类型是否一致
-                let mut result_type: Option<ValueTypeDef> = None;
-
-                for (condition_expr, then_expr) in conditions {
-                    self.visit_expr(condition_expr)?;
-                    self.visit_expr(then_expr)?;
-                    let then_type = self.type_.clone();
-
-                    if let Some(ref existing_type) = result_type {
-                        // 检查类型一致性
-                        if !self.are_types_compatible(existing_type, &then_type) {
-                            let msg = format!(
-                                "CASE表达式分支类型不一致: {:?} vs {:?}",
-                                existing_type, then_type
-                            );
-                            self.status = Some(TypeDeductionError::TypeMismatch(msg.clone()));
-                            return Err(TypeDeductionError::TypeMismatch(msg));
-                        }
-                    } else {
-                        result_type = Some(then_type);
-                    }
-                }
-
-                if let Some(default_expr) = default {
-                    self.visit_expr(default_expr)?;
-                    let default_type = self.type_.clone();
-                    if let Some(ref existing_type) = result_type {
-                        if !self.are_types_compatible(existing_type, &default_type) {
-                            let msg = format!(
-                                "CASE表达式DEFAULT分支类型不一致: {:?} vs {:?}",
-                                existing_type, default_type
-                            );
-                            self.status = Some(TypeDeductionError::TypeMismatch(msg.clone()));
-                            return Err(TypeDeductionError::TypeMismatch(msg));
-                        }
-                    } else {
-                        result_type = Some(default_type);
-                    }
-                }
-
-                if let Some(result_type) = result_type {
-                    self.type_ = result_type;
-                }
-                Ok(())
-            }
-            Expression::Aggregate {
-                func,
-                arg,
-                distinct: _,
-            } => {
-                self.visit_expr(arg)?;
-                self.visit_aggregate_func(func)
-            }
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                self.visit_expr(generator)?;
-                if let Some(condition_expr) = condition {
-                    self.visit_expr(condition_expr)?;
-                }
-                // 列表推导始终返回列表类型
-                self.type_ = ValueTypeDef::List;
-                Ok(())
-            }
-            Expression::Predicate { list, condition } => {
-                self.visit_expr(list)?;
-                self.visit_expr(condition)?;
-                // 谓词表达式返回布尔值
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::Reduce {
-                list,
-                var: _,
-                initial,
-                expr,
-            } => {
-                self.visit_expr(initial)?;
-                let accumulator_type = self.type_.clone();
-                self.visit_expr(list)?;
-                self.visit_expr(expr)?;
-                // 归约结果类型为累加器类型
-                self.type_ = accumulator_type;
-                Ok(())
-            }
-            Expression::ESQuery(_) => {
-                // 文本搜索结果为字符串
-                self.type_ = ValueTypeDef::String;
-                Ok(())
-            }
-            Expression::UUID => {
-                // UUID为字符串
-                self.type_ = ValueTypeDef::String;
-                Ok(())
-            }
-            Expression::Subscript { collection, index } => {
-                self.visit_expr(collection)?;
-                let container_type = self.type_.clone();
-                self.visit_expr(index)?;
-                // 下标访问的结果类型取决于容器类型
-                self.type_ = match container_type {
-                    ValueTypeDef::List => ValueTypeDef::Empty, // 列表元素类型未知
-                    ValueTypeDef::Map => ValueTypeDef::Empty,  // Map值类型未知
-                    _ => ValueTypeDef::Empty,
-                };
-                Ok(())
-            }
-            Expression::Label(_name) => {
-                // 标签通常是字符串
-                self.type_ = ValueTypeDef::String;
-                Ok(())
-            }
-            Expression::MatchPathPattern { patterns, .. } => {
-                for pattern in patterns {
-                    self.visit_expr(pattern)?;
-                }
-                // 路径匹配返回路径类型
-                self.type_ = ValueTypeDef::Path;
-                Ok(())
-            }
-        }
     }
 
     /// 推导字面量表达式的类型
@@ -390,14 +132,8 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    /// 推导一元操作符的类型
-    fn visit_unary(&mut self, _op: &UnaryOperator) -> Result<(), TypeDeductionError> {
-        // 具体操作已在visit方法中处理
-        Ok(())
-    }
-
     /// 推导二元操作符的类型
-    fn visit_binary(
+    fn visit_binary_op(
         &mut self,
         op: &BinaryOperator,
         left_type: ValueTypeDef,
@@ -491,6 +227,28 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
+    /// 推导一元操作符的类型
+    fn visit_unary_op(&mut self, op: &UnaryOperator) -> Result<(), TypeDeductionError> {
+        match op {
+            UnaryOperator::Plus | UnaryOperator::Minus => {
+                // 正负号操作保持原类型
+                // 类型已在visit_expression中推导
+            }
+            UnaryOperator::Not => {
+                // 逻辑非操作的结果类型是布尔值
+                self.type_ = ValueTypeDef::Bool;
+            }
+            UnaryOperator::Increment | UnaryOperator::Decrement => {
+                // 自增自减操作保持数值类型
+                // 类型已在visit_expression中推导
+            }
+            _ => {
+                // 其他操作保持原类型
+            }
+        }
+        Ok(())
+    }
+
     /// 推导属性表达式的类型
 
     fn visit_property(&mut self, _property: &str) -> Result<(), TypeDeductionError> {
@@ -509,7 +267,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         // 推导参数类型
         let mut _arg_types = Vec::new();
         for arg in args {
-            self.visit(arg)?;
+            self.visit_expression(arg)?;
             _arg_types.push(self.type_.clone());
         }
 
@@ -723,257 +481,551 @@ impl<'a, S: StorageEngine> std::fmt::Debug for DeduceTypeVisitor<'a, S> {
     }
 }
 
-impl<'a, S: StorageEngine> Visitor<Expression> for DeduceTypeVisitor<'a, S> {
+impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
     type Result = Result<(), TypeDeductionError>;
 
-    fn visit(&mut self, target: &Expression) -> <Self as Visitor<Expression>>::Result {
-        // 避免递归调用，直接调用内部方法
-        match target {
-            Expression::Literal(value) => self.visit_literal(value),
-            Expression::Variable(name) => self.visit_variable(name),
-            Expression::Property {
-                object,
-                property: _,
-            } => {
-                self.visit(object)?;
-                self.type_ = ValueTypeDef::Empty;
-                Ok(())
-            }
-            Expression::Function { name, args } => self.visit_function_call(name, args),
-            Expression::Binary { left, op, right } => {
-                self.visit(left)?;
-                let left_type = self.type_.clone();
-                self.visit(right)?;
-                let right_type = self.type_.clone();
-                self.visit_binary(op, left_type, right_type)
-            }
-            Expression::Unary { op, operand } => {
-                self.visit(operand)?;
-                self.visit_unary(op)
-            }
-            Expression::List(items) => self.visit_list(items),
-            Expression::Map(pairs) => self.visit_map_items(pairs),
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => {
-                self.visit(collection)?;
-                if let Some(start_expr) = start {
-                    self.visit(start_expr)?;
-                }
-                if let Some(end_expr) = end {
-                    self.visit(end_expr)?;
-                }
-                self.type_ = ValueTypeDef::List;
-                Ok(())
-            }
-            Expression::Path(items) => {
-                for item in items {
-                    self.visit(item)?;
-                }
-                self.type_ = ValueTypeDef::Path;
-                Ok(())
-            }
-            Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
-            Expression::EdgeProperty { edge, prop } => self.visit_edge_property(edge, prop),
-            Expression::InputProperty(prop) => self.visit_input_property(prop),
-            Expression::VariableProperty { var, prop } => self.visit_variable_property(var, prop),
-            Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
-            Expression::DestinationProperty { tag, prop } => self.visit_dest_property(tag, prop),
-            Expression::UnaryPlus(operand) => {
-                self.visit(operand)?;
-                Ok(())
-            }
-            Expression::UnaryNegate(operand) => {
-                self.visit(operand)?;
-                match &self.type_ {
-                    ValueTypeDef::Int
-                    | ValueTypeDef::Float
-                    | ValueTypeDef::Empty
-                    | ValueTypeDef::Null => Ok(()),
-                    _ => {
-                        let msg = format!("无法对类型 {:?} 执行取反操作", self.type_);
-                        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
-                        Err(TypeDeductionError::SemanticError(msg))
-                    }
-                }
-            }
-            Expression::UnaryNot(operand) => {
-                self.visit(operand)?;
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::UnaryIncr(operand) => {
-                self.visit(operand)?;
-                match &self.type_ {
-                    ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
-                    _ => {
-                        let msg = format!("无法对类型 {:?} 执行自增操作", self.type_);
-                        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
-                        Err(TypeDeductionError::SemanticError(msg))
-                    }
-                }
-            }
-            Expression::UnaryDecr(operand) => {
-                self.visit(operand)?;
-                match &self.type_ {
-                    ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
-                    _ => {
-                        let msg = format!("无法对类型 {:?} 执行自减操作", self.type_);
-                        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
-                        Err(TypeDeductionError::SemanticError(msg))
-                    }
-                }
-            }
-            Expression::IsNull(operand) => {
-                self.visit(operand)?;
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::IsNotNull(operand) => {
-                self.visit(operand)?;
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::IsEmpty(operand) => {
-                self.visit(operand)?;
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::IsNotEmpty(operand) => {
-                self.visit(operand)?;
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::TypeCast { expr, target_type } => {
-                self.visit(expr)?;
-                self.type_ = self.parse_data_type(target_type);
-                Ok(())
-            }
-            Expression::Case {
-                conditions,
-                default,
-            } => {
-                let mut result_type: Option<ValueTypeDef> = None;
+    fn visit_literal(&mut self, value: &Value) -> Self::Result {
+        self.type_ = match value {
+            Value::Bool(_) => ValueTypeDef::Bool,
+            Value::Int(_) => ValueTypeDef::Int,
+            Value::Float(_) => ValueTypeDef::Float,
+            Value::String(_) => ValueTypeDef::String,
+            Value::Null(_) => ValueTypeDef::Null,
+            Value::Empty => ValueTypeDef::Empty,
+            Value::Date(_) => ValueTypeDef::Date,
+            Value::Time(_) => ValueTypeDef::Time,
+            Value::DateTime(_) => ValueTypeDef::DateTime,
+            Value::Vertex(_) => ValueTypeDef::Vertex,
+            Value::Edge(_) => ValueTypeDef::Edge,
+            Value::Path(_) => ValueTypeDef::Path,
+            Value::List(_) => ValueTypeDef::List,
+            Value::Map(_) => ValueTypeDef::Map,
+            Value::Set(_) => ValueTypeDef::Set,
+            Value::Geography(_) => ValueTypeDef::Geography,
+            Value::Duration(_) => ValueTypeDef::Duration,
+            Value::DataSet(_) => ValueTypeDef::DataSet,
+        };
+        Ok(())
+    }
 
-                for (condition_expr, then_expr) in conditions {
-                    self.visit(condition_expr)?;
-                    self.visit(then_expr)?;
-                    let then_type = self.type_.clone();
+    fn visit_variable(&mut self, _name: &str) -> Self::Result {
+        // 变量表达式的结果类型不确定，使用Empty
+        self.type_ = ValueTypeDef::Empty;
+        Ok(())
+    }
 
-                    if let Some(ref existing_type) = result_type {
-                        if !self.are_types_compatible(existing_type, &then_type) {
-                            let msg = format!(
-                                "CASE表达式分支类型不一致: {:?} vs {:?}",
-                                existing_type, then_type
-                            );
-                            self.status = Some(TypeDeductionError::TypeMismatch(msg.clone()));
-                            return Err(TypeDeductionError::TypeMismatch(msg));
-                        }
-                    } else {
-                        result_type = Some(then_type);
-                    }
-                }
+    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
+        self.visit_expression(object)?;
+        self.type_ = ValueTypeDef::Empty;
+        Ok(())
+    }
 
-                if let Some(default_expr) = default {
-                    self.visit(default_expr)?;
-                    let default_type = self.type_.clone();
-                    if let Some(ref existing_type) = result_type {
-                        if !self.are_types_compatible(existing_type, &default_type) {
-                            let msg = format!(
-                                "CASE表达式DEFAULT分支类型不一致: {:?} vs {:?}",
-                                existing_type, default_type
-                            );
-                            self.status = Some(TypeDeductionError::TypeMismatch(msg.clone()));
-                            return Err(TypeDeductionError::TypeMismatch(msg));
-                        }
-                    } else {
-                        result_type = Some(default_type);
-                    }
-                }
+    fn visit_binary(
+        &mut self,
+        left: &Expression,
+        op: &BinaryOperator,
+        right: &Expression,
+    ) -> Self::Result {
+        self.visit_expression(left)?;
+        let left_type = self.type_.clone();
+        self.visit_expression(right)?;
+        let right_type = self.type_.clone();
+        self.visit_binary_op(op, left_type, right_type)
+    }
 
-                if let Some(result_type) = result_type {
-                    self.type_ = result_type;
+    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expression) -> Self::Result {
+        self.visit_expression(operand)?;
+        self.visit_unary_op(op)
+    }
+
+    fn visit_function(&mut self, name: &str, args: &[Expression]) -> Self::Result {
+        self.visit_function_call(name, args)
+    }
+
+    fn visit_aggregate(
+        &mut self,
+        func: &crate::core::AggregateFunction,
+        arg: &Expression,
+        _distinct: bool,
+    ) -> Self::Result {
+        self.visit_expression(arg)?;
+        self.visit_aggregate_func(func)
+    }
+
+    fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
+        self.visit_list(items)
+    }
+
+    fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
+        self.visit_map_items(pairs)
+    }
+
+    fn visit_case(
+        &mut self,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        let mut result_type: Option<ValueTypeDef> = None;
+
+        for (condition_expr, then_expr) in conditions {
+            self.visit_expression(condition_expr)?;
+            self.visit_expression(then_expr)?;
+            let then_type = self.type_.clone();
+
+            if let Some(ref existing_type) = result_type {
+                if !self.are_types_compatible(existing_type, &then_type) {
+                    let msg = format!(
+                        "CASE表达式分支类型不一致: {:?} vs {:?}",
+                        existing_type, then_type
+                    );
+                    self.status = Some(TypeDeductionError::TypeMismatch(msg.clone()));
+                    return Err(TypeDeductionError::TypeMismatch(msg));
                 }
-                Ok(())
+            } else {
+                result_type = Some(then_type);
             }
-            Expression::Aggregate {
-                func,
-                arg,
-                distinct: _,
-            } => {
-                self.visit(arg)?;
-                self.visit_aggregate_func(func)
-            }
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                self.visit(generator)?;
-                if let Some(condition_expr) = condition {
-                    self.visit(condition_expr)?;
+        }
+
+        if let Some(default_expr) = default {
+            self.visit_expression(default_expr)?;
+            let default_type = self.type_.clone();
+            if let Some(ref existing_type) = result_type {
+                if !self.are_types_compatible(existing_type, &default_type) {
+                    let msg = format!(
+                        "CASE表达式DEFAULT分支类型不一致: {:?} vs {:?}",
+                        existing_type, default_type
+                    );
+                    self.status = Some(TypeDeductionError::TypeMismatch(msg.clone()));
+                    return Err(TypeDeductionError::TypeMismatch(msg));
                 }
-                self.type_ = ValueTypeDef::List;
-                Ok(())
+            } else {
+                result_type = Some(default_type);
             }
-            Expression::Predicate { list, condition } => {
-                self.visit(list)?;
-                self.visit(condition)?;
-                self.type_ = ValueTypeDef::Bool;
-                Ok(())
-            }
-            Expression::Reduce {
-                list,
-                var: _,
-                initial,
-                expr,
-            } => {
-                self.visit(initial)?;
-                let accumulator_type = self.type_.clone();
-                self.visit(list)?;
-                self.visit(expr)?;
-                self.type_ = accumulator_type;
-                Ok(())
-            }
-            Expression::ESQuery(_) => {
-                self.type_ = ValueTypeDef::String;
-                Ok(())
-            }
-            Expression::UUID => {
-                self.type_ = ValueTypeDef::String;
-                Ok(())
-            }
-            Expression::Subscript { collection, index } => {
-                self.visit(collection)?;
-                let container_type = self.type_.clone();
-                self.visit(index)?;
-                self.type_ = match container_type {
-                    ValueTypeDef::List => ValueTypeDef::Empty,
-                    ValueTypeDef::Map => ValueTypeDef::Empty,
-                    _ => ValueTypeDef::Empty,
-                };
-                Ok(())
-            }
-            Expression::Label(_name) => {
-                self.type_ = ValueTypeDef::String;
-                Ok(())
-            }
-            Expression::MatchPathPattern { patterns, .. } => {
-                for pattern in patterns {
-                    self.visit(pattern)?;
-                }
-                self.type_ = ValueTypeDef::Path;
-                Ok(())
+        }
+
+        if let Some(result_type) = result_type {
+            self.type_ = result_type;
+        }
+        Ok(())
+    }
+
+    fn visit_type_cast(&mut self, expr: &Expression, target_type: &DataType) -> Self::Result {
+        self.visit_expression(expr)?;
+        self.type_ = self.parse_data_type(target_type);
+        Ok(())
+    }
+
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
+        self.visit_expression(collection)?;
+        let container_type = self.type_.clone();
+        self.visit_expression(index)?;
+        self.type_ = match container_type {
+            ValueTypeDef::List => ValueTypeDef::Empty,
+            ValueTypeDef::Map => ValueTypeDef::Empty,
+            _ => ValueTypeDef::Empty,
+        };
+        Ok(())
+    }
+
+    fn visit_range(
+        &mut self,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        self.visit_expression(collection)?;
+        if let Some(start_expr) = start {
+            self.visit_expression(start_expr)?;
+        }
+        if let Some(end_expr) = end {
+            self.visit_expression(end_expr)?;
+        }
+        self.type_ = ValueTypeDef::List;
+        Ok(())
+    }
+
+    fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            self.visit_expression(item)?;
+        }
+        self.type_ = ValueTypeDef::Path;
+        Ok(())
+    }
+
+    fn visit_label(&mut self, _name: &str) -> Self::Result {
+        self.type_ = ValueTypeDef::String;
+        Ok(())
+    }
+
+    fn visit_tag_property(&mut self, tag: &str, prop: &str) -> Self::Result {
+        self.visit_tag_property(tag, prop)
+    }
+
+    fn visit_edge_property(&mut self, edge: &str, prop: &str) -> Self::Result {
+        self.visit_edge_property(edge, prop)
+    }
+
+    fn visit_input_property(&mut self, prop: &str) -> Self::Result {
+        self.visit_input_property(prop)
+    }
+
+    fn visit_variable_property(&mut self, var: &str, prop: &str) -> Self::Result {
+        self.visit_variable_property(var, prop)
+    }
+
+    fn visit_source_property(&mut self, tag: &str, prop: &str) -> Self::Result {
+        self.visit_source_property(tag, prop)
+    }
+
+    fn visit_destination_property(&mut self, tag: &str, prop: &str) -> Self::Result {
+        self.visit_dest_property(tag, prop)
+    }
+
+    fn visit_unary_plus(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)?;
+        Ok(())
+    }
+
+    fn visit_unary_negate(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)?;
+        match &self.type_ {
+            ValueTypeDef::Int
+            | ValueTypeDef::Float
+            | ValueTypeDef::Empty
+            | ValueTypeDef::Null => Ok(()),
+            _ => {
+                let msg = format!("无法对类型 {:?} 执行取反操作", self.type_);
+                self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
+                Err(TypeDeductionError::SemanticError(msg))
             }
         }
     }
 
-    fn state(&self) -> &VisitorState {
+    fn visit_unary_not(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)?;
+        self.type_ = ValueTypeDef::Bool;
+        Ok(())
+    }
+
+    fn visit_unary_incr(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)?;
+        match &self.type_ {
+            ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
+            _ => {
+                let msg = format!("无法对类型 {:?} 执行自增操作", self.type_);
+                self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
+                Err(TypeDeductionError::SemanticError(msg))
+            }
+        }
+    }
+
+    fn visit_unary_decr(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)?;
+        match &self.type_ {
+            ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
+            _ => {
+                let msg = format!("无法对类型 {:?} 执行自减操作", self.type_);
+                self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
+                Err(TypeDeductionError::SemanticError(msg))
+            }
+        }
+    }
+
+    fn visit_is_null(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)?;
+        self.type_ = ValueTypeDef::Bool;
+        Ok(())
+    }
+
+    fn visit_is_not_null(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)?;
+        self.type_ = ValueTypeDef::Bool;
+        Ok(())
+    }
+
+    fn visit_is_empty(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)?;
+        self.type_ = ValueTypeDef::Bool;
+        Ok(())
+    }
+
+    fn visit_is_not_empty(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)?;
+        self.type_ = ValueTypeDef::Bool;
+        Ok(())
+    }
+
+    fn visit_type_casting(&mut self, expr: &Expression, target_type: &str) -> Self::Result {
+        self.visit_expression(expr)?;
+        self.type_ = self.parse_type_def(target_type);
+        Ok(())
+    }
+
+    fn visit_list_comprehension(
+        &mut self,
+        generator: &Expression,
+        condition: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        self.visit_expression(generator)?;
+        if let Some(condition_expr) = condition {
+            self.visit_expression(condition_expr)?;
+        }
+        self.type_ = ValueTypeDef::List;
+        Ok(())
+    }
+
+    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Self::Result {
+        self.visit_expression(list)?;
+        self.visit_expression(condition)?;
+        self.type_ = ValueTypeDef::Bool;
+        Ok(())
+    }
+
+    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            self.visit_expression(item)?;
+        }
+        self.type_ = ValueTypeDef::Path;
+        Ok(())
+    }
+
+    fn visit_es_query(&mut self, _query: &str) -> Self::Result {
+        self.type_ = ValueTypeDef::String;
+        Ok(())
+    }
+
+    fn visit_uuid(&mut self) -> Self::Result {
+        self.type_ = ValueTypeDef::String;
+        Ok(())
+    }
+
+    fn visit_subscript_range(
+        &mut self,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        self.visit_expression(collection)?;
+        if let Some(start_expr) = start {
+            self.visit_expression(start_expr)?;
+        }
+        if let Some(end_expr) = end {
+            self.visit_expression(end_expr)?;
+        }
+        self.type_ = ValueTypeDef::List;
+        Ok(())
+    }
+
+    fn visit_match_path_pattern(
+        &mut self,
+        _path_alias: &str,
+        patterns: &[Expression],
+    ) -> Self::Result {
+        for pattern in patterns {
+            self.visit_expression(pattern)?;
+        }
+        self.type_ = ValueTypeDef::Path;
+        Ok(())
+    }
+
+    fn visit_reduce(
+        &mut self,
+        list: &Expression,
+        _var: &str,
+        initial: &Expression,
+        expr: &Expression,
+    ) -> Self::Result {
+        self.visit_expression(initial)?;
+        let accumulator_type = self.type_.clone();
+        self.visit_expression(list)?;
+        self.visit_expression(expr)?;
+        self.type_ = accumulator_type;
+        Ok(())
+    }
+
+    // AST表达式访问方法 - 提供默认实现
+    fn visit_constant_expr(&mut self, expr: &crate::query::parser::ast::expr::ConstantExpr) -> Self::Result {
+        self.visit_literal(&expr.value)
+    }
+
+    fn visit_variable_expr(&mut self, expr: &crate::query::parser::ast::expr::VariableExpr) -> Self::Result {
+        self.visit_variable(&expr.name)
+    }
+
+    fn visit_binary_expr(&mut self, expr: &crate::query::parser::ast::expr::BinaryExpr) -> Self::Result {
+        self.visit_expr(expr.left.as_ref())?;
+        self.visit_expr(expr.right.as_ref())?;
+        Ok(())
+    }
+
+    fn visit_unary_expr(&mut self, expr: &crate::query::parser::ast::expr::UnaryExpr) -> Self::Result {
+        self.visit_expr(expr.operand.as_ref())?;
+        Ok(())
+    }
+
+    fn visit_function_call_expr(
+        &mut self,
+        expr: &crate::query::parser::ast::expr::FunctionCallExpr,
+    ) -> Self::Result {
+        for arg in &expr.args {
+            self.visit_expr(arg)?;
+        }
+        Ok(())
+    }
+
+    fn visit_property_access_expr(
+        &mut self,
+        expr: &crate::query::parser::ast::expr::PropertyAccessExpr,
+    ) -> Self::Result {
+        self.visit_expr(expr.object.as_ref())?;
+        Ok(())
+    }
+
+    fn visit_list_expr(&mut self, expr: &crate::query::parser::ast::expr::ListExpr) -> Self::Result {
+        for element in &expr.elements {
+            self.visit_expr(element)?;
+        }
+        Ok(())
+    }
+
+    fn visit_map_expr(&mut self, expr: &crate::query::parser::ast::expr::MapExpr) -> Self::Result {
+        for (_key, value) in &expr.pairs {
+            self.visit_expr(value)?;
+        }
+        Ok(())
+    }
+
+    fn visit_case_expr(&mut self, expr: &crate::query::parser::ast::expr::CaseExpr) -> Self::Result {
+        for (when_expr, then_expr) in &expr.when_then_pairs {
+            self.visit_expr(when_expr)?;
+            self.visit_expr(then_expr)?;
+        }
+        if let Some(default_expr) = &expr.default {
+            self.visit_expr(default_expr.as_ref())?;
+        }
+        Ok(())
+    }
+
+    fn visit_subscript_expr(
+        &mut self,
+        expr: &crate::query::parser::ast::expr::SubscriptExpr,
+    ) -> Self::Result {
+        self.visit_expr(expr.collection.as_ref())?;
+        self.visit_expr(expr.index.as_ref())?;
+        Ok(())
+    }
+
+    fn visit_predicate_expr(
+        &mut self,
+        expr: &crate::query::parser::ast::expr::PredicateExpr,
+    ) -> Self::Result {
+        self.visit_expr(expr.list.as_ref())?;
+        self.visit_expr(expr.condition.as_ref())?;
+        Ok(())
+    }
+
+    fn visit_tag_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::TagPropertyExpr,
+    ) -> Self::Result {
+        // 标签属性表达式没有子表达式需要访问
+        Ok(())
+    }
+
+    fn visit_edge_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::EdgePropertyExpr,
+    ) -> Self::Result {
+        // 边属性表达式没有子表达式需要访问
+        Ok(())
+    }
+
+    fn visit_input_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::InputPropertyExpr,
+    ) -> Self::Result {
+        // 输入属性表达式没有子表达式需要访问
+        Ok(())
+    }
+
+    fn visit_variable_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::VariablePropertyExpr,
+    ) -> Self::Result {
+        // 变量属性表达式没有子表达式需要访问
+        Ok(())
+    }
+
+    fn visit_source_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::SourcePropertyExpr,
+    ) -> Self::Result {
+        // 源顶点属性表达式没有子表达式需要访问
+        Ok(())
+    }
+
+    fn visit_destination_property_expr(
+        &mut self,
+        _expr: &crate::query::parser::ast::expr::DestinationPropertyExpr,
+    ) -> Self::Result {
+        // 目标顶点属性表达式没有子表达式需要访问
+        Ok(())
+    }
+
+    fn visit_type_cast_expr(
+        &mut self,
+        expr: &crate::query::parser::ast::expr::TypeCastExpr,
+    ) -> Self::Result {
+        self.visit_expr(expr.expr.as_ref())?;
+        Ok(())
+    }
+
+    fn visit_range_expr(&mut self, expr: &crate::query::parser::ast::expr::RangeExpr) -> Self::Result {
+        self.visit_expr(&expr.collection)?;
+        if let Some(start_expr) = &expr.start {
+            self.visit_expr(start_expr.as_ref())?;
+        }
+        if let Some(end_expr) = &expr.end {
+            self.visit_expr(end_expr.as_ref())?;
+        }
+        Ok(())
+    }
+
+    fn visit_path_expr(&mut self, expr: &crate::query::parser::ast::expr::PathExpr) -> Self::Result {
+        for element in &expr.elements {
+            self.visit_expr(element)?;
+        }
+        Ok(())
+    }
+
+    fn visit_label_expr(&mut self, _expr: &crate::query::parser::ast::expr::LabelExpr) -> Self::Result {
+        // 标签表达式没有子表达式需要访问
+        Ok(())
+    }
+
+    fn visit_reduce_expr(&mut self, expr: &crate::query::parser::ast::expr::ReduceExpr) -> Self::Result {
+        self.visit_expr(expr.initial.as_ref())?;
+        self.visit_expr(expr.list.as_ref())?;
+        self.visit_expr(expr.expr.as_ref())?;
+        Ok(())
+    }
+
+    fn visit_list_comprehension_expr(
+        &mut self,
+        expr: &crate::query::parser::ast::expr::ListComprehensionExpr,
+    ) -> Self::Result {
+        self.visit_expr(expr.generator.as_ref())?;
+        if let Some(condition_expr) = &expr.condition {
+            self.visit_expr(condition_expr.as_ref())?;
+        }
+        Ok(())
+    }
+
+    fn state(&self) -> &ExpressionVisitorState {
         &self.state
     }
 
-    fn state_mut(&mut self) -> &mut VisitorState {
+    fn state_mut(&mut self) -> &mut ExpressionVisitorState {
         &mut self.state
     }
 }
@@ -1207,5 +1259,15 @@ impl<'a, S: StorageEngine> DeduceTypeVisitorBuilder<'a, S> {
 impl<'a, S: StorageEngine> Default for DeduceTypeVisitorBuilder<'a, S> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// 为DeduceTypeVisitor实现GenericExpressionVisitor<Expression>
+/// 提供统一的泛型访问接口
+impl<'a, S: StorageEngine> GenericExpressionVisitor<Expression> for DeduceTypeVisitor<'a, S> {
+    type Result = Result<(), TypeDeductionError>;
+
+    fn visit(&mut self, expr: &Expression) -> Self::Result {
+        self.visit_expression(expr)
     }
 }
