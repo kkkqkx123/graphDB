@@ -1,0 +1,12 @@
+target
+data
+default_db_path
+test_graph
+nebula-3.8.0/tests
+nebula-3.8.0/scripts
+nebula-3.8.0/.linters
+nebula-3.8.0/docker
+nebula-3.8.0/resources
+nebula-3.8.0/package
+**/repomix-output.xml
+.mypy_cache
