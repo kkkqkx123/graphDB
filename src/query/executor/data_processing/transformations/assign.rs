@@ -12,7 +12,7 @@ use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageEngine;
 
 /// Assign执行器

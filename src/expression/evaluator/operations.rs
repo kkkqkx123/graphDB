@@ -1,4 +1,4 @@
-use crate::core::error::{ExpressionError, ExpressionErrorType};
+use crate::core::error::ExpressionError;
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 /// 算术和逻辑运算模块
 ///

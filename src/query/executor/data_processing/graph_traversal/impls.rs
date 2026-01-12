@@ -1,11 +1,9 @@
 use super::*;
-use crate::core::error::DBResult;
 use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
 use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
 use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathExecutor;
 use crate::query::executor::data_processing::graph_traversal::traits::TraversalStats;
 use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
-use crate::query::executor::traits::ExecutionResult;
 
 /// 宏定义：为图遍历执行器实现通用特征
 macro_rules! impl_graph_traversal_executor {

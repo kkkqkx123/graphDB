@@ -11,7 +11,7 @@ use super::traits::BaseContext;
 use crate::core::Value;
 
 // SessionInfo 现在统一使用 src/core/context/session.rs 中的定义
-use super::session::{SessionInfo, SessionStatus};
+use super::session::SessionInfo;
 
 /// 请求参数
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

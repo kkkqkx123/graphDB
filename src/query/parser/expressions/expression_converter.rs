@@ -417,13 +417,14 @@ fn convert_unary_op(op: &UnaryOp) -> Result<UnaryOperator, String> {
 /// 转换聚合函数
 fn convert_aggregate_function(func_name: &str) -> Result<AggregateFunction, String> {
     match func_name {
-        "COUNT" => Ok(AggregateFunction::Count),
-        "SUM" => Ok(AggregateFunction::Sum),
-        "AVG" => Ok(AggregateFunction::Avg),
-        "MIN" => Ok(AggregateFunction::Min),
-        "MAX" => Ok(AggregateFunction::Max),
-        "COLLECT" => Ok(AggregateFunction::Collect),
-        "DISTINCT" => Ok(AggregateFunction::Distinct),
+        "COUNT" => Ok(AggregateFunction::Count(None)),
+        "SUM" => Ok(AggregateFunction::Sum("".to_string())),
+        "AVG" => Ok(AggregateFunction::Avg("".to_string())),
+        "MIN" => Ok(AggregateFunction::Min("".to_string())),
+        "MAX" => Ok(AggregateFunction::Max("".to_string())),
+        "COLLECT" => Ok(AggregateFunction::Collect("".to_string())),
+        "DISTINCT" => Ok(AggregateFunction::Distinct("".to_string())),
+        "PERCENTILE" => Ok(AggregateFunction::Percentile("".to_string(), 50.0)), // 默认50%
         _ => Err(format!("不支持的聚合函数: {}", func_name)),
     }
 }
@@ -432,7 +433,7 @@ fn convert_aggregate_function(func_name: &str) -> Result<AggregateFunction, Stri
 fn is_aggregate_function(func_name: &str) -> bool {
     matches!(
         func_name,
-        "COUNT" | "SUM" | "AVG" | "MIN" | "MAX" | "COLLECT" | "DISTINCT"
+        "COUNT" | "SUM" | "AVG" | "MIN" | "MAX" | "COLLECT" | "DISTINCT" | "PERCENTILE"
     )
 }
 

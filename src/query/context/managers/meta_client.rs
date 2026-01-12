@@ -1,6 +1,6 @@
 //! 元数据客户端接口 - 定义元数据访问的基本操作
 
-use crate::core::error::{ManagerError, ManagerResult};
+use crate::core::error::ManagerResult;
 use serde::{Deserialize, Serialize};
 
 /// 集群信息

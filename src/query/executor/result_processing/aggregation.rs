@@ -52,29 +52,31 @@ impl AggregateFunctionSpec {
 
     // 便捷构造函数
     pub fn count() -> Self {
-        Self::new(AggregateFunction::Count)
+        Self::new(AggregateFunction::Count(None))
+    }
+
+    pub fn count_with_field(field: String) -> Self {
+        Self::new(AggregateFunction::Count(Some(field)))
     }
 
     pub fn count_distinct(field: String) -> Self {
-        Self::new(AggregateFunction::Count)
-            .with_field(field)
-            .with_distinct()
+        Self::new(AggregateFunction::Distinct(field))
     }
 
     pub fn sum(field: String) -> Self {
-        Self::new(AggregateFunction::Sum).with_field(field)
+        Self::new(AggregateFunction::Sum(field))
     }
 
     pub fn avg(field: String) -> Self {
-        Self::new(AggregateFunction::Avg).with_field(field)
+        Self::new(AggregateFunction::Avg(field))
     }
 
     pub fn max(field: String) -> Self {
-        Self::new(AggregateFunction::Max).with_field(field)
+        Self::new(AggregateFunction::Max(field))
     }
 
     pub fn min(field: String) -> Self {
-        Self::new(AggregateFunction::Min).with_field(field)
+        Self::new(AggregateFunction::Min(field))
     }
 
     /// 从AggregateFunction创建AggregateFunctionSpec
@@ -379,7 +381,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
             // 更新聚合状态
             for agg_func in &self.aggregate_functions {
                 match &agg_func.function {
-                    AggregateFunction::Count => {
+                    AggregateFunction::Count(_) => {
                         if agg_func.distinct {
                             // COUNT(DISTINCT field)
                             if let Some(field) = &agg_func.field {
@@ -408,10 +410,10 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                             group_state.update(group_key.clone(), &Value::Int(1))?;
                         }
                     }
-                    AggregateFunction::Sum
-                    | AggregateFunction::Avg
-                    | AggregateFunction::Max
-                    | AggregateFunction::Min => {
+                    AggregateFunction::Sum(_)
+                    | AggregateFunction::Avg(_)
+                    | AggregateFunction::Max(_)
+                    | AggregateFunction::Min(_) => {
                         // 需要字段名的聚合函数
                         if let Some(field) = &agg_func.field {
                             if let Some(col_index) =
@@ -423,7 +425,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                             }
                         }
                     }
-                    AggregateFunction::Collect => {
+                    AggregateFunction::Collect(_) => {
                         // COLLECT函数 - 收集所有值到列表
                         if let Some(field) = &agg_func.field {
                             if let Some(col_index) =
@@ -440,7 +442,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                             }
                         }
                     }
-                    AggregateFunction::Distinct => {
+                    AggregateFunction::Distinct(_) => {
                         // DISTINCT函数 - 收集去重后的值
                         if let Some(field) = &agg_func.field {
                             if let Some(col_index) =
@@ -457,7 +459,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                             }
                         }
                     }
-                    AggregateFunction::Percentile => {
+                    AggregateFunction::Percentile(_, _) => {
                         // PERCENTILE函数 - 需要字段和百分位数两个参数
                         if let Some(field) = &agg_func.field {
                             if let Some(col_index) =
@@ -490,7 +492,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
 
         for agg_func in &self.aggregate_functions {
             let col_name = match &agg_func.function {
-                AggregateFunction::Count => {
+                AggregateFunction::Count(_) => {
                     if agg_func.distinct {
                         if let Some(field) = &agg_func.field {
                             format!("count_distinct_{}", field)
@@ -503,37 +505,37 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                         "count".to_string()
                     }
                 }
-                AggregateFunction::Sum => {
+                AggregateFunction::Sum(_) => {
                     if let Some(field) = &agg_func.field {
                         format!("sum_{}", field)
                     } else {
                         "sum".to_string()
                     }
                 }
-                AggregateFunction::Avg => {
+                AggregateFunction::Avg(_) => {
                     if let Some(field) = &agg_func.field {
                         format!("avg_{}", field)
                     } else {
                         "avg".to_string()
                     }
                 }
-                AggregateFunction::Max => {
+                AggregateFunction::Max(_) => {
                     if let Some(field) = &agg_func.field {
                         format!("max_{}", field)
                     } else {
                         "max".to_string()
                     }
                 }
-                AggregateFunction::Min => {
+                AggregateFunction::Min(_) => {
                     if let Some(field) = &agg_func.field {
                         format!("min_{}", field)
                     } else {
                         "min".to_string()
                     }
                 }
-                AggregateFunction::Collect => "collect".to_string(),
-                AggregateFunction::Distinct => "distinct".to_string(),
-                AggregateFunction::Percentile => {
+                AggregateFunction::Collect(_) => "collect".to_string(),
+                AggregateFunction::Distinct(_) => "distinct".to_string(),
+                AggregateFunction::Percentile(_, _) => {
                     if let Some(field) = &agg_func.field {
                         format!("percentile_{}", field)
                     } else {
@@ -554,24 +556,24 @@ impl<S: StorageEngine> AggregateExecutor<S> {
             // 添加聚合结果
             for agg_func in &self.aggregate_functions {
                 let agg_value = match &agg_func.function {
-                    AggregateFunction::Count => Value::Int(agg_state.count as i64),
-                    AggregateFunction::Sum => agg_state
+                    AggregateFunction::Count(_) => Value::Int(agg_state.count as i64),
+                    AggregateFunction::Sum(_) => agg_state
                         .sum
                         .clone()
                         .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Avg => agg_state
+                    AggregateFunction::Avg(_) => agg_state
                         .avg
                         .clone()
                         .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Max => agg_state
+                    AggregateFunction::Max(_) => agg_state
                         .max
                         .clone()
                         .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Min => agg_state
+                    AggregateFunction::Min(_) => agg_state
                         .min
                         .clone()
                         .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Collect => {
+                    AggregateFunction::Collect(_) => {
                         // COLLECT函数 - 返回收集的所有值
                         if agg_state.collect.is_empty() {
                             Value::List(Vec::new())
@@ -579,7 +581,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                             Value::List(agg_state.collect.clone())
                         }
                     }
-                    AggregateFunction::Distinct => {
+                    AggregateFunction::Distinct(_) => {
                         // DISTINCT函数 - 返回去重后的值集合
                         if agg_state.distinct_values.is_empty() {
                             Value::Set(std::collections::HashSet::new())
@@ -587,7 +589,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                             Value::Set(agg_state.distinct_values.clone())
                         }
                     }
-                    AggregateFunction::Percentile => {
+                    AggregateFunction::Percentile(_, _) => {
                         // PERCENTILE函数 - 计算百分位数
                         // 这里简化处理，使用默认的50%百分位数（中位数）
                         // 在实际应用中，应该从查询参数中获取百分位数值

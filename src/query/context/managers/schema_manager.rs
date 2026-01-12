@@ -1,6 +1,6 @@
 //! Schema管理器接口 - 定义Schema管理的基本操作
 
-use crate::core::error::{ManagerError, ManagerResult};
+use crate::core::error::ManagerResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

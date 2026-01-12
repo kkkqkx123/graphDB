@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 // SessionInfo 现在统一使用 src/core/context/session.rs 中的定义
-use crate::core::context::session::{SessionInfo, SessionStatus};
+use crate::core::context::session::SessionInfo;
 
 /// 请求参数
 #[derive(Debug, Clone)]

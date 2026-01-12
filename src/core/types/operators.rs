@@ -380,27 +380,27 @@ impl Operator for UnaryOperator {
 /// 聚合函数操作符
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AggregateFunction {
-    Count,
-    Sum,
-    Avg,
-    Min,
-    Max,
-    Collect,
-    Distinct,
-    Percentile,
+    Count(Option<String>),  // 可选的字段名，COUNT(*) 时为 None
+    Sum(String),           // 字段名
+    Avg(String),           // 字段名
+    Min(String),           // 字段名
+    Max(String),           // 字段名
+    Collect(String),       // 字段名
+    Distinct(String),      // 字段名
+    Percentile(String, f64), // 字段名和百分位数
 }
 
 impl Operator for AggregateFunction {
     fn name(&self) -> &str {
         match self {
-            AggregateFunction::Count => "COUNT",
-            AggregateFunction::Sum => "SUM",
-            AggregateFunction::Avg => "AVG",
-            AggregateFunction::Min => "MIN",
-            AggregateFunction::Max => "MAX",
-            AggregateFunction::Collect => "COLLECT",
-            AggregateFunction::Distinct => "DISTINCT",
-            AggregateFunction::Percentile => "PERCENTILE",
+            AggregateFunction::Count(_) => "COUNT",
+            AggregateFunction::Sum(_) => "SUM",
+            AggregateFunction::Avg(_) => "AVG",
+            AggregateFunction::Min(_) => "MIN",
+            AggregateFunction::Max(_) => "MAX",
+            AggregateFunction::Collect(_) => "COLLECT",
+            AggregateFunction::Distinct(_) => "DISTINCT",
+            AggregateFunction::Percentile(_, _) => "PERCENTILE",
         }
     }
 
@@ -416,14 +416,15 @@ impl Operator for AggregateFunction {
 
     fn arity(&self) -> usize {
         match self {
-            AggregateFunction::Count => 1, // COUNT(*) 是特殊情况，但通常有一个参数
-            AggregateFunction::Sum => 1,
-            AggregateFunction::Avg => 1,
-            AggregateFunction::Min => 1,
-            AggregateFunction::Max => 1,
-            AggregateFunction::Collect => 1,
-            AggregateFunction::Distinct => 1,
-            AggregateFunction::Percentile => 2, // 需要字段和百分位数两个参数
+            AggregateFunction::Count(Some(_)) => 1, // COUNT(字段名)
+            AggregateFunction::Count(None) => 0,    // COUNT(*)
+            AggregateFunction::Sum(_) => 1,
+            AggregateFunction::Avg(_) => 1,
+            AggregateFunction::Min(_) => 1,
+            AggregateFunction::Max(_) => 1,
+            AggregateFunction::Collect(_) => 1,
+            AggregateFunction::Distinct(_) => 1,
+            AggregateFunction::Percentile(_, _) => 2, // 需要字段和百分位数两个参数
         }
     }
 }
@@ -523,10 +524,11 @@ impl AggregateFunction {
     pub fn is_numeric(&self) -> bool {
         matches!(
             self,
-            AggregateFunction::Sum
-                | AggregateFunction::Avg
-                | AggregateFunction::Min
-                | AggregateFunction::Max
+            AggregateFunction::Sum(_)
+                | AggregateFunction::Avg(_)
+                | AggregateFunction::Min(_)
+                | AggregateFunction::Max(_)
+                | AggregateFunction::Percentile(_, _)
         )
     }
 
@@ -534,7 +536,22 @@ impl AggregateFunction {
     pub fn is_collection(&self) -> bool {
         matches!(
             self,
-            AggregateFunction::Count | AggregateFunction::Collect | AggregateFunction::Distinct
+            AggregateFunction::Count(_) | AggregateFunction::Collect(_) | AggregateFunction::Distinct(_)
         )
+    }
+
+    /// 获取聚合函数的字段名
+    pub fn field_name(&self) -> Option<&str> {
+        match self {
+            AggregateFunction::Count(Some(field)) => Some(field),
+            AggregateFunction::Count(None) => None,
+            AggregateFunction::Sum(field) => Some(field),
+            AggregateFunction::Avg(field) => Some(field),
+            AggregateFunction::Min(field) => Some(field),
+            AggregateFunction::Max(field) => Some(field),
+            AggregateFunction::Collect(field) => Some(field),
+            AggregateFunction::Distinct(field) => Some(field),
+            AggregateFunction::Percentile(field, _) => Some(field),
+        }
     }
 }

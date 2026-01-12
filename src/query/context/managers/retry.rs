@@ -141,7 +141,7 @@ where
 ///
 /// # 返回
 /// 操作成功的结果或最后一次失败的错误
-pub fn retry_with_backoff_async<F, T, E>(config: &RetryConfig, mut operation: F) -> Result<T, E>
+pub fn retry_with_backoff_async<F, T, E>(config: &RetryConfig, operation: F) -> Result<T, E>
 where
     F: FnMut() -> Result<T, E>,
     E: Into<ManagerError> + Clone + std::fmt::Display,

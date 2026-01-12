@@ -1,7 +1,6 @@
 //! AST上下文中的共享结构定义
 
 use crate::core::types::EdgeDirection;
-use crate::query::parser::ast::expr::Expr;
 use crate::query::validator::structs::clause_structs::YieldColumn;
 use std::collections::HashMap;
 

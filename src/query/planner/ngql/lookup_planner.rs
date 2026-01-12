@@ -10,7 +10,6 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-use std::sync::Arc;
 
 /// LOOKUP查询规划器
 /// 负责将LOOKUP语句转换为执行计划

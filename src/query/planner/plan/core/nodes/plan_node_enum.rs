@@ -138,6 +138,7 @@ impl PlanNodeEnum {
         matches!(self, PlanNodeEnum::Dedup(_))
     }
 
+    
     pub fn is_get_vertices(&self) -> bool {
         matches!(self, PlanNodeEnum::GetVertices(_))
     }
@@ -377,6 +378,7 @@ impl PlanNodeEnum {
         }
     }
 
+    
     /// 克隆节点
     pub fn clone_plan_node(&self) -> PlanNodeEnum {
         self.clone()

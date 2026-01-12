@@ -4,7 +4,6 @@
 use super::super::structs::*;
 use super::super::validation_interface::*;
 use crate::core::Expression;
-use crate::core::ValueTypeDef;
 
 /// 分页验证策略
 pub struct PaginationValidationStrategy;

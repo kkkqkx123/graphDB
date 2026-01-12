@@ -109,44 +109,44 @@ impl FunctionEvaluator {
         _distinct: bool,
     ) -> Result<Value, ExpressionError> {
         match func {
-            AggregateFunction::Count => {
+            AggregateFunction::Count(_) => {
                 if arg.is_null() {
                     Ok(Value::Int(0))
                 } else {
                     Ok(Value::Int(1))
                 }
             }
-            AggregateFunction::Sum => {
+            AggregateFunction::Sum(_) => {
                 if arg.is_null() {
                     Ok(Value::Int(0))
                 } else {
                     Ok(arg.clone())
                 }
             }
-            AggregateFunction::Avg => {
+            AggregateFunction::Avg(_) => {
                 if arg.is_null() {
                     Ok(Value::Null(crate::core::NullType::Null))
                 } else {
                     Ok(arg.clone())
                 }
             }
-            AggregateFunction::Min => {
+            AggregateFunction::Min(_) => {
                 if arg.is_null() {
                     Ok(Value::Null(crate::core::NullType::Null))
                 } else {
                     Ok(arg.clone())
                 }
             }
-            AggregateFunction::Max => {
+            AggregateFunction::Max(_) => {
                 if arg.is_null() {
                     Ok(Value::Null(crate::core::NullType::Null))
                 } else {
                     Ok(arg.clone())
                 }
             }
-            AggregateFunction::Collect => Ok(Value::List(vec![arg.clone()])),
-            AggregateFunction::Distinct => Ok(Value::List(vec![arg.clone()])),
-            AggregateFunction::Percentile => {
+            AggregateFunction::Collect(_) => Ok(Value::List(vec![arg.clone()])),
+            AggregateFunction::Distinct(_) => Ok(Value::List(vec![arg.clone()])),
+            AggregateFunction::Percentile(_, _) => {
                 if arg.is_null() {
                     Ok(Value::Null(crate::core::NullType::Null))
                 } else {
@@ -168,7 +168,7 @@ impl FunctionEvaluator {
         }
 
         match func {
-            AggregateFunction::Count => {
+            AggregateFunction::Count(_) => {
                 if distinct {
                     let unique_values: std::collections::HashSet<_> = args.iter().collect();
                     Ok(Value::Int(unique_values.len() as i64))
@@ -176,7 +176,7 @@ impl FunctionEvaluator {
                     Ok(Value::Int(args.len() as i64))
                 }
             }
-            AggregateFunction::Sum => {
+            AggregateFunction::Sum(_) => {
                 let mut sum = Value::Int(0);
                 for arg in args {
                     sum = sum
@@ -185,14 +185,14 @@ impl FunctionEvaluator {
                 }
                 Ok(sum)
             }
-            AggregateFunction::Avg => {
-                let sum = self.eval_aggregate_function(&AggregateFunction::Sum, args, distinct)?;
+            AggregateFunction::Avg(_) => {
+                let sum = self.eval_aggregate_function(&AggregateFunction::Sum("".to_string()), args, distinct)?;
                 let count =
-                    self.eval_aggregate_function(&AggregateFunction::Count, args, distinct)?;
+                    self.eval_aggregate_function(&AggregateFunction::Count(None), args, distinct)?;
                 sum.div(&count)
                     .map_err(|e| ExpressionError::runtime_error(e))
             }
-            AggregateFunction::Min => {
+            AggregateFunction::Min(_) => {
                 let mut min = args[0].clone();
                 for arg in args.iter().skip(1) {
                     if arg < &min {
@@ -201,7 +201,7 @@ impl FunctionEvaluator {
                 }
                 Ok(min)
             }
-            AggregateFunction::Max => {
+            AggregateFunction::Max(_) => {
                 let mut max = args[0].clone();
                 for arg in args.iter().skip(1) {
                     if arg > &max {
@@ -210,7 +210,7 @@ impl FunctionEvaluator {
                 }
                 Ok(max)
             }
-            AggregateFunction::Collect => {
+            AggregateFunction::Collect(_) => {
                 if distinct {
                     let unique_values: std::collections::HashSet<_> =
                         args.iter().cloned().collect();
@@ -219,11 +219,11 @@ impl FunctionEvaluator {
                     Ok(Value::List(args.to_vec()))
                 }
             }
-            AggregateFunction::Distinct => {
+            AggregateFunction::Distinct(_) => {
                 let unique_values: std::collections::HashSet<_> = args.iter().cloned().collect();
                 Ok(Value::List(unique_values.into_iter().collect()))
             }
-            AggregateFunction::Percentile => {
+            AggregateFunction::Percentile(_, _) => {
                 if args.len() < 2 {
                     return Err(ExpressionError::argument_count_error(2, args.len()));
                 }

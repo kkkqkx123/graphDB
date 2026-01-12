@@ -16,6 +16,7 @@ use super::start_node::StartNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
 use crate::core::types::EdgeDirection;
 use crate::core::Value;
+use crate::core::types::operators::AggregateFunction;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::parser::expressions::convert_ast_to_graph_expression;
 use crate::query::planner::plan::PlanNodeEnum;
@@ -101,9 +102,9 @@ impl PlanNodeFactory {
     pub fn create_aggregate(
         input: PlanNodeEnum,
         group_keys: Vec<String>,
-        agg_exprs: Vec<String>,
+        aggregation_functions: Vec<AggregateFunction>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        let aggregate_node = AggregateNode::new(input, group_keys, agg_exprs)?;
+        let aggregate_node = AggregateNode::new(input, group_keys, aggregation_functions)?;
         Ok(PlanNodeEnum::Aggregate(aggregate_node))
     }
 

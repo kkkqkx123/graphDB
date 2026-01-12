@@ -3,7 +3,7 @@
 //! 提供表达式求值过程中的基础上下文实现
 
 use crate::cache::CacheConfig;
-use crate::core::context::traits::{BaseContext, ContextExt};
+use crate::core::context::traits::BaseContext;
 use crate::core::context::ContextType;
 use crate::core::Value;
 use crate::expression::cache::{ExpressionCacheManager, ExpressionCacheStats};

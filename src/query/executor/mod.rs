@@ -1,4 +1,5 @@
 // Re-export all executor modules
+pub mod aggregation;
 pub mod base;
 pub mod data_access;
 pub mod data_modification;

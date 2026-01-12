@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{Edge, Value, Vertex};
-use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasInput, HasStorage};
+use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 pub use crate::core::types::EdgeDirection;

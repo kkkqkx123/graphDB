@@ -5,7 +5,6 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
 /// 转换连接以获得更好性能的规则
 #[derive(Debug)]

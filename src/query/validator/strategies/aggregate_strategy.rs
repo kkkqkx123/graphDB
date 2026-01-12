@@ -408,7 +408,7 @@ mod tests {
     fn test_validate_invalid_aggregate_function() {
         let strategy = AggregateValidationStrategy::new();
         let expr = Expression::Aggregate {
-            func: AggregateFunction::Count,
+            func: AggregateFunction::Count(None),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
@@ -423,12 +423,12 @@ mod tests {
     fn test_validate_nested_aggregates() {
         let strategy = AggregateValidationStrategy::new();
         let inner_agg = Expression::Aggregate {
-            func: AggregateFunction::Count,
+            func: AggregateFunction::Count(None),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
         let outer_agg = Expression::Aggregate {
-            func: AggregateFunction::Sum,
+            func: AggregateFunction::Sum("".to_string()),
             arg: Box::new(inner_agg),
             distinct: false,
         };
@@ -443,7 +443,7 @@ mod tests {
     fn test_validate_count_with_wildcard() {
         let strategy = AggregateValidationStrategy::new();
         let expr = Expression::Aggregate {
-            func: AggregateFunction::Count,
+            func: AggregateFunction::Count(None),
             arg: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "*".to_string(),
@@ -459,7 +459,7 @@ mod tests {
     fn test_validate_sum_with_wildcard() {
         let strategy = AggregateValidationStrategy::new();
         let expr = Expression::Aggregate {
-            func: AggregateFunction::Sum,
+            func: AggregateFunction::Sum("".to_string()),
             arg: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "*".to_string(),
@@ -493,12 +493,12 @@ mod tests {
 
         // 测试各种聚合函数
         let valid_functions = vec![
-            AggregateFunction::Count,
-            AggregateFunction::Sum,
-            AggregateFunction::Avg,
-            AggregateFunction::Max,
-            AggregateFunction::Min,
-            AggregateFunction::Collect,
+            AggregateFunction::Count(None),
+            AggregateFunction::Sum("".to_string()),
+            AggregateFunction::Avg("".to_string()),
+            AggregateFunction::Max("".to_string()),
+            AggregateFunction::Min("".to_string()),
+            AggregateFunction::Collect("".to_string()),
         ];
 
         for func in valid_functions {
@@ -519,7 +519,7 @@ mod tests {
     fn test_validate_distinct_aggregate() {
         let strategy = AggregateValidationStrategy::new();
         let expr = Expression::Aggregate {
-            func: AggregateFunction::Count,
+            func: AggregateFunction::Count(None),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: true,
         };
@@ -656,7 +656,7 @@ mod tests {
 
         // 测试有效的SUM聚合
         let expr = Expression::Aggregate {
-            func: AggregateFunction::Sum,
+            func: AggregateFunction::Sum("".to_string()),
             arg: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "amount".to_string(),
@@ -673,7 +673,7 @@ mod tests {
 
         // 测试有效的COUNT聚合
         let expr = Expression::Aggregate {
-            func: AggregateFunction::Count,
+            func: AggregateFunction::Count(None),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
@@ -686,7 +686,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         let min_expr = Expression::Aggregate {
-            func: AggregateFunction::Min,
+            func: AggregateFunction::Min("".to_string()),
             arg: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "value".to_string(),
@@ -694,7 +694,7 @@ mod tests {
             distinct: false,
         };
         let max_expr = Expression::Aggregate {
-            func: AggregateFunction::Max,
+            func: AggregateFunction::Max("".to_string()),
             arg: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
                 property: "value".to_string(),

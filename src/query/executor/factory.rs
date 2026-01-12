@@ -386,7 +386,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     .iter()
                     .map(|_expr| {
                         crate::query::executor::result_processing::AggregateFunctionSpec::new(
-                            crate::core::types::operators::AggregateFunction::Count,
+                            crate::core::types::operators::AggregateFunction::Count(None),
                         )
                     })
                     .collect();

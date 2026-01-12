@@ -3,7 +3,6 @@
 
 use crate::core::context::request::RequestContext;
 use crate::core::context::{QueryExecutionContext, ValidationContext};
-use crate::core::error::{ManagerError, ManagerResult};
 use crate::core::{SymbolTable, Value};
 use crate::graph::utils::IdGenerator;
 use crate::query::context::managers::{

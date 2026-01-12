@@ -1,7 +1,7 @@
 //! 递归检测器 - 防止执行器循环引用
 
 use crate::core::error::{DBError, DBResult};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// 递归检测器
 #[derive(Debug, Clone)]

@@ -1,6 +1,6 @@
 //! 索引管理器接口 - 定义索引管理的基本操作
 
-use crate::core::error::{ManagerError, ManagerResult};
+use crate::core::error::ManagerResult;
 use crate::core::{Edge, Value, Vertex};
 use serde::{Deserialize, Serialize};
 

@@ -1,20 +1,11 @@
-use crate::core::types::operators::AggregateFunction;
+use crate::core::types::operators::{AggregateFunction, Operator};
 use crate::core::Expression;
 use crate::core::{ExpressionError, Value};
 use serde::{Deserialize, Serialize};
 
 impl std::fmt::Display for AggregateFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AggregateFunction::Count => write!(f, "COUNT"),
-            AggregateFunction::Sum => write!(f, "SUM"),
-            AggregateFunction::Avg => write!(f, "AVG"),
-            AggregateFunction::Min => write!(f, "MIN"),
-            AggregateFunction::Max => write!(f, "MAX"),
-            AggregateFunction::Collect => write!(f, "COLLECT"),
-            AggregateFunction::Distinct => write!(f, "DISTINCT"),
-            AggregateFunction::Percentile => write!(f, "PERCENTILE"),
-        }
+        write!(f, "{}", self.name())
     }
 }
 
@@ -22,14 +13,79 @@ impl AggregateFunction {
     /// 从字符串创建聚合函数
     pub fn from_str(func_name: &str) -> Result<Self, ExpressionError> {
         match func_name.to_uppercase().as_str() {
-            "COUNT" => Ok(AggregateFunction::Count),
-            "SUM" => Ok(AggregateFunction::Sum),
-            "AVG" => Ok(AggregateFunction::Avg),
-            "MIN" => Ok(AggregateFunction::Min),
-            "MAX" => Ok(AggregateFunction::Max),
-            "COLLECT" => Ok(AggregateFunction::Collect),
-            "DISTINCT" => Ok(AggregateFunction::Distinct),
-            "PERCENTILE" => Ok(AggregateFunction::Percentile),
+            "COUNT" => Ok(AggregateFunction::Count(None)),
+            "COUNT_DISTINCT" => Ok(AggregateFunction::Distinct("".to_string())), // 需要字段名
+            "SUM" => Ok(AggregateFunction::Sum("".to_string())), // 需要字段名
+            "AVG" => Ok(AggregateFunction::Avg("".to_string())), // 需要字段名
+            "MIN" => Ok(AggregateFunction::Min("".to_string())), // 需要字段名
+            "MAX" => Ok(AggregateFunction::Max("".to_string())), // 需要字段名
+            "COLLECT" => Ok(AggregateFunction::Collect("".to_string())), // 需要字段名
+            "DISTINCT" => Ok(AggregateFunction::Distinct("".to_string())), // 需要字段名
+            "PERCENTILE" => Ok(AggregateFunction::Percentile("".to_string(), 50.0)), // 需要字段名和百分位数
+            _ => {
+                return Err(ExpressionError::function_error(format!(
+                    "Unknown aggregate function: {}",
+                    func_name
+                )));
+            }
+        }
+    }
+
+    /// 从字符串和参数创建聚合函数
+    pub fn from_str_with_args(func_name: &str, args: &[String]) -> Result<Self, ExpressionError> {
+        match func_name.to_uppercase().as_str() {
+            "COUNT" => {
+                if args.is_empty() {
+                    Ok(AggregateFunction::Count(None)) // COUNT(*)
+                } else {
+                    Ok(AggregateFunction::Count(Some(args[0].clone()))) // COUNT(field)
+                }
+            },
+            "SUM" => {
+                if args.is_empty() {
+                    return Err(ExpressionError::function_error("SUM function requires a field name".to_string()));
+                }
+                Ok(AggregateFunction::Sum(args[0].clone()))
+            },
+            "AVG" => {
+                if args.is_empty() {
+                    return Err(ExpressionError::function_error("AVG function requires a field name".to_string()));
+                }
+                Ok(AggregateFunction::Avg(args[0].clone()))
+            },
+            "MIN" => {
+                if args.is_empty() {
+                    return Err(ExpressionError::function_error("MIN function requires a field name".to_string()));
+                }
+                Ok(AggregateFunction::Min(args[0].clone()))
+            },
+            "MAX" => {
+                if args.is_empty() {
+                    return Err(ExpressionError::function_error("MAX function requires a field name".to_string()));
+                }
+                Ok(AggregateFunction::Max(args[0].clone()))
+            },
+            "COLLECT" => {
+                if args.is_empty() {
+                    return Err(ExpressionError::function_error("COLLECT function requires a field name".to_string()));
+                }
+                Ok(AggregateFunction::Collect(args[0].clone()))
+            },
+            "DISTINCT" => {
+                if args.is_empty() {
+                    return Err(ExpressionError::function_error("DISTINCT function requires a field name".to_string()));
+                }
+                Ok(AggregateFunction::Distinct(args[0].clone()))
+            },
+            "PERCENTILE" => {
+                if args.len() < 2 {
+                    return Err(ExpressionError::function_error("PERCENTILE function requires a field name and percentile value".to_string()));
+                }
+                let percentile = args[1].parse::<f64>().map_err(|_| {
+                    ExpressionError::function_error("Invalid percentile value".to_string())
+                })?;
+                Ok(AggregateFunction::Percentile(args[0].clone(), percentile))
+            },
             _ => {
                 return Err(ExpressionError::function_error(format!(
                     "Unknown aggregate function: {}",
@@ -75,17 +131,17 @@ impl AggregateExpression {
 
         // 返回当前状态的聚合结果
         match &self.function {
-            AggregateFunction::Count => Ok(Value::Int(state.count)),
-            AggregateFunction::Sum => Ok(state.sum.clone()),
-            AggregateFunction::Min => Ok(state
+            AggregateFunction::Count(_) => Ok(Value::Int(state.count)),
+            AggregateFunction::Sum(_) => Ok(state.sum.clone()),
+            AggregateFunction::Min(_) => Ok(state
                 .min
                 .clone()
                 .unwrap_or(Value::Null(crate::core::value::NullType::Null))),
-            AggregateFunction::Max => Ok(state
+            AggregateFunction::Max(_) => Ok(state
                 .max
                 .clone()
                 .unwrap_or(Value::Null(crate::core::value::NullType::Null))),
-            AggregateFunction::Avg => {
+            AggregateFunction::Avg(_) => {
                 if state.count > 0 {
                     match &state.sum {
                         Value::Int(i) => Ok(Value::Float(*i as f64 / state.count as f64)),
@@ -96,8 +152,8 @@ impl AggregateExpression {
                     Ok(Value::Float(0.0))
                 }
             }
-            AggregateFunction::Collect => Ok(Value::List(state.values.clone())),
-            AggregateFunction::Distinct => Ok(Value::List(
+            AggregateFunction::Collect(_) => Ok(Value::List(state.values.clone())),
+            AggregateFunction::Distinct(_) => Ok(Value::List(
                 state
                     .values
                     .iter()
@@ -106,7 +162,7 @@ impl AggregateExpression {
                     .into_iter()
                     .collect(),
             )),
-            AggregateFunction::Percentile => state.calculate_percentile(50.0),
+            AggregateFunction::Percentile(_, _) => state.calculate_percentile(50.0),
         }
     }
 }
@@ -163,40 +219,45 @@ impl AggregateState {
         self.count += 1;
         self.values.push(value.clone());
 
-        // PERCENTILE函数特殊处理：收集数值
-        if matches!(function, AggregateFunction::Percentile) {
-            match value {
-                Value::Int(v) => self.percentile_values.push(*v as f64),
-                Value::Float(v) => self.percentile_values.push(*v),
-                _ => {}
+        // 根据聚合函数类型进行特殊处理
+        match function {
+            AggregateFunction::Percentile(_, _) => {
+                // PERCENTILE函数特殊处理：收集数值
+                match value {
+                    Value::Int(v) => self.percentile_values.push(*v as f64),
+                    Value::Float(v) => self.percentile_values.push(*v),
+                    _ => {}
+                }
             }
-        }
+            _ => {
+                // 其他聚合函数的通用处理
+                // 更新最小值
+                if self.min.as_ref().map_or(true, |min_val| value < min_val) {
+                    self.min = Some(value.clone());
+                }
 
-        // 更新最小值
-        if self.min.as_ref().map_or(true, |min_val| value < min_val) {
-            self.min = Some(value.clone());
-        }
+                // 更新最大值
+                if self.max.as_ref().map_or(true, |max_val| value > max_val) {
+                    self.max = Some(value.clone());
+                }
 
-        // 更新最大值
-        if self.max.as_ref().map_or(true, |max_val| value > max_val) {
-            self.max = Some(value.clone());
-        }
-
-        // 更新总和
-        match (&mut self.sum, value) {
-            (Value::Int(ref mut sum_int), Value::Int(val_int)) => {
-                *sum_int += *val_int;
+                // 更新总和
+                match (&mut self.sum, value) {
+                    (Value::Int(ref mut sum_int), Value::Int(val_int)) => {
+                        *sum_int += *val_int;
+                    }
+                    (Value::Float(ref mut sum_float), Value::Float(val_float)) => {
+                        *sum_float += *val_float;
+                    }
+                    (Value::Int(ref mut sum_int), Value::Float(val_float)) => {
+                        self.sum = Value::Float(*sum_int as f64 + *val_float);
+                    }
+                    (Value::Float(ref mut sum_float), Value::Int(val_int)) => {
+                        *sum_float += *val_int as f64;
+                    }
+                    _ => {}
+                }
             }
-            (Value::Float(ref mut sum_float), Value::Float(val_float)) => {
-                *sum_float += *val_float;
-            }
-            (Value::Int(ref mut sum_int), Value::Float(val_float)) => {
-                self.sum = Value::Float(*sum_int as f64 + *val_float);
-            }
-            (Value::Float(ref mut sum_float), Value::Int(val_int)) => {
-                *sum_float += *val_int as f64;
-            }
-            _ => {}
         }
     }
 
@@ -242,17 +303,17 @@ mod tests {
     fn test_unified_aggregate_function() {
         // 测试从字符串创建
         let func = AggregateFunction::from_str("COUNT").unwrap();
-        assert!(matches!(func, AggregateFunction::Count));
+        assert!(matches!(func, AggregateFunction::Count(_)));
 
         let func = AggregateFunction::from_str("SUM").unwrap();
-        assert!(matches!(func, AggregateFunction::Sum));
+        assert!(matches!(func, AggregateFunction::Sum(_)));
 
         // 测试数值聚合函数检查
-        let sum_func = AggregateFunction::from_str("SUM").unwrap();
+        let sum_func = AggregateFunction::from_str_with_args("SUM", &["field".to_string()]).unwrap();
         assert!(sum_func.is_numeric());
         assert!(!sum_func.is_collection());
 
-        let collect_func = AggregateFunction::from_str("COLLECT").unwrap();
+        let collect_func = AggregateFunction::from_str_with_args("COLLECT", &["field".to_string()]).unwrap();
         assert!(!collect_func.is_numeric());
         assert!(collect_func.is_collection());
     }

@@ -183,7 +183,7 @@ impl Clone for Result {
 
 impl Result {
     pub fn new(value: Value, state: ResultState) -> Self {
-        let mut memory_stats = MemoryStats::new();
+        let memory_stats = MemoryStats::new();
         let value_bytes = std::mem::size_of_val(&value) as u64;
         memory_stats.update_value_bytes(value_bytes);
 

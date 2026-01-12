@@ -3,7 +3,6 @@
 
 use crate::core::types::EdgeDirection;
 use crate::query::context::ast::{AstContext, GoContext};
-use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::plan::core::PlanNodeEnum;
 use crate::query::planner::plan::core::{
     ArgumentNode, DedupNode, ExpandAllNode, ExpandNode, FilterNode, InnerJoinNode, ProjectNode,

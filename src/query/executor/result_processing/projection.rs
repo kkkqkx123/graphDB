@@ -11,7 +11,7 @@ use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageEngine;
 
 /// 投影列定义

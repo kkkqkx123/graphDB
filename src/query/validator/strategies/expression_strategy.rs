@@ -3,11 +3,10 @@
 
 use super::super::structs::*;
 use super::super::validation_interface::*;
-use super::super::structs::common_structs::ValidationContextImpl;
 use crate::core::Expression;
 use crate::core::types::operators::Operator;
 use crate::core::ValueTypeDef;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// 表达式验证上下文Trait
 /// 定义表达式验证所需的基本接口
@@ -914,15 +913,15 @@ impl ExpressionValidationStrategy {
     /// 推导聚合函数的返回类型
     fn deduce_aggregate_return_type(&self, func: &crate::core::AggregateFunction) -> ValueTypeDef {
         match func {
-            crate::core::AggregateFunction::Count => ValueTypeDef::Int,
-            crate::core::AggregateFunction::Sum => ValueTypeDef::Float,
-            crate::core::AggregateFunction::Avg => ValueTypeDef::Float,
-            crate::core::AggregateFunction::Min | crate::core::AggregateFunction::Max => {
+            crate::core::AggregateFunction::Count(_) => ValueTypeDef::Int,
+            crate::core::AggregateFunction::Sum(_) => ValueTypeDef::Float,
+            crate::core::AggregateFunction::Avg(_) => ValueTypeDef::Float,
+            crate::core::AggregateFunction::Min(_) | crate::core::AggregateFunction::Max(_) => {
                 ValueTypeDef::Empty
             }
-            crate::core::AggregateFunction::Collect => ValueTypeDef::List,
-            crate::core::AggregateFunction::Distinct => ValueTypeDef::List,
-            crate::core::AggregateFunction::Percentile => ValueTypeDef::Float,
+            crate::core::AggregateFunction::Collect(_) => ValueTypeDef::List,
+            crate::core::AggregateFunction::Distinct(_) => ValueTypeDef::List,
+            crate::core::AggregateFunction::Percentile(_, _) => ValueTypeDef::Float,
         }
     }
 
@@ -1016,12 +1015,12 @@ impl ExpressionValidationStrategy {
     fn is_supported_aggregate_function(&self, function: &crate::core::AggregateFunction) -> bool {
         matches!(
             function,
-            crate::core::AggregateFunction::Count
-                | crate::core::AggregateFunction::Sum
-                | crate::core::AggregateFunction::Avg
-                | crate::core::AggregateFunction::Max
-                | crate::core::AggregateFunction::Min
-                | crate::core::AggregateFunction::Collect
+            crate::core::AggregateFunction::Count(_)
+                | crate::core::AggregateFunction::Sum(_)
+                | crate::core::AggregateFunction::Avg(_)
+                | crate::core::AggregateFunction::Max(_)
+                | crate::core::AggregateFunction::Min(_)
+                | crate::core::AggregateFunction::Collect(_)
         )
     }
     
@@ -1033,7 +1032,7 @@ impl ExpressionValidationStrategy {
         context: &YieldClauseContext,
     ) -> Result<(), ValidationError> {
         match function {
-            crate::core::AggregateFunction::Count => {
+            crate::core::AggregateFunction::Count(_) => {
                 // COUNT可以接受0或1个参数
                 if args.len() > 1 {
                     return Err(ValidationError::new(
@@ -1042,10 +1041,10 @@ impl ExpressionValidationStrategy {
                     ));
                 }
             }
-            crate::core::AggregateFunction::Sum
-            | crate::core::AggregateFunction::Avg
-            | crate::core::AggregateFunction::Max
-            | crate::core::AggregateFunction::Min => {
+            crate::core::AggregateFunction::Sum(_)
+            | crate::core::AggregateFunction::Avg(_)
+            | crate::core::AggregateFunction::Max(_)
+            | crate::core::AggregateFunction::Min(_) => {
                 // 这些函数需要1个参数
                 if args.len() != 1 {
                     return Err(ValidationError::new(
@@ -1053,13 +1052,13 @@ impl ExpressionValidationStrategy {
                         ValidationErrorType::AggregateError,
                     ));
                 }
-                
+
                 // 验证参数类型为数值类型
                 if let Some(arg) = args.first() {
                     self.validate_expression_type(arg, context, ValueTypeDef::Int)?;
                 }
             }
-            crate::core::AggregateFunction::Collect => {
+            crate::core::AggregateFunction::Collect(_) => {
                 // COLLECT可以接受任意数量的参数
                 // 不需要特殊验证
             }
@@ -1354,7 +1353,7 @@ impl ExpressionValidationStrategy {
         arg: &Expression,
     ) -> Result<(), ValidationError> {
         match func {
-            crate::core::AggregateFunction::Count => {
+            crate::core::AggregateFunction::Count(_) => {
                 // COUNT可以接受0或1个参数
                 // 验证参数类型：COUNT通常接受任何类型，但参数必须是有效的
                 if self.is_evaluable_expression(arg) {
@@ -1368,15 +1367,15 @@ impl ExpressionValidationStrategy {
                     }
                 }
             }
-            crate::core::AggregateFunction::Sum => {
+            crate::core::AggregateFunction::Sum(_) => {
                 // SUM需要数值类型参数
                 self.validate_numeric_aggregate_arg(arg, "SUM")?;
             }
-            crate::core::AggregateFunction::Avg => {
+            crate::core::AggregateFunction::Avg(_) => {
                 // AVG需要数值类型参数
                 self.validate_numeric_aggregate_arg(arg, "AVG")?;
             }
-            crate::core::AggregateFunction::Max | crate::core::AggregateFunction::Min => {
+            crate::core::AggregateFunction::Max(_) | crate::core::AggregateFunction::Min(_) => {
                 // MAX/MIN可以接受任何可比较类型
                 // 验证参数是否为有效表达式
                 if self.is_evaluable_expression(arg) {
@@ -1391,15 +1390,15 @@ impl ExpressionValidationStrategy {
                     }
                 }
             }
-            crate::core::AggregateFunction::Collect => {
+            crate::core::AggregateFunction::Collect(_) => {
                 // COLLECT可以接受任意类型的单个参数
                 // 不需要特殊类型验证
             }
-            crate::core::AggregateFunction::Distinct => {
+            crate::core::AggregateFunction::Distinct(_) => {
                 // DISTINCT需要1个参数
                 // 不需要特殊类型验证
             }
-            crate::core::AggregateFunction::Percentile => {
+            crate::core::AggregateFunction::Percentile(_, _) => {
                 // PERCENTILE需要2个参数：字段和百分位数
                 // 当前实现中，arg是整个参数表达式，需要进一步解析
                 // 简化验证：确保参数不为空
@@ -2081,7 +2080,7 @@ mod tests {
 
         // 测试COUNT聚合函数
         let count_expr = Expression::Aggregate {
-            func: crate::core::AggregateFunction::Count,
+            func: crate::core::AggregateFunction::Count(None),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
@@ -2091,7 +2090,7 @@ mod tests {
 
         // 测试SUM聚合函数
         let sum_expr = Expression::Aggregate {
-            func: crate::core::AggregateFunction::Sum,
+            func: crate::core::AggregateFunction::Sum("".to_string()),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
@@ -2144,7 +2143,7 @@ mod tests {
 
         // 测试包含聚合函数的表达式
         let aggregate_expr = Expression::Aggregate {
-            func: crate::core::AggregateFunction::Count,
+            func: crate::core::AggregateFunction::Count(None),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
@@ -2157,7 +2156,7 @@ mod tests {
         // 测试嵌套表达式中的聚合函数
         let nested_expr = Expression::Binary {
             left: Box::new(Expression::Aggregate {
-                func: crate::core::AggregateFunction::Sum,
+                func: crate::core::AggregateFunction::Sum("".to_string()),
                 arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
                 distinct: false,
             }),

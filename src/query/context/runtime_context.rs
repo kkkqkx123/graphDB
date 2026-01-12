@@ -4,7 +4,7 @@
 //! 对应C++版本中的RuntimeContext结构
 
 use crate::common::base::id::{EdgeType, TagId};
-use crate::core::error::{ManagerError, ManagerResult};
+use crate::core::error::ManagerResult;
 use crate::core::Value;
 use std::sync::Arc;
 

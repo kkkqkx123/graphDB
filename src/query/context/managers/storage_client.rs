@@ -1,6 +1,6 @@
 //! 存储客户端接口 - 定义存储层访问的基本操作
 
-use crate::core::error::{ManagerError, ManagerResult};
+use crate::core::error::ManagerResult;
 use crate::core::{Edge, Value, Vertex};
 use std::collections::HashMap;
 

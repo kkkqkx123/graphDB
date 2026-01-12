@@ -296,14 +296,14 @@ impl ExpressionFunction for StringFunction {
 impl ExpressionFunction for AggregateFunction {
     fn name(&self) -> &str {
         match self {
-            AggregateFunction::Count => "count",
-            AggregateFunction::Sum => "sum",
-            AggregateFunction::Avg => "avg",
-            AggregateFunction::Min => "min",
-            AggregateFunction::Max => "max",
-            AggregateFunction::Collect => "collect",
-            AggregateFunction::Distinct => "distinct",
-            AggregateFunction::Percentile => "percentile",
+            AggregateFunction::Count(_) => "count",
+            AggregateFunction::Sum(_) => "sum",
+            AggregateFunction::Avg(_) => "avg",
+            AggregateFunction::Min(_) => "min",
+            AggregateFunction::Max(_) => "max",
+            AggregateFunction::Collect(_) => "collect",
+            AggregateFunction::Distinct(_) => "distinct",
+            AggregateFunction::Percentile(_, _) => "percentile",
         }
     }
 
@@ -324,14 +324,14 @@ impl ExpressionFunction for AggregateFunction {
 
     fn description(&self) -> &str {
         match self {
-            AggregateFunction::Count => "计数",
-            AggregateFunction::Sum => "求和",
-            AggregateFunction::Avg => "平均值",
-            AggregateFunction::Min => "最小值",
-            AggregateFunction::Max => "最大值",
-            AggregateFunction::Collect => "收集",
-            AggregateFunction::Distinct => "去重",
-            AggregateFunction::Percentile => "百分位数",
+            AggregateFunction::Count(_) => "计数",
+            AggregateFunction::Sum(_) => "求和",
+            AggregateFunction::Avg(_) => "平均值",
+            AggregateFunction::Min(_) => "最小值",
+            AggregateFunction::Max(_) => "最大值",
+            AggregateFunction::Collect(_) => "收集",
+            AggregateFunction::Distinct(_) => "去重",
+            AggregateFunction::Percentile(_, _) => "百分位数",
         }
     }
 }

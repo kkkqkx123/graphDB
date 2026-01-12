@@ -309,16 +309,16 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     ) -> Result<(), TypeDeductionError> {
         use crate::core::AggregateFunction;
         self.type_ = match func {
-            AggregateFunction::Count => ValueTypeDef::Int,
-            AggregateFunction::Sum => ValueTypeDef::Float,
-            AggregateFunction::Avg => ValueTypeDef::Float,
-            AggregateFunction::Min | AggregateFunction::Max => {
+            AggregateFunction::Count(_) => ValueTypeDef::Int,
+            AggregateFunction::Sum(_) => ValueTypeDef::Float,
+            AggregateFunction::Avg(_) => ValueTypeDef::Float,
+            AggregateFunction::Min(_) | AggregateFunction::Max(_) => {
                 // 保持参数类型，已在visit中处理
                 self.type_.clone()
             }
-            AggregateFunction::Collect => ValueTypeDef::List,
-            AggregateFunction::Distinct => ValueTypeDef::List,
-            AggregateFunction::Percentile => ValueTypeDef::Float,
+            AggregateFunction::Collect(_) => ValueTypeDef::List,
+            AggregateFunction::Distinct(_) => ValueTypeDef::List,
+            AggregateFunction::Percentile(_, _) => ValueTypeDef::Float,
         };
         Ok(())
     }

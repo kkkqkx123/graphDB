@@ -2,6 +2,7 @@
 //!
 //! AggregateNode 用于对输入数据进行聚合操作
 
+use crate::core::types::operators::{AggregateFunction, Operator};
 use crate::query::context::validate::types::Variable;
 
 /// 聚合节点
@@ -13,7 +14,8 @@ pub struct AggregateNode {
     input: Box<super::plan_node_enum::PlanNodeEnum>,
     deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     group_keys: Vec<String>,
-    agg_exprs: Vec<String>,
+    /// 聚合函数列表，替代原来的agg_exprs
+    aggregation_functions: Vec<AggregateFunction>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -24,9 +26,13 @@ impl AggregateNode {
     pub fn new(
         input: super::plan_node_enum::PlanNodeEnum,
         group_keys: Vec<String>,
-        agg_exprs: Vec<String>,
+        aggregation_functions: Vec<AggregateFunction>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
-        let col_names: Vec<String> = group_keys.iter().chain(agg_exprs.iter()).cloned().collect();
+        // 生成列名：分组键 + 聚合函数名称
+        let mut col_names: Vec<String> = group_keys.clone();
+        for agg_func in &aggregation_functions {
+            col_names.push(agg_func.name().to_string());
+        }
 
         let mut deps = Vec::new();
         deps.push(Box::new(input.clone()));
@@ -36,7 +42,7 @@ impl AggregateNode {
             input: Box::new(input),
             deps,
             group_keys,
-            agg_exprs,
+            aggregation_functions,
             output_var: None,
             col_names,
             cost: 0.0,
@@ -48,9 +54,14 @@ impl AggregateNode {
         &self.group_keys
     }
 
-    /// 获取聚合表达式
-    pub fn agg_exprs(&self) -> &[String] {
-        &self.agg_exprs
+    /// 获取聚合函数列表
+    pub fn aggregation_functions(&self) -> &[AggregateFunction] {
+        &self.aggregation_functions
+    }
+
+    /// 获取聚合表达式（别名方法，与aggregation_functions相同）
+    pub fn agg_exprs(&self) -> &[AggregateFunction] {
+        &self.aggregation_functions
     }
 
     pub fn id(&self) -> i64 {
@@ -102,7 +113,7 @@ impl AggregateNode {
             input: self.input.clone(),
             deps: self.deps.clone(),
             group_keys: self.group_keys.clone(),
-            agg_exprs: self.agg_exprs.clone(),
+            aggregation_functions: self.aggregation_functions.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -178,6 +189,7 @@ impl super::plan_node_traits::PlanNodeClonable for AggregateNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::operators::AggregateFunction;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
 
     #[test]
@@ -188,14 +200,14 @@ mod tests {
             );
 
         let group_keys = vec!["category".to_string()];
-        let agg_exprs = vec!["COUNT(*)".to_string()];
+        let aggregation_functions = vec![AggregateFunction::Count(None)];
 
-        let aggregate_node = AggregateNode::new(start_node, group_keys, agg_exprs)
+        let aggregate_node = AggregateNode::new(start_node, group_keys, aggregation_functions)
             .expect("Aggregate node should be created successfully");
 
         assert_eq!(aggregate_node.type_name(), "Aggregate");
         assert_eq!(aggregate_node.dependencies().len(), 1);
         assert_eq!(aggregate_node.group_keys().len(), 1);
-        assert_eq!(aggregate_node.agg_exprs().len(), 1);
+        assert_eq!(aggregate_node.aggregation_functions().len(), 1);
     }
 }
