@@ -5,7 +5,7 @@ use crate::utils::{safe_lock, safe_read, safe_write};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 use uuid::Uuid;
 
 /// Unique identifier for a session
@@ -281,6 +281,7 @@ pub mod session_utils {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::SystemTime;
 
     #[test]
     fn test_session_id() {

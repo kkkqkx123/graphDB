@@ -10,7 +10,6 @@ use super::traits::*;
 use crate::query::parser::ast::expr::Expr;
 use crate::query::parser::cypher::lexer::{Token, TokenType};
 use std::sync::Arc;
-use std::time::Duration;
 
 // 定义统计缓存类型 - 统一使用 StatsEnabled 版本
 type KeywordStatsType =
@@ -427,6 +426,7 @@ impl PatternCache {
 mod tests {
     use super::*;
     use crate::query::parser::cypher::lexer::{Token, TokenType};
+    use std::time::Duration;
 
     #[test]
     fn test_parser_cache_creation() {

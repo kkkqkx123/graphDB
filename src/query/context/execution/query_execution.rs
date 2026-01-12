@@ -4,7 +4,6 @@
 use crate::core::context::request::RequestContext;
 use crate::core::context::{QueryExecutionContext, ValidationContext};
 use crate::core::{SymbolTable, Value};
-use crate::core::error::ManagerResult;
 use crate::graph::utils::IdGenerator;
 use crate::query::context::managers::{
     CharsetInfo, IndexManager, MetaClient, SchemaManager, StorageClient,
@@ -435,6 +434,7 @@ impl Default for QueryContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::error::ManagerResult;
     use crate::query::context::managers::{Index, Schema};
     use std::collections::HashMap;
 

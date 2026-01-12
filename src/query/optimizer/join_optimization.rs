@@ -5,7 +5,6 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
-use crate::query::planner::plan::PlanNodeEnum;
 
 /// 转换连接以获得更好性能的规则
 #[derive(Debug)]
@@ -108,6 +107,7 @@ mod tests {
     use super::*;
     use crate::core::context::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::planner::plan::PlanNodeEnum;
     use crate::query::planner::plan::core::nodes::LimitNode;
 
     fn create_test_context() -> OptContext {

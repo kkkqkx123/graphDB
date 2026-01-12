@@ -4,7 +4,7 @@
 
 use super::registry::CacheRegistry;
 use super::stats_collector::CacheStatsCollector;
-use crate::cache::{CacheConfig, CacheStrategy};
+use crate::cache::CacheConfig;
 use std::sync::{Arc, OnceLock};
 
 /// 全局缓存管理器
@@ -139,6 +139,7 @@ pub fn global_stats_collector() -> CacheStatsCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cache::CacheStrategy;
 
     #[test]
     fn test_global_cache_manager_creation() {

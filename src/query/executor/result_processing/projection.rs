@@ -11,7 +11,7 @@ use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageEngine;
 
 /// 投影列定义
@@ -307,6 +307,7 @@ mod tests {
     use super::*;
     use crate::core::value::{DataSet, Value};
     use crate::core::{BinaryOperator, Expression};
+    use crate::query::executor::HasStorage;
     use crate::query::executor::traits::{ExecutionResult, Executor};
     use crate::storage::test_mock::MockStorage;
     use crate::storage::StorageEngine;
