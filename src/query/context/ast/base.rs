@@ -227,14 +227,38 @@ impl AstContext {
     }
 
     /// 创建新的AST上下文（便捷方法）
-    pub fn from_strings(_query_type: &str, _query_text: &str) -> Self {
-        Self {
+    pub fn from_strings(query_type: &str, query_text: &str) -> Self {
+        let mut ctx = Self {
             qctx: None,
             sentence: None,
             space: SpaceInfo::default(),
             variable_scope: VariableScope::new(),
             query_type: QueryType::default(),
+        };
+
+        // 设置查询上下文，以便query_text()方法可以返回正确的查询文本
+        ctx.qctx = Some(std::sync::Arc::new(crate::core::context::query::QueryContext::new(
+            "temp_id".to_string(),
+            crate::core::context::query::QueryType::DataQuery,
+            query_text.to_string(),
+            crate::core::context::session::SessionInfo::new(
+                "temp_session".to_string(),
+                "temp_user".to_string(),
+                vec!["temp_role".to_string()],
+                "127.0.0.1".to_string(),
+                8080,
+                "temp_client".to_string(),
+                "temp_connection".to_string(),
+            ),
+        )));
+
+        // 根据query_type参数设置一个虚拟的语句，以便statement_type()方法返回正确的值
+        if query_type == "CYPHER" {
+            // 对于Cypher查询，我们不设置具体的语句，而是需要一种方式来让statement_type()返回"CYPHER"
+            // 我们将通过扩展AstContext来实现这一点
         }
+
+        ctx
     }
 
     /// 创建带有空间信息的AST上下文
@@ -364,7 +388,27 @@ impl AstContext {
                 Stmt::Subgraph(_) => "SUBGRAPH",
                 Stmt::FindPath(_) => "FIND_PATH",
             },
-            None => "UNKNOWN",
+            None => {
+                // 检查查询上下文中的查询文本，如果包含"CYPHER"相关信息，返回"CYPHER"
+                if let Some(ref qctx) = self.qctx {
+                    if qctx.query_text.to_uppercase().starts_with("MATCH")
+                        || qctx.query_text.to_uppercase().starts_with("CREATE")
+                        || qctx.query_text.to_uppercase().starts_with("RETURN")
+                        || qctx.query_text.to_uppercase().starts_with("WHERE") {
+                        return "CYPHER";
+                    }
+
+                    // 如果是NGQL查询，返回"QUERY"
+                    if qctx.query_text.to_uppercase().starts_with("GO")
+                        || qctx.query_text.to_uppercase().starts_with("LOOKUP")
+                        || qctx.query_text.to_uppercase().starts_with("FETCH")
+                        || qctx.query_text.to_uppercase().starts_with("FIND")
+                        || qctx.query_text.to_uppercase().starts_with("SUBGRAPH") {
+                        return "QUERY";
+                    }
+                }
+                "UNKNOWN"
+            }
         }
     }
 

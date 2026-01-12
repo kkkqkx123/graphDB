@@ -111,8 +111,11 @@ pub enum VariableVisibility {
 impl CypherAstContext {
     /// 创建新的Cypher AST上下文
     pub fn new(query_text: &str) -> Self {
+        // 创建一个默认的AstContext
+        let base = AstContext::from_strings("CYPHER", query_text);
+
         Self {
-            base: AstContext::from_strings("CYPHER", query_text),
+            base,
             query_parts: Vec::new(),
             variables: HashMap::new(),
             expressions: Vec::new(),

@@ -134,7 +134,7 @@ impl RowReaderWrapper {
                 if data.len() < 8 {
                     return Err("数据长度不足".to_string());
                 }
-                let value = i64::from_be_bytes([
+                let value = i64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
                 Ok(Value::Int(value))
@@ -143,14 +143,14 @@ impl RowReaderWrapper {
                 if data.len() < 4 {
                     return Err("数据长度不足".to_string());
                 }
-                let value = f32::from_be_bytes([data[0], data[1], data[2], data[3]]);
+                let value = f32::from_le_bytes([data[0], data[1], data[2], data[3]]);
                 Ok(Value::Float(value as f64))
             }
             super::types::FieldType::Double => {
                 if data.len() < 8 {
                     return Err("数据长度不足".to_string());
                 }
-                let value = f64::from_be_bytes([
+                let value = f64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
                 Ok(Value::Float(value))
@@ -186,7 +186,7 @@ impl RowReaderWrapper {
                 if data.len() < 8 {
                     return Err("数据长度不足".to_string());
                 }
-                let timestamp = i64::from_be_bytes([
+                let timestamp = i64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
                 // 将时间戳转换为DateTime
@@ -206,7 +206,7 @@ impl RowReaderWrapper {
                 if data.len() < 4 {
                     return Err("数据长度不足".to_string());
                 }
-                let days = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
+                let days = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
                 // 将天数转换为DateValue（简化实现，从1970-01-01开始计算）
                 Ok(Value::Date(crate::core::value::DateValue {
                     year: 1970 + (days / 365) as i32,
@@ -218,7 +218,7 @@ impl RowReaderWrapper {
                 if data.len() < 8 {
                     return Err("数据长度不足".to_string());
                 }
-                let timestamp = i64::from_be_bytes([
+                let timestamp = i64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
                 // 将时间戳转换为DateTime

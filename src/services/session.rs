@@ -5,7 +5,7 @@ use crate::utils::{safe_lock, safe_read, safe_write};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
 /// Unique identifier for a session

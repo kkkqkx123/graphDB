@@ -4,7 +4,7 @@
 use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{
-    create_basic_pattern, is_expression_tautology, BaseOptRule, EliminationRule,
+    create_basic_pattern, is_expression_tautology, is_tautology, BaseOptRule, EliminationRule,
 };
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::PlanNodeEnum;

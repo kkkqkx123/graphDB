@@ -296,15 +296,15 @@ impl<S: StorageEngine + Send + 'static> CypherExecutorTrait<S> for CypherExecuto
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::test_config::test_config;
     use crate::storage::NativeStorage;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_cypher_executor_creation() {
-        let config = test_config();
+        let temp_dir = std::env::temp_dir();
+        let test_path = temp_dir.join("graphdb_test_cypher").to_str().unwrap().to_string();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db"))
+            NativeStorage::new(&test_path)
                 .expect("Failed to create test storage"),
         ));
         let executor = CypherExecutor::new(1, storage);
@@ -316,9 +316,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_cypher_executor_lifecycle() {
-        let config = test_config();
+        let temp_dir = std::env::temp_dir();
+        let test_path = temp_dir.join("graphdb_test_cypher_lifecycle").to_str().unwrap().to_string();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_lifecycle"))
+            NativeStorage::new(&test_path)
                 .expect("Failed to create test storage"),
         ));
         let mut executor = CypherExecutor::new(1, storage);
@@ -338,9 +339,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_cypher_executor_with_name() {
-        let config = test_config();
+        let temp_dir = std::env::temp_dir();
+        let test_path = temp_dir.join("graphdb_test_cypher_with_name").to_str().unwrap().to_string();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_with_name"))
+            NativeStorage::new(&test_path)
                 .expect("Failed to create test storage"),
         ));
         let executor = CypherExecutor::with_name(2, "TestExecutor".to_string(), storage);

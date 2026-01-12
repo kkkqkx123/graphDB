@@ -280,8 +280,10 @@ mod tests {
 
     #[test]
     fn test_pattern_direction_to_storage_direction() {
+        let config = crate::config::test_config::test_config();
+        let test_path = config.test_db_path("test_traversal_engine");
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("data/tests/test_db")
+            crate::storage::native_storage::NativeStorage::new(test_path.to_str().unwrap())
                 .expect("Failed to create test storage"),
         ));
         let engine = TraversalEngine::new(storage);
@@ -302,8 +304,10 @@ mod tests {
 
     #[test]
     fn test_get_target_vertex_id() {
+        let config = crate::config::test_config::test_config();
+        let test_path = config.test_db_path("test_traversal_engine_target");
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("data/tests/test_db")
+            crate::storage::native_storage::NativeStorage::new(test_path.to_str().unwrap())
                 .expect("Failed to create test storage"),
         ));
         let engine = TraversalEngine::new(storage);
@@ -334,8 +338,10 @@ mod tests {
 
     #[test]
     fn test_visited_vertices_management() {
+        let config = crate::config::test_config::test_config();
+        let test_path = config.test_db_path("test_traversal_engine_visited");
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("data/tests/test_db")
+            crate::storage::native_storage::NativeStorage::new(test_path.to_str().unwrap())
                 .expect("Failed to create test storage"),
         ));
         let mut engine = TraversalEngine::new(storage);
@@ -367,8 +373,10 @@ mod tests {
 
     #[test]
     fn test_cycle_detection() {
+        let config = crate::config::test_config::test_config();
+        let test_path = config.test_db_path("test_traversal_engine_cycle");
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("data/tests/test_db")
+            crate::storage::native_storage::NativeStorage::new(test_path.to_str().unwrap())
                 .expect("Failed to create test storage"),
         ));
         let engine = TraversalEngine::new(storage);
@@ -398,8 +406,10 @@ mod tests {
 
     #[test]
     fn test_unique_count() {
+        let config = crate::config::test_config::test_config();
+        let test_path = config.test_db_path("test_traversal_engine_unique");
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("data/tests/test_db")
+            crate::storage::native_storage::NativeStorage::new(test_path.to_str().unwrap())
                 .expect("Failed to create test storage"),
         ));
         let engine = TraversalEngine::new(storage);
@@ -446,8 +456,10 @@ mod tests {
 
     #[test]
     fn test_max_path_length() {
+        let config = crate::config::test_config::test_config();
+        let test_path = config.test_db_path("test_traversal_engine_max_path");
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("data/tests/test_db")
+            crate::storage::native_storage::NativeStorage::new(test_path.to_str().unwrap())
                 .expect("Failed to create test storage"),
         ));
         let mut engine = TraversalEngine::new(storage);
@@ -460,8 +472,10 @@ mod tests {
 
     #[test]
     fn test_reset() {
+        let config = crate::config::test_config::test_config();
+        let test_path = config.test_db_path("test_traversal_engine_reset");
         let storage = Arc::new(Mutex::new(
-            crate::storage::native_storage::NativeStorage::new("data/tests/test_db")
+            crate::storage::native_storage::NativeStorage::new(test_path.to_str().unwrap())
                 .expect("Failed to create test storage"),
         ));
         let mut engine = TraversalEngine::new(storage);

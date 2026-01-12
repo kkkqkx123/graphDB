@@ -4,6 +4,7 @@
 use crate::core::context::request::RequestContext;
 use crate::core::context::{QueryExecutionContext, ValidationContext};
 use crate::core::{SymbolTable, Value};
+use crate::core::error::ManagerResult;
 use crate::graph::utils::IdGenerator;
 use crate::query::context::managers::{
     CharsetInfo, IndexManager, MetaClient, SchemaManager, StorageClient,

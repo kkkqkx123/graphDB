@@ -5,6 +5,7 @@ use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 优化索引全扫描为更高效的全表扫描的规则
 #[derive(Debug)]
