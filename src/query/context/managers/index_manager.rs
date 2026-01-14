@@ -21,6 +21,28 @@ pub enum IndexType {
     FulltextIndex,
 }
 
+/// 索引统计信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexStats {
+    pub index_id: i32,
+    pub index_name: String,
+    pub total_entries: usize,
+    pub unique_entries: usize,
+    pub last_updated: i64,
+    pub memory_usage_bytes: usize,
+    pub query_count: u64,
+    pub avg_query_time_ms: f64,
+}
+
+/// 索引优化建议
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexOptimization {
+    pub index_id: i32,
+    pub index_name: String,
+    pub suggestions: Vec<String>,
+    pub priority: String,
+}
+
 /// 索引信息 - 表示数据库索引
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Index {
@@ -123,4 +145,36 @@ pub trait IndexManager: Send + Sync + std::fmt::Debug {
     fn load_from_disk(&self) -> ManagerResult<()>;
     /// 保存索引到磁盘
     fn save_to_disk(&self) -> ManagerResult<()>;
+
+    /// ==================== 索引维护功能 ====================
+
+    /// 重建索引
+    fn rebuild_index(&self, space_id: i32, index_id: i32) -> ManagerResult<()>;
+    /// 重建所有索引
+    fn rebuild_all_indexes(&self, space_id: i32) -> ManagerResult<()>;
+    /// 获取索引统计信息
+    fn get_index_stats(&self, space_id: i32, index_id: i32) -> ManagerResult<IndexStats>;
+    /// 获取所有索引的统计信息
+    fn get_all_index_stats(&self, space_id: i32) -> ManagerResult<Vec<IndexStats>>;
+    /// 分析索引并提供优化建议
+    fn analyze_index(&self, space_id: i32, index_id: i32) -> ManagerResult<IndexOptimization>;
+    /// 分析所有索引并提供优化建议
+    fn analyze_all_indexes(&self, space_id: i32) -> ManagerResult<Vec<IndexOptimization>>;
+    /// 检查索引一致性
+    fn check_index_consistency(&self, space_id: i32, index_id: i32) -> ManagerResult<bool>;
+    /// 修复索引
+    fn repair_index(&self, space_id: i32, index_id: i32) -> ManagerResult<()>;
+    /// 清理索引数据
+    fn cleanup_index(&self, space_id: i32, index_id: i32) -> ManagerResult<()>;
+
+    /// ==================== 批量操作 ====================
+
+    /// 批量插入顶点到索引
+    fn batch_insert_vertices(&self, space_id: i32, vertices: &[Vertex]) -> ManagerResult<()>;
+    /// 批量删除顶点从索引
+    fn batch_delete_vertices(&self, space_id: i32, vertices: &[Vertex]) -> ManagerResult<()>;
+    /// 批量插入边到索引
+    fn batch_insert_edges(&self, space_id: i32, edges: &[Edge]) -> ManagerResult<()>;
+    /// 批量删除边从索引
+    fn batch_delete_edges(&self, space_id: i32, edges: &[Edge]) -> ManagerResult<()>;
 }

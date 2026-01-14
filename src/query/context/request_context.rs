@@ -3,7 +3,7 @@
 
 use crate::core::Value;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, atomic::{AtomicBool, AtomicU64, Ordering}};
 
 // SessionInfo 现在统一使用 src/core/context/session.rs 中的定义
 use crate::core::context::session::SessionInfo;
@@ -15,6 +15,7 @@ pub struct RequestParams {
     pub parameters: HashMap<String, Value>,
     pub timeout_ms: u64,
     pub max_retry_times: u32,
+    pub retry_count: u32,
 }
 
 impl RequestParams {
@@ -24,6 +25,7 @@ impl RequestParams {
             parameters: HashMap::new(),
             timeout_ms: 30000, // 默认30秒
             max_retry_times: 3,
+            retry_count: 0,
         }
     }
 
@@ -40,6 +42,14 @@ impl RequestParams {
     pub fn with_max_retry(mut self, max_retry: u32) -> Self {
         self.max_retry_times = max_retry;
         self
+    }
+
+    pub fn increment_retry(&mut self) {
+        self.retry_count += 1;
+    }
+
+    pub fn can_retry(&self) -> bool {
+        self.retry_count < self.max_retry_times
     }
 }
 
@@ -105,13 +115,17 @@ impl Response {
 /// 2. 会话信息管理
 /// 3. 响应对象管理
 /// 4. 请求生命周期管理
+/// 5. 请求取消和超时控制
+/// 6. 重试逻辑
+/// 7. 日志记录
+/// 8. 统计信息
 #[derive(Debug, Clone)]
 pub struct RequestContext {
     // 会话信息
     session_info: Option<SessionInfo>,
 
     // 请求参数
-    request_params: RequestParams,
+    request_params: Arc<RwLock<RequestParams>>,
 
     // 响应对象
     response: Arc<RwLock<Response>>,
@@ -124,6 +138,53 @@ pub struct RequestContext {
 
     // 自定义属性
     attributes: Arc<RwLock<HashMap<String, Value>>>,
+
+    // 请求取消标志
+    cancelled: Arc<AtomicBool>,
+
+    // 请求超时标志
+    timed_out: Arc<AtomicBool>,
+
+    // 查询执行次数
+    execution_count: Arc<AtomicU64>,
+
+    // 日志记录
+    logs: Arc<RwLock<Vec<RequestLog>>>,
+
+    // 统计信息
+    statistics: Arc<RwLock<RequestStatistics>>,
+}
+
+/// 请求日志
+#[derive(Debug, Clone)]
+pub struct RequestLog {
+    pub timestamp: i64,
+    pub level: LogLevel,
+    pub message: String,
+    pub context: Option<String>,
+}
+
+/// 日志级别
+#[derive(Debug, Clone, PartialEq)]
+pub enum LogLevel {
+    Debug,
+    Info,
+    Warning,
+    Error,
+}
+
+/// 请求统计信息
+#[derive(Debug, Clone)]
+pub struct RequestStatistics {
+    pub total_queries: u64,
+    pub successful_queries: u64,
+    pub failed_queries: u64,
+    pub cancelled_queries: u64,
+    pub timed_out_queries: u64,
+    pub total_execution_time_ms: u64,
+    pub avg_execution_time_ms: f64,
+    pub max_execution_time_ms: u64,
+    pub min_execution_time_ms: u64,
 }
 
 /// 请求状态
@@ -139,13 +200,33 @@ pub enum RequestStatus {
 impl RequestContext {
     /// 创建新的请求上下文
     pub fn new(session_info: SessionInfo, request_params: RequestParams) -> Self {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        
         Self {
             session_info: Some(session_info),
-            request_params,
+            request_params: Arc::new(RwLock::new(request_params)),
             response: Arc::new(RwLock::new(Response::new(true))),
             start_time: std::time::SystemTime::now(),
             status: Arc::new(RwLock::new(RequestStatus::Pending)),
             attributes: Arc::new(RwLock::new(HashMap::new())),
+            cancelled: Arc::new(AtomicBool::new(false)),
+            timed_out: Arc::new(AtomicBool::new(false)),
+            execution_count: Arc::new(AtomicU64::new(0)),
+            logs: Arc::new(RwLock::new(Vec::new())),
+            statistics: Arc::new(RwLock::new(RequestStatistics {
+                total_queries: 0,
+                successful_queries: 0,
+                failed_queries: 0,
+                cancelled_queries: 0,
+                timed_out_queries: 0,
+                total_execution_time_ms: 0,
+                avg_execution_time_ms: 0.0,
+                max_execution_time_ms: 0,
+                min_execution_time_ms: u64::MAX,
+            })),
         }
     }
 
@@ -326,22 +407,52 @@ impl RequestContext {
 
     /// 获取参数值
     pub fn get_parameter(&self, name: &str) -> Option<Value> {
-        self.request_params.parameters.get(name).cloned()
+        let request_params = self.request_params.read().ok()?;
+        request_params.parameters.get(name).cloned()
     }
 
     /// 设置参数值
-    pub fn set_parameter(&mut self, name: String, value: Value) {
-        self.request_params.parameters.insert(name, value);
+    pub fn set_parameter(&self, name: String, value: Value) -> Result<(), String> {
+        let mut request_params = self
+            .request_params
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on request_params: {}", e))?;
+        request_params.parameters.insert(name, value);
+        Ok(())
     }
 
     /// 获取超时时间（毫秒）
     pub fn timeout_ms(&self) -> u64 {
-        self.request_params.timeout_ms
+        let request_params = self.request_params.read().ok();
+        request_params.map(|p| p.timeout_ms).unwrap_or(30000)
     }
 
     /// 获取最大重试次数
     pub fn max_retry_times(&self) -> u32 {
-        self.request_params.max_retry_times
+        let request_params = self.request_params.read().ok();
+        request_params.map(|p| p.max_retry_times).unwrap_or(3)
+    }
+
+    /// 获取当前重试次数
+    pub fn retry_count(&self) -> u32 {
+        let request_params = self.request_params.read().ok();
+        request_params.map(|p| p.retry_count).unwrap_or(0)
+    }
+
+    /// 增加重试计数
+    pub fn increment_retry(&self) -> Result<(), String> {
+        let mut request_params = self
+            .request_params
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on request_params: {}", e))?;
+        request_params.increment_retry();
+        Ok(())
+    }
+
+    /// 检查是否可以重试
+    pub fn can_retry(&self) -> bool {
+        let request_params = self.request_params.read().ok();
+        request_params.map(|p| p.can_retry()).unwrap_or(false)
     }
 
     // ==================== 响应对象管理 ====================
@@ -549,6 +660,186 @@ impl RequestContext {
             .map_err(|e| format!("Failed to acquire write lock on attributes: {}", e))?;
 
         Ok(attributes.remove(key))
+    }
+
+    // ==================== 请求取消和超时控制 ====================
+
+    /// 取消请求
+    pub fn cancel(&self) -> Result<(), String> {
+        self.cancelled.store(true, Ordering::SeqCst);
+        self.mark_cancelled()?;
+        self.log(LogLevel::Warning, "请求已取消".to_string(), None)?;
+        
+        let mut stats = self
+            .statistics
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on statistics: {}", e))?;
+        stats.cancelled_queries += 1;
+        
+        Ok(())
+    }
+
+    /// 检查请求是否已取消
+    pub fn is_cancelled_flag(&self) -> bool {
+        self.cancelled.load(Ordering::SeqCst)
+    }
+
+    /// 标记请求超时
+    pub fn mark_timed_out(&self) -> Result<(), String> {
+        self.timed_out.store(true, Ordering::SeqCst);
+        self.mark_failed()?;
+        self.log(LogLevel::Error, "请求超时".to_string(), None)?;
+        
+        let mut stats = self
+            .statistics
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on statistics: {}", e))?;
+        stats.timed_out_queries += 1;
+        
+        Ok(())
+    }
+
+    /// 检查请求是否超时
+    pub fn is_timed_out(&self) -> bool {
+        self.timed_out.load(Ordering::SeqCst)
+    }
+
+    /// 检查是否超时
+    pub fn check_timeout(&self) -> Result<bool, String> {
+        let timeout_ms = self.timeout_ms();
+        let elapsed_ms = self.duration().as_millis() as u64;
+        
+        if elapsed_ms > timeout_ms {
+            self.mark_timed_out()?;
+            return Ok(true);
+        }
+        
+        Ok(false)
+    }
+
+    // ==================== 日志记录 ====================
+
+    /// 记录日志
+    pub fn log(&self, level: LogLevel, message: String, context: Option<String>) -> Result<(), String> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        
+        let log_entry = RequestLog {
+            timestamp: now,
+            level,
+            message,
+            context,
+        };
+        
+        let mut logs = self
+            .logs
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on logs: {}", e))?;
+        logs.push(log_entry);
+        
+        Ok(())
+    }
+
+    /// 获取所有日志
+    pub fn get_logs(&self) -> Result<Vec<RequestLog>, String> {
+        let logs = self
+            .logs
+            .read()
+            .map_err(|e| format!("Failed to acquire read lock on logs: {}", e))?;
+        Ok(logs.clone())
+    }
+
+    /// 获取指定级别的日志
+    pub fn get_logs_by_level(&self, level: LogLevel) -> Result<Vec<RequestLog>, String> {
+        let logs = self
+            .logs
+            .read()
+            .map_err(|e| format!("Failed to acquire read lock on logs: {}", e))?;
+        Ok(logs.iter().filter(|log| log.level == level).cloned().collect())
+    }
+
+    /// 清除日志
+    pub fn clear_logs(&self) -> Result<(), String> {
+        let mut logs = self
+            .logs
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on logs: {}", e))?;
+        logs.clear();
+        Ok(())
+    }
+
+    // ==================== 统计信息 ====================
+
+    /// 获取统计信息
+    pub fn get_statistics(&self) -> Result<RequestStatistics, String> {
+        let stats = self
+            .statistics
+            .read()
+            .map_err(|e| format!("Failed to acquire read lock on statistics: {}", e))?;
+        Ok(stats.clone())
+    }
+
+    /// 更新统计信息
+    pub fn update_statistics(&self, success: bool, execution_time_ms: u64) -> Result<(), String> {
+        let mut stats = self
+            .statistics
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on statistics: {}", e))?;
+        
+        stats.total_queries += 1;
+        stats.total_execution_time_ms += execution_time_ms;
+        
+        if success {
+            stats.successful_queries += 1;
+        } else {
+            stats.failed_queries += 1;
+        }
+        
+        if execution_time_ms > stats.max_execution_time_ms {
+            stats.max_execution_time_ms = execution_time_ms;
+        }
+        
+        if execution_time_ms < stats.min_execution_time_ms {
+            stats.min_execution_time_ms = execution_time_ms;
+        }
+        
+        if stats.total_queries > 0 {
+            stats.avg_execution_time_ms = stats.total_execution_time_ms as f64 / stats.total_queries as f64;
+        }
+        
+        Ok(())
+    }
+
+    /// 重置统计信息
+    pub fn reset_statistics(&self) -> Result<(), String> {
+        let mut stats = self
+            .statistics
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on statistics: {}", e))?;
+        
+        stats.total_queries = 0;
+        stats.successful_queries = 0;
+        stats.failed_queries = 0;
+        stats.cancelled_queries = 0;
+        stats.timed_out_queries = 0;
+        stats.total_execution_time_ms = 0;
+        stats.avg_execution_time_ms = 0.0;
+        stats.max_execution_time_ms = 0;
+        stats.min_execution_time_ms = u64::MAX;
+        
+        Ok(())
+    }
+
+    /// 获取执行计数
+    pub fn execution_count(&self) -> u64 {
+        self.execution_count.load(Ordering::SeqCst)
+    }
+
+    /// 增加执行计数
+    pub fn increment_execution_count(&self) {
+        self.execution_count.fetch_add(1, Ordering::SeqCst);
     }
 
     /// 生成请求上下文的字符串表示

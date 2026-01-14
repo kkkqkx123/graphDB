@@ -3,12 +3,56 @@
 use crate::core::error::ManagerResult;
 use serde::{Deserialize, Serialize};
 
+/// 属性类型
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PropertyType {
+    Bool,
+    Int,
+    Float,
+    String,
+    Date,
+    Time,
+    DateTime,
+}
+
+/// 属性定义
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PropertyDef {
+    pub name: String,
+    pub type_: PropertyType,
+    pub nullable: bool,
+    pub default: Option<String>,
+}
+
+/// 标签定义
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TagDef {
+    pub tag_name: String,
+    pub properties: Vec<PropertyDef>,
+}
+
+/// 边类型定义
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EdgeTypeDef {
+    pub edge_name: String,
+    pub properties: Vec<PropertyDef>,
+}
+
+/// 元数据版本信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MetadataVersion {
+    pub version: i32,
+    pub timestamp: i64,
+    pub description: String,
+}
+
 /// 集群信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterInfo {
     pub cluster_id: String,
     pub meta_servers: Vec<String>,
     pub storage_servers: Vec<String>,
+    pub version: MetadataVersion,
 }
 
 /// 空间信息
@@ -18,6 +62,9 @@ pub struct SpaceInfo {
     pub space_name: String,
     pub partition_num: i32,
     pub replica_factor: i32,
+    pub tags: Vec<TagDef>,
+    pub edge_types: Vec<EdgeTypeDef>,
+    pub version: MetadataVersion,
 }
 
 /// 元数据客户端接口 - 定义元数据访问的基本操作
@@ -47,4 +94,27 @@ pub trait MetaClient: Send + Sync + std::fmt::Debug {
     fn load_from_disk(&self) -> ManagerResult<()>;
     /// 保存元数据到磁盘
     fn save_to_disk(&self) -> ManagerResult<()>;
+
+    /// 创建标签定义
+    fn create_tag(&self, space_id: i32, tag_def: TagDef) -> ManagerResult<()>;
+    /// 删除标签定义
+    fn drop_tag(&self, space_id: i32, tag_name: &str) -> ManagerResult<()>;
+    /// 获取标签定义
+    fn get_tag(&self, space_id: i32, tag_name: &str) -> ManagerResult<TagDef>;
+    /// 列出空间的所有标签
+    fn list_tags(&self, space_id: i32) -> ManagerResult<Vec<TagDef>>;
+
+    /// 创建边类型定义
+    fn create_edge_type(&self, space_id: i32, edge_type_def: EdgeTypeDef) -> ManagerResult<()>;
+    /// 删除边类型定义
+    fn drop_edge_type(&self, space_id: i32, edge_name: &str) -> ManagerResult<()>;
+    /// 获取边类型定义
+    fn get_edge_type(&self, space_id: i32, edge_name: &str) -> ManagerResult<EdgeTypeDef>;
+    /// 列出空间的所有边类型
+    fn list_edge_types(&self, space_id: i32) -> ManagerResult<Vec<EdgeTypeDef>>;
+
+    /// 获取元数据版本
+    fn get_metadata_version(&self, space_id: i32) -> ManagerResult<MetadataVersion>;
+    /// 更新元数据版本
+    fn update_metadata_version(&self, space_id: i32, description: &str) -> ManagerResult<()>;
 }

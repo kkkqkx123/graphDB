@@ -4,7 +4,7 @@
 //! - BTreeMap: 支持范围查询和排序
 //! - HashMap: 支持精确匹配的快速查找
 
-use super::super::{Index, IndexManager, IndexStatus, IndexType};
+use super::super::{Index, IndexManager, IndexStatus, IndexType, IndexStats, IndexOptimization};
 use crate::core::error::{ManagerError, ManagerResult};
 use crate::core::{Edge, Value, Vertex};
 use crate::storage::StorageEngine;
@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// 简化的索引数据结构 - 使用 BTreeMap + HashMap 混合索引
 ///
@@ -27,15 +28,28 @@ struct IndexData {
     edge_by_type_property: BTreeMap<(String, String, Value), Vec<Edge>>,
     /// 按内部ID精确查找边 - HashMap提供O(1)查询
     edge_by_id: HashMap<i64, Edge>,
+    /// 查询计数
+    query_count: u64,
+    /// 总查询时间（毫秒）
+    total_query_time_ms: f64,
+    /// 最后更新时间
+    last_updated: i64,
 }
 
 impl IndexData {
     fn new() -> Self {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
         Self {
             vertex_by_tag_property: BTreeMap::new(),
             vertex_by_id: HashMap::new(),
             edge_by_type_property: BTreeMap::new(),
             edge_by_id: HashMap::new(),
+            query_count: 0,
+            total_query_time_ms: 0.0,
+            last_updated: now,
         }
     }
 
@@ -47,6 +61,12 @@ impl IndexData {
         field_value: &Value,
         vertex: Vertex,
     ) {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        self.last_updated = now;
+        
         let key = (
             tag_name.to_string(),
             field_name.to_string(),
@@ -61,6 +81,12 @@ impl IndexData {
 
     /// 插入边到索引
     fn insert_edge(&mut self, edge_type: &str, field_name: &str, field_value: &Value, edge: Edge) {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        self.last_updated = now;
+        
         let key = (
             edge_type.to_string(),
             field_name.to_string(),
@@ -164,6 +190,97 @@ impl IndexData {
         }
         result
     }
+
+    /// 删除顶点从索引
+    fn delete_vertex(&mut self, vertex: &Vertex) {
+        let vertex_id = vertex.id();
+        
+        self.vertex_by_id.remove(&vertex_id);
+        
+        for tag in &vertex.tags {
+            for (field_name, field_value) in &tag.properties {
+                let key = (
+                    tag.name.clone(),
+                    field_name.clone(),
+                    field_value.clone(),
+                );
+                if let Some(vertices) = self.vertex_by_tag_property.get_mut(&key) {
+                    vertices.retain(|v| v.id() != vertex_id);
+                }
+            }
+        }
+    }
+
+    /// 删除边从索引
+    fn delete_edge(&mut self, edge: &Edge) {
+        let edge_id = edge.id;
+        
+        self.edge_by_id.remove(&edge_id);
+        
+        for (field_name, field_value) in &edge.props {
+            let key = (
+                edge.edge_type.clone(),
+                field_name.clone(),
+                field_value.clone(),
+            );
+            if let Some(edges) = self.edge_by_type_property.get_mut(&key) {
+                edges.retain(|e| e.id != edge_id);
+            }
+        }
+    }
+
+    /// 获取内存使用量（字节）
+    fn get_memory_usage(&self) -> usize {
+        let mut size = std::mem::size_of_val(self);
+        
+        for (_, vertices) in &self.vertex_by_tag_property {
+            size += std::mem::size_of_val(vertices);
+            for vertex in vertices {
+                size += std::mem::size_of_val(vertex);
+            }
+        }
+        
+        for (_, vertex) in &self.vertex_by_id {
+            size += std::mem::size_of_val(vertex);
+        }
+        
+        for (_, edges) in &self.edge_by_type_property {
+            size += std::mem::size_of_val(edges);
+            for edge in edges {
+                size += std::mem::size_of_val(edge);
+            }
+        }
+        
+        for (_, edge) in &self.edge_by_id {
+            size += std::mem::size_of_val(edge);
+        }
+        
+        size
+    }
+
+    /// 获取唯一条目数
+    fn get_unique_entries(&self) -> usize {
+        self.vertex_by_tag_property.len() + self.edge_by_type_property.len()
+    }
+
+    /// 获取总条目数
+    fn get_total_entries(&self) -> usize {
+        self.vertex_by_id.len() + self.edge_by_id.len()
+    }
+
+    /// 清空索引数据
+    fn clear(&mut self) {
+        self.vertex_by_tag_property.clear();
+        self.vertex_by_id.clear();
+        self.edge_by_type_property.clear();
+        self.edge_by_id.clear();
+        self.query_count = 0;
+        self.total_query_time_ms = 0.0;
+        self.last_updated = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+    }
 }
 
 /// 内存中的索引管理器实现
@@ -174,6 +291,7 @@ pub struct MemoryIndexManager {
     storage_path: PathBuf,
     index_data: Arc<RwLock<HashMap<i32, IndexData>>>,
     storage_engine: Option<Arc<dyn StorageEngine>>,
+    index_stats: Arc<RwLock<HashMap<i32, IndexStats>>>,
 }
 
 impl fmt::Debug for MemoryIndexManager {
@@ -184,6 +302,7 @@ impl fmt::Debug for MemoryIndexManager {
             .field("storage_path", &self.storage_path)
             .field("index_data", &self.index_data)
             .field("storage_engine", &"[redacted]")
+            .field("index_stats", &self.index_stats)
             .finish()
     }
 }
@@ -197,6 +316,7 @@ impl MemoryIndexManager {
             storage_path,
             index_data: Arc::new(RwLock::new(HashMap::new())),
             storage_engine: None,
+            index_stats: Arc::new(RwLock::new(HashMap::new())),
         };
         let _ = manager.load_from_disk();
         manager
@@ -213,6 +333,7 @@ impl MemoryIndexManager {
             storage_path,
             index_data: Arc::new(RwLock::new(HashMap::new())),
             storage_engine: Some(storage_engine),
+            index_stats: Arc::new(RwLock::new(HashMap::new())),
         };
         let _ = manager.load_from_disk();
         manager
@@ -661,7 +782,7 @@ impl IndexManager for MemoryIndexManager {
                 .write()
                 .map_err(|e| ManagerError::StorageError(e.to_string()))?;
             if let Some(data) = index_data.get_mut(&index.id) {
-                data.vertex_by_id.remove(&vertex.id());
+                data.delete_vertex(vertex);
             }
         }
 
@@ -731,7 +852,7 @@ impl IndexManager for MemoryIndexManager {
                 .write()
                 .map_err(|e| ManagerError::StorageError(e.to_string()))?;
             if let Some(data) = index_data.get_mut(&index.id) {
-                data.edge_by_id.remove(&edge.id);
+                data.delete_edge(edge);
             }
         }
 
@@ -746,6 +867,490 @@ impl IndexManager for MemoryIndexManager {
     ) -> ManagerResult<()> {
         self.delete_edge_from_index(space_id, old_edge)?;
         self.insert_edge_to_index(space_id, new_edge)?;
+        Ok(())
+    }
+
+    fn rebuild_index(&self, space_id: i32, index_id: i32) -> ManagerResult<()> {
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let index = indexes
+            .values()
+            .find(|idx| idx.id == index_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("索引ID {} 不存在", index_id)))?;
+
+        if index.space_id != space_id {
+            return Err(ManagerError::InvalidInput(format!(
+                "索引 {} 不属于空间 {}",
+                index_id, space_id
+            )));
+        }
+
+        drop(indexes);
+
+        let storage_engine = self
+            .storage_engine
+            .as_ref()
+            .ok_or_else(|| ManagerError::StorageError("存储引擎未设置".to_string()))?;
+
+        let mut index_data = self
+            .index_data
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        
+        let data = index_data.entry(index_id).or_insert_with(IndexData::new);
+        data.clear();
+
+        match index.index_type {
+            IndexType::TagIndex => {
+                if let Ok(Some(space_info)) = storage_engine.get_space(space_id) {
+                    for tag_def in &space_info.tags {
+                        if tag_def.tag_name == index.schema_name {
+                            let vertices = storage_engine
+                                .scan_vertices()
+                                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+                            
+                            for vertex in vertices {
+                                if let Some(tag) = vertex.tags.iter().find(|t| t.name == index.schema_name) {
+                                    for field_name in &index.fields {
+                                        if let Some(field_value) = tag.properties.get(field_name) {
+                                            data.insert_vertex(
+                                                &index.schema_name,
+                                                field_name,
+                                                field_value,
+                                                vertex.clone(),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            IndexType::EdgeIndex => {
+                let edges = storage_engine
+                    .scan_edges()
+                    .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+                
+                for edge in edges {
+                    if edge.edge_type == index.schema_name {
+                        for field_name in &index.fields {
+                            if let Some(field_value) = edge.props.get(field_name) {
+                                data.insert_edge(
+                                    &index.schema_name,
+                                    field_name,
+                                    field_value,
+                                    edge.clone(),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            IndexType::FulltextIndex => {
+                return Err(ManagerError::IndexError(
+                    "全文索引暂不支持重建".to_string(),
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn rebuild_all_indexes(&self, space_id: i32) -> ManagerResult<()> {
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let space_indexes: Vec<i32> = indexes
+            .values()
+            .filter(|idx| idx.space_id == space_id)
+            .map(|idx| idx.id)
+            .collect();
+        drop(indexes);
+
+        for index_id in space_indexes {
+            self.rebuild_index(space_id, index_id)?;
+        }
+
+        Ok(())
+    }
+
+    fn get_index_stats(&self, space_id: i32, index_id: i32) -> ManagerResult<IndexStats> {
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let index = indexes
+            .values()
+            .find(|idx| idx.id == index_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("索引ID {} 不存在", index_id)))?;
+
+        if index.space_id != space_id {
+            return Err(ManagerError::InvalidInput(format!(
+                "索引 {} 不属于空间 {}",
+                index_id, space_id
+            )));
+        }
+
+        let index_data = self
+            .index_data
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        
+        let data = index_data
+            .get(&index_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("索引数据 {} 不存在", index_id)))?;
+
+        let avg_query_time = if data.query_count > 0 {
+            data.total_query_time_ms / data.query_count as f64
+        } else {
+            0.0
+        };
+
+        let stats = IndexStats {
+            index_id,
+            index_name: index.name.clone(),
+            total_entries: data.get_total_entries(),
+            unique_entries: data.get_unique_entries(),
+            last_updated: data.last_updated,
+            memory_usage_bytes: data.get_memory_usage(),
+            query_count: data.query_count,
+            avg_query_time_ms: avg_query_time,
+        };
+
+        Ok(stats)
+    }
+
+    fn get_all_index_stats(&self, space_id: i32) -> ManagerResult<Vec<IndexStats>> {
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let space_indexes: Vec<Index> = indexes
+            .values()
+            .filter(|idx| idx.space_id == space_id)
+            .cloned()
+            .collect();
+        drop(indexes);
+
+        let mut stats = Vec::new();
+        for index in space_indexes {
+            stats.push(self.get_index_stats(space_id, index.id)?);
+        }
+
+        Ok(stats)
+    }
+
+    fn analyze_index(&self, space_id: i32, index_id: i32) -> ManagerResult<IndexOptimization> {
+        let stats = self.get_index_stats(space_id, index_id)?;
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let index = indexes
+            .values()
+            .find(|idx| idx.id == index_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("索引ID {} 不存在", index_id)))?;
+
+        let mut suggestions = Vec::new();
+        let mut priority = "low".to_string();
+
+        if stats.total_entries == 0 {
+            suggestions.push("索引为空，考虑删除".to_string());
+            priority = "medium".to_string();
+        }
+
+        if stats.unique_entries < stats.total_entries / 2 {
+            suggestions.push(format!(
+                "索引重复率较高（{:.1}%），考虑优化索引字段",
+                (1.0 - stats.unique_entries as f64 / stats.total_entries as f64) * 100.0
+            ));
+            priority = "high".to_string();
+        }
+
+        if stats.memory_usage_bytes > 100 * 1024 * 1024 {
+            suggestions.push(format!(
+                "索引内存占用较大（{} MB），考虑使用更高效的索引结构",
+                stats.memory_usage_bytes / (1024 * 1024)
+            ));
+            priority = "high".to_string();
+        }
+
+        if stats.query_count > 1000 && stats.avg_query_time_ms > 10.0 {
+            suggestions.push(format!(
+                "索引查询性能较低（平均 {:.2} ms），考虑重建索引",
+                stats.avg_query_time_ms
+            ));
+            priority = "high".to_string();
+        }
+
+        if index.fields.len() > 3 {
+            suggestions.push("索引字段较多，考虑拆分为多个单字段索引".to_string());
+            priority = "medium".to_string();
+        }
+
+        if suggestions.is_empty() {
+            suggestions.push("索引状态良好，无需优化".to_string());
+        }
+
+        Ok(IndexOptimization {
+            index_id,
+            index_name: index.name.clone(),
+            suggestions,
+            priority,
+        })
+    }
+
+    fn analyze_all_indexes(&self, space_id: i32) -> ManagerResult<Vec<IndexOptimization>> {
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let space_indexes: Vec<i32> = indexes
+            .values()
+            .filter(|idx| idx.space_id == space_id)
+            .map(|idx| idx.id)
+            .collect();
+        drop(indexes);
+
+        let mut optimizations = Vec::new();
+        for index_id in space_indexes {
+            optimizations.push(self.analyze_index(space_id, index_id)?);
+        }
+
+        Ok(optimizations)
+    }
+
+    fn check_index_consistency(&self, space_id: i32, index_id: i32) -> ManagerResult<bool> {
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let index = indexes
+            .values()
+            .find(|idx| idx.id == index_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("索引ID {} 不存在", index_id)))?;
+
+        if index.space_id != space_id {
+            return Err(ManagerError::InvalidInput(format!(
+                "索引 {} 不属于空间 {}",
+                index_id, space_id
+            )));
+        }
+
+        let index_data = self
+            .index_data
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        
+        let data = index_data
+            .get(&index_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("索引数据 {} 不存在", index_id)))?;
+
+        let storage_engine = self
+            .storage_engine
+            .as_ref()
+            .ok_or_else(|| ManagerError::StorageError("存储引擎未设置".to_string()))?;
+
+        match index.index_type {
+            IndexType::TagIndex => {
+                for (key, vertices) in &data.vertex_by_tag_property {
+                    for vertex in vertices {
+                        if let Ok(Some(stored_vertex)) = storage_engine.get_node(&vertex.id()) {
+                            if stored_vertex.id() != vertex.id() {
+                                return Ok(false);
+                            }
+                        } else {
+                            return Ok(false);
+                        }
+                    }
+                }
+            }
+            IndexType::EdgeIndex => {
+                for (key, edges) in &data.edge_by_type_property {
+                    for edge in edges {
+                        if let Ok(Some(stored_edge)) = storage_engine.get_edge(edge.id) {
+                            if stored_edge.id != edge.id {
+                                return Ok(false);
+                            }
+                        } else {
+                            return Ok(false);
+                        }
+                    }
+                }
+            }
+            IndexType::FulltextIndex => {
+                return Ok(true);
+            }
+        }
+
+        Ok(true)
+    }
+
+    fn repair_index(&self, space_id: i32, index_id: i32) -> ManagerResult<()> {
+        self.rebuild_index(space_id, index_id)
+    }
+
+    fn cleanup_index(&self, space_id: i32, index_id: i32) -> ManagerResult<()> {
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let index = indexes
+            .values()
+            .find(|idx| idx.id == index_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("索引ID {} 不存在", index_id)))?;
+
+        if index.space_id != space_id {
+            return Err(ManagerError::InvalidInput(format!(
+                "索引 {} 不属于空间 {}",
+                index_id, space_id
+            )));
+        }
+
+        let mut index_data = self
+            .index_data
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        
+        if let Some(data) = index_data.get_mut(&index_id) {
+            data.clear();
+        }
+
+        Ok(())
+    }
+
+    fn batch_insert_vertices(&self, _space_id: i32, vertices: &[Vertex]) -> ManagerResult<()> {
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+
+        for vertex in vertices {
+            for index in indexes.values() {
+                if index.status != IndexStatus::Active {
+                    continue;
+                }
+
+                if index.index_type != IndexType::TagIndex {
+                    continue;
+                }
+
+                if let Some(tag) = vertex.tags.iter().find(|t| t.name == index.schema_name) {
+                    for field_name in &index.fields {
+                        if let Some(field_value) = tag.properties.get(field_name) {
+                            let mut index_data = self
+                                .index_data
+                                .write()
+                                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+                            let data = index_data.entry(index.id).or_insert_with(IndexData::new);
+                            data.insert_vertex(
+                                &index.schema_name,
+                                field_name,
+                                field_value,
+                                vertex.clone(),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn batch_delete_vertices(&self, _space_id: i32, vertices: &[Vertex]) -> ManagerResult<()> {
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+
+        for vertex in vertices {
+            for index in indexes.values() {
+                if index.status != IndexStatus::Active {
+                    continue;
+                }
+
+                if index.index_type != IndexType::TagIndex {
+                    continue;
+                }
+
+                let mut index_data = self
+                    .index_data
+                    .write()
+                    .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+                if let Some(data) = index_data.get_mut(&index.id) {
+                    data.delete_vertex(vertex);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn batch_insert_edges(&self, _space_id: i32, edges: &[Edge]) -> ManagerResult<()> {
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+
+        for edge in edges {
+            for index in indexes.values() {
+                if index.status != IndexStatus::Active {
+                    continue;
+                }
+
+                if index.index_type != IndexType::EdgeIndex {
+                    continue;
+                }
+
+                if index.schema_name == edge.edge_type {
+                    for field_name in &index.fields {
+                        if let Some(field_value) = edge.props.get(field_name) {
+                            let mut index_data = self
+                                .index_data
+                                .write()
+                                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+                            let data = index_data.entry(index.id).or_insert_with(IndexData::new);
+                            data.insert_edge(&index.schema_name, field_name, field_value, edge.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn batch_delete_edges(&self, _space_id: i32, edges: &[Edge]) -> ManagerResult<()> {
+        let indexes = self
+            .indexes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+
+        for edge in edges {
+            for index in indexes.values() {
+                if index.status != IndexStatus::Active {
+                    continue;
+                }
+
+                if index.index_type != IndexType::EdgeIndex {
+                    continue;
+                }
+
+                let mut index_data = self
+                    .index_data
+                    .write()
+                    .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+                if let Some(data) = index_data.get_mut(&index.id) {
+                    data.delete_edge(edge);
+                }
+            }
+        }
+
         Ok(())
     }
 }

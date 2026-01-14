@@ -1,6 +1,9 @@
 //! 元数据客户端实现 - 内存中的元数据管理
 
-use super::super::{ClusterInfo, MetaClient, SpaceInfo};
+use super::super::{
+    ClusterInfo, EdgeTypeDef, MetaClient, MetadataVersion, PropertyDef, PropertyType, SpaceInfo,
+    TagDef,
+};
 use crate::core::error::{ManagerError, ManagerResult};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -24,11 +27,21 @@ impl MemoryMetaClient {
 
     /// 使用指定存储路径创建内存元数据客户端
     pub fn with_storage_path<P: AsRef<Path>>(storage_path: P) -> Self {
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
         Self {
             cluster_info: Arc::new(RwLock::new(ClusterInfo {
                 cluster_id: "local_cluster".to_string(),
                 meta_servers: vec!["localhost:9559".to_string()],
                 storage_servers: vec!["localhost:9779".to_string()],
+                version: MetadataVersion {
+                    version: 1,
+                    timestamp: current_time,
+                    description: "初始版本".to_string(),
+                },
             })),
             spaces: Arc::new(RwLock::new(HashMap::new())),
             next_space_id: Arc::new(RwLock::new(1)),
@@ -102,6 +115,80 @@ impl MemoryMetaClient {
         *info = cluster_info;
         Ok(())
     }
+
+    /// 验证标签定义
+    fn validate_tag_def(&self, tag_def: &TagDef) -> ManagerResult<()> {
+        if tag_def.tag_name.is_empty() {
+            return Err(ManagerError::InvalidInput("标签名称不能为空".to_string()));
+        }
+
+        let mut property_names = std::collections::HashSet::new();
+        for prop in &tag_def.properties {
+            if prop.name.is_empty() {
+                return Err(ManagerError::InvalidInput("属性名称不能为空".to_string()));
+            }
+            if property_names.contains(&prop.name) {
+                return Err(ManagerError::InvalidInput(format!(
+                    "属性名称重复: {}",
+                    prop.name
+                )));
+            }
+            property_names.insert(prop.name.clone());
+        }
+
+        Ok(())
+    }
+
+    /// 验证边类型定义
+    fn validate_edge_type_def(&self, edge_type_def: &EdgeTypeDef) -> ManagerResult<()> {
+        if edge_type_def.edge_name.is_empty() {
+            return Err(ManagerError::InvalidInput("边类型名称不能为空".to_string()));
+        }
+
+        let mut property_names = std::collections::HashSet::new();
+        for prop in &edge_type_def.properties {
+            if prop.name.is_empty() {
+                return Err(ManagerError::InvalidInput("属性名称不能为空".to_string()));
+            }
+            if property_names.contains(&prop.name) {
+                return Err(ManagerError::InvalidInput(format!(
+                    "属性名称重复: {}",
+                    prop.name
+                )));
+            }
+            property_names.insert(prop.name.clone());
+        }
+
+        Ok(())
+    }
+
+    /// 创建元数据版本
+    fn create_metadata_version(&self, description: &str) -> MetadataVersion {
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        MetadataVersion {
+            version: 1,
+            timestamp: current_time,
+            description: description.to_string(),
+        }
+    }
+
+    /// 增加元数据版本
+    fn increment_metadata_version(&self, current_version: &MetadataVersion, description: &str) -> MetadataVersion {
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        MetadataVersion {
+            version: current_version.version + 1,
+            timestamp: current_time,
+            description: description.to_string(),
+        }
+    }
 }
 
 impl Default for MemoryMetaClient {
@@ -166,6 +253,10 @@ impl MetaClient for MemoryMetaClient {
             return Err(ManagerError::InvalidInput("副本因子必须大于0".to_string()));
         }
 
+        if space_name.is_empty() {
+            return Err(ManagerError::InvalidInput("空间名称不能为空".to_string()));
+        }
+
         let mut next_id = self
             .next_space_id
             .write()
@@ -179,6 +270,9 @@ impl MetaClient for MemoryMetaClient {
             space_name: space_name.to_string(),
             partition_num,
             replica_factor,
+            tags: Vec::new(),
+            edge_types: Vec::new(),
+            version: self.create_metadata_version(&format!("创建空间: {}", space_name)),
         };
 
         let mut spaces = self
@@ -315,6 +409,260 @@ impl MetaClient for MemoryMetaClient {
 
         Ok(())
     }
+
+    fn create_tag(&self, space_id: i32, tag_def: TagDef) -> ManagerResult<()> {
+        if !self.connected {
+            return Err(ManagerError::ConnectionError(
+                "元数据客户端未连接".to_string(),
+            ));
+        }
+
+        self.validate_tag_def(&tag_def)?;
+
+        let mut spaces = self
+            .spaces
+            .write()
+            .map_err(|e| ManagerError::Other(e.to_string()))?;
+
+        let space_info = spaces
+            .get_mut(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+
+        if space_info.tags.iter().any(|t| t.tag_name == tag_def.tag_name) {
+            return Err(ManagerError::InvalidInput(format!(
+                "标签 {} 已存在",
+                tag_def.tag_name
+            )));
+        }
+
+        space_info.tags.push(tag_def);
+        drop(spaces);
+
+        self.save_to_disk()?;
+        Ok(())
+    }
+
+    fn drop_tag(&self, space_id: i32, tag_name: &str) -> ManagerResult<()> {
+        if !self.connected {
+            return Err(ManagerError::ConnectionError(
+                "元数据客户端未连接".to_string(),
+            ));
+        }
+
+        let mut spaces = self
+            .spaces
+            .write()
+            .map_err(|e| ManagerError::Other(e.to_string()))?;
+
+        let space_info = spaces
+            .get_mut(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+
+        let original_len = space_info.tags.len();
+        space_info.tags.retain(|t| t.tag_name != tag_name);
+
+        if space_info.tags.len() == original_len {
+            return Err(ManagerError::NotFound(format!("标签 {} 不存在", tag_name)));
+        }
+
+        drop(spaces);
+
+        self.save_to_disk()?;
+        Ok(())
+    }
+
+    fn get_tag(&self, space_id: i32, tag_name: &str) -> ManagerResult<TagDef> {
+        if !self.connected {
+            return Err(ManagerError::ConnectionError(
+                "元数据客户端未连接".to_string(),
+            ));
+        }
+
+        let spaces = self
+            .spaces
+            .read()
+            .map_err(|e| ManagerError::Other(e.to_string()))?;
+
+        let space_info = spaces
+            .get(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+
+        space_info
+            .tags
+            .iter()
+            .find(|t| t.tag_name == tag_name)
+            .cloned()
+            .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))
+    }
+
+    fn list_tags(&self, space_id: i32) -> ManagerResult<Vec<TagDef>> {
+        if !self.connected {
+            return Err(ManagerError::ConnectionError(
+                "元数据客户端未连接".to_string(),
+            ));
+        }
+
+        let spaces = self
+            .spaces
+            .read()
+            .map_err(|e| ManagerError::Other(e.to_string()))?;
+
+        let space_info = spaces
+            .get(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+
+        Ok(space_info.tags.clone())
+    }
+
+    fn create_edge_type(&self, space_id: i32, edge_type_def: EdgeTypeDef) -> ManagerResult<()> {
+        if !self.connected {
+            return Err(ManagerError::ConnectionError(
+                "元数据客户端未连接".to_string(),
+            ));
+        }
+
+        self.validate_edge_type_def(&edge_type_def)?;
+
+        let mut spaces = self
+            .spaces
+            .write()
+            .map_err(|e| ManagerError::Other(e.to_string()))?;
+
+        let space_info = spaces
+            .get_mut(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+
+        if space_info
+            .edge_types
+            .iter()
+            .any(|e| e.edge_name == edge_type_def.edge_name)
+        {
+            return Err(ManagerError::InvalidInput(format!(
+                "边类型 {} 已存在",
+                edge_type_def.edge_name
+            )));
+        }
+
+        space_info.edge_types.push(edge_type_def);
+        drop(spaces);
+
+        self.save_to_disk()?;
+        Ok(())
+    }
+
+    fn drop_edge_type(&self, space_id: i32, edge_name: &str) -> ManagerResult<()> {
+        if !self.connected {
+            return Err(ManagerError::ConnectionError(
+                "元数据客户端未连接".to_string(),
+            ));
+        }
+
+        let mut spaces = self
+            .spaces
+            .write()
+            .map_err(|e| ManagerError::Other(e.to_string()))?;
+
+        let space_info = spaces
+            .get_mut(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+
+        let original_len = space_info.edge_types.len();
+        space_info.edge_types.retain(|e| e.edge_name != edge_name);
+
+        if space_info.edge_types.len() == original_len {
+            return Err(ManagerError::NotFound(format!("边类型 {} 不存在", edge_name)));
+        }
+
+        drop(spaces);
+
+        self.save_to_disk()?;
+        Ok(())
+    }
+
+    fn get_edge_type(&self, space_id: i32, edge_name: &str) -> ManagerResult<EdgeTypeDef> {
+        if !self.connected {
+            return Err(ManagerError::ConnectionError(
+                "元数据客户端未连接".to_string(),
+            ));
+        }
+
+        let spaces = self
+            .spaces
+            .read()
+            .map_err(|e| ManagerError::Other(e.to_string()))?;
+
+        let space_info = spaces
+            .get(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+
+        space_info
+            .edge_types
+            .iter()
+            .find(|e| e.edge_name == edge_name)
+            .cloned()
+            .ok_or_else(|| ManagerError::NotFound(format!("边类型 {} 不存在", edge_name)))
+    }
+
+    fn list_edge_types(&self, space_id: i32) -> ManagerResult<Vec<EdgeTypeDef>> {
+        if !self.connected {
+            return Err(ManagerError::ConnectionError(
+                "元数据客户端未连接".to_string(),
+            ));
+        }
+
+        let spaces = self
+            .spaces
+            .read()
+            .map_err(|e| ManagerError::Other(e.to_string()))?;
+
+        let space_info = spaces
+            .get(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+
+        Ok(space_info.edge_types.clone())
+    }
+
+    fn get_metadata_version(&self, space_id: i32) -> ManagerResult<MetadataVersion> {
+        if !self.connected {
+            return Err(ManagerError::ConnectionError(
+                "元数据客户端未连接".to_string(),
+            ));
+        }
+
+        let spaces = self
+            .spaces
+            .read()
+            .map_err(|e| ManagerError::Other(e.to_string()))?;
+
+        let space_info = spaces
+            .get(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+
+        Ok(space_info.version.clone())
+    }
+
+    fn update_metadata_version(&self, space_id: i32, description: &str) -> ManagerResult<()> {
+        if !self.connected {
+            return Err(ManagerError::ConnectionError(
+                "元数据客户端未连接".to_string(),
+            ));
+        }
+
+        let mut spaces = self
+            .spaces
+            .write()
+            .map_err(|e| ManagerError::Other(e.to_string()))?;
+
+        let space_info = spaces
+            .get_mut(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+
+        space_info.version = self.increment_metadata_version(&space_info.version, description);
+        drop(spaces);
+
+        self.save_to_disk()?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -352,6 +700,9 @@ mod tests {
             space_name: "test_space".to_string(),
             partition_num: 10,
             replica_factor: 3,
+            tags: Vec::new(),
+            edge_types: Vec::new(),
+            version: client.create_metadata_version("测试空间"),
         };
 
         assert!(client.add_space(space_info.clone()).is_ok());
@@ -375,6 +726,9 @@ mod tests {
             space_name: "test_space".to_string(),
             partition_num: 10,
             replica_factor: 3,
+            tags: Vec::new(),
+            edge_types: Vec::new(),
+            version: client.create_metadata_version("测试空间"),
         };
 
         client.add_space(space_info).expect("Failed to add space");
@@ -393,6 +747,9 @@ mod tests {
             space_name: "old_name".to_string(),
             partition_num: 10,
             replica_factor: 3,
+            tags: Vec::new(),
+            edge_types: Vec::new(),
+            version: client.create_metadata_version("测试空间"),
         };
 
         let space_info2 = SpaceInfo {
@@ -400,6 +757,9 @@ mod tests {
             space_name: "new_name".to_string(),
             partition_num: 20,
             replica_factor: 5,
+            tags: Vec::new(),
+            edge_types: Vec::new(),
+            version: client.create_metadata_version("更新空间"),
         };
 
         client.add_space(space_info1).expect("Failed to add space");
@@ -476,6 +836,9 @@ mod tests {
             space_name: "space1".to_string(),
             partition_num: 10,
             replica_factor: 3,
+            tags: Vec::new(),
+            edge_types: Vec::new(),
+            version: client.create_metadata_version("测试空间1"),
         };
 
         let space2 = SpaceInfo {
@@ -483,6 +846,9 @@ mod tests {
             space_name: "space2".to_string(),
             partition_num: 20,
             replica_factor: 5,
+            tags: Vec::new(),
+            edge_types: Vec::new(),
+            version: client.create_metadata_version("测试空间2"),
         };
 
         client.add_space(space1).expect("Failed to add space1");
@@ -655,5 +1021,242 @@ mod tests {
         let client3 = MemoryMetaClient::with_storage_path(storage_path);
         client3.load_from_disk().expect("Failed to load from disk");
         assert!(!client3.has_space(1));
+    }
+
+    #[test]
+    fn test_create_tag() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
+
+        let space_id = client
+            .create_space("test_space", 10, 3)
+            .expect("Failed to create space");
+
+        let tag_def = TagDef {
+            tag_name: "person".to_string(),
+            properties: vec![
+                PropertyDef {
+                    name: "name".to_string(),
+                    type_: PropertyType::String,
+                    nullable: false,
+                    default: None,
+                },
+                PropertyDef {
+                    name: "age".to_string(),
+                    type_: PropertyType::Int,
+                    nullable: true,
+                    default: None,
+                },
+            ],
+        };
+
+        client
+            .create_tag(space_id, tag_def.clone())
+            .expect("Failed to create tag");
+
+        let tags = client.list_tags(space_id).expect("Failed to list tags");
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0].tag_name, "person");
+
+        let retrieved = client
+            .get_tag(space_id, "person")
+            .expect("Failed to get tag");
+        assert_eq!(retrieved.tag_name, "person");
+        assert_eq!(retrieved.properties.len(), 2);
+    }
+
+    #[test]
+    fn test_create_tag_invalid() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
+
+        let space_id = client
+            .create_space("test_space", 10, 3)
+            .expect("Failed to create space");
+
+        let tag_def = TagDef {
+            tag_name: "".to_string(),
+            properties: vec![],
+        };
+
+        let result = client.create_tag(space_id, tag_def);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_tag_duplicate() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
+
+        let space_id = client
+            .create_space("test_space", 10, 3)
+            .expect("Failed to create space");
+
+        let tag_def = TagDef {
+            tag_name: "person".to_string(),
+            properties: vec![],
+        };
+
+        client
+            .create_tag(space_id, tag_def.clone())
+            .expect("Failed to create tag");
+
+        let result = client.create_tag(space_id, tag_def);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_drop_tag() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
+
+        let space_id = client
+            .create_space("test_space", 10, 3)
+            .expect("Failed to create space");
+
+        let tag_def = TagDef {
+            tag_name: "person".to_string(),
+            properties: vec![],
+        };
+
+        client
+            .create_tag(space_id, tag_def)
+            .expect("Failed to create tag");
+
+        client
+            .drop_tag(space_id, "person")
+            .expect("Failed to drop tag");
+
+        let tags = client.list_tags(space_id).expect("Failed to list tags");
+        assert!(tags.is_empty());
+    }
+
+    #[test]
+    fn test_create_edge_type() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
+
+        let space_id = client
+            .create_space("test_space", 10, 3)
+            .expect("Failed to create space");
+
+        let edge_type_def = EdgeTypeDef {
+            edge_name: "knows".to_string(),
+            properties: vec![
+                PropertyDef {
+                    name: "since".to_string(),
+                    type_: PropertyType::Date,
+                    nullable: true,
+                    default: None,
+                },
+            ],
+        };
+
+        client
+            .create_edge_type(space_id, edge_type_def.clone())
+            .expect("Failed to create edge type");
+
+        let edge_types = client
+            .list_edge_types(space_id)
+            .expect("Failed to list edge types");
+        assert_eq!(edge_types.len(), 1);
+        assert_eq!(edge_types[0].edge_name, "knows");
+
+        let retrieved = client
+            .get_edge_type(space_id, "knows")
+            .expect("Failed to get edge type");
+        assert_eq!(retrieved.edge_name, "knows");
+        assert_eq!(retrieved.properties.len(), 1);
+    }
+
+    #[test]
+    fn test_drop_edge_type() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
+
+        let space_id = client
+            .create_space("test_space", 10, 3)
+            .expect("Failed to create space");
+
+        let edge_type_def = EdgeTypeDef {
+            edge_name: "knows".to_string(),
+            properties: vec![],
+        };
+
+        client
+            .create_edge_type(space_id, edge_type_def)
+            .expect("Failed to create edge type");
+
+        client
+            .drop_edge_type(space_id, "knows")
+            .expect("Failed to drop edge type");
+
+        let edge_types = client
+            .list_edge_types(space_id)
+            .expect("Failed to list edge types");
+        assert!(edge_types.is_empty());
+    }
+
+    #[test]
+    fn test_metadata_version() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
+
+        let space_id = client
+            .create_space("test_space", 10, 3)
+            .expect("Failed to create space");
+
+        let version = client
+            .get_metadata_version(space_id)
+            .expect("Failed to get metadata version");
+        assert_eq!(version.version, 1);
+
+        client
+            .update_metadata_version(space_id, "添加标签")
+            .expect("Failed to update metadata version");
+
+        let version = client
+            .get_metadata_version(space_id)
+            .expect("Failed to get metadata version");
+        assert_eq!(version.version, 2);
+        assert_eq!(version.description, "添加标签");
+    }
+
+    #[test]
+    fn test_tag_and_edge_type_persistence() {
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let storage_path = temp_dir.path();
+
+        let client1 = MemoryMetaClient::with_storage_path(storage_path);
+        let space_id = client1
+            .create_space("test_space", 10, 3)
+            .expect("Failed to create space");
+
+        let tag_def = TagDef {
+            tag_name: "person".to_string(),
+            properties: vec![],
+        };
+        client1
+            .create_tag(space_id, tag_def)
+            .expect("Failed to create tag");
+
+        let edge_type_def = EdgeTypeDef {
+            edge_name: "knows".to_string(),
+            properties: vec![],
+        };
+        client1
+            .create_edge_type(space_id, edge_type_def)
+            .expect("Failed to create edge type");
+
+        let client2 = MemoryMetaClient::with_storage_path(storage_path);
+        client2.load_from_disk().expect("Failed to load from disk");
+
+        let tags = client2.list_tags(space_id).expect("Failed to list tags");
+        assert_eq!(tags.len(), 1);
+
+        let edge_types = client2
+            .list_edge_types(space_id)
+            .expect("Failed to list edge types");
+        assert_eq!(edge_types.len(), 1);
     }
 }

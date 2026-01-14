@@ -1,7 +1,8 @@
 //! Schema管理器实现 - 内存中的Schema管理
 //!
 use super::super::{
-    EdgeTypeDef, FieldDef, Schema, SchemaHistory, SchemaManager, SchemaVersion, TagDef,
+    EdgeTypeDef, FieldDef, Schema, SchemaChange, SchemaChangeType, SchemaExportConfig, SchemaHistory,
+    SchemaImportResult, SchemaManager, SchemaVersion, TagDef,
 };
 use crate::core::error::{ManagerError, ManagerResult};
 use std::collections::HashMap;
@@ -22,6 +23,9 @@ pub struct MemorySchemaManager {
     storage_path: PathBuf,
     schema_versions: Arc<RwLock<HashMap<i32, SchemaHistory>>>,
     next_version: Arc<RwLock<i32>>,
+    schema_changes: Arc<RwLock<HashMap<i32, Vec<SchemaChange>>>>,
+    tag_name_to_id: Arc<RwLock<HashMap<i32, HashMap<String, i32>>>>,
+    edge_type_name_to_id: Arc<RwLock<HashMap<i32, HashMap<String, i32>>>>,
 }
 
 impl MemorySchemaManager {
@@ -43,6 +47,9 @@ impl MemorySchemaManager {
             storage_path: storage_path.as_ref().to_path_buf(),
             schema_versions: Arc::new(RwLock::new(HashMap::new())),
             next_version: Arc::new(RwLock::new(1)),
+            schema_changes: Arc::new(RwLock::new(HashMap::new())),
+            tag_name_to_id: Arc::new(RwLock::new(HashMap::new())),
+            edge_type_name_to_id: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -119,7 +126,7 @@ impl SchemaManager for MemorySchemaManager {
             .tags
             .write()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        tags.insert(tag_id, tag_def);
+        tags.insert(tag_id, tag_def.clone());
         drop(tags);
 
         let mut space_tags = self
@@ -132,6 +139,30 @@ impl SchemaManager for MemorySchemaManager {
             .push(tag_id);
         drop(space_tags);
 
+        let mut tag_name_to_id = self
+            .tag_name_to_id
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        tag_name_to_id
+            .entry(space_id)
+            .or_insert_with(HashMap::new)
+            .insert(tag_name.to_string(), tag_id);
+        drop(tag_name_to_id);
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?
+            .as_secs() as i64;
+
+        let change = SchemaChange {
+            change_type: SchemaChangeType::CreateTag,
+            target_name: tag_name.to_string(),
+            description: format!("创建标签 {}", tag_name),
+            timestamp: now,
+        };
+
+        self.record_schema_change(space_id, change)?;
+
         self.save_to_disk()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         Ok(tag_id)
@@ -142,9 +173,10 @@ impl SchemaManager for MemorySchemaManager {
             .tags
             .write()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        if !tags.contains_key(&tag_id) {
-            return Err(ManagerError::NotFound(format!("Tag {} 不存在", tag_id)));
-        }
+        let tag_def = tags
+            .get(&tag_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("Tag {} 不存在", tag_id)))?
+            .clone();
         tags.remove(&tag_id);
         drop(tags);
 
@@ -156,6 +188,29 @@ impl SchemaManager for MemorySchemaManager {
             tag_list.retain(|&id| id != tag_id);
         }
         drop(space_tags);
+
+        let mut tag_name_to_id = self
+            .tag_name_to_id
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        if let Some(name_map) = tag_name_to_id.get_mut(&space_id) {
+            name_map.remove(&tag_def.tag_name);
+        }
+        drop(tag_name_to_id);
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?
+            .as_secs() as i64;
+
+        let change = SchemaChange {
+            change_type: SchemaChangeType::DropTag,
+            target_name: tag_def.tag_name.clone(),
+            description: format!("删除标签 {}", tag_def.tag_name),
+            timestamp: now,
+        };
+
+        self.record_schema_change(space_id, change)?;
 
         self.save_to_disk()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
@@ -218,7 +273,7 @@ impl SchemaManager for MemorySchemaManager {
             .edge_types
             .write()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        edge_types.insert(edge_type_id, edge_type_def);
+        edge_types.insert(edge_type_id, edge_type_def.clone());
         drop(edge_types);
 
         let mut space_edge_types = self
@@ -231,6 +286,30 @@ impl SchemaManager for MemorySchemaManager {
             .push(edge_type_id);
         drop(space_edge_types);
 
+        let mut edge_type_name_to_id = self
+            .edge_type_name_to_id
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        edge_type_name_to_id
+            .entry(space_id)
+            .or_insert_with(HashMap::new)
+            .insert(edge_type_name.to_string(), edge_type_id);
+        drop(edge_type_name_to_id);
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?
+            .as_secs() as i64;
+
+        let change = SchemaChange {
+            change_type: SchemaChangeType::CreateEdgeType,
+            target_name: edge_type_name.to_string(),
+            description: format!("创建边类型 {}", edge_type_name),
+            timestamp: now,
+        };
+
+        self.record_schema_change(space_id, change)?;
+
         self.save_to_disk()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         Ok(edge_type_id)
@@ -241,12 +320,13 @@ impl SchemaManager for MemorySchemaManager {
             .edge_types
             .write()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        if !edge_types.contains_key(&edge_type_id) {
-            return Err(ManagerError::NotFound(format!(
+        let edge_type_def = edge_types
+            .get(&edge_type_id)
+            .ok_or_else(|| ManagerError::NotFound(format!(
                 "EdgeType {} 不存在",
                 edge_type_id
-            )));
-        }
+            )))?
+            .clone();
         edge_types.remove(&edge_type_id);
         drop(edge_types);
 
@@ -258,6 +338,29 @@ impl SchemaManager for MemorySchemaManager {
             edge_type_list.retain(|&id| id != edge_type_id);
         }
         drop(space_edge_types);
+
+        let mut edge_type_name_to_id = self
+            .edge_type_name_to_id
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        if let Some(name_map) = edge_type_name_to_id.get_mut(&space_id) {
+            name_map.remove(&edge_type_def.edge_type_name);
+        }
+        drop(edge_type_name_to_id);
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?
+            .as_secs() as i64;
+
+        let change = SchemaChange {
+            change_type: SchemaChangeType::DropEdgeType,
+            target_name: edge_type_def.edge_type_name.clone(),
+            description: format!("删除边类型 {}", edge_type_def.edge_type_name),
+            timestamp: now,
+        };
+
+        self.record_schema_change(space_id, change)?;
 
         self.save_to_disk()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
@@ -646,6 +749,598 @@ impl SchemaManager for MemorySchemaManager {
         } else {
             Some(history.current_version)
         }
+    }
+
+    fn add_tag_field(&self, space_id: i32, tag_name: &str, field: FieldDef) -> ManagerResult<()> {
+        let tag_name_to_id = self
+            .tag_name_to_id
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let name_map = tag_name_to_id
+            .get(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+        let tag_id = name_map
+            .get(tag_name)
+            .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
+        drop(tag_name_to_id);
+
+        let mut tags = self
+            .tags
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let tag_def = tags
+            .get_mut(tag_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
+
+        if tag_def.fields.iter().any(|f| f.name == field.name) {
+            return Err(ManagerError::InvalidInput(format!(
+                "字段 {} 已存在",
+                field.name
+            )));
+        }
+
+        tag_def.fields.push(field.clone());
+        drop(tags);
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?
+            .as_secs() as i64;
+
+        let change = SchemaChange {
+            change_type: SchemaChangeType::AlterTag,
+            target_name: tag_name.to_string(),
+            description: format!("为标签 {} 添加字段 {}", tag_name, field.name),
+            timestamp: now,
+        };
+
+        self.record_schema_change(space_id, change)?;
+
+        self.save_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        Ok(())
+    }
+
+    fn drop_tag_field(
+        &self,
+        space_id: i32,
+        tag_name: &str,
+        field_name: &str,
+    ) -> ManagerResult<()> {
+        let tag_name_to_id = self
+            .tag_name_to_id
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let name_map = tag_name_to_id
+            .get(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+        let tag_id = name_map
+            .get(tag_name)
+            .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
+        drop(tag_name_to_id);
+
+        let mut tags = self
+            .tags
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let tag_def = tags
+            .get_mut(tag_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
+
+        let original_len = tag_def.fields.len();
+        tag_def.fields.retain(|f| f.name != field_name);
+
+        if tag_def.fields.len() == original_len {
+            return Err(ManagerError::NotFound(format!(
+                "字段 {} 不存在",
+                field_name
+            )));
+        }
+        drop(tags);
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?
+            .as_secs() as i64;
+
+        let change = SchemaChange {
+            change_type: SchemaChangeType::AlterTag,
+            target_name: tag_name.to_string(),
+            description: format!("从标签 {} 删除字段 {}", tag_name, field_name),
+            timestamp: now,
+        };
+
+        self.record_schema_change(space_id, change)?;
+
+        self.save_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        Ok(())
+    }
+
+    fn alter_tag_field(
+        &self,
+        space_id: i32,
+        tag_name: &str,
+        field_name: &str,
+        new_field: FieldDef,
+    ) -> ManagerResult<()> {
+        let tag_name_to_id = self
+            .tag_name_to_id
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let name_map = tag_name_to_id
+            .get(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+        let tag_id = name_map
+            .get(tag_name)
+            .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
+        drop(tag_name_to_id);
+
+        let mut tags = self
+            .tags
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let tag_def = tags
+            .get_mut(tag_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
+
+        let field = tag_def
+            .fields
+            .iter_mut()
+            .find(|f| f.name == field_name)
+            .ok_or_else(|| ManagerError::NotFound(format!(
+                "字段 {} 不存在",
+                field_name
+            )))?;
+
+        *field = new_field.clone();
+        drop(tags);
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?
+            .as_secs() as i64;
+
+        let change = SchemaChange {
+            change_type: SchemaChangeType::AlterTag,
+            target_name: tag_name.to_string(),
+            description: format!("修改标签 {} 的字段 {} 为 {:?}", tag_name, field_name, new_field),
+            timestamp: now,
+        };
+
+        self.record_schema_change(space_id, change)?;
+
+        self.save_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        Ok(())
+    }
+
+    fn add_edge_type_field(
+        &self,
+        space_id: i32,
+        edge_type_name: &str,
+        field: FieldDef,
+    ) -> ManagerResult<()> {
+        let edge_type_name_to_id = self
+            .edge_type_name_to_id
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let name_map = edge_type_name_to_id
+            .get(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+        let edge_type_id = name_map
+            .get(edge_type_name)
+            .ok_or_else(|| ManagerError::NotFound(format!(
+                "边类型 {} 不存在",
+                edge_type_name
+            )))?;
+        drop(edge_type_name_to_id);
+
+        let mut edge_types = self
+            .edge_types
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let edge_type_def = edge_types
+            .get_mut(edge_type_id)
+            .ok_or_else(|| ManagerError::NotFound(format!(
+                "边类型 {} 不存在",
+                edge_type_name
+            )))?;
+
+        if edge_type_def.fields.iter().any(|f| f.name == field.name) {
+            return Err(ManagerError::InvalidInput(format!(
+                "字段 {} 已存在",
+                field.name
+            )));
+        }
+
+        edge_type_def.fields.push(field.clone());
+        drop(edge_types);
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?
+            .as_secs() as i64;
+
+        let change = SchemaChange {
+            change_type: SchemaChangeType::AlterEdgeType,
+            target_name: edge_type_name.to_string(),
+            description: format!(
+                "为边类型 {} 添加字段 {}",
+                edge_type_name, field.name
+            ),
+            timestamp: now,
+        };
+
+        self.record_schema_change(space_id, change)?;
+
+        self.save_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        Ok(())
+    }
+
+    fn drop_edge_type_field(
+        &self,
+        space_id: i32,
+        edge_type_name: &str,
+        field_name: &str,
+    ) -> ManagerResult<()> {
+        let edge_type_name_to_id = self
+            .edge_type_name_to_id
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let name_map = edge_type_name_to_id
+            .get(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+        let edge_type_id = name_map
+            .get(edge_type_name)
+            .ok_or_else(|| ManagerError::NotFound(format!(
+                "边类型 {} 不存在",
+                edge_type_name
+            )))?;
+        drop(edge_type_name_to_id);
+
+        let mut edge_types = self
+            .edge_types
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let edge_type_def = edge_types
+            .get_mut(edge_type_id)
+            .ok_or_else(|| ManagerError::NotFound(format!(
+                "边类型 {} 不存在",
+                edge_type_name
+            )))?;
+
+        let original_len = edge_type_def.fields.len();
+        edge_type_def.fields.retain(|f| f.name != field_name);
+
+        if edge_type_def.fields.len() == original_len {
+            return Err(ManagerError::NotFound(format!(
+                "字段 {} 不存在",
+                field_name
+            )));
+        }
+        drop(edge_types);
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?
+            .as_secs() as i64;
+
+        let change = SchemaChange {
+            change_type: SchemaChangeType::AlterEdgeType,
+            target_name: edge_type_name.to_string(),
+            description: format!(
+                "从边类型 {} 删除字段 {}",
+                edge_type_name, field_name
+            ),
+            timestamp: now,
+        };
+
+        self.record_schema_change(space_id, change)?;
+
+        self.save_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        Ok(())
+    }
+
+    fn alter_edge_type_field(
+        &self,
+        space_id: i32,
+        edge_type_name: &str,
+        field_name: &str,
+        new_field: FieldDef,
+    ) -> ManagerResult<()> {
+        let edge_type_name_to_id = self
+            .edge_type_name_to_id
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let name_map = edge_type_name_to_id
+            .get(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
+        let edge_type_id = name_map
+            .get(edge_type_name)
+            .ok_or_else(|| ManagerError::NotFound(format!(
+                "边类型 {} 不存在",
+                edge_type_name
+            )))?;
+        drop(edge_type_name_to_id);
+
+        let mut edge_types = self
+            .edge_types
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        let edge_type_def = edge_types
+            .get_mut(edge_type_id)
+            .ok_or_else(|| ManagerError::NotFound(format!(
+                "边类型 {} 不存在",
+                edge_type_name
+            )))?;
+
+        let field = edge_type_def
+            .fields
+            .iter_mut()
+            .find(|f| f.name == field_name)
+            .ok_or_else(|| ManagerError::NotFound(format!(
+                "字段 {} 不存在",
+                field_name
+            )))?;
+
+        *field = new_field.clone();
+        drop(edge_types);
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?
+            .as_secs() as i64;
+
+        let change = SchemaChange {
+            change_type: SchemaChangeType::AlterEdgeType,
+            target_name: edge_type_name.to_string(),
+            description: format!(
+                "修改边类型 {} 的字段 {} 为 {:?}",
+                edge_type_name, field_name, new_field
+            ),
+            timestamp: now,
+        };
+
+        self.record_schema_change(space_id, change)?;
+
+        self.save_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        Ok(())
+    }
+
+    fn record_schema_change(&self, space_id: i32, change: SchemaChange) -> ManagerResult<()> {
+        let mut schema_changes = self
+            .schema_changes
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        schema_changes
+            .entry(space_id)
+            .or_insert_with(Vec::new)
+            .push(change);
+        drop(schema_changes);
+
+        self.save_schema_changes_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        Ok(())
+    }
+
+    fn get_schema_changes(&self, space_id: i32) -> ManagerResult<Vec<SchemaChange>> {
+        let schema_changes = self
+            .schema_changes
+            .read()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        Ok(schema_changes.get(&space_id).cloned().unwrap_or_default())
+    }
+
+    fn clear_schema_changes(&self, space_id: i32) -> ManagerResult<()> {
+        let mut schema_changes = self
+            .schema_changes
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        schema_changes.remove(&space_id);
+        drop(schema_changes);
+
+        self.save_schema_changes_to_disk()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+        Ok(())
+    }
+
+    fn export_schema(&self, space_id: i32, config: SchemaExportConfig) -> ManagerResult<String> {
+        let tags = self.list_tags(space_id)?;
+        let edge_types = self.list_edge_types(space_id)?;
+
+        let mut export_data = serde_json::json!({
+            "space_id": space_id,
+            "tags": tags,
+            "edge_types": edge_types,
+        });
+
+        if config.include_versions {
+            if let Some(current_version) = self.get_current_version(space_id) {
+                let history = self.get_schema_history(space_id)?;
+                export_data["schema_versions"] = serde_json::to_value(&history)
+                    .map_err(|e| ManagerError::SchemaError(format!("序列化Schema版本失败: {}", e)))?;
+            }
+        }
+
+        if !config.include_comments {
+            if let Some(tags_array) = export_data.get_mut("tags").and_then(|v| v.as_array_mut()) {
+                for tag in tags_array {
+                    if let Some(obj) = tag.as_object_mut() {
+                        obj.remove("comment");
+                    }
+                }
+            }
+            if let Some(edge_types_array) = export_data.get_mut("edge_types").and_then(|v| v.as_array_mut()) {
+                for edge_type in edge_types_array {
+                    if let Some(obj) = edge_type.as_object_mut() {
+                        obj.remove("comment");
+                    }
+                }
+            }
+        }
+
+        match config.format.as_str() {
+            "json" => serde_json::to_string_pretty(&export_data)
+                .map_err(|e| ManagerError::SchemaError(format!("序列化Schema失败: {}", e))),
+            "compact" => serde_json::to_string(&export_data)
+                .map_err(|e| ManagerError::SchemaError(format!("序列化Schema失败: {}", e))),
+            _ => Err(ManagerError::InvalidInput(format!(
+                "不支持的格式: {}",
+                config.format
+            ))),
+        }
+    }
+
+    fn import_schema(
+        &self,
+        space_id: i32,
+        schema_data: &str,
+    ) -> ManagerResult<SchemaImportResult> {
+        let mut result = SchemaImportResult {
+            imported_tags: Vec::new(),
+            imported_edge_types: Vec::new(),
+            skipped_items: Vec::new(),
+            errors: Vec::new(),
+        };
+
+        let parsed: serde_json::Value = serde_json::from_str(schema_data)
+            .map_err(|e| ManagerError::SchemaError(format!("解析Schema数据失败: {}", e)))?;
+
+        if let Some(tags_array) = parsed.get("tags").and_then(|v| v.as_array()) {
+            for tag_value in tags_array {
+                match serde_json::from_value::<TagDef>(tag_value.clone()) {
+                    Ok(tag_def) => {
+                        match self.create_tag(
+                            space_id,
+                            &tag_def.tag_name,
+                            tag_def.fields.clone(),
+                        ) {
+                            Ok(_) => result.imported_tags.push(tag_def.tag_name.clone()),
+                            Err(e) => {
+                                if e.to_string().contains("已存在") {
+                                    result.skipped_items.push(format!("标签 {}", tag_def.tag_name));
+                                } else {
+                                    result.errors.push(format!(
+                                        "导入标签 {} 失败: {}",
+                                        tag_def.tag_name, e
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        result
+                            .errors
+                            .push(format!("解析标签定义失败: {}", e));
+                    }
+                }
+            }
+        }
+
+        if let Some(edge_types_array) = parsed.get("edge_types").and_then(|v| v.as_array()) {
+            for edge_type_value in edge_types_array {
+                match serde_json::from_value::<EdgeTypeDef>(edge_type_value.clone()) {
+                    Ok(edge_type_def) => {
+                        match self.create_edge_type(
+                            space_id,
+                            &edge_type_def.edge_type_name,
+                            edge_type_def.fields.clone(),
+                        ) {
+                            Ok(_) => result
+                                .imported_edge_types
+                                .push(edge_type_def.edge_type_name.clone()),
+                            Err(e) => {
+                                if e.to_string().contains("已存在") {
+                                    result
+                                        .skipped_items
+                                        .push(format!("边类型 {}", edge_type_def.edge_type_name));
+                                } else {
+                                    result.errors.push(format!(
+                                        "导入边类型 {} 失败: {}",
+                                        edge_type_def.edge_type_name, e
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        result
+                            .errors
+                            .push(format!("解析边类型定义失败: {}", e));
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    fn validate_schema_compatibility(
+        &self,
+        space_id: i32,
+        target_version: i32,
+    ) -> ManagerResult<bool> {
+        let current_version = self
+            .get_current_version(space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 没有当前版本", space_id)))?;
+
+        if current_version == target_version {
+            return Ok(true);
+        }
+
+        let target_schema = self
+            .get_schema_version(space_id, target_version)
+            .ok_or_else(|| ManagerError::NotFound(format!("版本 {} 不存在", target_version)))?;
+
+        let current_schema = self
+            .get_schema_version(space_id, current_version)
+            .ok_or_else(|| ManagerError::NotFound(format!("版本 {} 不存在", current_version)))?;
+
+        let mut is_compatible = true;
+
+        for target_tag in &target_schema.tags {
+            if let Some(current_tag) = current_schema.tags.iter().find(|t| t.tag_name == target_tag.tag_name) {
+                for target_field in &target_tag.fields {
+                    if let Some(current_field) = current_tag.fields.iter().find(|f| f.name == target_field.name) {
+                        if target_field.data_type != current_field.data_type {
+                            is_compatible = false;
+                        }
+                        if !target_field.nullable && current_field.nullable {
+                            is_compatible = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        for target_edge_type in &target_schema.edge_types {
+            if let Some(current_edge_type) = current_schema
+                .edge_types
+                .iter()
+                .find(|e| e.edge_type_name == target_edge_type.edge_type_name)
+            {
+                for target_field in &target_edge_type.fields {
+                    if let Some(current_field) = current_edge_type
+                        .fields
+                        .iter()
+                        .find(|f| f.name == target_field.name)
+                    {
+                        if target_field.data_type != current_field.data_type {
+                            is_compatible = false;
+                        }
+                        if !target_field.nullable && current_field.nullable {
+                            is_compatible = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(is_compatible)
     }
 }
 

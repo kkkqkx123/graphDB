@@ -6,7 +6,9 @@
 use crate::common::base::id::{EdgeType, TagId};
 use crate::core::error::ManagerResult;
 use crate::core::Value;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock, atomic::{AtomicBool, AtomicU64, Ordering}};
+use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::query::context::managers::SchemaManager;
 
@@ -21,6 +23,70 @@ pub enum ResultStatus {
     FilterOut = -2,
     /// 标签被过滤掉
     TagFilterOut = -3,
+}
+
+/// 执行状态
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExecutionState {
+    /// 初始化
+    Initialized,
+    /// 执行中
+    Executing,
+    /// 已完成
+    Completed,
+    /// 已失败
+    Failed,
+    /// 已取消
+    Cancelled,
+    /// 已暂停
+    Paused,
+}
+
+/// 执行统计信息
+#[derive(Debug, Clone)]
+pub struct ExecutionStatistics {
+    pub total_operations: u64,
+    pub successful_operations: u64,
+    pub failed_operations: u64,
+    pub skipped_operations: u64,
+    pub total_execution_time_ms: u64,
+    pub avg_execution_time_ms: f64,
+    pub max_execution_time_ms: u64,
+    pub min_execution_time_ms: u64,
+    pub memory_usage_bytes: u64,
+    pub cache_hits: u64,
+    pub cache_misses: u64,
+}
+
+/// 执行日志
+#[derive(Debug, Clone)]
+pub struct ExecutionLog {
+    pub timestamp: i64,
+    pub operation: String,
+    pub state: ExecutionState,
+    pub duration_ms: u64,
+    pub message: Option<String>,
+    pub error: Option<String>,
+}
+
+/// 资源使用情况
+#[derive(Debug, Clone)]
+pub struct ResourceUsage {
+    pub memory_used_bytes: u64,
+    pub memory_peak_bytes: u64,
+    pub cpu_time_ms: u64,
+    pub io_operations: u64,
+    pub network_bytes: u64,
+}
+
+/// 缓存条目
+#[derive(Debug, Clone)]
+pub struct CacheEntry {
+    pub key: String,
+    pub value: Value,
+    pub hit_count: u64,
+    pub last_accessed: i64,
+    pub size_bytes: usize,
 }
 
 /// 属性上下文（简化版本）
@@ -146,11 +212,39 @@ pub struct RuntimeContext {
     pub filter_invalid_result_out: bool,
     /// 结果状态
     pub result_stat: ResultStatus,
+
+    /// 执行状态
+    pub execution_state: Arc<RwLock<ExecutionState>>,
+    /// 执行开始时间
+    pub execution_start_time: Arc<RwLock<SystemTime>>,
+    /// 执行结束时间
+    pub execution_end_time: Arc<RwLock<Option<SystemTime>>>,
+
+    /// 执行统计信息
+    pub statistics: Arc<RwLock<ExecutionStatistics>>,
+    /// 执行日志
+    pub logs: Arc<RwLock<Vec<ExecutionLog>>>,
+
+    /// 资源使用情况
+    pub resource_usage: Arc<RwLock<ResourceUsage>>,
+    /// 缓存
+    pub cache: Arc<RwLock<HashMap<String, CacheEntry>>>,
+    /// 缓存大小限制（字节）
+    pub cache_size_limit: Arc<RwLock<usize>>,
+
+    /// 是否暂停
+    pub paused: Arc<AtomicBool>,
+    /// 是否终止
+    pub terminated: Arc<AtomicBool>,
+    /// 错误信息
+    pub error: Arc<RwLock<Option<String>>>,
 }
 
 impl RuntimeContext {
     /// 创建新的运行时上下文
     pub fn new(plan_context: Arc<PlanContext>) -> Self {
+        let now = SystemTime::now();
+        
         Self {
             plan_context,
             tag_id: TagId::new(0),
@@ -164,6 +258,35 @@ impl RuntimeContext {
             insert: false,
             filter_invalid_result_out: false,
             result_stat: ResultStatus::Normal,
+            execution_state: Arc::new(RwLock::new(ExecutionState::Initialized)),
+            execution_start_time: Arc::new(RwLock::new(now)),
+            execution_end_time: Arc::new(RwLock::new(None)),
+            statistics: Arc::new(RwLock::new(ExecutionStatistics {
+                total_operations: 0,
+                successful_operations: 0,
+                failed_operations: 0,
+                skipped_operations: 0,
+                total_execution_time_ms: 0,
+                avg_execution_time_ms: 0.0,
+                max_execution_time_ms: 0,
+                min_execution_time_ms: u64::MAX,
+                memory_usage_bytes: 0,
+                cache_hits: 0,
+                cache_misses: 0,
+            })),
+            logs: Arc::new(RwLock::new(Vec::new())),
+            resource_usage: Arc::new(RwLock::new(ResourceUsage {
+                memory_used_bytes: 0,
+                memory_peak_bytes: 0,
+                cpu_time_ms: 0,
+                io_operations: 0,
+                network_bytes: 0,
+            })),
+            cache: Arc::new(RwLock::new(HashMap::new())),
+            cache_size_limit: Arc::new(RwLock::new(100 * 1024 * 1024)), // 默认100MB
+            paused: Arc::new(AtomicBool::new(false)),
+            terminated: Arc::new(AtomicBool::new(false)),
+            error: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -259,6 +382,430 @@ impl RuntimeContext {
         self.insert = false;
         self.filter_invalid_result_out = false;
         self.result_stat = ResultStatus::Normal;
+        
+        if let Ok(mut state) = self.execution_state.write() {
+            *state = ExecutionState::Initialized;
+        }
+        
+        if let Ok(mut start_time) = self.execution_start_time.write() {
+            *start_time = SystemTime::now();
+        }
+        
+        if let Ok(mut end_time) = self.execution_end_time.write() {
+            *end_time = None;
+        }
+        
+        self.paused.store(false, Ordering::SeqCst);
+        self.terminated.store(false, Ordering::SeqCst);
+        
+        if let Ok(mut error) = self.error.write() {
+            *error = None;
+        }
+    }
+
+    // ==================== 执行状态管理 ====================
+
+    /// 获取执行状态
+    pub fn get_execution_state(&self) -> Result<ExecutionState, String> {
+        let state = self
+            .execution_state
+            .read()
+            .map_err(|e| format!("Failed to acquire read lock on execution_state: {}", e))?;
+        Ok(*state)
+    }
+
+    /// 设置执行状态
+    pub fn set_execution_state(&self, state: ExecutionState) -> Result<(), String> {
+        let mut current_state = self
+            .execution_state
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on execution_state: {}", e))?;
+        *current_state = state;
+        Ok(())
+    }
+
+    /// 开始执行
+    pub fn start_execution(&self) -> Result<(), String> {
+        self.set_execution_state(ExecutionState::Executing)?;
+        self.log_operation("开始执行".to_string(), None, None)?;
+        Ok(())
+    }
+
+    /// 完成执行
+    pub fn complete_execution(&self) -> Result<(), String> {
+        self.set_execution_state(ExecutionState::Completed)?;
+        
+        let mut end_time = self
+            .execution_end_time
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on execution_end_time: {}", e))?;
+        *end_time = Some(SystemTime::now());
+        
+        self.log_operation("执行完成".to_string(), None, None)?;
+        Ok(())
+    }
+
+    /// 失败执行
+    pub fn fail_execution(&self, error: String) -> Result<(), String> {
+        self.set_execution_state(ExecutionState::Failed)?;
+        
+        let mut error_ref = self
+            .error
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on error: {}", e))?;
+        *error_ref = Some(error.clone());
+        
+        self.log_operation("执行失败".to_string(), None, Some(error))?;
+        Ok(())
+    }
+
+    /// 取消执行
+    pub fn cancel_execution(&self) -> Result<(), String> {
+        self.set_execution_state(ExecutionState::Cancelled)?;
+        self.terminated.store(true, Ordering::SeqCst);
+        self.log_operation("执行取消".to_string(), None, None)?;
+        Ok(())
+    }
+
+    /// 暂停执行
+    pub fn pause_execution(&self) -> Result<(), String> {
+        self.set_execution_state(ExecutionState::Paused)?;
+        self.paused.store(true, Ordering::SeqCst);
+        self.log_operation("执行暂停".to_string(), None, None)?;
+        Ok(())
+    }
+
+    /// 恢复执行
+    pub fn resume_execution(&self) -> Result<(), String> {
+        self.set_execution_state(ExecutionState::Executing)?;
+        self.paused.store(false, Ordering::SeqCst);
+        self.log_operation("执行恢复".to_string(), None, None)?;
+        Ok(())
+    }
+
+    /// 检查是否暂停
+    pub fn is_paused(&self) -> bool {
+        self.paused.load(Ordering::SeqCst)
+    }
+
+    /// 检查是否终止
+    pub fn is_terminated(&self) -> bool {
+        self.terminated.load(Ordering::SeqCst)
+    }
+
+    /// 获取错误信息
+    pub fn get_error(&self) -> Result<Option<String>, String> {
+        let error = self
+            .error
+            .read()
+            .map_err(|e| format!("Failed to acquire read lock on error: {}", e))?;
+        Ok(error.clone())
+    }
+
+    // ==================== 执行统计管理 ====================
+
+    /// 获取执行统计信息
+    pub fn get_statistics(&self) -> Result<ExecutionStatistics, String> {
+        let stats = self
+            .statistics
+            .read()
+            .map_err(|e| format!("Failed to acquire read lock on statistics: {}", e))?;
+        Ok(stats.clone())
+    }
+
+    /// 更新执行统计信息
+    pub fn update_statistics(&self, success: bool, duration_ms: u64) -> Result<(), String> {
+        let mut stats = self
+            .statistics
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on statistics: {}", e))?;
+        
+        stats.total_operations += 1;
+        stats.total_execution_time_ms += duration_ms;
+        
+        if success {
+            stats.successful_operations += 1;
+        } else {
+            stats.failed_operations += 1;
+        }
+        
+        if duration_ms > stats.max_execution_time_ms {
+            stats.max_execution_time_ms = duration_ms;
+        }
+        
+        if duration_ms < stats.min_execution_time_ms {
+            stats.min_execution_time_ms = duration_ms;
+        }
+        
+        if stats.total_operations > 0 {
+            stats.avg_execution_time_ms = stats.total_execution_time_ms as f64 / stats.total_operations as f64;
+        }
+        
+        Ok(())
+    }
+
+    /// 增加跳过的操作计数
+    pub fn increment_skipped_operations(&self) -> Result<(), String> {
+        let mut stats = self
+            .statistics
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on statistics: {}", e))?;
+        stats.skipped_operations += 1;
+        Ok(())
+    }
+
+    /// 重置统计信息
+    pub fn reset_statistics(&self) -> Result<(), String> {
+        let mut stats = self
+            .statistics
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on statistics: {}", e))?;
+        
+        stats.total_operations = 0;
+        stats.successful_operations = 0;
+        stats.failed_operations = 0;
+        stats.skipped_operations = 0;
+        stats.total_execution_time_ms = 0;
+        stats.avg_execution_time_ms = 0.0;
+        stats.max_execution_time_ms = 0;
+        stats.min_execution_time_ms = u64::MAX;
+        
+        Ok(())
+    }
+
+    // ==================== 执行日志管理 ====================
+
+    /// 记录操作日志
+    pub fn log_operation(&self, operation: String, message: Option<String>, error: Option<String>) -> Result<(), String> {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        
+        let state = self.get_execution_state()?;
+        let duration_ms = self.get_execution_duration_ms();
+        
+        let log_entry = ExecutionLog {
+            timestamp: now,
+            operation,
+            state,
+            duration_ms,
+            message,
+            error,
+        };
+        
+        let mut logs = self
+            .logs
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on logs: {}", e))?;
+        logs.push(log_entry);
+        
+        Ok(())
+    }
+
+    /// 获取所有日志
+    pub fn get_logs(&self) -> Result<Vec<ExecutionLog>, String> {
+        let logs = self
+            .logs
+            .read()
+            .map_err(|e| format!("Failed to acquire read lock on logs: {}", e))?;
+        Ok(logs.clone())
+    }
+
+    /// 清除日志
+    pub fn clear_logs(&self) -> Result<(), String> {
+        let mut logs = self
+            .logs
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on logs: {}", e))?;
+        logs.clear();
+        Ok(())
+    }
+
+    /// 获取执行持续时间（毫秒）
+    pub fn get_execution_duration_ms(&self) -> u64 {
+        let start_time = self.execution_start_time.read().ok();
+        let end_time = self.execution_end_time.read().ok();
+        
+        let end = end_time.and_then(|t| t).unwrap_or_else(SystemTime::now);
+        let start = start_time.unwrap_or_else(SystemTime::now);
+        
+        end.duration_since(start)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0)
+    }
+
+    // ==================== 缓存管理 ====================
+
+    /// 获取缓存值
+    pub fn get_cache(&self, key: &str) -> Result<Option<Value>, String> {
+        let mut cache = self
+            .cache
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on cache: {}", e))?;
+        
+        let mut stats = self
+            .statistics
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on statistics: {}", e))?;
+        
+        if let Some(entry) = cache.get_mut(key) {
+            entry.hit_count += 1;
+            entry.last_accessed = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            stats.cache_hits += 1;
+            Ok(Some(entry.value.clone()))
+        } else {
+            stats.cache_misses += 1;
+            Ok(None)
+        }
+    }
+
+    /// 设置缓存值
+    pub fn set_cache(&self, key: String, value: Value) -> Result<(), String> {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        
+        let size_bytes = std::mem::size_of_val(&value);
+        
+        let mut cache = self
+            .cache
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on cache: {}", e))?;
+        
+        let cache_size_limit = self
+            .cache_size_limit
+            .read()
+            .map_err(|e| format!("Failed to acquire read lock on cache_size_limit: {}", e))?;
+        
+        let current_size: usize = cache.values().map(|e| e.size_bytes).sum();
+        
+        if current_size + size_bytes > *cache_size_limit {
+            self.evict_cache_entries(cache, *cache_size_limit, size_bytes)?;
+        }
+        
+        cache.insert(key.clone(), CacheEntry {
+            key,
+            value,
+            hit_count: 0,
+            last_accessed: now,
+            size_bytes,
+        });
+        
+        Ok(())
+    }
+
+    /// 删除缓存值
+    pub fn remove_cache(&self, key: &str) -> Result<Option<Value>, String> {
+        let mut cache = self
+            .cache
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on cache: {}", e))?;
+        Ok(cache.remove(key).map(|e| e.value))
+    }
+
+    /// 清空缓存
+    pub fn clear_cache(&self) -> Result<(), String> {
+        let mut cache = self
+            .cache
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on cache: {}", e))?;
+        cache.clear();
+        Ok(())
+    }
+
+    /// 设置缓存大小限制
+    pub fn set_cache_size_limit(&self, limit: usize) -> Result<(), String> {
+        let mut cache_size_limit = self
+            .cache_size_limit
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on cache_size_limit: {}", e))?;
+        *cache_size_limit = limit;
+        Ok(())
+    }
+
+    /// 获取缓存大小
+    pub fn get_cache_size(&self) -> Result<usize, String> {
+        let cache = self
+            .cache
+            .read()
+            .map_err(|e| format!("Failed to acquire read lock on cache: {}", e))?;
+        Ok(cache.values().map(|e| e.size_bytes).sum())
+    }
+
+    /// 淘汰缓存条目
+    fn evict_cache_entries(&self, cache: &mut HashMap<String, CacheEntry>, limit: usize, new_size: usize) -> Result<(), String> {
+        let mut entries: Vec<_> = cache.iter().collect();
+        entries.sort_by(|a, b| {
+            let a_score = a.1.hit_count as f64 / (a.1.last_accessed as f64 + 1.0);
+            let b_score = b.1.hit_count as f64 / (b.1.last_accessed as f64 + 1.0);
+            a_score.partial_cmp(&b_score).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        
+        let mut current_size: usize = cache.values().map(|e| e.size_bytes).sum();
+        
+        for (key, _) in entries {
+            if current_size + new_size <= limit {
+                break;
+            }
+            
+            if let Some(entry) = cache.remove(key) {
+                current_size -= entry.size_bytes;
+            }
+        }
+        
+        Ok(())
+    }
+
+    // ==================== 资源管理 ====================
+
+    /// 获取资源使用情况
+    pub fn get_resource_usage(&self) -> Result<ResourceUsage, String> {
+        let usage = self
+            .resource_usage
+            .read()
+            .map_err(|e| format!("Failed to acquire read lock on resource_usage: {}", e))?;
+        Ok(usage.clone())
+    }
+
+    /// 更新内存使用量
+    pub fn update_memory_usage(&self, bytes: u64) -> Result<(), String> {
+        let mut usage = self
+            .resource_usage
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on resource_usage: {}", e))?;
+        
+        usage.memory_used_bytes = bytes;
+        
+        if bytes > usage.memory_peak_bytes {
+            usage.memory_peak_bytes = bytes;
+        }
+        
+        Ok(())
+    }
+
+    /// 增加IO操作计数
+    pub fn increment_io_operations(&self) -> Result<(), String> {
+        let mut usage = self
+            .resource_usage
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on resource_usage: {}", e))?;
+        usage.io_operations += 1;
+        Ok(())
+    }
+
+    /// 增加网络字节数
+    pub fn add_network_bytes(&self, bytes: u64) -> Result<(), String> {
+        let mut usage = self
+            .resource_usage
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock on resource_usage: {}", e))?;
+        usage.network_bytes += bytes;
+        Ok(())
     }
 }
 

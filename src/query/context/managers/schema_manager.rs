@@ -98,6 +98,36 @@ pub trait SchemaManager: Send + Sync + std::fmt::Debug {
     fn rollback_schema(&self, space_id: i32, version: i32) -> ManagerResult<()>;
     /// 获取当前版本号
     fn get_current_version(&self, space_id: i32) -> Option<i32>;
+
+    /// 字段级别的操作
+    /// 为Tag添加字段
+    fn add_tag_field(&self, space_id: i32, tag_name: &str, field: FieldDef) -> ManagerResult<()>;
+    /// 删除Tag的字段
+    fn drop_tag_field(&self, space_id: i32, tag_name: &str, field_name: &str) -> ManagerResult<()>;
+    /// 修改Tag的字段
+    fn alter_tag_field(&self, space_id: i32, tag_name: &str, field_name: &str, new_field: FieldDef) -> ManagerResult<()>;
+    /// 为EdgeType添加字段
+    fn add_edge_type_field(&self, space_id: i32, edge_type_name: &str, field: FieldDef) -> ManagerResult<()>;
+    /// 删除EdgeType的字段
+    fn drop_edge_type_field(&self, space_id: i32, edge_type_name: &str, field_name: &str) -> ManagerResult<()>;
+    /// 修改EdgeType的字段
+    fn alter_edge_type_field(&self, space_id: i32, edge_type_name: &str, field_name: &str, new_field: FieldDef) -> ManagerResult<()>;
+
+    /// Schema变更历史
+    /// 记录Schema变更
+    fn record_schema_change(&self, space_id: i32, change: SchemaChange) -> ManagerResult<()>;
+    /// 获取Schema变更历史
+    fn get_schema_changes(&self, space_id: i32) -> ManagerResult<Vec<SchemaChange>>;
+    /// 清除Schema变更历史
+    fn clear_schema_changes(&self, space_id: i32) -> ManagerResult<()>;
+
+    /// Schema导出/导入
+    /// 导出Schema
+    fn export_schema(&self, space_id: i32, config: SchemaExportConfig) -> ManagerResult<String>;
+    /// 导入Schema
+    fn import_schema(&self, space_id: i32, schema_data: &str) -> ManagerResult<SchemaImportResult>;
+    /// 验证Schema兼容性
+    fn validate_schema_compatibility(&self, space_id: i32, target_version: i32) -> ManagerResult<bool>;
 }
 
 /// 字符集信息 - 管理字符集和排序规则
@@ -133,4 +163,41 @@ pub struct SchemaHistory {
     pub space_id: i32,
     pub versions: Vec<SchemaVersion>,
     pub current_version: i32,
+}
+
+/// Schema变更类型
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SchemaChangeType {
+    CreateTag,
+    DropTag,
+    AlterTag,
+    CreateEdgeType,
+    DropEdgeType,
+    AlterEdgeType,
+}
+
+/// Schema变更记录
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchemaChange {
+    pub change_type: SchemaChangeType,
+    pub target_name: String,
+    pub description: String,
+    pub timestamp: i64,
+}
+
+/// Schema导出配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchemaExportConfig {
+    pub include_versions: bool,
+    pub include_comments: bool,
+    pub format: String,
+}
+
+/// Schema导入结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchemaImportResult {
+    pub imported_tags: Vec<String>,
+    pub imported_edge_types: Vec<String>,
+    pub skipped_items: Vec<String>,
+    pub errors: Vec<String>,
 }
