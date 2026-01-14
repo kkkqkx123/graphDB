@@ -1,6 +1,6 @@
 //! 解析器特化缓存
 //!
-//! 为Cypher解析器提供专门的缓存功能
+//! 为解析器提供专门的缓存功能
 
 use super::cache_impl::*;
 use super::config::*;
@@ -8,12 +8,12 @@ use super::manager::CacheManager;
 use super::stats_marker::StatsEnabled;
 use super::traits::*;
 use crate::query::parser::ast::expr::Expr;
-use crate::query::parser::cypher::lexer::{Token, TokenType};
+use crate::query::parser::lexer::{Token, TokenKind};
 use std::sync::Arc;
 
 // 定义统计缓存类型 - 统一使用 StatsEnabled 版本
 type KeywordStatsType =
-    Arc<StatsCacheWrapper<String, TokenType, ConcurrentLruCache<String, TokenType>, StatsEnabled>>;
+    Arc<StatsCacheWrapper<String, TokenKind, ConcurrentLruCache<String, TokenKind>, StatsEnabled>>;
 type TokenStatsType =
     Arc<StatsCacheWrapper<usize, Token, ConcurrentLruCache<usize, Token>, StatsEnabled>>;
 type ExpressionStatsType =
@@ -90,13 +90,13 @@ impl ParserCache {
     }
 
     /// 获取缓存的关键字类型
-    pub fn get_keyword_type(&self, word: &str) -> Option<TokenType> {
+    pub fn get_keyword_type(&self, word: &str) -> Option<TokenKind> {
         let key = word.to_uppercase();
         self.keyword_cache.get(&key)
     }
 
     /// 缓存关键字类型
-    pub fn cache_keyword_type(&self, word: &str, token_type: TokenType) {
+    pub fn cache_keyword_type(&self, word: &str, token_type: TokenKind) {
         let key = word.to_uppercase();
         self.keyword_cache.put(key, token_type);
     }
@@ -314,7 +314,8 @@ impl KeywordCache {
     pub fn cache_keyword(&self, word: &str, is_keyword: bool) {
         if is_keyword {
             let key = word.to_uppercase();
-            self.cache.put(key, TokenType::Keyword);
+            // 使用 Match 作为通用关键字标记
+            self.cache.put(key, TokenKind::Match);
         }
     }
 
@@ -425,7 +426,7 @@ impl PatternCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::cypher::lexer::{Token, TokenType};
+    use crate::query::parser::lexer::{Token, TokenKind};
     use std::time::Duration;
 
     #[test]
@@ -443,16 +444,16 @@ mod tests {
         let parser_cache = ParserCache::new(config);
 
         // 缓存关键字
-        parser_cache.cache_keyword_type("MATCH", TokenType::Keyword);
+        parser_cache.cache_keyword_type("MATCH", TokenKind::Match);
 
         // 检查缓存命中
         assert_eq!(
             parser_cache.get_keyword_type("MATCH"),
-            Some(TokenType::Keyword)
+            Some(TokenKind::Match)
         );
         assert_eq!(
             parser_cache.get_keyword_type("match"),
-            Some(TokenType::Keyword)
+            Some(TokenKind::Match)
         ); // 大小写不敏感
     }
 
@@ -463,19 +464,22 @@ mod tests {
 
         let tokens = vec![
             Token {
-                token_type: TokenType::Keyword,
-                value: "MATCH".to_string(),
-                position: 0,
+                kind: TokenKind::Match,
+                lexeme: "MATCH".to_string(),
+                line: 0,
+                column: 0,
             },
             Token {
-                token_type: TokenType::Identifier,
-                value: "n".to_string(),
-                position: 5,
+                kind: TokenKind::Identifier("n".to_string()),
+                lexeme: "n".to_string(),
+                line: 0,
+                column: 5,
             },
             Token {
-                token_type: TokenType::Punctuation,
-                value: "(".to_string(),
-                position: 7,
+                kind: TokenKind::LParen,
+                lexeme: "(".to_string(),
+                line: 0,
+                column: 7,
             },
         ];
 

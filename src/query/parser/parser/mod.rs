@@ -6,6 +6,7 @@ mod expr_parser;
 mod pattern_parser;
 mod statement_parser;
 mod utils;
+mod main_parser;
 
 use crate::query::parser::lexer::Lexer;
 use crate::query::parser::Token;

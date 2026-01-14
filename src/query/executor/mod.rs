@@ -5,15 +5,13 @@ pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
 pub mod factory;
+pub mod graph_query_executor;
 pub mod memory_manager;
 pub mod object_pool;
 pub mod recursion_detector;
 pub mod result_processing;
 pub mod tag_filter;
 pub mod traits;
-
-// Cypher执行器模块
-pub mod cypher;
 
 // Re-export the new trait types
 pub use traits::{
@@ -33,10 +31,5 @@ pub use result_processing::{
 
 pub use result_processing::traits::ResultProcessorFactory;
 
-// Re-export Cypher executor types
-pub use cypher::{
-    CypherExecutionContext, CypherExecutor, CypherExecutorFactory, CypherExecutorTrait,
-};
-
-// Re-export Cypher clause executors
-pub use cypher::clauses::MatchClauseExecutor;
+// Re-export graph query executor
+pub use graph_query_executor::GraphQueryExecutor;

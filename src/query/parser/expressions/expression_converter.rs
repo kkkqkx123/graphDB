@@ -440,7 +440,7 @@ fn is_aggregate_function(func_name: &str) -> bool {
 /// 从字符串解析表达式
 pub fn parse_expression_from_string(condition: &str) -> Result<Expression, String> {
     // 创建语法分析器
-    let mut parser = crate::query::parser::parser::Parser::new(condition);
+    let mut parser = crate::query::parser::Parser::new(condition);
     let ast_expr = parser
         .parse_expression()
         .map_err(|e| format!("语法分析错误: {:?}", e))?;

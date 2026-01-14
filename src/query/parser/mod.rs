@@ -1,17 +1,21 @@
-//! Query parser module for the graph database
+//! Query parser module for graph database
 //!
 //! This module provides functionality to parse query strings into abstract syntax trees (AST)
-//! that can be processed by the query execution pipeline.
+//! that can be processed by query execution pipeline.
 
 pub mod core;
-pub mod cypher;
+pub mod lexer;
+pub mod ast;
+pub mod expressions;
+pub mod statements;
+pub mod clauses;
 
 // 重新导出 core 模块的常用类型
 pub use core::{ParseError, ParseErrors, Token, TokenKind};
-pub use cypher::*;
 
-pub mod ast;
-pub mod expressions;
-pub mod lexer;
-pub mod parser;
-pub mod statements;
+// 重新导出语句和子句
+pub use statements::*;
+pub use clauses::*;
+
+// 重新导出统一解析器
+pub use parser::Parser;

@@ -1,9 +1,8 @@
 //! AST v2 测试模块
-
+#[cfg(test)]
 use super::*;
 use crate::core::Value;
 
-#[cfg(test)]
 mod expr_tests {
     use super::*;
 

@@ -574,12 +574,6 @@ impl From<crate::query::optimizer::optimizer::OptimizerError> for DBError {
     }
 }
 
-impl From<crate::query::executor::cypher::CypherExecutorError> for DBError {
-    fn from(err: crate::query::executor::cypher::CypherExecutorError) -> Self {
-        DBError::Query(QueryError::ExecutionError(err.to_string()))
-    }
-}
-
 impl From<crate::query::parser::lexer::LexError> for DBError {
     fn from(err: crate::query::parser::lexer::LexError) -> Self {
         DBError::Query(QueryError::ParseError(err.to_string()))
