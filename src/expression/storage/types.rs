@@ -62,19 +62,29 @@ impl FieldDef {
     }
 }
 
-/// 列定义（简化版本，保持向后兼容）
+/// 列定义
 #[derive(Debug, Clone)]
 pub struct ColumnDef {
     pub name: String,
-    pub data_type: String,
+    pub data_type: FieldType,
     pub nullable: bool,
+}
+
+impl ColumnDef {
+    pub fn new(name: impl Into<String>, data_type: FieldType, nullable: bool) -> Self {
+        Self {
+            name: name.into(),
+            data_type,
+            nullable,
+        }
+    }
 }
 
 impl From<FieldDef> for ColumnDef {
     fn from(field: FieldDef) -> Self {
         Self {
             name: field.name,
-            data_type: format!("{:?}", field.field_type),
+            data_type: field.field_type,
             nullable: field.nullable,
         }
     }

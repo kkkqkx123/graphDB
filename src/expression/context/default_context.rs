@@ -3,6 +3,7 @@
 //! 包含默认上下文的实现
 
 use crate::core::{Edge, Value, Vertex};
+use crate::core::error::ExpressionError;
 use crate::expression::evaluator::traits::ExpressionContext;
 use std::collections::HashMap;
 
@@ -11,13 +12,13 @@ use std::collections::HashMap;
 /// 为存储层特定的表达式上下文提供额外接口
 pub trait StorageExpressionContext: ExpressionContext {
     /// 获取变量值（最新版本）
-    fn get_var(&self, name: &str) -> Result<Value, String>;
+    fn get_var(&self, name: &str) -> Result<Value, ExpressionError>;
 
     /// 获取指定版本的变量值
-    fn get_versioned_var(&self, name: &str, version: i64) -> Result<Value, String>;
+    fn get_versioned_var(&self, name: &str, version: i64) -> Result<Value, ExpressionError>;
 
     /// 设置变量值
-    fn set_var(&mut self, name: &str, value: Value) -> Result<(), String>;
+    fn set_var(&mut self, name: &str, value: Value) -> Result<(), ExpressionError>;
 
     /// 设置表达式内部变量
     fn set_inner_var(&mut self, var: &str, value: Value);
@@ -26,34 +27,34 @@ pub trait StorageExpressionContext: ExpressionContext {
     fn get_inner_var(&self, var: &str) -> Option<Value>;
 
     /// 获取变量属性值
-    fn get_var_prop(&self, var: &str, prop: &str) -> Result<Value, String>;
+    fn get_var_prop(&self, var: &str, prop: &str) -> Result<Value, ExpressionError>;
 
     /// 获取目标顶点属性值
-    fn get_dst_prop(&self, tag: &str, prop: &str) -> Result<Value, String>;
+    fn get_dst_prop(&self, tag: &str, prop: &str) -> Result<Value, ExpressionError>;
 
     /// 获取输入属性值
-    fn get_input_prop(&self, prop: &str) -> Result<Value, String>;
+    fn get_input_prop(&self, prop: &str) -> Result<Value, ExpressionError>;
 
     /// 获取输入属性索引
-    fn get_input_prop_index(&self, prop: &str) -> Result<usize, String>;
+    fn get_input_prop_index(&self, prop: &str) -> Result<usize, ExpressionError>;
 
     /// 按列索引获取值
-    fn get_column(&self, index: i32) -> Result<Value, String>;
+    fn get_column(&self, index: i32) -> Result<Value, ExpressionError>;
 
     /// 获取标签属性值
-    fn get_tag_prop(&self, tag: &str, prop: &str) -> Result<Value, String>;
+    fn get_tag_prop(&self, tag: &str, prop: &str) -> Result<Value, ExpressionError>;
 
     /// 获取边属性值
-    fn get_edge_prop(&self, edge: &str, prop: &str) -> Result<Value, String>;
+    fn get_edge_prop(&self, edge: &str, prop: &str) -> Result<Value, ExpressionError>;
 
     /// 获取源顶点属性值
-    fn get_src_prop(&self, tag: &str, prop: &str) -> Result<Value, String>;
+    fn get_src_prop(&self, tag: &str, prop: &str) -> Result<Value, ExpressionError>;
 
     /// 获取顶点
-    fn get_vertex(&self, name: &str) -> Result<Value, String>;
+    fn get_vertex(&self, name: &str) -> Result<Value, ExpressionError>;
 
     /// 获取边
-    fn get_edge(&self) -> Result<Value, String>;
+    fn get_edge(&self) -> Result<Value, ExpressionError>;
 }
 /// 简单的表达式上下文实现
 ///
@@ -198,5 +199,156 @@ impl ExpressionContext for DefaultExpressionContext {
 impl Default for DefaultExpressionContext {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl StorageExpressionContext for DefaultExpressionContext {
+    fn get_var(&self, name: &str) -> Result<Value, ExpressionError> {
+        self.vars.get(name)
+            .cloned()
+            .ok_or_else(|| ExpressionError::undefined_variable(name))
+    }
+
+    fn get_versioned_var(&self, name: &str, _version: i64) -> Result<Value, ExpressionError> {
+        self.vars.get(name)
+            .cloned()
+            .ok_or_else(|| ExpressionError::undefined_variable(name))
+    }
+
+    fn set_var(&mut self, name: &str, value: Value) -> Result<(), ExpressionError> {
+        self.vars.insert(name.to_string(), value);
+        Ok(())
+    }
+
+    fn set_inner_var(&mut self, var: &str, value: Value) {
+        self.vars.insert(var.to_string(), value);
+    }
+
+    fn get_inner_var(&self, var: &str) -> Option<Value> {
+        self.vars.get(var).cloned()
+    }
+
+    fn get_var_prop(&self, var: &str, prop: &str) -> Result<Value, ExpressionError> {
+        let var_value = self.vars.get(var)
+            .cloned()
+            .ok_or_else(|| ExpressionError::undefined_variable(var))?;
+
+        match var_value {
+            Value::Map(map) => map.get(prop)
+                .cloned()
+                .ok_or_else(|| ExpressionError::property_not_found(prop)),
+            _ => Err(ExpressionError::type_error(format!("变量 '{}' 不是映射类型，无法获取属性", var))),
+        }
+    }
+
+    fn get_dst_prop(&self, tag: &str, prop: &str) -> Result<Value, ExpressionError> {
+        if let Some(edge) = &self.edge {
+            if let Value::Vertex(dst_vertex) = edge.dst.as_ref() {
+                if dst_vertex.has_tag(tag) {
+                    dst_vertex.get_property(tag, prop)
+                        .cloned()
+                        .ok_or_else(|| ExpressionError::property_not_found(prop))
+                } else {
+                    Err(ExpressionError::label_not_found(tag))
+                }
+            } else {
+                Err(ExpressionError::type_error("边的目标顶点不是顶点类型"))
+            }
+        } else {
+            Err(ExpressionError::type_error("上下文中没有边"))
+        }
+    }
+
+    fn get_input_prop(&self, prop: &str) -> Result<Value, ExpressionError> {
+        self.vars.get(prop)
+            .cloned()
+            .ok_or_else(|| ExpressionError::property_not_found(prop))
+    }
+
+    fn get_input_prop_index(&self, prop: &str) -> Result<usize, ExpressionError> {
+        if let Some(Value::List(list)) = self.vars.get(prop) {
+            Ok(list.len())
+        } else {
+            Err(ExpressionError::type_error(format!("属性 '{}' 不是列表类型", prop)))
+        }
+    }
+
+    fn get_column(&self, index: i32) -> Result<Value, ExpressionError> {
+        if index < 0 {
+            return Err(ExpressionError::index_out_of_bounds(index as isize, 0));
+        }
+        let idx = index as usize;
+        for value in self.vars.values() {
+            if let Value::List(list) = value {
+                if idx < list.len() {
+                    return Ok(list[idx].clone());
+                }
+            }
+        }
+        Err(ExpressionError::index_out_of_bounds(idx as isize, 0))
+    }
+
+    fn get_tag_prop(&self, tag: &str, prop: &str) -> Result<Value, ExpressionError> {
+        if let Some(vertex) = &self.vertex {
+            if vertex.has_tag(tag) {
+                vertex.get_property(tag, prop)
+                    .cloned()
+                    .ok_or_else(|| ExpressionError::property_not_found(prop))
+            } else {
+                Err(ExpressionError::label_not_found(tag))
+            }
+        } else {
+            Err(ExpressionError::type_error("上下文中没有顶点"))
+        }
+    }
+
+    fn get_edge_prop(&self, edge: &str, prop: &str) -> Result<Value, ExpressionError> {
+        if let Some(current_edge) = &self.edge {
+            if current_edge.edge_type == edge {
+                current_edge.properties().get(prop)
+                    .cloned()
+                    .ok_or_else(|| ExpressionError::property_not_found(prop))
+            } else {
+                Err(ExpressionError::label_not_found(edge))
+            }
+        } else {
+            Err(ExpressionError::type_error("上下文中没有边"))
+        }
+    }
+
+    fn get_src_prop(&self, tag: &str, prop: &str) -> Result<Value, ExpressionError> {
+        if let Some(edge) = &self.edge {
+            if let Value::Vertex(src_vertex) = edge.src.as_ref() {
+                if src_vertex.has_tag(tag) {
+                    src_vertex.get_property(tag, prop)
+                        .cloned()
+                        .ok_or_else(|| ExpressionError::property_not_found(prop))
+                } else {
+                    Err(ExpressionError::label_not_found(tag))
+                }
+            } else {
+                Err(ExpressionError::type_error("边的源顶点不是顶点类型"))
+            }
+        } else {
+            Err(ExpressionError::type_error("上下文中没有边"))
+        }
+    }
+
+    fn get_vertex(&self, name: &str) -> Result<Value, ExpressionError> {
+        if let Some(vertex) = &self.vertex {
+            if vertex.has_tag(name) {
+                Ok(Value::Vertex(Box::new(vertex.clone())))
+            } else {
+                Err(ExpressionError::label_not_found(name))
+            }
+        } else {
+            Err(ExpressionError::type_error("上下文中没有顶点"))
+        }
+    }
+
+    fn get_edge(&self) -> Result<Value, ExpressionError> {
+        self.edge.as_ref()
+            .map(|e| Value::Edge(e.clone()))
+            .ok_or_else(|| ExpressionError::type_error("上下文中没有边"))
     }
 }

@@ -15,6 +15,10 @@ impl CollectionOperationEvaluator {
         collection: &Value,
         index: &Value,
     ) -> Result<Value, ExpressionError> {
+        if collection.is_null() || index.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match collection {
             Value::List(list) => {
                 if let Value::Int(i) = index {
@@ -69,6 +73,14 @@ impl CollectionOperationEvaluator {
         start: Option<&Value>,
         end: Option<&Value>,
     ) -> Result<Value, ExpressionError> {
+        if collection.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
+        if start.map_or(false, |v| v.is_null()) || end.map_or(false, |v| v.is_null()) {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match collection {
             Value::List(list) => {
                 let start_idx = start
@@ -158,6 +170,10 @@ impl CollectionOperationEvaluator {
         object: &Value,
         property: &str,
     ) -> Result<Value, ExpressionError> {
+        if object.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match object {
             Value::Vertex(vertex) => vertex.properties.get(property).cloned().ok_or_else(|| {
                 ExpressionError::runtime_error(format!("顶点属性不存在: {}", property))

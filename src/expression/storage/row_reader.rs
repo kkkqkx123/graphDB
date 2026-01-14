@@ -4,6 +4,7 @@
 
 use super::schema_def::Schema;
 use super::types::FieldDef;
+use crate::core::error::ExpressionError;
 use crate::core::Value;
 use std::collections::HashMap;
 
@@ -19,20 +20,18 @@ pub struct RowReaderWrapper {
 }
 
 impl RowReaderWrapper {
-    pub fn new(data: Vec<u8>, schema: Schema) -> Result<Self, String> {
+    pub fn new(data: Vec<u8>, schema: Schema) -> Result<Self, ExpressionError> {
         let mut wrapper = Self {
             data,
             schema,
             field_offsets: HashMap::new(),
         };
 
-        // 预计算字段偏移量
         wrapper.calculate_field_offsets()?;
         Ok(wrapper)
     }
 
-    /// 预计算字段偏移量
-    fn calculate_field_offsets(&mut self) -> Result<(), String> {
+    fn calculate_field_offsets(&mut self) -> Result<(), ExpressionError> {
         let mut offset = 0;
 
         for (field_name, field_def) in &self.schema.fields {
@@ -45,8 +44,7 @@ impl RowReaderWrapper {
         Ok(())
     }
 
-    /// 计算字段大小
-    fn calculate_field_size(&self, field_def: &FieldDef) -> Result<usize, String> {
+    fn calculate_field_size(&self, field_def: &FieldDef) -> Result<usize, ExpressionError> {
         match field_def.field_type {
             // 基本类型
             super::types::FieldType::Bool => Ok(1),
@@ -102,37 +100,32 @@ impl RowReaderWrapper {
         }
     }
 
-    /// 读取指定属性的值
-    pub fn read_value(&self, prop_name: &str) -> Result<Value, String> {
-        // 检查字段是否存在
+    pub fn read_value(&self, prop_name: &str) -> Result<Value, ExpressionError> {
         let field_def = self
             .schema
             .fields
             .get(prop_name)
-            .ok_or_else(|| format!("字段 '{}' 不存在", prop_name))?;
+            .ok_or_else(|| ExpressionError::property_not_found(prop_name))?;
 
-        // 检查字段偏移量缓存
         let &(offset, _size) = self
             .field_offsets
             .get(prop_name)
-            .ok_or_else(|| format!("字段 '{}' 偏移量未计算", prop_name))?;
+            .ok_or_else(|| ExpressionError::runtime_error(format!("字段 '{}' 偏移量未计算", prop_name)))?;
 
-        // 根据字段类型解析值
         self.parse_value_by_type(&self.data[offset..], field_def)
     }
 
-    /// 根据类型解析值
-    fn parse_value_by_type(&self, data: &[u8], field_def: &FieldDef) -> Result<Value, String> {
+    fn parse_value_by_type(&self, data: &[u8], field_def: &FieldDef) -> Result<Value, ExpressionError> {
         match field_def.field_type {
             super::types::FieldType::Bool => {
                 if data.len() < 1 {
-                    return Err("数据长度不足".to_string());
+                    return Err(ExpressionError::type_error("数据长度不足"));
                 }
                 Ok(Value::Bool(data[0] != 0))
             }
             super::types::FieldType::Int => {
                 if data.len() < 8 {
-                    return Err("数据长度不足".to_string());
+                    return Err(ExpressionError::type_error("数据长度不足"));
                 }
                 let value = i64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
@@ -141,14 +134,14 @@ impl RowReaderWrapper {
             }
             super::types::FieldType::Float => {
                 if data.len() < 4 {
-                    return Err("数据长度不足".to_string());
+                    return Err(ExpressionError::type_error("数据长度不足"));
                 }
                 let value = f32::from_le_bytes([data[0], data[1], data[2], data[3]]);
                 Ok(Value::Float(value as f64))
             }
             super::types::FieldType::Double => {
                 if data.len() < 8 {
-                    return Err("数据长度不足".to_string());
+                    return Err(ExpressionError::type_error("数据长度不足"));
                 }
                 let value = f64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
@@ -157,39 +150,37 @@ impl RowReaderWrapper {
             }
             super::types::FieldType::String => {
                 if data.len() < 4 {
-                    return Err("数据长度不足".to_string());
+                    return Err(ExpressionError::type_error("数据长度不足"));
                 }
                 let len = u32::from_be_bytes([data[0], data[1], data[2], data[3]]) as usize;
                 if data.len() < 4 + len {
-                    return Err(format!(
+                    return Err(ExpressionError::type_error(format!(
                         "字符串数据长度不足，需要 {} 字节，实际 {} 字节",
                         4 + len,
                         data.len()
-                    ));
+                    )));
                 }
                 let string_bytes = &data[4..4 + len];
                 String::from_utf8(string_bytes.to_vec())
                     .map(Value::String)
-                    .map_err(|e| format!("字符串解析失败: {}", e))
+                    .map_err(|e| ExpressionError::type_error(format!("字符串解析失败: {}", e)))
             }
             super::types::FieldType::FixedString(fixed_len) => {
                 if data.len() < fixed_len {
-                    return Err("数据长度不足".to_string());
+                    return Err(ExpressionError::type_error("数据长度不足"));
                 }
-                // 找到第一个null字符的位置
                 let actual_len = data.iter().position(|&b| b == 0).unwrap_or(fixed_len);
                 String::from_utf8(data[..actual_len].to_vec())
                     .map(Value::String)
-                    .map_err(|e| format!("固定字符串解析失败: {}", e))
+                    .map_err(|e| ExpressionError::type_error(format!("固定字符串解析失败: {}", e)))
             }
             super::types::FieldType::Timestamp => {
                 if data.len() < 8 {
-                    return Err("数据长度不足".to_string());
+                    return Err(ExpressionError::type_error("数据长度不足"));
                 }
                 let timestamp = i64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
-                // 将时间戳转换为DateTime
                 let _seconds = timestamp / 1000;
                 let nanos = ((timestamp % 1000) * 1_000_000) as u32;
                 Ok(Value::DateTime(crate::core::value::DateTimeValue {
@@ -204,41 +195,38 @@ impl RowReaderWrapper {
             }
             super::types::FieldType::Date => {
                 if data.len() < 4 {
-                    return Err("数据长度不足".to_string());
+                    return Err(ExpressionError::type_error("数据长度不足"));
                 }
-                let days = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
-                // 将天数转换为DateValue（简化实现，从1970-01-01开始计算）
+                let days = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as i64;
+                let (year, month, day) = super::date_utils::days_to_date(days);
                 Ok(Value::Date(crate::core::value::DateValue {
-                    year: 1970 + (days / 365) as i32,
-                    month: ((days % 365) / 30 + 1) as u32,
-                    day: ((days % 365) % 30 + 1) as u32,
+                    year,
+                    month,
+                    day,
                 }))
             }
             super::types::FieldType::DateTime => {
                 if data.len() < 8 {
-                    return Err("数据长度不足".to_string());
+                    return Err(ExpressionError::type_error("数据长度不足"));
                 }
                 let timestamp = i64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
-                // 将时间戳转换为DateTime
-                let _seconds = timestamp / 1000;
-                let nanos = ((timestamp % 1000) * 1_000_000) as u32;
+                let (year, month, day, hour, minute, second, microsecond) = super::date_utils::timestamp_to_datetime(timestamp);
                 Ok(Value::DateTime(crate::core::value::DateTimeValue {
-                    year: 1970,
-                    month: 1,
-                    day: 1,
-                    hour: 0,
-                    minute: 0,
-                    sec: 0,
-                    microsec: nanos / 1000,
+                    year,
+                    month,
+                    day,
+                    hour,
+                    minute,
+                    sec: second,
+                    microsec: microsecond,
                 }))
             }
-            // 其他类型的简化实现
-            _ => Ok(Value::String(format!(
-                "未实现的类型: {:?}",
-                field_def.field_type
-            ))),
+            _ => Err(ExpressionError::unsupported_operation(
+                format!("类型解析: {:?}", field_def.field_type),
+                "请使用支持的类型"
+            )),
         }
     }
 

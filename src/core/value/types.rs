@@ -217,6 +217,11 @@ impl Value {
         matches!(self, Value::Null(_))
     }
 
+    /// 检查值是否为BadNull（BadData或BadType）
+    pub fn is_bad_null(&self) -> bool {
+        matches!(self, Value::Null(NullType::BadData) | Value::Null(NullType::BadType))
+    }
+
     /// 检查值是否为空
     pub fn is_empty(&self) -> bool {
         matches!(self, Value::Empty)

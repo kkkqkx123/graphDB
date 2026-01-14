@@ -134,9 +134,22 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_like(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
+        if left.is_bad_null() || right.is_bad_null() {
+            return Ok(Value::Null(crate::core::value::NullType::BadType));
+        }
+
+        if (!left.is_null() && !left.is_empty() && !matches!(left, Value::String(_))) ||
+           (!right.is_null() && !right.is_empty() && !matches!(right, Value::String(_))) {
+            return Ok(Value::Null(crate::core::value::NullType::BadType));
+        }
+
+        if left.is_null() || right.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match (left, right) {
             (Value::String(l), Value::String(r)) => Self::eval_like_operation(l, r),
-            _ => Err(ExpressionError::type_error("LIKE操作需要字符串值")),
+            _ => Ok(Value::Null(crate::core::value::NullType::BadType)),
         }
     }
 
@@ -191,28 +204,59 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_in(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
+        if left.is_null() || right.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match right {
-            Value::List(items) => Ok(Value::Bool(items.contains(left))),
+            Value::List(items) => {
+                if items.iter().any(|item| item.is_null()) {
+                    return Ok(Value::Null(crate::core::value::NullType::Null));
+                }
+                Ok(Value::Bool(items.contains(left)))
+            }
             _ => Err(ExpressionError::type_error("IN操作右侧必须是列表")),
         }
     }
 
     fn eval_not_in(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
+        if left.is_null() || right.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match right {
-            Value::List(items) => Ok(Value::Bool(!items.contains(left))),
+            Value::List(items) => {
+                if items.iter().any(|item| item.is_null()) {
+                    return Ok(Value::Null(crate::core::value::NullType::Null));
+                }
+                Ok(Value::Bool(!items.contains(left)))
+            }
             _ => Err(ExpressionError::type_error("NOT IN操作右侧必须是列表")),
         }
     }
 
     fn eval_contains(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
+        if left.is_null() || right.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match (&left, &right) {
             (Value::String(s), Value::String(sub)) => Ok(Value::Bool(s.contains(sub))),
-            (Value::List(items), item) => Ok(Value::Bool(items.contains(item))),
+            (Value::List(items), item) => {
+                if items.iter().any(|i| i.is_null()) {
+                    return Ok(Value::Null(crate::core::value::NullType::Null));
+                }
+                Ok(Value::Bool(items.contains(item)))
+            }
             _ => Err(ExpressionError::type_error("CONTAINS操作需要字符串或列表")),
         }
     }
 
     fn eval_starts_with(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
+        if left.is_null() || right.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match (&left, &right) {
             (Value::String(s), Value::String(prefix)) => Ok(Value::Bool(s.starts_with(prefix))),
             _ => Err(ExpressionError::type_error("STARTS WITH操作需要字符串值")),
@@ -220,6 +264,10 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_ends_with(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
+        if left.is_null() || right.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match (&left, &right) {
             (Value::String(s), Value::String(suffix)) => Ok(Value::Bool(s.ends_with(suffix))),
             _ => Err(ExpressionError::type_error("ENDS WITH操作需要字符串值")),
@@ -272,8 +320,15 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_union(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
+        if left.is_null() || right.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match (left, right) {
             (Value::List(l), Value::List(r)) => {
+                if l.iter().any(|item| item.is_null()) || r.iter().any(|item| item.is_null()) {
+                    return Ok(Value::Null(crate::core::value::NullType::Null));
+                }
                 let mut result = l.clone();
                 result.extend(r.clone());
                 Ok(Value::List(result))
@@ -283,8 +338,15 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_intersect(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
+        if left.is_null() || right.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match (left, right) {
             (Value::List(l), Value::List(r)) => {
+                if l.iter().any(|item| item.is_null()) || r.iter().any(|item| item.is_null()) {
+                    return Ok(Value::Null(crate::core::value::NullType::Null));
+                }
                 let result: Vec<Value> =
                     l.iter().filter(|item| r.contains(item)).cloned().collect();
                 Ok(Value::List(result))
@@ -294,8 +356,15 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_except(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
+        if left.is_null() || right.is_null() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
         match (left, right) {
             (Value::List(l), Value::List(r)) => {
+                if l.iter().any(|item| item.is_null()) || r.iter().any(|item| item.is_null()) {
+                    return Ok(Value::Null(crate::core::value::NullType::Null));
+                }
                 let result: Vec<Value> =
                     l.iter().filter(|item| !r.contains(item)).cloned().collect();
                 Ok(Value::List(result))
