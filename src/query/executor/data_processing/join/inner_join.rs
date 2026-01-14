@@ -76,28 +76,17 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
         let left_key_idx = 0;
         let right_key_idx = 0;
 
+        // 执行左右输入交换优化
+        self.base_executor.optimize_join_order(left_dataset, right_dataset);
+        let exchange = self.base_executor.is_exchanged();
+
         // 决定是否交换左右输入以优化性能
-        let (build_dataset, probe_dataset, build_key_idx, probe_key_idx, exchange) = if self
-            .base_executor
-            .should_exchange(left_dataset.rows.len(), right_dataset.rows.len())
-        {
+        let (build_dataset, probe_dataset, build_key_idx, probe_key_idx) = if exchange {
             // 交换：右表作为构建表，左表作为探测表
-            (
-                right_dataset,
-                left_dataset,
-                right_key_idx,
-                left_key_idx,
-                true,
-            )
+            (right_dataset, left_dataset, right_key_idx, left_key_idx)
         } else {
             // 不交换：左表作为构建表，右表作为探测表
-            (
-                left_dataset,
-                right_dataset,
-                left_key_idx,
-                right_key_idx,
-                false,
-            )
+            (left_dataset, right_dataset, left_key_idx, right_key_idx)
         };
 
         // 构建哈希表
@@ -145,28 +134,17 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
         left_key_indices.push(0);
         right_key_indices.push(0);
 
+        // 执行左右输入交换优化
+        self.base_executor.optimize_join_order(left_dataset, right_dataset);
+        let exchange = self.base_executor.is_exchanged();
+
         // 决定是否交换左右输入以优化性能
-        let (build_dataset, probe_dataset, build_key_indices, probe_key_indices, exchange) = if self
-            .base_executor
-            .should_exchange(left_dataset.rows.len(), right_dataset.rows.len())
-        {
+        let (build_dataset, probe_dataset, build_key_indices, probe_key_indices) = if exchange {
             // 交换：右表作为构建表，左表作为探测表
-            (
-                right_dataset,
-                left_dataset,
-                &right_key_indices,
-                &left_key_indices,
-                true,
-            )
+            (right_dataset, left_dataset, &right_key_indices, &left_key_indices)
         } else {
             // 不交换：左表作为构建表，右表作为探测表
-            (
-                left_dataset,
-                right_dataset,
-                &left_key_indices,
-                &right_key_indices,
-                false,
-            )
+            (left_dataset, right_dataset, &left_key_indices, &right_key_indices)
         };
 
         // 构建哈希表
@@ -222,6 +200,12 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
                 .map_err(DBError::from)?
         };
 
+        // 更新统计信息
+        self.base_executor
+            .get_base_mut()
+            .get_stats_mut()
+            .add_row(result.rows.len());
+
         Ok(ExecutionResult::Values(vec![Value::DataSet(result)]))
     }
 
@@ -249,6 +233,14 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
 
     fn description(&self) -> &str {
         &self.base_executor.get_base().description
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base_executor.get_base().get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base_executor.get_base_mut().get_stats_mut()
     }
 }
 

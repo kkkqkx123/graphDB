@@ -1,9 +1,11 @@
 //! 过滤执行器
 //!
 //! 实现对查询结果的条件过滤功能，支持 HAVING 子句
+//! 支持并行处理以提升大数据集的性能
 
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
+use rayon::prelude::*;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
@@ -82,10 +84,31 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
     /// 对数据集应用过滤条件
     fn apply_filter(&self, dataset: &mut DataSet) -> DBResult<()> {
+        let batch_size = self.calculate_batch_size(dataset.rows.len());
+
+        if batch_size >= dataset.rows.len() {
+            // 数据量小，使用单线程处理
+            self.apply_filter_single(dataset)
+        } else {
+            // 数据量大，使用并行处理
+            self.apply_filter_parallel(dataset, batch_size)
+        }
+    }
+
+    /// 计算批量大小
+    fn calculate_batch_size(&self, total_size: usize) -> usize {
+        if total_size < 1000 {
+            total_size
+        } else {
+            std::cmp::max(1000, total_size / num_cpus::get())
+        }
+    }
+
+    /// 单线程过滤
+    fn apply_filter_single(&self, dataset: &mut DataSet) -> DBResult<()> {
         let mut filtered_rows = Vec::new();
 
         for row in &dataset.rows {
-            // 构建表达式上下文
             let mut context = DefaultExpressionContext::new();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
@@ -93,7 +116,6 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
                 }
             }
 
-            // 评估过滤条件
             let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
                 .map_err(|e| {
                     DBError::Expression(crate::core::error::ExpressionError::function_error(
@@ -101,11 +123,42 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
                     ))
                 })?;
 
-            // 如果条件为真，保留该行
             if let crate::core::Value::Bool(true) = condition_result {
                 filtered_rows.push(row.clone());
             }
         }
+
+        dataset.rows = filtered_rows;
+        Ok(())
+    }
+
+    /// 并行过滤
+    fn apply_filter_parallel(&self, dataset: &mut DataSet, batch_size: usize) -> DBResult<()> {
+        let col_names = dataset.col_names.clone();
+        let condition = self.condition.clone();
+
+        let filtered_rows: Vec<Vec<Value>> = dataset
+            .rows
+            .par_chunks(batch_size)
+            .flat_map(|chunk| {
+                chunk
+                    .iter()
+                    .filter_map(|row| {
+                        let mut context = DefaultExpressionContext::new();
+                        for (i, col_name) in col_names.iter().enumerate() {
+                            if i < row.len() {
+                                context.set_variable(col_name.clone(), row[i].clone());
+                            }
+                        }
+
+                        match ExpressionEvaluator::evaluate(&condition, &mut context) {
+                            Ok(crate::core::Value::Bool(true)) => Some(row.clone()),
+                            _ => None,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
 
         dataset.rows = filtered_rows;
         Ok(())
@@ -243,7 +296,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for FilterExecutor<S>
                 .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
         };
 
-        self.process(input_result).await
+        let result = self.process(input_result).await;
+        
+        // 更新统计信息
+        if let Ok(ref exec_result) = result {
+            self.base.get_stats_mut().add_row(exec_result.count());
+        }
+        
+        result
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -274,6 +334,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for FilterExecutor<S>
 
     fn description(&self) -> &str {
         &self.base.description
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 

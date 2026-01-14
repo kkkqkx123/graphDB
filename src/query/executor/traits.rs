@@ -6,7 +6,48 @@
 use crate::core::error::DBError;
 use crate::storage::StorageEngine;
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+/// 执行器统计信息
+#[derive(Debug, Clone, Default)]
+pub struct ExecutorStats {
+    /// 处理的行数
+    pub num_rows: usize,
+    /// 执行时间（微秒）
+    pub exec_time_us: u64,
+    /// 总时间（微秒）
+    pub total_time_us: u64,
+    /// 其他统计信息
+    pub other_stats: HashMap<String, String>,
+}
+
+impl ExecutorStats {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn add_row(&mut self, count: usize) {
+        self.num_rows += count;
+    }
+
+    pub fn add_exec_time(&mut self, duration: Duration) {
+        self.exec_time_us += duration.as_micros() as u64;
+    }
+
+    pub fn add_total_time(&mut self, duration: Duration) {
+        self.total_time_us += duration.as_micros() as u64;
+    }
+
+    pub fn add_stat(&mut self, key: String, value: String) {
+        self.other_stats.insert(key, value);
+    }
+
+    pub fn get_stat(&self, key: &str) -> Option<&String> {
+        self.other_stats.get(key)
+    }
+}
 
 /// 统一的执行器trait - 核心接口
 ///
@@ -33,6 +74,17 @@ pub trait Executor<S: StorageEngine>: Send + Sync {
 
     /// 获取执行器描述
     fn description(&self) -> &str;
+
+    /// 获取执行统计信息
+    fn stats(&self) -> &ExecutorStats;
+
+    /// 获取可变的执行统计信息
+    fn stats_mut(&mut self) -> &mut ExecutorStats;
+
+    /// 检查内存使用
+    fn check_memory(&self) -> DBResult<()> {
+        Ok(())
+    }
 }
 
 /// 存储访问trait - 可选功能
@@ -101,6 +153,7 @@ pub struct BaseExecutor<S: StorageEngine> {
     name: String,
     description: String,
     is_open: bool,
+    stats: ExecutorStats,
 }
 
 impl<S: StorageEngine> BaseExecutor<S> {
@@ -112,6 +165,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
             name: name.to_string(),
             description: description.to_string(),
             is_open: false,
+            stats: ExecutorStats::new(),
         }
     }
 
@@ -123,6 +177,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
             name: name.to_string(),
             description: description.to_string(),
             is_open: false,
+            stats: ExecutorStats::new(),
         }
     }
 
@@ -134,6 +189,16 @@ impl<S: StorageEngine> BaseExecutor<S> {
     /// 设置存储引擎
     pub fn set_storage(&mut self, storage: Arc<Mutex<S>>) {
         self.storage = Some(storage);
+    }
+
+    /// 获取执行统计信息
+    pub fn get_stats(&self) -> &ExecutorStats {
+        &self.stats
+    }
+
+    /// 获取可变的执行统计信息
+    pub fn get_stats_mut(&mut self) -> &mut ExecutorStats {
+        &mut self.stats
     }
 }
 

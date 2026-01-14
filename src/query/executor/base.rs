@@ -1,9 +1,10 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use crate::core::{Edge, Value, Vertex};
-use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
+use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage};
 use crate::storage::StorageEngine;
 
 pub use crate::core::types::EdgeDirection;
@@ -49,6 +50,7 @@ pub struct BaseExecutor<S: StorageEngine> {
     pub storage: Option<Arc<Mutex<S>>>,
     pub context: ExecutionContext,
     is_open: bool,
+    stats: ExecutorStats,
 }
 
 impl<S: StorageEngine> BaseExecutor<S> {
@@ -60,6 +62,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
             storage: Some(storage),
             context: ExecutionContext::new(),
             is_open: false,
+            stats: ExecutorStats::new(),
         }
     }
 
@@ -71,6 +74,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
             storage: None,
             context: ExecutionContext::new(),
             is_open: false,
+            stats: ExecutorStats::new(),
         }
     }
 
@@ -87,6 +91,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
             storage: Some(storage),
             context,
             is_open: false,
+            stats: ExecutorStats::new(),
         }
     }
 
@@ -103,6 +108,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
             storage: Some(storage),
             context: ExecutionContext::new(),
             is_open: false,
+            stats: ExecutorStats::new(),
         }
     }
 
@@ -120,7 +126,18 @@ impl<S: StorageEngine> BaseExecutor<S> {
             storage: Some(storage),
             context,
             is_open: false,
+            stats: ExecutorStats::new(),
         }
+    }
+
+    /// 获取执行统计信息
+    pub fn get_stats(&self) -> &ExecutorStats {
+        &self.stats
+    }
+
+    /// 获取可变的执行统计信息
+    pub fn get_stats_mut(&mut self) -> &mut ExecutorStats {
+        &mut self.stats
     }
 }
 
@@ -135,7 +152,10 @@ impl<S: StorageEngine> HasStorage<S> for BaseExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine> Executor<S> for BaseExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        Ok(ExecutionResult::Success)
+        let start = Instant::now();
+        let result = Ok(ExecutionResult::Success);
+        self.stats_mut().add_total_time(start.elapsed());
+        result
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -162,6 +182,14 @@ impl<S: StorageEngine> Executor<S> for BaseExecutor<S> {
 
     fn description(&self) -> &str {
         &self.description
+    }
+
+    fn stats(&self) -> &ExecutorStats {
+        &self.stats
+    }
+
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        &mut self.stats
     }
 }
 
@@ -201,18 +229,17 @@ impl<S: StorageEngine> StartExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // StartExecutor typically produces an initial result set or provides a starting point
-        // For initial implementation, we can return a simple success or empty result
-        Ok(ExecutionResult::Success)
+        let start = Instant::now();
+        let result = Ok(ExecutionResult::Success);
+        self.base.get_stats_mut().add_total_time(start.elapsed());
+        result
     }
 
     fn open(&mut self) -> DBResult<()> {
-        // Initialize any resources needed for the start executor
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // Clean up any resources
         Ok(())
     }
 
@@ -230,6 +257,14 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
 
     fn description(&self) -> &str {
         &self.base.description
+    }
+
+    fn stats(&self) -> &ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 

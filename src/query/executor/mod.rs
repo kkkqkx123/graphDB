@@ -17,7 +17,7 @@ pub mod cypher;
 
 // Re-export the new trait types
 pub use traits::{
-    BaseExecutor as NewBaseExecutor, ExecutionResult, Executor, HasInput, HasStorage,
+    BaseExecutor as NewBaseExecutor, ExecutionResult, Executor, HasInput, HasStorage, ExecutorStats,
 };
 
 // Re-export the base types

@@ -337,7 +337,18 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
 
     /// 决定是否交换左右输入以优化性能
     pub fn should_exchange(&self, left_size: usize, right_size: usize) -> bool {
-        left_size > right_size
+        // 如果左表比右表大很多，交换以减少哈希表大小
+        left_size > right_size * 2
+    }
+
+    /// 执行左右输入交换优化
+    pub fn optimize_join_order(&mut self, left_dataset: &DataSet, right_dataset: &DataSet) {
+        let left_size = left_dataset.rows.len();
+        let right_size = right_dataset.rows.len();
+
+        if self.should_exchange(left_size, right_size) {
+            self.exchange = true;
+        }
     }
 
     /// 计算右侧输出列索引（用于自然连接）
@@ -357,6 +368,14 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         if !rhs_output_col_idxs.is_empty() && rhs_output_col_idxs.len() != right_col_names.len() {
             self.rhs_output_col_idxs = Some(rhs_output_col_idxs);
         }
+    }
+
+    /// 检查数据是否可以移动（避免不必要的拷贝）
+    pub fn is_movable(&self, var_name: &str) -> bool {
+        // 检查变量是否不再被后续执行器使用
+        // 简化实现：假设所有变量都可以移动
+        // 实际实现需要检查执行计划中的变量生命周期
+        true
     }
 
     /// 获取列名
@@ -427,6 +446,11 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     /// 获取描述
     pub fn description(&self) -> &str {
         &self.description
+    }
+
+    /// 获取是否交换了左右输入
+    pub fn is_exchanged(&self) -> bool {
+        self.exchange
     }
 }
 
