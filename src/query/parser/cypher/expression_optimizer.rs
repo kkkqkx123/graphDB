@@ -164,6 +164,30 @@ impl CypherExpressionOptimizer {
                     pattern_expr,
                 )
             }
+            crate::query::parser::cypher::ast::expressions::Expression::ListComprehension(
+                list_comp_expr,
+            ) => {
+                // 列表推导式暂时不优化
+                crate::query::parser::cypher::ast::expressions::Expression::ListComprehension(
+                    list_comp_expr,
+                )
+            }
+            crate::query::parser::cypher::ast::expressions::Expression::Reduce(reduce_expr) => {
+                // Reduce 表达式暂时不优化
+                crate::query::parser::cypher::ast::expressions::Expression::Reduce(reduce_expr)
+            }
+            crate::query::parser::cypher::ast::expressions::Expression::Aggregate(agg_expr) => {
+                // 聚合表达式暂时不优化
+                crate::query::parser::cypher::ast::expressions::Expression::Aggregate(agg_expr)
+            }
+            crate::query::parser::cypher::ast::expressions::Expression::Predicate(pred_expr) => {
+                // 谓词表达式暂时不优化
+                crate::query::parser::cypher::ast::expressions::Expression::Predicate(pred_expr)
+            }
+            crate::query::parser::cypher::ast::expressions::Expression::TypeCasting(cast_expr) => {
+                // 类型转换表达式暂时不优化
+                crate::query::parser::cypher::ast::expressions::Expression::TypeCasting(cast_expr)
+            }
         }
     }
 }

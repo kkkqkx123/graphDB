@@ -156,22 +156,191 @@ impl CypherLexer {
             if ch == '"' {
                 break;
             }
-            string.push(ch);
-            self.consume_char();
+            if ch == '\\' {
+                self.consume_char();
+                if let Some(escaped) = self.parse_escape_sequence()? {
+                    string.push(escaped);
+                }
+            } else {
+                string.push(ch);
+                self.consume_char();
+            }
         }
 
         self.expect_char('"')?;
         Ok(string)
     }
 
+    /// 解析转义序列
+    fn parse_escape_sequence(&mut self) -> Result<char, String> {
+        match self.peek_char() {
+            Some('n') => {
+                self.consume_char();
+                Ok('\n')
+            }
+            Some('t') => {
+                self.consume_char();
+                Ok('\t')
+            }
+            Some('r') => {
+                self.consume_char();
+                Ok('\r')
+            }
+            Some('\\') => {
+                self.consume_char();
+                Ok('\\')
+            }
+            Some('"') => {
+                self.consume_char();
+                Ok('"')
+            }
+            Some('\'') => {
+                self.consume_char();
+                Ok('\'')
+            }
+            Some('b') => {
+                self.consume_char();
+                Ok('\x08')
+            }
+            Some('f') => {
+                self.consume_char();
+                Ok('\x0c')
+            }
+            Some('u') => self.parse_unicode_escape(),
+            Some('U') => self.parse_unicode_escape_long(),
+            Some(c) if c.is_digit(10) => self.parse_octal_escape(),
+            _ => Err(format!(
+                "无效的转义序列: '\\{}'",
+                self.peek_char().unwrap_or(' ')
+            )),
+        }
+    }
+
+    /// 解析 Unicode 转义序列（4位十六进制）
+    fn parse_unicode_escape(&mut self) -> Result<char, String> {
+        self.expect_char('u')?;
+        let mut code = String::new();
+        for _ in 0..4 {
+            if let Some(ch) = self.peek_char() {
+                if ch.is_ascii_hexdigit() {
+                    code.push(ch);
+                    self.consume_char();
+                } else {
+                    return Err(format!("期望十六进制数字，得到 '{}'", ch));
+                }
+            } else {
+                return Err("意外的文件结束在 Unicode 转义序列中".to_string());
+            }
+        }
+        let code_point = u32::from_str_radix(&code, 16)
+            .map_err(|e| format!("无效的 Unicode 码点: {}", e))?;
+        char::from_u32(code_point)
+            .ok_or_else(|| format!("无效的 Unicode 码点: 0x{}", code))
+    }
+
+    /// 解析长 Unicode 转义序列（8位十六进制）
+    fn parse_unicode_escape_long(&mut self) -> Result<char, String> {
+        self.expect_char('U')?;
+        let mut code = String::new();
+        for _ in 0..8 {
+            if let Some(ch) = self.peek_char() {
+                if ch.is_ascii_hexdigit() {
+                    code.push(ch);
+                    self.consume_char();
+                } else {
+                    return Err(format!("期望十六进制数字，得到 '{}'", ch));
+                }
+            } else {
+                return Err("意外的文件结束在 Unicode 转义序列中".to_string());
+            }
+        }
+        let code_point = u32::from_str_radix(&code, 16)
+            .map_err(|e| format!("无效的 Unicode 码点: {}", e))?;
+        char::from_u32(code_point)
+            .ok_or_else(|| format!("无效的 Unicode 码点: 0x{}", code))
+    }
+
+    /// 解析八进制转义序列
+    fn parse_octal_escape(&mut self) -> Result<char, String> {
+        let mut octal = String::new();
+        for _ in 0..3 {
+            if let Some(ch) = self.peek_char() {
+                if ch.is_digit(8) {
+                    octal.push(ch);
+                    self.consume_char();
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        if octal.is_empty() {
+            return Err("期望八进制数字".to_string());
+        }
+        let code = u8::from_str_radix(&octal, 8)
+            .map_err(|e| format!("无效的八进制转义序列: {}", e))?;
+        Ok(code as char)
+    }
+
     /// 读取数字字面量
     fn read_number(&mut self) -> Result<String, String> {
         let mut number = String::new();
 
+        // 检查十六进制数字
+        if self.peek_char() == Some('0') && self.peek_next_char() == Some('x') {
+            self.consume_char(); // '0'
+            self.consume_char(); // 'x'
+            while let Some(ch) = self.peek_char() {
+                if ch.is_ascii_hexdigit() {
+                    number.push(ch);
+                    self.consume_char();
+                } else {
+                    break;
+                }
+            }
+            return Ok(format!("0x{}", number));
+        }
+
+        // 检查二进制数字
+        if self.peek_char() == Some('0') && self.peek_next_char() == Some('b') {
+            self.consume_char(); // '0'
+            self.consume_char(); // 'b'
+            while let Some(ch) = self.peek_char() {
+                if ch == '0' || ch == '1' {
+                    number.push(ch);
+                    self.consume_char();
+                } else {
+                    break;
+                }
+            }
+            return Ok(format!("0b{}", number));
+        }
+
+        // 普通数字（可能包含小数点和科学计数法）
+        let mut has_decimal = false;
+        let mut has_exponent = false;
+
         while let Some(ch) = self.peek_char() {
-            if ch.is_digit(10) || ch == '.' {
+            if ch.is_digit(10) {
                 number.push(ch);
                 self.consume_char();
+            } else if ch == '.' && !has_decimal && !has_exponent {
+                number.push(ch);
+                has_decimal = true;
+                self.consume_char();
+            } else if (ch == 'e' || ch == 'E') && !has_exponent {
+                number.push(ch);
+                has_exponent = true;
+                self.consume_char();
+
+                // 检查指数符号
+                if let Some(next_ch) = self.peek_char() {
+                    if next_ch == '+' || next_ch == '-' {
+                        number.push(next_ch);
+                        self.consume_char();
+                    }
+                }
             } else {
                 break;
             }
@@ -235,19 +404,51 @@ impl CypherLexer {
     /// 读取注释
     fn read_comment(&mut self) -> Result<String, String> {
         self.expect_char('/')?;
-        self.expect_char('/')?;
 
-        let mut comment = String::new();
-
-        while let Some(ch) = self.peek_char() {
-            if ch == '\n' {
-                break;
+        if self.peek_char() == Some('/') {
+            // 单行注释
+            self.expect_char('/')?;
+            let mut comment = String::new();
+            while let Some(ch) = self.peek_char() {
+                if ch == '\n' {
+                    break;
+                }
+                comment.push(ch);
+                self.consume_char();
             }
-            comment.push(ch);
-            self.consume_char();
-        }
+            Ok(comment)
+        } else if self.peek_char() == Some('*') {
+            // 多行注释
+            self.expect_char('*')?;
+            let mut comment = String::new();
+            let mut nesting = 1;
 
-        Ok(comment)
+            while nesting > 0 {
+                if let Some(ch) = self.peek_char() {
+                    if ch == '/' && self.peek_next_char() == Some('*') {
+                        self.consume_char(); // '/'
+                        self.consume_char(); // '*'
+                        nesting += 1;
+                        comment.push_str("/*");
+                    } else if ch == '*' && self.peek_next_char() == Some('/') {
+                        self.consume_char(); // '*'
+                        self.consume_char(); // '/'
+                        nesting -= 1;
+                        if nesting > 0 {
+                            comment.push_str("*/");
+                        }
+                    } else {
+                        comment.push(ch);
+                        self.consume_char();
+                    }
+                } else {
+                    return Err("意外的文件结束在多行注释中".to_string());
+                }
+            }
+            Ok(comment)
+        } else {
+            Err("期望注释标记（// 或 /*）".to_string())
+        }
     }
 
     /// 跳过空白字符
@@ -264,10 +465,26 @@ impl CypherLexer {
     /// 检查是否为关键字
     fn is_keyword(word: &str) -> bool {
         let keywords = vec![
+            // Cypher 关键字
             "MATCH", "RETURN", "CREATE", "DELETE", "SET", "REMOVE", "MERGE", "WITH", "UNWIND",
             "CALL", "WHERE", "ORDER", "BY", "SKIP", "LIMIT", "DISTINCT", "AS", "AND", "OR", "NOT",
-            "TRUE", "FALSE", "NULL", "ON", "CREATE", "MATCH", "DETACH", "START", "END", "CONTAINS",
-            "STARTS", "ENDS", "IN", "IS", "ALL", "ANY", "NONE", "SINGLE",
+            "TRUE", "FALSE", "NULL", "ON", "DETACH", "START", "END", "CONTAINS",
+            "STARTS", "ENDS", "IN", "IS", "ALL", "ANY", "NONE", "SINGLE", "OPTIONAL",
+            
+            // NGQL 关键字
+            "GO", "FROM", "OVER", "REVERSELY", "UPTO", "STEPS", "SAMPLE", "YIELD",
+            "LOOKUP", "ON", "WHERE", "FETCH", "PROP", "VERTEX", "VERTICES", "EDGE", "EDGES",
+            "FIND", "PATH", "SHORTEST", "ALLSHORTESTPATHS", "NOLOOP",
+            "USE", "SPACE", "DESCRIBE", "DESC", "SHOW", "TAG", "TAGS",
+            "INDEX", "INDEXES", "REBUILD", "DROP", "IF", "EXISTS",
+            "INSERT", "UPDATE", "UPSERT", "VALUES", "VALUE",
+            "EXPLAIN", "PROFILE", "FORMAT",
+            
+            // 集合操作
+            "UNION", "INTERSECT", "MINUS",
+            
+            // 管道操作
+            "PIPE",
         ];
 
         keywords.contains(&word.to_uppercase().as_str())

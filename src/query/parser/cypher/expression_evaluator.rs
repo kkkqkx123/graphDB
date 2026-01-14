@@ -96,6 +96,21 @@ impl CypherEvaluator {
             crate::query::parser::cypher::ast::expressions::Expression::PatternExpression(_) => {
                 Err(ExpressionError::runtime_error("模式表达式求值".to_string()))
             }
+            crate::query::parser::cypher::ast::expressions::Expression::ListComprehension(_) => {
+                Err(ExpressionError::runtime_error("列表推导式求值".to_string()))
+            }
+            crate::query::parser::cypher::ast::expressions::Expression::Reduce(_) => {
+                Err(ExpressionError::runtime_error("Reduce表达式求值".to_string()))
+            }
+            crate::query::parser::cypher::ast::expressions::Expression::Aggregate(_) => {
+                Err(ExpressionError::runtime_error("聚合表达式求值".to_string()))
+            }
+            crate::query::parser::cypher::ast::expressions::Expression::Predicate(_) => {
+                Err(ExpressionError::runtime_error("谓词表达式求值".to_string()))
+            }
+            crate::query::parser::cypher::ast::expressions::Expression::TypeCasting(_) => {
+                Err(ExpressionError::runtime_error("类型转换表达式求值".to_string()))
+            }
         }
     }
 

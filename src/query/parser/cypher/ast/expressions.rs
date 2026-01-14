@@ -18,6 +18,11 @@ pub enum Expression {
     List(ListExpression),
     Map(MapExpression),
     PatternExpression(PatternExpression),
+    ListComprehension(ListComprehensionExpression),
+    Reduce(ReduceExpression),
+    Aggregate(AggregateExpression),
+    Predicate(PredicateExpression),
+    TypeCasting(TypeCastingExpression),
 }
 
 /// 字面量
@@ -90,6 +95,67 @@ pub struct MapExpression {
 #[derive(Debug, Clone)]
 pub struct PatternExpression {
     pub pattern: crate::query::parser::cypher::ast::patterns::Pattern,
+}
+
+/// 列表推导式
+#[derive(Debug, Clone)]
+pub struct ListComprehensionExpression {
+    pub variable: String,
+    pub collection: Box<Expression>,
+    pub filter: Option<Box<Expression>>,
+    pub mapping: Option<Box<Expression>>,
+}
+
+/// Reduce 表达式
+#[derive(Debug, Clone)]
+pub struct ReduceExpression {
+    pub accumulator: String,
+    pub initial: Box<Expression>,
+    pub variable: String,
+    pub list: Box<Expression>,
+    pub expression: Box<Expression>,
+}
+
+/// 聚合表达式
+#[derive(Debug, Clone)]
+pub struct AggregateExpression {
+    pub function: AggregateFunction,
+    pub expression: Box<Expression>,
+    pub distinct: bool,
+    pub alias: Option<String>,
+}
+
+/// 聚合函数
+#[derive(Debug, Clone, PartialEq)]
+pub enum AggregateFunction {
+    Count,
+    Sum,
+    Avg,
+    Min,
+    Max,
+    Collect,
+    CountDistinct,
+    StDev,
+    StDevP,
+    Variance,
+    VarianceP,
+    PercentileCont,
+    PercentileDisc,
+}
+
+/// 谓词表达式
+#[derive(Debug, Clone)]
+pub struct PredicateExpression {
+    pub variable: String,
+    pub pattern: Box<Expression>,
+    pub where_clause: Option<Box<Expression>>,
+}
+
+/// 类型转换表达式
+#[derive(Debug, Clone)]
+pub struct TypeCastingExpression {
+    pub expression: Box<Expression>,
+    pub target_type: String,
 }
 
 impl Expression {

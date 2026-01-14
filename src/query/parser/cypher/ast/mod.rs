@@ -19,9 +19,16 @@ pub use clauses::{
 };
 pub use converters::{CypherConverter, ExpressionEvaluator};
 pub use expressions::{
-    BinaryExpression, CaseAlternative, CaseExpression, Expression, FunctionCall, ListExpression,
-    Literal, MapExpression, PatternExpression, PropertyExpression, UnaryExpression,
+    AggregateExpression, AggregateFunction, BinaryExpression, CaseAlternative, CaseExpression, Expression,
+    FunctionCall, ListComprehensionExpression, ListExpression, Literal, MapExpression,
+    PatternExpression, PredicateExpression, PropertyExpression, ReduceExpression, TypeCastingExpression,
+    UnaryExpression,
 };
 pub use patterns::{Direction, NodePattern, Pattern, PatternPart, Range, RelationshipPattern};
 pub use query_types::{Condition, Query};
-pub use statements::{CypherStatement, QueryClause};
+pub use statements::{
+    CreateEdgeClause, CreateSpaceClause, CreateTagClause, CypherStatement, DropEdgeClause,
+    DropSpaceClause, DropTagClause, EdgeDirection, EdgeKey, FindPathClause, FetchEdgesClause,
+    FetchVerticesClause, FromClause, GoClause, LookupClause, OverClause, PathType, PropertyDefinition,
+    QueryClause, SpaceOption, StepClause, TruncateClause, YieldClause, YieldColumn,
+};
