@@ -15,10 +15,10 @@
 //! - 移除复杂的验证步骤
 /// - 专注于核心的规划逻辑
 use crate::query::context::ast::AstContext;
-use crate::query::planner::match_planning::clauses::{
+use crate::query::planner::statements::clauses::{
     ReturnClausePlanner, WhereClausePlanner, WithClausePlanner,
 };
-use crate::query::planner::match_planning::core::{
+use crate::query::planner::statements::core::{
     ContextPropagator, CypherClausePlanner, DataFlowManager, MatchClausePlanner, PlanningContext,
     QueryInfo,
 };

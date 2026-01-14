@@ -15,11 +15,11 @@
 /// - 移除复杂的验证逻辑，内聚到接口中
 /// - 专注于核心的路径处理和变量管理
 use crate::core::Expression;
-use crate::query::planner::match_planning::core::{
+use crate::query::planner::statements::core::{
     ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext, VariableInfo,
 };
-use crate::query::planner::match_planning::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::match_planning::utils::finder::Finder;
+use crate::query::planner::statements::utils::connection_strategy::UnifiedConnector;
+use crate::query::planner::statements::utils::finder::Finder;
 
 use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
@@ -171,7 +171,7 @@ mod tests {
     fn test_match_clause_planner_interface() {
         let planner = MatchClausePlanner::new(vec![]);
         assert_eq!(planner.clause_type(), ClauseType::Match);
-        assert_eq!(<MatchClausePlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection::Source);
+        assert_eq!(<MatchClausePlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::statements::core::cypher_clause_planner::FlowDirection::Source);
         assert!(!planner.requires_input());
     }
 

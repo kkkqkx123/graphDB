@@ -29,6 +29,8 @@ pub struct GraphQueryExecutor<S: StorageEngine> {
     storage: Arc<Mutex<S>>,
     /// 是否已打开
     is_open: bool,
+    /// 执行统计信息
+    stats: crate::query::executor::traits::ExecutorStats,
 }
 
 impl<S: StorageEngine> GraphQueryExecutor<S> {
@@ -40,6 +42,7 @@ impl<S: StorageEngine> GraphQueryExecutor<S> {
             description: "图查询语言执行器".to_string(),
             storage,
             is_open: false,
+            stats: crate::query::executor::traits::ExecutorStats::new(),
         }
     }
 
@@ -51,6 +54,7 @@ impl<S: StorageEngine> GraphQueryExecutor<S> {
             description: "图查询语言执行器".to_string(),
             storage,
             is_open: false,
+            stats: crate::query::executor::traits::ExecutorStats::new(),
         }
     }
 
@@ -67,6 +71,7 @@ impl<S: StorageEngine> GraphQueryExecutor<S> {
             description,
             storage,
             is_open: false,
+            stats: crate::query::executor::traits::ExecutorStats::new(),
         }
     }
 
@@ -147,6 +152,10 @@ impl<S: StorageEngine> GraphQueryExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine> Executor<S> for GraphQueryExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        Err(DBError::Query(QueryError::ExecutionError("需要先设置要执行的语句".to_string())))
+    }
+
     fn id(&self) -> i64 {
         self.id
     }
@@ -159,12 +168,12 @@ impl<S: StorageEngine> Executor<S> for GraphQueryExecutor<S> {
         &self.description
     }
 
-    async fn open(&mut self) -> Result<(), DBError> {
+    async fn open(&mut self) -> DBResult<()> {
         self.is_open = true;
         Ok(())
     }
 
-    async fn close(&mut self) -> Result<(), DBError> {
+    async fn close(&mut self) -> DBResult<()> {
         self.is_open = false;
         Ok(())
     }
@@ -172,15 +181,19 @@ impl<S: StorageEngine> Executor<S> for GraphQueryExecutor<S> {
     fn is_open(&self) -> bool {
         self.is_open
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        &self.stats
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        &mut self.stats
+    }
 }
 
 #[async_trait]
 impl<S: StorageEngine> HasStorage<S> for GraphQueryExecutor<S> {
-    fn storage(&self) -> Option<&Arc<Mutex<S>>> {
-        self.storage.as_ref()
-    }
-
-    fn set_storage(&mut self, storage: Arc<Mutex<S>>) {
-        self.storage = Some(storage);
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.storage.as_ref().expect("存储引擎未设置")
     }
 }

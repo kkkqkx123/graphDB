@@ -9,7 +9,6 @@
 
 pub mod cypher_clause_planner;
 pub mod match_clause_planner;
-pub mod match_planner;
 
 // 重新导出核心接口
 pub use cypher_clause_planner::{

@@ -123,8 +123,8 @@ impl PlannerRegistry {
         // 注册新的 MATCH 规划器
         self.register_planner(
             SentenceKind::Match,
-            crate::query::planner::match_planning::MatchPlanner::match_ast_ctx,
-            crate::query::planner::match_planning::MatchPlanner::make,
+            crate::query::planner::statements::MatchPlanner::match_ast_ctx,
+            crate::query::planner::statements::MatchPlanner::make,
             100,
         );
     }
@@ -134,50 +134,50 @@ impl PlannerRegistry {
         // 暂时注释掉，因为现有的规划器还没有实现新的接口
         // self.register_planner(
         //     SentenceKind::Go,
-        //     crate::query::planner::ngql::GoPlanner::match_ast_ctx,
-        //     crate::query::planner::ngql::GoPlanner::make,
+        //     crate::query::planner::statements::GoPlanner::match_ast_ctx,
+        //     crate::query::planner::statements::GoPlanner::make,
         //     100,
         // );
 
         // self.register_planner(
         //     SentenceKind::Lookup,
-        //     crate::query::planner::ngql::LookupPlanner::match_ast_ctx,
-        //     crate::query::planner::ngql::LookupPlanner::make,
+        //     crate::query::planner::statements::LookupPlanner::match_ast_ctx,
+        //     crate::query::planner::statements::LookupPlanner::make,
         //     100,
         // );
 
         // self.register_planner(
         //     SentenceKind::Path,
-        //     crate::query::planner::ngql::PathPlanner::match_ast_ctx,
-        //     crate::query::planner::ngql::PathPlanner::make,
+        //     crate::query::planner::statements::PathPlanner::match_ast_ctx,
+        //     crate::query::planner::statements::PathPlanner::make,
         //     100,
         // );
 
         // self.register_planner(
         //     SentenceKind::Subgraph,
-        //     crate::query::planner::ngql::SubgraphPlanner::match_ast_ctx,
-        //     crate::query::planner::ngql::SubgraphPlanner::make,
+        //     crate::query::planner::statements::SubgraphPlanner::match_ast_ctx,
+        //     crate::query::planner::statements::SubgraphPlanner::make,
         //     100,
         // );
 
         // self.register_planner(
         //     SentenceKind::FetchVertices,
-        //     crate::query::planner::ngql::FetchVerticesPlanner::match_ast_ctx,
-        //     crate::query::planner::ngql::FetchVerticesPlanner::make,
+        //     crate::query::planner::statements::FetchVerticesPlanner::match_ast_ctx,
+        //     crate::query::planner::statements::FetchVerticesPlanner::make,
         //     100,
         // );
 
         // self.register_planner(
         //     SentenceKind::FetchEdges,
-        //     crate::query::planner::ngql::FetchEdgesPlanner::match_ast_ctx,
-        //     crate::query::planner::ngql::FetchEdgesPlanner::make,
+        //     crate::query::planner::statements::FetchEdgesPlanner::match_ast_ctx,
+        //     crate::query::planner::statements::FetchEdgesPlanner::make,
         //     100,
         // );
 
         // self.register_planner(
         //     SentenceKind::Maintain,
-        //     crate::query::planner::ngql::MaintainPlanner::match_ast_ctx,
-        //     crate::query::planner::ngql::MaintainPlanner::make,
+        //     crate::query::planner::statements::MaintainPlanner::match_ast_ctx,
+        //     crate::query::planner::statements::MaintainPlanner::make,
         //     100,
         // );
     }
