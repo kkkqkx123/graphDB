@@ -12,8 +12,11 @@ pub mod join_optimization;
 pub mod limit_pushdown;
 pub mod operation_merge;
 pub mod optimizer;
+pub mod plan_validator;
 pub mod predicate_pushdown;
 pub mod projection_pushdown;
+pub mod property_tracker;
+pub mod prune_properties_visitor;
 pub mod scan_optimization;
 pub mod transformation_rules;
 
@@ -49,3 +52,4 @@ pub use transformation_rules::TopNRule;
 
 // Re-export the main Optimizer struct
 pub use optimizer::Optimizer;
+pub use plan_validator::PlanValidator;

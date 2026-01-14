@@ -466,6 +466,11 @@ impl TraverseNode {
     pub fn filter(&self) -> Option<&String> {
         self.filter.as_ref()
     }
+
+    /// 设置过滤条件
+    pub fn set_filter(&mut self, filter: String) {
+        self.filter = Some(filter);
+    }
 }
 
 impl TraverseNode {

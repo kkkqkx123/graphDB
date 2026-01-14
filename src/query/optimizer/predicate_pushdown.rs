@@ -43,50 +43,65 @@ impl OptRule for FilterPushDownRule {
                         "ScanVertices" => {
                             // 对于扫描操作，我们可以将过滤条件下推到扫描操作
                             // 这通过在存储层而不是计算层应用过滤来减少从存储读取的记录数
-                            let split_result = can_push_down_to_scan(filter_condition);
+                            let tag_alias = ctx.get_tag_alias_for_node(child_node.id);
 
-                            if let Some(pushable_condition) = split_result.pushable_condition {
-                                // 创建带有过滤条件的新扫描节点
-                                if let Some(scan_node) = child_node.plan_node().as_scan_vertices() {
-                                    let new_scan_node = scan_node.clone();
+                            if let Some(alias) = tag_alias {
+                                // 分割过滤条件：可以下推到扫描的条件和剩余的条件
+                                let (pushable, remaining) = crate::core::expression_utils::ExpressionUtils::split_filter(
+                                    filter_condition,
+                                    |expr| {
+                                        // 检查是否为顶点属性表达式或可以下推的表达式
+                                        Self::can_push_down_expression_to_scan(expr, &alias)
+                                    }
+                                );
 
-                                    // 如果需要，合并现有过滤条件和新的过滤条件
-                                    let _new_filter = if let Some(existing_filter) =
-                                        new_scan_node.vertex_filter()
-                                    {
-                                        combine_conditions(&pushable_condition, existing_filter)
-                                    } else {
-                                        pushable_condition
-                                    };
+                                if let Some(pushable_condition) = pushable {
+                                    // 创建带有过滤条件的新扫描节点
+                                    if let Some(scan_node) = child_node.plan_node().as_scan_vertices() {
+                                        let mut new_scan_node = scan_node.clone();
 
-                                    // 由于ScanVerticesNode没有set_vertex_filter方法，我们需要创建一个新节点
-                                    // 这里简化处理，直接返回原节点
+                                        // 重写顶点属性过滤条件
+                                        let rewritten_condition = crate::core::expression_utils::ExpressionUtils::rewrite_tag_property_filter(
+                                            &alias,
+                                            pushable_condition
+                                        );
 
-                                    // 创建带有修改后扫描节点的新OptGroupNode
-                                    let mut new_scan_opt_node = child_node.node.clone();
-                                    new_scan_opt_node.plan_node =
-                                        PlanNodeEnum::ScanVertices(new_scan_node);
+                                        // 如果需要，合并现有过滤条件和新的过滤条件
+                                        let new_filter_str = if let Some(existing_filter) = new_scan_node.vertex_filter() {
+                                            format!("({}) AND ({})", existing_filter, format!("{:?}", rewritten_condition))
+                                        } else {
+                                            format!("{:?}", rewritten_condition)
+                                        };
 
-                                    // 如果有剩余条件，创建新的过滤节点
-                                    if let Some(_remaining_condition) =
-                                        split_result.remaining_condition
-                                    {
-                                        let _new_filter_node = filter_plan_node.clone();
-                                        // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
+                                        // 由于ScanVerticesNode没有set_vertex_filter方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
-                                        // new_filter_node.deps = vec![new_scan_opt_node.plan_node.clone()];
 
-                                        let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node =
-                                            PlanNodeEnum::Filter(_new_filter_node);
-                                        new_filter_opt_node.dependencies =
-                                            vec![new_scan_opt_node.id];
+                                        // 创建带有修改后扫描节点的新OptGroupNode
+                                        let mut new_scan_opt_node = child_node.node.clone();
+                                        new_scan_opt_node.plan_node =
+                                            PlanNodeEnum::ScanVertices(new_scan_node);
 
-                                        Ok(Some(new_filter_opt_node))
+                                        // 如果有剩余条件，创建新的过滤节点
+                                        if let Some(remaining_condition) = remaining {
+                                            let new_filter_node = filter_plan_node.clone();
+                                            // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
+                                            // 这里简化处理，直接返回原节点
+                                            // new_filter_node.deps = vec![new_scan_opt_node.plan_node.clone()];
+
+                                            let mut new_filter_opt_node = node.clone();
+                                            new_filter_opt_node.plan_node =
+                                                PlanNodeEnum::Filter(new_filter_node);
+                                            new_filter_opt_node.dependencies =
+                                                vec![new_scan_opt_node.id];
+
+                                            Ok(Some(new_filter_opt_node))
+                                        } else {
+                                            // 没有剩余条件，只返回扫描节点
+                                            // new_scan_opt_node.output_var = node.plan_node.output_var().clone();
+                                            Ok(Some(new_scan_opt_node))
+                                        }
                                     } else {
-                                        // 没有剩余条件，只返回扫描节点
-                                        // new_scan_opt_node.output_var = node.plan_node.output_var().clone();
-                                        Ok(Some(new_scan_opt_node))
+                                        Ok(None)
                                     }
                                 } else {
                                     Ok(None)
@@ -97,52 +112,65 @@ impl OptRule for FilterPushDownRule {
                         }
                         "IndexScan" => {
                             // 类似于IndexScan的逻辑
-                            let split_result = can_push_down_to_scan(filter_condition);
+                            let tag_alias = ctx.get_tag_alias_for_node(child_node.id);
 
-                            if let Some(pushable_condition) = split_result.pushable_condition {
-                                // 创建带有过滤条件的新索引扫描节点
-                                if let Some(index_scan_node) =
-                                    child_node.plan_node().as_index_scan()
-                                {
-                                    let new_index_scan_node = index_scan_node.clone();
+                            if let Some(alias) = tag_alias {
+                                // 分割过滤条件：可以下推到索引扫描的条件和剩余的条件
+                                let (pushable, remaining) = crate::core::expression_utils::ExpressionUtils::split_filter(
+                                    filter_condition,
+                                    |expr| {
+                                        // 检查是否为顶点属性表达式或可以下推的表达式
+                                        Self::can_push_down_expression_to_scan(expr, &alias)
+                                    }
+                                );
 
-                                    // 如果需要，合并现有过滤条件和新的过滤条件
-                                    let _new_filter = if let Some(existing_filter) =
-                                        &new_index_scan_node.filter
-                                    {
-                                        combine_conditions(&pushable_condition, existing_filter)
-                                    } else {
-                                        pushable_condition
-                                    };
+                                if let Some(pushable_condition) = pushable {
+                                    // 创建带有过滤条件的新索引扫描节点
+                                    if let Some(index_scan_node) = child_node.plan_node().as_index_scan() {
+                                        let mut new_index_scan_node = index_scan_node.clone();
 
-                                    // 由于IndexScanNode没有set_filter方法，我们需要创建一个新节点
-                                    // 这里简化处理，直接返回原节点
+                                        // 重写顶点属性过滤条件
+                                        let rewritten_condition = crate::core::expression_utils::ExpressionUtils::rewrite_tag_property_filter(
+                                            &alias,
+                                            pushable_condition
+                                        );
 
-                                    // 创建带有修改后索引扫描节点的新OptGroupNode
-                                    let mut new_index_scan_opt_node = child_node.node.clone();
-                                    new_index_scan_opt_node.plan_node =
-                                        PlanNodeEnum::IndexScan(new_index_scan_node);
+                                        // 如果需要，合并现有过滤条件和新的过滤条件
+                                        let new_filter_str = if let Some(existing_filter) = &new_index_scan_node.filter {
+                                            format!("({}) AND ({})", existing_filter, format!("{:?}", rewritten_condition))
+                                        } else {
+                                            format!("{:?}", rewritten_condition)
+                                        };
 
-                                    // 如果有剩余条件，创建新的过滤节点
-                                    if let Some(_remaining_condition) =
-                                        split_result.remaining_condition
-                                    {
-                                        let _new_filter_node = filter_plan_node.clone();
-                                        // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
+                                        // 由于IndexScanNode没有set_filter方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点
-                                        // new_filter_node.deps = vec![new_index_scan_opt_node.plan_node.clone()];
 
-                                        let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node =
-                                            PlanNodeEnum::Filter(_new_filter_node);
-                                        new_filter_opt_node.dependencies =
-                                            vec![new_index_scan_opt_node.id];
+                                        // 创建带有修改后索引扫描节点的新OptGroupNode
+                                        let mut new_index_scan_opt_node = child_node.node.clone();
+                                        new_index_scan_opt_node.plan_node =
+                                            PlanNodeEnum::IndexScan(new_index_scan_node);
 
-                                        Ok(Some(new_filter_opt_node))
+                                        // 如果有剩余条件，创建新的过滤节点
+                                        if let Some(remaining_condition) = remaining {
+                                            let new_filter_node = filter_plan_node.clone();
+                                            // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
+                                            // 这里简化处理，直接返回原节点
+                                            // new_filter_node.deps = vec![new_index_scan_opt_node.plan_node.clone()];
+
+                                            let mut new_filter_opt_node = node.clone();
+                                            new_filter_opt_node.plan_node =
+                                                PlanNodeEnum::Filter(new_filter_node);
+                                            new_filter_opt_node.dependencies =
+                                                vec![new_index_scan_opt_node.id];
+
+                                            Ok(Some(new_filter_opt_node))
+                                        } else {
+                                            // 没有剩余条件，只返回索引扫描节点
+                                            // new_index_scan_opt_node.output_var = node.plan_node.output_var().clone();
+                                            Ok(Some(new_index_scan_opt_node))
+                                        }
                                     } else {
-                                        // 没有剩余条件，只返回索引扫描节点
-                                        // new_index_scan_opt_node.output_var = node.plan_node.output_var().clone();
-                                        Ok(Some(new_index_scan_opt_node))
+                                        Ok(None)
                                     }
                                 } else {
                                     Ok(None)
@@ -154,52 +182,64 @@ impl OptRule for FilterPushDownRule {
                         "Traverse" => {
                             // 对于遍历操作，将过滤条件下推到存储层
                             // 这减少遍历过程中检索的顶点或边数量
-                            let split_result = can_push_down_to_traverse(filter_condition);
+                            let edge_alias = ctx.get_edge_alias_for_node(child_node.id);
 
-                            if let Some(pushable_condition) = split_result.pushable_condition {
-                                // 创建带有过滤条件的新遍历节点
-                                if let Some(traverse_node) = child_node.plan_node().as_traverse() {
-                                    let new_traverse_node = traverse_node.clone();
+                            if let Some(alias) = edge_alias {
+                                // 分割过滤条件：可以下推到遍历的条件和剩余的条件
+                                let (pushable, remaining) = crate::core::expression_utils::ExpressionUtils::split_filter(
+                                    filter_condition,
+                                    |expr| {
+                                        // 检查是否为边属性表达式或可以下推的表达式
+                                        Self::can_push_down_expression_to_traverse(expr, &alias)
+                                    }
+                                );
 
-                                    // 如果需要，合并现有过滤条件和新的过滤条件
-                                    let _new_filter =
-                                        if let Some(existing_filter) = new_traverse_node.filter() {
-                                            combine_conditions(
-                                                &format!("{:?}", pushable_condition),
-                                                &format!("{:?}", existing_filter),
-                                            )
+                                if let Some(pushable_condition) = pushable {
+                                    // 创建带有下推过滤条件的新遍历节点
+                                    if let Some(traverse_node) = child_node.plan_node().as_traverse() {
+                                        let mut new_traverse_node = traverse_node.clone();
+
+                                        // 重写边属性过滤条件
+                                        let rewritten_condition = crate::core::expression_utils::ExpressionUtils::rewrite_edge_property_filter(
+                                            &alias,
+                                            pushable_condition
+                                        );
+
+                                        // 合并现有过滤条件和新的过滤条件
+                                        let new_filter_str = if let Some(existing_filter) = new_traverse_node.filter() {
+                                            format!("({}) AND ({})", existing_filter, format!("{:?}", rewritten_condition))
                                         } else {
-                                            format!("{:?}", pushable_condition)
+                                            format!("{:?}", rewritten_condition)
                                         };
 
-                                    // 由于TraverseNode没有set_filter方法，我们需要创建一个新节点
-                                    // 这里简化处理，直接返回原节点
+                                        new_traverse_node.set_filter(new_filter_str);
 
-                                    // 创建带有修改后遍历节点的新OptGroupNode
-                                    let mut new_traverse_opt_node = child_node.node.clone();
-                                    new_traverse_opt_node.plan_node =
-                                        PlanNodeEnum::Traverse(new_traverse_node);
+                                        // 创建带有修改后遍历节点的新OptGroupNode
+                                        let mut new_traverse_opt_node = child_node.node.clone();
+                                        new_traverse_opt_node.plan_node =
+                                            PlanNodeEnum::Traverse(new_traverse_node);
 
-                                    // 如果有剩余条件，创建新的过滤节点
-                                    if let Some(_remaining_condition) =
-                                        split_result.remaining_condition
-                                    {
-                                        let _new_filter_node = filter_plan_node.clone();
-                                        // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
-                                        // 这里简化处理，直接返回原节点
-                                        // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
+                                        // 如果有剩余条件，创建新的过滤节点
+                                        if let Some(remaining_condition) = remaining {
+                                            let new_filter_node = filter_plan_node.clone();
+                                            // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
+                                            // 这里简化处理，直接返回原节点
+                                            // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
 
-                                        let mut new_filter_opt_node = node.clone();
-                                        new_filter_opt_node.plan_node =
-                                            PlanNodeEnum::Filter(_new_filter_node);
-                                        new_filter_opt_node.dependencies =
-                                            vec![new_traverse_opt_node.id];
+                                            let mut new_filter_opt_node = node.clone();
+                                            new_filter_opt_node.plan_node =
+                                                PlanNodeEnum::Filter(new_filter_node);
+                                            new_filter_opt_node.dependencies =
+                                                vec![new_traverse_opt_node.id];
 
-                                        Ok(Some(new_filter_opt_node))
+                                            Ok(Some(new_filter_opt_node))
+                                        } else {
+                                            // 没有剩余条件，只返回遍历节点
+                                            // new_traverse_opt_node.output_var = node.plan_node.output_var().clone();
+                                            Ok(Some(new_traverse_opt_node))
+                                        }
                                     } else {
-                                        // 没有剩余条件，只返回遍历节点
-                                        // new_traverse_opt_node.output_var = node.plan_node.output_var().clone();
-                                        Ok(Some(new_traverse_opt_node))
+                                        Ok(None)
                                     }
                                 } else {
                                     Ok(None)
@@ -231,6 +271,68 @@ impl OptRule for FilterPushDownRule {
 
     fn pattern(&self) -> Pattern {
         PatternBuilder::filter()
+    }
+}
+
+impl FilterPushDownRule {
+    /// 检查表达式是否可以下推到扫描操作
+    fn can_push_down_expression_to_scan(expr: &crate::core::Expression, tag_alias: &str) -> bool {
+        use crate::core::Expression;
+
+        match expr {
+            // 顶点属性表达式可以下推
+            Expression::TagProperty { tag, .. } => {
+                tag == tag_alias
+            }
+            // 普通属性表达式可以下推
+            Expression::Property { .. } => true,
+            // 二元操作：如果左右两边都可以下推，则可以下推
+            Expression::Binary { left, right, .. } => {
+                Self::can_push_down_expression_to_scan(left, tag_alias)
+                    && Self::can_push_down_expression_to_scan(right, tag_alias)
+            }
+            // 一元操作：如果操作数可以下推，则可以下推
+            Expression::Unary { operand, .. } => {
+                Self::can_push_down_expression_to_scan(operand, tag_alias)
+            }
+            // 函数调用：某些函数可以下推
+            Expression::Function { name, .. } => {
+                matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
+            }
+            // 其他表达式不能下推
+            _ => false,
+        }
+    }
+
+    /// 检查表达式是否可以下推到遍历操作
+    fn can_push_down_expression_to_traverse(expr: &crate::core::Expression, edge_alias: &str) -> bool {
+        use crate::core::Expression;
+
+        match expr {
+            // 边属性表达式可以下推
+            Expression::EdgeProperty { edge, .. } => {
+                edge == edge_alias
+            }
+            // 源顶点属性表达式可以下推
+            Expression::SourceProperty { .. } => true,
+            // 目标顶点属性表达式可以下推
+            Expression::DestinationProperty { .. } => true,
+            // 二元操作：如果左右两边都可以下推，则可以下推
+            Expression::Binary { left, right, .. } => {
+                Self::can_push_down_expression_to_traverse(left, edge_alias)
+                    && Self::can_push_down_expression_to_traverse(right, edge_alias)
+            }
+            // 一元操作：如果操作数可以下推，则可以下推
+            Expression::Unary { operand, .. } => {
+                Self::can_push_down_expression_to_traverse(operand, edge_alias)
+            }
+            // 函数调用：某些函数可以下推
+            Expression::Function { name, .. } => {
+                matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
+            }
+            // 其他表达式不能下推
+            _ => false,
+        }
     }
 }
 
@@ -290,59 +392,74 @@ impl OptRule for PushFilterDownTraverseRule {
                     if let Some(filter_plan_node) = node.plan_node.as_filter() {
                         let filter_condition = filter_plan_node.condition();
 
-                        // 分析过滤条件，确定哪些部分可以下推到遍历操作
-                        let split_result = can_push_down_to_traverse(filter_condition);
+                        // 使用 ExpressionUtils 分析过滤条件
+                        let edge_alias = ctx.get_edge_alias_for_node(child.id);
 
-                        if let Some(pushable_condition) = split_result.pushable_condition {
-                            // 创建带有下推过滤条件的新遍历节点
-                            if let Some(traverse_node) = child.plan_node().as_traverse() {
-                                let new_traverse_node = traverse_node.clone();
+                        if let Some(alias) = edge_alias {
+                            // 分割过滤条件：可以下推到遍历的条件和剩余的条件
+                            let (pushable, remaining) = crate::core::expression_utils::ExpressionUtils::split_filter(
+                                filter_condition,
+                                |expr| {
+                                    // 检查是否为边属性表达式或可以下推的表达式
+                                    Self::can_push_down_expression_to_traverse(expr, &alias)
+                                }
+                            );
 
-                                // 合并现有过滤条件和新的过滤条件
-                                let _new_filter =
-                                    if let Some(existing_filter) = new_traverse_node.filter() {
-                                        combine_conditions(
-                                            &format!("{:?}", pushable_condition),
-                                            &format!("{:?}", existing_filter),
-                                        )
+                            if let Some(pushable_condition) = pushable {
+                                // 创建带有下推过滤条件的新遍历节点
+                                if let Some(traverse_node) = child.plan_node().as_traverse() {
+                                    let mut new_traverse_node = traverse_node.clone();
+
+                                    // 重写边属性过滤条件
+                                    let rewritten_condition = crate::core::expression_utils::ExpressionUtils::rewrite_edge_property_filter(
+                                        &alias,
+                                        pushable_condition
+                                    );
+
+                                    // 合并现有过滤条件和新的过滤条件
+                                    let new_filter_str = if let Some(existing_filter) = new_traverse_node.filter() {
+                                        // 合并现有过滤条件和新的过滤条件
+                                        format!("({}) AND ({})", existing_filter, format!("{:?}", rewritten_condition))
                                     } else {
-                                        format!("{:?}", pushable_condition)
+                                        format!("{:?}", rewritten_condition)
                                     };
 
-                                // 由于TraverseNode没有set_filter方法，我们需要创建一个新节点
-                                // 这里简化处理，直接返回原节点
+                                    new_traverse_node.set_filter(new_filter_str);
 
-                                // 创建带有修改后遍历节点的新OptGroupNode
-                                let mut new_traverse_opt_node = child.node.clone();
-                                new_traverse_opt_node.plan_node =
-                                    PlanNodeEnum::Traverse(new_traverse_node);
+                                    // 创建带有修改后遍历节点的新OptGroupNode
+                                    let mut new_traverse_opt_node = child.node.clone();
+                                    new_traverse_opt_node.plan_node =
+                                        PlanNodeEnum::Traverse(new_traverse_node);
 
-                                // 如果有剩余的过滤条件，创建新的过滤节点
-                                if let Some(_remaining_condition) = split_result.remaining_condition
-                                {
-                                    let _new_filter_node = filter_plan_node.clone();
-                                    // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
-                                    // 这里简化处理，直接返回原节点
-                                    // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
+                                    // 如果有剩余的过滤条件，创建新的过滤节点
+                                    if let Some(remaining_condition) = remaining {
+                                        let new_filter_node = filter_plan_node.clone();
+                                        // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
+                                        // 这里简化处理，直接返回原节点
+                                        // new_filter_node.deps = vec![new_traverse_opt_node.plan_node.clone()];
 
-                                    let mut new_filter_opt_node = node.clone();
-                                    new_filter_opt_node.plan_node =
-                                        PlanNodeEnum::Filter(_new_filter_node);
-                                    new_filter_opt_node.dependencies =
-                                        vec![new_traverse_opt_node.id];
+                                        let mut new_filter_opt_node = node.clone();
+                                        new_filter_opt_node.plan_node =
+                                            PlanNodeEnum::Filter(new_filter_node);
+                                        new_filter_opt_node.dependencies =
+                                            vec![new_traverse_opt_node.id];
 
-                                    Ok(Some(new_filter_opt_node))
+                                        Ok(Some(new_filter_opt_node))
+                                    } else {
+                                        // 没有剩余的过滤条件，直接返回遍历节点
+                                        // new_traverse_opt_node.output_var = node.plan_node.output_var().clone();
+                                        Ok(Some(new_traverse_opt_node))
+                                    }
                                 } else {
-                                    // 没有剩余的过滤条件，直接返回遍历节点
-                                    // new_traverse_opt_node.output_var = node.plan_node.output_var().clone();
-                                    Ok(Some(new_traverse_opt_node))
+                                    Ok(None)
                                 }
                             } else {
-                                Ok(None)
+                                // 没有可以下推的条件，返回原始节点
+                                Ok(Some(node.clone()))
                             }
                         } else {
-                            // 没有可以下推的条件，返回原始节点
-                            Ok(Some(node.clone()))
+                            // 没有边别名，无法下推
+                            Ok(None)
                         }
                     } else {
                         Ok(None)
@@ -360,6 +477,39 @@ impl OptRule for PushFilterDownTraverseRule {
 
     fn pattern(&self) -> Pattern {
         CommonPatterns::filter_over_traverse()
+    }
+}
+
+impl PushFilterDownTraverseRule {
+    /// 检查表达式是否可以下推到遍历操作
+    fn can_push_down_expression_to_traverse(expr: &crate::core::Expression, edge_alias: &str) -> bool {
+        use crate::core::Expression;
+
+        match expr {
+            // 边属性表达式可以下推
+            Expression::EdgeProperty { edge, .. } => {
+                edge == edge_alias
+            }
+            // 源顶点属性表达式可以下推
+            Expression::SourceProperty { .. } => true,
+            // 目标顶点属性表达式可以下推
+            Expression::DestinationProperty { .. } => true,
+            // 二元操作：如果左右两边都可以下推，则可以下推
+            Expression::Binary { left, right, .. } => {
+                Self::can_push_down_expression_to_traverse(left, edge_alias)
+                    && Self::can_push_down_expression_to_traverse(right, edge_alias)
+            }
+            // 一元操作：如果操作数可以下推，则可以下推
+            Expression::Unary { operand, .. } => {
+                Self::can_push_down_expression_to_traverse(operand, edge_alias)
+            }
+            // 函数调用：某些函数可以下推
+            Expression::Function { name, .. } => {
+                matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
+            }
+            // 其他表达式不能下推
+            _ => false,
+        }
     }
 }
 
