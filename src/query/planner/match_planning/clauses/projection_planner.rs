@@ -275,6 +275,8 @@ mod tests {
             proj_output_column_names: vec![],
             proj_cols: vec![],
             paths: vec![],
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         }
     }
 
@@ -297,6 +299,8 @@ mod tests {
             aliases_available: std::collections::HashMap::new(),
             aliases_generated: std::collections::HashMap::new(),
             paths: vec![],
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         }
     }
 

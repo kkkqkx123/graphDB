@@ -430,6 +430,7 @@ impl Value {
             ValueTypeDef::IntRange => 18,
             ValueTypeDef::FloatRange => 19,
             ValueTypeDef::StringRange => 20,
+            ValueTypeDef::Any => 21,
         }
     }
 

@@ -139,6 +139,8 @@ mod tests {
             is_optional: false,
             skip: None,
             limit: None,
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         }
     }
 

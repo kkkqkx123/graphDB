@@ -234,6 +234,8 @@ mod tests {
             is_optional: false,
             skip: None,
             limit: None,
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         };
 
         let clause_ctx = CypherClauseContext::Match(match_clause_ctx);

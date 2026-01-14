@@ -6,11 +6,17 @@ pub mod aggregate_strategy;
 pub mod alias_strategy;
 pub mod clause_strategy;
 pub mod expression_strategy;
+pub mod expression_operations;
 pub mod pagination_strategy;
+pub mod type_inference;
+pub mod variable_validator;
 
 pub use agg_functions::*;
 pub use aggregate_strategy::*;
 pub use alias_strategy::*;
 pub use clause_strategy::*;
 pub use expression_strategy::*;
+pub use expression_operations::*;
 pub use pagination_strategy::*;
+pub use type_inference::*;
+pub use variable_validator::*;

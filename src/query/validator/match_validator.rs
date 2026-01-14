@@ -129,24 +129,24 @@ impl MatchValidator {
     pub fn validate_return(
         &mut self,
         return_expr: &Expression,
-        query_parts: &[QueryPart],
+        return_items: &[YieldColumn],
         context: &ReturnClauseContext,
     ) -> Result<(), ValidationError> {
         use super::strategies::ExpressionValidationStrategy;
         let strategy = ExpressionValidationStrategy::new();
-        strategy.validate_return(return_expr, query_parts, context)
+        strategy.validate_return(return_expr, return_items, context)
     }
 
     /// 验证With子句（委托给ExpressionValidationStrategy）
     pub fn validate_with(
         &mut self,
         with_expr: &Expression,
-        query_parts: &[QueryPart],
+        with_items: &[YieldColumn],
         context: &WithClauseContext,
     ) -> Result<(), ValidationError> {
         use super::strategies::ExpressionValidationStrategy;
         let strategy = ExpressionValidationStrategy::new();
-        strategy.validate_with(with_expr, query_parts, context)
+        strategy.validate_with(with_expr, with_items, context)
     }
 
     /// 验证Unwind子句（委托给ExpressionValidationStrategy）

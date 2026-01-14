@@ -26,6 +26,7 @@ pub enum ValueTypeDef {
     IntRange,
     FloatRange,
     StringRange,
+    Any,
 }
 
 /// Null类型定义

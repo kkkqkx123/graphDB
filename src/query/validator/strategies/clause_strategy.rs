@@ -317,12 +317,16 @@ mod tests {
                 proj_output_column_names: Vec::new(),
                 proj_cols: Vec::new(),
                 paths: Vec::new(),
+                query_parts: Vec::new(),
+                errors: Vec::new(),
             },
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),
             pagination: None,
             order_by: None,
             distinct: false,
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         };
 
         assert!(strategy.validate_return_clause(&return_context).is_ok());
@@ -350,12 +354,16 @@ mod tests {
                 proj_output_column_names: Vec::new(),
                 proj_cols: Vec::new(),
                 paths: Vec::new(),
+                query_parts: Vec::new(),
+                errors: Vec::new(),
             },
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),
             pagination: Some(PaginationContext { skip: 0, limit: 10 }),
             order_by: None,
             distinct: false,
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         };
 
         assert!(strategy.validate_return_clause(&return_context).is_ok());
@@ -383,6 +391,8 @@ mod tests {
                 proj_output_column_names: Vec::new(),
                 proj_cols: Vec::new(),
                 paths: Vec::new(),
+                query_parts: Vec::new(),
+                errors: Vec::new(),
             },
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),
@@ -392,6 +402,8 @@ mod tests {
             }),
             order_by: None,
             distinct: false,
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         };
 
         assert!(strategy.validate_return_clause(&return_context).is_err());
@@ -443,6 +455,8 @@ mod tests {
             proj_output_column_names: Vec::new(),
             proj_cols: Vec::new(),
             paths: Vec::new(),
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         };
 
         assert!(strategy.validate_yield_clause(&mut yield_context).is_ok());
@@ -460,6 +474,8 @@ mod tests {
             is_optional: false,
             skip: None,
             limit: None,
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         };
 
         assert!(strategy

@@ -273,6 +273,8 @@ mod tests {
             is_optional: false,
             skip: None,
             limit: None,
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         });
 
         let result = planner.validate_context(&clause_ctx);
@@ -288,6 +290,8 @@ mod tests {
                 aliases_available: HashMap::new(),
                 aliases_generated: HashMap::new(),
                 paths: vec![],
+                query_parts: Vec::new(),
+                errors: Vec::new(),
             },
         );
 
@@ -313,6 +317,8 @@ mod tests {
             is_optional: false,
             skip: None,
             limit: None,
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         });
 
         let result = planner.transform(&clause_ctx, None, &mut context);

@@ -568,6 +568,8 @@ mod tests {
             is_optional: false,
             skip: None,
             limit: None,
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         }
     }
 
@@ -649,6 +651,8 @@ mod tests {
             aliases_available: HashMap::new(),
             aliases_generated: HashMap::new(),
             paths: vec![],
+            query_parts: Vec::new(),
+            errors: Vec::new(),
         };
 
         let mut planner = MatchPathPlanner::new(match_clause_ctx, path);

@@ -14,6 +14,13 @@ pub enum ValidationErrorType {
     AliasError,
     AggregateError,
     PaginationError,
+    ExpressionDepthError,
+    VariableNotFound,
+    CyclicReference,
+    DivisionByZero,
+    TooManyArguments,
+    TooManyElements,
+    DuplicateKey,
 }
 
 /// 验证错误结构（为了向后兼容保留，但建议使用DBError）
