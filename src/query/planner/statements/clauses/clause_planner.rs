@@ -2,7 +2,7 @@
 //! 定义所有子句规划器的通用接口和trait
 
 use crate::query::planner::statements::core::cypher_clause_planner::{
-    CypherClausePlanner, DataFlowNode, ClauseType, PlanningContext,
+    CypherClausePlanner, DataFlowNode, ClauseType, PlanningContext, FlowDirection,
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
@@ -97,6 +97,21 @@ impl BaseClausePlanner {
     }
 }
 
+impl DataFlowNode for BaseClausePlanner {
+    fn flow_direction(&self) -> FlowDirection {
+        match self.supported_kind {
+            CypherClauseKind::Match => FlowDirection::Source,
+            CypherClauseKind::Where => FlowDirection::Transform,
+            CypherClauseKind::Return => FlowDirection::Output,
+            CypherClauseKind::With => FlowDirection::Transform,
+            CypherClauseKind::OrderBy => FlowDirection::Transform,
+            CypherClauseKind::Pagination => FlowDirection::Transform,
+            CypherClauseKind::Unwind => FlowDirection::Transform,
+            CypherClauseKind::Yield => FlowDirection::Output,
+        }
+    }
+}
+
 impl CypherClausePlanner for BaseClausePlanner {
     fn transform(
         &self,
@@ -120,6 +135,10 @@ impl CypherClausePlanner for BaseClausePlanner {
             CypherClauseKind::Unwind => ClauseType::Unwind,
             CypherClauseKind::Yield => ClauseType::Yield,
         }
+    }
+
+    fn flow_direction(&self) -> FlowDirection {
+        self.clause_type().flow_direction()
     }
 }
 

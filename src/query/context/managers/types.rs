@@ -74,6 +74,16 @@ pub struct MetadataVersion {
     pub description: String,
 }
 
+impl Default for MetadataVersion {
+    fn default() -> Self {
+        Self {
+            version: 1,
+            timestamp: 0,
+            description: String::new(),
+        }
+    }
+}
+
 /// 集群信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterInfo {

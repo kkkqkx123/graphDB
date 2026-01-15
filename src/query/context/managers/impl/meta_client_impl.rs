@@ -625,12 +625,12 @@ mod tests {
     fn test_memory_meta_client_creation() {
         let client = MemoryMetaClient::new();
         assert!(client.is_connected());
-        assert_eq!(client.list_space_ids(), vec![]);
+        assert_eq!(client.list_space_ids(), Vec::<i32>::new());
     }
 
     #[test]
     fn test_create_space() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let temp_dir: tempfile::TempDir = tempdir().expect("Failed to create temp dir");
         let client = MemoryMetaClient::with_storage_path(temp_dir.path());
 
         let space_id = client
@@ -650,7 +650,7 @@ mod tests {
 
     #[test]
     fn test_list_spaces() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let temp_dir: tempfile::TempDir = tempdir().expect("Failed to create temp dir");
         let client = MemoryMetaClient::with_storage_path(temp_dir.path());
 
         client
@@ -684,7 +684,7 @@ mod tests {
 
     #[test]
     fn test_create_tag() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let temp_dir: tempfile::TempDir = tempdir().expect("Failed to create temp dir");
         let client = MemoryMetaClient::with_storage_path(temp_dir.path());
 
         let space_id = client
@@ -808,7 +808,7 @@ mod tests {
 
     #[test]
     fn test_persistence() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let temp_dir: tempfile::TempDir = tempdir().expect("Failed to create temp dir");
         let storage_path = temp_dir.path();
 
         let client1 = MemoryMetaClient::with_storage_path(storage_path);

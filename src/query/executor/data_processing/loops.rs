@@ -548,6 +548,7 @@ mod tests {
     use super::*;
     use crate::core::value::NullType;
     use crate::core::BinaryOperator;
+    use crate::query::executor::traits::ExecutorStats;
     use crate::storage::test_mock::MockStorage;
     use std::sync::{Arc, Mutex};
 
@@ -556,6 +557,7 @@ mod tests {
         count: i64,
         max_count: i64,
         storage: Arc<Mutex<MockStorage>>,
+        stats: ExecutorStats,
     }
 
     impl CountExecutor {
@@ -564,6 +566,7 @@ mod tests {
                 count: 0,
                 max_count: 10,
                 storage,
+                stats: ExecutorStats::default(),
             }
         }
     }
@@ -604,12 +607,11 @@ mod tests {
         }
 
         fn stats(&self) -> &ExecutorStats {
-            &ExecutorStats::default()
+            &self.stats
         }
 
         fn stats_mut(&mut self) -> &mut ExecutorStats {
-            static mut STATS: ExecutorStats = ExecutorStats::default();
-            unsafe { &mut STATS }
+            &mut self.stats
         }
     }
 

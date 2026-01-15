@@ -3,6 +3,7 @@
 //! 提供计划验证功能，确保优化后的计划是正确的
 
 use crate::core::types::expression::Expression;
+use crate::core::types::operators::Operator;
 use crate::query::optimizer::optimizer::{OptContext, OptGroup, OptGroupNode};
 use crate::query::optimizer::OptimizerError;
 use std::collections::HashMap;
@@ -198,18 +199,88 @@ impl PlanValidator {
                 }
             }
             crate::query::planner::plan::PlanNodeEnum::Aggregate(aggregate_node) => {
-                for _group_key in aggregate_node.group_keys() {
-                    // 简化实现：不验证分组键表达式
+                for group_key in aggregate_node.group_keys() {
+                    if group_key.is_empty() {
+                        return Err(OptimizerError::Validation {
+                            message: format!(
+                                "聚合节点验证失败：分组键为空"
+                            ),
+                        });
+                    }
                 }
-                for _agg_func in aggregate_node.aggregation_functions() {
-                    // 简化实现：不验证聚合函数表达式
+                for agg_func in aggregate_node.aggregation_functions() {
+                    match agg_func {
+                        crate::core::types::operators::AggregateFunction::Count(None) => {
+                        }
+                        crate::core::types::operators::AggregateFunction::Count(Some(field)) => {
+                            if field.is_empty() {
+                                return Err(OptimizerError::Validation {
+                                    message: format!(
+                                        "聚合节点验证失败：COUNT 函数字段名为空"
+                                    ),
+                                });
+                            }
+                        }
+                        crate::core::types::operators::AggregateFunction::Sum(field)
+                        | crate::core::types::operators::AggregateFunction::Avg(field)
+                        | crate::core::types::operators::AggregateFunction::Min(field)
+                        | crate::core::types::operators::AggregateFunction::Max(field)
+                        | crate::core::types::operators::AggregateFunction::Collect(field)
+                        | crate::core::types::operators::AggregateFunction::Distinct(field) => {
+                            if field.is_empty() {
+                                return Err(OptimizerError::Validation {
+                                    message: format!(
+                                        "聚合节点验证失败：{} 函数字段名为空",
+                                        agg_func.name()
+                                    ),
+                                });
+                            }
+                        }
+                        crate::core::types::operators::AggregateFunction::Percentile(field, _) => {
+                            if field.is_empty() {
+                                return Err(OptimizerError::Validation {
+                                    message: format!(
+                                        "聚合节点验证失败：PERCENTILE 函数字段名为空"
+                                    ),
+                                });
+                            }
+                        }
+                    }
                 }
             }
             crate::query::planner::plan::PlanNodeEnum::Select(select_node) => {
-                Self::validate_expression(&select_node.condition())?;
+                let condition = select_node.condition();
+                if condition.is_empty() {
+                    return Err(OptimizerError::Validation {
+                        message: format!(
+                            "Select 节点验证失败：条件为空"
+                        ),
+                    });
+                }
+                if select_node.if_branch().is_none() && select_node.else_branch().is_none() {
+                    return Err(OptimizerError::Validation {
+                        message: format!(
+                            "Select 节点验证失败：至少需要一个分支（if 或 else）"
+                        ),
+                    });
+                }
             }
             crate::query::planner::plan::PlanNodeEnum::Loop(loop_node) => {
-                Self::validate_expression(&loop_node.condition())?;
+                let condition = loop_node.condition();
+                if condition.is_empty() {
+                    return Err(OptimizerError::Validation {
+                        message: format!(
+                            "Loop 节点验证失败：条件为空"
+                        ),
+                    });
+                }
+                if loop_node.body().is_none() {
+                    return Err(OptimizerError::Validation {
+                        message: format!(
+                            "Loop 节点验证失败：缺少循环体"
+                        ),
+                    });
+                }
             }
             _ => {}
         }

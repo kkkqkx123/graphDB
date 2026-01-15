@@ -85,7 +85,7 @@ impl CypherClausePlanner for WhereClausePlanner {
 
 impl DataFlowNode for WhereClausePlanner {
     fn flow_direction(&self) -> FlowDirection {
-        self.clause_type().flow_direction()
+        FlowDirection::Transform
     }
 }
 
@@ -120,8 +120,8 @@ mod tests {
     #[test]
     fn test_where_clause_planner_flow_direction() {
         let planner = WhereClausePlanner::new(None);
-        assert_eq!(planner.flow_direction(), FlowDirection::Transform);
-        assert!(planner.requires_input());
+        assert_eq!(DataFlowNode::flow_direction(&planner), FlowDirection::Transform);
+        assert!(DataFlowNode::requires_input(&planner));
     }
 
     #[test]

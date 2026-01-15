@@ -13,6 +13,8 @@ use thiserror::Error;
 #[cfg(test)]
 use crate::core::{Edge, Vertex};
 #[cfg(test)]
+use crate::core::Direction;
+#[cfg(test)]
 use crate::storage::StorageError;
 
 #[derive(Error, Debug, Clone)]

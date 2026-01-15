@@ -316,18 +316,22 @@ mod tests {
     use crate::core::value::{DataSet, Value};
     use crate::core::{BinaryOperator, Expression};
     use crate::query::executor::HasStorage;
-    use crate::query::executor::traits::{ExecutionResult, Executor};
+    use crate::query::executor::traits::{ExecutionResult, Executor, ExecutorStats};
     use crate::storage::test_mock::MockStorage;
     use crate::storage::StorageEngine;
 
     // 模拟输入执行器
     struct MockInputExecutor {
         result: ExecutionResult,
+        stats: ExecutorStats,
     }
 
     impl MockInputExecutor {
         fn new(result: ExecutionResult) -> Self {
-            Self { result }
+            Self {
+                result,
+                stats: ExecutorStats::default(),
+            }
         }
     }
 
@@ -362,12 +366,11 @@ mod tests {
         }
 
         fn stats(&self) -> &ExecutorStats {
-            &ExecutorStats::default()
+            &self.stats
         }
 
         fn stats_mut(&mut self) -> &mut ExecutorStats {
-            static mut STATS: ExecutorStats = ExecutorStats::default();
-            unsafe { &mut STATS }
+            &mut self.stats
         }
     }
 

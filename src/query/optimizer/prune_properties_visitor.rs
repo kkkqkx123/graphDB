@@ -153,7 +153,26 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
     }
 
     fn visit_variable(&mut self, name: &str) -> Self::Result {
-        self.state.collected_variables.insert(name.to_string());
+        let mut vars = self.state.get_custom_data("collected_variables")
+            .and_then(|v| {
+                if let crate::core::Value::List(vars) = v {
+                    Some(vars.iter().filter_map(|v| {
+                        if let crate::core::Value::String(s) = v {
+                            Some(s.clone())
+                        } else {
+                            None
+                        }
+                    }).collect::<Vec<String>>())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+        if !vars.contains(&name.to_string()) {
+            vars.push(name.to_string());
+        }
+        let vars_value: Vec<crate::core::Value> = vars.into_iter().map(|s| crate::core::Value::String(s)).collect();
+        self.state.set_custom_data("collected_variables".to_string(), crate::core::Value::List(vars_value));
     }
 
     fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
@@ -395,7 +414,26 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
     }
 
     fn visit_variable_expr(&mut self, e: &crate::query::parser::ast::expr::VariableExpr) -> Self::Result {
-        self.state.collected_variables.insert(e.name.clone());
+        let mut vars = self.state.get_custom_data("collected_variables")
+            .and_then(|v| {
+                if let crate::core::Value::List(vars) = v {
+                    Some(vars.iter().filter_map(|v| {
+                        if let crate::core::Value::String(s) = v {
+                            Some(s.clone())
+                        } else {
+                            None
+                        }
+                    }).collect::<Vec<String>>())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+        if !vars.contains(&e.name) {
+            vars.push(e.name.clone());
+        }
+        let vars_value: Vec<crate::core::Value> = vars.into_iter().map(|s| crate::core::Value::String(s)).collect();
+        self.state.set_custom_data("collected_variables".to_string(), crate::core::Value::List(vars_value));
     }
 
     fn visit_binary_expr(&mut self, e: &crate::query::parser::ast::expr::BinaryExpr) -> Self::Result {

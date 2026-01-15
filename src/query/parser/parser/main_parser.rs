@@ -3,6 +3,7 @@
 use crate::query::parser::ast::*;
 use crate::query::parser::core::error::ParseError;
 use crate::query::parser::TokenKind;
+use crate::core::types::graph::EdgeDirection;
 
 impl crate::query::parser::Parser {
     pub fn parse_statement(&mut self) -> Result<Stmt, ParseError> {
@@ -56,13 +57,13 @@ impl crate::query::parser::Parser {
             None
         };
         
-        let skip = if self.current_token().kind == TokenKind::Skip {
+        let _skip = if self.current_token().kind == TokenKind::Skip {
             Some(self.parse_skip_clause()?.count)
         } else {
             None
         };
         
-        let limit = if self.current_token().kind == TokenKind::Limit {
+        let _limit = if self.current_token().kind == TokenKind::Limit {
             Some(self.parse_limit_clause()?.count)
         } else {
             None
@@ -421,7 +422,7 @@ impl crate::query::parser::Parser {
         }
         
         let where_clause = if self.current_token().kind == TokenKind::Where {
-            Some(self.parse_where_clause()?)
+            Some(self.parse_where_clause()?.condition)
         } else {
             None
         };
@@ -477,5 +478,59 @@ impl crate::query::parser::Parser {
             span: self.current_span(),
             expression,
         }))
+    }
+    
+    pub fn parse_from_clause(&mut self) -> Result<FromClause, ParseError> {
+        let span = self.current_span();
+        self.expect_token(TokenKind::From)?;
+
+        let mut vertices = Vec::new();
+
+        loop {
+            let vertex = self.parse_expression()?;
+            vertices.push(vertex);
+
+            if self.current_token().kind != TokenKind::Comma {
+                break;
+            }
+            self.next_token();
+        }
+
+        Ok(FromClause { span, vertices })
+    }
+    
+    pub fn parse_over_clause(&mut self) -> Result<OverClause, ParseError> {
+        let span = self.current_span();
+        self.expect_token(TokenKind::Over)?;
+
+        let mut edge_types = Vec::new();
+        let mut direction = EdgeDirection::Outgoing;
+
+        loop {
+            let edge_type = self.parse_identifier()?;
+            edge_types.push(edge_type);
+
+            if self.current_token().kind != TokenKind::Comma {
+                break;
+            }
+            self.next_token();
+        }
+
+        if self.current_token().kind == TokenKind::Out {
+            self.next_token();
+            direction = EdgeDirection::Outgoing;
+        } else if self.current_token().kind == TokenKind::In {
+            self.next_token();
+            direction = EdgeDirection::Incoming;
+        } else if self.current_token().kind == TokenKind::Both {
+            self.next_token();
+            direction = EdgeDirection::Both;
+        }
+
+        Ok(OverClause {
+            span,
+            edge_types,
+            direction,
+        })
     }
 }

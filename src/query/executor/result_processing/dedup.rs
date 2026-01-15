@@ -508,6 +508,7 @@ mod tests {
         struct MockInputExecutor {
             result: ExecutionResult,
             storage: Arc<Mutex<MockStorage>>,
+            stats: crate::query::executor::traits::ExecutorStats,
         }
 
         #[async_trait]
@@ -539,6 +540,14 @@ mod tests {
             fn description(&self) -> &str {
                 "Mock input executor for testing"
             }
+
+            fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+                &self.stats
+            }
+
+            fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+                &mut self.stats
+            }
         }
 
         impl crate::query::executor::traits::HasStorage<MockStorage> for MockInputExecutor {
@@ -550,6 +559,7 @@ mod tests {
         let input_executor = MockInputExecutor {
             result: input_result,
             storage,
+            stats: crate::query::executor::traits::ExecutorStats::default(),
         };
 
         <DedupExecutor<MockStorage> as InputExecutor<MockStorage>>::set_input(

@@ -307,6 +307,9 @@ pub enum PlannerError {
 
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
+
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
 }
 
 // 为 DBError 实现 From 转换，以便在规划器中使用 ? 操作符
