@@ -613,7 +613,7 @@ mod tests {
     use super::*;
     use crate::config::test_config::test_config;
     use crate::core::value::{DataSet, Value};
-    use crate::storage::native_storage::NativeStorage;
+    use crate::storage::rocksdb_storage::RocksDBStorage;
 
     fn create_test_dataset() -> DataSet {
         let mut data_set = DataSet::new();
@@ -688,7 +688,7 @@ mod tests {
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_column_index_sort");
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(db_path.to_str().unwrap()).unwrap(),
+            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
         ));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();
@@ -715,7 +715,7 @@ mod tests {
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_db_sort_2");
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(db_path.to_str().unwrap()).unwrap(),
+            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
         ));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, Some(3), config).unwrap();
@@ -742,7 +742,7 @@ mod tests {
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_column_index_top_n");
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(db_path.to_str().unwrap()).unwrap(),
+            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
         ));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, Some(2), config).unwrap();
@@ -771,7 +771,7 @@ mod tests {
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_multi_column");
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(db_path.to_str().unwrap()).unwrap(),
+            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
         ));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();
@@ -803,7 +803,7 @@ mod tests {
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_error_handling");
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(db_path.to_str().unwrap()).unwrap(),
+            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
         ));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();
@@ -826,7 +826,7 @@ mod tests {
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_column_comparison");
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(db_path.to_str().unwrap()).unwrap(),
+            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
         ));
 
         let executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();

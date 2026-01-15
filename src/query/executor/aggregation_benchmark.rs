@@ -4,7 +4,7 @@ use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 use crate::query::executor::aggregation::AggregationExecutor;
 use crate::query::executor::base::BaseExecutor;
-use crate::storage::native_storage::NativeStorage;
+use crate::storage::rocksdb_storage::RocksDBStorage;
 use std::sync::{Arc, Mutex};
 
 /// 性能测试函数

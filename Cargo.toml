@@ -12,7 +12,7 @@ homepage = "https://github.com/vesoft-inc/nebula"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 tokio = { version = "1.48.0", features = ["full"] }
-sled = "0.34.7"
+rocksdb = { version = "0.24.0", features = ["lz4"] }
 clap = { version = "4.5.53", features = ["derive"] }
 log = "0.4.29"
 env_logger = "0.11.8"

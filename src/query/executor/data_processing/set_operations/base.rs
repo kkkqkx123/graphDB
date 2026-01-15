@@ -256,12 +256,12 @@ mod tests {
         let row3 = vec![Value::Int(2), Value::String("test".to_string())];
 
         assert_eq!(
-            SetExecutor::<crate::storage::NativeStorage>::hash_row(&row1),
-            SetExecutor::<crate::storage::NativeStorage>::hash_row(&row2)
+            SetExecutor::<crate::storage::RocksDBStorage>::hash_row(&row1),
+            SetExecutor::<crate::storage::RocksDBStorage>::hash_row(&row2)
         );
         assert_ne!(
-            SetExecutor::<crate::storage::NativeStorage>::hash_row(&row1),
-            SetExecutor::<crate::storage::NativeStorage>::hash_row(&row3)
+            SetExecutor::<crate::storage::RocksDBStorage>::hash_row(&row1),
+            SetExecutor::<crate::storage::RocksDBStorage>::hash_row(&row3)
         );
     }
 
@@ -273,7 +273,7 @@ mod tests {
             vec![Value::Int(1), Value::String("a".to_string())], // 重复行
         ];
 
-        let row_set = SetExecutor::<crate::storage::NativeStorage>::create_row_set(&rows);
+        let row_set = SetExecutor::<crate::storage::RocksDBStorage>::create_row_set(&rows);
         assert_eq!(row_set.len(), 2); // 应该只有2个唯一的哈希值
     }
 
@@ -286,7 +286,7 @@ mod tests {
             vec![Value::Int(3), Value::String("c".to_string())],
         ];
 
-        let deduped = SetExecutor::<crate::storage::NativeStorage>::dedup_rows(rows);
+        let deduped = SetExecutor::<crate::storage::RocksDBStorage>::dedup_rows(rows);
         assert_eq!(deduped.len(), 3); // 应该去重为3行
     }
 
@@ -302,7 +302,7 @@ mod tests {
             rows: vec![vec![Value::Int(2), Value::String("Bob".to_string())]],
         };
 
-        let result = SetExecutor::<crate::storage::NativeStorage>::concat_datasets(left, right);
+        let result = SetExecutor::<crate::storage::RocksDBStorage>::concat_datasets(left, right);
         assert_eq!(result.rows.len(), 2);
         assert_eq!(result.col_names.len(), 2);
     }

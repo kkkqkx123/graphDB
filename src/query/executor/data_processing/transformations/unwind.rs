@@ -360,15 +360,15 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::core::Value;
-    use crate::storage::NativeStorage;
+    use crate::storage::RocksDBStorage;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_unwind_executor() {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_unwind"))
-                .expect("NativeStorage should be created successfully"),
+            RocksDBStorage::new(config.test_db_path("test_db_unwind"))
+                .expect("RocksDBStorage should be created successfully"),
         ));
 
         // 创建输入数据

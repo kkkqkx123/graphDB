@@ -80,6 +80,8 @@ pub enum StorageError {
     EdgeNotFound(crate::core::Value),
     #[error("事务错误: {0}")]
     TransactionError(String),
+    #[error("事务未找到: {0}")]
+    TransactionNotFound(u64),
 }
 
 /// 查询层错误类型

@@ -7,7 +7,7 @@ pub mod session;
 
 use crate::api::service::GraphService;
 use crate::config::Config;
-use crate::storage::NativeStorage;
+use crate::storage::RocksDBStorage;
 
 pub async fn start_service(config_path: String) -> Result<()> {
     println!("Initializing GraphDB service...");
@@ -26,7 +26,7 @@ pub async fn start_service(config_path: String) -> Result<()> {
     println!("Configuration loaded: {:?}", config);
 
     // Initialize storage
-    let storage = Arc::new(NativeStorage::new(&config.storage_path)?);
+    let storage = Arc::new(RocksDBStorage::new(&config.storage_path)?);
     println!("Storage initialized at: {}", config.storage_path);
 
     // Initialize graph service with session management and query execution
@@ -48,7 +48,7 @@ pub async fn execute_query(query_str: &str) -> Result<()> {
 
     // Initialize storage for this example
     let config = crate::config::Config::default();
-    let storage = Arc::new(NativeStorage::new(&config.storage_path)?);
+    let storage = Arc::new(RocksDBStorage::new(&config.storage_path)?);
 
     // Initialize graph service for the query execution
     let graph_service = GraphService::new(config, storage);

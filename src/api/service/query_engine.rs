@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::api::session::ClientSession;
 use crate::core::QueryPipelineManager;
-use crate::storage::NativeStorage;
+use crate::storage::RocksDBStorage;
 
 #[derive(Debug)]
 pub struct RequestContext {
@@ -25,12 +25,12 @@ pub struct AuthResponse {
 }
 
 pub struct QueryEngine {
-    storage: Arc<Mutex<NativeStorage>>,
-    pipeline_manager: QueryPipelineManager<NativeStorage>,
+    storage: Arc<Mutex<RocksDBStorage>>,
+    pipeline_manager: QueryPipelineManager<RocksDBStorage>,
 }
 
 impl QueryEngine {
-    pub fn new(storage: Arc<NativeStorage>) -> Self {
+    pub fn new(storage: Arc<RocksDBStorage>) -> Self {
         let storage_clone = Arc::new(Mutex::new((*storage).clone()));
         Self {
             storage: Arc::clone(&storage_clone),
@@ -54,7 +54,7 @@ impl QueryEngine {
         }
     }
 
-    pub fn get_storage(&self) -> Arc<Mutex<NativeStorage>> {
+    pub fn get_storage(&self) -> Arc<Mutex<RocksDBStorage>> {
         Arc::clone(&self.storage)
     }
 }
@@ -86,7 +86,7 @@ mod tests {
         };
 
         let storage = Arc::new(
-            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+            RocksDBStorage::new(&config.storage_path).expect("Failed to create RocksDB storage"),
         );
         let _query_engine = QueryEngine::new(storage);
 
@@ -114,7 +114,7 @@ mod tests {
         };
 
         let storage = Arc::new(
-            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+            RocksDBStorage::new(&config.storage_path).expect("Failed to create RocksDB storage"),
         );
         let mut query_engine = QueryEngine::new(storage);
 

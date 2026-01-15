@@ -56,6 +56,15 @@ impl StorageEngine for MockStorage {
         Ok(Vec::new())
     }
 
+    fn get_node_edges_filtered(
+        &self,
+        _node_id: &Value,
+        _direction: Direction,
+        _filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
+    ) -> Result<Vec<Edge>, StorageError> {
+        Ok(Vec::new())
+    }
+
     fn delete_edge(
         &mut self,
         _src: &Value,
@@ -85,12 +94,24 @@ impl StorageEngine for MockStorage {
         Ok(Vec::new())
     }
 
+    fn scan_vertices_by_prop(&self, _tag: &str, _prop: &str, _value: &Value) -> Result<Vec<Vertex>, StorageError> {
+        Ok(Vec::new())
+    }
+
     fn scan_edges_by_type(&self, _edge_type: &str) -> Result<Vec<Edge>, StorageError> {
         Ok(Vec::new())
     }
 
     fn scan_all_edges(&self) -> Result<Vec<Edge>, StorageError> {
         Ok(Vec::new())
+    }
+
+    fn batch_insert_nodes(&mut self, _vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+        Ok(Vec::new())
+    }
+
+    fn batch_insert_edges(&mut self, _edges: Vec<Edge>) -> Result<(), StorageError> {
+        Ok(())
     }
 }
 

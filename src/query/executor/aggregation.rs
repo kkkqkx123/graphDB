@@ -485,7 +485,7 @@ mod tests {
     async fn test_aggregation_executor_creation() {
         let temp_dir = std::env::temp_dir();
         let test_path = temp_dir.join("graphdb_test_aggregation").to_str().unwrap().to_string();
-        let storage = Arc::new(Mutex::new(crate::storage::native_storage::NativeStorage::new(&test_path).unwrap()));
+        let storage = Arc::new(Mutex::new(crate::storage::rocksdb_storage::RocksDBStorage::new(&test_path).unwrap()));
         let agg_funcs = vec![AggregateFunction::Count(None)];
         let group_by_keys = vec!["category".to_string()];
 
@@ -518,7 +518,7 @@ mod tests {
         let temp_dir = std::env::temp_dir();
         let test_path = temp_dir.join("graphdb_test_aggregation").to_str().unwrap().to_string();
         let executor = AggregationExecutor {
-            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::native_storage::NativeStorage::new(&test_path).unwrap()))),
+            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::rocksdb_storage::RocksDBStorage::new(&test_path).unwrap()))),
             aggregation_functions: vec![],
             group_by_keys: vec![],
             filter_condition: None,
@@ -534,7 +534,7 @@ mod tests {
         let temp_dir = std::env::temp_dir();
         let test_path = temp_dir.join("graphdb_test_aggregation").to_str().unwrap().to_string();
         let executor = AggregationExecutor {
-            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::native_storage::NativeStorage::new(&test_path).unwrap()))),
+            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::rocksdb_storage::RocksDBStorage::new(&test_path).unwrap()))),
             aggregation_functions: vec![],
             group_by_keys: vec![],
             filter_condition: None,
@@ -563,7 +563,7 @@ mod tests {
         let temp_dir = std::env::temp_dir();
         let test_path = temp_dir.join("graphdb_test_aggregation").to_str().unwrap().to_string();
         let executor = AggregationExecutor {
-            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::native_storage::NativeStorage::new(&test_path).unwrap()))),
+            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::rocksdb_storage::RocksDBStorage::new(&test_path).unwrap()))),
             aggregation_functions: vec![],
             group_by_keys: vec![],
             filter_condition: None,
@@ -585,7 +585,7 @@ mod tests {
         let temp_dir = std::env::temp_dir();
         let test_path = temp_dir.join("graphdb_test_aggregation").to_str().unwrap().to_string();
         let executor = AggregationExecutor {
-            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::native_storage::NativeStorage::new(&test_path).unwrap()))),
+            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::rocksdb_storage::RocksDBStorage::new(&test_path).unwrap()))),
             aggregation_functions: vec![AggregateFunction::Count(None)],
             group_by_keys: vec![],
             filter_condition: None,

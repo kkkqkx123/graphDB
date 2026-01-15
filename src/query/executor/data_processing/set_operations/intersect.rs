@@ -144,7 +144,7 @@ mod tests {
     use crate::core::Value;
 
     // 创建测试用的存储引擎
-    fn create_test_storage() -> Arc<Mutex<crate::storage::NativeStorage>> {
+    fn create_test_storage() -> Arc<Mutex<crate::storage::RocksDBStorage>> {
         use std::sync::atomic::{AtomicUsize, Ordering};
         use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -159,7 +159,7 @@ mod tests {
 
         let config = crate::config::test_config::test_config();
         let test_path = config.test_db_path(&format!("test_intersect_db_{}_{}", test_id, timestamp));
-        let storage = crate::storage::NativeStorage::new(test_path.to_str().unwrap())
+        let storage = crate::storage::RocksDBStorage::new(test_path.to_str().unwrap())
             .expect("Failed to create test storage");
         Arc::new(Mutex::new(storage))
     }

@@ -1,7 +1,7 @@
 use crate::api::service::QueryEngine;
 use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
-use crate::storage::NativeStorage;
+use crate::storage::RocksDBStorage;
 use std::sync::{Arc, Mutex};
 
 pub struct GraphService {
@@ -12,7 +12,7 @@ pub struct GraphService {
 }
 
 impl GraphService {
-    pub fn new(config: Config, storage: Arc<NativeStorage>) -> Arc<Self> {
+    pub fn new(config: Config, storage: Arc<RocksDBStorage>) -> Arc<Self> {
         let session_manager = GraphSessionManager::new(format!("{}:{}", config.host, config.port));
         let query_engine = Arc::new(Mutex::new(QueryEngine::new(storage)));
 
@@ -79,7 +79,7 @@ impl GraphService {
 mod tests {
     use super::*;
     use crate::config::Config;
-    use crate::storage::NativeStorage;
+    use crate::storage::RocksDBStorage;
     use std::sync::Arc;
     use tempfile::TempDir;
 
@@ -102,7 +102,7 @@ mod tests {
         };
 
         let storage = Arc::new(
-            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+            RocksDBStorage::new(&config.storage_path).expect("Failed to create RocksDB storage"),
         );
         let graph_service = GraphService::new(config, storage);
 
@@ -129,7 +129,7 @@ mod tests {
         };
 
         let storage = Arc::new(
-            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+            RocksDBStorage::new(&config.storage_path).expect("Failed to create RocksDB storage"),
         );
         let graph_service = GraphService::new(config, storage);
 
@@ -164,7 +164,7 @@ mod tests {
         };
 
         let storage = Arc::new(
-            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+            RocksDBStorage::new(&config.storage_path).expect("Failed to create RocksDB storage"),
         );
         let graph_service = GraphService::new(config, storage);
 
@@ -200,7 +200,7 @@ mod tests {
         };
 
         let storage = Arc::new(
-            NativeStorage::new(&config.storage_path).expect("Failed to create native storage"),
+            RocksDBStorage::new(&config.storage_path).expect("Failed to create RocksDB storage"),
         );
         let graph_service = GraphService::new(config, storage);
 

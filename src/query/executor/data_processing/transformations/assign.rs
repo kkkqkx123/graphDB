@@ -160,15 +160,15 @@ mod tests {
     use crate::config::test_config::test_config;
     use crate::core::Expression;
     use crate::core::Value;
-    use crate::storage::NativeStorage;
+    use crate::storage::RocksDBStorage;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_assign_executor() {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_assign"))
-                .expect("NativeStorage should be created successfully"),
+            RocksDBStorage::new(config.test_db_path("test_db_assign"))
+                .expect("RocksDBStorage should be created successfully"),
         ));
 
         // 创建赋值项

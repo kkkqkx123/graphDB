@@ -449,15 +449,15 @@ mod tests {
     use super::*;
     use crate::config::test_config::test_config;
     use crate::core::{Tag, Value, Vertex};
-    use crate::storage::NativeStorage;
+    use crate::storage::RocksDBStorage;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_pattern_apply_executor() {
         let config = test_config();
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(config.test_db_path("test_db_pattern_apply"))
-                .expect("NativeStorage should be created successfully"),
+            RocksDBStorage::new(config.test_db_path("test_db_pattern_apply"))
+                .expect("RocksDBStorage should be created successfully"),
         ));
 
         // 创建测试顶点

@@ -230,7 +230,7 @@ impl<S: StorageEngine> GraphContext<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::NativeStorage;
+    use crate::storage::RocksDBStorage;
 
     #[test]
     fn test_metrics() {
@@ -245,8 +245,8 @@ mod tests {
     #[tokio::test]
     async fn test_graph_context() {
         let config = crate::config::Config::default();
-        let storage = NativeStorage::new(config.storage_path.clone())
-            .expect("Failed to create NativeStorage for test");
+        let storage = RocksDBStorage::new(config.storage_path.clone())
+            .expect("Failed to create RocksDBStorage for test");
         let ctx = GraphContext::new(config, storage);
 
         ctx.increment_vertices_created()

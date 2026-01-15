@@ -8,14 +8,14 @@ mod tests {
     use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
     use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
     use crate::query::executor::traits::Executor;
-    use crate::storage::{NativeStorage, StorageEngine};
+    use crate::storage::{RocksDBStorage, StorageEngine};
     use std::sync::{Arc, Mutex};
 
-    async fn create_test_graph(test_name: &str) -> Arc<Mutex<NativeStorage>> {
+    async fn create_test_graph(test_name: &str) -> Arc<Mutex<RocksDBStorage>> {
         let config = test_config();
         let db_path = config.test_db_path(&format!("test_graph_{}", test_name));
         let storage = Arc::new(Mutex::new(
-            NativeStorage::new(db_path).expect("Failed to create test storage"),
+            RocksDBStorage::new(db_path).expect("Failed to create test storage"),
         ));
 
         // 创建测试图：A -> B -> C, A -> D
