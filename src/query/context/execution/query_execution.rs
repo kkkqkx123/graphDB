@@ -954,6 +954,7 @@ mod tests {
                 cluster_id: "test_cluster".to_string(),
                 meta_servers: vec!["127.0.0.1:9559".to_string()],
                 storage_servers: vec!["127.0.0.1:9779".to_string()],
+                version: crate::query::context::managers::MetadataVersion::default(),
             })
         }
 
@@ -966,6 +967,9 @@ mod tests {
                 space_name: "test_space".to_string(),
                 partition_num: 10,
                 replica_factor: 1,
+                tags: vec![],
+                edge_types: vec![],
+                version: crate::query::context::managers::MetadataVersion::default(),
             })
         }
 

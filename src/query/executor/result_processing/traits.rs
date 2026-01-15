@@ -98,6 +98,8 @@ pub struct BaseResultProcessor<S: StorageEngine> {
     pub context: ResultProcessorContext,
     /// 当前内存使用量
     pub memory_usage: usize,
+    /// 执行统计信息
+    pub stats: crate::query::executor::traits::ExecutorStats,
 }
 
 impl<S: StorageEngine> BaseResultProcessor<S> {
@@ -111,7 +113,18 @@ impl<S: StorageEngine> BaseResultProcessor<S> {
             input: None,
             context: ResultProcessorContext::default(),
             memory_usage: 0,
+            stats: crate::query::executor::traits::ExecutorStats::new(),
         }
+    }
+
+    /// 获取执行统计信息
+    pub fn get_stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        &self.stats
+    }
+
+    /// 获取可变的执行统计信息
+    pub fn get_stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        &mut self.stats
     }
 
     /// 设置内存限制
@@ -184,6 +197,13 @@ impl<S: StorageEngine> BaseResultProcessor<S> {
         }
 
         usage
+    }
+
+    /// 重置处理器状态
+    pub fn reset_state(&mut self) {
+        self.memory_usage = 0;
+        self.input = None;
+        self.stats = crate::query::executor::traits::ExecutorStats::new();
     }
 }
 

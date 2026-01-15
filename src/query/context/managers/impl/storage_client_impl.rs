@@ -7,6 +7,7 @@ use super::super::{
 use crate::core::error::{ManagerError, ManagerResult};
 use crate::core::{Edge, Tag, Value, Vertex};
 use crate::storage::native_storage::NativeStorage;
+use crate::storage::storage_engine::StorageEngine;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
@@ -176,7 +177,7 @@ impl MemoryStorageClient {
                     storage.delete_node(&vertex.vid)
                         .map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 } else {
-                    let updated_vertex = Vertex::new(vertex.vid.clone(), new_tags);
+                    let updated_vertex = Vertex::new(*vertex.vid.clone(), new_tags);
                     storage.update_node(updated_vertex)
                         .map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 }
@@ -294,6 +295,8 @@ impl StorageClient for MemoryStorageClient {
                             tags.push(Tag::new(table.clone(), props));
                         }
                         let updated_vertex = Vertex::new(vid, tags);
+                        drop(storage);
+                        let mut storage = self.storage.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
                         let _ = storage.update_node(updated_vertex);
                         return Ok(StorageResponse {
                             success: true,
@@ -318,9 +321,13 @@ impl StorageClient for MemoryStorageClient {
                             .filter(|t| t.name != table)
                             .collect();
                         if tags.is_empty() {
+                            drop(storage);
+                            let mut storage = self.storage.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
                             let _ = storage.delete_node(&vid);
                         } else {
                             let updated_vertex = Vertex::new(vid, tags);
+                            drop(storage);
+                            let mut storage = self.storage.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
                             let _ = storage.update_node(updated_vertex);
                         }
                         return Ok(StorageResponse {
@@ -779,7 +786,10 @@ impl StorageClient for MemoryStorageClient {
             }
 
             storage
-                .update_edge(edge)
+                .delete_edge(&edge_key.src, &edge_key.dst, &edge_key.edge_type)
+                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+            storage
+                .insert_edge(edge)
                 .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         } else if insertable {
             let mut edge_props = HashMap::new();
@@ -827,7 +837,7 @@ impl StorageClient for MemoryStorageClient {
             .read()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
-        let result = storage
+        let result = (*storage)
             .scan_all_vertices()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
@@ -856,7 +866,7 @@ impl StorageClient for MemoryStorageClient {
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         let tag_name = format!("tag_{}", tag_id);
-        let result = storage
+        let result = (*storage)
             .scan_vertices_by_tag(&tag_name)
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
@@ -879,7 +889,7 @@ impl StorageClient for MemoryStorageClient {
             .read()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
-        let result = storage
+        let result = (*storage)
             .scan_all_edges()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
@@ -907,7 +917,7 @@ impl StorageClient for MemoryStorageClient {
             .read()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
-        let result = storage
+        let result = (*storage)
             .scan_edges_by_type(edge_type)
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
@@ -935,8 +945,8 @@ impl StorageClient for MemoryStorageClient {
             .read()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
-        let result = storage
-            .scan_edges_by_src(src)
+        let result = (*storage)
+            .get_node_edges(src, crate::core::Direction::Out)
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         if let Some(limit) = limit {
@@ -963,8 +973,8 @@ impl StorageClient for MemoryStorageClient {
             .read()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
-        let result = storage
-            .scan_edges_by_dst(dst)
+        let result = (*storage)
+            .get_node_edges(dst, crate::core::Direction::In)
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         if let Some(limit) = limit {

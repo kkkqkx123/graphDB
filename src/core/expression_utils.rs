@@ -125,7 +125,7 @@ impl ExpressionUtils {
         match filter {
             Expression::Property { object, property } => {
                 // 检查是否是边属性
-                if let Expression::Variable(var_name) = *object {
+                if let Expression::Variable(var_name) = &*object {
                     if var_name == edge_alias {
                         // 重写为边属性表达式
                         return Expression::EdgeProperty {
@@ -169,7 +169,7 @@ impl ExpressionUtils {
         match filter {
             Expression::Property { object, property } => {
                 // 检查是否是顶点属性
-                if let Expression::Variable(var_name) = *object {
+                if let Expression::Variable(var_name) = &*object {
                     if var_name == tag {
                         // 重写为顶点属性表达式
                         return Expression::TagProperty {
@@ -714,60 +714,6 @@ impl Expression {
             Expression::ESQuery(_) => "ESQuery",
             Expression::UUID => "UUID",
             Expression::MatchPathPattern { .. } => "MatchPathPattern",
-        }
-    }
-
-    /// 获取子表达式
-    pub fn children(&self) -> Vec<&Expression> {
-        match self {
-            Expression::Binary { left, right, .. } => vec![left, right],
-            Expression::Unary { operand, .. } => vec![operand],
-            Expression::Function { args, .. } => args.iter().collect(),
-            Expression::List(items) => items.iter().collect(),
-            Expression::Map(pairs) => pairs.iter().map(|(_, v)| v).collect(),
-            Expression::Case { conditions, default, .. } => {
-                let mut children: Vec<&Expression> = Vec::new();
-                for (c, e) in conditions {
-                    children.push(c);
-                    children.push(e);
-                }
-                if let Some(d) = default {
-                    children.push(d);
-                }
-                children
-            }
-            Expression::TypeCast { expr, .. } => vec![expr],
-            Expression::Subscript { collection, index, .. } => vec![collection, index],
-            Expression::Range { collection, start, end, .. } => {
-                let mut children = vec![collection];
-                if let Some(s) = start {
-                    children.push(s);
-                }
-                if let Some(e) = end {
-                    children.push(e);
-                }
-                children
-            }
-            Expression::Path(items) => items.iter().collect(),
-            Expression::ListComprehension { generator, condition, .. } => {
-                let mut children = vec![generator];
-                if let Some(c) = condition {
-                    children.push(c);
-                }
-                children
-            }
-            Expression::Predicate { list, condition, .. } => vec![list, condition],
-            Expression::Reduce { list, initial, expr, .. } => vec![list, initial, expr],
-            Expression::UnaryPlus(expr) => vec![expr],
-            Expression::UnaryNegate(expr) => vec![expr],
-            Expression::UnaryNot(expr) => vec![expr],
-            Expression::UnaryIncr(expr) => vec![expr],
-            Expression::UnaryDecr(expr) => vec![expr],
-            Expression::IsNull(expr) => vec![expr],
-            Expression::IsNotNull(expr) => vec![expr],
-            Expression::IsEmpty(expr) => vec![expr],
-            Expression::IsNotEmpty(expr) => vec![expr],
-            _ => Vec::new(),
         }
     }
 }

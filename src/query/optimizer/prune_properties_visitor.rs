@@ -2,10 +2,9 @@
 //!
 //! 用于修剪未使用的属性，优化查询计划
 
-use crate::core::expression_visitor::ExpressionVisitor;
+use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::types::expression::Expression;
 use crate::query::optimizer::property_tracker::PropertyTracker;
-use crate::query::context::validate::types::Variable;
 use std::collections::HashSet;
 
 /// 属性修剪访问者
@@ -16,77 +15,7 @@ pub struct PrunePropertiesVisitor {
     /// 属性跟踪器
     tracker: PropertyTracker,
     /// 访问状态
-    state: PruneVisitorState,
-}
-
-/// 属性修剪访问者状态
-#[derive(Debug, Clone)]
-pub struct PruneVisitorState {
-    /// 是否继续访问
-    pub continue_visiting: bool,
-    /// 访问深度
-    pub depth: usize,
-    /// 访问计数
-    pub visit_count: usize,
-    /// 最大深度限制
-    pub max_depth: Option<usize>,
-    /// 收集的变量
-    pub collected_variables: HashSet<String>,
-}
-
-impl PruneVisitorState {
-    /// 创建新的访问者状态
-    pub fn new() -> Self {
-        Self {
-            continue_visiting: true,
-            depth: 0,
-            visit_count: 0,
-            max_depth: None,
-            collected_variables: HashSet::new(),
-        }
-    }
-
-    /// 检查是否超过最大深度
-    pub fn exceeds_max_depth(&self) -> bool {
-        if let Some(max) = self.max_depth {
-            self.depth > max
-        } else {
-            false
-        }
-    }
-
-    /// 增加访问深度
-    pub fn increment_depth(&mut self) {
-        self.depth += 1;
-    }
-
-    /// 减少访问深度
-    pub fn decrement_depth(&mut self) {
-        if self.depth > 0 {
-            self.depth -= 1;
-        }
-    }
-
-    /// 增加访问计数
-    pub fn increment_visit_count(&mut self) {
-        self.visit_count += 1;
-    }
-
-    /// 设置最大深度限制
-    pub fn set_max_depth(&mut self, max_depth: usize) {
-        self.max_depth = Some(max_depth);
-    }
-
-    /// 停止访问
-    pub fn stop(&mut self) {
-        self.continue_visiting = false;
-    }
-}
-
-impl Default for PruneVisitorState {
-    fn default() -> Self {
-        Self::new()
-    }
+    state: ExpressionVisitorState,
 }
 
 impl PrunePropertiesVisitor {
@@ -94,7 +23,7 @@ impl PrunePropertiesVisitor {
     pub fn new(tracker: PropertyTracker) -> Self {
         Self {
             tracker,
-            state: PruneVisitorState::new(),
+            state: ExpressionVisitorState::new(),
         }
     }
 
@@ -108,34 +37,28 @@ impl PrunePropertiesVisitor {
         &mut self.tracker
     }
 
-    /// 获取访问状态
-    pub fn state(&self) -> &PruneVisitorState {
-        &self.state
-    }
-
-    /// 获取可变访问状态
-    pub fn state_mut(&mut self) -> &mut PruneVisitorState {
-        &mut self.state
-    }
-
-    /// 检查是否应该继续访问
-    pub fn should_continue(&self) -> bool {
-        self.state.continue_visiting
-    }
-
-    /// 停止访问
-    pub fn stop(&mut self) {
-        self.state.stop();
-    }
-
     /// 收集表达式中的所有属性
     pub fn collect_properties(&mut self, expr: &Expression) {
         self.visit_expression(expr);
     }
 
     /// 获取收集的属性
-    pub fn get_collected_properties(&self) -> &HashSet<String> {
-        &self.state.collected_variables
+    pub fn get_collected_properties(&self) -> HashSet<String> {
+        self.state.get_custom_data("collected_variables")
+            .and_then(|v| {
+                if let crate::core::Value::List(vars) = v {
+                    Some(vars.iter().filter_map(|v| {
+                        if let crate::core::Value::String(s) = v {
+                            Some(s.clone())
+                        } else {
+                            None
+                        }
+                    }).collect::<HashSet<_>>())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default()
     }
 
     /// 获取特定变量的使用属性
@@ -146,6 +69,14 @@ impl PrunePropertiesVisitor {
 
 impl ExpressionVisitor for PrunePropertiesVisitor {
     type Result = ();
+
+    fn state(&self) -> &ExpressionVisitorState {
+        &self.state
+    }
+
+    fn state_mut(&mut self) -> &mut ExpressionVisitorState {
+        &mut self.state
+    }
 
     fn visit_expression(&mut self, expr: &Expression) -> Self::Result {
         if !self.should_continue() {
@@ -163,43 +94,54 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
 
         match expr {
             Expression::Variable(name) => {
-                self.state.collected_variables.insert(name.clone());
+                let mut vars = self.state.get_custom_data("collected_variables")
+                    .and_then(|v| {
+                        if let crate::core::Value::List(vars) = v {
+                            Some(vars.iter().filter_map(|v| {
+                                if let crate::core::Value::String(s) = v {
+                                    Some(s.clone())
+                                } else {
+                                    None
+                                }
+                            }).collect::<Vec<String>>())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_default();
+                if !vars.contains(name) {
+                    vars.push(name.clone());
+                }
+                let vars_value: Vec<crate::core::Value> = vars.into_iter().map(|s| crate::core::Value::String(s)).collect();
+                self.state.set_custom_data("collected_variables".to_string(), crate::core::Value::List(vars_value));
             }
             Expression::Property { object, property } => {
-                // 跟踪属性
                 if let Expression::Variable(var_name) = object.as_ref() {
                     self.tracker.track_property(var_name, property);
                 }
             }
             Expression::TagProperty { tag, prop } => {
-                // 跟踪顶点属性
                 self.tracker.track_property(tag, prop);
             }
             Expression::EdgeProperty { edge, prop } => {
-                // 跟踪边属性
                 self.tracker.track_property(edge, prop);
             }
             Expression::InputProperty(prop) => {
-                // 跟踪输入属性
                 self.tracker.track_property("$-", prop);
             }
             Expression::VariableProperty { var, prop } => {
-                // 跟踪变量属性
                 self.tracker.track_property(var, prop);
             }
             Expression::SourceProperty { tag, prop } => {
-                // 跟踪源顶点属性
                 self.tracker.track_property(&format!("^{}", tag), prop);
             }
             Expression::DestinationProperty { tag, prop } => {
-                // 跟踪目标顶点属性
                 self.tracker.track_property(&format!("${}", tag), prop);
             }
             _ => {}
         }
 
-        // 访问子表达式
-        for child in expr.children() {
+        for child in crate::core::types::expression::Expression::children(expr) {
             self.visit_expression(child);
         }
 
@@ -287,9 +229,28 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
         self.visit_expression(expr);
     }
 
+    fn visit_type_casting(&mut self, expr: &Expression, _target_type: &str) -> Self::Result {
+        self.visit_expression(expr);
+    }
+
     fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection);
         self.visit_expression(index);
+    }
+
+    fn visit_subscript_range(
+        &mut self,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
+    ) -> Self::Result {
+        self.visit_expression(collection);
+        if let Some(start_expr) = start {
+            self.visit_expression(start_expr);
+        }
+        if let Some(end_expr) = end {
+            self.visit_expression(end_expr);
+        }
     }
 
     fn visit_range(
@@ -308,6 +269,12 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
     }
 
     fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
+        for item in items {
+            self.visit_expression(item);
+        }
+    }
+
+    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result {
         for item in items {
             self.visit_expression(item);
         }
@@ -423,7 +390,7 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
         }
     }
 
-    fn visit_constant(&mut self, _e: &crate::query::parser::ast::expr::ConstantExpr) -> Self::Result {
+    fn visit_constant_expr(&mut self, _e: &crate::query::parser::ast::expr::ConstantExpr) -> Self::Result {
         // 常量不需要处理
     }
 
@@ -432,12 +399,12 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
     }
 
     fn visit_binary_expr(&mut self, e: &crate::query::parser::ast::expr::BinaryExpr) -> Self::Result {
-        self.visit_expression(&e.left);
-        self.visit_expression(&e.right);
+        self.visit_expr(&e.left);
+        self.visit_expr(&e.right);
     }
 
     fn visit_unary_expr(&mut self, e: &crate::query::parser::ast::expr::UnaryExpr) -> Self::Result {
-        self.visit_expression(&e.operand);
+        self.visit_expr(&e.operand);
     }
 
     fn visit_function_call_expr(
@@ -445,7 +412,7 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
         e: &crate::query::parser::ast::expr::FunctionCallExpr,
     ) -> Self::Result {
         for arg in &e.args {
-            self.visit_expression(arg);
+            self.visit_expr(arg);
         }
     }
 
@@ -453,28 +420,28 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
         &mut self,
         e: &crate::query::parser::ast::expr::PropertyAccessExpr,
     ) -> Self::Result {
-        self.visit_expression(&e.object);
+        self.visit_expr(&e.object);
     }
 
     fn visit_list_expr(&mut self, e: &crate::query::parser::ast::expr::ListExpr) -> Self::Result {
-        for item in &e.items {
-            self.visit_expression(item);
+        for item in &e.elements {
+            self.visit_expr(item);
         }
     }
 
     fn visit_map_expr(&mut self, e: &crate::query::parser::ast::expr::MapExpr) -> Self::Result {
         for (_, value) in &e.pairs {
-            self.visit_expression(value);
+            self.visit_expr(value);
         }
     }
 
     fn visit_case_expr(&mut self, e: &crate::query::parser::ast::expr::CaseExpr) -> Self::Result {
-        for (condition, expr) in &e.cases {
-            self.visit_expression(condition);
-            self.visit_expression(expr);
+        for (condition, expr) in &e.when_then_pairs {
+            self.visit_expr(condition);
+            self.visit_expr(expr);
         }
         if let Some(default_expr) = &e.default {
-            self.visit_expression(default_expr);
+            self.visit_expr(default_expr);
         }
     }
 
@@ -482,16 +449,16 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
         &mut self,
         e: &crate::query::parser::ast::expr::SubscriptExpr,
     ) -> Self::Result {
-        self.visit_expression(&e.collection);
-        self.visit_expression(&e.index);
+        self.visit_expr(&e.collection);
+        self.visit_expr(&e.index);
     }
 
     fn visit_predicate_expr(
         &mut self,
         e: &crate::query::parser::ast::expr::PredicateExpr,
     ) -> Self::Result {
-        self.visit_expression(&e.list);
-        self.visit_expression(&e.condition);
+        self.visit_expr(&e.list);
+        self.visit_expr(&e.condition);
     }
 
     fn visit_tag_property_expr(
@@ -540,42 +507,42 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
         &mut self,
         e: &crate::query::parser::ast::expr::TypeCastExpr,
     ) -> Self::Result {
-        self.visit_expression(&e.expr);
+        self.visit_expr(&e.expr);
     }
 
     fn visit_range_expr(&mut self, e: &crate::query::parser::ast::expr::RangeExpr) -> Self::Result {
-        self.visit_expression(&e.collection);
+        self.visit_expr(&e.collection);
         if let Some(start) = &e.start {
-            self.visit_expression(start);
+            self.visit_expr(start);
         }
         if let Some(end) = &e.end {
-            self.visit_expression(end);
+            self.visit_expr(end);
         }
     }
 
     fn visit_path_expr(&mut self, e: &crate::query::parser::ast::expr::PathExpr) -> Self::Result {
-        for item in &e.items {
-            self.visit_expression(item);
+        for item in &e.elements {
+            self.visit_expr(item);
         }
     }
 
-    fn visit_label_expr(&mut self, e: &crate::query::parser::ast::expr::LabelExpr) -> Self::Result {
+    fn visit_label_expr(&mut self, _e: &crate::query::parser::ast::expr::LabelExpr) -> Self::Result {
         // 标签不需要处理
     }
 
     fn visit_reduce_expr(&mut self, e: &crate::query::parser::ast::expr::ReduceExpr) -> Self::Result {
-        self.visit_expression(&e.list);
-        self.visit_expression(&e.initial);
-        self.visit_expression(&e.expr);
+        self.visit_expr(&e.list);
+        self.visit_expr(&e.initial);
+        self.visit_expr(&e.expr);
     }
 
     fn visit_list_comprehension_expr(
         &mut self,
         e: &crate::query::parser::ast::expr::ListComprehensionExpr,
     ) -> Self::Result {
-        self.visit_expression(&e.generator);
+        self.visit_expr(&e.generator);
         if let Some(condition) = &e.condition {
-            self.visit_expression(condition);
+            self.visit_expr(condition);
         }
     }
 }

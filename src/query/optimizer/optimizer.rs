@@ -1,6 +1,8 @@
 //! Optimizer implementation for optimizing execution plans
 use crate::core::context::QueryContext;
+use crate::core::types::operators::Operator;
 use crate::query::context::validate;
+use crate::query::optimizer::property_tracker::PropertyTracker;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
 
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -130,20 +132,18 @@ impl OptContext {
             match group_node.plan_node.name() {
                 "Traverse" => {
                     // 对于 Traverse 节点，从列名中提取边别名
-                    if let Some(col_names) = group_node.plan_node.col_names() {
-                        // 假设边别名是第一个列名
-                        if !col_names.is_empty() {
-                            return Some(col_names[0].clone());
-                        }
+                    let col_names = group_node.plan_node.col_names();
+                    // 假设边别名是第一个列名
+                    if !col_names.is_empty() {
+                        return Some(col_names[0].clone());
                     }
                 }
                 "Expand" => {
                     // 对于 Expand 节点，从列名中提取边别名
-                    if let Some(col_names) = group_node.plan_node.col_names() {
-                        // 假设边别名是第一个列名
-                        if !col_names.is_empty() {
-                            return Some(col_names[0].clone());
-                        }
+                    let col_names = group_node.plan_node.col_names();
+                    // 假设边别名是第一个列名
+                    if !col_names.is_empty() {
+                        return Some(col_names[0].clone());
                     }
                 }
                 _ => {}
@@ -167,20 +167,18 @@ impl OptContext {
             match group_node.plan_node.name() {
                 "ScanVertices" => {
                     // 对于 ScanVertices 节点，从列名中提取标签别名
-                    if let Some(col_names) = group_node.plan_node.col_names() {
-                        // 假设标签别名是第一个列名
-                        if !col_names.is_empty() {
-                            return Some(col_names[0].clone());
-                        }
+                    let col_names = group_node.plan_node.col_names();
+                    // 假设标签别名是第一个列名
+                    if !col_names.is_empty() {
+                        return Some(col_names[0].clone());
                     }
                 }
                 "IndexScan" => {
                     // 对于 IndexScan 节点，从列名中提取标签别名
-                    if let Some(col_names) = group_node.plan_node.col_names() {
-                        // 假设标签别名是第一个列名
-                        if !col_names.is_empty() {
-                            return Some(col_names[0].clone());
-                        }
+                    let col_names = group_node.plan_node.col_names();
+                    // 假设标签别名是第一个列名
+                    if !col_names.is_empty() {
+                        return Some(col_names[0].clone());
                     }
                 }
                 _ => {}
@@ -262,7 +260,7 @@ impl OptGroup {
     }
 
     /// Validate the group
-    pub fn validate(&self, rule: &dyn OptRule) -> Result<(), OptimizerError> {
+    pub fn validate(&self, _rule: &dyn OptRule) -> Result<(), OptimizerError> {
         // Validate data flow
         for node in &self.nodes {
             self.validate_data_flow(node)?;
@@ -402,7 +400,7 @@ impl OptGroupNode {
     }
 
     /// Validate the node
-    pub fn validate(&self, rule: &dyn OptRule) -> Result<(), OptimizerError> {
+    pub fn validate(&self, _rule: &dyn OptRule) -> Result<(), OptimizerError> {
         // Validate dependencies
         for &dep_id in &self.dependencies {
             if dep_id == 0 {
@@ -909,7 +907,7 @@ impl Optimizer {
                 // 收集投影节点中的所有属性
                 if let Some(project_node) = node.plan_node.as_project() {
                     for column in project_node.columns() {
-                        self.collect_expression_properties(column, property_tracker);
+                        self.collect_expression_properties(&column.expr, property_tracker);
                     }
                 }
             }
@@ -923,10 +921,10 @@ impl Optimizer {
                 // 收集聚合节点中的所有属性
                 if let Some(aggregate_node) = node.plan_node.as_aggregate() {
                     for group_key in aggregate_node.group_keys() {
-                        self.collect_expression_properties(group_key, property_tracker);
+                        self.collect_expression_properties(&crate::core::Expression::Variable(group_key.clone()), property_tracker);
                     }
-                    for item in aggregate_node.aggregate_items() {
-                        self.collect_expression_properties(&item.expr, property_tracker);
+                    for item in aggregate_node.aggregation_functions() {
+                        self.collect_expression_properties(&crate::core::Expression::Variable(item.name().to_string()), property_tracker);
                     }
                 }
             }
@@ -945,14 +943,25 @@ impl Optimizer {
         use crate::core::Expression;
 
         match expr {
-            Expression::Property { property, .. } => {
-                property_tracker.add_property(property.clone());
+            Expression::Property { object, property } => {
+                if let Expression::Variable(var_name) = object.as_ref() {
+                    property_tracker.track_property(var_name, property);
+                }
             }
             Expression::TagProperty { tag, prop } => {
-                property_tracker.add_tag_property(tag.clone(), prop.clone());
+                property_tracker.track_property(tag, prop);
             }
             Expression::EdgeProperty { edge, prop } => {
-                property_tracker.add_edge_property(edge.clone(), prop.clone());
+                property_tracker.track_property(edge, prop);
+            }
+            Expression::VariableProperty { var, prop } => {
+                property_tracker.track_property(var, prop);
+            }
+            Expression::SourceProperty { tag, prop } => {
+                property_tracker.track_property(tag, prop);
+            }
+            Expression::DestinationProperty { tag, prop } => {
+                property_tracker.track_property(tag, prop);
             }
             Expression::Binary { left, right, .. } => {
                 self.collect_expression_properties(left, property_tracker);
@@ -965,6 +974,91 @@ impl Optimizer {
                 for arg in args {
                     self.collect_expression_properties(arg, property_tracker);
                 }
+            }
+            Expression::Aggregate { arg, .. } => {
+                self.collect_expression_properties(arg, property_tracker);
+            }
+            Expression::List(items) => {
+                for item in items {
+                    self.collect_expression_properties(item, property_tracker);
+                }
+            }
+            Expression::Map(pairs) => {
+                for (_, value) in pairs {
+                    self.collect_expression_properties(value, property_tracker);
+                }
+            }
+            Expression::Case { conditions, default } => {
+                for (condition, value) in conditions {
+                    self.collect_expression_properties(condition, property_tracker);
+                    self.collect_expression_properties(value, property_tracker);
+                }
+                if let Some(default_expr) = default {
+                    self.collect_expression_properties(default_expr, property_tracker);
+                }
+            }
+            Expression::TypeCast { expr, .. } => {
+                self.collect_expression_properties(expr, property_tracker);
+            }
+            Expression::Subscript { collection, index } => {
+                self.collect_expression_properties(collection, property_tracker);
+                self.collect_expression_properties(index, property_tracker);
+            }
+            Expression::Range { collection, start, end } => {
+                self.collect_expression_properties(collection, property_tracker);
+                if let Some(start_expr) = start {
+                    self.collect_expression_properties(start_expr, property_tracker);
+                }
+                if let Some(end_expr) = end {
+                    self.collect_expression_properties(end_expr, property_tracker);
+                }
+            }
+            Expression::Path(items) => {
+                for item in items {
+                    self.collect_expression_properties(item, property_tracker);
+                }
+            }
+            Expression::UnaryPlus(operand) => {
+                self.collect_expression_properties(operand, property_tracker);
+            }
+            Expression::UnaryNegate(operand) => {
+                self.collect_expression_properties(operand, property_tracker);
+            }
+            Expression::UnaryNot(operand) => {
+                self.collect_expression_properties(operand, property_tracker);
+            }
+            Expression::UnaryIncr(operand) => {
+                self.collect_expression_properties(operand, property_tracker);
+            }
+            Expression::UnaryDecr(operand) => {
+                self.collect_expression_properties(operand, property_tracker);
+            }
+            Expression::IsNull(operand) => {
+                self.collect_expression_properties(operand, property_tracker);
+            }
+            Expression::IsNotNull(operand) => {
+                self.collect_expression_properties(operand, property_tracker);
+            }
+            Expression::IsEmpty(operand) => {
+                self.collect_expression_properties(operand, property_tracker);
+            }
+            Expression::IsNotEmpty(operand) => {
+                self.collect_expression_properties(operand, property_tracker);
+            }
+            Expression::ListComprehension { generator, condition } => {
+                self.collect_expression_properties(generator, property_tracker);
+                if let Some(condition_expr) = condition {
+                    self.collect_expression_properties(condition_expr, property_tracker);
+                }
+            }
+            Expression::Predicate { list, condition } => {
+                self.collect_expression_properties(list, property_tracker);
+                self.collect_expression_properties(condition, property_tracker);
+            }
+            Expression::Reduce { list, initial, expr, .. } => {
+                self.collect_expression_properties(list, property_tracker);
+                self.collect_expression_properties(initial, property_tracker);
+                self.collect_expression_properties(expr, property_tracker);
             }
             _ => {}
         }
@@ -1203,4 +1297,9 @@ pub enum OptimizerError {
 
     #[error("Invalid optimization context: {0}")]
     InvalidOptContext(String),
+
+    #[error("Validation error: {message}")]
+    Validation {
+        message: String,
+    },
 }

@@ -351,6 +351,14 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
     fn description(&self) -> &str {
         &self.base_executor.get_base().description
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base_executor.get_base().get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base_executor.get_base_mut().get_stats_mut()
+    }
 }
 
 impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>

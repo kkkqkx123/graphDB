@@ -36,7 +36,7 @@ impl crate::query::parser::Parser {
         
         match &self.current_token().kind {
             TokenKind::Identifier(s) => {
-                path.push_str(s);
+                path.push_str(s.as_str());
                 self.next_token();
             }
             TokenKind::Dollar => {
@@ -44,7 +44,7 @@ impl crate::query::parser::Parser {
                 self.next_token();
                 match &self.current_token().kind {
                     TokenKind::Identifier(s) => {
-                        path.push_str(s);
+                        path.push_str(s.as_str());
                         self.next_token();
                     }
                     _ => return Err(ParseError::syntax_error(

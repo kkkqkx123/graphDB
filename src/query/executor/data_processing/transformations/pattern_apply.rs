@@ -423,6 +423,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for PatternApplyExecu
     fn description(&self) -> &str {
         &self.base.description
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>

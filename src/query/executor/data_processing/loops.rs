@@ -221,9 +221,9 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
                 // 简化处理：返回第一个数据集
                 ExecutionResult::DataSet(
                     all_datasets
-                        .into_iter()
-                        .next()
-                        .expect("Failed to get next dataset"),
+                        .first()
+                        .cloned()
+                        .expect("Failed to get first dataset"),
                 )
             }
         } else {
@@ -350,6 +350,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
     fn description(&self) -> &str {
         &self.base.description
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
@@ -409,6 +417,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for WhileLoopExecutor
 
     fn description(&self) -> &str {
         &self.inner.description()
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.inner.stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.inner.stats_mut()
     }
 }
 
@@ -509,6 +525,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
     fn description(&self) -> &str {
         &self.inner.description()
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.inner.stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.inner.stats_mut()
+    }
 }
 
 impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
@@ -577,6 +601,15 @@ mod tests {
 
         fn description(&self) -> &str {
             "CountExecutor"
+        }
+
+        fn stats(&self) -> &ExecutorStats {
+            &ExecutorStats::default()
+        }
+
+        fn stats_mut(&mut self) -> &mut ExecutorStats {
+            static mut STATS: ExecutorStats = ExecutorStats::default();
+            unsafe { &mut STATS }
         }
     }
 

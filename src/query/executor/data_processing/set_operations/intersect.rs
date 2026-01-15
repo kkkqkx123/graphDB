@@ -128,6 +128,14 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for IntersectExecutor<S> {
     fn description(&self) -> &str {
         self.set_executor.description()
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.set_executor.stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.set_executor.stats_mut()
+    }
 }
 
 #[cfg(test)]

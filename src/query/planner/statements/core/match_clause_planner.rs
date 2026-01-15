@@ -219,7 +219,7 @@ mod tests {
         let planner = MatchClausePlanner::new(vec![path.clone()]);
 
         let query_info =
-            crate::query::planner::match_planning::core::cypher_clause_planner::QueryInfo {
+            crate::query::planner::statements::core::cypher_clause_planner::QueryInfo {
                 query_id: "test".to_string(),
                 statement_type: "MATCH".to_string(),
             };
@@ -258,7 +258,7 @@ mod tests {
 impl DataFlowNode for MatchClausePlanner {
     fn flow_direction(
         &self,
-    ) -> crate::query::planner::match_planning::core::cypher_clause_planner::FlowDirection {
+    ) -> crate::query::planner::statements::core::cypher_clause_planner::FlowDirection {
         self.clause_type().flow_direction()
     }
 }

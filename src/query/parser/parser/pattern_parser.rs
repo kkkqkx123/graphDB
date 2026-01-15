@@ -6,6 +6,27 @@ use crate::query::parser::ast::*;
 use crate::query::parser::{ParseError, TokenKind};
 
 impl super::Parser {
+    pub fn parse_pattern(&mut self) -> Result<Pattern, ParseError> {
+        let path_elements = self.parse_match_path()?;
+        
+        if path_elements.len() == 1 {
+            match &path_elements[0] {
+                PathElement::Node(node) => Ok(Pattern::Node(node.clone())),
+                PathElement::Edge(edge) => Ok(Pattern::Edge(edge.clone())),
+                _ => Err(ParseError::syntax_error(
+                    "Invalid pattern".to_string(),
+                    self.current_token().line,
+                    self.current_token().column,
+                )),
+            }
+        } else {
+            Ok(Pattern::Path(PathPattern {
+                span: Span::default(),
+                elements: path_elements,
+            }))
+        }
+    }
+
     pub fn parse_match_patterns(&mut self) -> Result<Vec<PathElement>, ParseError> {
         let mut patterns = Vec::new();
 

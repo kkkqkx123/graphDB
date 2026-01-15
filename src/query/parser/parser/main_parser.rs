@@ -265,7 +265,7 @@ impl crate::query::parser::Parser {
     pub fn parse_unwind_statement(&mut self) -> Result<Stmt, ParseError> {
         self.expect_token(TokenKind::Unwind)?;
         
-        let list = self.parse_expression()?;
+        let expression = self.parse_expression()?;
         
         self.expect_token(TokenKind::As)?;
         
@@ -273,7 +273,7 @@ impl crate::query::parser::Parser {
         
         Ok(Stmt::Unwind(UnwindStmt {
             span: self.current_span(),
-            list,
+            expression,
             variable,
         }))
     }
@@ -322,29 +322,138 @@ impl crate::query::parser::Parser {
     }
     
     pub fn parse_return_statement(&mut self) -> Result<Stmt, ParseError> {
-        let return_clause = self.parse_return_clause()?;
+        self.expect_token(TokenKind::Return)?;
+        
+        let distinct = if self.current_token().kind == TokenKind::Distinct {
+            self.next_token();
+            true
+        } else {
+            false
+        };
+        
+        let mut items = Vec::new();
+        
+        loop {
+            if self.current_token().kind == TokenKind::Eof
+                || matches!(
+                    self.current_token().kind,
+                    TokenKind::Semicolon
+                        | TokenKind::Order
+                        | TokenKind::Limit
+                        | TokenKind::Skip
+                )
+            {
+                break;
+            }
+            
+            if self.current_token().kind == TokenKind::Star {
+                items.push(ReturnItem::All);
+                self.next_token();
+            } else {
+                let expr = self.parse_expression()?;
+                
+                let alias = if self.current_token().kind == TokenKind::As {
+                    self.next_token();
+                    Some(self.parse_identifier()?)
+                } else if matches!(self.current_token().kind, TokenKind::Identifier(_))
+                    && self.peek_token() != TokenKind::Comma
+                {
+                    Some(self.parse_identifier()?)
+                } else {
+                    None
+                };
+                
+                items.push(ReturnItem::Expression { expr, alias });
+            }
+            
+            if self.current_token().kind != TokenKind::Comma {
+                break;
+            }
+            self.next_token();
+        }
         
         Ok(Stmt::Return(ReturnStmt {
             span: self.current_span(),
-            return_clause,
+            items,
+            distinct,
         }))
     }
     
     pub fn parse_with_statement(&mut self) -> Result<Stmt, ParseError> {
-        let with_clause = self.parse_with_clause()?;
+        self.expect_token(TokenKind::With)?;
+        
+        let mut items = Vec::new();
+        
+        loop {
+            if self.current_token().kind == TokenKind::Eof
+                || matches!(
+                    self.current_token().kind,
+                    TokenKind::Semicolon | TokenKind::Where
+                )
+            {
+                break;
+            }
+            
+            if self.current_token().kind == TokenKind::Star {
+                items.push(ReturnItem::All);
+                self.next_token();
+            } else {
+                let expr = self.parse_expression()?;
+                
+                let alias = if self.current_token().kind == TokenKind::As {
+                    self.next_token();
+                    Some(self.parse_identifier()?)
+                } else if matches!(self.current_token().kind, TokenKind::Identifier(_))
+                    && self.peek_token() != TokenKind::Comma
+                {
+                    Some(self.parse_identifier()?)
+                } else {
+                    None
+                };
+                
+                items.push(ReturnItem::Expression { expr, alias });
+            }
+            
+            if self.current_token().kind != TokenKind::Comma {
+                break;
+            }
+            self.next_token();
+        }
+        
+        let where_clause = if self.current_token().kind == TokenKind::Where {
+            Some(self.parse_where_clause()?)
+        } else {
+            None
+        };
         
         Ok(Stmt::With(WithStmt {
             span: self.current_span(),
-            with_clause,
+            items,
+            where_clause,
         }))
     }
     
     pub fn parse_set_statement(&mut self) -> Result<Stmt, ParseError> {
-        let set_clause = self.parse_set_clause()?;
+        self.expect_token(TokenKind::Set)?;
+        
+        let mut assignments = Vec::new();
+        
+        loop {
+            let property = self.parse_identifier()?;
+            self.expect_token(TokenKind::Assign)?;
+            let value = self.parse_expression()?;
+            
+            assignments.push(Assignment { property, value });
+            
+            if self.current_token().kind != TokenKind::Comma {
+                break;
+            }
+            self.next_token();
+        }
         
         Ok(Stmt::Set(SetStmt {
             span: self.current_span(),
-            set_clause,
+            assignments,
         }))
     }
     
@@ -362,14 +471,11 @@ impl crate::query::parser::Parser {
     pub fn parse_pipe_statement(&mut self) -> Result<Stmt, ParseError> {
         self.expect_token(TokenKind::Pipe)?;
         
-        let left = Box::new(self.parse_statement()?);
-        
-        let right = Box::new(self.parse_statement()?);
+        let expression = self.parse_expression()?;
         
         Ok(Stmt::Pipe(PipeStmt {
             span: self.current_span(),
-            left,
-            right,
+            expression,
         }))
     }
 }

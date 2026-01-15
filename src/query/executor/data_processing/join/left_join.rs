@@ -267,6 +267,14 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
     fn description(&self) -> &str {
         &self.base_executor.get_base().description
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base_executor.get_base().get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base_executor.get_base_mut().get_stats_mut()
+    }
 }
 
 impl<S: StorageEngine + Send + 'static> HasStorage<S> for LeftJoinExecutor<S> {
@@ -331,6 +339,14 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for HashLeftJoinExecutor<S> 
 
     fn description(&self) -> &str {
         &self.inner.description()
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.inner.stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.inner.stats_mut()
     }
 }
 

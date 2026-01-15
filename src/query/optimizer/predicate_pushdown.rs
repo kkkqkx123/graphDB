@@ -43,7 +43,7 @@ impl OptRule for FilterPushDownRule {
                         "ScanVertices" => {
                             // 对于扫描操作，我们可以将过滤条件下推到扫描操作
                             // 这通过在存储层而不是计算层应用过滤来减少从存储读取的记录数
-                            let tag_alias = ctx.get_tag_alias_for_node(child_node.id);
+                            let tag_alias = ctx.get_tag_alias_for_node(child_node.node.id);
 
                             if let Some(alias) = tag_alias {
                                 // 分割过滤条件：可以下推到扫描的条件和剩余的条件
@@ -112,7 +112,7 @@ impl OptRule for FilterPushDownRule {
                         }
                         "IndexScan" => {
                             // 类似于IndexScan的逻辑
-                            let tag_alias = ctx.get_tag_alias_for_node(child_node.id);
+                            let tag_alias = ctx.get_tag_alias_for_node(child_node.node.id);
 
                             if let Some(alias) = tag_alias {
                                 // 分割过滤条件：可以下推到索引扫描的条件和剩余的条件
@@ -182,7 +182,7 @@ impl OptRule for FilterPushDownRule {
                         "Traverse" => {
                             // 对于遍历操作，将过滤条件下推到存储层
                             // 这减少遍历过程中检索的顶点或边数量
-                            let edge_alias = ctx.get_edge_alias_for_node(child_node.id);
+                            let edge_alias = ctx.get_edge_alias_for_node(child_node.node.id);
 
                             if let Some(alias) = edge_alias {
                                 // 分割过滤条件：可以下推到遍历的条件和剩余的条件
@@ -393,7 +393,7 @@ impl OptRule for PushFilterDownTraverseRule {
                         let filter_condition = filter_plan_node.condition();
 
                         // 使用 ExpressionUtils 分析过滤条件
-                        let edge_alias = ctx.get_edge_alias_for_node(child.id);
+                        let edge_alias = ctx.get_edge_alias_for_node(child.node.id);
 
                         if let Some(alias) = edge_alias {
                             // 分割过滤条件：可以下推到遍历的条件和剩余的条件

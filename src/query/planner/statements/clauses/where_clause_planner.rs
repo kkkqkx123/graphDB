@@ -18,9 +18,8 @@
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::{
-    ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext,
+    ClauseType, CypherClausePlanner, DataFlowNode, FlowDirection, PlanningContext, QueryInfo,
 };
-use crate::query::planner::statements::paths::match_path_planner::MatchPathPlanner;
 use crate::query::planner::statements::utils::connection_strategy::UnifiedConnector;
 
 use crate::query::planner::plan::factory::PlanNodeFactory;
@@ -84,6 +83,12 @@ impl CypherClausePlanner for WhereClausePlanner {
     }
 }
 
+impl DataFlowNode for WhereClausePlanner {
+    fn flow_direction(&self) -> FlowDirection {
+        self.clause_type().flow_direction()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,7 +103,10 @@ mod tests {
 
     #[test]
     fn test_where_clause_planner_with_filter() {
-        let expr = Expr::Literal(crate::core::Literal::Boolean(true));
+        let expr = Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
+            crate::core::Value::Bool(true),
+            crate::query::parser::ast::types::Span::default(),
+        ));
         let planner = WhereClausePlanner::new(Some(expr));
         assert!(planner.filter_expr().is_some());
     }
@@ -121,7 +129,11 @@ mod tests {
         let planner = WhereClausePlanner::new(None);
         let where_ctx = WhereClauseContext {
             filter: None,
-            is_optional: false,
+            aliases_available: std::collections::HashMap::new(),
+            aliases_generated: std::collections::HashMap::new(),
+            paths: vec![],
+            query_parts: vec![],
+            errors: vec![],
         };
         let clause_ctx = CypherClauseContext::Where(where_ctx);
 
@@ -132,8 +144,29 @@ mod tests {
     fn test_where_clause_planner_validate_context_invalid() {
         let planner = WhereClausePlanner::new(None);
         let return_ctx = crate::query::validator::structs::ReturnClauseContext {
-            return_items: vec![],
+            yield_clause: crate::query::validator::structs::YieldClauseContext {
+                yield_columns: vec![],
+                aliases_available: std::collections::HashMap::new(),
+                aliases_generated: std::collections::HashMap::new(),
+                distinct: false,
+                has_agg: false,
+                group_keys: vec![],
+                group_items: vec![],
+                need_gen_project: false,
+                agg_output_column_names: vec![],
+                proj_output_column_names: vec![],
+                proj_cols: vec![],
+                paths: vec![],
+                query_parts: vec![],
+                errors: vec![],
+            },
+            aliases_available: std::collections::HashMap::new(),
+            aliases_generated: std::collections::HashMap::new(),
+            pagination: None,
+            order_by: None,
             distinct: false,
+            query_parts: vec![],
+            errors: vec![],
         };
         let clause_ctx = CypherClauseContext::Return(return_ctx);
 
@@ -146,7 +179,11 @@ mod tests {
         let input_plan = SubPlan::new(None, None);
         let where_ctx = WhereClauseContext {
             filter: None,
-            is_optional: false,
+            aliases_available: std::collections::HashMap::new(),
+            aliases_generated: std::collections::HashMap::new(),
+            paths: vec![],
+            query_parts: vec![],
+            errors: vec![],
         };
         let clause_ctx = CypherClauseContext::Where(where_ctx);
         let mut context = PlanningContext::new(QueryInfo {
@@ -163,7 +200,11 @@ mod tests {
         let planner = WhereClausePlanner::new(None);
         let where_ctx = WhereClauseContext {
             filter: None,
-            is_optional: false,
+            aliases_available: std::collections::HashMap::new(),
+            aliases_generated: std::collections::HashMap::new(),
+            paths: vec![],
+            query_parts: vec![],
+            errors: vec![],
         };
         let clause_ctx = CypherClauseContext::Where(where_ctx);
         let mut context = PlanningContext::new(QueryInfo {

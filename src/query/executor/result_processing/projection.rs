@@ -300,6 +300,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
     fn description(&self) -> &str {
         &self.base.description
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 #[cfg(test)]
@@ -351,6 +359,15 @@ mod tests {
 
         fn description(&self) -> &str {
             "Mock executor for testing"
+        }
+
+        fn stats(&self) -> &ExecutorStats {
+            &ExecutorStats::default()
+        }
+
+        fn stats_mut(&mut self) -> &mut ExecutorStats {
+            static mut STATS: ExecutorStats = ExecutorStats::default();
+            unsafe { &mut STATS }
         }
     }
 

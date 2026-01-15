@@ -157,7 +157,12 @@ pub enum Expression {
 pub enum DataType {
     Bool,
     Int,
+    Int8,
+    Int16,
+    Int32,
+    Int64,
     Float,
+    Double,
     String,
     List,
     Map,

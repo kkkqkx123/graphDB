@@ -19,7 +19,7 @@ use crate::query::executor::base::InputExecutor;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
-use crate::query::executor::traits::{DBResult, ExecutionResult, Executor};
+use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, ExecutorStats};
 use crate::storage::StorageEngine;
 
 /// 聚合函数规范
@@ -637,8 +637,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for AggregateExecutor
     }
 
     fn reset(&mut self) {
-        self.base.memory_usage = 0;
-        self.base.input = None;
+        self.base.reset_state();
     }
 }
 
@@ -685,6 +684,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AggregateExecutor
 
     fn description(&self) -> &str {
         &self.base.description
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 
@@ -761,6 +768,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GroupByExecutor<S
 
     fn description(&self) -> &str {
         "GroupByExecutor - performs GROUP BY operations"
+    }
+
+    fn stats(&self) -> &ExecutorStats {
+        self.aggregate_executor.stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.aggregate_executor.stats_mut()
     }
 }
 
@@ -878,8 +893,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for HavingExecutor<S>
     }
 
     fn reset(&mut self) {
-        self.base.memory_usage = 0;
-        self.base.input = None;
+        self.base.reset_state();
     }
 }
 
@@ -926,6 +940,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HavingExecutor<S>
 
     fn description(&self) -> &str {
         &self.base.description
+    }
+
+    fn stats(&self) -> &ExecutorStats {
+        &self.base.stats
+    }
+
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        &mut self.base.stats
     }
 }
 

@@ -4,7 +4,6 @@
 
 mod expr_parser;
 mod pattern_parser;
-mod statement_parser;
 mod utils;
 mod main_parser;
 
@@ -71,5 +70,10 @@ impl Parser {
             crate::query::parser::ast::types::Position::new(pos.line, pos.column),
             crate::query::parser::ast::types::Position::new(pos.line, pos.column),
         )
+    }
+
+    /// 获取当前 span（别名）
+    pub fn current_span(&self) -> crate::query::parser::ast::types::Span {
+        self.parser_current_span()
     }
 }

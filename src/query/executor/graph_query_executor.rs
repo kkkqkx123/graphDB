@@ -3,7 +3,7 @@
 //! 提供图查询语言（Cypher/NGQL）的执行功能
 //! 支持MATCH、CREATE、DELETE等图操作语句
 
-use crate::core::error::{DBError, QueryError};
+use crate::core::error::{DBError, DBResult, QueryError};
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::stmt::Stmt;
 use crate::storage::StorageEngine;
@@ -94,6 +94,14 @@ impl<S: StorageEngine> GraphQueryExecutor<S> {
             Stmt::Show(clause) => self.execute_show(clause).await,
             Stmt::Explain(clause) => self.execute_explain(clause).await,
             Stmt::Subgraph(clause) => self.execute_subgraph(clause).await,
+            Stmt::Insert(clause) => self.execute_insert(clause).await,
+            Stmt::Merge(clause) => self.execute_merge(clause).await,
+            Stmt::Unwind(clause) => self.execute_unwind(clause).await,
+            Stmt::Return(clause) => self.execute_return(clause).await,
+            Stmt::With(clause) => self.execute_with(clause).await,
+            Stmt::Set(clause) => self.execute_set(clause).await,
+            Stmt::Remove(clause) => self.execute_remove(clause).await,
+            Stmt::Pipe(clause) => self.execute_pipe(clause).await,
         }
     }
 
@@ -148,6 +156,38 @@ impl<S: StorageEngine> GraphQueryExecutor<S> {
     async fn execute_subgraph(&mut self, clause: crate::query::parser::ast::stmt::SubgraphStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("SUBGRAPH语句执行未实现".to_string())))
     }
+
+    async fn execute_insert(&mut self, clause: crate::query::parser::ast::stmt::InsertStmt) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError("INSERT语句执行未实现".to_string())))
+    }
+
+    async fn execute_merge(&mut self, clause: crate::query::parser::ast::stmt::MergeStmt) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError("MERGE语句执行未实现".to_string())))
+    }
+
+    async fn execute_unwind(&mut self, clause: crate::query::parser::ast::stmt::UnwindStmt) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError("UNWIND语句执行未实现".to_string())))
+    }
+
+    async fn execute_return(&mut self, clause: crate::query::parser::ast::stmt::ReturnStmt) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError("RETURN语句执行未实现".to_string())))
+    }
+
+    async fn execute_with(&mut self, clause: crate::query::parser::ast::stmt::WithStmt) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError("WITH语句执行未实现".to_string())))
+    }
+
+    async fn execute_set(&mut self, clause: crate::query::parser::ast::stmt::SetStmt) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError("SET语句执行未实现".to_string())))
+    }
+
+    async fn execute_remove(&mut self, clause: crate::query::parser::ast::stmt::RemoveStmt) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError("REMOVE语句执行未实现".to_string())))
+    }
+
+    async fn execute_pipe(&mut self, clause: crate::query::parser::ast::stmt::PipeStmt) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError("PIPE语句执行未实现".to_string())))
+    }
 }
 
 #[async_trait]
@@ -168,12 +208,12 @@ impl<S: StorageEngine> Executor<S> for GraphQueryExecutor<S> {
         &self.description
     }
 
-    async fn open(&mut self) -> DBResult<()> {
+    fn open(&mut self) -> DBResult<()> {
         self.is_open = true;
         Ok(())
     }
 
-    async fn close(&mut self) -> DBResult<()> {
+    fn close(&mut self) -> DBResult<()> {
         self.is_open = false;
         Ok(())
     }
@@ -194,6 +234,6 @@ impl<S: StorageEngine> Executor<S> for GraphQueryExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine> HasStorage<S> for GraphQueryExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.storage.as_ref().expect("存储引擎未设置")
+        &self.storage
     }
 }

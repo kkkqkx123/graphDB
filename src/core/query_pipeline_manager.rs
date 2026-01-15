@@ -3,7 +3,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::optimizer::Optimizer;
-use crate::query::parser::parser::Parser;
+use crate::query::parser::Parser;
 use crate::query::planner::Planner;
 use crate::query::validator::Validator;
 use crate::storage::StorageEngine;

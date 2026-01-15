@@ -99,6 +99,14 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
     fn description(&self) -> &str {
         "Insert executor - inserts vertices and edges into storage"
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 impl<S: StorageEngine> HasStorage<S> for InsertExecutor<S> {
@@ -286,6 +294,14 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
     fn description(&self) -> &str {
         "Update executor - updates vertices and edges in storage"
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 impl<S: StorageEngine> HasStorage<S> for UpdateExecutor<S> {
@@ -379,6 +395,14 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
     fn description(&self) -> &str {
         "Delete executor - deletes vertices and edges from storage"
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 // Executor for creating indexes
@@ -448,6 +472,14 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
     fn description(&self) -> &str {
         "Create index executor - creates indexes in storage"
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 // Executor for dropping indexes
@@ -494,5 +526,13 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DropIndexExecutor<S> {
 
     fn description(&self) -> &str {
         "Drop index executor - drops indexes from storage"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
     }
 }

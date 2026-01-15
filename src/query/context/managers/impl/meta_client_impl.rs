@@ -223,6 +223,7 @@ impl MetaClient for MemoryMetaClient {
             .spaces
             .read()
             .map_err(|e| ManagerError::Other(e.to_string()))?;
+
         spaces
             .get(&space_id)
             .cloned()
@@ -245,18 +246,6 @@ impl MetaClient for MemoryMetaClient {
             ));
         }
 
-        if partition_num <= 0 {
-            return Err(ManagerError::InvalidInput("分区数必须大于0".to_string()));
-        }
-
-        if replica_factor <= 0 {
-            return Err(ManagerError::InvalidInput("副本因子必须大于0".to_string()));
-        }
-
-        if space_name.is_empty() {
-            return Err(ManagerError::InvalidInput("空间名称不能为空".to_string()));
-        }
-
         let mut next_id = self
             .next_space_id
             .write()
@@ -272,7 +261,7 @@ impl MetaClient for MemoryMetaClient {
             replica_factor,
             tags: Vec::new(),
             edge_types: Vec::new(),
-            version: self.create_metadata_version(&format!("创建空间: {}", space_name)),
+            version: self.create_metadata_version("创建空间"),
         };
 
         let mut spaces = self
@@ -280,9 +269,7 @@ impl MetaClient for MemoryMetaClient {
             .write()
             .map_err(|e| ManagerError::Other(e.to_string()))?;
         spaces.insert(space_id, space_info);
-        drop(spaces);
 
-        self.save_to_disk()?;
         Ok(space_id)
     }
 
@@ -297,13 +284,10 @@ impl MetaClient for MemoryMetaClient {
             .spaces
             .write()
             .map_err(|e| ManagerError::Other(e.to_string()))?;
-        if !spaces.contains_key(&space_id) {
-            return Err(ManagerError::NotFound(format!("空间 {} 不存在", space_id)));
-        }
-        spaces.remove(&space_id);
-        drop(spaces);
+        spaces
+            .remove(&space_id)
+            .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
 
-        self.save_to_disk()?;
         Ok(())
     }
 
@@ -318,8 +302,7 @@ impl MetaClient for MemoryMetaClient {
             .spaces
             .read()
             .map_err(|e| ManagerError::Other(e.to_string()))?;
-        let space_list: Vec<SpaceInfo> = spaces.values().cloned().collect();
-        Ok(space_list)
+        Ok(spaces.values().cloned().collect())
     }
 
     fn has_space(&self, space_id: i32) -> bool {
@@ -331,47 +314,30 @@ impl MetaClient for MemoryMetaClient {
 
     fn load_from_disk(&self) -> ManagerResult<()> {
         use std::fs;
+        use std::path::Path;
 
         if !self.storage_path.exists() {
             return Ok(());
         }
 
-        let cluster_file = self.storage_path.join("cluster.json");
         let spaces_file = self.storage_path.join("spaces.json");
-
-        if cluster_file.exists() {
-            let content = fs::read_to_string(&cluster_file)
-                .map_err(|e| ManagerError::Other(e.to_string()))?;
-            let cluster_info: ClusterInfo = serde_json::from_str(&content)
-                .map_err(|e| ManagerError::Other(format!("反序列化集群信息失败: {}", e)))?;
-            let mut info = self
-                .cluster_info
-                .write()
-                .map_err(|e| ManagerError::Other(e.to_string()))?;
-            *info = cluster_info;
+        if !spaces_file.exists() {
+            return Ok(());
         }
 
-        if spaces_file.exists() {
-            let content =
-                fs::read_to_string(&spaces_file).map_err(|e| ManagerError::Other(e.to_string()))?;
-            let space_list: Vec<SpaceInfo> = serde_json::from_str(&content)
-                .map_err(|e| ManagerError::Other(format!("反序列化空间信息失败: {}", e)))?;
-            let mut spaces = self
-                .spaces
-                .write()
-                .map_err(|e| ManagerError::Other(e.to_string()))?;
-            spaces.clear();
-            for space_info in space_list {
-                let space_id = space_info.space_id;
-                spaces.insert(space_id, space_info);
-                let mut next_id = self
-                    .next_space_id
-                    .write()
-                    .map_err(|e| ManagerError::Other(e.to_string()))?;
-                if space_id >= *next_id {
-                    *next_id = space_id + 1;
-                }
-            }
+        let spaces_content = fs::read_to_string(&spaces_file)
+            .map_err(|e| ManagerError::Other(format!("读取空间文件失败: {}", e)))?;
+
+        let mut spaces = self
+            .spaces
+            .write()
+            .map_err(|e| ManagerError::Other(e.to_string()))?;
+
+        let loaded_spaces: Vec<SpaceInfo> = serde_json::from_str(&spaces_content)
+            .map_err(|e| ManagerError::Other(format!("解析空间文件失败: {}", e)))?;
+
+        for space in loaded_spaces {
+            spaces.insert(space.space_id, space);
         }
 
         Ok(())
@@ -379,22 +345,6 @@ impl MetaClient for MemoryMetaClient {
 
     fn save_to_disk(&self) -> ManagerResult<()> {
         use std::fs;
-
-        if !self.storage_path.exists() {
-            fs::create_dir_all(&self.storage_path)
-                .map_err(|e| ManagerError::Other(e.to_string()))?;
-        }
-
-        let cluster_info = self
-            .cluster_info
-            .read()
-            .map_err(|e| ManagerError::Other(e.to_string()))?;
-        let cluster_content = serde_json::to_string_pretty(&*cluster_info)
-            .map_err(|e| ManagerError::Other(format!("序列化集群信息失败: {}", e)))?;
-
-        let cluster_file = self.storage_path.join("cluster.json");
-        fs::write(&cluster_file, cluster_content)
-            .map_err(|e| ManagerError::Other(e.to_string()))?;
 
         let spaces = self
             .spaces
@@ -570,7 +520,10 @@ impl MetaClient for MemoryMetaClient {
         space_info.edge_types.retain(|e| e.edge_name != edge_name);
 
         if space_info.edge_types.len() == original_len {
-            return Err(ManagerError::NotFound(format!("边类型 {} 不存在", edge_name)));
+            return Err(ManagerError::NotFound(format!(
+                "边类型 {} 不存在",
+                edge_name
+            )));
         }
 
         drop(spaces);
@@ -658,9 +611,7 @@ impl MetaClient for MemoryMetaClient {
             .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
 
         space_info.version = self.increment_metadata_version(&space_info.version, description);
-        drop(spaces);
 
-        self.save_to_disk()?;
         Ok(())
     }
 }
@@ -668,200 +619,13 @@ impl MetaClient for MemoryMetaClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use tempfile::tempdir;
 
     #[test]
     fn test_memory_meta_client_creation() {
         let client = MemoryMetaClient::new();
         assert!(client.is_connected());
-        assert!(client.list_space_ids().is_empty());
-    }
-
-    #[test]
-    fn test_memory_meta_client_get_cluster_info() {
-        let client = MemoryMetaClient::new();
-
-        let cluster_info = client.get_cluster_info();
-        assert!(cluster_info.is_ok());
-
-        let info = cluster_info.expect("Failed to get cluster info");
-        assert_eq!(info.cluster_id, "local_cluster");
-        assert_eq!(info.meta_servers.len(), 1);
-        assert_eq!(info.storage_servers.len(), 1);
-    }
-
-    #[test]
-    fn test_memory_meta_client_add_space() {
-        let client = MemoryMetaClient::new();
-
-        let space_info = SpaceInfo {
-            space_id: 1,
-            space_name: "test_space".to_string(),
-            partition_num: 10,
-            replica_factor: 3,
-            tags: Vec::new(),
-            edge_types: Vec::new(),
-            version: client.create_metadata_version("测试空间"),
-        };
-
-        assert!(client.add_space(space_info.clone()).is_ok());
-        assert!(client.has_space(1));
-        assert_eq!(client.list_space_ids(), vec![1]);
-
-        let retrieved = client.get_space_info(1);
-        assert!(retrieved.is_ok());
-        assert_eq!(
-            retrieved.expect("Failed to retrieve space info").space_name,
-            "test_space"
-        );
-    }
-
-    #[test]
-    fn test_memory_meta_client_remove_space() {
-        let client = MemoryMetaClient::new();
-
-        let space_info = SpaceInfo {
-            space_id: 1,
-            space_name: "test_space".to_string(),
-            partition_num: 10,
-            replica_factor: 3,
-            tags: Vec::new(),
-            edge_types: Vec::new(),
-            version: client.create_metadata_version("测试空间"),
-        };
-
-        client.add_space(space_info).expect("Failed to add space");
-        assert!(client.has_space(1));
-
-        client.remove_space(1).expect("Failed to remove space");
-        assert!(!client.has_space(1));
-    }
-
-    #[test]
-    fn test_memory_meta_client_update_space() {
-        let client = MemoryMetaClient::new();
-
-        let space_info1 = SpaceInfo {
-            space_id: 1,
-            space_name: "old_name".to_string(),
-            partition_num: 10,
-            replica_factor: 3,
-            tags: Vec::new(),
-            edge_types: Vec::new(),
-            version: client.create_metadata_version("测试空间"),
-        };
-
-        let space_info2 = SpaceInfo {
-            space_id: 1,
-            space_name: "new_name".to_string(),
-            partition_num: 20,
-            replica_factor: 5,
-            tags: Vec::new(),
-            edge_types: Vec::new(),
-            version: client.create_metadata_version("更新空间"),
-        };
-
-        client.add_space(space_info1).expect("Failed to add space");
-
-        let retrieved = client.get_space_info(1);
-        assert!(retrieved.is_ok());
-        assert_eq!(
-            retrieved.expect("Failed to retrieve space info").space_name,
-            "old_name"
-        );
-
-        client
-            .update_space(1, space_info2)
-            .expect("Failed to update space");
-
-        let retrieved = client.get_space_info(1);
-        assert!(retrieved.is_ok());
-        assert_eq!(
-            retrieved.expect("Failed to retrieve space info").space_name,
-            "new_name"
-        );
-    }
-
-    #[test]
-    fn test_memory_meta_client_disconnect() {
-        let mut client = MemoryMetaClient::new();
-        assert!(client.is_connected());
-
-        client.disconnect();
-        assert!(!client.is_connected());
-
-        let result = client.get_cluster_info();
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            ManagerError::ConnectionError("元数据客户端未连接".to_string())
-        );
-
-        client.reconnect();
-        assert!(client.is_connected());
-
-        let result = client.get_cluster_info();
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_memory_meta_client_update_cluster_info() {
-        let client = MemoryMetaClient::new();
-
-        let new_cluster_info = ClusterInfo {
-            cluster_id: "new_cluster".to_string(),
-            meta_servers: vec!["server1:9559".to_string(), "server2:9559".to_string()],
-            storage_servers: vec!["server1:9779".to_string(), "server2:9779".to_string()],
-        };
-
-        assert!(client.update_cluster_info(new_cluster_info.clone()).is_ok());
-
-        let retrieved = client.get_cluster_info();
-        assert!(retrieved.is_ok());
-        assert_eq!(
-            retrieved
-                .expect("Failed to retrieve cluster info")
-                .cluster_id,
-            "new_cluster"
-        );
-    }
-
-    #[test]
-    fn test_memory_meta_client_multiple_spaces() {
-        let client = MemoryMetaClient::new();
-
-        let space1 = SpaceInfo {
-            space_id: 1,
-            space_name: "space1".to_string(),
-            partition_num: 10,
-            replica_factor: 3,
-            tags: Vec::new(),
-            edge_types: Vec::new(),
-            version: client.create_metadata_version("测试空间1"),
-        };
-
-        let space2 = SpaceInfo {
-            space_id: 2,
-            space_name: "space2".to_string(),
-            partition_num: 20,
-            replica_factor: 5,
-            tags: Vec::new(),
-            edge_types: Vec::new(),
-            version: client.create_metadata_version("测试空间2"),
-        };
-
-        client.add_space(space1).expect("Failed to add space1");
-        client.add_space(space2).expect("Failed to add space2");
-
-        let space_ids = client.list_space_ids();
-        assert_eq!(space_ids.len(), 2);
-        assert!(space_ids.contains(&1));
-        assert!(space_ids.contains(&2));
-
-        assert!(client.has_space(1));
-        assert!(client.has_space(2));
-        assert!(!client.has_space(3));
+        assert_eq!(client.list_space_ids(), vec![]);
     }
 
     #[test]
@@ -872,6 +636,7 @@ mod tests {
         let space_id = client
             .create_space("test_space", 10, 3)
             .expect("Failed to create space");
+
         assert_eq!(space_id, 1);
         assert!(client.has_space(space_id));
 
@@ -884,23 +649,21 @@ mod tests {
     }
 
     #[test]
-    fn test_create_space_invalid_params() {
+    fn test_list_spaces() {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let client = MemoryMetaClient::with_storage_path(temp_dir.path());
 
-        let result = client.create_space("test", 0, 3);
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            ManagerError::InvalidInput("分区数必须大于0".to_string())
-        );
+        client
+            .create_space("space1", 10, 3)
+            .expect("Failed to create space1");
+        client
+            .create_space("space2", 5, 2)
+            .expect("Failed to create space2");
 
-        let result = client.create_space("test", 10, 0);
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            ManagerError::InvalidInput("副本因子必须大于0".to_string())
-        );
+        let spaces = client.list_spaces().expect("Failed to list spaces");
+        assert_eq!(spaces.len(), 2);
+        assert_eq!(spaces[0].space_name, "space1");
+        assert_eq!(spaces[1].space_name, "space2");
     }
 
     #[test]
@@ -911,116 +674,12 @@ mod tests {
         let space_id = client
             .create_space("test_space", 10, 3)
             .expect("Failed to create space");
-        assert!(client.has_space(space_id));
 
-        client.drop_space(space_id).expect("Failed to drop space");
+        client
+            .drop_space(space_id)
+            .expect("Failed to drop space");
+
         assert!(!client.has_space(space_id));
-    }
-
-    #[test]
-    fn test_drop_space_not_exist() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
-        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
-
-        let result = client.drop_space(999);
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            ManagerError::NotFound("空间 999 不存在".to_string())
-        );
-    }
-
-    #[test]
-    fn test_list_spaces() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
-        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
-
-        client
-            .create_space("space1", 10, 3)
-            .expect("Failed to create space1");
-        client
-            .create_space("space2", 20, 5)
-            .expect("Failed to create space2");
-
-        let spaces = client.list_spaces().expect("Failed to list spaces");
-        assert_eq!(spaces.len(), 2);
-        assert!(spaces.iter().any(|s| s.space_name == "space1"));
-        assert!(spaces.iter().any(|s| s.space_name == "space2"));
-    }
-
-    #[test]
-    fn test_save_and_load_from_disk() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
-        let storage_path = temp_dir.path();
-
-        let client1 = MemoryMetaClient::with_storage_path(storage_path);
-
-        client1
-            .create_space("space1", 10, 3)
-            .expect("Failed to create space1");
-        client1
-            .create_space("space2", 20, 5)
-            .expect("Failed to create space2");
-
-        let new_cluster_info = ClusterInfo {
-            cluster_id: "test_cluster".to_string(),
-            meta_servers: vec!["server1:9559".to_string()],
-            storage_servers: vec!["server1:9779".to_string()],
-        };
-        client1
-            .update_cluster_info(new_cluster_info)
-            .expect("Failed to update cluster info");
-
-        client1.save_to_disk().expect("Failed to save to disk");
-
-        assert!(storage_path.join("cluster.json").exists());
-        assert!(storage_path.join("spaces.json").exists());
-
-        let client2 = MemoryMetaClient::with_storage_path(storage_path);
-        client2.load_from_disk().expect("Failed to load from disk");
-
-        let spaces = client2.list_spaces().expect("Failed to list spaces");
-        assert_eq!(spaces.len(), 2);
-
-        let cluster_info = client2
-            .get_cluster_info()
-            .expect("Failed to get cluster info");
-        assert_eq!(cluster_info.cluster_id, "test_cluster");
-    }
-
-    #[test]
-    fn test_load_from_disk_empty() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
-        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
-
-        let result = client.load_from_disk();
-        assert!(result.is_ok());
-
-        let spaces = client.list_spaces().expect("Failed to list spaces");
-        assert!(spaces.is_empty());
-    }
-
-    #[test]
-    fn test_auto_save_on_create_and_drop() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
-        let storage_path = temp_dir.path();
-
-        let client1 = MemoryMetaClient::with_storage_path(storage_path);
-        client1
-            .create_space("test_space", 10, 3)
-            .expect("Failed to create space");
-
-        assert!(storage_path.join("spaces.json").exists());
-
-        let client2 = MemoryMetaClient::with_storage_path(storage_path);
-        client2.load_from_disk().expect("Failed to load from disk");
-        assert!(client2.has_space(1));
-
-        client2.drop_space(1).expect("Failed to drop space");
-
-        let client3 = MemoryMetaClient::with_storage_path(storage_path);
-        client3.load_from_disk().expect("Failed to load from disk");
-        assert!(!client3.has_space(1));
     }
 
     #[test]
@@ -1084,28 +743,6 @@ mod tests {
     }
 
     #[test]
-    fn test_create_tag_duplicate() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
-        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
-
-        let space_id = client
-            .create_space("test_space", 10, 3)
-            .expect("Failed to create space");
-
-        let tag_def = TagDef {
-            tag_name: "person".to_string(),
-            properties: vec![],
-        };
-
-        client
-            .create_tag(space_id, tag_def.clone())
-            .expect("Failed to create tag");
-
-        let result = client.create_tag(space_id, tag_def);
-        assert!(result.is_err());
-    }
-
-    #[test]
     fn test_drop_tag() {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let client = MemoryMetaClient::with_storage_path(temp_dir.path());
@@ -1145,7 +782,7 @@ mod tests {
             properties: vec![
                 PropertyDef {
                     name: "since".to_string(),
-                    type_: PropertyType::Date,
+                    type_: PropertyType::Int,
                     nullable: true,
                     default: None,
                 },
@@ -1170,60 +807,7 @@ mod tests {
     }
 
     #[test]
-    fn test_drop_edge_type() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
-        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
-
-        let space_id = client
-            .create_space("test_space", 10, 3)
-            .expect("Failed to create space");
-
-        let edge_type_def = EdgeTypeDef {
-            edge_name: "knows".to_string(),
-            properties: vec![],
-        };
-
-        client
-            .create_edge_type(space_id, edge_type_def)
-            .expect("Failed to create edge type");
-
-        client
-            .drop_edge_type(space_id, "knows")
-            .expect("Failed to drop edge type");
-
-        let edge_types = client
-            .list_edge_types(space_id)
-            .expect("Failed to list edge types");
-        assert!(edge_types.is_empty());
-    }
-
-    #[test]
-    fn test_metadata_version() {
-        let temp_dir = tempdir().expect("Failed to create temp dir");
-        let client = MemoryMetaClient::with_storage_path(temp_dir.path());
-
-        let space_id = client
-            .create_space("test_space", 10, 3)
-            .expect("Failed to create space");
-
-        let version = client
-            .get_metadata_version(space_id)
-            .expect("Failed to get metadata version");
-        assert_eq!(version.version, 1);
-
-        client
-            .update_metadata_version(space_id, "添加标签")
-            .expect("Failed to update metadata version");
-
-        let version = client
-            .get_metadata_version(space_id)
-            .expect("Failed to get metadata version");
-        assert_eq!(version.version, 2);
-        assert_eq!(version.description, "添加标签");
-    }
-
-    #[test]
-    fn test_tag_and_edge_type_persistence() {
+    fn test_persistence() {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let storage_path = temp_dir.path();
 

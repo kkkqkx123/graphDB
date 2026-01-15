@@ -32,7 +32,7 @@ impl crate::query::parser::Parser {
                     None
                 };
                 
-                let pattern = self.parse_pattern()?;
+                let _pattern = self.parse_pattern()?;
                 
                 Ok(Stmt::Create(CreateStmt {
                     span: self.current_span(),
@@ -117,8 +117,8 @@ impl crate::query::parser::Parser {
         
         Ok(Stmt::Create(CreateStmt {
             span: self.current_span(),
-            target: CreateTarget::Edge {
-                edge_type: name,
+            target: CreateTarget::EdgeType {
+                name,
                 properties,
             },
         }))
@@ -200,7 +200,7 @@ impl crate::query::parser::Parser {
             }
             TokenKind::Timestamp => {
                 self.next_token();
-                Ok(DataType::Timestamp)
+                Ok(DataType::DateTime)
             }
             TokenKind::Date => {
                 self.next_token();
@@ -212,7 +212,7 @@ impl crate::query::parser::Parser {
             }
             TokenKind::Datetime => {
                 self.next_token();
-                Ok(DataType::Datetime)
+                Ok(DataType::DateTime)
             }
             _ => Err(ParseError::syntax_error(
                 format!("Expected data type, got {:?}", self.current_token().kind),

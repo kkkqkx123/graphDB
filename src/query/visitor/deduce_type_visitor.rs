@@ -11,7 +11,7 @@ use crate::storage::StorageEngine;
 use thiserror::Error;
 
 #[cfg(test)]
-use crate::core::{Direction, Edge, Vertex};
+use crate::core::{Edge, Vertex};
 #[cfg(test)]
 use crate::storage::StorageError;
 
@@ -456,7 +456,12 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         match data_type {
             DataType::Bool => ValueTypeDef::Bool,
             DataType::Int => ValueTypeDef::Int,
+            DataType::Int8 => ValueTypeDef::Int,
+            DataType::Int16 => ValueTypeDef::Int,
+            DataType::Int32 => ValueTypeDef::Int,
+            DataType::Int64 => ValueTypeDef::Int,
             DataType::Float => ValueTypeDef::Float,
+            DataType::Double => ValueTypeDef::Float,
             DataType::String => ValueTypeDef::String,
             DataType::List => ValueTypeDef::List,
             DataType::Map => ValueTypeDef::Map,

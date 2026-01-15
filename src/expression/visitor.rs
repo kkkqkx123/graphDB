@@ -279,7 +279,7 @@ pub trait ExpressionTransformer: ExpressionVisitor<Result = Expression> {
     }
 
     fn transform_children(&mut self, expr: &Expression) -> Expression {
-        let children = expr.children();
+        let _children = expr.children();
         match expr {
             Expression::Binary { left, op, right } => {
                 let new_left = self.transform(left);

@@ -437,6 +437,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AggregationExecut
     fn description(&self) -> &str {
         "Aggregation executor - performs statistical aggregation operations"
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 impl<S: StorageEngine> AggregationExecutor<S> {

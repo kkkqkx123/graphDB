@@ -9,16 +9,15 @@ pub mod retry;
 pub mod schema_manager;
 pub mod storage_client;
 pub mod transaction;
+pub mod types;
 
 // 重新导出所有公共类型和trait
 pub use crate::core::error::{ErrorCategory, ManagerError};
-pub use index_manager::{Index, IndexManager, IndexStatus, IndexType};
-pub use meta_client::{ClusterInfo, MetaClient, SpaceInfo};
+pub use index_manager::{Index, IndexManager, IndexStatus, IndexType, IndexStats, IndexOptimization};
+pub use meta_client::MetaClient;
 pub use r#impl::*;
 pub use retry::{retry_with_backoff, retry_with_strategy, RetryConfig, RetryStrategy};
-pub use schema_manager::{
-    CharsetInfo, EdgeTypeDef, FieldDef, Schema, SchemaHistory, SchemaManager, SchemaVersion, TagDef,
-};
+pub use schema_manager::SchemaManager;
 pub use storage_client::{
     DelTags, EdgeKey, ExecResponse, NewEdge, NewTag, NewVertex, StorageClient, StorageOperation,
     StorageResponse, UpdateResponse, UpdatedProp,
@@ -26,4 +25,9 @@ pub use storage_client::{
 pub use transaction::{
     IsolationLevel, Transaction, TransactionId, TransactionManager, TransactionOperation,
     TransactionState,
+};
+pub use types::{
+    CharsetInfo, ClusterInfo, EdgeTypeDef, EdgeTypeDefWithId, FieldDef, MetadataVersion,
+    PropertyDef, PropertyType, Schema, SchemaChange, SchemaChangeType, SchemaExportConfig,
+    SchemaHistory, SchemaImportResult, SchemaVersion, SpaceInfo, TagDef, TagDefWithId,
 };

@@ -378,6 +378,13 @@ impl PlanNodeEnum {
         }
     }
 
+    pub fn as_aggregate(&self) -> Option<&AggregateNode> {
+        match self {
+            PlanNodeEnum::Aggregate(node) => Some(node),
+            _ => None,
+        }
+    }
+
     
     /// 克隆节点
     pub fn clone_plan_node(&self) -> PlanNodeEnum {

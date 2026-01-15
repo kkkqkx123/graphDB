@@ -6,6 +6,7 @@
 use crate::common::base::id::{EdgeType, TagId};
 use crate::core::error::ManagerResult;
 use crate::core::Value;
+use crate::core::Direction;
 use std::sync::{Arc, RwLock, atomic::{AtomicBool, AtomicU64, Ordering}};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -627,8 +628,8 @@ impl RuntimeContext {
         let start_time = self.execution_start_time.read().ok();
         let end_time = self.execution_end_time.read().ok();
         
-        let end = end_time.and_then(|t| t).unwrap_or_else(SystemTime::now);
-        let start = start_time.unwrap_or_else(SystemTime::now);
+        let end = end_time.and_then(|t| *t).unwrap_or_else(SystemTime::now);
+        let start = start_time.map(|t| *t).unwrap_or_else(SystemTime::now);
         
         end.duration_since(start)
             .map(|d| d.as_millis() as u64)
@@ -685,7 +686,7 @@ impl RuntimeContext {
         let current_size: usize = cache.values().map(|e| e.size_bytes).sum();
         
         if current_size + size_bytes > *cache_size_limit {
-            self.evict_cache_entries(cache, *cache_size_limit, size_bytes)?;
+            self.evict_cache_entries(&mut *cache, *cache_size_limit, size_bytes)?;
         }
         
         cache.insert(key.clone(), CacheEntry {
@@ -738,8 +739,8 @@ impl RuntimeContext {
     }
 
     /// 淘汰缓存条目
-    fn evict_cache_entries(&self, cache: &mut HashMap<String, CacheEntry>, limit: usize, new_size: usize) -> Result<(), String> {
-        let mut entries: Vec<_> = cache.iter().collect();
+    fn evict_cache_entries(&self, cache: &mut std::collections::HashMap<String, CacheEntry>, limit: usize, new_size: usize) -> Result<(), String> {
+        let mut entries: Vec<_> = cache.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
         entries.sort_by(|a, b| {
             let a_score = a.1.hit_count as f64 / (a.1.last_accessed as f64 + 1.0);
             let b_score = b.1.hit_count as f64 / (b.1.last_accessed as f64 + 1.0);
@@ -753,7 +754,7 @@ impl RuntimeContext {
                 break;
             }
             
-            if let Some(entry) = cache.remove(key) {
+            if let Some(entry) = cache.remove(&key) {
                 current_size -= entry.size_bytes;
             }
         }
@@ -816,7 +817,6 @@ pub type Schema = crate::core::schema::Schema;
 pub type Index = crate::core::schema::Schema;
 pub type Vertex = crate::core::vertex_edge_path::Vertex;
 pub type Edge = crate::core::vertex_edge_path::Edge;
-pub type Direction = crate::core::vertex_edge_path::Direction;
 
 #[cfg(test)]
 mod tests {

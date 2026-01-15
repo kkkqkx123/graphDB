@@ -162,6 +162,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetVerticesExecut
     fn description(&self) -> &str {
         "Get vertices executor - retrieves vertices from storage"
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 impl<S: StorageEngine> HasStorage<S> for GetVerticesExecutor<S> {
@@ -232,6 +240,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetEdgesExecutor<
 
     fn description(&self) -> &str {
         "Get edges executor - retrieves edges from storage"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 
@@ -328,6 +344,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetNeighborsExecu
 
     fn description(&self) -> &str {
         "Get neighbors executor - retrieves neighboring vertices"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 
@@ -438,6 +462,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetPropExecutor<S
 
     fn description(&self) -> &str {
         "Get property executor - retrieves properties from vertices or edges"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 

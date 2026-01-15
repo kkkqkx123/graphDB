@@ -878,7 +878,8 @@ impl IndexManager for MemoryIndexManager {
         let index = indexes
             .values()
             .find(|idx| idx.id == index_id)
-            .ok_or_else(|| ManagerError::NotFound(format!("索引ID {} 不存在", index_id)))?;
+            .ok_or_else(|| ManagerError::NotFound(format!("索引ID {} 不存在", index_id)))?
+            .clone();
 
         if index.space_id != space_id {
             return Err(ManagerError::InvalidInput(format!(
@@ -904,26 +905,20 @@ impl IndexManager for MemoryIndexManager {
 
         match index.index_type {
             IndexType::TagIndex => {
-                if let Ok(Some(space_info)) = storage_engine.get_space(space_id) {
-                    for tag_def in &space_info.tags {
-                        if tag_def.tag_name == index.schema_name {
-                            let vertices = storage_engine
-                                .scan_vertices()
-                                .map_err(|e| ManagerError::StorageError(e.to_string()))?;
-                            
-                            for vertex in vertices {
-                                if let Some(tag) = vertex.tags.iter().find(|t| t.name == index.schema_name) {
-                                    for field_name in &index.fields {
-                                        if let Some(field_value) = tag.properties.get(field_name) {
-                                            data.insert_vertex(
-                                                &index.schema_name,
-                                                field_name,
-                                                field_value,
-                                                vertex.clone(),
-                                            );
-                                        }
-                                    }
-                                }
+                let vertices = storage_engine
+                    .scan_vertices_by_tag(&index.schema_name)
+                    .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+                
+                for vertex in vertices {
+                    if let Some(tag) = vertex.tags.iter().find(|t| t.name == index.schema_name) {
+                        for field_name in &index.fields {
+                            if let Some(field_value) = tag.properties.get(field_name) {
+                                data.insert_vertex(
+                                    &index.schema_name,
+                                    field_name,
+                                    field_value,
+                                    vertex.clone(),
+                                );
                             }
                         }
                     }
@@ -931,7 +926,7 @@ impl IndexManager for MemoryIndexManager {
             }
             IndexType::EdgeIndex => {
                 let edges = storage_engine
-                    .scan_edges()
+                    .scan_edges_by_type(&index.schema_name)
                     .map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 
                 for edge in edges {
@@ -1159,7 +1154,7 @@ impl IndexManager for MemoryIndexManager {
             IndexType::TagIndex => {
                 for (key, vertices) in &data.vertex_by_tag_property {
                     for vertex in vertices {
-                        if let Ok(Some(stored_vertex)) = storage_engine.get_node(&vertex.id()) {
+                        if let Ok(Some(stored_vertex)) = storage_engine.get_node(vertex.vid()) {
                             if stored_vertex.id() != vertex.id() {
                                 return Ok(false);
                             }
@@ -1172,7 +1167,7 @@ impl IndexManager for MemoryIndexManager {
             IndexType::EdgeIndex => {
                 for (key, edges) in &data.edge_by_type_property {
                     for edge in edges {
-                        if let Ok(Some(stored_edge)) = storage_engine.get_edge(edge.id) {
+                        if let Ok(Some(stored_edge)) = storage_engine.get_edge(&edge.src, &edge.dst, &edge.edge_type) {
                             if stored_edge.id != edge.id {
                                 return Ok(false);
                             }

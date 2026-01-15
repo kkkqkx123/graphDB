@@ -103,7 +103,7 @@ impl Planner for MatchPlanner {
                     }
                 }
                 crate::query::validator::structs::CypherClauseKind::Where => {
-                    clause_planners.push(Box::new(WhereClausePlanner::new(false)));
+                    clause_planners.push(Box::new(WhereClausePlanner::new(None)));
                 }
                 crate::query::validator::structs::CypherClauseKind::With => {
                     clause_planners.push(Box::new(WithClausePlanner::new()));

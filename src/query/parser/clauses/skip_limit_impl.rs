@@ -1,6 +1,7 @@
 //! SKIP/LIMIT 子句解析器实现
 
 use crate::query::parser::ast::*;
+use crate::query::parser::clauses::{SkipClause, LimitClause};
 use crate::query::parser::core::error::ParseError;
 use crate::query::parser::TokenKind;
 

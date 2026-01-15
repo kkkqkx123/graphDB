@@ -1,71 +1,9 @@
 //! 元数据客户端接口 - 定义元数据访问的基本操作
 
 use crate::core::error::ManagerResult;
-use serde::{Deserialize, Serialize};
-
-/// 属性类型
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum PropertyType {
-    Bool,
-    Int,
-    Float,
-    String,
-    Date,
-    Time,
-    DateTime,
-}
-
-/// 属性定义
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PropertyDef {
-    pub name: String,
-    pub type_: PropertyType,
-    pub nullable: bool,
-    pub default: Option<String>,
-}
-
-/// 标签定义
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TagDef {
-    pub tag_name: String,
-    pub properties: Vec<PropertyDef>,
-}
-
-/// 边类型定义
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EdgeTypeDef {
-    pub edge_name: String,
-    pub properties: Vec<PropertyDef>,
-}
-
-/// 元数据版本信息
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MetadataVersion {
-    pub version: i32,
-    pub timestamp: i64,
-    pub description: String,
-}
-
-/// 集群信息
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ClusterInfo {
-    pub cluster_id: String,
-    pub meta_servers: Vec<String>,
-    pub storage_servers: Vec<String>,
-    pub version: MetadataVersion,
-}
-
-/// 空间信息
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpaceInfo {
-    pub space_id: i32,
-    pub space_name: String,
-    pub partition_num: i32,
-    pub replica_factor: i32,
-    pub tags: Vec<TagDef>,
-    pub edge_types: Vec<EdgeTypeDef>,
-    pub version: MetadataVersion,
-}
+use super::types::{
+    ClusterInfo, EdgeTypeDef, MetadataVersion, PropertyDef, PropertyType, SpaceInfo, TagDef,
+};
 
 /// 元数据客户端接口 - 定义元数据访问的基本操作
 pub trait MetaClient: Send + Sync + std::fmt::Debug {

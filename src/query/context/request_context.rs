@@ -330,8 +330,8 @@ impl RequestContext {
                 "", // 默认连接信息
             )
         });
-        let request_params =
-            RequestParams::new(self.request_params.query.clone()).with_parameters(parameters);
+        let query = self.request_params.read().unwrap().query.clone();
+        let request_params = RequestParams::new(query).with_parameters(parameters);
         Self::new(session_info, request_params)
     }
 
@@ -348,8 +348,8 @@ impl RequestContext {
                 "", // 默认连接信息
             )
         });
-        let request_params =
-            RequestParams::new(self.request_params.query.clone()).with_timeout(timeout_ms);
+        let query = self.request_params.read().unwrap().query.clone();
+        let request_params = RequestParams::new(query).with_timeout(timeout_ms);
         Self::new(session_info, request_params)
     }
 
@@ -366,8 +366,8 @@ impl RequestContext {
                 "", // 默认连接信息
             )
         });
-        let request_params =
-            RequestParams::new(self.request_params.query.clone()).with_max_retry(max_retry_times);
+        let query = self.request_params.read().unwrap().query.clone();
+        let request_params = RequestParams::new(query).with_max_retry(max_retry_times);
         Self::new(session_info, request_params)
     }
 
@@ -396,13 +396,15 @@ impl RequestContext {
     // ==================== 请求参数管理 ====================
 
     /// 获取查询字符串
-    pub fn query(&self) -> &str {
-        &self.request_params.query
+    pub fn query(&self) -> String {
+        let request_params = self.request_params.read().ok();
+        request_params.map(|p| p.query.clone()).unwrap_or_default()
     }
 
     /// 获取请求参数
-    pub fn request_params(&self) -> &RequestParams {
-        &self.request_params
+    pub fn request_params(&self) -> RequestParams {
+        let request_params = self.request_params.read().ok();
+        request_params.map(|p| p.clone()).unwrap_or_else(|| RequestParams::new(String::new()))
     }
 
     /// 获取参数值
@@ -860,7 +862,10 @@ impl RequestContext {
             result.push_str(&format!("  client_ip: {},\n", session.client_ip));
         }
 
-        result.push_str(&format!("  query: {},\n", self.request_params.query));
+        let request_params = self.request_params.read().unwrap();
+        result.push_str(&format!("  query: {},\n", request_params.query));
+        drop(request_params);
+
         result.push_str(&format!("  status: {:?},\n", status));
         result.push_str(&format!("  response_success: {},\n", response.success));
         result.push_str(&format!(

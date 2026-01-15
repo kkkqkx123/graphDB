@@ -2,7 +2,7 @@
 //! 定义所有子句规划器的通用接口和trait
 
 use crate::query::planner::statements::core::cypher_clause_planner::{
-    CypherClausePlanner, DataFlowNode,
+    CypherClausePlanner, DataFlowNode, ClauseType, PlanningContext,
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
@@ -94,6 +94,32 @@ impl BaseClausePlanner {
     /// 获取支持的子句类型
     pub fn supported_kind(&self) -> CypherClauseKind {
         self.supported_kind
+    }
+}
+
+impl CypherClausePlanner for BaseClausePlanner {
+    fn transform(
+        &self,
+        _clause_ctx: &CypherClauseContext,
+        _input_plan: Option<&SubPlan>,
+        _context: &mut PlanningContext,
+    ) -> Result<SubPlan, PlannerError> {
+        Err(PlannerError::NotImplemented(
+            "BaseClausePlanner::transform not implemented".to_string(),
+        ))
+    }
+
+    fn clause_type(&self) -> ClauseType {
+        match self.supported_kind {
+            CypherClauseKind::Match => ClauseType::Match,
+            CypherClauseKind::Where => ClauseType::Where,
+            CypherClauseKind::Return => ClauseType::Return,
+            CypherClauseKind::With => ClauseType::With,
+            CypherClauseKind::OrderBy => ClauseType::OrderBy,
+            CypherClauseKind::Pagination => ClauseType::Limit,
+            CypherClauseKind::Unwind => ClauseType::Unwind,
+            CypherClauseKind::Yield => ClauseType::Yield,
+        }
     }
 }
 

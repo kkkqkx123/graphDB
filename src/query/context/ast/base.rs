@@ -349,9 +349,13 @@ impl AstContext {
                 let expected_type = match stmt {
                     Stmt::Query(_) | Stmt::Match(_) | Stmt::Go(_) | Stmt::Fetch(_) 
                     | Stmt::Lookup(_) | Stmt::Subgraph(_) | Stmt::FindPath(_) => QueryType::ReadQuery,
-                    Stmt::Create(_) | Stmt::Delete(_) | Stmt::Update(_) => QueryType::WriteQuery,
+                    Stmt::Create(_) | Stmt::Delete(_) | Stmt::Update(_) 
+                    | Stmt::Insert(_) | Stmt::Merge(_) | Stmt::Set(_) 
+                    | Stmt::Remove(_) => QueryType::WriteQuery,
                     Stmt::Use(_) | Stmt::Show(_) => QueryType::AdminQuery,
                     Stmt::Explain(_) => QueryType::SchemaQuery,
+                    Stmt::Unwind(_) | Stmt::Return(_) | Stmt::With(_) 
+                    | Stmt::Pipe(_) => QueryType::ReadQuery,
                 };
 
                 if self.query_type != expected_type {
@@ -387,6 +391,14 @@ impl AstContext {
                 Stmt::Lookup(_) => "LOOKUP",
                 Stmt::Subgraph(_) => "SUBGRAPH",
                 Stmt::FindPath(_) => "FIND_PATH",
+                Stmt::Insert(_) => "INSERT",
+                Stmt::Merge(_) => "MERGE",
+                Stmt::Unwind(_) => "UNWIND",
+                Stmt::Return(_) => "RETURN",
+                Stmt::With(_) => "WITH",
+                Stmt::Set(_) => "SET",
+                Stmt::Remove(_) => "REMOVE",
+                Stmt::Pipe(_) => "PIPE",
             },
             None => {
                 // 检查查询上下文中的查询文本，如果包含"CYPHER"相关信息，返回"CYPHER"

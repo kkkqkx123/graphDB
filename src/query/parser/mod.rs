@@ -9,6 +9,7 @@ pub mod ast;
 pub mod expressions;
 pub mod statements;
 pub mod clauses;
+pub mod parser;
 
 // 重新导出 core 模块的常用类型
 pub use core::{ParseError, ParseErrors, Token, TokenKind};

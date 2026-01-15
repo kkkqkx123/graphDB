@@ -279,8 +279,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for FilterExecutor<S>
     }
 
     fn reset(&mut self) {
-        self.base.memory_usage = 0;
-        self.base.input = None;
+        self.base.reset_state();
     }
 }
 

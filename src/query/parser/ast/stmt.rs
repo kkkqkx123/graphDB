@@ -23,6 +23,14 @@ pub enum Stmt {
     Lookup(LookupStmt),
     Subgraph(SubgraphStmt),
     FindPath(FindPathStmt),
+    Insert(InsertStmt),
+    Merge(MergeStmt),
+    Unwind(UnwindStmt),
+    Return(ReturnStmt),
+    With(WithStmt),
+    Set(SetStmt),
+    Remove(RemoveStmt),
+    Pipe(PipeStmt),
 }
 
 impl Stmt {
@@ -42,6 +50,14 @@ impl Stmt {
             Stmt::Lookup(s) => s.span,
             Stmt::Subgraph(s) => s.span,
             Stmt::FindPath(s) => s.span,
+            Stmt::Insert(s) => s.span,
+            Stmt::Merge(s) => s.span,
+            Stmt::Unwind(s) => s.span,
+            Stmt::Return(s) => s.span,
+            Stmt::With(s) => s.span,
+            Stmt::Set(s) => s.span,
+            Stmt::Remove(s) => s.span,
+            Stmt::Pipe(s) => s.span,
         }
     }
 }
@@ -85,6 +101,13 @@ pub enum CreateTarget {
     Tag {
         name: String,
         properties: Vec<PropertyDef>,
+    },
+    EdgeType {
+        name: String,
+        properties: Vec<PropertyDef>,
+    },
+    Space {
+        name: String,
     },
     Index {
         name: String,
@@ -344,6 +367,72 @@ pub struct FindPathStmt {
     pub where_clause: Option<Expr>,
     pub shortest: bool,
     pub yield_clause: Option<YieldClause>,
+}
+
+/// INSERT 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct InsertStmt {
+    pub span: Span,
+    pub target: InsertTarget,
+}
+
+/// INSERT 目标
+#[derive(Debug, Clone, PartialEq)]
+pub enum InsertTarget {
+    Vertices { ids: Vec<Expr> },
+    Edge { src: Expr, dst: Expr },
+}
+
+/// MERGE 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct MergeStmt {
+    pub span: Span,
+    pub pattern: Pattern,
+}
+
+/// UNWIND 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnwindStmt {
+    pub span: Span,
+    pub expression: Expr,
+    pub variable: String,
+}
+
+/// RETURN 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReturnStmt {
+    pub span: Span,
+    pub items: Vec<ReturnItem>,
+    pub distinct: bool,
+}
+
+/// WITH 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct WithStmt {
+    pub span: Span,
+    pub items: Vec<ReturnItem>,
+    pub where_clause: Option<Expr>,
+}
+
+/// SET 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetStmt {
+    pub span: Span,
+    pub assignments: Vec<Assignment>,
+}
+
+/// REMOVE 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct RemoveStmt {
+    pub span: Span,
+    pub items: Vec<Expr>,
+}
+
+/// PIPE 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct PipeStmt {
+    pub span: Span,
+    pub expression: Expr,
 }
 
 // 语句工具函数

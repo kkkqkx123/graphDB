@@ -48,6 +48,7 @@ pub use predicate_pushdown::{
 pub use projection_pushdown::{ProjectionPushDownRule, PushProjectDownRule};
 pub use rule_traits::{BaseOptRule, EliminationRule, MergeRule, PushDownRule};
 pub use scan_optimization::{IndexFullScanRule, ScanWithFilterOptimizationRule};
+pub use optimizer::OptimizerError;
 pub use transformation_rules::TopNRule;
 
 // Re-export the main Optimizer struct

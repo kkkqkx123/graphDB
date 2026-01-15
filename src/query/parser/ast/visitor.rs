@@ -130,6 +130,14 @@ pub trait StmtVisitor {
             Stmt::Lookup(s) => self.visit_lookup(s),
             Stmt::Subgraph(s) => self.visit_subgraph(s),
             Stmt::FindPath(s) => self.visit_find_path(s),
+            Stmt::Insert(s) => self.visit_insert(s),
+            Stmt::Merge(s) => self.visit_merge(s),
+            Stmt::Unwind(s) => self.visit_unwind(s),
+            Stmt::Return(s) => self.visit_return(s),
+            Stmt::With(s) => self.visit_with(s),
+            Stmt::Set(s) => self.visit_set(s),
+            Stmt::Remove(s) => self.visit_remove(s),
+            Stmt::Pipe(s) => self.visit_pipe(s),
         }
     }
 
@@ -171,6 +179,30 @@ pub trait StmtVisitor {
 
     /// 访问 FIND PATH 语句
     fn visit_find_path(&mut self, stmt: &FindPathStmt) -> Self::Result;
+
+    /// 访问 INSERT 语句
+    fn visit_insert(&mut self, stmt: &InsertStmt) -> Self::Result;
+
+    /// 访问 MERGE 语句
+    fn visit_merge(&mut self, stmt: &MergeStmt) -> Self::Result;
+
+    /// 访问 UNWIND 语句
+    fn visit_unwind(&mut self, stmt: &UnwindStmt) -> Self::Result;
+
+    /// 访问 RETURN 语句
+    fn visit_return(&mut self, stmt: &ReturnStmt) -> Self::Result;
+
+    /// 访问 WITH 语句
+    fn visit_with(&mut self, stmt: &WithStmt) -> Self::Result;
+
+    /// 访问 SET 语句
+    fn visit_set(&mut self, stmt: &SetStmt) -> Self::Result;
+
+    /// 访问 REMOVE 语句
+    fn visit_remove(&mut self, stmt: &RemoveStmt) -> Self::Result;
+
+    /// 访问 PIPE 语句
+    fn visit_pipe(&mut self, stmt: &PipeStmt) -> Self::Result;
 }
 
 /// 模式访问者 trait
@@ -564,6 +596,79 @@ impl StmtVisitor for DefaultVisitor {
                 self.visit_expr(&item.expr);
             }
         }
+    }
+
+    fn visit_insert(&mut self, stmt: &InsertStmt) -> Self::Result {
+        // 访问目标表达式
+        match &stmt.target {
+            InsertTarget::Vertices { ids } => {
+                for id in ids {
+                    self.visit_expr(id);
+                }
+            }
+            InsertTarget::Edge { src, dst } => {
+                self.visit_expr(src);
+                self.visit_expr(dst);
+            }
+        }
+    }
+
+    fn visit_merge(&mut self, stmt: &MergeStmt) -> Self::Result {
+        // 访问模式
+        self.visit_pattern(&stmt.pattern);
+    }
+
+    fn visit_unwind(&mut self, stmt: &UnwindStmt) -> Self::Result {
+        // 访问表达式
+        self.visit_expr(&stmt.expression);
+    }
+
+    fn visit_return(&mut self, stmt: &ReturnStmt) -> Self::Result {
+        // 访问所有返回项
+        for item in &stmt.items {
+            match item {
+                ReturnItem::Expression { expr, .. } => {
+                    self.visit_expr(expr);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn visit_with(&mut self, stmt: &WithStmt) -> Self::Result {
+        // 访问所有 WITH 项
+        for item in &stmt.items {
+            match item {
+                ReturnItem::Expression { expr, .. } => {
+                    self.visit_expr(expr);
+                }
+                _ => {}
+            }
+        }
+
+        // 访问 WHERE 子句
+        if let Some(ref where_clause) = stmt.where_clause {
+            self.visit_expr(where_clause);
+        }
+    }
+
+    fn visit_set(&mut self, stmt: &SetStmt) -> Self::Result {
+        // 访问所有赋值
+        for assignment in &stmt.assignments {
+            self.visit_expr(&assignment.value);
+        }
+    }
+
+    fn visit_remove(&mut self, stmt: &RemoveStmt) -> Self::Result {
+        // 访问所有删除项
+        for item in &stmt.items {
+            self.visit_expr(item);
+        }
+    }
+
+    fn visit_pipe(&mut self, stmt: &PipeStmt) -> Self::Result {
+        // 访问表达式
+        self.visit_expr(&stmt.expression);
     }
 }
 

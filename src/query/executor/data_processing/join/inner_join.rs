@@ -308,6 +308,14 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for HashInnerJoinExecutor<S>
     fn description(&self) -> &str {
         &self.inner.description()
     }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.inner.stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.inner.stats_mut()
+    }
 }
 
 impl<S: StorageEngine + Send + 'static> HasStorage<S> for HashInnerJoinExecutor<S> {

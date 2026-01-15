@@ -544,8 +544,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for SortExecutor<S> {
     }
 
     fn reset(&mut self) {
-        self.base.memory_usage = 0;
-        self.base.input = None;
+        self.base.reset_state();
     }
 }
 
@@ -592,6 +591,14 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for SortExecutor<S> {
 
     fn description(&self) -> &str {
         &self.base.description
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 

@@ -1,8 +1,8 @@
 //! Schema管理器实现 - 内存中的Schema管理
 //!
 use super::super::{
-    EdgeTypeDef, FieldDef, Schema, SchemaChange, SchemaChangeType, SchemaExportConfig, SchemaHistory,
-    SchemaImportResult, SchemaManager, SchemaVersion, TagDef,
+    EdgeTypeDefWithId, FieldDef, Schema, SchemaChange, SchemaChangeType, SchemaExportConfig, SchemaHistory,
+    SchemaImportResult, SchemaManager, SchemaVersion, TagDefWithId,
 };
 use crate::core::error::{ManagerError, ManagerResult};
 use std::collections::HashMap;
@@ -14,8 +14,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[derive(Debug, Clone)]
 pub struct MemorySchemaManager {
     schemas: Arc<RwLock<HashMap<String, Schema>>>,
-    tags: Arc<RwLock<HashMap<i32, TagDef>>>,
-    edge_types: Arc<RwLock<HashMap<i32, EdgeTypeDef>>>,
+    tags: Arc<RwLock<HashMap<i32, TagDefWithId>>>,
+    edge_types: Arc<RwLock<HashMap<i32, EdgeTypeDefWithId>>>,
     space_tags: Arc<RwLock<HashMap<i32, Vec<i32>>>>,
     space_edge_types: Arc<RwLock<HashMap<i32, Vec<i32>>>>,
     next_tag_id: Arc<RwLock<i32>>,
@@ -115,7 +115,7 @@ impl SchemaManager for MemorySchemaManager {
         *next_id += 1;
         drop(next_id);
 
-        let tag_def = TagDef {
+        let tag_def = TagDefWithId {
             tag_id,
             tag_name: tag_name.to_string(),
             fields,
@@ -217,12 +217,12 @@ impl SchemaManager for MemorySchemaManager {
         Ok(())
     }
 
-    fn get_tag(&self, _space_id: i32, tag_id: i32) -> Option<TagDef> {
+    fn get_tag(&self, _space_id: i32, tag_id: i32) -> Option<TagDefWithId> {
         let tags = self.tags.read().ok()?;
         tags.get(&tag_id).cloned()
     }
 
-    fn list_tags(&self, space_id: i32) -> ManagerResult<Vec<TagDef>> {
+    fn list_tags(&self, space_id: i32) -> ManagerResult<Vec<TagDefWithId>> {
         let space_tags = self
             .space_tags
             .read()
@@ -234,7 +234,7 @@ impl SchemaManager for MemorySchemaManager {
             .tags
             .read()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let tag_list: Vec<TagDef> = tag_ids
+        let tag_list: Vec<TagDefWithId> = tag_ids
             .iter()
             .filter_map(|id| tags.get(id).cloned())
             .collect();
@@ -262,7 +262,7 @@ impl SchemaManager for MemorySchemaManager {
         *next_id += 1;
         drop(next_id);
 
-        let edge_type_def = EdgeTypeDef {
+        let edge_type_def = EdgeTypeDefWithId {
             edge_type_id,
             edge_type_name: edge_type_name.to_string(),
             fields,
@@ -367,12 +367,12 @@ impl SchemaManager for MemorySchemaManager {
         Ok(())
     }
 
-    fn get_edge_type(&self, _space_id: i32, edge_type_id: i32) -> Option<EdgeTypeDef> {
+    fn get_edge_type(&self, _space_id: i32, edge_type_id: i32) -> Option<EdgeTypeDefWithId> {
         let edge_types = self.edge_types.read().ok()?;
         edge_types.get(&edge_type_id).cloned()
     }
 
-    fn list_edge_types(&self, space_id: i32) -> ManagerResult<Vec<EdgeTypeDef>> {
+    fn list_edge_types(&self, space_id: i32) -> ManagerResult<Vec<EdgeTypeDefWithId>> {
         let space_edge_types = self
             .space_edge_types
             .read()
@@ -384,7 +384,7 @@ impl SchemaManager for MemorySchemaManager {
             .edge_types
             .read()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let edge_type_list: Vec<EdgeTypeDef> = edge_type_ids
+        let edge_type_list: Vec<EdgeTypeDefWithId> = edge_type_ids
             .iter()
             .filter_map(|id| edge_types.get(id).cloned())
             .collect();
@@ -429,7 +429,7 @@ impl SchemaManager for MemorySchemaManager {
         if tags_file.exists() {
             let content = fs::read_to_string(&tags_file)
                 .map_err(|e| ManagerError::StorageError(e.to_string()))?;
-            let tag_list: Vec<TagDef> = serde_json::from_str(&content)
+            let tag_list: Vec<TagDefWithId> = serde_json::from_str(&content)
                 .map_err(|e| ManagerError::SchemaError(format!("反序列化Tag失败: {}", e)))?;
             let mut tags = self
                 .tags
@@ -452,7 +452,7 @@ impl SchemaManager for MemorySchemaManager {
         if edge_types_file.exists() {
             let content = fs::read_to_string(&edge_types_file)
                 .map_err(|e| ManagerError::StorageError(e.to_string()))?;
-            let edge_type_list: Vec<EdgeTypeDef> = serde_json::from_str(&content)
+            let edge_type_list: Vec<EdgeTypeDefWithId> = serde_json::from_str(&content)
                 .map_err(|e| ManagerError::SchemaError(format!("反序列化EdgeType失败: {}", e)))?;
             let mut edge_types = self
                 .edge_types
@@ -529,7 +529,7 @@ impl SchemaManager for MemorySchemaManager {
             .tags
             .read()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let tag_list: Vec<TagDef> = tags.values().cloned().collect();
+        let tag_list: Vec<TagDefWithId> = tags.values().cloned().collect();
         let tags_content = serde_json::to_string_pretty(&tag_list)
             .map_err(|e| ManagerError::SchemaError(format!("序列化Tag失败: {}", e)))?;
         let tags_file = self.storage_path.join("tags.json");
@@ -540,7 +540,7 @@ impl SchemaManager for MemorySchemaManager {
             .edge_types
             .read()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
-        let edge_type_list: Vec<EdgeTypeDef> = edge_types.values().cloned().collect();
+        let edge_type_list: Vec<EdgeTypeDefWithId> = edge_types.values().cloned().collect();
         let edge_types_content = serde_json::to_string_pretty(&edge_type_list)
             .map_err(|e| ManagerError::SchemaError(format!("序列化EdgeType失败: {}", e)))?;
         let edge_types_file = self.storage_path.join("edge_types.json");
@@ -593,12 +593,12 @@ impl SchemaManager for MemorySchemaManager {
         let tag_ids = space_tags.get(&space_id).cloned().unwrap_or_default();
         let edge_type_ids = space_edge_types.get(&space_id).cloned().unwrap_or_default();
 
-        let version_tags: Vec<TagDef> = tag_ids
+        let version_tags: Vec<TagDefWithId> = tag_ids
             .iter()
             .filter_map(|id| tags.get(id).cloned())
             .collect();
 
-        let version_edge_types: Vec<EdgeTypeDef> = edge_type_ids
+        let version_edge_types: Vec<EdgeTypeDefWithId> = edge_type_ids
             .iter()
             .filter_map(|id| edge_types.get(id).cloned())
             .collect();
@@ -761,6 +761,7 @@ impl SchemaManager for MemorySchemaManager {
             .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
         let tag_id = name_map
             .get(tag_name)
+            .copied()
             .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
         drop(tag_name_to_id);
 
@@ -769,7 +770,7 @@ impl SchemaManager for MemorySchemaManager {
             .write()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let tag_def = tags
-            .get_mut(tag_id)
+            .get_mut(&tag_id)
             .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
 
         if tag_def.fields.iter().any(|f| f.name == field.name) {
@@ -816,6 +817,7 @@ impl SchemaManager for MemorySchemaManager {
             .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
         let tag_id = name_map
             .get(tag_name)
+            .copied()
             .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
         drop(tag_name_to_id);
 
@@ -824,7 +826,7 @@ impl SchemaManager for MemorySchemaManager {
             .write()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let tag_def = tags
-            .get_mut(tag_id)
+            .get_mut(&tag_id)
             .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
 
         let original_len = tag_def.fields.len();
@@ -873,6 +875,7 @@ impl SchemaManager for MemorySchemaManager {
             .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
         let tag_id = name_map
             .get(tag_name)
+            .copied()
             .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
         drop(tag_name_to_id);
 
@@ -881,7 +884,7 @@ impl SchemaManager for MemorySchemaManager {
             .write()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let tag_def = tags
-            .get_mut(tag_id)
+            .get_mut(&tag_id)
             .ok_or_else(|| ManagerError::NotFound(format!("标签 {} 不存在", tag_name)))?;
 
         let field = tag_def
@@ -930,6 +933,7 @@ impl SchemaManager for MemorySchemaManager {
             .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
         let edge_type_id = name_map
             .get(edge_type_name)
+            .copied()
             .ok_or_else(|| ManagerError::NotFound(format!(
                 "边类型 {} 不存在",
                 edge_type_name
@@ -941,7 +945,7 @@ impl SchemaManager for MemorySchemaManager {
             .write()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let edge_type_def = edge_types
-            .get_mut(edge_type_id)
+            .get_mut(&edge_type_id)
             .ok_or_else(|| ManagerError::NotFound(format!(
                 "边类型 {} 不存在",
                 edge_type_name
@@ -994,6 +998,7 @@ impl SchemaManager for MemorySchemaManager {
             .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
         let edge_type_id = name_map
             .get(edge_type_name)
+            .copied()
             .ok_or_else(|| ManagerError::NotFound(format!(
                 "边类型 {} 不存在",
                 edge_type_name
@@ -1005,7 +1010,7 @@ impl SchemaManager for MemorySchemaManager {
             .write()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let edge_type_def = edge_types
-            .get_mut(edge_type_id)
+            .get_mut(&edge_type_id)
             .ok_or_else(|| ManagerError::NotFound(format!(
                 "边类型 {} 不存在",
                 edge_type_name
@@ -1060,6 +1065,7 @@ impl SchemaManager for MemorySchemaManager {
             .ok_or_else(|| ManagerError::NotFound(format!("空间 {} 不存在", space_id)))?;
         let edge_type_id = name_map
             .get(edge_type_name)
+            .copied()
             .ok_or_else(|| ManagerError::NotFound(format!(
                 "边类型 {} 不存在",
                 edge_type_name
@@ -1071,7 +1077,7 @@ impl SchemaManager for MemorySchemaManager {
             .write()
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         let edge_type_def = edge_types
-            .get_mut(edge_type_id)
+            .get_mut(&edge_type_id)
             .ok_or_else(|| ManagerError::NotFound(format!(
                 "边类型 {} 不存在",
                 edge_type_name
@@ -1122,8 +1128,6 @@ impl SchemaManager for MemorySchemaManager {
             .push(change);
         drop(schema_changes);
 
-        self.save_schema_changes_to_disk()
-            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         Ok(())
     }
 
@@ -1143,8 +1147,6 @@ impl SchemaManager for MemorySchemaManager {
         schema_changes.remove(&space_id);
         drop(schema_changes);
 
-        self.save_schema_changes_to_disk()
-            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
         Ok(())
     }
 
@@ -1159,7 +1161,7 @@ impl SchemaManager for MemorySchemaManager {
         });
 
         if config.include_versions {
-            if let Some(current_version) = self.get_current_version(space_id) {
+            if let Some(_current_version) = self.get_current_version(space_id) {
                 let history = self.get_schema_history(space_id)?;
                 export_data["schema_versions"] = serde_json::to_value(&history)
                     .map_err(|e| ManagerError::SchemaError(format!("序列化Schema版本失败: {}", e)))?;
@@ -1212,7 +1214,7 @@ impl SchemaManager for MemorySchemaManager {
 
         if let Some(tags_array) = parsed.get("tags").and_then(|v| v.as_array()) {
             for tag_value in tags_array {
-                match serde_json::from_value::<TagDef>(tag_value.clone()) {
+                match serde_json::from_value::<TagDefWithId>(tag_value.clone()) {
                     Ok(tag_def) => {
                         match self.create_tag(
                             space_id,
@@ -1243,7 +1245,7 @@ impl SchemaManager for MemorySchemaManager {
 
         if let Some(edge_types_array) = parsed.get("edge_types").and_then(|v| v.as_array()) {
             for edge_type_value in edge_types_array {
-                match serde_json::from_value::<EdgeTypeDef>(edge_type_value.clone()) {
+                match serde_json::from_value::<EdgeTypeDefWithId>(edge_type_value.clone()) {
                     Ok(edge_type_def) => {
                         match self.create_edge_type(
                             space_id,

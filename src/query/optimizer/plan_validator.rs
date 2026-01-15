@@ -194,7 +194,7 @@ impl PlanValidator {
             }
             crate::query::planner::plan::PlanNodeEnum::Project(project_node) => {
                 for column in project_node.columns() {
-                    Self::validate_expression(column)?;
+                    Self::validate_expression(&column.expr)?;
                 }
             }
             crate::query::planner::plan::PlanNodeEnum::Aggregate(aggregate_node) => {
@@ -344,7 +344,7 @@ impl PlanValidator {
 
         // 验证输出变量
         if let Some(output_var) = node.plan_node.output_var() {
-            if output_var.name().is_empty() {
+            if output_var.name.is_empty() {
                 return Err(OptimizerError::Validation {
                     message: format!(
                         "节点属性验证失败：节点 {} 的输出变量名为空",
@@ -355,15 +355,14 @@ impl PlanValidator {
         }
 
         // 验证列名
-        if let Some(col_names) = node.plan_node.col_names() {
-            if col_names.is_empty() {
-                return Err(OptimizerError::Validation {
-                    message: format!(
-                        "节点属性验证失败：节点 {} 的列名为空",
-                        node.id
-                    ),
-                });
-            }
+        let col_names = node.plan_node.col_names();
+        if col_names.is_empty() {
+            return Err(OptimizerError::Validation {
+                message: format!(
+                    "节点属性验证失败：节点 {} 的列名为空",
+                    node.id
+                ),
+            });
         }
 
         Ok(())
