@@ -628,7 +628,7 @@ pub trait OptRule: std::fmt::Debug {
 
     fn match_pattern_with_result(
         &self,
-        _ctx: &mut OptContext,
+        ctx: &mut OptContext,
         group_node: &OptGroupNode,
         pattern: &Pattern,
     ) -> Result<Option<MatchedResult>, OptimizerError> {
@@ -648,14 +648,19 @@ pub trait OptRule: std::fmt::Debug {
         }
 
         let mut dependencies = Vec::new();
-        for (_i, _dep_pattern) in pattern.dependencies.iter().enumerate() {
-            // In a complete implementation, we would look up the actual dependency OptGroupNode
-            // For now, this is a simplified version that doesn't implement full dependency matching
-            // This would need a more complex structure to properly match dependencies
-            dependencies.push(MatchedResult {
-                node: OptGroupNode::new(0, group_node.plan_node.clone()), // Placeholder
-                dependencies: Vec::new(),
-            });
+        for (i, dep_id) in group_node.dependencies.iter().enumerate() {
+            if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(*dep_id) {
+                // 克隆依赖节点以避免借用冲突
+                let dep_node_clone = dep_node.clone();
+                // 递归匹配依赖项
+                if let Some(matched_dep) = self.match_pattern_with_result(ctx, &dep_node_clone, &pattern.dependencies[i])? {
+                    dependencies.push(matched_dep);
+                } else {
+                    return Ok(None);
+                }
+            } else {
+                return Ok(None);
+            }
         }
 
         Ok(Some(MatchedResult {

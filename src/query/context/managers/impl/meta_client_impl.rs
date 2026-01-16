@@ -660,8 +660,9 @@ mod tests {
             .create_space("space2", 5, 2)
             .expect("Failed to create space2");
 
-        let spaces = client.list_spaces().expect("Failed to list spaces");
+        let mut spaces = client.list_spaces().expect("Failed to list spaces");
         assert_eq!(spaces.len(), 2);
+        spaces.sort_by_key(|s| s.space_id);
         assert_eq!(spaces[0].space_name, "space1");
         assert_eq!(spaces[1].space_name, "space2");
     }

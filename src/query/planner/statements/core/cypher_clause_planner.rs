@@ -154,11 +154,20 @@ pub trait DataFlowNode {
     /// 验证数据流
     /// 简化的验证逻辑，内聚到接口中
     fn validate_flow(&self, input: Option<&SubPlan>) -> Result<(), PlannerError> {
-        if self.requires_input() && input.is_none() {
-            return Err(PlannerError::PlanGenerationFailed(format!(
-                "{:?} clause requires input",
-                self.flow_direction()
-            )));
+        if self.requires_input() {
+            if input.is_none() {
+                return Err(PlannerError::PlanGenerationFailed(format!(
+                    "{:?} clause requires input",
+                    self.flow_direction()
+                )));
+            }
+        } else {
+            if input.is_some() {
+                return Err(PlannerError::PlanGenerationFailed(format!(
+                    "{:?} clause does not require input",
+                    self.flow_direction()
+                )));
+            }
         }
         Ok(())
     }

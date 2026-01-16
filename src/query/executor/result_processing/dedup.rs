@@ -602,7 +602,7 @@ mod tests {
     async fn test_dedup_executor_by_keys_strategy() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = DedupExecutor::new(
+        let mut executor = DedupExecutor::<MockStorage>::new(
             1,
             storage.clone(),
             DedupStrategy::ByKeys(vec!["id".to_string()]),
@@ -625,9 +625,12 @@ mod tests {
             ])),
         ];
 
-        // 直接设置输入数据并处理
+        // 使用 set_input 方法设置输入数据
+        <DedupExecutor<MockStorage> as crate::query::executor::result_processing::traits::ResultProcessor<MockStorage>>::set_input(&mut executor, ExecutionResult::Values(test_data));
+
+        // 处理去重
         let result = executor
-            .process(ExecutionResult::Values(test_data))
+            .process(ExecutionResult::Values(Vec::new()))
             .await
             .expect("Failed to process dedup");
 

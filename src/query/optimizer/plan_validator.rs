@@ -425,15 +425,17 @@ impl PlanValidator {
             }
         }
 
-        // 验证列名
-        let col_names = node.plan_node.col_names();
-        if col_names.is_empty() {
-            return Err(OptimizerError::Validation {
-                message: format!(
-                    "节点属性验证失败：节点 {} 的列名为空",
-                    node.id
-                ),
-            });
+        // 验证列名（仅当有输出变量时需要列名）
+        if node.plan_node.output_var().is_some() {
+            let col_names = node.plan_node.col_names();
+            if col_names.is_empty() {
+                return Err(OptimizerError::Validation {
+                    message: format!(
+                        "节点属性验证失败：节点 {} 的列名为空",
+                        node.id
+                    ),
+                });
+            }
         }
 
         Ok(())

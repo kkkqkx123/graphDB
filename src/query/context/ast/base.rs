@@ -255,7 +255,8 @@ impl AstContext {
         // 根据query_type参数设置一个虚拟的语句，以便statement_type()方法返回正确的值
         if query_type == "CYPHER" {
             // 对于Cypher查询，我们不设置具体的语句，而是需要一种方式来让statement_type()返回"CYPHER"
-            // 我们将通过扩展AstContext来实现这一点
+        } else if query_type == "MATCH" {
+            // MATCH查询应该在statement_type()中返回"MATCH"
         }
 
         ctx
@@ -401,21 +402,39 @@ impl AstContext {
                 Stmt::Pipe(_) => "PIPE",
             },
             None => {
-                // 检查查询上下文中的查询文本，如果包含"CYPHER"相关信息，返回"CYPHER"
                 if let Some(ref qctx) = self.qctx {
-                    if qctx.query_text.to_uppercase().starts_with("MATCH")
-                        || qctx.query_text.to_uppercase().starts_with("CREATE")
-                        || qctx.query_text.to_uppercase().starts_with("RETURN")
-                        || qctx.query_text.to_uppercase().starts_with("WHERE") {
+                    let upper_query = qctx.query_text.to_uppercase();
+                    let trimmed_query = upper_query.trim_start();
+
+                    if trimmed_query.starts_with("MATCH") {
+                        let after_match = &trimmed_query[5..].trim_start();
+                        if after_match.starts_with('(') || after_match.starts_with('{') {
+                            if after_match.ends_with(')') || after_match.ends_with('}') {
+                                let content = &after_match[..after_match.len()-1];
+                                if !content.contains("RETURN")
+                                    && !content.contains("WHERE")
+                                    && !content.contains("WITH")
+                                    && !content.contains("ORDER")
+                                    && !content.contains("LIMIT")
+                                    && !content.contains("SKIP") {
+                                    return "MATCH";
+                                }
+                            }
+                        }
                         return "CYPHER";
                     }
 
-                    // 如果是NGQL查询，返回"QUERY"
-                    if qctx.query_text.to_uppercase().starts_with("GO")
-                        || qctx.query_text.to_uppercase().starts_with("LOOKUP")
-                        || qctx.query_text.to_uppercase().starts_with("FETCH")
-                        || qctx.query_text.to_uppercase().starts_with("FIND")
-                        || qctx.query_text.to_uppercase().starts_with("SUBGRAPH") {
+                    if trimmed_query.starts_with("CREATE")
+                        || trimmed_query.starts_with("RETURN")
+                        || trimmed_query.starts_with("WHERE") {
+                        return "CYPHER";
+                    }
+
+                    if trimmed_query.starts_with("GO")
+                        || trimmed_query.starts_with("LOOKUP")
+                        || trimmed_query.starts_with("FETCH")
+                        || trimmed_query.starts_with("FIND")
+                        || trimmed_query.starts_with("SUBGRAPH") {
                         return "QUERY";
                     }
                 }

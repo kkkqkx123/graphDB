@@ -49,9 +49,9 @@ impl VariableValidator {
                 ValidationErrorType::SyntaxError,
             )
         })?;
-        if !first_char.is_alphabetic() {
+        if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
-                format!("变量名必须以字母开头: {:?}", var),
+                format!("变量名必须以字母或下划线开头: {:?}", var),
                 ValidationErrorType::SyntaxError,
             ));
         }

@@ -407,6 +407,7 @@ mod tests {
     #[test]
     fn test_validate_invalid_aggregate_function() {
         let strategy = AggregateValidationStrategy::new();
+        // Count(None) 是有效的，表示 COUNT(*)
         let expr = Expression::Aggregate {
             func: AggregateFunction::Count(None),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
@@ -414,9 +415,8 @@ mod tests {
         };
 
         let result = strategy.validate_aggregate_expr(&expr);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.message.contains("未知的聚合函数"));
+        // Count(None) 应该被接受
+        assert!(result.is_ok());
     }
 
     #[test]

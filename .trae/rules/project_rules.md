@@ -100,9 +100,6 @@ analyze_cargo
 
 # Filter warnings only
 analyze_cargo --filter-warnings
-
-# Filter by specific paths(folder or file)
-analyze_cargo --filter-paths src/main.rs,src/core
 ```
 
 4. **Run commands**:

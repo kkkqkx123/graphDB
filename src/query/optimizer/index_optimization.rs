@@ -1228,11 +1228,14 @@ mod tests {
         // 创建索引扫描节点
         let mut index_scan = IndexScan::new(1, 1, 2, 3, "RANGE");
 
-        // 更新索引扫描限制
-        update_index_scan_limits(
-            &mut index_scan,
-            &crate::core::Expression::Variable("age > 18".to_string()),
-        );
+        // 更新索引扫描限制 - 使用正确的二元表达式格式
+        let condition = crate::core::Expression::Binary {
+            left: Box::new(crate::core::Expression::Variable("age".to_string())),
+            op: crate::core::BinaryOperator::GreaterThan,
+            right: Box::new(crate::core::Expression::Literal(crate::core::Value::Int(18))),
+        };
+        
+        update_index_scan_limits(&mut index_scan, &condition);
 
         // 验证限制已添加
         assert!(!index_scan.scan_limits.is_empty());

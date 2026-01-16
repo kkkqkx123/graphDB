@@ -355,7 +355,10 @@ pub struct HashTableConfig {
 impl Default for HashTableConfig {
     fn default() -> Self {
         Self {
-            memory_config: MemoryConfig::default(),
+            memory_config: MemoryConfig {
+                spill_enabled: false, // 禁用溢出，避免测试需要配置 spill_dir
+                ..Default::default()
+            },
             spill_dir: None,
             max_spill_file_size: 50 * 1024 * 1024, // 50MB
             initial_capacity: 10000,
@@ -380,8 +383,8 @@ impl HashTable {
     pub fn new(memory_tracker: Arc<MemoryTracker>, config: HashTableConfig) -> DBResult<Self> {
         let initial_capacity = config.initial_capacity;
 
-        let spill_dir = config.spill_dir.as_ref().expect("Spill directory should exist when spill is enabled");
         let spill_manager = if config.spill_dir.is_some() && config.memory_config.spill_enabled {
+            let spill_dir = config.spill_dir.as_ref().expect("Spill directory should exist when spill is enabled");
             Some(SpillManager::new(
                 spill_dir,
                 config.max_spill_file_size,

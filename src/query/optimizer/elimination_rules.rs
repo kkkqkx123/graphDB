@@ -257,16 +257,18 @@ impl RemoveNoopProjectRule {
         // 获取子节点的输出列名
         let child_col_names = child_node.plan_node.col_names();
 
-        // 如果子节点没有输出列，则无法判断，返回false
-        if child_col_names.is_empty() {
-            // 如果投影只有一列且为 "*"，认为是无操作投影
-            if columns.len() == 1 {
-                if let crate::core::Expression::Variable(var_name) = &columns[0].expr {
-                    if var_name == "*" {
-                        return Ok(true);
-                    }
+        // 首先检查投影是否包含通配符 "*"
+        if columns.len() == 1 {
+            if let crate::core::Expression::Variable(var_name) = &columns[0].expr {
+                if var_name == "*" {
+                    // 投影 "*" 总是无操作投影
+                    return Ok(true);
                 }
             }
+        }
+
+        // 如果子节点没有输出列，则无法判断，返回false
+        if child_col_names.is_empty() {
             // 如果投影列都是简单的变量引用且没有别名，认为是无操作投影
             return Ok(true);
         }
@@ -674,9 +676,15 @@ mod tests {
             alias: "*".to_string(),
             is_matched: false,
         }];
-        let scan_node = PlanNodeEnum::ScanVertices(
+        let mut scan_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
+        // 给投影节点的子节点也设置列名
+        scan_node.set_col_names(vec![
+            "id".to_string(),
+            "name".to_string(),
+            "age".to_string(),
+        ]);
         let project_node_all = PlanNodeEnum::Project(
             ProjectNode::new(scan_node, columns_all)
                 .expect("Project node should be created successfully"),
@@ -707,9 +715,15 @@ mod tests {
                 is_matched: false,
             },
         ];
-        let scan_node = PlanNodeEnum::ScanVertices(
+        let mut scan_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
+        // 给投影节点的子节点也设置列名
+        scan_node.set_col_names(vec![
+            "id".to_string(),
+            "name".to_string(),
+            "age".to_string(),
+        ]);
         let project_node_same = PlanNodeEnum::Project(
             ProjectNode::new(scan_node, columns_same)
                 .expect("Project node should be created successfully"),
@@ -735,9 +749,15 @@ mod tests {
                 is_matched: false,
             },
         ];
-        let scan_node = PlanNodeEnum::ScanVertices(
+        let mut scan_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
+        // 给投影节点的子节点也设置列名
+        scan_node.set_col_names(vec![
+            "id".to_string(),
+            "name".to_string(),
+            "age".to_string(),
+        ]);
         let project_node_diff = PlanNodeEnum::Project(
             ProjectNode::new(scan_node, columns_diff)
                 .expect("Project node should be created successfully"),
