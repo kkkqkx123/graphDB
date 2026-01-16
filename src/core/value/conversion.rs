@@ -155,7 +155,7 @@ impl Value {
                 Ok(format!("{}-{:02}-{:02}", d.year, d.month, d.day))
             }
             Value::Time(t) => {
-                if t.hour < 0 || t.hour > 23 || t.minute < 0 || t.minute > 59 || t.sec < 0 || t.sec > 59 || t.microsec < 0 || t.microsec > 999999 {
+                if t.hour > 23 || t.minute > 59 || t.sec > 59 || t.microsec > 999999 {
                     return Err(ExpressionError::type_error("无效的时间值"));
                 }
                 Ok(format!(
@@ -165,8 +165,7 @@ impl Value {
             }
             Value::DateTime(dt) => {
                 if dt.year < 0 || dt.year > 9999 || dt.month < 1 || dt.month > 12 || dt.day < 1 || dt.day > 31 ||
-                   dt.hour < 0 || dt.hour > 23 || dt.minute < 0 || dt.minute > 59 || dt.sec < 0 || dt.sec > 59 ||
-                   dt.microsec < 0 || dt.microsec > 999999 {
+                   dt.hour > 23 || dt.minute > 59 || dt.sec > 59 || dt.microsec > 999999 {
                     return Err(ExpressionError::type_error("无效的日期时间值"));
                 }
                 Ok(format!(
@@ -245,8 +244,8 @@ impl Value {
     pub fn is_valid_time(&self) -> bool {
         match self {
             Value::Time(t) => {
-                t.hour >= 0 && t.hour <= 23 && t.minute >= 0 && t.minute <= 59 &&
-                t.sec >= 0 && t.sec <= 59 && t.microsec >= 0 && t.microsec <= 999999
+                t.hour <= 23 && t.minute <= 59 &&
+                t.sec <= 59 && t.microsec <= 999999
             }
             _ => false,
         }
@@ -257,8 +256,8 @@ impl Value {
         match self {
             Value::DateTime(dt) => {
                 dt.year >= 0 && dt.year <= 9999 && dt.month >= 1 && dt.month <= 12 && dt.day >= 1 && dt.day <= 31 &&
-                dt.hour >= 0 && dt.hour <= 23 && dt.minute >= 0 && dt.minute <= 59 &&
-                dt.sec >= 0 && dt.sec <= 59 && dt.microsec >= 0 && dt.microsec <= 999999
+                dt.hour <= 23 && dt.minute <= 59 &&
+                dt.sec <= 59 && dt.microsec <= 999999
             }
             _ => false,
         }

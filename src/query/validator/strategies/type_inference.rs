@@ -74,7 +74,7 @@ impl TypeInference {
             Expression::Function { name, args } => {
                 self.validate_function_return_type(name, args, context, expected_type)
             }
-            Expression::Aggregate { func, arg, distinct: _ } => {
+            Expression::Aggregate { func, arg: _, distinct: _ } => {
                 self.validate_aggregate_return_type(func, expected_type)
             }
             Expression::Variable(name) => {

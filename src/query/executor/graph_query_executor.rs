@@ -105,87 +105,87 @@ impl<S: StorageEngine> GraphQueryExecutor<S> {
         }
     }
 
-    async fn execute_match(&mut self, clause: crate::query::parser::ast::stmt::MatchStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_match(&mut self, _clause: crate::query::parser::ast::stmt::MatchStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("MATCH语句执行未实现".to_string())))
     }
 
-    async fn execute_create(&mut self, clause: crate::query::parser::ast::stmt::CreateStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_create(&mut self, _clause: crate::query::parser::ast::stmt::CreateStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("CREATE语句执行未实现".to_string())))
     }
 
-    async fn execute_delete(&mut self, clause: crate::query::parser::ast::stmt::DeleteStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_delete(&mut self, _clause: crate::query::parser::ast::stmt::DeleteStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("DELETE语句执行未实现".to_string())))
     }
 
-    async fn execute_update(&mut self, clause: crate::query::parser::ast::stmt::UpdateStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_update(&mut self, _clause: crate::query::parser::ast::stmt::UpdateStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("UPDATE语句执行未实现".to_string())))
     }
 
-    async fn execute_query(&mut self, clause: crate::query::parser::ast::stmt::QueryStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_query(&mut self, _clause: crate::query::parser::ast::stmt::QueryStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("QUERY语句执行未实现".to_string())))
     }
 
-    async fn execute_go(&mut self, clause: crate::query::parser::ast::stmt::GoStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_go(&mut self, _clause: crate::query::parser::ast::stmt::GoStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("GO语句执行未实现".to_string())))
     }
 
-    async fn execute_fetch(&mut self, clause: crate::query::parser::ast::stmt::FetchStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_fetch(&mut self, _clause: crate::query::parser::ast::stmt::FetchStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("FETCH语句执行未实现".to_string())))
     }
 
-    async fn execute_lookup(&mut self, clause: crate::query::parser::ast::stmt::LookupStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_lookup(&mut self, _clause: crate::query::parser::ast::stmt::LookupStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("LOOKUP语句执行未实现".to_string())))
     }
 
-    async fn execute_find_path(&mut self, clause: crate::query::parser::ast::stmt::FindPathStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_find_path(&mut self, _clause: crate::query::parser::ast::stmt::FindPathStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("FIND PATH语句执行未实现".to_string())))
     }
 
-    async fn execute_use(&mut self, clause: crate::query::parser::ast::stmt::UseStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_use(&mut self, _clause: crate::query::parser::ast::stmt::UseStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("USE语句执行未实现".to_string())))
     }
 
-    async fn execute_show(&mut self, clause: crate::query::parser::ast::stmt::ShowStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_show(&mut self, _clause: crate::query::parser::ast::stmt::ShowStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("SHOW语句执行未实现".to_string())))
     }
 
-    async fn execute_explain(&mut self, clause: crate::query::parser::ast::stmt::ExplainStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_explain(&mut self, _clause: crate::query::parser::ast::stmt::ExplainStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("EXPLAIN语句执行未实现".to_string())))
     }
 
-    async fn execute_subgraph(&mut self, clause: crate::query::parser::ast::stmt::SubgraphStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_subgraph(&mut self, _clause: crate::query::parser::ast::stmt::SubgraphStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("SUBGRAPH语句执行未实现".to_string())))
     }
 
-    async fn execute_insert(&mut self, clause: crate::query::parser::ast::stmt::InsertStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_insert(&mut self, _clause: crate::query::parser::ast::stmt::InsertStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("INSERT语句执行未实现".to_string())))
     }
 
-    async fn execute_merge(&mut self, clause: crate::query::parser::ast::stmt::MergeStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_merge(&mut self, _clause: crate::query::parser::ast::stmt::MergeStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("MERGE语句执行未实现".to_string())))
     }
 
-    async fn execute_unwind(&mut self, clause: crate::query::parser::ast::stmt::UnwindStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_unwind(&mut self, _clause: crate::query::parser::ast::stmt::UnwindStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("UNWIND语句执行未实现".to_string())))
     }
 
-    async fn execute_return(&mut self, clause: crate::query::parser::ast::stmt::ReturnStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_return(&mut self, _clause: crate::query::parser::ast::stmt::ReturnStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("RETURN语句执行未实现".to_string())))
     }
 
-    async fn execute_with(&mut self, clause: crate::query::parser::ast::stmt::WithStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_with(&mut self, _clause: crate::query::parser::ast::stmt::WithStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("WITH语句执行未实现".to_string())))
     }
 
-    async fn execute_set(&mut self, clause: crate::query::parser::ast::stmt::SetStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_set(&mut self, _clause: crate::query::parser::ast::stmt::SetStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("SET语句执行未实现".to_string())))
     }
 
-    async fn execute_remove(&mut self, clause: crate::query::parser::ast::stmt::RemoveStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_remove(&mut self, _clause: crate::query::parser::ast::stmt::RemoveStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("REMOVE语句执行未实现".to_string())))
     }
 
-    async fn execute_pipe(&mut self, clause: crate::query::parser::ast::stmt::PipeStmt) -> Result<ExecutionResult, DBError> {
+    async fn execute_pipe(&mut self, _clause: crate::query::parser::ast::stmt::PipeStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("PIPE语句执行未实现".to_string())))
     }
 }

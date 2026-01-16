@@ -104,7 +104,7 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
             .map(|(i, name)| (name.as_str(), i))
             .collect();
 
-        let right_col_map: HashMap<&str, usize> = right_dataset
+        let _right_col_map: HashMap<&str, usize> = right_dataset
             .col_names
             .iter()
             .enumerate()

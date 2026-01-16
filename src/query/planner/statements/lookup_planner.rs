@@ -116,7 +116,7 @@ impl Planner for LookupPlanner {
 
         if lookup_ctx.is_fulltext_index && lookup_ctx.has_score {
             let id_expr = Expression::Variable("id".to_string());
-            let score_expr = Expression::Variable("_score".to_string());
+            let _score_expr = Expression::Variable("_score".to_string());
 
             let get_node = if lookup_ctx.is_edge {
                 let get_edges = GetEdgesNode::new(
@@ -281,7 +281,7 @@ fn parse_filter_expression(condition: &str) -> Result<Expression, String> {
 }
 
 /// 解析 yield 表达式
-fn parse_yield_expression(expr_str: &str, is_edge: bool) -> Result<Expression, PlannerError> {
+fn parse_yield_expression(expr_str: &str, _is_edge: bool) -> Result<Expression, PlannerError> {
     if expr_str.starts_with("src(") {
         return Ok(Expression::Function {
             name: "src".to_string(),

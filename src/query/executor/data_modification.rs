@@ -198,7 +198,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
                         })?;
 
                     if let Value::Bool(true) = result {
-                        if let Value::String(id_str) = &update.vertex_id {
+                        if let Value::String(_id_str) = &update.vertex_id {
                             if let Some(mut vertex) = storage.get_node(&update.vertex_id)? {
                                 for (key, value) in &update.properties {
                                     vertex.properties.insert(key.clone(), value.clone());

@@ -1152,7 +1152,7 @@ impl IndexManager for MemoryIndexManager {
 
         match index.index_type {
             IndexType::TagIndex => {
-                for (key, vertices) in &data.vertex_by_tag_property {
+                for (_key, vertices) in &data.vertex_by_tag_property {
                     for vertex in vertices {
                         if let Ok(Some(stored_vertex)) = storage_engine.get_node(vertex.vid()) {
                             if stored_vertex.id() != vertex.id() {
@@ -1165,7 +1165,7 @@ impl IndexManager for MemoryIndexManager {
                 }
             }
             IndexType::EdgeIndex => {
-                for (key, edges) in &data.edge_by_type_property {
+                for (_key, edges) in &data.edge_by_type_property {
                     for edge in edges {
                         if let Ok(Some(stored_edge)) = storage_engine.get_edge(&edge.src, &edge.dst, &edge.edge_type) {
                             if stored_edge.id != edge.id {

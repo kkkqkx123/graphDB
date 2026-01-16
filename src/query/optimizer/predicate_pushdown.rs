@@ -67,7 +67,7 @@ impl OptRule for FilterPushDownRule {
                                         );
 
                                         // 如果需要，合并现有过滤条件和新的过滤条件
-                                        let new_filter_str = if let Some(existing_filter) = new_scan_node.vertex_filter() {
+                                        let _new_filter_str = if let Some(existing_filter) = new_scan_node.vertex_filter() {
                                             format!("({}) AND ({})", existing_filter, format!("{:?}", rewritten_condition))
                                         } else {
                                             format!("{:?}", rewritten_condition)
@@ -82,7 +82,7 @@ impl OptRule for FilterPushDownRule {
                                             PlanNodeEnum::ScanVertices(new_scan_node);
 
                                         // 如果有剩余条件，创建新的过滤节点
-                                        if let Some(remaining_condition) = remaining {
+                                        if let Some(_remaining_condition) = remaining {
                                             let new_filter_node = filter_plan_node.clone();
                                             // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                             // 这里简化处理，直接返回原节点
@@ -136,7 +136,7 @@ impl OptRule for FilterPushDownRule {
                                         );
 
                                         // 如果需要，合并现有过滤条件和新的过滤条件
-                                        let new_filter_str = if let Some(existing_filter) = &new_index_scan_node.filter {
+                                        let _new_filter_str = if let Some(existing_filter) = &new_index_scan_node.filter {
                                             format!("({}) AND ({})", existing_filter, format!("{:?}", rewritten_condition))
                                         } else {
                                             format!("{:?}", rewritten_condition)
@@ -151,7 +151,7 @@ impl OptRule for FilterPushDownRule {
                                             PlanNodeEnum::IndexScan(new_index_scan_node);
 
                                         // 如果有剩余条件，创建新的过滤节点
-                                        if let Some(remaining_condition) = remaining {
+                                        if let Some(_remaining_condition) = remaining {
                                             let new_filter_node = filter_plan_node.clone();
                                             // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                             // 这里简化处理，直接返回原节点
@@ -220,7 +220,7 @@ impl OptRule for FilterPushDownRule {
                                             PlanNodeEnum::Traverse(new_traverse_node);
 
                                         // 如果有剩余条件，创建新的过滤节点
-                                        if let Some(remaining_condition) = remaining {
+                                        if let Some(_remaining_condition) = remaining {
                                             let new_filter_node = filter_plan_node.clone();
                                             // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                             // 这里简化处理，直接返回原节点
@@ -432,7 +432,7 @@ impl OptRule for PushFilterDownTraverseRule {
                                         PlanNodeEnum::Traverse(new_traverse_node);
 
                                     // 如果有剩余的过滤条件，创建新的过滤节点
-                                    if let Some(remaining_condition) = remaining {
+                                    if let Some(_remaining_condition) = remaining {
                                         let new_filter_node = filter_plan_node.clone();
                                         // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
                                         // 这里简化处理，直接返回原节点

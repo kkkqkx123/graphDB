@@ -799,7 +799,7 @@ pub fn build_hash_table(
     key_exprs: &[Expression],
 ) -> Result<HashMap<JoinKey, Vec<usize>>, String> {
     let mut hash_table = HashMap::new();
-    let evaluator = ExpressionEvaluator;
+    let _evaluator = ExpressionEvaluator;
 
     for (idx, row) in dataset.rows.iter().enumerate() {
         // 创建表达式上下文

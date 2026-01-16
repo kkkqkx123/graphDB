@@ -371,7 +371,7 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     }
 
     /// 检查数据是否可以移动（避免不必要的拷贝）
-    pub fn is_movable(&self, var_name: &str) -> bool {
+    pub fn is_movable(&self, _var_name: &str) -> bool {
         // 检查变量是否不再被后续执行器使用
         // 简化实现：假设所有变量都可以移动
         // 实际实现需要检查执行计划中的变量生命周期

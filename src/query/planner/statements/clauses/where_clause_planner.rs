@@ -69,7 +69,7 @@ impl CypherClausePlanner for WhereClausePlanner {
 
     fn transform(
         &self,
-        clause_ctx: &CypherClauseContext,
+        _clause_ctx: &CypherClauseContext,
         input_plan: Option<&SubPlan>,
         _context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {

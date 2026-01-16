@@ -235,7 +235,7 @@ impl crate::query::parser::Parser {
         
         let ids = self.parse_expression_list()?;
         
-        let yield_clause = if self.current_token().kind == TokenKind::Yield {
+        let _yield_clause = if self.current_token().kind == TokenKind::Yield {
             Some(self.parse_yield_clause()?)
         } else {
             None

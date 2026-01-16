@@ -97,7 +97,7 @@ impl Default for SimpleEventListener {
 }
 
 impl ContextEventListener for SimpleEventListener {
-    fn on_event(&self, event: &ContextEvent) {
+    fn on_event(&self, _event: &ContextEvent) {
         // 简单监听器只记录事件，实际处理由外部调用者决定
         // 这里可以改为使用内部可变性或者返回事件供外部处理
     }

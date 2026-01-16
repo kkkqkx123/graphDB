@@ -223,7 +223,7 @@ impl CypherAstContext {
     }
 
     /// 获取特定标签的模式
-    pub fn get_patterns_by_label(&self, label: &str) -> Vec<&CypherPattern> {
+    pub fn get_patterns_by_label(&self, _label: &str) -> Vec<&CypherPattern> {
         // 由于模式现在存储在子句内容中，这里返回空列表
         // 实际实现需要解析子句内容来提取模式信息
         Vec::new()
