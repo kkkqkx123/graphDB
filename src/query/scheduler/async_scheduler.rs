@@ -115,6 +115,12 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                 crate::core::error::DBError::Index(msg) => QueryError::ExecutionError(msg),
                 crate::core::error::DBError::Transaction(msg) => QueryError::ExecutionError(msg),
                 crate::core::error::DBError::Internal(msg) => QueryError::ExecutionError(msg),
+                crate::core::error::DBError::Session(session_err) => {
+                    QueryError::ExecutionError(session_err.to_string())
+                }
+                crate::core::error::DBError::Permission(permission_err) => {
+                    QueryError::ExecutionError(permission_err.to_string())
+                }
             });
 
         {

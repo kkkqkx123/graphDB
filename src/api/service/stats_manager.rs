@@ -207,19 +207,19 @@ mod tests {
     #[test]
     fn test_space_metrics() {
         let stats = StatsManager::new();
-        stats.add_space_metric("test_space".to_string(), MetricType::NumQueries);
+        stats.add_space_metric("test_space", MetricType::NumQueries);
         assert_eq!(
             stats.get_space_value("test_space", MetricType::NumQueries),
             Some(1)
         );
 
-        stats.add_space_metric("test_space".to_string(), MetricType::NumQueries);
+        stats.add_space_metric("test_space", MetricType::NumQueries);
         assert_eq!(
             stats.get_space_value("test_space", MetricType::NumQueries),
             Some(2)
         );
 
-        stats.add_space_metric("other_space".to_string(), MetricType::NumQueries);
+        stats.add_space_metric("other_space", MetricType::NumQueries);
         assert_eq!(
             stats.get_space_value("other_space", MetricType::NumQueries),
             Some(1)
@@ -229,14 +229,14 @@ mod tests {
     #[test]
     fn test_dec_space_metric() {
         let stats = StatsManager::new();
-        stats.add_space_metric("test_space".to_string(), MetricType::NumQueries);
-        stats.add_space_metric("test_space".to_string(), MetricType::NumQueries);
+        stats.add_space_metric("test_space", MetricType::NumQueries);
+        stats.add_space_metric("test_space", MetricType::NumQueries);
         assert_eq!(
             stats.get_space_value("test_space", MetricType::NumQueries),
             Some(2)
         );
 
-        stats.dec_space_metric("test_space".to_string(), MetricType::NumQueries);
+        stats.dec_space_metric("test_space", MetricType::NumQueries);
         assert_eq!(
             stats.get_space_value("test_space", MetricType::NumQueries),
             Some(1)

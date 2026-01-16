@@ -130,22 +130,8 @@ mod tests {
     use crate::core::Value;
 
     // 创建测试用的存储引擎
-    fn create_test_storage() -> Arc<Mutex<crate::storage::RocksDBStorage>> {
-        use std::sync::atomic::{AtomicUsize, Ordering};
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        // 使用原子计数器确保每个测试使用唯一的数据库路径
-        static TEST_COUNTER: AtomicUsize = AtomicUsize::new(0);
-        let test_id = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
-
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_nanos();
-
-        let config = crate::config::test_config::test_config();
-        let test_path = config.test_db_path(&format!("test_union_db_{}_{}", test_id, timestamp));
-        let storage = crate::storage::RocksDBStorage::new(test_path.to_str().unwrap())
+    fn create_test_storage() -> Arc<Mutex<crate::storage::MemoryStorage>> {
+        let storage = crate::storage::MemoryStorage::new()
             .expect("Failed to create test storage");
         Arc::new(Mutex::new(storage))
     }

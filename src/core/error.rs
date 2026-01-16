@@ -57,6 +57,12 @@ pub enum DBError {
 
     #[error("内部错误: {0}")]
     Internal(String),
+
+    #[error("会话错误: {0}")]
+    Session(#[from] SessionError),
+
+    #[error("权限错误: {0}")]
+    Permission(#[from] PermissionError),
 }
 
 /// 统一的结果类型
@@ -582,8 +588,61 @@ impl From<crate::query::parser::lexer::LexError> for DBError {
     }
 }
 
+/// 会话相关错误
+#[derive(Error, Debug, Clone)]
+pub enum SessionError {
+    #[error("会话不存在: {0}")]
+    SessionNotFound(i64),
+    
+    #[error("权限不足，无法执行此操作")]
+    PermissionDenied,
+    
+    #[error("会话已过期")]
+    SessionExpired,
+    
+    #[error("超过最大连接数限制")]
+    MaxConnectionsExceeded,
+    
+    #[error("查询不存在: {0}")]
+    QueryNotFound(u32),
+    
+    #[error("无法终止会话: {0}")]
+    KillSessionFailed(String),
+    
+    #[error("会话管理器错误: {0}")]
+    ManagerError(String),
+}
+
+/// 权限相关错误
+#[derive(Error, Debug, Clone)]
+pub enum PermissionError {
+    #[error("权限不足")]
+    InsufficientPermission,
+    
+    #[error("角色不存在: {0}")]
+    RoleNotFound(String),
+    
+    #[error("无法授予角色: {0}")]
+    GrantRoleFailed(String),
+    
+    #[error("无法撤销角色: {0}")]
+    RevokeRoleFailed(String),
+    
+    #[error("用户不存在: {0}")]
+    UserNotFound(String),
+}
+
 /// 类型别名，用于向后兼容
 pub type GraphDBResult<T> = DBResult<T>;
+
+/// 会话操作结果类型别名
+pub type SessionResult<T> = Result<T, SessionError>;
+
+/// 权限操作结果类型别名
+pub type PermissionResult<T> = Result<T, PermissionError>;
+
+/// 查询操作结果类型别名
+pub type QueryResult<T> = Result<T, SessionError>;
 
 #[cfg(test)]
 mod tests {

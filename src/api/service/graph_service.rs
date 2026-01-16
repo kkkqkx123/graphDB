@@ -4,6 +4,7 @@ use crate::api::service::{
 use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
 use crate::storage::StorageEngine;
+use crate::core::error::{SessionError, SessionResult};
 use std::sync::{Arc, Mutex};
 
 pub struct GraphService<S: StorageEngine + Clone + 'static> {
@@ -203,6 +204,47 @@ impl<S: StorageEngine + Clone + 'static> GraphService<S> {
 
     pub fn get_permission_manager(&self) -> &PermissionManager {
         &self.permission_manager
+    }
+
+    /// 获取会话列表（SHOW SESSIONS）
+    pub fn list_sessions(&self) -> Vec<crate::api::session::SessionInfo> {
+        self.session_manager.list_sessions()
+    }
+
+    /// 获取指定会话的详细信息
+    pub fn get_session_info(&self, session_id: i64) -> Option<crate::api::session::SessionInfo> {
+        self.session_manager.get_session_info(session_id)
+    }
+
+    /// 终止会话（KILL SESSION）
+    pub fn kill_session(&self, session_id: i64, current_user: &str) -> SessionResult<()> {
+        // 获取当前会话以检查权限
+        let current_session = self.session_manager.find_session(session_id)
+            .ok_or(SessionError::SessionNotFound(session_id))?;
+        
+        let is_god = current_session.is_god();
+        
+        match self.session_manager.kill_session(session_id, current_user, is_god) {
+            Ok(()) => {
+                self.stats_manager.dec_value(MetricType::NumActiveSessions);
+                Ok(())
+            },
+            Err(e) => Err(e)
+        }
+    }
+
+    /// 终止查询（KILL QUERY）
+    pub fn kill_query(&self, session_id: i64, query_id: u32) -> SessionResult<()> {
+        let session = self.session_manager.find_session(session_id)
+            .ok_or(SessionError::SessionNotFound(session_id))?;
+        
+        match session.kill_query(query_id) {
+            Ok(()) => {
+                self.stats_manager.dec_value(MetricType::NumActiveQueries);
+                Ok(())
+            },
+            Err(e) => Err(e)
+        }
     }
 }
 

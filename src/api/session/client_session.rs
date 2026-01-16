@@ -1,6 +1,9 @@
+use log::{info, warn};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
+
+use crate::core::error::{SessionError, QueryResult};
 
 #[derive(Debug, Clone)]
 pub struct SpaceInfo {
@@ -166,6 +169,7 @@ impl ClientSession {
     }
 
     pub fn add_query(&self, ep_id: u32, query_context: String) {
+        info!("Adding query {} to session {}", ep_id, self.id());
         self.contexts
             .write()
             .expect("Contexts lock was poisoned")
@@ -173,6 +177,7 @@ impl ClientSession {
     }
 
     pub fn delete_query(&self, ep_id: u32) {
+        info!("Removing query {} from session {}", ep_id, self.id());
         self.contexts
             .write()
             .expect("Contexts lock was poisoned")
@@ -196,10 +201,51 @@ impl ClientSession {
     }
 
     pub fn mark_all_queries_killed(&self) {
+        let query_count = self.active_queries_count();
+        info!("Killing all {} queries in session {}", query_count, self.id());
         self.contexts
             .write()
             .expect("Contexts lock was poisoned")
             .clear();
+    }
+
+    /// 获取当前活动的查询数量
+    pub fn active_queries_count(&self) -> usize {
+        self.contexts
+            .read()
+            .expect("Contexts lock was poisoned")
+            .len()
+    }
+
+    /// 终止指定查询（KILL QUERY）
+    /// 
+    /// # 参数
+    /// * `query_id` - 要终止的查询ID
+    /// 
+    /// # 返回
+    /// * `Ok(())` - 成功终止查询
+    /// * `Err(QueryError)` - 终止失败的具体原因
+    pub fn kill_query(&self, query_id: u32) -> QueryResult<()> {
+        info!("Attempting to kill query {} in session {}", query_id, self.id());
+        
+        // 检查查询是否存在
+        if !self.find_query(query_id) {
+            warn!("Query {} not found in session {}", query_id, self.id());
+            return Err(SessionError::QueryNotFound(query_id));
+        }
+        
+        // 标记查询为已终止
+        self.mark_query_killed(query_id);
+        
+        info!("Successfully killed query {} in session {}", query_id, self.id());
+        Ok(())
+    }
+
+    /// 批量终止多个查询
+    pub fn kill_multiple_queries(&self, query_ids: &[u32]) -> Vec<QueryResult<()>> {
+        query_ids.iter().map(|&query_id| {
+            self.kill_query(query_id)
+        }).collect()
     }
 }
 
@@ -321,5 +367,64 @@ mod tests {
         // Charge session (reset idle time)
         client_session.charge();
         assert!(client_session.idle_seconds() <= initial_idle); // Should be close to 0 after charge
+    }
+
+    #[test]
+    fn test_kill_query() {
+        let session = Session {
+            session_id: 123,
+            user_name: "testuser".to_string(),
+            space_name: None,
+            graph_addr: None,
+            timezone: None,
+        };
+
+        let client_session = ClientSession::new(session);
+
+        // Add some queries
+        client_session.add_query(1, "SELECT * FROM users".to_string());
+        client_session.add_query(2, "INSERT INTO users VALUES (...)".to_string());
+        assert_eq!(client_session.active_queries_count(), 2);
+
+        // Kill a specific query
+        let result = client_session.kill_query(1);
+        assert!(result.is_ok());
+        assert!(!client_session.find_query(1));
+        assert!(client_session.find_query(2));
+        assert_eq!(client_session.active_queries_count(), 1);
+
+        // Try to kill non-existent query
+        let result = client_session.kill_query(999);
+        assert!(matches!(result, Err(SessionError::QueryNotFound(999))));
+    }
+
+    #[test]
+    fn test_kill_multiple_queries() {
+        let session = Session {
+            session_id: 123,
+            user_name: "testuser".to_string(),
+            space_name: None,
+            graph_addr: None,
+            timezone: None,
+        };
+
+        let client_session = ClientSession::new(session);
+
+        // Add multiple queries
+        client_session.add_query(1, "SELECT * FROM users".to_string());
+        client_session.add_query(2, "INSERT INTO users VALUES (...)".to_string());
+        client_session.add_query(3, "UPDATE users SET ...".to_string());
+        assert_eq!(client_session.active_queries_count(), 3);
+
+        // Kill multiple queries
+        let results = client_session.kill_multiple_queries(&[1, 3]);
+        assert_eq!(results.len(), 2);
+        assert!(results[0].is_ok());
+        assert!(results[1].is_ok());
+
+        assert!(!client_session.find_query(1));
+        assert!(client_session.find_query(2));
+        assert!(!client_session.find_query(3));
+        assert_eq!(client_session.active_queries_count(), 1);
     }
 }
