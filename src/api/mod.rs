@@ -7,7 +7,7 @@ pub mod session;
 
 use crate::api::service::GraphService;
 use crate::config::Config;
-use crate::storage::RocksDBStorage;
+use crate::storage::MemoryStorage;
 
 pub async fn start_service(config_path: String) -> Result<()> {
     println!("Initializing GraphDB service...");
@@ -26,11 +26,11 @@ pub async fn start_service(config_path: String) -> Result<()> {
     println!("Configuration loaded: {:?}", config);
 
     // Initialize storage
-    let storage = Arc::new(RocksDBStorage::new(&config.storage_path)?);
-    println!("Storage initialized at: {}", config.storage_path);
+    let storage = Arc::new(MemoryStorage::new()?);
+    println!("Storage initialized");
 
     // Initialize graph service with session management and query execution
-    let _graph_service = GraphService::new(config.clone(), storage);
+    let _graph_service = GraphService::<MemoryStorage>::new(config.clone(), storage);
     println!("Graph service initialized with session management");
 
     // Start HTTP server (placeholder)
@@ -48,10 +48,10 @@ pub async fn execute_query(query_str: &str) -> Result<()> {
 
     // Initialize storage for this example
     let config = crate::config::Config::default();
-    let storage = Arc::new(RocksDBStorage::new(&config.storage_path)?);
+    let storage = Arc::new(MemoryStorage::new()?);
 
-    // Initialize graph service for the query execution
-    let graph_service = GraphService::new(config, storage);
+    // Initialize graph service for query execution
+    let graph_service = GraphService::<MemoryStorage>::new(config, storage);
 
     // Create a temporary session for this execution
     let session = match graph_service

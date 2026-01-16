@@ -6,16 +6,16 @@ use super::super::{
 };
 use crate::core::error::{ManagerError, ManagerResult};
 use crate::core::{Edge, Tag, Value, Vertex};
-use crate::storage::rocksdb_storage::RocksDBStorage;
+use crate::storage::MemoryStorage;
 use crate::storage::storage_engine::StorageEngine;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
-/// 持久化存储客户端实现 - 使用RocksDBStorage作为后端
+/// 持久化存储客户端实现 - 使用MemoryStorage作为后端
 #[derive(Debug, Clone)]
 pub struct MemoryStorageClient {
-    storage: Arc<RwLock<RocksDBStorage>>,
+    storage: Arc<RwLock<MemoryStorage>>,
     connected: bool,
     storage_path: PathBuf,
 }
@@ -24,8 +24,8 @@ impl MemoryStorageClient {
     /// 创建新的持久化存储客户端
     pub fn new() -> Self {
         let storage_path = PathBuf::from("./data/storage");
-        let storage = RocksDBStorage::new(&storage_path)
-            .expect("Failed to create RocksDBStorage");
+        let storage = MemoryStorage::new()
+            .expect("Failed to create MemoryStorage");
         Self {
             storage: Arc::new(RwLock::new(storage)),
             connected: true,
@@ -35,8 +35,8 @@ impl MemoryStorageClient {
 
     /// 创建带存储路径的持久化存储客户端
     pub fn with_path(storage_path: PathBuf) -> Self {
-        let storage = RocksDBStorage::new(&storage_path)
-            .expect("Failed to create RocksDBStorage");
+        let storage = MemoryStorage::new()
+            .expect("Failed to create MemoryStorage");
         Self {
             storage: Arc::new(RwLock::new(storage)),
             connected: true,

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 #[derive(Debug, Clone)]
@@ -31,42 +31,42 @@ pub enum RoleType {
 /// space role, etc. One user corresponds to one ClientSession.
 #[derive(Debug)]
 pub struct ClientSession {
-    session: Arc<Mutex<Session>>,
-    space: Arc<Mutex<Option<SpaceInfo>>>,
-    roles: Arc<Mutex<HashMap<i64, RoleType>>>,
-    idle_start_time: Arc<Mutex<Instant>>,
-    contexts: Arc<Mutex<HashMap<u32, String>>>, // Represents queries running in this session
+    session: Arc<RwLock<Session>>,
+    space: Arc<RwLock<Option<SpaceInfo>>>,
+    roles: Arc<RwLock<HashMap<i64, RoleType>>>,
+    idle_start_time: Arc<RwLock<Instant>>,
+    contexts: Arc<RwLock<HashMap<u32, String>>>, // Represents queries running in this session
 }
 
 impl ClientSession {
     pub fn new(session: Session) -> Arc<Self> {
         Arc::new(Self {
-            session: Arc::new(Mutex::new(session)),
-            space: Arc::new(Mutex::new(None)),
-            roles: Arc::new(Mutex::new(HashMap::new())),
-            idle_start_time: Arc::new(Mutex::new(Instant::now())),
-            contexts: Arc::new(Mutex::new(HashMap::new())),
+            session: Arc::new(RwLock::new(session)),
+            space: Arc::new(RwLock::new(None)),
+            roles: Arc::new(RwLock::new(HashMap::new())),
+            idle_start_time: Arc::new(RwLock::new(Instant::now())),
+            contexts: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 
     pub fn id(&self) -> i64 {
         self.session
-            .lock()
+            .read()
             .expect("Session lock was poisoned")
             .session_id
     }
 
     pub fn space(&self) -> Option<SpaceInfo> {
-        self.space.lock().expect("Space lock was poisoned").clone()
+        self.space.read().expect("Space lock was poisoned").clone()
     }
 
     pub fn set_space(&self, space: SpaceInfo) {
-        *self.space.lock().expect("Space lock was poisoned") = Some(space);
+        *self.space.write().expect("Space lock was poisoned") = Some(space);
     }
 
     pub fn space_name(&self) -> Option<String> {
         self.session
-            .lock()
+            .read()
             .expect("Session lock was poisoned")
             .space_name
             .clone()
@@ -74,19 +74,19 @@ impl ClientSession {
 
     pub fn user(&self) -> String {
         self.session
-            .lock()
+            .read()
             .expect("Session lock was poisoned")
             .user_name
             .clone()
     }
 
     pub fn roles(&self) -> HashMap<i64, RoleType> {
-        self.roles.lock().expect("Roles lock was poisoned").clone()
+        self.roles.read().expect("Roles lock was poisoned").clone()
     }
 
     pub fn role_with_space(&self, space: i64) -> Option<RoleType> {
         self.roles
-            .lock()
+            .read()
             .expect("Roles lock was poisoned")
             .get(&space)
             .cloned()
@@ -94,7 +94,7 @@ impl ClientSession {
 
     pub fn is_god(&self) -> bool {
         self.roles
-            .lock()
+            .read()
             .expect("Roles lock was poisoned")
             .values()
             .any(|role| matches!(role, RoleType::GOD))
@@ -102,14 +102,14 @@ impl ClientSession {
 
     pub fn set_role(&self, space: i64, role: RoleType) {
         self.roles
-            .lock()
+            .write()
             .expect("Roles lock was poisoned")
             .insert(space, role);
     }
 
     pub fn idle_seconds(&self) -> u64 {
         self.idle_start_time
-            .lock()
+            .read()
             .expect("Idle start time lock was poisoned")
             .elapsed()
             .as_secs()
@@ -118,27 +118,27 @@ impl ClientSession {
     pub fn charge(&self) {
         *self
             .idle_start_time
-            .lock()
+            .write()
             .expect("Idle start time lock was poisoned") = Instant::now();
     }
 
     pub fn timezone(&self) -> Option<i32> {
         self.session
-            .lock()
+            .read()
             .expect("Session lock was poisoned")
             .timezone
     }
 
     pub fn set_timezone(&self, timezone: i32) {
         self.session
-            .lock()
+            .write()
             .expect("Session lock was poisoned")
             .timezone = Some(timezone);
     }
 
     pub fn graph_addr(&self) -> Option<String> {
         self.session
-            .lock()
+            .read()
             .expect("Session lock was poisoned")
             .graph_addr
             .clone()
@@ -146,58 +146,58 @@ impl ClientSession {
 
     pub fn update_graph_addr(&self, host_addr: String) {
         self.session
-            .lock()
+            .write()
             .expect("Session lock was poisoned")
             .graph_addr = Some(host_addr);
     }
 
     pub fn get_session(&self) -> Session {
         self.session
-            .lock()
+            .read()
             .expect("Session lock was poisoned")
             .clone()
     }
 
     pub fn update_space_name(&self, space_name: String) {
         self.session
-            .lock()
+            .write()
             .expect("Session lock was poisoned")
             .space_name = Some(space_name);
     }
 
     pub fn add_query(&self, ep_id: u32, query_context: String) {
         self.contexts
-            .lock()
+            .write()
             .expect("Contexts lock was poisoned")
             .insert(ep_id, query_context);
     }
 
     pub fn delete_query(&self, ep_id: u32) {
         self.contexts
-            .lock()
+            .write()
             .expect("Contexts lock was poisoned")
             .remove(&ep_id);
     }
 
     pub fn find_query(&self, ep_id: u32) -> bool {
         self.contexts
-            .lock()
+            .read()
             .expect("Contexts lock was poisoned")
             .contains_key(&ep_id)
     }
 
     pub fn mark_query_killed(&self, ep_id: u32) {
-        // In a real implementation, this would mark the query as killed in the context
+        // In a real implementation, this would mark query as killed in context
         // For now, we'll just remove it
         self.contexts
-            .lock()
+            .write()
             .expect("Contexts lock was poisoned")
             .remove(&ep_id);
     }
 
     pub fn mark_all_queries_killed(&self) {
         self.contexts
-            .lock()
+            .write()
             .expect("Contexts lock was poisoned")
             .clear();
     }
@@ -318,7 +318,7 @@ mod tests {
         // Check initial idle time is a valid u64 value
         let initial_idle = client_session.idle_seconds();
 
-        // Charge the session (reset idle time)
+        // Charge session (reset idle time)
         client_session.charge();
         assert!(client_session.idle_seconds() <= initial_idle); // Should be close to 0 after charge
     }

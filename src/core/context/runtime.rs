@@ -371,21 +371,21 @@ pub type Direction = crate::core::vertex_edge_path::Direction;
 
 // 默认存储环境类型别名，使用项目中实际的实现类型
 pub type DefaultStorageEnv = StorageEnv<
-    crate::storage::rocksdb_storage::RocksDBStorage,
+    crate::storage::MemoryStorage,
     crate::query::context::managers::MemorySchemaManager,
     crate::query::context::managers::MemoryIndexManager,
 >;
 
 // 默认计划上下文类型别名
 pub type DefaultPlanContext = PlanContext<
-    crate::storage::rocksdb_storage::RocksDBStorage,
+    crate::storage::MemoryStorage,
     crate::query::context::managers::MemorySchemaManager,
     crate::query::context::managers::MemoryIndexManager,
 >;
 
 // 默认运行时上下文类型别名
 pub type DefaultRuntimeContext = RuntimeContext<
-    crate::storage::rocksdb_storage::RocksDBStorage,
+    crate::storage::MemoryStorage,
     crate::query::context::managers::MemorySchemaManager,
     crate::query::context::managers::MemoryIndexManager,
 >;

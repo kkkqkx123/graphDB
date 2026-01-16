@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::api::session::ClientSession;
 use crate::core::QueryPipelineManager;
-use crate::storage::RocksDBStorage;
+use crate::storage::StorageEngine;
 
 #[derive(Debug)]
 pub struct RequestContext {
@@ -24,24 +24,23 @@ pub struct AuthResponse {
     pub result: Result<(), String>,
 }
 
-pub struct QueryEngine {
-    storage: Arc<Mutex<RocksDBStorage>>,
-    pipeline_manager: QueryPipelineManager<RocksDBStorage>,
+pub struct QueryEngine<S: StorageEngine + 'static> {
+    storage: Arc<Mutex<S>>,
+    pipeline_manager: QueryPipelineManager<S>,
 }
 
-impl QueryEngine {
-    pub fn new(storage: Arc<RocksDBStorage>) -> Self {
-        let storage_clone = Arc::new(Mutex::new((*storage).clone()));
+impl<S: StorageEngine + Clone + 'static> QueryEngine<S> {
+    pub fn new(storage: Arc<S>) -> Self {
+        let storage_mutex = Arc::new(Mutex::new((*storage).clone()));
         Self {
-            storage: Arc::clone(&storage_clone),
-            pipeline_manager: QueryPipelineManager::new(storage_clone),
+            storage: Arc::clone(&storage_mutex),
+            pipeline_manager: QueryPipelineManager::new(storage_mutex),
         }
     }
 
     pub async fn execute(&mut self, rctx: RequestContext) -> ExecutionResponse {
         let start_time = std::time::Instant::now();
 
-        // 使用新的查询管道管理器执行查询
         match self.pipeline_manager.execute_query(&rctx.statement).await {
             Ok(result) => ExecutionResponse {
                 result: Ok(format!("{:?}", result)),
@@ -54,7 +53,7 @@ impl QueryEngine {
         }
     }
 
-    pub fn get_storage(&self) -> Arc<Mutex<RocksDBStorage>> {
+    pub fn get_storage(&self) -> Arc<Mutex<S>> {
         Arc::clone(&self.storage)
     }
 }
@@ -64,61 +63,22 @@ mod tests {
     use super::*;
     use crate::api::session::client_session::{ClientSession, Session};
     use crate::config::Config;
+    use crate::storage::MemoryStorage;
     use std::sync::Arc;
-    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_query_engine_creation() {
-        let temp_dir = TempDir::new().expect("Failed to create temp directory");
-        let config = Config {
-            host: "127.0.0.1".to_string(),
-            port: 9669,
-            storage_path: temp_dir
-                .path()
-                .to_str()
-                .expect("Failed to convert temp path to string")
-                .to_string(),
-            cache_size: 1000,
-            enable_cache: true,
-            max_connections: 10,
-            transaction_timeout: 30,
-            log_level: "info".to_string(),
-        };
-
-        let storage = Arc::new(
-            RocksDBStorage::new(&config.storage_path).expect("Failed to create RocksDB storage"),
-        );
+        let storage = Arc::new(MemoryStorage::new().expect("Failed to create Memory storage"));
         let _query_engine = QueryEngine::new(storage);
 
-        // We can't directly check the data dir, so we'll just test that storage initialization succeeded
-        // by ensuring no panic occurred during construction
-        assert!(true); // Test passes as long as we reached this point without panicking
+        assert!(true);
     }
 
     #[tokio::test]
     async fn test_query_engine_execute() {
-        let temp_dir = TempDir::new().expect("Failed to create temp directory");
-        let config = Config {
-            host: "127.0.0.1".to_string(),
-            port: 9669,
-            storage_path: temp_dir
-                .path()
-                .to_str()
-                .expect("Failed to convert temp path to string")
-                .to_string(),
-            cache_size: 1000,
-            enable_cache: true,
-            max_connections: 10,
-            transaction_timeout: 30,
-            log_level: "info".to_string(),
-        };
-
-        let storage = Arc::new(
-            RocksDBStorage::new(&config.storage_path).expect("Failed to create RocksDB storage"),
-        );
+        let storage = Arc::new(MemoryStorage::new().expect("Failed to create Memory storage"));
         let mut query_engine = QueryEngine::new(storage);
 
-        // Create a dummy session
         let session = Session {
             session_id: 123,
             user_name: "testuser".to_string(),
@@ -136,10 +96,6 @@ mod tests {
         };
 
         let _response = query_engine.execute(request_context).await;
-        // The query will likely fail with an unsupported statement, but we want to ensure
-        // the execution path works without panicking
-        // Note: This particular query might fail since our parser doesn't support it,
-        // but that's expected behavior
     }
 
     #[tokio::test]
