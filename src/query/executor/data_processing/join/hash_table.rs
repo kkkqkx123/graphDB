@@ -380,9 +380,10 @@ impl HashTable {
     pub fn new(memory_tracker: Arc<MemoryTracker>, config: HashTableConfig) -> DBResult<Self> {
         let initial_capacity = config.initial_capacity;
 
+        let spill_dir = config.spill_dir.as_ref().expect("Spill directory should exist when spill is enabled");
         let spill_manager = if config.spill_dir.is_some() && config.memory_config.spill_enabled {
             Some(SpillManager::new(
-                config.spill_dir.as_ref().unwrap(),
+                spill_dir,
                 config.max_spill_file_size,
             )?)
         } else {
@@ -533,12 +534,12 @@ impl HashTable {
 
     /// 获取统计信息
     pub fn get_stats(&self) -> HashTableStats {
-        self.stats.lock().unwrap().clone()
+        self.stats.lock().expect("Failed to acquire lock on hash table stats").clone()
     }
 
     /// 获取内存使用量
     pub fn memory_usage(&self) -> usize {
-        self.stats.lock().unwrap().memory_usage
+        self.stats.lock().expect("Failed to acquire lock on hash table stats").memory_usage
     }
 
     /// 清理资源
@@ -665,13 +666,13 @@ mod tests {
             config.memory_config.clone(),
         ));
 
-        let mut hash_table = HashTable::new(memory_tracker, config).unwrap();
+        let mut hash_table = HashTable::new(memory_tracker, config).expect("HashTable::new should succeed");
 
         // 插入测试数据
         let key = JoinKey::new(vec![Value::Int(1)]);
         let entry = HashTableEntry::new(vec![Value::String("test".to_string())], 0);
 
-        hash_table.insert(key.clone(), entry).unwrap();
+        hash_table.insert(key.clone(), entry).expect("insert should succeed");
 
         // 探测测试
         let results = hash_table.probe(&key);
@@ -684,7 +685,7 @@ mod tests {
         assert_eq!(stats.memory_entries, 1);
 
         // 清理
-        hash_table.cleanup().unwrap();
+        hash_table.cleanup().expect("cleanup should succeed");
     }
 
     #[tokio::test]
@@ -698,13 +699,13 @@ mod tests {
             config.memory_config.clone(),
         ));
 
-        let mut hash_table = HashTable::new(memory_tracker, config).unwrap();
+        let mut hash_table = HashTable::new(memory_tracker, config).expect("HashTable::new should succeed");
 
         // 这里可以添加内存限制测试逻辑
         // 例如尝试插入大量数据并验证行为
 
         // 清理
-        hash_table.cleanup().unwrap();
+        hash_table.cleanup().expect("cleanup should succeed");
     }
 }
 

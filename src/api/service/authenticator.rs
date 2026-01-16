@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn test_remove_user() {
         let auth = PasswordAuthenticator::new();
-        auth.add_user("testuser".to_string(), "testpass".to_string()).unwrap();
+        auth.add_user("testuser".to_string(), "testpass".to_string()).expect("add_user should succeed");
         assert!(auth.verify_password("testuser", "testpass"));
 
         let result = auth.remove_user("testuser");

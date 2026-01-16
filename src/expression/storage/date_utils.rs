@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_timestamp_to_datetime_one_day() {
         let (year, month, day, hour, minute, second, microsecond) = timestamp_to_datetime(86400);
-        assert_eq!((year, month, day, hour, minute, second, microsecond), (1971, 1, 1, 0, 0, 0, 0));
+        assert_eq!((year, month, day, hour, minute, second, microsecond), (1970, 1, 2, 0, 0, 0, 0));
     }
 
     #[test]

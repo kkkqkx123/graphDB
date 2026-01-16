@@ -613,7 +613,7 @@ mod tests {
     use super::*;
     use crate::config::test_config::test_config;
     use crate::core::value::{DataSet, Value};
-    use crate::storage::rocksdb_storage::RocksDBStorage;
+    use crate::storage::MockStorage;
 
     fn create_test_dataset() -> DataSet {
         let mut data_set = DataSet::new();
@@ -687,14 +687,12 @@ mod tests {
 
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_column_index_sort");
-        let storage = Arc::new(Mutex::new(
-            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
-        ));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();
+        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
 
         // 执行排序
-        executor.execute_sort(&mut data_set).unwrap();
+        executor.execute_sort(&mut data_set).expect("execute_sort should succeed");
 
         // 验证排序结果（升序：分数从低到高）
         assert_eq!(data_set.rows.len(), 5);
@@ -714,14 +712,12 @@ mod tests {
 
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_db_sort_2");
-        let storage = Arc::new(Mutex::new(
-            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
-        ));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, Some(3), config).unwrap();
+        let mut executor = SortExecutor::new(1, storage, sort_keys, Some(3), config).expect("SortExecutor::new should succeed");
 
         // 执行排序
-        executor.execute_sort(&mut data_set).unwrap();
+        executor.execute_sort(&mut data_set).expect("execute_sort should succeed");
 
         // 验证Top-N结果
         assert_eq!(data_set.rows.len(), 3); // 只保留前3个
@@ -741,14 +737,12 @@ mod tests {
 
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_column_index_top_n");
-        let storage = Arc::new(Mutex::new(
-            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
-        ));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, Some(2), config).unwrap();
+        let mut executor = SortExecutor::new(1, storage, sort_keys, Some(2), config).expect("SortExecutor::new should succeed");
 
         // 执行排序
-        executor.execute_sort(&mut data_set).unwrap();
+        executor.execute_sort(&mut data_set).expect("execute_sort should succeed");
 
         // 验证Top-N结果
         assert_eq!(data_set.rows.len(), 2); // 只保留前2个
@@ -770,13 +764,10 @@ mod tests {
 
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_multi_column");
-        let storage = Arc::new(Mutex::new(
-            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
-        ));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();
-
-        executor.execute_sort(&mut data_set).unwrap();
+        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
+        executor.execute_sort(&mut data_set).expect("execute_sort should succeed");
 
         // 验证多列排序结果
         assert_eq!(data_set.rows.len(), 5);
@@ -802,13 +793,11 @@ mod tests {
         let config = SortConfig::default();
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_error_handling");
-        let storage = Arc::new(Mutex::new(
-            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
-        ));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();
+        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
 
-        // 应该会返回错误，因为列索引超出范围
+        // 验证多列排序结果应该会返回错误，因为列索引超出范围
         let result = executor.execute_sort(&mut data_set);
         assert!(result.is_err());
 
@@ -825,17 +814,15 @@ mod tests {
         let config = SortConfig::default();
         let test_config = test_config();
         let db_path = test_config.test_db_path("test_column_comparison");
-        let storage = Arc::new(Mutex::new(
-            RocksDBStorage::new(db_path.to_str().unwrap()).unwrap(),
-        ));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
-        let executor = SortExecutor::new(1, storage, sort_keys, None, config).unwrap();
+        let executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
 
         // 测试列索引比较功能
         let row1 = &data_set.rows[0]; // Alice: 85.5
         let row2 = &data_set.rows[1]; // Bob: 92.0
 
-        let result = executor.compare_by_column_indices(row1, row2).unwrap();
+        let result = executor.compare_by_column_indices(row1, row2).expect("compare_by_column_indices should succeed");
         assert_eq!(result, Ordering::Less); // 85.5 < 92.0
     }
 }

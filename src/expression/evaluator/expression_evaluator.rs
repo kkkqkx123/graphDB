@@ -176,6 +176,11 @@ impl ExpressionEvaluator {
                 CollectionOperationEvaluator.eval_property_access(&object_value, property)
             }
 
+            // 输入属性访问
+            Expression::InputProperty(name) => context
+                .get_variable(name)
+                .ok_or_else(|| ExpressionError::undefined_variable(name)),
+
             // 类型转换
             Expression::TypeCast { expr, target_type } => {
                 let value = self.visit_with_context(expr, context)?;
@@ -343,6 +348,7 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
                 let object_value = self.visit(object)?;
                 CollectionOperationEvaluator.eval_property_access(&object_value, property)
             }
+            Expression::InputProperty(name) => Err(ExpressionError::undefined_variable(name)),
             Expression::TypeCast { expr, target_type } => {
                 let value = self.visit(expr)?;
                 Self::eval_type_cast(&value, target_type)

@@ -55,39 +55,47 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
 
     /// 处理输入数据并应用限制
     async fn process_input(&mut self) -> DBResult<DataSet> {
+        // 优先使用 input_executor
         if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute().await?;
-
-            match input_result {
-                ExecutionResult::DataSet(mut data_set) => {
-                    self.apply_limits(&mut data_set)?;
-                    Ok(data_set)
-                }
-                ExecutionResult::Values(values) => {
-                    let dataset = self.apply_values_limit(values)?;
-                    Ok(dataset)
-                }
-                ExecutionResult::Vertices(vertices) => {
-                    let dataset = self.apply_vertices_limit(vertices)?;
-                    Ok(dataset)
-                }
-                ExecutionResult::Edges(edges) => {
-                    let dataset = self.apply_edges_limit(edges)?;
-                    Ok(dataset)
-                }
-                _ => Err(DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "Limit executor expects DataSet, Values, Vertices, or Edges input"
-                            .to_string(),
-                    ),
-                )),
-            }
+            self.apply_limits_to_input(input_result)
+        } else if let Some(input) = &self.base.input {
+            // 使用 base.input 作为备选
+            self.apply_limits_to_input(input.clone())
         } else {
             Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(
-                    "Limit executor requires input executor".to_string(),
+                    "Limit executor requires input".to_string(),
                 ),
             ))
+        }
+    }
+
+    /// 对输入应用限制
+    fn apply_limits_to_input(&self, input: ExecutionResult) -> DBResult<DataSet> {
+        match input {
+            ExecutionResult::DataSet(mut data_set) => {
+                self.apply_limits(&mut data_set)?;
+                Ok(data_set)
+            }
+            ExecutionResult::Values(values) => {
+                let dataset = self.apply_values_limit(values)?;
+                Ok(dataset)
+            }
+            ExecutionResult::Vertices(vertices) => {
+                let dataset = self.apply_vertices_limit(vertices)?;
+                Ok(dataset)
+            }
+            ExecutionResult::Edges(edges) => {
+                let dataset = self.apply_edges_limit(edges)?;
+                Ok(dataset)
+            }
+            _ => Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(
+                    "Limit executor expects DataSet, Values, Vertices, or Edges input"
+                        .to_string(),
+                ),
+            )),
         }
     }
 
@@ -189,7 +197,10 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for LimitExecutor<S> {
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
-        ResultProcessor::set_input(self, input);
+        // 如果 input_executor 为空且 base.input 未设置，则设置 base.input
+        if self.input_executor.is_none() && self.base.input.is_none() {
+            ResultProcessor::set_input(self, input);
+        }
         let dataset = self.process_input().await?;
         Ok(ExecutionResult::DataSet(dataset))
     }

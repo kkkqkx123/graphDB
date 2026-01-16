@@ -1,6 +1,6 @@
 //! 错误处理测试用例
 //!
-//! 这些测试用例验证了 unwrap() 改进后的错误处理是否正常工作
+//!
 
 use graphdb::core::error::DBError;
 use graphdb::utils::error_handling::*;

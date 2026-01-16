@@ -43,7 +43,13 @@ impl VariableValidator {
         }
 
         // 检查变量名格式
-        if !var.chars().next().unwrap().is_alphabetic() {
+        let first_char = var.chars().next().ok_or_else(|| {
+            ValidationError::new(
+                "变量名不能为空".to_string(),
+                ValidationErrorType::SyntaxError,
+            )
+        })?;
+        if !first_char.is_alphabetic() {
             return Err(ValidationError::new(
                 format!("变量名必须以字母开头: {:?}", var),
                 ValidationErrorType::SyntaxError,

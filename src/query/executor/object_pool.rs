@@ -5,6 +5,7 @@
 
 use crate::query::executor::traits::Executor;
 use crate::storage::StorageEngine;
+use crate::utils::error_handling::safe_lock;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -161,50 +162,57 @@ impl<S: StorageEngine + 'static> ThreadSafeExecutorPool<S> {
 
     /// 从对象池获取执行器
     pub fn acquire(&self, executor_type: &str) -> Option<Box<dyn Executor<S>>> {
-        let mut pool = self.inner.lock().unwrap();
+        let mut pool = safe_lock(&self.inner).ok()?;
         pool.acquire(executor_type)
     }
 
     /// 将执行器释放回对象池
     pub fn release(&self, executor_type: &str, executor: Box<dyn Executor<S>>) {
-        let mut pool = self.inner.lock().unwrap();
-        pool.release(executor_type, executor);
+        if let Ok(mut pool) = safe_lock(&self.inner) {
+            pool.release(executor_type, executor);
+        }
     }
 
     /// 清空对象池
     pub fn clear(&self) {
-        let mut pool = self.inner.lock().unwrap();
-        pool.clear();
+        if let Ok(mut pool) = safe_lock(&self.inner) {
+            pool.clear();
+        }
     }
 
     /// 获取对象池统计信息
     pub fn stats(&self) -> PoolStats {
-        let pool = self.inner.lock().unwrap();
-        pool.stats().clone()
+        safe_lock(&self.inner)
+            .map(|pool| pool.stats().clone())
+            .unwrap_or_else(|_| PoolStats::default())
     }
 
     /// 获取对象池配置
     pub fn config(&self) -> ObjectPoolConfig {
-        let pool = self.inner.lock().unwrap();
-        pool.config().clone()
+        safe_lock(&self.inner)
+            .map(|pool| pool.config().clone())
+            .unwrap_or_else(|_| ObjectPoolConfig::default())
     }
 
     /// 更新对象池配置
     pub fn set_config(&self, config: ObjectPoolConfig) {
-        let mut pool = self.inner.lock().unwrap();
-        pool.set_config(config);
+        if let Ok(mut pool) = safe_lock(&self.inner) {
+            pool.set_config(config);
+        }
     }
 
     /// 获取指定类型的池大小
     pub fn pool_size(&self, executor_type: &str) -> usize {
-        let pool = self.inner.lock().unwrap();
-        pool.pool_size(executor_type)
+        safe_lock(&self.inner)
+            .map(|pool| pool.pool_size(executor_type))
+            .unwrap_or(0)
     }
 
     /// 获取总池大小
     pub fn total_size(&self) -> usize {
-        let pool = self.inner.lock().unwrap();
-        pool.total_size()
+        safe_lock(&self.inner)
+            .map(|pool| pool.total_size())
+            .unwrap_or(0)
     }
 }
 

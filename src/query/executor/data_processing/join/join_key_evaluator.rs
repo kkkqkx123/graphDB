@@ -98,7 +98,7 @@ mod tests {
             object: Box::new(Expression::Variable("person".to_string())),
             property: "age".to_string(),
         };
-        let (object, property) = JoinKeyEvaluator::get_property_info(&prop_expr).unwrap();
+        let (object, property) = JoinKeyEvaluator::get_property_info(&prop_expr).expect("get_property_info should succeed");
         assert!(matches!(object, Expression::Variable(_)));
         assert_eq!(property, "age");
     }

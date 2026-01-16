@@ -519,16 +519,13 @@ mod tests {
     use crate::config::test_config::test_config;
     use crate::core::Expression;
     use crate::core::Value;
-    use crate::storage::RocksDBStorage;
+    use crate::storage::MockStorage;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_rollup_apply_executor() {
         let config = test_config();
-        let storage = Arc::new(Mutex::new(
-            RocksDBStorage::new(config.test_db_path("test_db_rollup_apply"))
-                .expect("RocksDBStorage should be created successfully"),
-        ));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建左输入数据
         let left_values = vec![Value::Int(1), Value::Int(2)];

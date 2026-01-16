@@ -302,18 +302,17 @@ mod tests {
     #[test]
     fn test_unified_aggregate_function() {
         // 测试从字符串创建
-        let func = AggregateFunction::from_str("COUNT").unwrap();
+        let func = AggregateFunction::from_str("COUNT").expect("from_str should succeed");
         assert!(matches!(func, AggregateFunction::Count(_)));
 
-        let func = AggregateFunction::from_str("SUM").unwrap();
+        let func = AggregateFunction::from_str("SUM").expect("from_str should succeed");
         assert!(matches!(func, AggregateFunction::Sum(_)));
 
-        // 测试数值聚合函数检查
-        let sum_func = AggregateFunction::from_str_with_args("SUM", &["field".to_string()]).unwrap();
+        let sum_func = AggregateFunction::from_str_with_args("SUM", &["field".to_string()]).expect("from_str_with_args should succeed");
         assert!(sum_func.is_numeric());
         assert!(!sum_func.is_collection());
 
-        let collect_func = AggregateFunction::from_str_with_args("COLLECT", &["field".to_string()]).unwrap();
+        let collect_func = AggregateFunction::from_str_with_args("COLLECT", &["field".to_string()]).expect("from_str_with_args should succeed");
         assert!(!collect_func.is_numeric());
         assert!(collect_func.is_collection());
     }

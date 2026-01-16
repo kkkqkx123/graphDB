@@ -449,16 +449,13 @@ mod tests {
     use super::*;
     use crate::config::test_config::test_config;
     use crate::core::{Tag, Value, Vertex};
-    use crate::storage::RocksDBStorage;
+    use crate::storage::MockStorage;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_pattern_apply_executor() {
         let config = test_config();
-        let storage = Arc::new(Mutex::new(
-            RocksDBStorage::new(config.test_db_path("test_db_pattern_apply"))
-                .expect("RocksDBStorage should be created successfully"),
-        ));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建测试顶点
         let tag = Tag {

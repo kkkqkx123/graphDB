@@ -94,7 +94,7 @@ impl PlanNodeDescription {
         }
         self.description
             .as_mut()
-            .unwrap()
+            .expect("description should be Some after initialization")
             .push(Pair::new(key, value));
     }
 
@@ -125,7 +125,10 @@ impl PlanNodeDescription {
         if self.profiles.is_none() {
             self.profiles = Some(Vec::new());
         }
-        self.profiles.as_mut().unwrap().push(profile);
+        self.profiles
+            .as_mut()
+            .expect("profiles should be Some after initialization")
+            .push(profile);
     }
 }
 

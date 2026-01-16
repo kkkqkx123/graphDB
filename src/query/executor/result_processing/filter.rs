@@ -51,34 +51,42 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
     /// 处理输入数据并应用过滤条件
     async fn process_input(&mut self) -> DBResult<ExecutionResult> {
+        // 优先使用 input_executor
         if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute().await?;
-
-            match input_result {
-                ExecutionResult::DataSet(mut dataset) => {
-                    self.apply_filter(&mut dataset)?;
-                    Ok(ExecutionResult::DataSet(dataset))
-                }
-                ExecutionResult::Values(values) => {
-                    let filtered_values = self.filter_values(values)?;
-                    Ok(ExecutionResult::Values(filtered_values))
-                }
-                ExecutionResult::Vertices(vertices) => {
-                    let filtered_vertices = self.filter_vertices(vertices)?;
-                    Ok(ExecutionResult::Vertices(filtered_vertices))
-                }
-                ExecutionResult::Edges(edges) => {
-                    let filtered_edges = self.filter_edges(edges)?;
-                    Ok(ExecutionResult::Edges(filtered_edges))
-                }
-                _ => Ok(input_result),
-            }
+            self.filter_input(input_result)
+        } else if let Some(input) = &self.base.input {
+            // 使用 base.input 作为备选
+            self.filter_input(input.clone())
         } else {
             Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(
-                    "Filter executor requires input executor".to_string(),
+                    "Filter executor requires input".to_string(),
                 ),
             ))
+        }
+    }
+
+    /// 过滤输入数据
+    fn filter_input(&self, input: ExecutionResult) -> DBResult<ExecutionResult> {
+        match input {
+            ExecutionResult::DataSet(mut dataset) => {
+                self.apply_filter(&mut dataset)?;
+                Ok(ExecutionResult::DataSet(dataset))
+            }
+            ExecutionResult::Values(values) => {
+                let filtered_values = self.filter_values(values)?;
+                Ok(ExecutionResult::Values(filtered_values))
+            }
+            ExecutionResult::Vertices(vertices) => {
+                let filtered_vertices = self.filter_vertices(vertices)?;
+                Ok(ExecutionResult::Vertices(filtered_vertices))
+            }
+            ExecutionResult::Edges(edges) => {
+                let filtered_edges = self.filter_edges(edges)?;
+                Ok(ExecutionResult::Edges(filtered_edges))
+            }
+            _ => Ok(input),
         }
     }
 
@@ -110,11 +118,28 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 
         for row in &dataset.rows {
             let mut context = DefaultExpressionContext::new();
+
+            // 设置列名作为变量
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
                     context.set_variable(col_name.clone(), row[i].clone());
                 }
             }
+
+            // 设置 row 变量（包含整行数据）
+            let row_map: std::collections::HashMap<String, crate::core::Value> = dataset
+                .col_names
+                .iter()
+                .enumerate()
+                .filter_map(|(i, name)| {
+                    if i < row.len() {
+                        Some((name.clone(), row[i].clone()))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            context.set_variable("row".to_string(), crate::core::Value::Map(row_map));
 
             let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
                 .map_err(|e| {
@@ -254,7 +279,10 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for FilterExecutor<S> {
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
-        <Self as ResultProcessor<S>>::set_input(self, input.clone());
+        // 如果 input_executor 为空且 base.input 未设置，则设置 base.input
+        if self.input_executor.is_none() && self.base.input.is_none() {
+            <Self as ResultProcessor<S>>::set_input(self, input.clone());
+        }
         self.process_input().await
     }
 

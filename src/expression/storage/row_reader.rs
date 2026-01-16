@@ -272,10 +272,10 @@ mod tests {
         let mut test_data = Vec::new();
 
         // age字段：8字节整数
-        test_data.extend_from_slice(&25i64.to_be_bytes());
+        test_data.extend_from_slice(&25i64.to_le_bytes());
 
         // score字段：4字节浮点数
-        test_data.extend_from_slice(&95.5f32.to_be_bytes());
+        test_data.extend_from_slice(&95.5f32.to_le_bytes());
 
         // 创建RowReaderWrapper
         let reader = RowReaderWrapper::new(test_data, schema)

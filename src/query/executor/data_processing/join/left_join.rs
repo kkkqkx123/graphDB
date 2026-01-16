@@ -372,8 +372,8 @@ mod tests {
             storage,
             "left".to_string(),
             "right".to_string(),
-            vec![crate::core::Expression::Variable("0".to_string())], // 左表第0列作为键
-            vec![crate::core::Expression::Variable("0".to_string())], // 右表第0列作为键
+            vec![crate::core::Expression::Variable("id".to_string())], // 左表id列作为键
+            vec![crate::core::Expression::Variable("id".to_string())], // 右表id列作为键
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
         );
 

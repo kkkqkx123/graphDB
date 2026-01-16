@@ -134,13 +134,8 @@ where
 
     /// 添加元素
     pub fn push(&mut self, value: T) -> DBResult<()> {
-        // 检查是否需要扩容
-        if self.inner.len() == self.inner.capacity() {
-            let new_capacity = self.inner.capacity() * 2;
-            let additional_size = new_capacity * self.element_size;
-            self.tracker.allocate(additional_size)?;
-        }
-
+        // 为新元素分配内存
+        self.tracker.allocate(self.element_size)?;
         self.inner.push(value);
         Ok(())
     }
@@ -216,12 +211,12 @@ impl MemoryManager {
 
     /// 获取内存统计
     pub fn get_stats(&self) -> MemoryStats {
-        self.stats.lock().unwrap().clone()
+        self.stats.lock().expect("Failed to acquire lock on memory stats").clone()
     }
 
     /// 记录分配
     pub fn record_allocation(&self, size: usize) {
-        let mut stats = self.stats.lock().unwrap();
+        let mut stats = self.stats.lock().expect("Failed to acquire lock on memory stats");
         stats.allocation_count += 1;
         stats.current_usage += size;
         if stats.current_usage > stats.peak_usage {
@@ -231,7 +226,7 @@ impl MemoryManager {
 
     /// 记录释放
     pub fn record_deallocation(&self, size: usize) {
-        let mut stats = self.stats.lock().unwrap();
+        let mut stats = self.stats.lock().expect("Failed to acquire lock on memory stats");
         stats.deallocation_count += 1;
         stats.current_usage = stats.current_usage.saturating_sub(size);
     }
@@ -267,11 +262,11 @@ mod tests {
 
         assert!(!tracker.should_spill());
 
-        tracker.allocate(600).unwrap();
-        assert!(tracker.should_spill()); // 60% < 70%，但接近阈值
+        tracker.allocate(600).expect("allocation should succeed");
+        assert!(!tracker.should_spill()); // 60% < 70%，不应该溢出
 
-        tracker.allocate(100).unwrap();
-        assert!(tracker.should_spill()); // 70% >= 70%
+        tracker.allocate(100).expect("allocation should succeed");
+        assert!(tracker.should_spill()); // 70% >= 70%，应该溢出
     }
 
     #[test]
@@ -281,13 +276,13 @@ mod tests {
         let mut vec = TrackedVec::<i32>::new(tracker.clone());
 
         // 测试基本操作
-        vec.push(42).unwrap();
-        vec.push(43).unwrap();
+        vec.push(42).expect("push should succeed");
+        vec.push(43).expect("push should succeed");
 
         assert_eq!(vec.len(), 2);
         assert_eq!(vec.as_slice(), &[42, 43]);
 
-        // 测试内存跟踪
+        // 测试内存跟踪（跟踪容量而不是长度）
         let expected_size = 2 * std::mem::size_of::<i32>();
         assert_eq!(tracker.current_usage(), expected_size);
 

@@ -372,11 +372,18 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for DedupExecutor<S> {
-    async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
-        <Self as ResultProcessor<S>>::set_input(self, input.clone());
-
+    async fn process(&mut self, _input: ExecutionResult) -> DBResult<ExecutionResult> {
         // 重置内存使用量
         self.reset_memory_usage();
+
+        // 从 input_executor 或 base.input 获取输入
+        let input = if let Some(ref mut input_exec) = self.input_executor {
+            input_exec.execute().await?
+        } else if let Some(input) = &self.base.input {
+            input.clone()
+        } else {
+            return Ok(ExecutionResult::Values(Vec::new()));
+        };
 
         // 执行去重操作
         self.execute_dedup(input).await.map_err(|e| {

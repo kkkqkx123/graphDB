@@ -88,8 +88,10 @@ impl RocksDBStorage {
         let db = DB::open_cf_descriptors(&db_opts, &db_path, cfs)
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        let vertex_cache = Arc::new(Mutex::new(LruCache::new(std::num::NonZeroUsize::new(1000).unwrap())));
-        let edge_cache = Arc::new(Mutex::new(LruCache::new(std::num::NonZeroUsize::new(1000).unwrap())));
+        let vertex_cache_size = std::num::NonZeroUsize::new(1000).expect("Failed to create NonZeroUsize for vertex cache");
+        let edge_cache_size = std::num::NonZeroUsize::new(1000).expect("Failed to create NonZeroUsize for edge cache");
+        let vertex_cache = Arc::new(Mutex::new(LruCache::new(vertex_cache_size)));
+        let edge_cache = Arc::new(Mutex::new(LruCache::new(edge_cache_size)));
         let active_transactions = Arc::new(Mutex::new(HashMap::new()));
 
         Ok(Self {

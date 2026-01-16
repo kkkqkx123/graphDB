@@ -152,11 +152,11 @@ mod tests {
             ],
         );
 
-        // 测试包含标签的表达式
+        // 测试包含标签的表达式 - "user" IN tags
         let expr = Expression::binary(
-            Expression::variable("tags".to_string()),
+            Expression::literal("user".to_string()),
             BinaryOperator::In,
-            Expression::list(vec![Expression::literal("user".to_string())]),
+            Expression::variable("tags".to_string()),
         );
 
         assert!(TagFilterProcessor::process_tag_filter(&expr, &vertex));

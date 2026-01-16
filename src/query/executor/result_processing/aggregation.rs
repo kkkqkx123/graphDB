@@ -68,7 +68,11 @@ impl AggregateFunctionSpec {
     }
 
     pub fn avg(field: String) -> Self {
-        Self::new(AggregateFunction::Avg(field))
+        Self {
+            function: AggregateFunction::Avg(field.clone()),
+            field: Some(field),
+            distinct: false,
+        }
     }
 
     pub fn max(field: String) -> Self {
@@ -326,6 +330,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
 
     /// 处理输入数据并执行聚合
     async fn process_input(&mut self) -> DBResult<crate::core::value::DataSet> {
+        // 优先使用 input_executor
         if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute().await?;
 
@@ -336,6 +341,16 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                         "Aggregate executor expects DataSet input".to_string(),
                     ),
                 )),
+            }
+        } else if let Some(input) = &self.base.input {
+            // 使用 base.input 作为备选
+            match input {
+                ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset.clone()).await,
+                _ => Err(crate::core::error::DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "Aggregate executor expects DataSet input".to_string(),
+                    ),
+                ))
             }
         } else {
             Err(crate::core::error::DBError::Query(
@@ -989,19 +1004,13 @@ mod tests {
 
         // 创建聚合执行器 (按部门分组，计算平均薪资)
         let aggregate_functions = vec![AggregateFunctionSpec::avg("salary".to_string())];
-        let group_keys = vec![Expression::Property {
-            object: Box::new(Expression::Variable("row".to_string())),
-            property: "department".to_string(),
-        }];
+        let group_keys = vec![Expression::variable("department")];
 
         let mut executor = AggregateExecutor::new(1, storage, aggregate_functions, group_keys);
 
-        // 设置输入数据
-        ResultProcessor::set_input(&mut executor, ExecutionResult::DataSet(dataset));
-
         // 执行聚合
         let result = executor
-            .process(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+            .process(ExecutionResult::DataSet(dataset))
             .await
             .expect("Failed to process aggregation");
 

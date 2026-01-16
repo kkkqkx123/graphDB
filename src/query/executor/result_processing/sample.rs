@@ -70,34 +70,42 @@ impl<S: StorageEngine + Send + 'static> SampleExecutor<S> {
 
     /// 处理输入数据并执行采样
     async fn process_input(&mut self) -> DBResult<ExecutionResult> {
+        // 优先使用 input_executor
         if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute().await?;
-
-            match input_result {
-                ExecutionResult::DataSet(dataset) => {
-                    let sampled_dataset = self.sample_dataset(dataset)?;
-                    Ok(ExecutionResult::DataSet(sampled_dataset))
-                }
-                ExecutionResult::Values(values) => {
-                    let sampled_values = self.sample_values(values)?;
-                    Ok(ExecutionResult::Values(sampled_values))
-                }
-                ExecutionResult::Vertices(vertices) => {
-                    let sampled_vertices = self.sample_vertices(vertices)?;
-                    Ok(ExecutionResult::Vertices(sampled_vertices))
-                }
-                ExecutionResult::Edges(edges) => {
-                    let sampled_edges = self.sample_edges(edges)?;
-                    Ok(ExecutionResult::Edges(sampled_edges))
-                }
-                _ => Ok(input_result),
-            }
+            self.sample_input(input_result)
+        } else if let Some(input) = &self.base.input {
+            // 使用 base.input 作为备选
+            self.sample_input(input.clone())
         } else {
             Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(
-                    "Sample executor requires input executor".to_string(),
+                    "Sample executor requires input".to_string(),
                 ),
             ))
+        }
+    }
+
+    /// 对输入执行采样
+    fn sample_input(&self, input: ExecutionResult) -> DBResult<ExecutionResult> {
+        match input {
+            ExecutionResult::DataSet(dataset) => {
+                let sampled_dataset = self.sample_dataset(dataset)?;
+                Ok(ExecutionResult::DataSet(sampled_dataset))
+            }
+            ExecutionResult::Values(values) => {
+                let sampled_values = self.sample_values(values)?;
+                Ok(ExecutionResult::Values(sampled_values))
+            }
+            ExecutionResult::Vertices(vertices) => {
+                let sampled_vertices = self.sample_vertices(vertices)?;
+                Ok(ExecutionResult::Vertices(sampled_vertices))
+            }
+            ExecutionResult::Edges(edges) => {
+                let sampled_edges = self.sample_edges(edges)?;
+                Ok(ExecutionResult::Edges(sampled_edges))
+            }
+            _ => Ok(input),
         }
     }
 
@@ -397,7 +405,10 @@ impl<S: StorageEngine + Send + 'static> SampleExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for SampleExecutor<S> {
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
-        <Self as ResultProcessor<S>>::set_input(self, input.clone());
+        // 如果 input_executor 为空且 base.input 未设置，则设置 base.input
+        if self.input_executor.is_none() && self.base.input.is_none() {
+            <Self as ResultProcessor<S>>::set_input(self, input.clone());
+        }
         self.process_input().await
     }
 

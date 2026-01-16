@@ -92,7 +92,7 @@ impl StatsManager {
 
     pub fn get_value(&self, metric_type: MetricType) -> Option<u64> {
         let metrics = self.metrics.read().expect("获取指标读锁失败");
-        metrics.get(&metric_type).map(|v| v.value)
+        Some(metrics.get(&metric_type).map(|v| v.value).unwrap_or(0))
     }
 
     pub fn get_space_value(&self, space_name: &str, metric_type: MetricType) -> Option<u64> {
@@ -259,8 +259,8 @@ mod tests {
     #[test]
     fn test_get_all_space_metrics() {
         let stats = StatsManager::new();
-        stats.add_space_metric("test_space".to_string(), MetricType::NumQueries);
-        stats.add_space_metric("test_space".to_string(), MetricType::NumActiveQueries);
+        stats.add_space_metric("test_space", MetricType::NumQueries);
+        stats.add_space_metric("test_space", MetricType::NumActiveQueries);
 
         let space_metrics = stats.get_all_space_metrics("test_space");
         assert!(space_metrics.is_some());
@@ -296,8 +296,8 @@ mod tests {
     #[test]
     fn test_reset_space_metrics() {
         let stats = StatsManager::new();
-        stats.add_space_metric("test_space".to_string(), MetricType::NumQueries);
-        stats.add_space_metric("test_space".to_string(), MetricType::NumActiveQueries);
+        stats.add_space_metric("test_space", MetricType::NumQueries);
+        stats.add_space_metric("test_space", MetricType::NumActiveQueries);
 
         stats.reset_space_metrics("test_space");
 

@@ -411,15 +411,15 @@ mod tests {
 
         let part1_input = context.get_part_input_variables("part1");
         assert!(part1_input.is_some());
-        assert!(part1_input.unwrap().is_empty());
+        assert!(part1_input.expect("part1_input should be Some").is_empty());
 
         let part1_output = context.get_part_output_variables("part1");
         assert!(part1_output.is_some());
-        assert!(part1_output.unwrap().contains("a"));
+        assert!(part1_output.expect("part1_output should be Some").contains("a"));
 
         let part2_input = context.get_part_input_variables("part2");
         assert!(part2_input.is_some());
-        assert!(part2_input.unwrap().contains("a"));
+        assert!(part2_input.expect("part2_input should be Some").contains("a"));
     }
 
     #[test]
@@ -431,7 +431,8 @@ mod tests {
 
         let refs = context.get_clause_references("match_clause");
         assert!(refs.is_some());
-        assert_eq!(refs.unwrap().len(), 1);
-        assert_eq!(refs.unwrap()[0], "where_clause");
+        let refs = refs.expect("refs should be Some");
+        assert_eq!(refs.len(), 1);
+        assert_eq!(refs[0], "where_clause");
     }
 }

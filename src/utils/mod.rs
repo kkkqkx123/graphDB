@@ -10,10 +10,6 @@ pub use object_pool::ObjectPool;
 pub mod logger;
 pub use logger::Logger;
 
-// 键值构建器模块
-pub mod kv_builder;
-pub use kv_builder::{build_key_value_map, from_keys_and_values, merge_key_value_maps, to_pairs};
-
 // 字符串工具模块
 pub mod string_utils;
 pub use string_utils::{

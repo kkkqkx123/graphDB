@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TagSchema {
     pub name: String,
     pub space_id: i64,
@@ -10,7 +10,7 @@ pub struct TagSchema {
     pub properties: Vec<PropertySchema>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EdgeTypeSchema {
     pub name: String,
     pub space_id: i64,
@@ -18,7 +18,7 @@ pub struct EdgeTypeSchema {
     pub properties: Vec<PropertySchema>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PropertySchema {
     pub name: String,
     pub data_type: DataType,
@@ -254,7 +254,7 @@ mod tests {
                 tag_id: 1,
                 properties: vec![],
             })
-            .unwrap();
+            .expect("add_tag should succeed");
 
         schema_manager
             .add_tag(TagSchema {
@@ -263,7 +263,7 @@ mod tests {
                 tag_id: 2,
                 properties: vec![],
             })
-            .unwrap();
+            .expect("add_tag should succeed");
 
         let tags = schema_manager.get_all_tags(1);
         assert_eq!(tags.len(), 2);
@@ -280,7 +280,7 @@ mod tests {
             properties: vec![],
         };
 
-        schema_manager.add_tag(tag_schema.clone()).unwrap();
+        schema_manager.add_tag(tag_schema.clone()).expect("add_tag should succeed");
         assert!(schema_manager.get_tag(1, 1).is_some());
 
         let result = schema_manager.remove_tag(1, 1);
@@ -302,7 +302,7 @@ mod tests {
                 tag_id: 1,
                 properties: vec![],
             })
-            .unwrap();
+            .expect("add_tag should succeed");
 
         assert!(schema_manager.tag_exists(1, "user"));
         assert!(!schema_manager.tag_exists(2, "user"));
@@ -321,7 +321,7 @@ mod tests {
                 edge_type_id: 1,
                 properties: vec![],
             })
-            .unwrap();
+            .expect("add_edge_type should succeed");
 
         assert!(schema_manager.edge_type_exists(1, "follows"));
         assert!(!schema_manager.edge_type_exists(2, "follows"));

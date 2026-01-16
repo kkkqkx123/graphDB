@@ -1,6 +1,6 @@
 //! 错误处理辅助函数
 //!
-//! 提供安全的锁操作和错误处理辅助函数，替代 unwrap() 的使用
+//! 提供安全的锁操作和错误处理辅助函数
 
 use crate::core::error::{DBError, LockError};
 use std::sync::{Mutex, RwLock};

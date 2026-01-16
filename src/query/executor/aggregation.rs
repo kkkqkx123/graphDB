@@ -484,8 +484,8 @@ mod tests {
     #[tokio::test]
     async fn test_aggregation_executor_creation() {
         let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().unwrap().to_string();
-        let storage = Arc::new(Mutex::new(crate::storage::rocksdb_storage::RocksDBStorage::new(&test_path).unwrap()));
+        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().expect("temp_dir should be valid unicode").to_string();
+        let storage = Arc::new(Mutex::new(crate::storage::MockStorage));
         let agg_funcs = vec![AggregateFunction::Count(None)];
         let group_by_keys = vec!["category".to_string()];
 
@@ -516,25 +516,25 @@ mod tests {
         );
 
         let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().unwrap().to_string();
+        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().expect("temp_dir should be valid unicode").to_string();
         let executor = AggregationExecutor {
-            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::rocksdb_storage::RocksDBStorage::new(&test_path).unwrap()))),
+            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::MockStorage))),
             aggregation_functions: vec![],
             group_by_keys: vec![],
             filter_condition: None,
         };
 
         // 测试从顶点提取age字段
-        let result = executor.extract_field_value(&Value::Vertex(Box::new(vertex)), "age").unwrap();
+        let result = executor.extract_field_value(&Value::Vertex(Box::new(vertex)), "age").expect("extract_field_value should succeed");
         assert_eq!(result, Value::Int(25));
     }
 
     #[test]
     fn test_calculate_sum() {
         let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().unwrap().to_string();
+        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().expect("temp_dir should be valid unicode").to_string();
         let executor = AggregationExecutor {
-            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::rocksdb_storage::RocksDBStorage::new(&test_path).unwrap()))),
+            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::MockStorage))),
             aggregation_functions: vec![],
             group_by_keys: vec![],
             filter_condition: None,
@@ -561,9 +561,9 @@ mod tests {
     #[test]
     fn test_calculate_count() {
         let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().unwrap().to_string();
+        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().expect("temp_dir should be valid unicode").to_string();
         let executor = AggregationExecutor {
-            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::rocksdb_storage::RocksDBStorage::new(&test_path).unwrap()))),
+            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::MockStorage))),
             aggregation_functions: vec![],
             group_by_keys: vec![],
             filter_condition: None,
@@ -583,9 +583,9 @@ mod tests {
     #[tokio::test]
     async fn test_aggregate_values_count() {
         let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().unwrap().to_string();
+        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().expect("temp_dir should be valid unicode").to_string();
         let executor = AggregationExecutor {
-            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::rocksdb_storage::RocksDBStorage::new(&test_path).unwrap()))),
+            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::MockStorage))),
             aggregation_functions: vec![AggregateFunction::Count(None)],
             group_by_keys: vec![],
             filter_condition: None,
@@ -597,7 +597,7 @@ mod tests {
             Value::Float(3.14),
         ];
 
-        let results = executor.aggregate_values(&values).unwrap();
+        let results = executor.aggregate_values(&values).expect("aggregate_values should succeed");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], Value::Int(3)); // COUNT(*) 应该返回3
     }

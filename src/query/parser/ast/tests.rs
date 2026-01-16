@@ -128,7 +128,7 @@ mod expr_tests {
             Span::default(),
         ));
 
-        assert!(expr.is_constant());
+        assert!(!expr.is_constant());
         assert!(expr.to_string().contains("CASE score"));
         assert!(expr.to_string().contains("WHEN Int(90) THEN String(\"A\")"));
         assert!(expr.to_string().contains("ELSE String(\"F\")"));

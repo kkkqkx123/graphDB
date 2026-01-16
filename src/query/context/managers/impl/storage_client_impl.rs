@@ -81,21 +81,21 @@ impl MemoryStorageClient {
             return Vec::new();
         }
 
-        let storage = self.storage.read().ok();
-        if storage.is_none() {
-            return Vec::new();
-        }
-
-        let storage = storage.unwrap();
+        let storage = match self.storage.read() {
+            Ok(s) => s,
+            Err(e) => {
+                return Vec::new();
+            }
+        };
         let vertices = storage.scan_all_vertices();
         if vertices.is_err() {
             return Vec::new();
         }
 
         let mut table_names = Vec::new();
-        for vertex in vertices.unwrap() {
+        for vertex in vertices.expect("Failed to scan all vertices") {
             for tag in &vertex.tags {
-                if !table_names.contains(&tag.name) {
+                if !table_names.contains(&tag.name) && !tag.name.starts_with("__") {
                     table_names.push(tag.name.clone());
                 }
             }
@@ -110,18 +110,18 @@ impl MemoryStorageClient {
             return false;
         }
 
-        let storage = self.storage.read().ok();
-        if storage.is_none() {
-            return false;
-        }
-
-        let storage = storage.unwrap();
+        let storage = match self.storage.read() {
+            Ok(s) => s,
+            Err(e) => {
+                return false;
+            }
+        };
         let vertices = storage.scan_all_vertices();
         if vertices.is_err() {
             return false;
         }
 
-        for vertex in vertices.unwrap() {
+        for vertex in vertices.expect("Failed to scan all vertices") {
             for tag in &vertex.tags {
                 if tag.name == table_name {
                     return true;
@@ -146,6 +146,16 @@ impl MemoryStorageClient {
                 table_name
             )));
         }
+
+        let mut storage = self
+            .storage
+            .write()
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
+
+        let tag = Tag::new(table_name.to_string(), HashMap::new());
+        let vertex = Vertex::new(Value::String(format!("__table_marker_{}", table_name)), vec![tag]);
+        storage.insert_node(vertex)
+            .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         Ok(())
     }
@@ -177,7 +187,7 @@ impl MemoryStorageClient {
                     storage.delete_node(&vertex.vid)
                         .map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 } else {
-                    let updated_vertex = Vertex::new(*vertex.vid.clone(), new_tags);
+                    let updated_vertex = Vertex::new((*vertex.vid).clone(), new_tags);
                     storage.update_node(updated_vertex)
                         .map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 }
@@ -256,23 +266,42 @@ impl StorageClient for MemoryStorageClient {
                     if let Ok(Some(vertex)) = storage.get_node(&vid) {
                         for tag in &vertex.tags {
                             if tag.name == table {
-                                let mut data = HashMap::new();
-                                for (k, v) in &tag.properties {
-                                    data.insert(k.clone(), v.clone());
+                                if tag.properties.len() == 1 && tag.properties.contains_key("value") {
+                                    return Ok(StorageResponse {
+                                        success: true,
+                                        data: Some(tag.properties.get("value").cloned().expect("Property 'value' not found")),
+                                        error_message: None,
+                                    });
+                                } else if tag.properties.is_empty() {
+                                    return Ok(StorageResponse {
+                                        success: true,
+                                        data: None,
+                                        error_message: None,
+                                    });
+                                } else {
+                                    let mut data = HashMap::new();
+                                    for (k, v) in &tag.properties {
+                                        data.insert(k.clone(), v.clone());
+                                    }
+                                    return Ok(StorageResponse {
+                                        success: true,
+                                        data: Some(Value::Map(data)),
+                                        error_message: None,
+                                    });
                                 }
-                                return Ok(StorageResponse {
-                                    success: true,
-                                    data: Some(Value::Map(data)),
-                                    error_message: None,
-                                });
                             }
                         }
+                        return Ok(StorageResponse {
+                            success: true,
+                            data: None,
+                            error_message: None,
+                        });
                     }
                 }
                 Ok(StorageResponse {
-                    success: false,
+                    success: true,
                     data: None,
-                    error_message: Some(format!("未找到数据: {}", key)),
+                    error_message: None,
                 })
             }
 
@@ -286,11 +315,15 @@ impl StorageClient for MemoryStorageClient {
                                 for (k, v) in props {
                                     tag.properties.insert(k, v);
                                 }
+                            } else {
+                                tag.properties.insert("value".to_string(), value);
                             }
                         } else {
                             let mut props = HashMap::new();
                             if let Value::Map(map_props) = value {
                                 props = map_props;
+                            } else {
+                                props.insert("value".to_string(), value);
                             }
                             tags.push(Tag::new(table.clone(), props));
                         }
@@ -298,6 +331,23 @@ impl StorageClient for MemoryStorageClient {
                         drop(storage);
                         let mut storage = self.storage.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
                         let _ = storage.update_node(updated_vertex);
+                        return Ok(StorageResponse {
+                            success: true,
+                            data: None,
+                            error_message: None,
+                        });
+                    } else {
+                        drop(storage);
+                        let mut storage = self.storage.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
+                        let mut props = HashMap::new();
+                        if let Value::Map(map_props) = value {
+                            props = map_props;
+                        } else {
+                            props.insert("value".to_string(), value);
+                        }
+                        let tag = Tag::new(table.clone(), props);
+                        let vertex = Vertex::new(vid, vec![tag]);
+                        let _ = storage.insert_node(vertex);
                         return Ok(StorageResponse {
                             success: true,
                             data: None,
@@ -330,17 +380,12 @@ impl StorageClient for MemoryStorageClient {
                             let mut storage = self.storage.write().map_err(|e| ManagerError::StorageError(e.to_string()))?;
                             let _ = storage.update_node(updated_vertex);
                         }
-                        return Ok(StorageResponse {
-                            success: true,
-                            data: None,
-                            error_message: None,
-                        });
                     }
                 }
                 Ok(StorageResponse {
-                    success: false,
+                    success: true,
                     data: None,
-                    error_message: Some(format!("删除失败: {}", key)),
+                    error_message: None,
                 })
             }
 
@@ -351,9 +396,17 @@ impl StorageClient for MemoryStorageClient {
                 for vertex in vertices {
                     for tag in &vertex.tags {
                         if tag.name == table {
-                            for (key, value) in &tag.properties {
-                                if key.starts_with(&prefix) {
-                                    results.insert(key.clone(), value.clone());
+                            let vid_str = match &*vertex.vid {
+                                Value::String(s) => s.clone(),
+                                _ => format!("{:?}", vertex.vid),
+                            };
+                            if vid_str.starts_with(&prefix) {
+                                if tag.properties.len() == 1 && tag.properties.contains_key("value") {
+                                    results.insert(vid_str, tag.properties.get("value").cloned().expect("Property 'value' not found"));
+                                } else {
+                                    for (key, value) in &tag.properties {
+                                        results.insert(key.clone(), value.clone());
+                                    }
                                 }
                             }
                         }

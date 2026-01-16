@@ -95,8 +95,8 @@ impl UnifiedConnector {
             return Ok(if left.root.is_some() { left.clone() } else { right.clone() });
         }
 
-        let left_root = left.root.as_ref().unwrap();
-        let right_root = right.root.as_ref().unwrap();
+        let left_root = left.root.as_ref().expect("Left plan root should exist");
+        let right_root = right.root.as_ref().expect("Right plan root should exist");
 
         let cross_join_node = CrossJoinNode::new(left_root.clone(), right_root.clone())
             .map_err(|e| PlannerError::PlanGenerationFailed(format!("Failed to create cross join node: {}", e)))?;

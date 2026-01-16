@@ -548,17 +548,27 @@ impl Lexer {
 
         // Only advance the position for single-character tokens
         // For multi-word tokens, identifiers and literals, we've already advanced the lexer position
-        if !self.is_multitoken_keyword(&token)
-            && !matches!(
-                token.kind,
-                TokenKind::Identifier(_)
-                    | TokenKind::StringLiteral(_)
-                    | TokenKind::IntegerLiteral(_)
-                    | TokenKind::FloatLiteral(_)
-                    | TokenKind::BooleanLiteral(_)
-            )
-        {
-            self.read_char();
+        // However, we need to ensure we're positioned at the start of the next token
+        match token.kind {
+            TokenKind::Identifier(_)
+            | TokenKind::StringLiteral(_)
+            | TokenKind::IntegerLiteral(_)
+            | TokenKind::FloatLiteral(_)
+            | TokenKind::BooleanLiteral(_)
+            | TokenKind::Count // 关键字已经通过 read_identifier 推进了位置
+            | TokenKind::Sum
+            | TokenKind::Avg
+            | TokenKind::Min
+            | TokenKind::Max => {
+                // For identifiers, literals and keywords, we've already advanced past them
+                // No need to call read_char()
+            }
+            _ => {
+                // For single-character tokens, advance to next character
+                if !self.is_multitoken_keyword(&token) {
+                    self.read_char();
+                }
+            }
         }
         token
     }
@@ -672,22 +682,24 @@ mod tests {
         let input = "CREATE MATCH RETURN";
         let mut lexer = Lexer::new(input);
 
-        let tokens: Vec<Token> = std::iter::from_fn(|| {
-            let token = lexer.next_token();
-            if token.kind == TokenKind::Eof {
-                None
-            } else {
-                Some(token)
-            }
-        })
-        .collect();
+        // Test individual tokens using the lexer API
+        println!("First token: {:?} - '{}'", lexer.current_token.kind, lexer.current_token.lexeme);
+        assert_eq!(lexer.current_token.kind, TokenKind::Create);
+        assert_eq!(lexer.current_token.lexeme, "CREATE");
 
-        assert_eq!(tokens[0].kind, TokenKind::Create);
-        assert_eq!(tokens[0].lexeme, "CREATE");
-        assert_eq!(tokens[1].kind, TokenKind::Match);
-        assert_eq!(tokens[1].lexeme, "MATCH");
-        assert_eq!(tokens[2].kind, TokenKind::Return);
-        assert_eq!(tokens[2].lexeme, "RETURN");
+        lexer.advance();
+        println!("Second token: {:?} - '{}'", lexer.current_token.kind, lexer.current_token.lexeme);
+        assert_eq!(lexer.current_token.kind, TokenKind::Match);
+        assert_eq!(lexer.current_token.lexeme, "MATCH");
+
+        lexer.advance();
+        println!("Third token: {:?} - '{}'", lexer.current_token.kind, lexer.current_token.lexeme);
+        assert_eq!(lexer.current_token.kind, TokenKind::Return);
+        assert_eq!(lexer.current_token.lexeme, "RETURN");
+
+        lexer.advance();
+        println!("Fourth token: {:?} - '{}'", lexer.current_token.kind, lexer.current_token.lexeme);
+        assert_eq!(lexer.current_token.kind, TokenKind::Eof);
     }
 
     #[test]
@@ -695,24 +707,21 @@ mod tests {
         let input = "= == ! != < <= > >=";
         let mut lexer = Lexer::new(input);
 
-        let tokens: Vec<Token> = std::iter::from_fn(|| {
-            let token = lexer.next_token();
-            if token.kind == TokenKind::Eof {
-                None
-            } else {
-                Some(token)
-            }
-        })
-        .collect();
-
-        assert_eq!(tokens[0].kind, TokenKind::Assign);
-        assert_eq!(tokens[1].kind, TokenKind::Eq);
-        assert_eq!(tokens[2].kind, TokenKind::NotOp);
-        assert_eq!(tokens[3].kind, TokenKind::Ne);
-        assert_eq!(tokens[4].kind, TokenKind::Lt);
-        assert_eq!(tokens[5].kind, TokenKind::Le);
-        assert_eq!(tokens[6].kind, TokenKind::Gt);
-        assert_eq!(tokens[7].kind, TokenKind::Ge);
+        assert_eq!(lexer.current_token.kind, TokenKind::Assign);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::Eq);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::NotOp);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::Ne);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::Lt);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::Le);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::Gt);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::Ge);
     }
 
     #[test]
@@ -720,24 +729,18 @@ mod tests {
         let input = "42 3.14 \"hello\" true false";
         let mut lexer = Lexer::new(input);
 
-        let tokens: Vec<Token> = std::iter::from_fn(|| {
-            let token = lexer.next_token();
-            if token.kind == TokenKind::Eof {
-                None
-            } else {
-                Some(token)
-            }
-        })
-        .collect();
-
-        assert_eq!(tokens[0].kind, TokenKind::IntegerLiteral(42));
-        assert_eq!(tokens[1].kind, TokenKind::FloatLiteral(3.14));
+        assert_eq!(lexer.current_token.kind, TokenKind::IntegerLiteral(42));
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::FloatLiteral(3.14));
+        lexer.advance();
         assert_eq!(
-            tokens[2].kind,
+            lexer.current_token.kind,
             TokenKind::StringLiteral("hello".to_string())
         );
-        assert_eq!(tokens[3].kind, TokenKind::Identifier("true".to_string()));
-        assert_eq!(tokens[4].kind, TokenKind::Identifier("false".to_string()));
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::Identifier("true".to_string()));
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::Identifier("false".to_string()));
     }
 
     #[test]
@@ -745,18 +748,9 @@ mod tests {
         let input = "-> <-";
         let mut lexer = Lexer::new(input);
 
-        let tokens: Vec<Token> = std::iter::from_fn(|| {
-            let token = lexer.next_token();
-            if token.kind == TokenKind::Eof {
-                None
-            } else {
-                Some(token)
-            }
-        })
-        .collect();
-
-        assert_eq!(tokens[0].kind, TokenKind::Arrow);
-        assert_eq!(tokens[1].kind, TokenKind::BackArrow);
+        assert_eq!(lexer.current_token.kind, TokenKind::Arrow);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::BackArrow);
     }
 
     #[test]
@@ -764,12 +758,15 @@ mod tests {
         let input = "_id _type _src _dst _rank";
         let mut lexer = Lexer::new(input);
 
-        assert_token(&lexer.next_token(), TokenKind::IdProp, "_id");
-        assert_token(&lexer.next_token(), TokenKind::TypeProp, "_type");
-        assert_token(&lexer.next_token(), TokenKind::SrcIdProp, "_src");
-        assert_token(&lexer.next_token(), TokenKind::DstIdProp, "_dst");
-        assert_token(&lexer.next_token(), TokenKind::RankProp, "_rank");
-        assert_token(&lexer.next_token(), TokenKind::Eof, "");
+        assert_token(&lexer.current_token, TokenKind::IdProp, "_id");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::TypeProp, "_type");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::SrcIdProp, "_src");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::DstIdProp, "_dst");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::RankProp, "_rank");
     }
 
     #[test]
@@ -777,10 +774,11 @@ mod tests {
         let input = "$$ $^ $-";
         let mut lexer = Lexer::new(input);
 
-        assert_token(&lexer.next_token(), TokenKind::DstRef, "$$");
-        assert_token(&lexer.next_token(), TokenKind::SrcRef, "$^");
-        assert_token(&lexer.next_token(), TokenKind::InputRef, "$-");
-        assert_token(&lexer.next_token(), TokenKind::Eof, "");
+        assert_token(&lexer.current_token, TokenKind::DstRef, "$$");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::SrcRef, "$^");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::InputRef, "$-");
     }
 
     #[test]
@@ -788,12 +786,15 @@ mod tests {
         let input = "COUNT SUM AVG MIN MAX";
         let mut lexer = Lexer::new(input);
 
-        assert_token(&lexer.next_token(), TokenKind::Count, "COUNT");
-        assert_token(&lexer.next_token(), TokenKind::Sum, "SUM");
-        assert_token(&lexer.next_token(), TokenKind::Avg, "AVG");
-        assert_token(&lexer.next_token(), TokenKind::Min, "MIN");
-        assert_token(&lexer.next_token(), TokenKind::Max, "MAX");
-        assert_token(&lexer.next_token(), TokenKind::Eof, "");
+        assert_token(&lexer.current_token, TokenKind::Count, "COUNT");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::Sum, "SUM");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::Avg, "AVG");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::Min, "MIN");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::Max, "MAX");
     }
 
     #[test]
@@ -801,11 +802,13 @@ mod tests {
         let input = "SOURCE DESTINATION RANK INPUT";
         let mut lexer = Lexer::new(input);
 
-        assert_token(&lexer.next_token(), TokenKind::Source, "SOURCE");
-        assert_token(&lexer.next_token(), TokenKind::Destination, "DESTINATION");
-        assert_token(&lexer.next_token(), TokenKind::Rank, "RANK");
-        assert_token(&lexer.next_token(), TokenKind::Input, "INPUT");
-        assert_token(&lexer.next_token(), TokenKind::Eof, "");
+        assert_token(&lexer.current_token, TokenKind::Source, "SOURCE");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::Destination, "DESTINATION");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::Rank, "RANK");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::Input, "INPUT");
     }
 
     #[test]
@@ -814,18 +817,34 @@ mod tests {
         let input = "CREATE (n:Person {name: 'John'}) RETURN n.name";
         let mut lexer = Lexer::new(input);
 
-        assert_token(&lexer.next_token(), TokenKind::Create, "CREATE");
-        assert_token(&lexer.next_token(), TokenKind::LParen, "(");
+        assert_token(&lexer.current_token, TokenKind::Create, "CREATE");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::LParen, "(");
+        lexer.advance();
         assert_token(
-            &lexer.next_token(),
+            &lexer.current_token,
             TokenKind::Identifier("n".to_string()),
             "n",
         );
-        assert_token(&lexer.next_token(), TokenKind::Colon, ":");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::Colon, ":");
+        lexer.advance();
         assert_token(
-            &lexer.next_token(),
+            &lexer.current_token,
             TokenKind::Identifier("Person".to_string()),
             "Person",
         );
+    }
+
+    #[test]
+    fn test_count_function() {
+        let mut lexer = Lexer::new("COUNT(x)");
+        assert_token(&lexer.current_token, TokenKind::Count, "COUNT");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::LParen, "(");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::Identifier("x".to_string()), "x");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::RParen, ")");
     }
 }

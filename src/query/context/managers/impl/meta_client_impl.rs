@@ -29,7 +29,7 @@ impl MemoryMetaClient {
     pub fn with_storage_path<P: AsRef<Path>>(storage_path: P) -> Self {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("Time went backwards")
             .as_secs() as i64;
 
         Self {
@@ -166,7 +166,7 @@ impl MemoryMetaClient {
     fn create_metadata_version(&self, description: &str) -> MetadataVersion {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("Time went backwards")
             .as_secs() as i64;
 
         MetadataVersion {
@@ -180,7 +180,7 @@ impl MemoryMetaClient {
     fn increment_metadata_version(&self, current_version: &MetadataVersion, description: &str) -> MetadataVersion {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("Time went backwards")
             .as_secs() as i64;
 
         MetadataVersion {

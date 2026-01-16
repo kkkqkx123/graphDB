@@ -277,9 +277,9 @@ mod tests {
     fn test_recursion_path_tracking() {
         let mut detector = RecursionDetector::new(10);
 
-        detector.validate_executor(1, "E1").unwrap();
-        detector.validate_executor(2, "E2").unwrap();
-        detector.validate_executor(3, "E3").unwrap();
+        detector.validate_executor(1, "E1").expect("validate_executor should succeed");
+        detector.validate_executor(2, "E2").expect("validate_executor should succeed");
+        detector.validate_executor(3, "E3").expect("validate_executor should succeed");
 
         let path = detector.get_recursion_path();
         assert_eq!(path, vec!["E1(1)", "E2(2)", "E3(3)"]);

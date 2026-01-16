@@ -330,7 +330,7 @@ impl RequestContext {
                 "", // 默认连接信息
             )
         });
-        let query = self.request_params.read().unwrap().query.clone();
+        let query = self.request_params.read().expect("Failed to acquire read lock on request params").query.clone();
         let request_params = RequestParams::new(query).with_parameters(parameters);
         Self::new(session_info, request_params)
     }
@@ -348,7 +348,7 @@ impl RequestContext {
                 "", // 默认连接信息
             )
         });
-        let query = self.request_params.read().unwrap().query.clone();
+        let query = self.request_params.read().expect("Failed to acquire read lock on request params").query.clone();
         let request_params = RequestParams::new(query).with_timeout(timeout_ms);
         Self::new(session_info, request_params)
     }
@@ -366,7 +366,7 @@ impl RequestContext {
                 "", // 默认连接信息
             )
         });
-        let query = self.request_params.read().unwrap().query.clone();
+        let query = self.request_params.read().expect("Failed to acquire read lock on request params").query.clone();
         let request_params = RequestParams::new(query).with_max_retry(max_retry_times);
         Self::new(session_info, request_params)
     }
@@ -862,7 +862,7 @@ impl RequestContext {
             result.push_str(&format!("  client_ip: {},\n", session.client_ip));
         }
 
-        let request_params = self.request_params.read().unwrap();
+        let request_params = self.request_params.read().expect("Failed to acquire read lock on request params");
         result.push_str(&format!("  query: {},\n", request_params.query));
         drop(request_params);
 

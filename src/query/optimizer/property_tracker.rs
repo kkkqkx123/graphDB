@@ -182,7 +182,7 @@ mod tests {
 
         let props = tracker.get_used_properties("v");
         assert!(props.is_some());
-        let props = props.unwrap();
+        let props = props.expect("expected Some properties");
         assert_eq!(props.len(), 2);
         assert!(props.contains("name"));
         assert!(props.contains("age"));

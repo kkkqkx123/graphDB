@@ -4,6 +4,7 @@
 
 use crate::core::types::expression::Expression;
 use crate::core::types::operators::BinaryOperator;
+use crate::core::Value;
 use std::collections::HashSet;
 
 /// 表达式工具类
@@ -648,12 +649,76 @@ impl ExpressionUtils {
 
     /// 评估二元表达式
     fn evaluate_binary(
-        _left: &Expression,
-        _op: BinaryOperator,
-        _right: &Expression,
+        left: &Expression,
+        op: BinaryOperator,
+        right: &Expression,
     ) -> Result<crate::core::Value, String> {
-        // 简化实现：不支持表达式评估
-        Err("表达式评估功能尚未实现".to_string())
+        let left_val = Self::get_constant_value(left)?;
+        let right_val = Self::get_constant_value(right)?;
+
+        match op {
+            BinaryOperator::Add => {
+                match (&left_val, &right_val) {
+                    (Value::Int(l), Value::Int(r)) => Ok(Value::Int(l + r)),
+                    (Value::Float(l), Value::Float(r)) => Ok(Value::Float(l + r)),
+                    (Value::Int(l), Value::Float(r)) => Ok(Value::Float(*l as f64 + r)),
+                    (Value::Float(l), Value::Int(r)) => Ok(Value::Float(l + *r as f64)),
+                    _ => Err("不支持的加法操作类型".to_string()),
+                }
+            }
+            BinaryOperator::Subtract => {
+                match (&left_val, &right_val) {
+                    (Value::Int(l), Value::Int(r)) => Ok(Value::Int(l - r)),
+                    (Value::Float(l), Value::Float(r)) => Ok(Value::Float(l - r)),
+                    (Value::Int(l), Value::Float(r)) => Ok(Value::Float(*l as f64 - r)),
+                    (Value::Float(l), Value::Int(r)) => Ok(Value::Float(l - *r as f64)),
+                    _ => Err("不支持的减法操作类型".to_string()),
+                }
+            }
+            BinaryOperator::Multiply => {
+                match (&left_val, &right_val) {
+                    (Value::Int(l), Value::Int(r)) => Ok(Value::Int(l * r)),
+                    (Value::Float(l), Value::Float(r)) => Ok(Value::Float(l * r)),
+                    (Value::Int(l), Value::Float(r)) => Ok(Value::Float(*l as f64 * r)),
+                    (Value::Float(l), Value::Int(r)) => Ok(Value::Float(l * *r as f64)),
+                    _ => Err("不支持的乘法操作类型".to_string()),
+                }
+            }
+            BinaryOperator::Divide => {
+                match (&left_val, &right_val) {
+                    (Value::Int(l), Value::Int(r)) => {
+                        if *r == 0 {
+                            Err("除数不能为零".to_string())
+                        } else {
+                            Ok(Value::Int(l / r))
+                        }
+                    }
+                    (Value::Float(l), Value::Float(r)) => {
+                        if *r == 0.0 {
+                            Err("除数不能为零".to_string())
+                        } else {
+                            Ok(Value::Float(l / r))
+                        }
+                    }
+                    (Value::Int(l), Value::Float(r)) => {
+                        if *r == 0.0 {
+                            Err("除数不能为零".to_string())
+                        } else {
+                            Ok(Value::Float(*l as f64 / r))
+                        }
+                    }
+                    (Value::Float(l), Value::Int(r)) => {
+                        if *r == 0 {
+                            Err("除数不能为零".to_string())
+                        } else {
+                            Ok(Value::Float(l / *r as f64))
+                        }
+                    }
+                    _ => Err("不支持的除法操作类型".to_string()),
+                }
+            }
+            _ => Err(format!("不支持的操作符: {:?}", op)),
+        }
     }
 
     /// 评估一元表达式

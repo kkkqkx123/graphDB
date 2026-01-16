@@ -8,7 +8,7 @@ pub enum IndexType {
     Edge,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TagIndex {
     pub index_id: i64,
     pub space_id: i64,
@@ -17,7 +17,7 @@ pub struct TagIndex {
     pub fields: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EdgeIndex {
     pub index_id: i64,
     pub space_id: i64,
@@ -286,7 +286,7 @@ mod tests {
                 index_name: "user_name_index".to_string(),
                 fields: vec!["name".to_string()],
             })
-            .unwrap();
+            .expect("add_tag_index should succeed");
 
         index_manager
             .add_tag_index(TagIndex {
@@ -296,9 +296,29 @@ mod tests {
                 index_name: "user_email_index".to_string(),
                 fields: vec!["email".to_string()],
             })
-            .unwrap();
+            .expect("add_tag_index should succeed");
 
         let indexes = index_manager.get_all_tag_indexes(1);
+        assert_eq!(indexes.len(), 2);
+        
+        // Verify the content of retrieved indexes
+        let expected_indexes = vec![
+            TagIndex {
+                index_id: 1,
+                space_id: 1,
+                tag_name: "user".to_string(),
+                index_name: "user_name_index".to_string(),
+                fields: vec!["name".to_string()],
+            },
+            TagIndex {
+                index_id: 2,
+                space_id: 1,
+                tag_name: "user".to_string(),
+                index_name: "user_email_index".to_string(),
+                fields: vec!["email".to_string()],
+            },
+        ];
+        assert_eq!(indexes, expected_indexes);
         assert_eq!(indexes.len(), 2);
     }
 
@@ -314,7 +334,7 @@ mod tests {
                 index_name: "user_name_index".to_string(),
                 fields: vec!["name".to_string()],
             })
-            .unwrap();
+            .expect("add_tag_index should succeed");
 
         index_manager
             .add_tag_index(TagIndex {
@@ -324,7 +344,7 @@ mod tests {
                 index_name: "post_title_index".to_string(),
                 fields: vec!["title".to_string()],
             })
-            .unwrap();
+            .expect("add_tag_index should succeed");
 
         let user_indexes = index_manager.get_tag_indexes_for_tag(1, "user");
         assert_eq!(user_indexes.len(), 1);
@@ -347,7 +367,7 @@ mod tests {
             fields: vec!["name".to_string()],
         };
 
-        index_manager.add_tag_index(index.clone()).unwrap();
+        index_manager.add_tag_index(index.clone()).expect("add_tag_index should succeed");
         assert!(index_manager.get_tag_index(1, 1).is_some());
 
         let result = index_manager.remove_tag_index(1, 1);
@@ -370,7 +390,7 @@ mod tests {
                 index_name: "user_name_index".to_string(),
                 fields: vec!["name".to_string()],
             })
-            .unwrap();
+            .expect("add_tag_index should succeed");
 
         assert!(index_manager.tag_index_exists(1, "user_name_index"));
         assert!(!index_manager.tag_index_exists(2, "user_name_index"));
@@ -388,7 +408,7 @@ mod tests {
                 index_name: "user_name_index".to_string(),
                 fields: vec!["name".to_string()],
             })
-            .unwrap();
+            .expect("add_tag_index should succeed");
 
         index_manager
             .add_tag_index(TagIndex {
@@ -398,7 +418,7 @@ mod tests {
                 index_name: "post_title_index".to_string(),
                 fields: vec!["title".to_string()],
             })
-            .unwrap();
+            .expect("add_tag_index should succeed");
 
         index_manager
             .add_edge_index(EdgeIndex {
@@ -408,7 +428,7 @@ mod tests {
                 index_name: "follows_rank_index".to_string(),
                 fields: vec!["rank".to_string()],
             })
-            .unwrap();
+            .expect("add_edge_index should succeed");
 
         let (tag_count, edge_count) = index_manager.get_index_count(1);
         assert_eq!(tag_count, 2);

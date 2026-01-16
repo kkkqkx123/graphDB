@@ -397,7 +397,7 @@ mod tests {
         let manager = Arc::new(SimpleMemoryManager::new(1000));
 
         {
-            let guard = MemoryCheckGuard::new(manager.clone(), 500).unwrap();
+            let guard = MemoryCheckGuard::new(manager.clone(), 500).expect("MemoryCheckGuard::new should succeed");
             assert_eq!(manager.get_current_usage(), 500);
             assert_eq!(guard.bytes_reserved(), 500);
         }
@@ -421,7 +421,7 @@ mod tests {
     fn test_memory_check_guard_release() {
         let manager = Arc::new(SimpleMemoryManager::new(1000));
 
-        let mut guard = MemoryCheckGuard::new(manager.clone(), 500).unwrap();
+        let mut guard = MemoryCheckGuard::new(manager.clone(), 500).expect("MemoryCheckGuard::new should succeed");
         assert_eq!(manager.get_current_usage(), 500);
 
         guard.release();
@@ -433,7 +433,7 @@ mod tests {
     fn test_memory_check_guard_limit_exceeded() {
         let manager = Arc::new(SimpleMemoryManager::new(1000));
 
-        let guard = MemoryCheckGuard::new(manager.clone(), 500).unwrap();
+        let guard = MemoryCheckGuard::new(manager.clone(), 500).expect("MemoryCheckGuard::new should succeed");
         assert!(MemoryCheckGuard::new(manager.clone(), 600).is_err());
 
         drop(guard);

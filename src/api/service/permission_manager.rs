@@ -58,7 +58,9 @@ pub struct PermissionManager {
 impl PermissionManager {
     pub fn new() -> Self {
         let mut user_roles = HashMap::new();
-        user_roles.insert("root".to_string(), HashMap::new());
+        let mut root_roles = HashMap::new();
+        root_roles.insert(0, RoleType::God);
+        user_roles.insert("root".to_string(), root_roles);
 
         Self {
             user_roles: Arc::new(RwLock::new(user_roles)),
@@ -235,7 +237,7 @@ mod tests {
     #[test]
     fn test_revoke_role() {
         let pm = PermissionManager::new();
-        pm.grant_role("testuser", 1, RoleType::User).unwrap();
+        pm.grant_role("testuser", 1, RoleType::User).expect("grant_role should succeed");
 
         let result = pm.revoke_role("testuser", 1);
         assert!(result.is_ok());
@@ -247,7 +249,7 @@ mod tests {
     #[test]
     fn test_check_permission() {
         let pm = PermissionManager::new();
-        pm.grant_role("testuser", 1, RoleType::User).unwrap();
+        pm.grant_role("testuser", 1, RoleType::User).expect("grant_role should succeed");
 
         assert!(pm.check_permission("testuser", 1, Permission::Read).is_ok());
         assert!(pm.check_permission("testuser", 1, Permission::Write).is_ok());
@@ -257,7 +259,7 @@ mod tests {
     #[test]
     fn test_is_god() {
         let pm = PermissionManager::new();
-        pm.grant_role("admin", 1, RoleType::God).unwrap();
+        pm.grant_role("admin", 1, RoleType::God).expect("grant_role should succeed");
 
         assert!(pm.is_god("admin"));
         assert!(!pm.is_god("testuser"));

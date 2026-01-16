@@ -1,5 +1,5 @@
 use super::{StorageEngine, TransactionId};
-use crate::core::{Direction, Edge, StorageError, Value, Vertex};
+use crate::core::{Direction, Edge, StorageError, Value, Vertex, Tag};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -317,74 +317,75 @@ mod tests {
 
     #[test]
     fn test_insert_and_get_node() {
-        let mut storage = MemoryStorage::new().unwrap();
-        let vertex = Vertex {
-            id: Value::String("user1".to_string()),
-            tag: "user".to_string(),
-            properties: HashMap::new(),
-        };
+        let mut storage = MemoryStorage::new().expect("MemoryStorage::new should succeed");
+        let vertex = Vertex::new_with_properties(
+            Value::String("user1".to_string()),
+            vec![Tag::new("user".to_string(), HashMap::new())],
+            HashMap::new(),
+        );
 
-        let id = storage.insert_node(vertex.clone()).unwrap();
+        let id = storage.insert_node(vertex.clone()).expect("insert_node should succeed");
         assert_eq!(id, Value::String("user1".to_string()));
 
-        let retrieved = storage.get_node(&id).unwrap();
+        let retrieved = storage.get_node(&id).expect("get_node should succeed");
         assert_eq!(retrieved, Some(vertex));
     }
 
     #[test]
     fn test_insert_and_get_edge() {
-        let mut storage = MemoryStorage::new().unwrap();
-        let edge = Edge {
-            src: Value::String("user1".to_string()),
-            dst: Value::String("user2".to_string()),
-            edge_type: "follows".to_string(),
-            properties: HashMap::new(),
-        };
+        let mut storage = MemoryStorage::new().expect("MemoryStorage::new should succeed");
+        let edge = Edge::new(
+            Value::String("user1".to_string()),
+            Value::String("user2".to_string()),
+            "follows".to_string(),
+            0,
+            HashMap::new(),
+        );
 
-        storage.insert_edge(edge.clone()).unwrap();
+        storage.insert_edge(edge.clone()).expect("insert_edge should succeed");
 
-        let retrieved = storage.get_edge(&edge.src, &edge.dst, &edge.edge_type).unwrap();
+        let retrieved = storage.get_edge(&edge.src, &edge.dst, &edge.edge_type).expect("get_edge should succeed");
         assert_eq!(retrieved, Some(edge));
     }
 
     #[test]
     fn test_scan_vertices_by_tag() {
-        let mut storage = MemoryStorage::new().unwrap();
+        let mut storage = MemoryStorage::new().expect("MemoryStorage::new should succeed");
 
-        storage.insert_node(Vertex {
-            id: Value::String("user1".to_string()),
-            tag: "user".to_string(),
-            properties: HashMap::new(),
-        }).unwrap();
+        storage.insert_node(Vertex::new_with_properties(
+            Value::String("user1".to_string()),
+            vec![Tag::new("user".to_string(), HashMap::new())],
+            HashMap::new(),
+        )).expect("insert_node should succeed");
 
-        storage.insert_node(Vertex {
-            id: Value::String("post1".to_string()),
-            tag: "post".to_string(),
-            properties: HashMap::new(),
-        }).unwrap();
+        storage.insert_node(Vertex::new_with_properties(
+            Value::String("post1".to_string()),
+            vec![Tag::new("post".to_string(), HashMap::new())],
+            HashMap::new(),
+        )).expect("insert_node should succeed");
 
-        let users = storage.scan_vertices_by_tag("user").unwrap();
+        let users = storage.scan_vertices_by_tag("user").expect("scan_vertices_by_tag should succeed");
         assert_eq!(users.len(), 1);
-        assert_eq!(users[0].id, Value::String("user1".to_string()));
+        assert_eq!(*users[0].vid, Value::String("user1".to_string()));
     }
 
     #[test]
     fn test_transaction() {
-        let mut storage = MemoryStorage::new().unwrap();
+        let mut storage = MemoryStorage::new().expect("MemoryStorage::new should succeed");
 
-        let tx_id = storage.begin_transaction().unwrap();
+        let tx_id = storage.begin_transaction().expect("begin_transaction should succeed");
 
-        let vertex = Vertex {
-            id: Value::String("user1".to_string()),
-            tag: "user".to_string(),
-            properties: HashMap::new(),
-        };
+        let vertex = Vertex::new_with_properties(
+            Value::String("user1".to_string()),
+            vec![Tag::new("user".to_string(), HashMap::new())],
+            HashMap::new(),
+        );
 
-        storage.insert_node(vertex).unwrap();
+        storage.insert_node(vertex).expect("insert_node should succeed");
 
-        storage.commit_transaction(tx_id).unwrap();
+        storage.commit_transaction(tx_id).expect("commit_transaction should succeed");
 
-        let retrieved = storage.get_node(&Value::String("user1".to_string())).unwrap();
+        let retrieved = storage.get_node(&Value::String("user1".to_string())).expect("get_node should succeed");
         assert!(retrieved.is_some());
     }
 }

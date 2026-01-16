@@ -360,16 +360,13 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::core::Value;
-    use crate::storage::RocksDBStorage;
+    use crate::storage::MockStorage;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_unwind_executor() {
         let config = test_config();
-        let storage = Arc::new(Mutex::new(
-            RocksDBStorage::new(config.test_db_path("test_db_unwind"))
-                .expect("RocksDBStorage should be created successfully"),
-        ));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建输入数据
         let list_value = Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);

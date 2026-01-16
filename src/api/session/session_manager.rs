@@ -401,7 +401,7 @@ mod tests {
         // Test get_session_info for specific session
         let info1 = session_manager.get_session_info(session1.id());
         assert!(info1.is_some());
-        assert_eq!(info1.unwrap().user_name, "user1");
+        assert_eq!(info1.expect("info1 should be Some").user_name, "user1");
         
         let info_nonexistent = session_manager.get_session_info(999999);
         assert!(info_nonexistent.is_none());

@@ -251,7 +251,7 @@ mod tests {
         });
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        assert_eq!(result.expect("result should be Ok"), 42);
         assert_eq!(count, 2);
     }
 
@@ -306,7 +306,7 @@ mod tests {
         });
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        assert_eq!(result.expect("result should be Ok"), 42);
         assert_eq!(count, 3);
     }
 }

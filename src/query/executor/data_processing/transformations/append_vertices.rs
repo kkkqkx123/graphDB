@@ -416,16 +416,13 @@ mod tests {
     use crate::config::test_config::test_config;
     use crate::core::Expression;
     use crate::core::Value;
-    use crate::storage::RocksDBStorage;
+    use crate::storage::MockStorage;
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
     async fn test_append_vertices_executor() {
         let config = test_config();
-        let storage = Arc::new(Mutex::new(
-            RocksDBStorage::new(config.test_db_path("test_db_append_vertices"))
-                .expect("RocksDBStorage should be created successfully"),
-        ));
+        let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建输入数据
         let vids = vec![

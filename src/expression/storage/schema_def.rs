@@ -4,13 +4,13 @@
 
 use super::types::FieldDef;
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Schema定义
 #[derive(Debug, Clone)]
 pub struct Schema {
     pub name: String,
-    pub fields: HashMap<String, FieldDef>,
+    pub fields: BTreeMap<String, FieldDef>,
     pub version: i32,
 }
 
@@ -18,7 +18,7 @@ impl Schema {
     pub fn new(name: String, version: i32) -> Self {
         Self {
             name,
-            fields: HashMap::new(),
+            fields: BTreeMap::new(),
             version,
         }
     }
