@@ -1,12 +1,14 @@
 //! 聚合功能性能测试
 
+#[cfg(feature = "redb")]
+use crate::storage::redb_storage::RedbStorage;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 use crate::query::executor::aggregation::AggregationExecutor;
 use crate::query::executor::base::BaseExecutor;
-use crate::storage::rocksdb_storage::RocksDBStorage;
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "redb")]
 /// 性能测试函数
 pub fn benchmark_aggregation_performance() {
     println!("开始聚合功能性能测试...");

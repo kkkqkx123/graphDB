@@ -9,6 +9,18 @@ use crate::api::service::GraphService;
 use crate::config::Config;
 use crate::storage::MemoryStorage;
 
+fn init_log_level(log_level: &str) {
+    let log_level = log_level.to_lowercase();
+    match log_level.as_str() {
+        "trace" => std::env::set_var("RUST_LOG", "trace"),
+        "debug" => std::env::set_var("RUST_LOG", "debug"),
+        "info" => std::env::set_var("RUST_LOG", "info"),
+        "warn" => std::env::set_var("RUST_LOG", "warn"),
+        "error" => std::env::set_var("RUST_LOG", "error"),
+        _ => std::env::set_var("RUST_LOG", "info"),
+    }
+}
+
 pub async fn start_service(config_path: String) -> Result<()> {
     println!("Initializing GraphDB service...");
 
@@ -25,9 +37,13 @@ pub async fn start_service(config_path: String) -> Result<()> {
     };
     println!("Configuration loaded: {:?}", config);
 
+    // Initialize log level
+    init_log_level(&config.log_level);
+    println!("Log level set to: {}", config.log_level);
+
     // Initialize storage
     let storage = Arc::new(MemoryStorage::new()?);
-    println!("Storage initialized");
+    println!("Storage initialized (memory mode)");
 
     // Initialize graph service with session management and query execution
     let _graph_service = GraphService::<MemoryStorage>::new(config.clone(), storage);
@@ -48,6 +64,7 @@ pub async fn execute_query(query_str: &str) -> Result<()> {
 
     // Initialize storage for this example
     let config = crate::config::Config::default();
+    init_log_level(&config.log_level);
     let storage = Arc::new(MemoryStorage::new()?);
 
     // Initialize graph service for query execution

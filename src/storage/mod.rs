@@ -3,6 +3,8 @@ pub mod memory_storage;
 
 #[cfg(feature = "rocksdb")]
 pub mod rocksdb_storage;
+#[cfg(feature = "redb")]
+pub mod redb_storage;
 pub mod storage_engine;
 
 #[cfg(test)]
@@ -13,6 +15,8 @@ pub use memory_storage::*;
 
 #[cfg(feature = "rocksdb")]
 pub use rocksdb_storage::*;
+#[cfg(feature = "redb")]
+pub use redb_storage::*;
 pub use storage_engine::*;
 
 pub use crate::core::StorageError;

@@ -7,8 +7,8 @@ use tokio::time;
 use super::client_session::{ClientSession, Session};
 use crate::core::error::{SessionError, SessionResult};
 
-pub const MAX_ALLOWED_CONNECTIONS: usize = 1000; // Default maximum connections
-pub const SESSION_IDLE_TIMEOUT: Duration = Duration::from_secs(600); // 10 minutes
+pub const DEFAULT_MAX_ALLOWED_CONNECTIONS: usize = 1000; // 默认最大连接数
+pub const DEFAULT_SESSION_IDLE_TIMEOUT: Duration = Duration::from_secs(600); // 10分钟
 
 /// 全局会话ID计数器，用于生成唯一的会话ID
 static SESSION_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -47,18 +47,21 @@ pub struct GraphSessionManager {
     active_sessions: Arc<Mutex<HashMap<i64, Instant>>>, // session_id -> last_activity_time
     session_create_times: Arc<Mutex<HashMap<i64, SystemTime>>>, // session_id -> create_time
     host_addr: String,
+    max_connections: usize,
+    session_idle_timeout: Duration,
 }
 
 impl GraphSessionManager {
-    pub fn new(host_addr: String) -> Arc<Self> {
+    pub fn new(host_addr: String, max_connections: usize, session_idle_timeout: Duration) -> Arc<Self> {
         let manager = Arc::new(Self {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             active_sessions: Arc::new(Mutex::new(HashMap::new())),
             session_create_times: Arc::new(Mutex::new(HashMap::new())),
             host_addr,
+            max_connections,
+            session_idle_timeout,
         });
 
-        // Start background tasks
         let manager_clone = Arc::clone(&manager);
         tokio::spawn(async move {
             manager_clone.background_reclamation_task().await;
@@ -237,7 +240,7 @@ impl GraphSessionManager {
             .active_sessions
             .lock()
             .expect("Active sessions lock was poisoned");
-        active_sessions.len() >= MAX_ALLOWED_CONNECTIONS
+        active_sessions.len() >= self.max_connections
     }
 
     /// Generate a new unique session ID
@@ -268,7 +271,7 @@ impl GraphSessionManager {
 
     /// Background task to reclaim expired sessions
     async fn background_reclamation_task(self: Arc<Self>) {
-        let mut interval = time::interval(Duration::from_secs(30)); // Check every 30 seconds
+        let mut interval = time::interval(Duration::from_secs(30));
 
         loop {
             interval.tick().await;
@@ -284,7 +287,7 @@ impl GraphSessionManager {
             .expect("Active sessions lock was poisoned");
         let expired_sessions: Vec<i64> = active_sessions
             .iter()
-            .filter(|(_, last_activity)| last_activity.elapsed() > SESSION_IDLE_TIMEOUT)
+            .filter(|(_, last_activity)| last_activity.elapsed() > self.session_idle_timeout)
             .map(|(&session_id, _)| session_id)
             .collect();
         drop(active_sessions);
@@ -305,9 +308,17 @@ impl GraphSessionManager {
 mod tests {
     use super::*;
 
+    fn create_test_session_manager() -> Arc<GraphSessionManager> {
+        GraphSessionManager::new(
+            "127.0.0.1:9669".to_string(),
+            DEFAULT_MAX_ALLOWED_CONNECTIONS,
+            DEFAULT_SESSION_IDLE_TIMEOUT,
+        )
+    }
+
     #[tokio::test]
     async fn test_session_manager_creation() {
-        let session_manager = GraphSessionManager::new("127.0.0.1:9669".to_string());
+        let session_manager = create_test_session_manager();
 
         assert_eq!(session_manager.host_addr, "127.0.0.1:9669");
         assert_eq!(session_manager.get_sessions_from_local_cache().len(), 0);
@@ -315,7 +326,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_and_find_session() {
-        let session_manager = GraphSessionManager::new("127.0.0.1:9669".to_string());
+        let session_manager = create_test_session_manager();
 
         let session = session_manager
             .create_session("testuser".to_string(), "127.0.0.1".to_string())
@@ -335,7 +346,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_remove_session() {
-        let session_manager = GraphSessionManager::new("127.0.0.1:9669".to_string());
+        let session_manager = create_test_session_manager();
 
         let session = session_manager
             .create_session("testuser".to_string(), "127.0.0.1".to_string())
@@ -349,16 +360,27 @@ mod tests {
 
     #[tokio::test]
     async fn test_max_connections() {
-        let session_manager = GraphSessionManager::new("127.0.0.1:9669".to_string());
+        let session_manager = GraphSessionManager::new(
+            "127.0.0.1:9669".to_string(),
+            5,
+            DEFAULT_SESSION_IDLE_TIMEOUT,
+        );
 
-        // Temporarily set a low max connections for testing
-        // In a real test, we'd need to make MAX_ALLOWED_CONNECTIONS configurable
         assert!(!session_manager.is_out_of_connections());
+
+        for i in 0..5 {
+            let _ = session_manager.create_session(
+                format!("user{}", i),
+                "127.0.0.1".to_string()
+            );
+        }
+
+        assert!(session_manager.is_out_of_connections());
     }
 
     #[tokio::test]
     async fn test_session_cache_operations() {
-        let session_manager = GraphSessionManager::new("127.0.0.1:9669".to_string());
+        let session_manager = create_test_session_manager();
 
         let session = session_manager
             .create_session("testuser".to_string(), "127.0.0.1".to_string())
@@ -378,7 +400,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_sessions() {
-        let session_manager = GraphSessionManager::new("127.0.0.1:9669".to_string());
+        let session_manager = create_test_session_manager();
 
         // Create multiple sessions
         let session1 = session_manager
@@ -409,7 +431,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_kill_session() {
-        let session_manager = GraphSessionManager::new("127.0.0.1:9669".to_string());
+        let session_manager = create_test_session_manager();
 
         // Create a session
         let session = session_manager
@@ -437,7 +459,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_kill_session_permission_denied() {
-        let session_manager = GraphSessionManager::new("127.0.0.1:9669".to_string());
+        let session_manager = create_test_session_manager();
 
         // Create a session for user1
         let session = session_manager

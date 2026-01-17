@@ -1,12 +1,13 @@
 use crate::api::service::{
     Authenticator, MetricType, PasswordAuthenticator, PermissionManager, QueryEngine, StatsManager,
 };
-use crate::api::session::{ClientSession, GraphSessionManager};
+use crate::api::session::{ClientSession, GraphSessionManager, DEFAULT_SESSION_IDLE_TIMEOUT};
 use crate::config::Config;
 use crate::storage::StorageEngine;
 use crate::core::error::{SessionError, SessionResult};
 use crate::graph::{BatchOperation, GraphResponse, TransactionManager};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 pub struct GraphService<S: StorageEngine + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
@@ -20,7 +21,12 @@ pub struct GraphService<S: StorageEngine + Clone + 'static> {
 
 impl<S: StorageEngine + Clone + 'static> GraphService<S> {
     pub fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
-        let session_manager = GraphSessionManager::new(format!("{}:{}", config.host, config.port));
+        let session_idle_timeout = Duration::from_secs(config.transaction_timeout * 10);
+        let session_manager = GraphSessionManager::new(
+            format!("{}:{}", config.host, config.port),
+            config.max_connections,
+            session_idle_timeout,
+        );
         let query_engine = Arc::new(Mutex::new(QueryEngine::new(storage)));
         let authenticator = Arc::new(PasswordAuthenticator::new());
         let permission_manager = Arc::new(PermissionManager::new());
