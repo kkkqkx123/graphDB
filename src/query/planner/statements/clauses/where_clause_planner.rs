@@ -20,7 +20,7 @@ use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::{
     ClauseType, CypherClausePlanner, DataFlowNode, FlowDirection, PlanningContext, QueryInfo,
 };
-use crate::query::planner::statements::utils::connection_strategy::UnifiedConnector;
+use crate::query::planner::plan::core::nodes::join_node::JoinConnector;
 
 use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;

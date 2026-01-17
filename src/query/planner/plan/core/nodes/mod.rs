@@ -25,7 +25,7 @@ pub use filter_node::FilterNode;
 pub use graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
-pub use join_node::{CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode};
+pub use join_node::{CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, JoinConnector, LeftJoinNode};
 pub use management_node_enum::ManagementNodeEnum;
 pub use management_node_traits::*;
 pub use plan_node_enum::{PlanNodeEnum, PlanNodeVisitor};

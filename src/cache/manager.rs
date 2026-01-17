@@ -55,7 +55,7 @@ impl CacheManager {
             .register_cache(name, "LRU", capacity, CacheStrategy::LRU)
             .expect("Failed to register LRU cache");
         self.stats_collector
-            .record_cache_count(self.registry.cache_count());
+            .record_cache_count(self.registry.cache_count() as u64);
     }
 
     /// 注册LFU缓存
@@ -68,7 +68,7 @@ impl CacheManager {
             .register_cache(name, "LFU", capacity, CacheStrategy::LFU)
             .expect("Failed to register LFU cache");
         self.stats_collector
-            .record_cache_count(self.registry.cache_count());
+            .record_cache_count(self.registry.cache_count() as u64);
     }
 
     /// 注册TTL缓存
@@ -81,7 +81,7 @@ impl CacheManager {
             .register_cache(name, "TTL", capacity, CacheStrategy::TTL)
             .expect("Failed to register TTL cache");
         self.stats_collector
-            .record_cache_count(self.registry.cache_count());
+            .record_cache_count(self.registry.cache_count() as u64);
     }
 
     /// 注册FIFO缓存
@@ -94,7 +94,7 @@ impl CacheManager {
             .register_cache(name, "FIFO", capacity, CacheStrategy::FIFO)
             .expect("Failed to register FIFO cache");
         self.stats_collector
-            .record_cache_count(self.registry.cache_count());
+            .record_cache_count(self.registry.cache_count() as u64);
     }
 
     /// 注册自适应缓存
@@ -107,7 +107,7 @@ impl CacheManager {
             .register_cache(name, "Adaptive", capacity, CacheStrategy::Adaptive)
             .expect("Failed to register Adaptive cache");
         self.stats_collector
-            .record_cache_count(self.registry.cache_count());
+            .record_cache_count(self.registry.cache_count() as u64);
     }
 
     /// 注册无界缓存
@@ -120,7 +120,7 @@ impl CacheManager {
             .register_cache(name, "Unbounded", usize::MAX, CacheStrategy::None)
             .expect("Failed to register Unbounded cache");
         self.stats_collector
-            .record_cache_count(self.registry.cache_count());
+            .record_cache_count(self.registry.cache_count() as u64);
     }
 
     /// 获取缓存注册信息
@@ -210,7 +210,7 @@ impl CacheManager {
         let removed = self.registry.remove_cache(name);
         if removed {
             self.stats_collector
-                .record_cache_count(self.registry.cache_count());
+                .record_cache_count(self.registry.cache_count() as u64);
         }
         removed
     }

@@ -3,7 +3,7 @@ use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::cypher_clause_planner::{
     ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext,
 };
-use crate::query::planner::statements::utils::connection_strategy::UnifiedConnector;
+use crate::query::planner::plan::core::nodes::join_node::JoinConnector;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;

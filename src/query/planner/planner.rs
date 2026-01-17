@@ -131,55 +131,54 @@ impl PlannerRegistry {
 
     /// 批量注册 NGQL 规划器
     pub fn register_ngql_planners(&mut self) {
-        // 暂时注释掉，因为现有的规划器还没有实现新的接口
-        // self.register_planner(
-        //     SentenceKind::Go,
-        //     crate::query::planner::statements::GoPlanner::match_ast_ctx,
-        //     crate::query::planner::statements::GoPlanner::make,
-        //     100,
-        // );
+        self.register_planner(
+            SentenceKind::Go,
+            crate::query::planner::statements::GoPlanner::match_ast_ctx,
+            crate::query::planner::statements::GoPlanner::make,
+            100,
+        );
 
-        // self.register_planner(
-        //     SentenceKind::Lookup,
-        //     crate::query::planner::statements::LookupPlanner::match_ast_ctx,
-        //     crate::query::planner::statements::LookupPlanner::make,
-        //     100,
-        // );
+        self.register_planner(
+            SentenceKind::Lookup,
+            crate::query::planner::statements::LookupPlanner::match_ast_ctx,
+            crate::query::planner::statements::LookupPlanner::make,
+            100,
+        );
 
-        // self.register_planner(
-        //     SentenceKind::Path,
-        //     crate::query::planner::statements::PathPlanner::match_ast_ctx,
-        //     crate::query::planner::statements::PathPlanner::make,
-        //     100,
-        // );
+        self.register_planner(
+            SentenceKind::Path,
+            crate::query::planner::statements::PathPlanner::match_ast_ctx,
+            crate::query::planner::statements::PathPlanner::make,
+            100,
+        );
 
-        // self.register_planner(
-        //     SentenceKind::Subgraph,
-        //     crate::query::planner::statements::SubgraphPlanner::match_ast_ctx,
-        //     crate::query::planner::statements::SubgraphPlanner::make,
-        //     100,
-        // );
+        self.register_planner(
+            SentenceKind::Subgraph,
+            crate::query::planner::statements::SubgraphPlanner::match_ast_ctx,
+            crate::query::planner::statements::SubgraphPlanner::make,
+            100,
+        );
 
-        // self.register_planner(
-        //     SentenceKind::FetchVertices,
-        //     crate::query::planner::statements::FetchVerticesPlanner::match_ast_ctx,
-        //     crate::query::planner::statements::FetchVerticesPlanner::make,
-        //     100,
-        // );
+        self.register_planner(
+            SentenceKind::FetchVertices,
+            crate::query::planner::statements::FetchVerticesPlanner::match_ast_ctx,
+            crate::query::planner::statements::FetchVerticesPlanner::make,
+            100,
+        );
 
-        // self.register_planner(
-        //     SentenceKind::FetchEdges,
-        //     crate::query::planner::statements::FetchEdgesPlanner::match_ast_ctx,
-        //     crate::query::planner::statements::FetchEdgesPlanner::make,
-        //     100,
-        // );
+        self.register_planner(
+            SentenceKind::FetchEdges,
+            crate::query::planner::statements::FetchEdgesPlanner::match_ast_ctx,
+            crate::query::planner::statements::FetchEdgesPlanner::make,
+            100,
+        );
 
-        // self.register_planner(
-        //     SentenceKind::Maintain,
-        //     crate::query::planner::statements::MaintainPlanner::match_ast_ctx,
-        //     crate::query::planner::statements::MaintainPlanner::make,
-        //     100,
-        // );
+        self.register_planner(
+            SentenceKind::Maintain,
+            crate::query::planner::statements::MaintainPlanner::match_ast_ctx,
+            crate::query::planner::statements::MaintainPlanner::make,
+            100,
+        );
     }
 
     /// 创建执行计划

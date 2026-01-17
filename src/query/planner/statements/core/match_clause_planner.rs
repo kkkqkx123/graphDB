@@ -18,8 +18,7 @@ use crate::core::Expression;
 use crate::query::planner::statements::core::{
     ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext, VariableInfo,
 };
-use crate::query::planner::statements::utils::connection_strategy::UnifiedConnector;
-use crate::query::planner::statements::utils::finder::Finder;
+use crate::query::planner::plan::core::nodes::join_node::JoinConnector;
 
 use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
@@ -87,9 +86,6 @@ impl CypherClausePlanner for MatchClausePlanner {
         let mut plan = SubPlan::new(None, None);
 
         for path in &match_clause_ctx.paths {
-            // 创建查找器
-            let _finder = Finder::new();
-
             // 暂时创建一个简单的计划，因为 find_path 方法不存在
             // TODO: 实现路径处理逻辑
             let path_plan = SubPlan::new(None, None);
@@ -129,7 +125,7 @@ impl CypherClausePlanner for MatchClausePlanner {
                     &context.query_info.statement_type,
                     &context.query_info.query_id,
                 );
-                plan = UnifiedConnector::cartesian_product(&temp_ast_context, &plan, &path_plan)?;
+                plan = JoinConnector::cartesian_product(&temp_ast_context, &plan, &path_plan)?;
             }
         }
 

@@ -7,7 +7,6 @@ pub mod core;
 pub mod clauses;
 pub mod paths;
 pub mod seeks;
-pub mod utils;
 
 pub mod fetch_edges_planner;
 pub mod fetch_vertices_planner;

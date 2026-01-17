@@ -56,6 +56,16 @@ pub struct DateValue {
     pub day: u32,
 }
 
+impl Default for DateValue {
+    fn default() -> Self {
+        DateValue {
+            year: 1970,
+            month: 1,
+            day: 1,
+        }
+    }
+}
+
 /// 简单时间表示
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct TimeValue {
@@ -63,6 +73,17 @@ pub struct TimeValue {
     pub minute: u32,
     pub sec: u32,
     pub microsec: u32,
+}
+
+impl Default for TimeValue {
+    fn default() -> Self {
+        TimeValue {
+            hour: 0,
+            minute: 0,
+            sec: 0,
+            microsec: 0,
+        }
+    }
 }
 
 /// 简单日期时间表示
@@ -75,6 +96,20 @@ pub struct DateTimeValue {
     pub minute: u32,
     pub sec: u32,
     pub microsec: u32,
+}
+
+impl Default for DateTimeValue {
+    fn default() -> Self {
+        DateTimeValue {
+            year: 1970,
+            month: 1,
+            day: 1,
+            hour: 0,
+            minute: 0,
+            sec: 0,
+            microsec: 0,
+        }
+    }
 }
 
 /// 简单地理信息表示

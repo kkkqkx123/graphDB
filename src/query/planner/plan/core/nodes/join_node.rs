@@ -4,6 +4,7 @@
 
 use crate::core::Expression;
 use crate::query::context::validate::types::Variable;
+use crate::query::planner::plan::SubPlan;
 
 /// 内连接节点
 ///
@@ -1022,6 +1023,41 @@ impl super::plan_node_traits::PlanNodeClonable for HashLeftJoinNode {
 
     fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
         self.clone_with_new_id(new_id)
+    }
+}
+
+/// 连接器
+///
+/// 用于连接两个子计划的工具
+#[derive(Debug)]
+pub struct JoinConnector;
+
+impl JoinConnector {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn cartesian_product(
+        _qctx: &crate::query::context::ast::base::AstContext,
+        left: &SubPlan,
+        right: &SubPlan,
+    ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
+        if left.root.is_none() || right.root.is_none() {
+            return Ok(if left.root.is_some() { left.clone() } else { right.clone() });
+        }
+
+        let left_root = left.root.as_ref().expect("Left plan root should exist");
+        let right_root = right.root.as_ref().expect("Right plan root should exist");
+
+        let cross_join_node = CrossJoinNode::new(left_root.clone(), right_root.clone())
+            .map_err(|e| crate::query::planner::planner::PlannerError::PlanGenerationFailed(format!("Failed to create cross join node: {}", e)))?;
+
+        let cross_join_enum = super::plan_node_enum::PlanNodeEnum::CrossJoin(cross_join_node);
+
+        Ok(SubPlan::new(
+            Some(cross_join_enum.clone()),
+            Some(cross_join_enum),
+        ))
     }
 }
 

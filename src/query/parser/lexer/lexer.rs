@@ -113,7 +113,13 @@ impl Lexer {
     }
 
     fn read_string(&mut self) -> String {
-        let quote = self.ch.unwrap();
+        let quote = match self.ch {
+            Some(quote_char) => quote_char,
+            None => {
+                // 如果没有字符可读取，抛出错误或返回空字符串
+                panic!("Unexpected end of input while reading string literal");
+            }
+        };
         self.read_char(); // Skip opening quote
         let mut result = String::new();
         let start_line = self.line;
