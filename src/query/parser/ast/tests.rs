@@ -454,3 +454,126 @@ mod utils_tests {
         assert_eq!(simplified, x);
     }
 }
+
+#[cfg(test)]
+mod error_tests {
+    use super::*;
+    use crate::query::parser::{ParseError, ParseErrors};
+    use crate::query::parser::core::ParseErrorKind;
+
+    #[test]
+    fn test_parse_error_kind() {
+        assert_eq!(ParseErrorKind::SyntaxError, ParseErrorKind::SyntaxError);
+        assert_eq!(ParseErrorKind::UnexpectedToken, ParseErrorKind::UnexpectedToken);
+        assert_ne!(ParseErrorKind::SyntaxError, ParseErrorKind::UnexpectedToken);
+    }
+
+    #[test]
+    fn test_parse_error_new() {
+        let error = ParseError::new(
+            ParseErrorKind::UnexpectedToken,
+            "Unexpected token".to_string(),
+            10,
+            5,
+        );
+
+        assert_eq!(error.kind, ParseErrorKind::UnexpectedToken);
+        assert_eq!(error.message, "Unexpected token");
+        assert_eq!(error.line, 10);
+        assert_eq!(error.column, 5);
+        assert!(error.offset.is_none());
+        assert!(error.expected_tokens.is_empty());
+    }
+
+    #[test]
+    fn test_parse_error_with_context() {
+        let error = ParseError::new(
+            ParseErrorKind::SyntaxError,
+            "Invalid expression".to_string(),
+            5,
+            10,
+        )
+        .with_context("In CREATE statement")
+        .with_offset(100)
+        .with_expected_tokens(vec!["CREATE".to_string(), "MATCH".to_string()]);
+
+        assert_eq!(error.context, Some("In CREATE statement".to_string()));
+        assert_eq!(error.offset, Some(100));
+        assert_eq!(error.expected_tokens.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_error_unexpected_token() {
+        let error = ParseError::unexpected_token("IDENTIFIER", 1, 1);
+
+        assert_eq!(error.kind, ParseErrorKind::UnexpectedToken);
+        assert!(error.message.contains("Unexpected token"));
+        assert!(error.message.contains("IDENTIFIER"));
+    }
+
+    #[test]
+    fn test_parse_error_unterminated_string() {
+        let error = ParseError::unterminated_string(5, 10);
+
+        assert_eq!(error.kind, ParseErrorKind::UnterminatedString);
+        assert!(error.message.contains("Unterminated string"));
+    }
+
+    #[test]
+    fn test_parse_error_unterminated_comment() {
+        let error = ParseError::unterminated_comment(5, 10);
+
+        assert_eq!(error.kind, ParseErrorKind::UnterminatedComment);
+        assert!(error.message.contains("Unterminated multi-line comment"));
+    }
+
+    #[test]
+    fn test_parse_error_display() {
+        let error = ParseError::new(
+            ParseErrorKind::UnexpectedToken,
+            "Expected ')'".to_string(),
+            10,
+            5,
+        )
+        .with_unexpected_token("}'")
+        .with_expected_tokens(vec![")".to_string(), "]".to_string()]);
+
+        let display = format!("{}", error);
+        assert!(display.contains("line 10, column 5"));
+        assert!(display.contains("Expected ')'"));
+        assert!(display.contains("Unexpected token: }'"));
+        assert!(display.contains("Expected one of: ), ]"));
+    }
+
+    #[test]
+    fn test_parse_errors_collection() {
+        let mut errors = ParseErrors::new();
+        assert!(errors.is_empty());
+        assert_eq!(errors.len(), 0);
+
+        errors.add(ParseError::new(
+            ParseErrorKind::SyntaxError,
+            "Error 1".to_string(),
+            1,
+            1,
+        ));
+        errors.add(ParseError::new(
+            ParseErrorKind::UnexpectedToken,
+            "Error 2".to_string(),
+            2,
+            2,
+        ));
+
+        assert!(!errors.is_empty());
+        assert_eq!(errors.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_error_from_string() {
+        let error: ParseError = "Simple error message".to_string().into();
+        assert_eq!(error.kind, ParseErrorKind::SyntaxError);
+        assert_eq!(error.message, "Simple error message");
+        assert_eq!(error.line, 0);
+        assert_eq!(error.column, 0);
+    }
+}

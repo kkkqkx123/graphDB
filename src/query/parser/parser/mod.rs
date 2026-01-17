@@ -9,6 +9,7 @@ mod main_parser;
 
 use crate::query::parser::lexer::Lexer;
 use crate::query::parser::Token;
+use crate::query::parser::core::error::ParseErrorKind;
 
 /// 解析器
 pub struct Parser {
@@ -47,6 +48,7 @@ impl Parser {
         if self.recursion_depth > self.max_recursion_depth {
             let pos = self.lexer.current_position();
             Err(crate::query::parser::core::error::ParseError::new(
+                ParseErrorKind::SyntaxError,
                 "Recursion limit exceeded".to_string(),
                 pos.line,
                 pos.column,

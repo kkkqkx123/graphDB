@@ -83,9 +83,28 @@ impl Lexer {
 
     fn read_number(&mut self) -> String {
         let start_position = self.position;
+        let mut has_decimal = false;
+        let mut has_exponent = false;
+
         while let Some(ch) = self.ch {
             if ch.is_ascii_digit() {
                 self.read_char();
+            } else if ch == '.' && !has_decimal && !has_exponent {
+                if self
+                    .peek_char()
+                    .map_or(false, |c| c.is_ascii_digit())
+                {
+                    has_decimal = true;
+                    self.read_char();
+                } else {
+                    break;
+                }
+            } else if (ch == 'e' || ch == 'E') && !has_exponent {
+                has_exponent = true;
+                self.read_char();
+                if self.ch == Some('+') || self.ch == Some('-') {
+                    self.read_char();
+                }
             } else {
                 break;
             }
@@ -94,19 +113,203 @@ impl Lexer {
     }
 
     fn read_string(&mut self) -> String {
+        let quote = self.ch.unwrap();
         self.read_char(); // Skip opening quote
-        let start_position = self.position;
+        let mut result = String::new();
+        let start_line = self.line;
+        let start_column = self.column;
 
         while let Some(ch) = self.ch {
-            if ch == '"' || ch == '\'' {
+            if ch == '\\' {
+                // 转义序列处理
+                self.read_char(); // Skip backslash
+                match self.ch {
+                    Some('n') => result.push('\n'),
+                    Some('t') => result.push('\t'),
+                    Some('r') => result.push('\r'),
+                    Some('\\') => result.push('\\'),
+                    Some('"') => result.push('"'),
+                    Some('\'') => result.push('\''),
+                    Some('0') => result.push('\0'),
+                    Some('\n') => {
+                        // 行继续符，忽略换行符及其前导空白
+                        self.read_char();
+                        while let Some(c) = self.ch {
+                            if c == ' ' || c == '\t' {
+                                self.read_char();
+                            } else {
+                                break;
+                            }
+                        }
+                        continue;
+                    }
+                    Some('u') => {
+                        // Unicode 转义 \uXXXX
+                        self.read_char();
+                        let mut unicode_seq = String::new();
+                        for _ in 0..4 {
+                            if let Some(c) = self.ch {
+                                if c.is_ascii_hexdigit() {
+                                    unicode_seq.push(c);
+                                    self.read_char();
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                        if !unicode_seq.is_empty() {
+                            if let Ok(code_point) = u32::from_str_radix(&unicode_seq, 16) {
+                                if let Some(ch) = char::from_u32(code_point) {
+                                    result.push(ch);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                    Some('x') => {
+                        // 十六进制转义 \xHH
+                        self.read_char();
+                        let mut hex_seq = String::new();
+                        for _ in 0..2 {
+                            if let Some(c) = self.ch {
+                                if c.is_ascii_hexdigit() {
+                                    hex_seq.push(c);
+                                    self.read_char();
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                        if !hex_seq.is_empty() {
+                            if let Ok(byte) = u8::from_str_radix(&hex_seq, 16) {
+                                result.push(byte as char);
+                            }
+                        }
+                        continue;
+                    }
+                    _ => {
+                        // 未知转义序列，保留反杠和字符
+                        result.push('\\');
+                        if let Some(c) = self.ch {
+                            result.push(c);
+                        }
+                    }
+                }
+                self.read_char();
+            } else if ch == quote {
+                // 结束引号
+                self.read_char();
+                return result;
+            } else if ch == '\n' {
+                // 未闭合的字符串，遇到换行
+                panic!("Unterminated string literal at line {}", start_line);
+            } else {
+                result.push(ch);
+                self.read_char();
+            }
+        }
+
+        // 未闭合的字符串
+        panic!("Unterminated string literal at line {}", start_line);
+    }
+
+    fn peek_next_word(&self) -> String {
+        let mut temp_lexer = self.clone();
+        temp_lexer.skip_whitespace();
+        temp_lexer.read_identifier()
+    }
+
+    fn skip_next_word(&mut self) {
+        self.skip_whitespace();
+        while let Some(ch) = self.ch {
+            if ch.is_whitespace() {
                 break;
             }
             self.read_char();
         }
+    }
 
-        let result: String = self.input[start_position..self.position].iter().collect();
-        self.read_char(); // Skip closing quote
-        result
+    pub fn skip_comment(&mut self) {
+        if self.ch == Some('/') {
+            match self.peek_char() {
+                Some('/') => {
+                    self.read_char(); // Skip first /
+                    self.read_char(); // Skip second /
+                    while let Some(ch) = self.ch {
+                        if ch == '\n' {
+                            break;
+                        }
+                        self.read_char();
+                    }
+                }
+                Some('*') => {
+                    self.read_char(); // Skip first /
+                    self.read_char(); // Skip *
+                    loop {
+                        match self.ch {
+                            Some('*') => {
+                                if self.peek_char() == Some('/') {
+                                    self.read_char(); // Skip *
+                                    self.read_char(); // Skip /
+                                    break;
+                                } else {
+                                    self.read_char();
+                                }
+                            }
+                            Some('\n') => {
+                                self.read_char();
+                            }
+                            Some(_) => {
+                                self.read_char();
+                            }
+                            None => {
+                                panic!("Unterminated multi-line comment");
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        } else if self.ch == Some('-') {
+            if self.peek_char() == Some('-') {
+                self.read_char(); // Skip first -
+                self.read_char(); // Skip second -
+                while let Some(ch) = self.ch {
+                    if ch == '\n' {
+                        break;
+                    }
+                    self.read_char();
+                }
+            }
+        }
+    }
+
+    fn read_raw_string(&mut self) -> String {
+        self.read_char(); // Skip opening quote
+        self.read_char(); // Skip second quote
+        self.read_char(); // Skip third quote
+        let start_position = self.position;
+
+        while let Some(ch) = self.ch {
+            if ch == '"' {
+                if self.peek_char() == Some('"')
+                    && self.input[self.read_position + 1..]
+                        .first()
+                        .map_or(false, |c| *c == '"')
+                {
+                    // End of raw string
+                    self.read_char();
+                    self.read_char();
+                    self.read_char();
+                    return self.input[start_position..self.position - 3]
+                        .iter()
+                        .collect();
+                }
+            }
+            self.read_char();
+        }
+
+        panic!("Unterminated raw string literal");
     }
 
     fn lookup_keyword(&self, identifier: &str) -> TokenKind {
@@ -299,6 +502,26 @@ impl Lexer {
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
+        // Skip comments
+        while self.ch == Some('/') || self.ch == Some('-') {
+            if self.ch == Some('/') {
+                match self.peek_char() {
+                    Some('/') | Some('*') => {
+                        self.skip_comment();
+                        self.skip_whitespace();
+                    }
+                    _ => break,
+                }
+            } else if self.ch == Some('-') {
+                if self.peek_char() == Some('-') {
+                    self.skip_comment();
+                    self.skip_whitespace();
+                } else {
+                    break;
+                }
+            }
+        }
+
         let token = match self.ch {
             Some('=') => {
                 if self.peek_char() == Some('=') {
@@ -428,14 +651,11 @@ impl Lexer {
             }
             Some(ch) if ch.is_ascii_digit() => {
                 let literal = self.read_number();
-                if self.ch == Some('.') && self.peek_char().map_or(false, |c| c.is_ascii_digit()) {
-                    // This is a float
-                    self.read_char(); // Skip the '.'
-                    let float_literal = format!("{}.{}", literal, self.read_number());
-                    let float_val: f64 = float_literal.parse().unwrap_or(0.0);
+                if literal.contains('.') || literal.contains('e') || literal.contains('E') {
+                    let float_val: f64 = literal.parse().unwrap_or(0.0);
                     Token::new(
                         TokenKind::FloatLiteral(float_val),
-                        float_literal,
+                        literal,
                         self.line,
                         self.column,
                     )
@@ -572,55 +792,17 @@ impl Lexer {
         }
         token
     }
-    // Helper methods for multi-word token detection
-    fn peek_next_word(&self) -> String {
-        // Create a temporary lexer to peek ahead
-        let mut temp_lexer = Lexer::new(&self.get_remaining_input());
-        // Skip the current token by reading and discarding it
-        temp_lexer.next_token();
-        // Get the next token and return its lexeme if it's an identifier
-        let next_token = temp_lexer.next_token();
-        match next_token.kind {
-            TokenKind::Identifier(s) => s,
-            _ => next_token.lexeme,
-        }
-    }
 
     fn peek_word_after_next(&self) -> String {
-        // Create a temporary lexer to peek ahead
-        let mut temp_lexer = Lexer::new(&self.get_remaining_input());
-        // Skip the current and next token
+        let mut temp_lexer = self.clone();
+        temp_lexer.skip_whitespace();
         temp_lexer.next_token();
         temp_lexer.next_token();
-        // Get the token after that and return its lexeme if it's an identifier
         let next_token = temp_lexer.next_token();
         match next_token.kind {
             TokenKind::Identifier(s) => s,
             _ => next_token.lexeme,
         }
-    }
-
-    fn skip_next_word(&mut self) {
-        // Skip whitespace
-        self.skip_whitespace();
-        // Read an identifier or keyword
-        if let Some(ch) = self.ch {
-            if ch.is_alphabetic() || ch == '_' {
-                // Skip the identifier
-                while let Some(inner_ch) = self.ch {
-                    if inner_ch.is_alphanumeric() || inner_ch == '_' {
-                        self.read_char();
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    fn get_remaining_input(&self) -> String {
-        // Get the remaining input from current position
-        self.input[self.position..].iter().collect()
     }
 
     fn is_multitoken_keyword(&self, token: &Token) -> bool {
@@ -846,5 +1028,82 @@ mod tests {
         assert_token(&lexer.current_token, TokenKind::Identifier("x".to_string()), "x");
         lexer.advance();
         assert_token(&lexer.current_token, TokenKind::RParen, ")");
+    }
+
+    #[test]
+    fn test_string_escape_sequences() {
+        let input = r#""hello\nworld\t!""#;
+        let mut lexer = Lexer::new(input);
+        let token = lexer.current_token.clone();
+        match token.kind {
+            TokenKind::StringLiteral(content) => {
+                assert!(content.contains('\n'), "Should contain newline escape");
+                assert!(content.contains('\t'), "Should contain tab escape");
+            }
+            _ => panic!("Expected StringLiteral, got {:?}", token.kind),
+        }
+    }
+
+    #[test]
+    fn test_string_unicode_escape() {
+        let input = r#""\u0041""#;
+        let mut lexer = Lexer::new(input);
+        let token = lexer.current_token.clone();
+        match token.kind {
+            TokenKind::StringLiteral(content) => {
+                assert_eq!(content, "A", "Unicode escape \\u0041 should produce 'A'");
+            }
+            _ => panic!("Expected StringLiteral, got {:?}", token.kind),
+        }
+    }
+
+    #[test]
+    fn test_single_line_comment() {
+        let input = "CREATE -- this is a comment\nMATCH";
+        let mut lexer = Lexer::new(input);
+        assert_token(&lexer.current_token, TokenKind::Create, "CREATE");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::Match, "MATCH");
+    }
+
+    #[test]
+    fn test_multi_line_comment() {
+        let input = "CREATE /* multi line\ncomment */ MATCH";
+        let mut lexer = Lexer::new(input);
+        assert_token(&lexer.current_token, TokenKind::Create, "CREATE");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::Match, "MATCH");
+    }
+
+    #[test]
+    fn test_scientific_notation() {
+        let input = "1.5e10 2.5E-3 1e+5";
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.current_token.kind, TokenKind::FloatLiteral(1.5e10));
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::FloatLiteral(2.5e-3));
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, TokenKind::FloatLiteral(1e5));
+    }
+
+    #[test]
+    fn test_comment_in_query() {
+        let input = r#"
+            CREATE (n:Person {name: "John"})
+            -- Add comment here
+            /* Another comment */
+            RETURN n.name
+        "#;
+        let mut lexer = Lexer::new(input);
+        assert_token(&lexer.current_token, TokenKind::Create, "CREATE");
+        lexer.advance();
+        assert_token(&lexer.current_token, TokenKind::LParen, "(");
+        lexer.advance();
+        assert_token(
+            &lexer.current_token,
+            TokenKind::Identifier("n".to_string()),
+            "n",
+        );
     }
 }

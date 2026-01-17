@@ -5,6 +5,7 @@
 use crate::core::Value;
 use crate::query::parser::ast::expr::*;
 use crate::query::parser::ast::types::*;
+use crate::query::parser::core::error::ParseErrorKind;
 use crate::query::parser::lexer::TokenKind as LexerToken;
 
 impl super::Parser {
@@ -215,6 +216,7 @@ impl super::Parser {
             _ => {
                 let span = self.parser_current_span();
                 Err(ParseError::new(
+                    ParseErrorKind::UnexpectedToken,
                     format!("Unexpected token: {:?}", token.kind),
                     span.start.line,
                     span.start.column,
@@ -358,6 +360,7 @@ impl super::Parser {
         } else {
             let span = self.parser_current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected integer, found {:?}", self.current_token.kind),
                 span.start.line,
                 span.start.column,
@@ -374,6 +377,7 @@ impl super::Parser {
         } else {
             let span = self.parser_current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected float, found {:?}", self.current_token.kind),
                 span.start.line,
                 span.start.column,
@@ -390,6 +394,7 @@ impl super::Parser {
         } else {
             let span = self.parser_current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected string, found {:?}", self.current_token.kind),
                 span.start.line,
                 span.start.column,
@@ -406,6 +411,7 @@ impl super::Parser {
         } else {
             let span = self.parser_current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected boolean, found {:?}", self.current_token.kind),
                 span.start.line,
                 span.start.column,

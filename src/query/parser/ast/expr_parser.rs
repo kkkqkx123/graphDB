@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::core::Value;
+use crate::query::parser::core::error::ParseErrorKind;
 use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
 
 /// 表达式解析器
@@ -341,6 +342,7 @@ impl ExprParser {
         } else {
             let span = self.current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected identifier, found {:?}", token.kind),
                 span.start.line,
                 span.start.column,
@@ -356,6 +358,7 @@ impl ExprParser {
             text.parse().map_err(|_| {
                 let span = self.current_span();
                 ParseError::new(
+                    ParseErrorKind::InvalidNumber,
                     format!("Invalid integer: {}", text),
                     span.start.line,
                     span.start.column,
@@ -364,6 +367,7 @@ impl ExprParser {
         } else {
             let span = self.current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected integer, found {:?}", token.kind),
                 span.start.line,
                 span.start.column,
@@ -379,6 +383,7 @@ impl ExprParser {
             text.parse().map_err(|_| {
                 let span = self.current_span();
                 ParseError::new(
+                    ParseErrorKind::InvalidNumber,
                     format!("Invalid float: {}", text),
                     span.start.line,
                     span.start.column,
@@ -387,6 +392,7 @@ impl ExprParser {
         } else {
             let span = self.current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected float, found {:?}", token.kind),
                 span.start.line,
                 span.start.column,
@@ -409,6 +415,7 @@ impl ExprParser {
             _ => {
                 let span = self.current_span();
                 Err(ParseError::new(
+                    ParseErrorKind::UnexpectedToken,
                     format!("Expected string, found {:?}", token.kind),
                     span.start.line,
                     span.start.column,
@@ -425,6 +432,7 @@ impl ExprParser {
             text.parse().map_err(|_| {
                 let span = self.current_span();
                 ParseError::new(
+                    ParseErrorKind::InvalidNumber,
                     format!("Invalid boolean: {}", text),
                     span.start.line,
                     span.start.column,
@@ -433,6 +441,7 @@ impl ExprParser {
         } else {
             let span = self.current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected boolean, found {:?}", token.kind),
                 span.start.line,
                 span.start.column,
@@ -495,7 +504,7 @@ impl ExprParser {
 
     fn parse_error(&self, message: String) -> ParseError {
         let (line, column) = self.current_position();
-        ParseError::new(message, line, column)
+        ParseError::new(ParseErrorKind::SyntaxError, message, line, column)
     }
 }
 

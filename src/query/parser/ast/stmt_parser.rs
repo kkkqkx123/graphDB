@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::core::Value;
+use crate::query::parser::core::error::ParseErrorKind;
 use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
 
 /// 语句解析器
@@ -285,6 +286,7 @@ impl StmtParser {
         } else {
             let span = self.current_span();
             return Err(ParseError::new(
+                ParseErrorKind::SyntaxError,
                 "Expected SHOW target".to_string(),
                 span.start.line,
                 span.start.column,
@@ -327,6 +329,7 @@ impl StmtParser {
         } else {
             let span = self.current_span();
             return Err(ParseError::new(
+                ParseErrorKind::SyntaxError,
                 "Expected LOOKUP target".to_string(),
                 span.start.line,
                 span.start.column,
@@ -912,6 +915,7 @@ impl StmtParser {
         } else {
             let span = self.current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected {:?}, found {:?}", expected, token.kind),
                 span.start.line,
                 span.start.column,
@@ -928,6 +932,7 @@ impl StmtParser {
         } else {
             let span = self.current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected identifier, found {:?}", token.kind),
                 span.start.line,
                 span.start.column,
@@ -943,6 +948,7 @@ impl StmtParser {
         } else {
             let span = self.current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected integer, found {:?}", token.kind),
                 span.start.line,
                 span.start.column,
@@ -983,6 +989,7 @@ impl StmtParser {
             _ => {
                 let span = self.current_span();
                 return Err(ParseError::new(
+                    ParseErrorKind::UnexpectedToken,
                     format!("Expected data type, found {:?}", token.kind),
                     span.start.line,
                     span.start.column,

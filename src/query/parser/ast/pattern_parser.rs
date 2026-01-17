@@ -1,6 +1,7 @@
 //! 模式解析器 (v2)
 
 use super::*;
+use crate::query::parser::core::error::ParseErrorKind;
 use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
 
 /// 模式解析器
@@ -410,6 +411,6 @@ impl PatternParser {
 
     fn parse_error(&self, message: String) -> ParseError {
         let (line, column) = self.current_position();
-        ParseError::new(message, line, column)
+        ParseError::new(ParseErrorKind::SyntaxError, message, line, column)
     }
 }

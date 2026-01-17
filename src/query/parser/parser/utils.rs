@@ -7,6 +7,7 @@ use crate::query::parser::ast::stmt::{
     OrderByClause, OrderByItem, PropertyDef, ReturnClause, ReturnItem, YieldClause, YieldItem,
 };
 use crate::query::parser::ast::types::{DataType, OrderDirection, ParseError};
+use crate::query::parser::core::error::ParseErrorKind;
 use crate::query::parser::lexer::TokenKind as LexerToken;
 use crate::query::parser::{Token, TokenKind};
 
@@ -34,6 +35,7 @@ impl super::Parser {
         } else {
             let span = self.parser_current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!(
                     "Expected {:?}, found {:?}",
                     expected, self.current_token.kind
@@ -56,6 +58,7 @@ impl super::Parser {
         } else {
             let span = self.parser_current_span();
             Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected identifier, found {:?}", self.current_token.kind),
                 span.start.line,
                 span.start.column,
@@ -93,6 +96,7 @@ impl super::Parser {
                 Ok(id)
             }
             _ => Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
                 format!("Expected identifier, found {:?}", self.current_token.kind),
                 self.current_token.line,
                 self.current_token.column,
